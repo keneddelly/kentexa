@@ -1,0 +1,161 @@
+import {
+  Controller, Get, Post, Patch, Delete,
+  Param, Body, Query, UseGuards, Request,
+  ParseIntPipe,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/auth.guard';
+import { BusinessCustomerService } from './business-customer.service';
+import { ConversationService }     from './conversation.service';
+
+/**
+ * BusinessController — Seller Business Platform API
+ *
+ * /business/customers/*     → CRM
+ * /business/inbox/*         → Conversations
+ */
+@Controller('business')
+@UseGuards(JwtAuthGuard)
+export class BusinessController {
+  constructor(
+    private customerService: BusinessCustomerService,
+    private conversationService: ConversationService,
+  ) {}
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CUSTOMERS (CRM)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  @Get('customers')
+  getCustomers(
+    @Request() req,
+    @Query('search')  search?:  string,
+    @Query('segment') segment?: string,
+    @Query('page')    page?:    string,
+    @Query('limit')   limit?:   string,
+  ) {
+    return this.customerService.getMyCustomers(req.user.id, {
+      search, segment,
+      page:  page  ? Number(page)  : 1,
+      limit: limit ? Number(limit) : 20,
+    });
+  }
+
+  @Get('customers/stats')
+  getCustomerStats(@Request() req) {
+    return this.customerService.getDashboardStats(req.user.id);
+  }
+
+  @Get('customers/:id')
+  getCustomer(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.customerService.getCustomerDetail(req.user.id, id);
+  }
+
+  @Post('customers/migrate')
+  migrateExistingOrders(@Request() req) {
+    return this.customerService.migrateFromExistingOrders(req.user.id);
+  }
+
+  @Post('customers')
+  addCustomer(
+    @Request() req,
+    @Body() dto: {
+      name:     string;
+      phone?:   string;
+      email?:   string;
+      address?: string;
+      district?: string;
+      region?:   string;
+      tags?:     string[];
+      notes?:    string;
+    },
+  ) {
+    return this.customerService.addCustomer(req.user.id, dto);
+  }
+
+  @Patch('customers/:id')
+  updateCustomer(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: any,
+  ) {
+    return this.customerService.updateCustomer(req.user.id, id, dto);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INBOX (Conversations)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  @Get('inbox')
+  getInbox(
+    @Request() req,
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page')   page?:   string,
+  ) {
+    return this.conversationService.getSellerInbox(req.user.id, {
+      status, search,
+      page: page ? Number(page) : 1,
+    });
+  }
+
+  @Post('inbox/start')
+  startConversation(
+    @Request() req,
+    @Body() body: { customerId: number },
+  ) {
+    return this.conversationService.getOrCreateConversation(
+      req.user.id, body.customerId
+    );
+  }
+
+  @Get('inbox/:id/messages')
+  getMessages(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.conversationService.getMessages(req.user.id, id);
+  }
+
+  @Post('inbox/:id/messages')
+  sendMessage(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: {
+      content?:  string;
+      imageUrl?: string;
+      isNote?:   boolean;
+    },
+  ) {
+    return this.conversationService.sendMessage(req.user.id, id, dto, req.user);
+  }
+
+  @Post('inbox/:id/share-product')
+  shareProduct(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() product: { id: number; name: string; price: number; image?: string },
+  ) {
+    return this.conversationService.shareProduct(req.user.id, id, product, req.user);
+  }
+
+  @Patch('inbox/:id/status')
+  updateConversationStatus(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { status: string },
+  ) {
+    return this.conversationService.updateStatus(req.user.id, id, body.status);
+  }
+
+  @Patch('inbox/:id/assign')
+  assignConversation(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { assignedToId: number },
+  ) {
+    return this.conversationService.assignTo(req.user.id, id, body.assignedToId);
+  }
+}

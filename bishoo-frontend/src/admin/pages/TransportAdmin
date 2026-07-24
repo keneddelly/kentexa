@@ -1,0 +1,274 @@
+/**
+ * TransportAdmin.js — Admin verifies transport providers
+ * Place at: src/admin/pages/TransportAdmin.js
+ */
+import React, { useState, useEffect } from 'react';
+import Sidebar from '../components/Sidebar';
+import api    from '../../api/api';
+
+const STATUS = {
+  pending:   { bg: '#fef3c7', text: '#d97706', label: '⏳ Inasubiri' },
+  verified:  { bg: '#dcfce7', text: '#16a34a', label: '✅ Imehakikiwa' },
+  rejected:  { bg: '#fee2e2', text: '#dc2626', label: '❌ Imekataliwa' },
+  suspended: { bg: '#f1f5f9', text: '#64748b', label: '⛔ Imesimamishwa' },
+};
+
+const TYPE_ICON = { bus: '🚌', van: '🚐', courier: '📦', truck: '🚛', boda: '🏍️' };
+
+const TransportAdmin = ({ onNavigate, activePage }) => {
+  const [providers, setProviders] = useState([]);
+  const [selected,  setSelected]  = useState(null);
+  const [filter,    setFilter]    = useState('pending');
+  const [loading,   setLoading]   = useState(true);
+  const [saving,    setSaving]    = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [showReject,   setShowReject]   = useState(false);
+
+  const fetchProviders = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/transport/admin/providers?status=${filter}`);
+      setProviders(res.data || []);
+    } catch { setProviders([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchProviders(); setSelected(null); }, [filter]); // eslint-disable-line
+
+  const handleVerify = async (approve) => {
+    if (!selected) return;
+    if (!approve && !rejectReason.trim()) return alert('Andika sababu ya kukataa');
+    try {
+      setSaving(true);
+      await api.patch(`/transport/admin/providers/${selected.id}/verify`, {
+        approve, reason: approve ? null : rejectReason,
+      });
+      setSelected(null);
+      setShowReject(false);
+      setRejectReason('');
+      fetchProviders();
+    } catch (e) { alert('Imeshindwa: ' + (e.response?.data?.message || 'Jaribu tena')); }
+    finally { setSaving(false); }
+  };
+
+  const inp = { width: '100%', padding: '8px 12px', borderRadius: 8,
+    border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', outline: 'none' };
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
+      <Sidebar activePage={activePage} onNavigate={onNavigate} />
+      <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
+
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b' }}>
+              🚌 Wasafirishaji
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              Kagua na thibitisha ombi za wasafirishaji
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {Object.entries(STATUS).map(([k, s]) => (
+              <button key={k} onClick={() => setFilter(k)}
+                style={{ padding: '7px 14px', borderRadius: 8, border: 'none',
+                  cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                  backgroundColor: filter === k ? '#1d4ed8' : '#fff',
+                  color: filter === k ? '#fff' : '#64748b',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+
+          {/* List */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
+            ) : providers.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
+                borderRadius: 16 }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>🚌</div>
+                <div style={{ color: '#64748b' }}>Hakuna wasafirishaji wenye hali ya "{STATUS[filter]?.label}"</div>
+              </div>
+            ) : providers.map(p => {
+              const sc = STATUS[p.status] || STATUS.pending;
+              return (
+                <div key={p.id} onClick={() => setSelected(p)}
+                  style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
+                    marginBottom: 10, cursor: 'pointer',
+                    border: selected?.id === p.id ? '2px solid #1d4ed8' : '2px solid transparent',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between',
+                    alignItems: 'flex-start' }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <div style={{ fontSize: 32 }}>{TYPE_ICON[p.type] || '🚛'}</div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
+                          {p.name}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>
+                          {p.type?.toUpperCase()} · {p.contactPhone}
+                          {p.registrationNumber && ` · ${p.registrationNumber}`}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                          Alisajili: {new Date(p.createdAt).toLocaleDateString('sw-TZ')}
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px',
+                      borderRadius: 100, backgroundColor: sc.bg, color: sc.text }}>
+                      {sc.label}
+                    </span>
+                  </div>
+                  {p.description && (
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 8,
+                      backgroundColor: '#f8fafc', borderRadius: 8, padding: '6px 10px' }}>
+                      "{p.description}"
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Detail panel */}
+          {selected && (
+            <div style={{ width: 360, flexShrink: 0, backgroundColor: '#fff',
+              borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+              overflow: 'hidden' }}>
+
+              {/* Header */}
+              <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
+                padding: '16px 20px', color: '#fff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 24 }}>{TYPE_ICON[selected.type] || '🚛'}</div>
+                  <button onClick={() => setSelected(null)}
+                    style={{ background: 'rgba(255,255,255,0.2)', border: 'none',
+                      color: '#fff', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
+                    ✕
+                  </button>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 900, marginTop: 8 }}>{selected.name}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
+                  {selected.type?.toUpperCase()}
+                </div>
+              </div>
+
+              <div style={{ padding: 20 }}>
+                {/* Details */}
+                <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14 }}>
+                  {[
+                    ['Simu',          selected.contactPhone],
+                    ['WhatsApp',      selected.whatsappPhone || '—'],
+                    ['Barua Pepe',    selected.contactEmail  || '—'],
+                    ['Usajili',       selected.registrationNumber || '—'],
+                    ['Uwezo wa Mzigo', `${selected.defaultParcelCapacity || 0} vifurushi · ${selected.defaultMaxWeightKg || 0}kg`],
+                    ['Mtumiaji',      selected.user?.name || selected.user?.phone || '—'],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between',
+                      padding: '6px 0', borderBottom: '1px solid #f1f5f9', fontSize: 12 }}>
+                      <span style={{ color: '#64748b' }}>{k}</span>
+                      <span style={{ fontWeight: 700, color: '#1e293b', textAlign: 'right',
+                        maxWidth: '60%', wordBreak: 'break-word' }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Description */}
+                {selected.description && (
+                  <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 12,
+                    marginBottom: 14, fontSize: 12, color: '#1e293b', lineHeight: 1.5 }}>
+                    <div style={{ fontWeight: 700, marginBottom: 4 }}>📝 Maelezo:</div>
+                    {selected.description}
+                  </div>
+                )}
+
+                {/* License document */}
+                {selected.licenseUrl && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
+                      📄 Hati ya Leseni
+                    </div>
+                    <a href={selected.licenseUrl} target="_blank" rel="noreferrer">
+                      <img src={selected.licenseUrl} alt="License"
+                        style={{ width: '100%', borderRadius: 10, border: '1px solid #e2e8f0' }} />
+                    </a>
+                  </div>
+                )}
+
+                {/* Reject reason if rejected */}
+                {selected.rejectionReason && (
+                  <div style={{ backgroundColor: '#fee2e2', borderRadius: 10, padding: 12,
+                    marginBottom: 14, fontSize: 12, color: '#dc2626' }}>
+                    <div style={{ fontWeight: 700 }}>Sababu ya Kukataa:</div>
+                    <div>{selected.rejectionReason}</div>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                {selected.status === 'pending' && (
+                  <>
+                    {!showReject ? (
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button onClick={() => handleVerify(true)} disabled={saving}
+                          style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff',
+                            border: 'none', borderRadius: 10, padding: '12px 0',
+                            cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
+                          {saving ? '⏳...' : '✅ Thibitisha'}
+                        </button>
+                        <button onClick={() => setShowReject(true)}
+                          style={{ flex: 1, backgroundColor: '#fee2e2', color: '#dc2626',
+                            border: 'none', borderRadius: 10, padding: '12px 0',
+                            cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+                          ❌ Kataa
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <textarea rows={3} value={rejectReason}
+                          onChange={e => setRejectReason(e.target.value)}
+                          placeholder="Sababu ya kukataa (itumwa kwa msafirishaji)..."
+                          style={{ ...inp, resize: 'none', marginBottom: 10 }} />
+                        <div style={{ display: 'flex', gap: 10 }}>
+                          <button onClick={() => handleVerify(false)} disabled={saving}
+                            style={{ flex: 1, backgroundColor: '#dc2626', color: '#fff',
+                              border: 'none', borderRadius: 10, padding: '12px 0',
+                              cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                            {saving ? '⏳...' : '❌ Thibitisha Kukataa'}
+                          </button>
+                          <button onClick={() => setShowReject(false)}
+                            style={{ backgroundColor: '#f1f5f9', color: '#64748b',
+                              border: 'none', borderRadius: 10, padding: '12px 16px',
+                              cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                            Rudi
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {selected.status === 'verified' && (
+                  <button onClick={() => handleVerify(false)} disabled={saving}
+                    style={{ width: '100%', backgroundColor: '#fee2e2', color: '#dc2626',
+                      border: 'none', borderRadius: 10, padding: '12px 0',
+                      cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+                    ⛔ Simamisha Akaunti
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TransportAdmin;

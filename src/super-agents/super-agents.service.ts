@@ -1,0 +1,1691 @@
+import {
+  Injectable, NotFoundException, BadRequestException, ForbiddenException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource, Not, IsNull } from 'typeorm';
+import { SuperAgent, SuperAgentStatus, CITY_CODES, TANZANIA_CITIES } from './entities/super-agent.entity';
+import { IntercityRoute } from './entities/intercity-route.entity';
+import { TANZANIA_ROUTE_SEEDS } from '../database/seed-routes';
+import { Parcel, ParcelStatus, ParcelTracking } from './entities/parcel.entity';
+import { ShippingRate } from './entities/shipping-rate.entity';
+import { BulkShipment, BulkShipmentStatus } from './entities/bulk-shipment.entity';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Agent } from '../agents/entities/agent.entity';
+import { AgentTransaction, AgentTransactionStatus } from '../agents/entities/agent-transaction.entity';
+import { Order, OrderSource, OrderStatus } from '../orders/entities/order.entity';
+import { BatchParcel } from '../daily-batches/entities/batch-parcel.entity';
+import { SmsService } from '../sms/sms.service';
+import { BusinessCustomerService } from '../business/business-customer.service';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
+
+@Injectable()
+export class SuperAgentsService {
+  constructor(
+    @InjectRepository(SuperAgent)   private superAgentRepo: Repository<SuperAgent>,
+    @InjectRepository(Parcel)       private parcelRepo: Repository<Parcel>,
+    @InjectRepository(ParcelTracking) private trackingRepo: Repository<ParcelTracking>,
+    @InjectRepository(ShippingRate) private rateRepo: Repository<ShippingRate>,
+    @InjectRepository(BulkShipment)    private bulkRepo: Repository<BulkShipment>,
+    @InjectRepository(IntercityRoute)  private routeRepo: Repository<IntercityRoute>,
+    @InjectRepository(Order)        private orderRepo: Repository<Order>,
+    @InjectRepository(Agent)            private agentRepo: Repository<Agent>,
+    @InjectRepository(AgentTransaction) private agentTransactionRepo: Repository<AgentTransaction>,
+    @InjectRepository(BatchParcel)        private batchParcelRepo: Repository<BatchParcel>,
+    private smsService: SmsService,
+    private dataSource: DataSource,
+    private businessCustomerService: BusinessCustomerService,
+    private inAppNotif: InAppNotificationService,
+  ) {}
+
+  // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
+  // ── Generate agent code SA-DAR-001 ────────────────────────────────────────
+  // ── Generate bulk shipment code ───────────────────────────────────────────
+  private generateBulkCode(originCity: string, destinationCity: string): string {
+    const originCode = CITY_CODES[originCity]      || originCity.substring(0, 3).toUpperCase();
+    const destCode   = CITY_CODES[destinationCity] || destinationCity.substring(0, 3).toUpperCase();
+    const date       = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const rand       = Math.random().toString(36).substring(2, 5).toUpperCase();
+    return `BULK-${originCode}-${destCode}-${date}-${rand}`;
+  }
+
+  // ── Add tracking event ────────────────────────────────────────────────────
+  private async addTrackingEvent(
+    parcel: Parcel,
+    status: ParcelStatus,
+    city: string,
+    note: string,
+    updatedBy: string,
+    handlerInfo?: { phone?: string; location?: string; type?: 'super_agent' | 'local_agent' | 'system'; },
+  ) {
+    await this.trackingRepo.save(
+      this.trackingRepo.create({
+        parcel,
+        status,
+        city,
+        note,
+        updatedBy,
+        handlerPhone:    handlerInfo?.phone    || null,
+        handlerLocation: handlerInfo?.location || null,
+        handlerType:     handlerInfo?.type     || 'system',
+      } as any),
+    ).catch(e => console.warn('Tracking event save failed:', e.message));
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SUPER AGENT REGISTRATION
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async apply(user: User, dto: {
+    businessName: string; city: string; address: string;
+    phone: string; governmentId: string; governmentIdImage?: string;
+  }) {
+    const existing = await this.superAgentRepo.findOne({ where: { user: { id: user.id } } });
+    if (existing) throw new BadRequestException('You already have a super agent application');
+    if (!TANZANIA_CITIES.includes(dto.city)) throw new BadRequestException(`Invalid city: ${dto.city}`);
+
+    const cityCode  = CITY_CODES[dto.city] || dto.city.substring(0, 3).toUpperCase();
+    const agentCode = `SA-${cityCode}-${Date.now().toString(36).toUpperCase().slice(-4)}`;
+
+    const agent = this.superAgentRepo.create({
+      user, agentCode, cityCode,
+      businessName:      dto.businessName,
+      city:              dto.city,
+      address:           dto.address,
+      phone:             dto.phone,
+      governmentId:      dto.governmentId,
+      governmentIdImage: dto.governmentIdImage || null,
+      status:            SuperAgentStatus.PENDING,
+      commissionRate:    10,
+      shippingRates:     {},
+    });
+
+    return this.superAgentRepo.save(agent);
+  }
+
+  async getMyProfile(user: User) {
+    const agent = await this.superAgentRepo.findOne({ where: { user: { id: user.id } } });
+    if (!agent) throw new NotFoundException('Super agent profile not found');
+    return agent;
+  }
+
+  // ── Public: hub info for CommerceProfile.js — never earnings/rates ───────
+  async findPublicByUserId(userId: number) {
+    const agent = await this.superAgentRepo.findOne({ where: { user: { id: userId } } });
+    if (!agent || agent.status !== SuperAgentStatus.ACTIVE) return null;
+    return {
+      businessName: agent.businessName,
+      city:         agent.city,
+      cityCode:     agent.cityCode,
+      agentCode:    agent.agentCode,
+      rating:       Number(agent.rating),
+      totalRatings: agent.totalRatings,
+      totalParcelsHandled:   agent.totalParcelsHandled,
+      totalParcelsDelivered: agent.totalParcelsDelivered,
+      coverageCitiesOrigin:      agent.coverageCitiesOrigin,
+      coverageCitiesDestination: agent.coverageCitiesDestination,
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SHIPPING RATES (set by super agent)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async setShippingRates(user: User, rates: { destinationCity: string; ratePerKg: number; minimumCharge: number; estimatedDays: number }[]) {
+    const agent = await this.getMyProfile(user);
+    if (agent.status !== SuperAgentStatus.ACTIVE) throw new ForbiddenException('Your account must be active to set rates');
+
+    for (const rate of rates) {
+      if (!TANZANIA_CITIES.includes(rate.destinationCity)) continue;
+      const existing = await this.rateRepo.findOne({
+        where: { superAgent: { id: agent.id }, originCity: agent.city, destinationCity: rate.destinationCity },
+      });
+      if (existing) {
+        existing.ratePerKg      = rate.ratePerKg;
+        existing.minimumCharge  = rate.minimumCharge;
+        existing.estimatedDays  = rate.estimatedDays;
+        await this.rateRepo.save(existing);
+      } else {
+        await this.rateRepo.save(this.rateRepo.create({
+          superAgent: agent, originCity: agent.city,
+          destinationCity: rate.destinationCity,
+          ratePerKg: rate.ratePerKg, minimumCharge: rate.minimumCharge,
+          estimatedDays: rate.estimatedDays,
+        }));
+      }
+    }
+    return { message: 'Shipping rates updated successfully' };
+  }
+
+  async getShippingRates(city: string) {
+    return this.rateRepo.find({
+      where: { originCity: city, isActive: true },
+      order: { destinationCity: 'ASC' },
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SHIPPING CALCULATOR
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── Estimate shipping fee at product-posting time ─────────────────────────
+  // Seller doesn't know the buyer's destination yet, so we return a
+  // min/avg/max range across all active routes from their origin city.
+  async estimateShippingFromOrigin(originCity: string, weightKg: number) {
+    const rates = await this.rateRepo.find({
+      where: { originCity, isActive: true },
+    });
+
+    if (!rates.length) {
+      return {
+        available: false,
+        message:   `No shipping rates configured yet for ${originCity}. Enter your shipping fee manually.`,
+      };
+    }
+
+    const costs = rates.map(rate => {
+      const calculated = weightKg * Number(rate.ratePerKg);
+      return Math.max(calculated, Number(rate.minimumCharge));
+    });
+
+    const min = Math.min(...costs);
+    const max = Math.max(...costs);
+    const avg = parseFloat((costs.reduce((s, c) => s + c, 0) / costs.length).toFixed(2));
+
+    return {
+      available:  true,
+      originCity,
+      weightKg,
+      routeCount: rates.length,
+      min:        Math.round(min),
+      max:        Math.round(max),
+      suggested:  Math.round(avg),
+    };
+  }
+
+  async calculateShipping(originCity: string, destinationCity: string, weightKg: number) {
+    const rate = await this.rateRepo.findOne({
+      where: { originCity, destinationCity, isActive: true },
+      relations: { superAgent: true },
+    });
+
+    if (!rate) {
+      return {
+        available: false,
+        message:   `No shipping rate available from ${originCity} to ${destinationCity}`,
+      };
+    }
+
+    const calculated = weightKg * Number(rate.ratePerKg);
+    const total      = Math.max(calculated, Number(rate.minimumCharge));
+
+    return {
+      available:      true,
+      originCity,
+      destinationCity,
+      weightKg,
+      ratePerKg:      Number(rate.ratePerKg),
+      minimumCharge:  Number(rate.minimumCharge),
+      shippingCost:   total,
+      estimatedDays:  rate.estimatedDays,
+      superAgentName: rate.superAgent?.businessName,
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PARCEL MANAGEMENT
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Seller creates parcel when handing over to super agent
+
+  // ── Create offline intercity order + parcel ──────────────────────────────
+  // For BiS/seller customers who paid outside KenteXa (M-Pesa direct)
+  // Creates a paid order + parcel + sends SMS tracking to customer
+  async createOfflineIntercityOrder(superAgentUser: User, dto: {
+    // Sender — walk-in at the counter (no KenteXa account needed)
+    senderName:      string;
+    senderPhone:     string;
+    // Recipient
+    recipientName:   string;
+    recipientPhone:  string;
+    destinationCity: string;
+    deliveryAddress: string;
+    // Parcel details
+    description:     string;   // what's inside — "nguo", "vifaa vya ujenzi" etc
+    weightKg?:       number;
+    parcelSize?:     string;   // small | medium | large
+    declaredValue?:  number;   // optional — for insurance
+    // Fee collected at counter
+    shippingFeeCollected: number;
+    paymentMethod?:  string;   // cash | mpesa | airtel
+    notes?:          string;
+  }) {
+    const superAgent = await this.superAgentRepo.findOne({
+      where: { user: { id: superAgentUser.id } },
+    });
+    if (!superAgent) throw new BadRequestException('Super Agent profile not found');
+
+    const originCity      = superAgent.city;
+    const destinationCity = dto.destinationCity;
+    const weightKg        = dto.weightKg || 0.5;
+
+    // 1. Create a minimal order record — for tracking purposes only
+    //    No seller, no product, no escrow. source = 'offline_intercity'
+    const order = this.orderRepo.create({
+      source:            'offline_intercity' as any,
+      manualBuyerName:   dto.recipientName,
+      manualBuyerPhone:  dto.recipientPhone,
+      manualProductName: dto.description,
+      deliveryAddress:   dto.deliveryAddress,
+      phone:             dto.recipientPhone,
+      quantity:          1,
+      totalAmount:       dto.shippingFeeCollected,
+      baseAmount:        dto.shippingFeeCollected,
+      sellerAmount:      0,   // no seller
+      platformFeeAmount: 0,   // KenteXa commission tracked separately on parcel
+      deliveryAmount:    0,
+      paymentStatus:     'paid' as any,
+      status:            'preparing' as any,
+      shippingMethod:    'agent',
+      seller:            null,
+      notes:             dto.notes || null,
+      createdByUserId:   superAgentUser.id,
+      shippingFeeCollected:          dto.shippingFeeCollected,
+      shippingFeeCollectedByAgentId: superAgent.id,
+      shippingFeeCollectedAt:        new Date(),
+    } as any);
+
+    const savedOrder = await this.orderRepo.save(order as any) as any;
+    const trackingNumber = `KTX-ORD-${savedOrder.id}`;
+    await this.orderRepo.update(savedOrder.id, { trackingNumber } as any);
+
+    // 2. Super agent earnings = commission % of fee collected
+    const commissionRate  = Number(superAgent.commissionRate || 10);
+    const agentEarnings   = parseFloat(((dto.shippingFeeCollected * commissionRate) / 100).toFixed(2));
+
+    // 3. Find destination Super Agent and look up route for transit city
+    const destAgent = await this.superAgentRepo.findOne({
+      where: { city: destinationCity, status: SuperAgentStatus.ACTIVE },
+    });
+
+    // Check if route has a transit city (e.g. Dar→Mbinga via Songea)
+    const route = await this.routeRepo.findOne({
+      where: { originCity, destinationCity, isActive: true },
+    });
+    const transitCity = (route as any)?.transitCity || null;
+
+    // Calculate expected arrival date
+    const estimatedDays = route?.estimatedDays || 2;
+    const expectedArrival = new Date();
+    expectedArrival.setDate(expectedArrival.getDate() + estimatedDays);
+    const expectedArrivalStr = expectedArrival.toISOString().split('T')[0];
+
+    // 4. Create parcel
+    const parcel = this.parcelRepo.create({
+      trackingNumber,
+      order:            savedOrder,
+      seller:           null,
+      buyer:            null,
+      senderName:       dto.senderName,
+      senderPhone:      dto.senderPhone,
+      superAgent:       superAgent,
+      destinationSuperAgent: destAgent || null,
+      originCity,
+      destinationCity,
+      transitCity,
+      expectedArrival:  expectedArrivalStr,
+      deliveryAddress:  dto.deliveryAddress,
+      recipientName:    dto.recipientName,
+      buyerPhone:       dto.recipientPhone,
+      weightKg,
+      parcelSize:       dto.parcelSize || 'small',
+      description:      dto.description,
+      estimatedShippingFee: dto.shippingFeeCollected,
+      actualShippingFee:    dto.shippingFeeCollected,
+      superAgentEarnings:   agentEarnings,
+      status:           ParcelStatus.RECEIVED_AT_HUB, // already at hub — super agent has it
+    } as any);
+
+    const savedParcel = await this.parcelRepo.save(parcel as any) as unknown as Parcel;
+
+    // 5. Tracking event
+    await this.addTrackingEvent(
+      savedParcel, ParcelStatus.RECEIVED_AT_HUB, originCity,
+      `Imepokewa na ${superAgent.businessName} — ${originCity}. Inasubiri kutumwa kwenda ${destinationCity}.`,
+      superAgent.businessName,
+      { phone: superAgent.phone || (superAgent as any).user?.phone, location: superAgent.address || originCity, type: 'super_agent' },
+    );
+    // Sender confirmation omitted — seller sees result in UI
+
+    // 7. SMS to recipient — heads up that a parcel is coming
+    await this.smsService.sendSms(
+      dto.recipientPhone,
+      `KenteXa: Habari ${dto.recipientName}! ${dto.senderName} amekutumia kifurushi kutoka ${originCity}.\n` +
+      `Kinakuja ${destinationCity}. Fuatilia: kentexa.com/?track=${trackingNumber}`,
+    ).catch(e => console.warn('SMS to recipient failed:', e.message));
+
+    return {
+      success:        true,
+      orderId:        savedOrder.id,
+      trackingNumber,
+      originCity,
+      destinationCity,
+      destinationAgent: destAgent?.businessName || null,
+      shippingFeeCollected: dto.shippingFeeCollected,
+      agentEarnings,
+      message: `Kifurushi kimesajiliwa. SMS imetumwa kwa ${dto.senderPhone} na ${dto.recipientPhone}.`,
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // AUTO-ASSIGNMENT — find the right Super Agent for a city
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Find the best active Super Agent for a given city.
+   * Priority: highest rating → most parcels delivered (experience).
+   * Used at order creation to auto-assign origin and destination agents.
+   */
+  async findAgentForCity(city: string, role: 'origin' | 'destination'): Promise<SuperAgent | null> {
+    const agents = await this.superAgentRepo.find({
+      where: { status: SuperAgentStatus.ACTIVE, city },
+    });
+    if (!agents.length) return null;
+
+    // Sort by rating desc, then by experience desc
+    agents.sort((a, b) => {
+      const ratingDiff = Number(b.rating) - Number(a.rating);
+      if (Math.abs(ratingDiff) > 0.1) return ratingDiff;
+      return b.totalParcelsDelivered - a.totalParcelsDelivered;
+    });
+    return agents[0];
+  }
+
+  /**
+   * Get the route information between two cities.
+   * Returns estimated days, fee, and transport method.
+   */
+  async getRoute(originCity: string, destinationCity: string): Promise<IntercityRoute | null> {
+    return this.routeRepo.findOne({ where: { originCity, destinationCity, isActive: true } });
+  }
+
+  /**
+   * Called after every successful delivery — updates agent rating and stats.
+   * onTime: whether the parcel arrived within estimatedDays.
+   * newRating: 1-5 score from the buyer/system (null = no explicit rating).
+   */
+  async recordDelivery(agentId: number, onTime: boolean, newRating?: number): Promise<void> {
+    const agent = await this.superAgentRepo.findOne({ where: { id: agentId } });
+    if (!agent) return;
+
+    const updates: Partial<SuperAgent> = {
+      totalParcelsDelivered: agent.totalParcelsDelivered + 1,
+      totalParcelsDelayed: onTime ? agent.totalParcelsDelayed : agent.totalParcelsDelayed + 1,
+    } as any;
+
+    if (newRating != null && newRating >= 1 && newRating <= 5) {
+      // Rolling weighted average: keeps history without storing every rating
+      const totalR = agent.totalRatings + 1;
+      const newAvg = ((Number(agent.rating) * agent.totalRatings) + newRating) / totalR;
+      updates.rating      = parseFloat(newAvg.toFixed(2)) as any;
+      updates.totalRatings = totalR as any;
+    }
+
+    await this.superAgentRepo.update(agentId, updates as any);
+  }
+
+  /**
+   * Record a lost parcel against this agent's stats.
+   */
+  async recordLostParcel(agentId: number): Promise<void> {
+    await this.superAgentRepo.increment({ id: agentId }, 'totalParcelsLost', 1);
+    // Lost parcels also penalise rating — deduct 0.5 points (capped at 1.0 minimum)
+    const agent = await this.superAgentRepo.findOne({ where: { id: agentId } });
+    if (!agent) return;
+    const penalised = Math.max(1.0, Number(agent.rating) - 0.5);
+    await this.superAgentRepo.update(agentId, { rating: penalised } as any);
+  }
+
+  /**
+   * Record a complaint against this agent.
+   */
+  async recordComplaint(agentId: number): Promise<void> {
+    await this.superAgentRepo.increment({ id: agentId }, 'totalComplaints', 1);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // INTERCITY ROUTE MANAGEMENT (admin)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async getAllRoutes() {
+    return this.routeRepo.find({ order: { originCity: 'ASC', destinationCity: 'ASC' } });
+  }
+
+  async seedRoutes() {
+    let seeded = 0; let skipped = 0;
+    for (const route of TANZANIA_ROUTE_SEEDS) {
+      const existing = await this.routeRepo.findOne({
+        where: { originCity: route.originCity, destinationCity: route.destinationCity },
+      });
+      if (!existing) {
+        await this.routeRepo.save(this.routeRepo.create({ ...route, isActive: true } as any));
+        seeded++;
+      } else { skipped++; }
+    }
+    return { seeded, skipped, total: TANZANIA_ROUTE_SEEDS.length };
+  }
+
+  async upsertRoute(dto: {
+    originCity: string; destinationCity: string;
+    estimatedDays: number; baseShippingFee: number;
+    perKgFee?: number; primaryTransport?: string;
+    notes?: string; isActive?: boolean;
+    transitCity?: string; leg1Days?: number; leg2Days?: number;
+  }) {
+    const existing = await this.routeRepo.findOne({
+      where: { originCity: dto.originCity, destinationCity: dto.destinationCity },
+    });
+    if (existing) {
+      await this.routeRepo.update(existing.id, { ...dto } as any);
+      return this.routeRepo.findOne({ where: { id: existing.id } });
+    }
+    return this.routeRepo.save(this.routeRepo.create({ ...dto, isActive: dto.isActive ?? true } as any));
+  }
+
+  async deleteRoute(id: number) {
+    await this.routeRepo.delete(id);
+    return { message: 'Route deleted' };
+  }
+
+  async getAgentPerformance(agentId: number) {
+    const agent = await this.superAgentRepo.findOne({ where: { id: agentId } });
+    if (!agent) throw new NotFoundException('Agent not found');
+    const delivered = agent.totalParcelsDelivered;
+    const handled   = agent.totalParcelsHandled;
+    const onTimeRate = delivered > 0
+      ? parseFloat((((delivered - agent.totalParcelsDelayed) / delivered) * 100).toFixed(1))
+      : null;
+    const successRate = handled > 0
+      ? parseFloat(((delivered / handled) * 100).toFixed(1))
+      : null;
+    return {
+      agentId, city: agent.city, businessName: agent.businessName,
+      agentCode: agent.agentCode, status: agent.status,
+      rating: Number(agent.rating), totalRatings: agent.totalRatings,
+      totalParcelsHandled: handled,
+      totalParcelsDelivered: delivered,
+      totalParcelsLost: agent.totalParcelsLost,
+      totalParcelsDelayed: agent.totalParcelsDelayed,
+      totalComplaints: agent.totalComplaints,
+      onTimeRate, successRate,
+      totalEarnings: Number(agent.totalEarnings),
+      pendingEarnings: Number(agent.pendingEarnings),
+      commissionRate: Number(agent.commissionRate),
+    };
+  }
+
+  async getAllAgentsPerformance() {
+    const agents = await this.superAgentRepo.find({ order: { city: 'ASC', rating: 'DESC' } as any });
+    return agents.map(agent => ({
+      id: agent.id,
+      city: agent.city,
+      businessName: agent.businessName,
+      agentCode: agent.agentCode,
+      status: agent.status,
+      rating: Number(agent.rating),
+      totalParcelsHandled: agent.totalParcelsHandled,
+      totalParcelsDelivered: agent.totalParcelsDelivered,
+      totalParcelsLost: agent.totalParcelsLost,
+      totalComplaints: agent.totalComplaints,
+      totalEarnings: Number(agent.totalEarnings),
+      pendingEarnings: Number(agent.pendingEarnings),
+    }));
+  }
+
+
+  async findAll() {
+    return this.superAgentRepo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  async approve(id: number) {
+    const agent = await this.superAgentRepo.findOne({ where: { id } });
+    if (!agent) throw new NotFoundException('Super agent not found');
+    agent.status = SuperAgentStatus.ACTIVE;
+    return this.superAgentRepo.save(agent);
+  }
+
+  async suspend(id: number, reason: string) {
+    const agent = await this.superAgentRepo.findOne({ where: { id } });
+    if (!agent) throw new NotFoundException('Super agent not found');
+    agent.status          = SuperAgentStatus.SUSPENDED;
+    agent.rejectionReason = reason;
+    return this.superAgentRepo.save(agent);
+  }
+
+  async getCities() {
+    return { cities: TANZANIA_CITIES, cityCodes: CITY_CODES };
+  }
+
+  // ── Admin: courier cost reimbursement ledger ────────────────────────────────
+  // Shows what each Super Agent is owed (or owes back) for courier costs they
+  // fronted, so admin can settle via their float/wallet.
+
+
+  // ── Admin: mark a parcel's or bulk shipment's courier cost as settled ───────
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // COLLECTION FEE CONFIG — admin-managed per-city collection fees
+  // Stored as IntercityRoute rows with destinationCity = '_collection_fee'
+  // so we don't need a new entity. originCity = the city, baseShippingFee = urban, perKgFee = rural.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async getCollectionFees() {
+    const rows = await this.routeRepo.find({ where: { destinationCity: '_collection_fee' as any } });
+    return rows.map(r => ({
+      city:     r.originCity,
+      urbanFee: Number(r.baseShippingFee),
+      ruralFee: Number(r.perKgFee),
+    }));
+  }
+
+  async setCollectionFee(city: string, urbanFee: number, ruralFee: number) {
+    const existing = await this.routeRepo.findOne({
+      where: { originCity: city, destinationCity: '_collection_fee' as any },
+    });
+    if (existing) {
+      await this.routeRepo.update(existing.id, { baseShippingFee: urbanFee, perKgFee: ruralFee } as any);
+    } else {
+      await this.routeRepo.save(this.routeRepo.create({
+        originCity: city, destinationCity: '_collection_fee',
+        estimatedDays: 0, baseShippingFee: urbanFee, perKgFee: ruralFee,
+        isActive: true, notes: 'Collection fee config — not a transport route',
+      } as any));
+    }
+    return { city, urbanFee, ruralFee };
+  }
+
+  async getCollectionFeeForCity(city: string, isRural: boolean): Promise<number> {
+    const row = await this.routeRepo.findOne({
+      where: { originCity: city, destinationCity: '_collection_fee' as any },
+    });
+    if (row) return isRural ? Number(row.perKgFee) : Number(row.baseShippingFee);
+    return isRural ? 3000 : 1500; // system defaults
+  }
+
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // TRACKING — public, no auth
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async trackParcel(trackingNumber: string) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: { buyer: true, seller: true, product: true }, superAgent: true, destinationSuperAgent: true },
+    });
+    if (!parcel) throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
+
+    const tracking = await this.trackingRepo.find({
+      where: { parcel: { id: parcel.id } },
+      order: { createdAt: 'DESC' },
+    });
+
+    return {
+      trackingNumber:    parcel.trackingNumber,
+      status:            parcel.status,
+      originCity:        (parcel as any).originCity,
+      destinationCity:   (parcel as any).destinationCity,
+      transitCity:       (parcel as any).transitCity || null,
+      expectedArrival:   (parcel as any).expectedArrival || null,
+      estimatedDays:     (parcel as any).estimatedDays || null,
+      // Sender
+      senderName:        (parcel as any).senderName || parcel.seller?.name || null,
+      senderPhone:       (parcel as any).senderPhone || parcel.seller?.phone || null,
+      // Recipient
+      recipientName:     (parcel as any).recipientName,
+      deliveryAddress:   (parcel as any).deliveryAddress,
+      // Item
+      description:       (parcel as any).description || (parcel.order as any)?.manualProductName || null,
+      weightKg:          (parcel as any).weightKg    || null,
+      parcelSize:        (parcel as any).parcelSize  || null,
+      declaredValue:     (parcel as any).declaredValue || null,
+      // Origin hub
+      originAgent:       parcel.superAgent?.businessName || null,
+      originAgentPhone:  parcel.superAgent?.user?.phone  || null,
+      // Destination hub
+      destinationAgent:      parcel.destinationSuperAgent?.businessName || null,
+      destinationAgentPhone: parcel.destinationSuperAgent?.user?.phone  || null,
+      // Transport — from parcel directly (seller_shipment) or from order (online)
+      busCompany:          (parcel as any).busCompany        || (parcel.order as any)?.busCompany        || null,
+      busTicketNumber:     (parcel as any).busTicketNumber   || (parcel.order as any)?.busTicketNumber   || null,
+      busDeparture:        (parcel as any).busDeparture      || null,
+      courierName:         (parcel as any).courierName       || (parcel.order as any)?.courierName       || null,
+      courierTrackingRef:  (parcel as any).courierTrackingRef || (parcel.order as any)?.externalTrackingRef || null,
+      // Seller info for WhatsApp button
+      sellerWhatsApp:    parcel.order?.seller ? (parcel.order.seller as any).storeWhatsApp : null,
+      sellerStoreName:   parcel.order?.seller ? (parcel.order.seller as any).storeName     : null,
+      // Dispatch info
+      dispatchTime:      (parcel as any).dispatchTime      || null,
+      arrivedAtHubTime:  (parcel as any).arrivedAtHubTime  || null,
+      history: tracking.map(t => ({
+        status:          t.status,
+        city:            t.city,
+        note:            t.note,
+        updatedBy:       t.updatedBy,
+        handlerPhone:    (t as any).handlerPhone    || null,
+        handlerLocation: (t as any).handlerLocation || null,
+        handlerType:     (t as any).handlerType     || null,
+        createdAt:       t.createdAt,
+      })),
+    };
+  }
+
+  async trackByOrderId(orderId: number) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { order: { id: orderId } },
+      relations: { order: { buyer: true, seller: true, product: true }, superAgent: true },
+    });
+    if (parcel) return this.trackParcel(parcel.trackingNumber || '');
+
+    // Fallback: check batch parcel
+    const batchParcel = await this.batchParcelRepo?.findOne({
+      where: { order: { id: orderId } },
+      relations: { order: true, zone: true },
+    }).catch(() => null);
+
+    if (batchParcel) {
+      return {
+        trackingNumber:  batchParcel.trackingNumber,
+        status:          batchParcel.status,
+        originCity:      'Dar es Salaam',
+        destinationCity: 'Dar es Salaam',
+        deliveryAddress: batchParcel.order?.deliveryAddress,
+        zoneName:        (batchParcel.zone as any)?.name,
+        history: [],
+      };
+    }
+
+    throw new NotFoundException(`Hakuna kifurushi kwa agizo #${orderId}`);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DASHBOARD — what the Super Agent sees on login
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async getDashboard(user: User) {
+    const agent = await this.superAgentRepo.findOne({ where: { user: { id: user.id } } });
+    if (!agent) return { status: 'not_applied' };
+
+    const [originParcels, destParcels] = await Promise.all([
+      this.parcelRepo.find({
+        where: { superAgent: { id: agent.id } },
+        relations: { order: { buyer: true, seller: true, product: true }, destinationSuperAgent: true },
+        order: { createdAt: 'DESC' } as any,
+        take: 50,
+      }),
+      this.parcelRepo.find({
+        where: { destinationSuperAgent: { id: agent.id } },
+        relations: { order: { buyer: true, seller: true, product: true }, superAgent: true },
+        order: { createdAt: 'DESC' } as any,
+        take: 50,
+      }),
+    ]);
+
+    // Merge, deduplicate, add role
+    const parcelMap = new Map<string, any>();
+    for (const p of originParcels) {
+      if (!p.trackingNumber) continue;
+      parcelMap.set(p.trackingNumber, { ...p, myRole: 'origin' });
+    }
+    for (const p of destParcels) {
+      if (!p.trackingNumber) continue;
+      if (parcelMap.has(p.trackingNumber)) {
+        parcelMap.get(p.trackingNumber).myRole = 'both';
+      } else {
+        parcelMap.set(p.trackingNumber, { ...p, myRole: 'destination' });
+      }
+    }
+
+    const parcels = [...parcelMap.values()];
+
+    const stats = {
+      pending:       parcels.filter(p => ['pending','received_at_hub','verified','ready_for_dispatch'].includes(p.status) && p.myRole !== 'destination').length,
+      receivedAtHub: parcels.filter(p => p.status === 'received_at_hub').length,
+      inTransit:     parcels.filter(p => ['dispatched','in_transit'].includes(p.status)).length,
+      arrivedAtHub:  parcels.filter(p => p.status === 'arrived_at_hub' && p.myRole === 'destination').length,
+      delivered:     parcels.filter(p => p.status === 'delivered').length,
+      totalParcels:  parcels.length,
+      totalEarnings: Number(agent.totalEarnings),
+      pendingEarnings: Number(agent.pendingEarnings),
+    };
+
+    return {
+      agent: {
+        id:           agent.id,
+        city:         agent.city,
+        businessName: agent.businessName,
+        agentCode:    agent.agentCode,
+        status:       agent.status,
+        commissionRate: Number(agent.commissionRate),
+        totalEarnings:  Number(agent.totalEarnings),
+        pendingEarnings: Number(agent.pendingEarnings),
+        rating:         Number(agent.rating),
+      },
+      stats,
+      parcels,
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PARCEL OPERATIONS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async createParcel(user: User, dto: {
+    orderId?: number; trackingNumber?: string;
+    destinationCity: string; recipientName: string;
+    recipientPhone: string; deliveryAddress: string;
+    description?: string; weightKg?: number;
+  }) {
+    const agent = await this.superAgentRepo.findOne({ where: { user: { id: user.id } } });
+    if (!agent) throw new BadRequestException('Super Agent profile not found');
+
+    const tn = dto.trackingNumber || this.generateTrackingNumber(agent.city || 'KTX');
+
+    const destAgent = await this.superAgentRepo.findOne({
+      where: { city: dto.destinationCity, status: SuperAgentStatus.ACTIVE },
+    });
+
+    const parcel = await this.parcelRepo.save(this.parcelRepo.create({
+      trackingNumber:       tn,
+      superAgent:           agent,
+      destinationSuperAgent: destAgent || null,
+      order:                dto.orderId ? { id: dto.orderId } as any : null,
+      originCity:           agent.city,
+      destinationCity:      dto.destinationCity,
+      recipientName:        dto.recipientName,
+      buyerPhone:           dto.recipientPhone,
+      deliveryAddress:      dto.deliveryAddress,
+      description:          dto.description || null,
+      weightKg:             dto.weightKg || null,
+      status:               ParcelStatus.PENDING,
+    } as any));
+
+    await this.addTrackingEvent(parcel as any, ParcelStatus.PENDING, agent.city || '', 'Kifurushi kimeandaliwa', agent.businessName);
+    return parcel;
+  }
+
+  async receiveParcel(user: User, trackingNumber: string, dto: {
+    weightKg?: number; parcelSize?: string;
+    actualShippingFee?: number; notes?: string;
+  }) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: true, superAgent: true },
+    });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+
+    await this.parcelRepo.update(parcel.id, {
+      status:           ParcelStatus.RECEIVED_AT_HUB,
+      weightKg:         dto.weightKg   || (parcel as any).weightKg,
+      parcelSize:       dto.parcelSize || (parcel as any).parcelSize,
+      actualShippingFee: dto.actualShippingFee || null,
+    } as any);
+
+    const agent = await this.superAgentRepo.findOne({ where: { user: { id: user.id } } });
+    await this.addTrackingEvent(
+      parcel, ParcelStatus.RECEIVED_AT_HUB,
+      agent?.city || '',
+      dto.notes || 'Kifurushi kimepokelewa kwenye hub',
+      agent?.businessName || user.name || '',
+      { phone: agent?.phone || user.phone || undefined, location: agent?.address || agent?.city, type: 'super_agent' },
+    );
+
+    // Increment parcels handled
+    if (agent) {
+      await this.superAgentRepo.increment({ id: agent.id }, 'totalParcelsHandled', 1);
+    }
+
+    return { message: 'Parcel received at hub', trackingNumber };
+  }
+
+  async dispatchParcel(user: User, trackingNumber: string, dto: {
+    // Transport type
+    transportType?:  string;  // 'bus' | 'courier' | 'agent'
+    // Bus fields
+    busCompany?:     string;
+    busTicketNumber?: string;
+    busDeparture?:   string;
+    // Courier fields
+    courierName?:    string;
+    courierCost?:    number;
+    courierCostReceipt?: string;
+    courierTrackingRef?: string;
+    transportRef?:   string;  // legacy alias
+    // Agent assignment
+    localAgentId?:   number;
+    // Other
+    dispatchMode?:   string;
+    notes?:          string;
+  }) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: { buyer: true }, superAgent: true, destinationSuperAgent: true },
+    });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+
+    const updates: any = {
+      status:       ParcelStatus.DISPATCHED,
+      dispatchTime: new Date(),
+    };
+
+    // Bus details
+    if (dto.busCompany)     updates.busCompany     = dto.busCompany;
+    if (dto.busTicketNumber)updates.busTicketNumber= dto.busTicketNumber;
+    if (dto.busDeparture)   updates.busDeparture   = dto.busDeparture;
+    // Courier details
+    if (dto.courierName)         updates.courierName        = dto.courierName;
+    if (dto.courierTrackingRef)  updates.courierTrackingRef = dto.courierTrackingRef;
+    if (dto.courierCost)         updates.courierCost        = dto.courierCost;
+    if (dto.courierCostReceipt)  updates.courierCostReceipt = dto.courierCostReceipt;
+    if (dto.transportRef)        updates.transportRef       = dto.transportRef;
+
+    if (dto.localAgentId) {
+      const localAgent = await this.agentRepo.findOne({
+        where: { id: dto.localAgentId }, relations: { user: true },
+      });
+      if (localAgent) {
+        updates.localAgentId   = localAgent.user?.id;
+        updates.localAgentName = localAgent.fullName;
+      }
+    }
+
+    await this.parcelRepo.update(parcel.id, updates);
+
+    const agent = await this.superAgentRepo.findOne({ where: { user: { id: user.id } } });
+
+    // Build human-readable tracking note
+    let trackNote = 'Imetumwa';
+    if (dto.busCompany) {
+      trackNote = `Imetumwa via basi — ${dto.busCompany}`;
+      if (dto.busTicketNumber) trackNote += ` — Tiketi: ${dto.busTicketNumber}`;
+      if (dto.busDeparture)    trackNote += ` — Kuondoka: ${dto.busDeparture}`;
+    } else if (dto.courierName) {
+      trackNote = `Imetumwa via courier — ${dto.courierName}`;
+      if (dto.courierTrackingRef) trackNote += ` — Ref: ${dto.courierTrackingRef}`;
+    } else if (dto.localAgentId) {
+      trackNote = `Imepewa wakala wa mtaa kwa uwasilishaji`;
+    }
+
+    await this.addTrackingEvent(
+      parcel, ParcelStatus.DISPATCHED,
+      agent?.city || '',
+      trackNote,
+      agent?.businessName || user.name || '',
+      { phone: agent?.phone || user.phone || undefined, location: agent?.city || undefined, type: 'super_agent' },
+    );
+
+    return { message: 'Parcel dispatched', trackingNumber };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // LOCAL AGENT — last-mile delivery
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async getIncomingParcels(city: string) {
+    return this.parcelRepo.find({
+      where: {
+        destinationSuperAgent: { city },
+        status: ParcelStatus.ARRIVED_AT_HUB,
+        localAgentId: null as any,
+      },
+      relations: { order: { product: true, buyer: true }, destinationSuperAgent: true },
+      order: { arrivedAtHubTime: 'ASC' } as any,
+    });
+  }
+
+  async getMyDeliveries(userId: string) {
+    return this.parcelRepo.find({
+      where: { localAgentId: userId },
+      relations: { order: { product: true, buyer: true } },
+      order: { claimedAt: 'DESC' } as any,
+    });
+  }
+
+  async claimParcel(user: User, trackingNumber: string) {
+    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+    if ((parcel as any).localAgentId) throw new BadRequestException('Already claimed');
+    if (parcel.status !== ParcelStatus.ARRIVED_AT_HUB) {
+      throw new BadRequestException(`Cannot claim — status is ${parcel.status}`);
+    }
+
+    const agentProfile = await this.agentRepo.findOne({ where: { user: { id: user.id } } });
+    await this.parcelRepo.update(parcel.id, {
+      localAgentId:   String(user.id),
+      localAgentName: agentProfile?.fullName || user.name,
+      claimedAt:      new Date(),
+    } as any);
+
+    await this.addTrackingEvent(parcel, parcel.status, (parcel as any).destinationCity || '', 'Kimechukuliwa na wakala wa mtaa', agentProfile?.fullName || user.name || '', { phone: user.phone || undefined, location: agentProfile?.city || (parcel as any).destinationCity, type: 'local_agent' });
+    return { message: 'Parcel claimed', trackingNumber };
+  }
+
+  async updateMyDeliveryStatus(user: User, trackingNumber: string, status: ParcelStatus, note?: string) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: { buyer: true } },
+    });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+    if ((parcel as any).localAgentId !== String(user.id)) throw new ForbiddenException('Not your delivery');
+
+    const updates: any = { status };
+    if (status === ParcelStatus.DELIVERED) {
+      updates.deliveredTime  = new Date();
+      updates.buyerConfirmed = true;
+    }
+    await this.parcelRepo.update(parcel.id, updates);
+
+    const agentProfile = await this.agentRepo.findOne({ where: { user: { id: user.id } } });
+    const city = (parcel as any).destinationCity || '';
+    await this.addTrackingEvent(parcel, status, city, note || status, agentProfile?.fullName || user.name || '', { phone: user.phone || undefined, location: agentProfile?.city || city, type: 'local_agent' });
+
+    if (status === ParcelStatus.DELIVERED) {
+      // Track delivery count and earnings for agent's own records.
+      // KenteXa does NOT pay local agents — they are independent and earn
+      // directly from the Super Agent or seller who hired them.
+      // totalEarningsDeliveries = informational record of what they've earned.
+      // pendingEarnings is NOT used for local agent deliveries.
+      if (agentProfile) {
+        const commission = Number(agentProfile.deliveryCommission || 500);
+        await this.agentRepo.update(agentProfile.id, {
+          totalDeliveriesCompleted: agentProfile.totalDeliveriesCompleted + 1,
+          totalEarningsDeliveries:  Number(agentProfile.totalEarningsDeliveries) + commission,
+          totalEarnings:            Number(agentProfile.totalEarnings) + commission,
+          // Note: pendingEarnings NOT incremented — KenteXa doesn't owe this
+        } as any);
+      }
+      // SMS buyer
+      const buyerPhone = (parcel as any).buyerPhone || parcel.order?.buyer?.phone;
+      const recipientName = (parcel as any).recipientName || parcel.order?.buyer?.name || 'Mteja';
+      if (buyerPhone) {
+        await this.smsService.sendSms(
+          buyerPhone,
+          `KenteXa: Habari ${recipientName}! Kifurushi chako (${trackingNumber}) kimefikishwa. Asante! 🎉`,
+        ).catch(() => {});
+      }
+    }
+
+    return { message: 'Status updated', trackingNumber, status };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // BULK SHIPMENTS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async createBulkShipment(user: User, dto: {
+    destinationCity: string; trackingNumbers: string[]; notes?: string;
+  }) {
+    const agent = await this.superAgentRepo.findOne({ where: { user: { id: user.id } } });
+    if (!agent) throw new BadRequestException('Super Agent profile not found');
+
+    const shipment = await this.bulkRepo.save(this.bulkRepo.create({
+      superAgent:      agent,
+      destinationCity: dto.destinationCity,
+      notes:           dto.notes || null,
+      status:          'open',
+      parcelCount:     dto.trackingNumbers.length,
+    } as any));
+
+    return { shipmentId: (shipment as any).id, parcelCount: dto.trackingNumbers.length };
+  }
+
+  async dispatchBulkShipment(user: User, shipmentId: number, dto: {
+    courierName: string; courierCost: number;
+    courierCostReceipt?: string; transportRef?: string;
+  }) {
+    const shipment = await this.bulkRepo.findOne({ where: { id: shipmentId } });
+    if (!shipment) throw new NotFoundException('Bulk shipment not found');
+
+    await this.bulkRepo.update(shipmentId, {
+      status:            'dispatched',
+      courierName:       dto.courierName,
+      courierCost:       dto.courierCost,
+      courierCostReceipt: dto.courierCostReceipt || null,
+      transportRef:      dto.transportRef || null,
+      dispatchedAt:      new Date(),
+    } as any);
+
+    return { message: 'Bulk shipment dispatched', shipmentId };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // COURIER COST LEDGER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async getCourierCostLedger() {
+    const parcels = await this.parcelRepo.find({
+      where: { agentPaidOut: false },
+      relations: { superAgent: true },
+      order: { dispatchTime: 'DESC' } as any,
+    });
+    return parcels
+      .filter(p => Number((p as any).courierCost || 0) > 0)
+      .map(p => ({
+        trackingNumber: p.trackingNumber,
+        agentName:      p.superAgent?.businessName,
+        agentCity:      p.superAgent?.city,
+        courierCost:    Number((p as any).courierCost),
+        courierName:    (p as any).courierName,
+        transportRef:   (p as any).transportRef,
+        dispatchTime:   (p as any).dispatchTime,
+        costFlagged:    (p as any).costFlagged,
+        costNote:       (p as any).costNote,
+      }));
+  }
+
+  async markCostSettled(type: 'parcel' | 'bulk', id: string) {
+    if (type === 'parcel') {
+      await this.parcelRepo.update({ trackingNumber: id }, { agentPaidOut: true } as any);
+    } else {
+      await this.bulkRepo.update(Number(id), { courierCostSettled: true } as any);
+    }
+    return { message: 'Marked as settled' };
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // HELPERS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  private generateTrackingNumber(city: string): string {
+    const cityCode = (city || 'KTX').slice(0, 3).toUpperCase().replace(/\s/g, '');
+    const ts = Date.now().toString(36).toUpperCase();
+    return `KTX-${cityCode}-${ts}`;
+  }
+
+  private generateAgentCode(city: string, id: number): string {
+    const code = (city || 'KTX').slice(0, 3).toUpperCase().replace(/\s/g, '');
+    return `SA-${code}-${String(id).padStart(3, '0')}`;
+  }
+
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // UPDATE PARCEL STATUS — used by Super Agent dashboard status modal
+  // Handles every status transition in the intercity flow including
+  // transit hubs (e.g. Songea receiving and re-dispatching to Mbinga)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async updateParcelStatus(user: User, trackingNumber: string, dto: {
+    status: ParcelStatus; city: string; note?: string;
+  }) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: { buyer: true }, superAgent: true, destinationSuperAgent: true },
+    });
+    if (!parcel) throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
+
+    // Build update payload
+    const updates: any = { status: dto.status };
+    if (dto.status === ParcelStatus.ARRIVED_AT_HUB) {
+      updates.arrivedAtHubTime = new Date();
+    }
+    if (dto.status === ParcelStatus.DELIVERED) {
+      updates.deliveredTime  = new Date();
+      updates.buyerConfirmed = true;
+    }
+
+    await this.parcelRepo.update(parcel.id, updates);
+
+    // Add tracking history event
+    // Get handler details for tracking event
+    const handlerAgent = await this.superAgentRepo.findOne({ where: { user: { id: user.id } } }).catch(() => null);
+    await this.addTrackingEvent(
+      parcel, dto.status, dto.city,
+      dto.note || this.statusLabel(dto.status, dto.city),
+      handlerAgent?.businessName || user.name || 'Super Agent',
+      { phone: handlerAgent?.phone || user.phone || undefined, location: handlerAgent?.address || dto.city, type: 'super_agent' },
+    );
+
+    // ── SMS to buyer/recipient on key status changes ──────────────────────
+    const buyerPhone    = (parcel as any).buyerPhone || parcel.order?.buyer?.phone;
+    const recipientName = (parcel as any).recipientName || parcel.order?.buyer?.name || 'Mteja';
+    const destCity      = (parcel as any).destinationCity || '';
+
+    if (buyerPhone) {
+      // Only send SMS for action-required moments — saves cost
+      // ARRIVED_AT_HUB: buyer needs to decide pickup vs delivery
+      // DELIVERED: order complete confirmation
+      const smsMap: Partial<Record<ParcelStatus, string>> = {
+        [ParcelStatus.ARRIVED_AT_HUB]:
+          `KenteXa: Habari ${recipientName}! Kifurushi chako (${trackingNumber}) ` +
+          `kimefika ${dto.city}. Ingia KenteXa kuchagua: chukua mwenyewe au omba delivery. ` +
+          `kentexa.com/?track=${trackingNumber}`,
+
+        [ParcelStatus.DELIVERED]:
+          `KenteXa: ✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
+          `Asante kwa kutumia KenteXa! 🎉`,
+      };
+      if (smsMap[dto.status]) {
+        await this.smsService.sendSms(buyerPhone, smsMap[dto.status]!)
+          .catch(e => console.warn('SMS failed:', e.message));
+      }
+    }
+
+    // ── When parcel arrives at hub — notify local agents in that city ─────
+    // This covers BOTH the final destination AND any transit hub.
+    // At a transit hub the parcel will be re-dispatched by the local Super Agent.
+    // At the final destination local agents get notified to claim for last-mile.
+    if (dto.status === ParcelStatus.ARRIVED_AT_HUB) {
+      const isFinalDestination = dto.city === destCity;
+
+      if (isFinalDestination) {
+        // Notify local delivery agents to claim the parcel
+        // Only online agents receive the broadcast — offline agents opted out
+        try {
+          const localAgents = await this.agentRepo.find({
+            where: { city: dto.city, status: 'approved' as any, isOnline: true } as any,
+            relations: { user: true },
+          });
+
+          // If no online agents found, fall back to ALL approved agents in city
+          // so the parcel is never stranded with no one notified
+          const agentsToNotify = localAgents.length > 0
+            ? localAgents
+            : await this.agentRepo.find({
+                where: { city: dto.city, status: 'approved' as any } as any,
+                relations: { user: true },
+              });
+
+          // Agent sees new job in dashboard (no SMS — cost saving)
+
+          if (localAgents.length > 0) {
+            await this.addTrackingEvent(
+              parcel, dto.status, dto.city,
+              `Mawakala ${localAgents.length} wamearifiwa katika ${dto.city}`,
+              'System',
+            );
+          }
+        } catch (e) {
+          console.warn('Local agent notification failed:', e.message);
+        }
+      } else {
+        // Transit hub — the parcel is passing through, not final stop
+        // Add a clear transit event so buyer sees it in tracking
+        await this.addTrackingEvent(
+          parcel, dto.status, dto.city,
+          `Imefika kituo cha ${dto.city} (transit) — itaendelea kwenda ${destCity}`,
+          user.name || 'Super Agent',
+        );
+      }
+    }
+
+    return { message: 'Hali imesasishwa', trackingNumber, status: dto.status };
+  }
+
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SELLER SHIPMENT METHODS
+  // Seller creates a shipment for any offline sale (WhatsApp, cash, Instagram)
+  // Shipping goes through KenteXa Super Agent network.
+  // TZS 1,000 platform fee activates tracking.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  async createSellerShipment(seller: User, dto: {
+    classifiedId?:       number;
+    description:         string;
+    weightKg?:           number;
+    parcelSize?:         string;
+    recipientName:       string;
+    recipientPhone:      string;
+    destinationCity:     string;
+    deliveryAddress:     string;
+    originCity:          string;
+    transportMethod:     string;
+    busCompany?:         string;
+    busTicketNumber?:    string;
+    busDeparture?:       string;
+    courierName?:        string;
+    courierTrackingRef?: string;
+    needsCollection?:    boolean;
+    notes?:              string;
+    // Product/price info from SellerShipment form
+    totalValue?:         number;
+    items?:              Array<{ name: string; qty: number; price: number; weight?: number }>;
+  }) {
+    const isSameCity = dto.originCity.toLowerCase() === dto.destinationCity.toLowerCase();
+
+    let transitCity: string | null = null;
+    let estimatedDays = 1;
+    let expectedArrivalStr: string;
+
+    if (isSameCity) {
+      estimatedDays = 1;
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      expectedArrivalStr = tomorrow.toISOString().split('T')[0];
+    } else {
+      const route = await this.routeRepo.findOne({
+        where: { originCity: dto.originCity, destinationCity: dto.destinationCity, isActive: true },
+      }).catch(() => null);
+      transitCity   = (route as any)?.transitCity || null;
+      estimatedDays = route?.estimatedDays || 2;
+      const arrival = new Date();
+      arrival.setDate(arrival.getDate() + estimatedDays);
+      expectedArrivalStr = arrival.toISOString().split('T')[0];
+    }
+
+    const destAgent = dto.transportMethod === 'super_agent'
+      ? await this.superAgentRepo.findOne({
+          where: { city: dto.destinationCity, status: 'active' as any },
+        }).catch(() => null)
+      : null;
+
+    const order = await this.orderRepo.save(this.orderRepo.create({
+      source:            OrderSource.SELLER_SHIPMENT as any,
+      seller:            { id: seller.id } as any,
+      manualBuyerName:   dto.recipientName,
+      manualBuyerPhone:  dto.recipientPhone,
+      manualProductName: dto.description,
+      deliveryAddress:   dto.deliveryAddress,
+      phone:             dto.recipientPhone,
+      quantity:          dto.items?.reduce((s, i) => s + (i.qty || 1), 0) || 1,
+      totalAmount:       dto.totalValue || dto.items?.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0) || 0,
+      baseAmount:        dto.totalValue || dto.items?.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0) || 0,
+      platformFeeAmount: 1000,
+      sellerAmount:      Math.max(0, (dto.totalValue || 0) - 1000),
+      paymentStatus:     'pending' as any,
+      status:            'preparing' as any,
+      shippingMethod:    dto.transportMethod || 'super_agent',
+      notes:             dto.notes || null,
+      createdByUserId:   seller.id,
+    } as any)) as any;
+
+    const trackingNumber = `KTX-SHP-${order.id}`;
+    await this.orderRepo.update(order.id, { trackingNumber } as any);
+
+    // Notify seller (confirmation of their own action — useful for batch tracking)
+    try {
+      await this.inAppNotif.shipmentCreatedById(
+        null,            // buyerId - buyer may not have KenteXa account
+        trackingNumber,
+        dto.description || 'Bidhaa',
+      );
+    } catch { /* non-critical */ }
+
+    // ── Auto-create/update BusinessCustomer record ────────────────────────
+    // This ensures manual shipments show in "Wateja Wangu" with correct order count
+    try {
+      await this.businessCustomerService.upsertFromOrder({
+        sellerId:    seller.id,
+        userId:      null, // manual order — buyer may not have KenteXa account
+        name:        dto.recipientName  || 'Mteja',
+        phone:       dto.recipientPhone || null,
+        address:     dto.deliveryAddress || null,
+        district:    (dto as any).districtName || null,
+        region:      (dto as any).regionName   || null,
+        orderAmount: 1000, // platform fee for manual shipment
+        channel:     'manual',
+      });
+    } catch (e) {
+      console.error('BusinessCustomer upsert failed (non-critical):', (e as any).message);
+    }
+
+    const parcel = await this.parcelRepo.save(this.parcelRepo.create({
+      trackingNumber,
+      source:               'seller_shipment',
+      order:                order,
+      seller:               seller,
+      senderName:           seller.name,
+      senderPhone:          seller.phone,
+      destinationSuperAgent: destAgent || null,
+      originCity:           dto.originCity,
+      destinationCity:      dto.destinationCity,
+      transitCity,
+      expectedArrival:      expectedArrivalStr,
+      deliveryAddress:      dto.deliveryAddress,
+      recipientName:        dto.recipientName,
+      buyerPhone:           dto.recipientPhone,
+      description:          dto.description,
+      weightKg:             dto.weightKg || null,
+      parcelSize:           dto.parcelSize || 'small',
+      classifiedId:         dto.classifiedId || null,
+      transportMethod:      dto.transportMethod,
+      busCompany:           dto.busCompany    || null,
+      busTicketNumber:      dto.busTicketNumber || null,
+      courierName:          dto.courierName   || null,
+      courierTrackingRef:   dto.courierTrackingRef || null,
+      platformFeePaid:      false,
+      status:               ParcelStatus.PENDING,
+    } as any) as any) as unknown as Parcel;
+
+    await this.addTrackingEvent(
+      parcel, ParcelStatus.PENDING, dto.originCity,
+      'Agizo limeundwa. Inasubiri ada ya mfumo kulipwa.',
+      seller.name || 'Muuzaji',
+      { phone: seller.phone || undefined, location: dto.originCity || undefined, type: 'system' as any },
+    );
+
+    // SMS 1: Buyer gets tracking number (essential)
+    await this.smsService.sendSms(
+      dto.recipientPhone,
+      `KenteXa: Habari ${dto.recipientName}! ${seller.name || 'Muuzaji'} amekutumia kifurushi kutoka ${dto.originCity}. ` +
+      `Namba ya kufuatilia: ${trackingNumber}. Fuatilia: kentexa.com/?track=${trackingNumber}`,
+    ).catch(() => {});
+
+    return {
+      success: true,
+      orderId: order.id,
+      trackingNumber,
+      originCity:      dto.originCity,
+      destinationCity: dto.destinationCity,
+      transitCity,
+      expectedArrival: expectedArrivalStr,
+      estimatedDays,
+      message: 'Agizo limeundwa. Lipa TZS 1,000 ili kuamsha ufuatiliaji.',
+    };
+  }
+
+  // ── Seller or agent uploads transport details after pickup ───────────────
+
+  async updateShipmentTransport(user: User, trackingNumber: string, dto: {
+    busCompany?:         string;
+    busTicketNumber?:    string;
+    busDeparture?:       string;
+    courierName?:        string;
+    courierTrackingRef?: string;
+    notes?:              string;
+  }) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: true },
+    });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+
+    // Prevent duplicate — if already in transit, reject
+    if ((parcel as any).status === ParcelStatus.IN_TRANSIT ||
+        (parcel as any).status === ParcelStatus.DELIVERED   ||
+        (parcel as any).status === ParcelStatus.DISPATCHED) {
+      throw new BadRequestException(
+        `Maelezo ya usafiri yameshawekwa. Kifurushi kiko ${(parcel as any).status}.`
+      );
+    }
+
+    // Update parcel with transport details and mark in transit
+    await this.parcelRepo.update((parcel as any).id, {
+      busCompany:         dto.busCompany          || (parcel as any).busCompany,
+      busTicketNumber:    dto.busTicketNumber     || (parcel as any).busTicketNumber,
+      busDeparture:       dto.busDeparture        || null,
+      courierName:        dto.courierName         || (parcel as any).courierName,
+      courierTrackingRef: dto.courierTrackingRef  || (parcel as any).courierTrackingRef,
+      status:             ParcelStatus.IN_TRANSIT,
+      dispatchTime:       new Date(),
+    } as any);
+
+    // Also update the linked order status so seller dashboard reflects change
+    if (parcel.order?.id) {
+      await this.orderRepo.update(parcel.order.id, {
+        status: OrderStatus.IN_TRANSIT,
+      } as any);
+    }
+
+    await this.addTrackingEvent(
+      parcel, ParcelStatus.IN_TRANSIT, (parcel as any).originCity || '',
+      `Imetumwa via ${dto.busCompany || dto.courierName || 'usafiri'}` +
+      (dto.busTicketNumber ? ` — Tiketi: ${dto.busTicketNumber}` : '') +
+      (dto.courierTrackingRef ? ` — Ref: ${dto.courierTrackingRef}` : ''),
+      user.name || 'Muuzaji',
+      { phone: user.phone || undefined, location: (parcel as any).originCity || undefined, type: 'system' as any },
+    );
+
+    return { message: 'Maelezo ya usafiri yamehifadhiwa', trackingNumber };
+  }
+
+  // ── Seller or Super Agent confirms arrival at destination ────────────────
+
+  async confirmShipmentArrived(user: User, trackingNumber: string, dto: {
+    city: string; note?: string;
+  }) {
+    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+
+    await this.parcelRepo.update((parcel as any).id, {
+      status:           ParcelStatus.AWAITING_BUYER,
+      arrivedAtHubTime: new Date(),
+    } as any);
+
+    await this.addTrackingEvent(
+      parcel, ParcelStatus.AWAITING_BUYER, dto.city,
+      dto.note || `Imefika ${dto.city}. Inasubiri uamuzi wa mpokeaji.`,
+      user.name || 'Muuzaji',
+      { phone: user.phone || undefined, location: dto.city || undefined, type: 'super_agent' as any },
+    );
+
+    const recipientName = (parcel as any).recipientName || 'Mpokeaji';
+
+    // SMS 2: Buyer action required (essential)
+    if ((parcel as any).buyerPhone) {
+      await this.smsService.sendSms(
+        (parcel as any).buyerPhone,
+        `KenteXa: Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
+        `imefika ${dto.city}. Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery. ` +
+        `kentexa.com/?track=${trackingNumber}`,
+      ).catch(() => {});
+    }
+
+    // Broadcast to online agents (dashboard flag — no SMS for cost saving)
+    try {
+      let agentsToNotify = await this.agentRepo.find({
+        where: { city: dto.city, status: 'approved' as any, isOnline: true } as any,
+        relations: { user: true },
+      });
+      if (agentsToNotify.length === 0) {
+        agentsToNotify = await this.agentRepo.find({
+          where: { city: dto.city, status: 'approved' as any } as any,
+          relations: { user: true },
+        });
+      }
+      // Agents see new job in dashboard on next refresh (no SMS — cost saving)
+    } catch {}
+
+    return { message: 'Umesajili kuwasili. SMS imetumwa kwa mpokeaji.', trackingNumber };
+  }
+
+  // ── Buyer requests last-mile delivery ────────────────────────────────────
+
+  async buyerRequestDelivery(buyer: User, trackingNumber: string, dto: {
+    agentId:   number;
+    agreedFee: number;
+    address?:  string;
+  }) {
+    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+
+    const agent = await this.agentRepo.findOne({
+      where: { id: dto.agentId }, relations: { user: true },
+    });
+    if (!agent) throw new NotFoundException('Agent not found');
+
+    await this.parcelRepo.update((parcel as any).id, {
+      localAgentId:           String(agent.user?.id || dto.agentId),
+      localAgentName:         agent.fullName,
+      agreedDeliveryFee:      dto.agreedFee,
+      buyerRequestedDelivery: true,
+      deliveryAddress:        dto.address || (parcel as any).deliveryAddress,
+      status:                 ParcelStatus.ARRIVED_AT_HUB,
+      claimedAt:              new Date(),
+    } as any);
+
+    await this.addTrackingEvent(
+      parcel, ParcelStatus.ARRIVED_AT_HUB, (parcel as any).destinationCity || '',
+      `Mpokeaji ameomba delivery na ${agent.fullName} kwa TZS ${dto.agreedFee.toLocaleString()}`,
+      buyer.name || 'Mpokeaji',
+      { phone: buyer.phone || undefined, location: (parcel as any).destinationCity || undefined, type: 'system' as any },
+    );
+
+    // SMS 3: Chosen agent gets notified (essential)
+    if (agent.user?.phone) {
+      await this.smsService.sendSms(
+        agent.user.phone,
+        `KenteXa: Habari ${agent.fullName}! Mpokeaji amekuomba ufanye delivery ya ` +
+        `kifurushi ${trackingNumber} kwa TZS ${dto.agreedFee.toLocaleString()}. ` +
+        `Ingia dashibodini kupokea maelezo. kentexa.com`,
+      ).catch(() => {});
+    }
+
+    return { message: 'Ombi la delivery limetumwa kwa wakala', trackingNumber };
+  }
+
+  // ── Buyer chooses self-pickup ─────────────────────────────────────────────
+
+  async buyerSelfPickup(buyer: User, trackingNumber: string) {
+    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+
+    await this.parcelRepo.update((parcel as any).id, {
+      status:                 ParcelStatus.SELF_PICKUP,
+      buyerRequestedDelivery: false,
+      deliveredTime:          new Date(),
+      buyerConfirmed:         true,
+    } as any);
+
+    await this.addTrackingEvent(
+      parcel, ParcelStatus.SELF_PICKUP, (parcel as any).destinationCity || '',
+      'Mpokeaji amechagua kuchukua mwenyewe',
+      buyer.name || 'Mpokeaji',
+      { type: 'system' as any },
+    );
+
+    return { message: 'Umesajili kwamba utachukua mwenyewe. Asante!', trackingNumber };
+  }
+
+  // ── Get seller's shipments ────────────────────────────────────────────────
+
+  async getMyShipments(seller: User) {
+    return this.parcelRepo.find({
+      where: { seller: { id: seller.id }, source: 'seller_shipment' } as any,
+      relations: { order: true },
+      order: { createdAt: 'DESC' } as any,
+    });
+  }
+
+  // ── Get buyer's incoming parcels by phone ─────────────────────────────────
+
+  async getBuyerParcels(phone: string) {
+    const parcels = await this.parcelRepo.find({
+      where: { buyerPhone: phone } as any,
+      order: { createdAt: 'DESC' } as any,
+      take: 20,
+    });
+    return parcels.map(p => ({
+      trackingNumber:         p.trackingNumber,
+      status:                 p.status,
+      originCity:             (p as any).originCity,
+      destinationCity:        (p as any).destinationCity,
+      description:            (p as any).description,
+      senderName:             (p as any).senderName,
+      expectedArrival:        (p as any).expectedArrival,
+      buyerRequestedDelivery: (p as any).buyerRequestedDelivery,
+    }));
+  }
+
+  private statusLabel(status: ParcelStatus, city: string): string {
+    const labels: Partial<Record<ParcelStatus, string>> = {
+      [ParcelStatus.COLLECTION_REQUESTED]: 'Ombi la kukusanya limewasilishwa',
+      [ParcelStatus.COLLECTED_BY_AGENT]:   'Imekusanywa na wakala',
+      [ParcelStatus.RECEIVED_AT_HUB]:      `Imepokewa kwenye hub — ${city}`,
+      [ParcelStatus.VERIFIED]:             'Imethibitishwa',
+      [ParcelStatus.READY_FOR_DISPATCH]:   'Iko tayari kutumwa',
+      [ParcelStatus.DISPATCHED]:           `Imetumwa kutoka ${city}`,
+      [ParcelStatus.IN_TRANSIT]:           'Ipo njiani',
+      [ParcelStatus.ARRIVED_AT_HUB]:       `Imefika ${city}`,
+    };
+    return labels[status] || status?.replace(/_/g, ' ') || 'Unknown';
+  }
+  // ── Admin: Hub Management ─────────────────────────────────────────────────
+
+  async adminGetAllSuperAgents(status?: string): Promise<SuperAgent[]> {
+    const where: any = status ? { status } : {};
+    return this.superAgentRepo.find({
+      where,
+      relations: { user: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async adminAssignHub(superAgentId: number, dto: {
+    hubCity:     string;
+    hubName:     string;
+    hubAddress?: string;
+    coverageZones?: string[];
+  }): Promise<SuperAgent> {
+    const sa = await this.superAgentRepo.findOne({ where: { id: superAgentId } });
+    if (!sa) throw new NotFoundException('Super Agent hajapatikana');
+    (sa as any).hubCity       = dto.hubCity;
+    (sa as any).hubName       = dto.hubName;
+    (sa as any).hubAddress    = dto.hubAddress    || null;
+    (sa as any).coverageZones = dto.coverageZones || [];
+    return this.superAgentRepo.save(sa);
+  }
+
+  async adminGetHubSummary(): Promise<{
+    city: string;
+    count: number;
+    agents: { id: number; name: string; hubName: string }[];
+  }[]> {
+    const all = await this.superAgentRepo.find({
+      where: { status: 'approved' as any },
+      relations: { user: true },
+    });
+    const cities: Record<string, any> = {};
+    for (const sa of all) {
+      const city = (sa as any).hubCity || sa.city || 'Haijapewa';
+      if (!cities[city]) cities[city] = { city, count: 0, agents: [] };
+      cities[city].count++;
+      cities[city].agents.push({
+        id:      sa.id,
+        name:    (sa as any).businessName || sa.user?.name || '—',
+        hubName: (sa as any).hubName || '—',
+      });
+    }
+    return Object.values(cities);
+  }
+
+
+  // ── Inter-hub Transfer ────────────────────────────────────────────────────
+  async transferToHub(
+    superAgentId: number,
+    trackingNumber: string,
+    dto: { destinationHub: string; destinationCity: string; transportMode?: string; note?: string }
+  ) {
+    const sa = await this.superAgentRepo.findOne({
+      where: { user: { id: superAgentId } },
+      relations: { user: true },
+    });
+    if (!sa) throw new NotFoundException('Super Agent hajapatikana');
+
+    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
+    if (!parcel) throw new NotFoundException(`Kifurushi ${trackingNumber} hakijapatikana`);
+
+    // Update parcel status
+    await this.parcelRepo.update(parcel.id, {
+      status: ParcelStatus.TRANSFERRED_HUB as any,
+    });
+
+    // Add tracking event
+    await this.addTrackingEvent(
+      parcel,
+      ParcelStatus.TRANSFERRED_HUB as any,
+      sa.city,
+      dto.note || `Kimehamishiwa kituo cha ${dto.destinationHub}, ${dto.destinationCity}`,
+      sa.user?.name || 'Super Agent',
+      { type: 'super_agent', location: sa.city },
+    );
+
+    return {
+      success: true,
+      message: `Kifurushi ${trackingNumber} kimehamishiwa ${dto.destinationHub}`,
+      trackingNumber,
+      destinationHub: dto.destinationHub,
+      destinationCity: dto.destinationCity,
+    };
+  }
+
+
+}
