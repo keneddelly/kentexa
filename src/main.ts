@@ -7,37 +7,42 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // ✅ Serve uploads folder as static files
-  // Images accessible at https://api.kentexa.com/uploads/filename.jpg
+  // Serve uploaded files
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
   });
 
-  // ✅ CORS — allow frontend to call the API
+  // Enable CORS
   app.enableCors({
     origin: [
       'http://localhost:3000',
       'https://kentexa.com',
       'https://www.kentexa.com',
+      'https://staging.kentexa.com',
     ],
     credentials: true,
   });
 
-  // ✅ Validation pipe — strip unknown fields, transform types
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist:            true,
-    forbidNonWhitelisted: false,
-    transform:            true,
-  }));
+  // Validation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: false,
+      transform: true,
+    }),
+  );
 
-  // 🔒 Enforce @Exclude() on entity fields (password, OTP, etc.) across
-  // EVERY response, application-wide — no matter which query joins the
-  // User entity, now or in any future code. This is what makes the
-  // @Exclude() decorators in user.entity.ts actually take effect.
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  // Enable @Exclude() serialization globally
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector)),
+  );
 
-  await app.listen(3001);
-  console.log('✅ KenteXa backend running on http://localhost:3001');
+  // Use the port provided by the hosting platform (Render) or default to 3001
+  const port = parseInt(process.env.PORT || '3001', 10);
+
+  await app.listen(port);
+
+  console.log(`🚀 Kentexa backend is running on port ${port}`);
 }
 
 bootstrap();
