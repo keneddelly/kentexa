@@ -3,10 +3,17 @@
  * Place at: src/wishlist/wishlist.controller.ts
  */
 import {
-  Controller, Get, Post, Delete,
-  Param, Body, Request, UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  Request,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard }    from '../auth/auth.guard';
+import { JwtAuthGuard } from '../auth/auth.guard';
 import { WishlistService } from './wishlist.service';
 
 @Controller('wishlist')

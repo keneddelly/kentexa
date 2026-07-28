@@ -15,45 +15,49 @@
  *   webhook.controller.ts and intercity-route.entity.ts unaffected
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 export enum ProviderType {
-  BUS     = 'bus',
+  BUS = 'bus',
   COURIER = 'courier',
-  VAN     = 'van',
-  TRUCK   = 'truck',
-  BODA    = 'boda',
-  RAIL    = 'rail',
-  AIR     = 'air',
-  BOAT    = 'boat',
+  VAN = 'van',
+  TRUCK = 'truck',
+  BODA = 'boda',
+  RAIL = 'rail',
+  AIR = 'air',
+  BOAT = 'boat',
 }
 
 // Phase 1: Registration status (self-service providers)
 export enum ProviderStatus {
-  PENDING   = 'pending',    // just registered
-  VERIFIED  = 'verified',   // admin approved, visible to Super Agents
-  ACTIVE    = 'active',     // legacy: used by Phase 2 API-integrated providers
-  INACTIVE  = 'inactive',   // legacy: disabled
+  PENDING = 'pending', // just registered
+  VERIFIED = 'verified', // admin approved, visible to Super Agents
+  ACTIVE = 'active', // legacy: used by Phase 2 API-integrated providers
+  INACTIVE = 'inactive', // legacy: disabled
   SUSPENDED = 'suspended',
-  REJECTED  = 'rejected',
-  TESTING   = 'testing',    // legacy: integration in progress
+  REJECTED = 'rejected',
+  TESTING = 'testing', // legacy: integration in progress
 }
 
 export enum ContractType {
-  FREE          = 'free',
-  PER_PARCEL    = 'per_parcel',
-  MONTHLY       = 'monthly',
+  FREE = 'free',
+  PER_PARCEL = 'per_parcel',
+  MONTHLY = 'monthly',
   REVENUE_SHARE = 'revenue_share',
 }
 
 // Phase 1: How assignments are confirmed
 export enum ConfirmMode {
-  AUTO   = 'auto',    // large providers — auto-confirm if capacity available
-  MANUAL = 'manual',  // small providers — must accept/decline each job
+  AUTO = 'auto', // large providers — auto-confirm if capacity available
+  MANUAL = 'manual', // small providers — must accept/decline each job
 }
 
 @Entity('transport_provider')
@@ -74,12 +78,16 @@ export class TransportProvider {
   name: string;
 
   @Column({ type: 'varchar', nullable: true })
-  shortCode: string | null;       // "SCAN" — used in ticket number detection (Phase 2)
+  shortCode: string | null; // "SCAN" — used in ticket number detection (Phase 2)
 
   @Column({ type: 'enum', enum: ProviderType })
   type: ProviderType;
 
-  @Column({ type: 'enum', enum: ProviderStatus, default: ProviderStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: ProviderStatus,
+    default: ProviderStatus.PENDING,
+  })
   status: ProviderStatus;
 
   // Phase 1: confirmation mode
@@ -94,7 +102,7 @@ export class TransportProvider {
   contactPhone: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  whatsappPhone: string | null;   // Phase 1 addition
+  whatsappPhone: string | null; // Phase 1 addition
 
   @Column({ type: 'varchar', nullable: true })
   contactEmail: string | null;
@@ -148,22 +156,22 @@ export class TransportProvider {
 
   // ── Stats ────────────────────────────────────────────────────────────────
   @Column({ type: 'int', default: 0 })
-  totalParcelsTracked: number;    // Phase 2: via webhook
+  totalParcelsTracked: number; // Phase 2: via webhook
 
   @Column({ type: 'int', default: 0 })
-  totalApiCalls: number;          // Phase 2
+  totalApiCalls: number; // Phase 2
 
   @Column({ type: 'timestamp', nullable: true })
-  lastApiCallAt: Date | null;     // Phase 2
+  lastApiCallAt: Date | null; // Phase 2
 
   @Column({ type: 'int', default: 0 })
-  totalAssignments: number;       // Phase 1: via Super Agent assignment
+  totalAssignments: number; // Phase 1: via Super Agent assignment
 
   @Column({ type: 'int', default: 0 })
-  completedAssignments: number;   // Phase 1
+  completedAssignments: number; // Phase 1
 
   @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
-  rating: number;                 // Phase 1
+  rating: number; // Phase 1
 
   // ── Verification (Phase 1) ───────────────────────────────────────────────
   @Column({ type: 'timestamp', nullable: true })

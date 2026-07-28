@@ -16,27 +16,33 @@
  * Place at: src/feed/entities/post-comment.entity.ts
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn, OneToMany, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  Index,
 } from 'typeorm';
-import { User }            from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { BusinessFeedItem } from '../../business/entities/business-feed-item.entity';
 
 // ── NEW: Commerce Comment System additions ─────────────────────────────────
 export enum PostCommentType {
-  COMMENT      = 'comment',       // plain comment — existing default behavior
-  QUESTION     = 'question',      // "Ask" — can receive a seller_reply
-  REVIEW       = 'review',        // star rating + optional text/media
-  SELLER_REPLY = 'seller_reply',  // nested reply from the entity's owner
-  AI_SUMMARY   = 'ai_summary',    // pinned, system-generated, authorId null
+  COMMENT = 'comment', // plain comment — existing default behavior
+  QUESTION = 'question', // "Ask" — can receive a seller_reply
+  REVIEW = 'review', // star rating + optional text/media
+  SELLER_REPLY = 'seller_reply', // nested reply from the entity's owner
+  AI_SUMMARY = 'ai_summary', // pinned, system-generated, authorId null
 }
 
 export enum PurchaseVerification {
   KENTEXA_PURCHASE = 'kentexa_purchase', // matched to a completed Kentexa order
   OFFLINE_PURCHASE = 'offline_purchase', // self-declared "bought it elsewhere"
-  COMMUNITY        = 'community',        // no purchase claim
-  NONE             = 'none',             // not a review
+  COMMUNITY = 'community', // no purchase claim
+  NONE = 'none', // not a review
 }
 
 export interface CommentMediaItem {
@@ -49,7 +55,7 @@ export interface CommentMediaItem {
 @Index(['postId'])
 @Index(['entityType', 'entityId'])
 @Index(['entityType', 'entityId', 'type', 'isDeleted']) // NEW — filter tabs (All/Reviews/Questions/Media)
-@Index(['entityType', 'entityId', 'isPinned'])           // NEW — pinned AI summary lookup
+@Index(['entityType', 'entityId', 'isPinned']) // NEW — pinned AI summary lookup
 export class PostComment {
   @PrimaryGeneratedColumn()
   id: number;
@@ -89,14 +95,17 @@ export class PostComment {
   offerEntityId: number | null;
 
   // For replies — parentId = null means top-level comment
-  @ManyToOne(() => PostComment, c => c.replies, { onDelete: 'CASCADE', nullable: true })
+  @ManyToOne(() => PostComment, (c) => c.replies, {
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
   @JoinColumn()
   parent: PostComment | null;
 
   @Column({ type: 'int', nullable: true })
   parentId: number | null;
 
-  @OneToMany(() => PostComment, c => c.parent)
+  @OneToMany(() => PostComment, (c) => c.parent)
   replies: PostComment[];
 
   @Column({ type: 'boolean', default: false })

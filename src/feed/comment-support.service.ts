@@ -22,9 +22,7 @@ import { PurchaseVerification } from './entities/post-comment.entity';
 // ─────────────────────────────────────────────────────────────────────────
 @Injectable()
 export class PurchaseVerificationService {
-  constructor(
-    @InjectRepository(Order) private orderRepo: Repository<Order>,
-  ) {}
+  constructor(@InjectRepository(Order) private orderRepo: Repository<Order>) {}
 
   async resolve(
     userId: number,
@@ -54,15 +52,20 @@ export class PurchaseVerificationService {
 // ─────────────────────────────────────────────────────────────────────────
 @Injectable()
 export class AiSummaryProvider {
-  async generateSummaryText(reviewBodies: string[], title: string): Promise<string> {
+  async generateSummaryText(
+    reviewBodies: string[],
+    title: string,
+  ): Promise<string> {
     // TODO: replace with a real LLM call. Feed it reviewBodies (most recent
     // ~30 review texts) and have it return 2-4 sentences: overall
     // sentiment, most-praised aspect, most common complaint if any.
     if (reviewBodies.length === 0) {
       return `No reviews yet for ${title}. Be the first to share your experience.`;
     }
-    return `Based on ${reviewBodies.length} review${reviewBodies.length === 1 ? '' : 's'}, ` +
+    return (
+      `Based on ${reviewBodies.length} review${reviewBodies.length === 1 ? '' : 's'}, ` +
       `customers are generally positive about ${title}. ` +
-      `(Placeholder summary — wire AiSummaryProvider.generateSummaryText to a real LLM call.)`;
+      `(Placeholder summary — wire AiSummaryProvider.generateSummaryText to a real LLM call.)`
+    );
   }
 }

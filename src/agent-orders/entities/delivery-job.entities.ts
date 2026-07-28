@@ -1,8 +1,12 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { User }  from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { Parcel } from '../../super-agents/entities/parcel.entity';
 
 /**
@@ -19,18 +23,18 @@ import { Parcel } from '../../super-agents/entities/parcel.entity';
  * For intercity: agent collects from seller and brings to Super Agent hub.
  */
 export enum JobStatus {
-  OPEN          = 'open',           // broadcast — any online agent can claim
-  CLAIMED       = 'claimed',        // agent accepted — locked to them
-  COLLECTED     = 'collected',      // agent picked up from seller
-  DELIVERED     = 'delivered',      // delivered to buyer (same city)
-  HANDED_TO_HUB = 'handed_to_hub',  // delivered to Super Agent hub (intercity)
-  CANCELLED     = 'cancelled',
-  EXPIRED       = 'expired',        // no agent claimed within 30 mins
+  OPEN = 'open', // broadcast — any online agent can claim
+  CLAIMED = 'claimed', // agent accepted — locked to them
+  COLLECTED = 'collected', // agent picked up from seller
+  DELIVERED = 'delivered', // delivered to buyer (same city)
+  HANDED_TO_HUB = 'handed_to_hub', // delivered to Super Agent hub (intercity)
+  CANCELLED = 'cancelled',
+  EXPIRED = 'expired', // no agent claimed within 30 mins
 }
 
 export enum JobType {
-  LOCAL_DELIVERY  = 'local_delivery',  // same city — seller to buyer directly
-  HUB_COLLECTION  = 'hub_collection',  // intercity — seller to nearest Super Agent hub
+  LOCAL_DELIVERY = 'local_delivery', // same city — seller to buyer directly
+  HUB_COLLECTION = 'hub_collection', // intercity — seller to nearest Super Agent hub
 }
 
 @Entity('delivery_job')
@@ -39,7 +43,11 @@ export class DeliveryJob {
   id: number;
 
   // Linked parcel — the item being moved
-  @ManyToOne(() => Parcel, { eager: false, nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Parcel, {
+    eager: false,
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   parcel: Parcel;
 
@@ -64,14 +72,14 @@ export class DeliveryJob {
   pickupCity: string;
 
   @Column({ type: 'text' })
-  pickupAddress: string;       // seller's location
+  pickupAddress: string; // seller's location
 
   @Column({ type: 'varchar', nullable: true })
-  pickupPhone: string | null;  // seller's phone for agent to call on arrival
+  pickupPhone: string | null; // seller's phone for agent to call on arrival
 
   // Dropoff details
   @Column({ type: 'varchar' })
-  dropoffCity: string;         // buyer city (local) or hub city (intercity)
+  dropoffCity: string; // buyer city (local) or hub city (intercity)
 
   @Column({ type: 'text', nullable: true })
   dropoffAddress: string | null; // buyer address (local) or hub name (intercity)
@@ -84,7 +92,7 @@ export class DeliveryJob {
   weightKg: number | null;
 
   @Column({ type: 'varchar', nullable: true })
-  parcelSize: string | null;   // small | medium | large | cargo
+  parcelSize: string | null; // small | medium | large | cargo
 
   // Estimated fee — from rate card, shown to agent before claiming
   // Not binding — actual fee agreed between seller and agent

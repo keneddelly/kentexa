@@ -1,6 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, ManyToOne,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Order } from '../../orders/entities/order.entity';
@@ -23,16 +27,16 @@ export class Payout {
   order: Order;
 
   @Column('decimal', { precision: 10, scale: 2 })
-  orderTotal: number;        // full order amount
+  orderTotal: number; // full order amount
 
   @Column('decimal', { precision: 10, scale: 2 })
   platformFeeAmount: number; // Kentexa kept this
 
   @Column('decimal', { precision: 10, scale: 2 })
-  agentCommission: number;   // agent took this (0 if no agent)
+  agentCommission: number; // agent took this (0 if no agent)
 
   @Column('decimal', { precision: 10, scale: 2 })
-  sellerAmount: number;      // seller receives this
+  sellerAmount: number; // seller receives this
 
   @Column({ type: 'enum', enum: PayoutStatus, default: PayoutStatus.PENDING })
   status: PayoutStatus;

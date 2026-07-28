@@ -1,20 +1,24 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, ManyToOne,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 export enum AgentStatus {
-  PENDING   = 'pending',
-  APPROVED  = 'approved',
-  REJECTED  = 'rejected',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
   SUSPENDED = 'suspended',
 }
 
 export enum AgentTier {
-  BASIC  = 'basic',   // 0-50 deliveries
-  SILVER = 'silver',  // 51-200
-  GOLD   = 'gold',    // 200+
+  BASIC = 'basic', // 0-50 deliveries
+  SILVER = 'silver', // 51-200
+  GOLD = 'gold', // 200+
 }
 
 @Entity('agent')
@@ -69,66 +73,66 @@ export class Agent {
   rejectionReason: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  agentCode: string | null;    // e.g. KTX-AGT-001
+  agentCode: string | null; // e.g. KTX-AGT-001
 
   // ── Tier & Commission ──────────────────────────────────────────────────────
   @Column({ type: 'enum', enum: AgentTier, default: AgentTier.BASIC })
   tier: AgentTier;
 
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 2.5 })
-  commissionRate: number;       // % of platform fee earned per payment collection
+  commissionRate: number; // % of platform fee earned per payment collection
 
   // Separate delivery commission — earned for each parcel delivered
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 500 })
-  deliveryCommission: number;   // flat TZS per delivery (default 500)
+  deliveryCommission: number; // flat TZS per delivery (default 500)
 
   // ── Earnings ──────────────────────────────────────────────────────────────
   // Cumulative totals — updated after each transaction/delivery
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
-  totalEarningsPayments: number;   // from payment collection
+  totalEarningsPayments: number; // from payment collection
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   totalEarningsDeliveries: number; // from last-mile deliveries
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
-  pendingEarnings: number;         // earned but not yet released to agent
+  pendingEarnings: number; // earned but not yet released to agent
 
   // ── Performance ───────────────────────────────────────────────────────────
   @Column({ type: 'int', default: 0 })
   totalDeliveriesCompleted: number;
 
   @Column({ type: 'int', default: 0 })
-  totalDeliveriesFailed: number;   // failed/returned
+  totalDeliveriesFailed: number; // failed/returned
 
   @Column({ type: 'int', default: 0 })
   totalPaymentsProcessed: number;
 
   @Column({ type: 'int', default: 0 })
-  totalTransactions: number;          // alias used by agents.service and payments.service
+  totalTransactions: number; // alias used by agents.service and payments.service
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
-  totalEarnings: number;              // total across payments + deliveries + collections
+  totalEarnings: number; // total across payments + deliveries + collections
 
   // ── Collection stats ──────────────────────────────────────────────────────
   @Column({ type: 'int', default: 0 })
-  totalCollectionsCompleted: number;   // parcels collected from sellers
+  totalCollectionsCompleted: number; // parcels collected from sellers
 
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
-  totalEarningsCollections: number;    // earnings from collection jobs
+  totalEarningsCollections: number; // earnings from collection jobs
 
   // Default fee this agent charges for collection in their area
   // Admin can override per job, but this is the agent's baseline
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 1500 })
-  collectionFeeUrban: number;         // TZS for urban pickups
+  collectionFeeUrban: number; // TZS for urban pickups
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 3000 })
-  collectionFeeRural: number;         // TZS for rural pickups
+  collectionFeeRural: number; // TZS for rural pickups
 
   @Column({ type: 'int', default: 0 })
   totalComplaints: number;
 
-  @Column({ type: 'decimal', precision: 3, scale: 2, default: 5.00 })
-  rating: number;                  // 1.00 – 5.00
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: 5.0 })
+  rating: number; // 1.00 – 5.00
 
   @Column({ type: 'int', default: 0 })
   totalRatings: number;
@@ -137,7 +141,7 @@ export class Agent {
   // Agent type determines what jobs they can take and what delivery time to show
   // boda: fast, small (<20kg) | car: medium (<100kg) | van: large (<500kg) | truck: cargo (500kg+)
   @Column({ type: 'varchar', default: 'boda' })
-  agentType: string;    // 'boda' | 'car' | 'van' | 'truck' | 'foot'
+  agentType: string; // 'boda' | 'car' | 'van' | 'truck' | 'foot'
 
   // Max weight this agent can carry per trip (kg)
   @Column({ type: 'decimal', precision: 8, scale: 1, default: 20 })

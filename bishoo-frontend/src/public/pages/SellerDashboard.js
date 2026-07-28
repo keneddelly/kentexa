@@ -135,7 +135,7 @@ const MenuRow = ({ icon, label, value, onClick, last }) => (
   </button>
 );
 
-const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment, currentUser }) => {
   const [data, setData]                       = useState(null);
   const [loading, setLoading]                 = useState(true);
   const [error, setError]                     = useState('');
@@ -333,6 +333,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             {/* ── Menu — vertical list, Instagram-Settings style ── */}
             <div style={{ backgroundColor: WH, borderRadius: 16,
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden', marginBottom: 16 }}>
+              <MenuRow icon="📸" label="Share a Moment" onClick={() => onOpenMoment?.('selling')} />
               <MenuRow icon="📦" label="My Products" onClick={() => onNavigate('SellerProducts')} />
               <MenuRow icon="🏷️" label="My Listings" onClick={() => onNavigate('SellerClassifieds')} />
               <MenuRow icon="🛒" label="Orders" onClick={() => onNavigate('SellerOrders')} />

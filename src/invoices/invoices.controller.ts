@@ -1,7 +1,12 @@
 import {
-  Controller, Get, Post, Patch,
-  Param, Body, UseGuards, Request,
-  Res, Query,
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  Res,
 } from '@nestjs/common';
 import { InvoicesService } from './invoices.service';
 import { JwtAuthGuard } from '../auth/auth.guard';

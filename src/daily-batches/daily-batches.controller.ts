@@ -1,6 +1,14 @@
 import {
-  Controller, Get, Post, Patch,
-  Param, Body, UseGuards, Request, ParseIntPipe, Query,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { DailyBatchesService } from './daily-batches.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -16,9 +24,15 @@ export class DailyBatchesController {
   @UseGuards(JwtAuthGuard)
   @Post('offline-order')
   createOfflineOrder(
-    @Body() body: {
-      productName: string; amount: number; buyerName: string;
-      buyerPhone: string; deliveryAddress: string; quantity?: number; notes?: string;
+    @Body()
+    body: {
+      productName: string;
+      amount: number;
+      buyerName: string;
+      buyerPhone: string;
+      deliveryAddress: string;
+      quantity?: number;
+      notes?: string;
     },
     @Request() req,
   ) {
@@ -51,7 +65,8 @@ export class DailyBatchesController {
   @Patch(':batchId/depart')
   departVan(
     @Param('batchId', ParseIntPipe) batchId: number,
-    @Body() body: { driverName?: string; driverPhone?: string; vehicleInfo?: string },
+    @Body()
+    body: { driverName?: string; driverPhone?: string; vehicleInfo?: string },
   ) {
     return this.service.departVan(batchId, body);
   }
@@ -98,17 +113,24 @@ export class DailyBatchesController {
     @Query('address') address: string,
     @Query('productId') productId: string,
   ) {
-    return this.service.getDeliveryMethods(address, Number(productId), null);
+    return this.service.getDeliveryMethods(address, Number(productId));
   }
 
   // ── Admin: create a new delivery zone ─────────────────────────────────────
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post('zones')
-  createZone(@Body() body: {
-    name: string; city: string; routeOrder: number;
-    etaMinutesFromDeparture: number; zoneAgentId?: number; addressKeywords?: string[];
-  }) {
+  createZone(
+    @Body()
+    body: {
+      name: string;
+      city: string;
+      routeOrder: number;
+      etaMinutesFromDeparture: number;
+      zoneAgentId?: number;
+      addressKeywords?: string[];
+    },
+  ) {
     return this.service.createZone(body);
   }
 

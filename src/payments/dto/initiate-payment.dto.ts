@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString, Matches, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsString, Matches } from 'class-validator';
 import { PaymentProvider } from '../entities/payment.entity';
 
 export class InitiatePaymentDto {

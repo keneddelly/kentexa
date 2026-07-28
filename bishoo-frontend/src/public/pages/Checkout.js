@@ -448,7 +448,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                   // Pre-fill address with structured location
                   const locationStr = [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', ');
                   if (locationStr && !form.deliveryAddress) {
-                    setForm(f => ({ ...f, deliveryAddress: locationStr }));
+                    handleAddressChange(locationStr);
                   }
                 }}
                 required
@@ -457,7 +457,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               <div style={{ marginBottom: 14 }}>
             <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>Delivery Address *</label>
             <input placeholder="e.g. Dar es Salaam, Kinondoni, Street 5"
-              value={form.deliveryAddress} onChange={e => setForm(f => ({ ...f, deliveryAddress: e.target.value }))}
+              value={form.deliveryAddress} onChange={e => handleAddressChange(e.target.value)}
               style={inputStyle} />
             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>City, District, Street</div>
           </div>

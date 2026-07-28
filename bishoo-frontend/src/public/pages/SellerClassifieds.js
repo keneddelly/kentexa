@@ -1,7 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
@@ -160,7 +158,7 @@ const EMPTY_FORM = {
   isFlashSale: false, flashSalePrice: '', flashSaleEndsAt: '', flashSaleQuantity: '',
 };
 
-const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
+const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, editItemId }) => {
   const [classifieds, setClassifieds] = useState([]);
   const [classifiedLocation, setClassifiedLocation] = React.useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [loading, setLoading]         = useState(true);
@@ -212,6 +210,15 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
     api.get('/auth/profile').then(res => setUserPhone(res.data?.phone || '')).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Deep-linked straight into editing one listing (e.g. from its Classified
+  // Detail page's ••• menu) — open the edit form the moment it's loaded.
+  useEffect(() => {
+    if (!editItemId || !classifieds.length) return;
+    const match = classifieds.find(c => c.id === Number(editItemId));
+    if (match) handleEdit(match);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classifieds, editItemId]);
 
   const handleCategoryChange = (cat) => {
     const firstSub = Object.keys(CLASSIFIED_CATEGORIES[cat]?.subcategories || {})[0] || '';
@@ -322,9 +329,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   }[status] || { backgroundColor: '#f1f5f9', color: '#64748b' });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <Navbar currentPage="SellerClassifieds" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', paddingBottom: 90 }}>
       <BackBar onBack={() => onNavigate('back')} title="📋 Matangazo Yangu" />
       <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', padding: '20px 16px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
@@ -677,8 +682,6 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         </div>
         </div>
       )}
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

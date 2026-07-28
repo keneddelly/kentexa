@@ -1,6 +1,8 @@
 import {
-  Injectable, NotFoundException,
-  BadRequestException, ForbiddenException,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -25,22 +27,26 @@ export class AgentOrdersService {
       where: { user: { id: agent.id } },
     });
 
-    const agentCity     = agentProfile?.city     || agentProfile?.district || null;
+    const agentCity = agentProfile?.city || agentProfile?.district || null;
     const agentDistrict = agentProfile?.district || null;
-    const agentRegion   = agentProfile?.region   || null;
+    const agentRegion = agentProfile?.region || null;
 
     // Build location-aware query
-    // Priority: same ward → same district → same city → same region → any
-    const query = this.orderRepo.createQueryBuilder('o')
+    // Priority: same district → same city → same region → any. (Ward-level
+    // matching isn't possible yet — Agent has no ward field to match against.)
+    const query = this.orderRepo
+      .createQueryBuilder('o')
       .leftJoinAndSelect('o.buyer', 'buyer')
       .leftJoinAndSelect('o.product', 'product')
       .leftJoinAndSelect('o.seller', 'seller')
       .where('o.status IN (:...statuses)', {
-        statuses: [OrderStatus.PAID, OrderStatus.PREPARING]
+        statuses: [OrderStatus.PAID, OrderStatus.PREPARING],
       })
       // Only show orders that need local delivery (boda/agent)
-      .andWhere('(o.shippingMethod = :boda OR o.shippingMethod = :agent OR o.shippingMethod IS NULL)',
-        { boda: 'boda', agent: 'agent' })
+      .andWhere(
+        '(o.shippingMethod = :boda OR o.shippingMethod = :agent OR o.shippingMethod IS NULL)',
+        { boda: 'boda', agent: 'agent' },
+      )
       .orderBy('o.createdAt', 'DESC')
       .take(30);
 
@@ -50,13 +56,15 @@ export class AgentOrdersService {
         `(
           LOWER(o.destinationCity) = LOWER(:city)
           OR LOWER(o.deliveryAddress) LIKE LOWER(:cityLike)
-          ${agentDistrict ? "OR LOWER(o.deliveryAddress) LIKE LOWER(:districtLike)" : ""}
+          ${agentDistrict ? 'OR LOWER(o.deliveryAddress) LIKE LOWER(:districtLike)' : ''}
+          ${agentRegion ? 'OR LOWER(o.deliveryAddress) LIKE LOWER(:regionLike)' : ''}
         )`,
         {
-          city:         agentCity,
-          cityLike:     `%${agentCity}%`,
+          city: agentCity,
+          cityLike: `%${agentCity}%`,
           ...(agentDistrict ? { districtLike: `%${agentDistrict}%` } : {}),
-        }
+          ...(agentRegion ? { regionLike: `%${agentRegion}%` } : {}),
+        },
       );
     }
 
@@ -81,9 +89,9 @@ export class AgentOrdersService {
   async getMyOrders(agent: User) {
     return this.orderRepo
       .createQueryBuilder('o')
-      .leftJoinAndSelect('o.buyer',   'buyer')
+      .leftJoinAndSelect('o.buyer', 'buyer')
       .leftJoinAndSelect('o.product', 'product')
-      .leftJoinAndSelect('o.seller',  'seller')
+      .leftJoinAndSelect('o.seller', 'seller')
       .where('o.agentId = :agentId', { agentId: String(agent.id) })
       .orderBy('o.updatedAt', 'DESC')
       .getMany();
@@ -95,15 +103,18 @@ export class AgentOrdersService {
       relations: { buyer: true, product: true, seller: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    if ((order as any).agentId) throw new BadRequestException('Already claimed by another agent');
+    if ((order as any).agentId)
+      throw new BadRequestException('Already claimed by another agent');
     if (![OrderStatus.PAID, OrderStatus.PREPARING].includes(order.status)) {
-      throw new BadRequestException(`Order cannot be claimed. Status: ${order.status}`);
+      throw new BadRequestException(
+        `Order cannot be claimed. Status: ${order.status}`,
+      );
     }
 
     await this.orderRepo.update(orderId, {
       agentId: String(agent.id),
-      status:  OrderStatus.PREPARING,
-    } as any);
+      status: OrderStatus.PREPARING,
+    });
 
     if (order.seller?.phone) {
       await this.smsService.sendSms(
@@ -120,16 +131,19 @@ export class AgentOrdersService {
       relations: { buyer: true, seller: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    if ((order as any).agentId !== String(agent.id)) throw new ForbiddenException('Not assigned to you');
+    if ((order as any).agentId !== String(agent.id))
+      throw new ForbiddenException('Not assigned to you');
     if (order.status !== OrderStatus.PREPARING) {
-      throw new BadRequestException(`Cannot confirm pickup. Status: ${order.status}`);
+      throw new BadRequestException(
+        `Cannot confirm pickup. Status: ${order.status}`,
+      );
     }
 
     await this.orderRepo.update(orderId, {
-      status:          OrderStatus.IN_TRANSIT,
+      status: OrderStatus.IN_TRANSIT,
       agentReceivedAt: new Date(),
-      agentNote:       note || null,
-    } as any);
+      agentNote: note || null,
+    });
 
     if (order.buyer?.phone) {
       await this.smsService.sendSms(
@@ -137,7 +151,11 @@ export class AgentOrdersService {
         `KenteXa: Your order #${orderId} has been picked up! Agent: ${agent.name || 'KenteXa Agent'}.`,
       );
     }
-    return { message: 'Pickup confirmed', orderId, status: OrderStatus.IN_TRANSIT };
+    return {
+      message: 'Pickup confirmed',
+      orderId,
+      status: OrderStatus.IN_TRANSIT,
+    };
   }
 
   async confirmDelivery(orderId: number, agent: User, note?: string) {
@@ -146,35 +164,38 @@ export class AgentOrdersService {
       relations: { buyer: true, seller: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    if ((order as any).agentId !== String(agent.id)) throw new ForbiddenException('Not assigned to you');
-    if (![OrderStatus.IN_TRANSIT, OrderStatus.READY_PICKUP].includes(order.status)) {
-      throw new BadRequestException(`Cannot confirm delivery. Status: ${order.status}`);
+    if ((order as any).agentId !== String(agent.id))
+      throw new ForbiddenException('Not assigned to you');
+    if (
+      ![OrderStatus.IN_TRANSIT, OrderStatus.READY_PICKUP].includes(order.status)
+    ) {
+      throw new BadRequestException(
+        `Cannot confirm delivery. Status: ${order.status}`,
+      );
     }
 
     // Calculate auto-release deadline
     // Local/Dar orders: 3 days. Intercity: 5 days.
     // Determined by shippingMethod — 'agent' intercity = 5 days, everything else = 3 days
-    const isIntercity = ['agent', 'bus', 'courier'].includes((order as any).shippingMethod || '');
+    const isIntercity = ['agent', 'bus', 'courier'].includes(
+      (order as any).shippingMethod || '',
+    );
     const releaseDays = isIntercity ? 5 : 3;
     const autoReleaseAt = new Date();
     autoReleaseAt.setDate(autoReleaseAt.getDate() + releaseDays);
 
     await this.orderRepo.update(orderId, {
-      status:        OrderStatus.DELIVERED,
-      deliveredAt:   new Date(),
-      agentNote:     note || null,
+      status: OrderStatus.DELIVERED,
+      deliveredAt: new Date(),
+      agentNote: note || null,
       autoReleaseAt, // escrow released automatically after this deadline if buyer silent
-    } as any);
+    });
 
-    // Credit agent's delivery count — used for tier calculation
-    // Agent entity update happens via creditLocalAgentForDelivery in super-agents.service
-    // For direct orders, increment delivery count on the User's agent record if it exists
-    try {
-      // The agentRepo isn't injected here (to avoid circular deps) — we update
-      // via a simple orderRepo query that the agent dashboard already reads from
-      // order stats. Full agent entity update happens in super-agents.service.ts
-      // creditLocalAgentForDelivery() which is called from the parcel flow.
-    } catch {}
+    // Credit agent's delivery count — used for tier calculation.
+    // The agentRepo isn't injected here (to avoid circular deps) — the agent
+    // dashboard reads delivery counts from order stats directly. Full agent
+    // entity update happens in super-agents.service.ts's
+    // creditLocalAgentForDelivery(), called from the parcel flow instead.
 
     if (order.buyer?.phone) {
       await this.smsService.sendSms(
@@ -188,7 +209,11 @@ export class AgentOrdersService {
         `KenteXa: Agizo #${orderId} limefikishwa kwa mafanikio.`,
       );
     }
-    return { message: 'Delivery confirmed', orderId, status: OrderStatus.DELIVERED };
+    return {
+      message: 'Delivery confirmed',
+      orderId,
+      status: OrderStatus.DELIVERED,
+    };
   }
 
   async getOrderDetails(orderId: number, agent: User) {
@@ -199,18 +224,18 @@ export class AgentOrdersService {
     if (!order) throw new NotFoundException('Order not found');
 
     return {
-      id:              order.id,
-      status:          order.status,
-      paymentStatus:   order.paymentStatus,
-      quantity:        order.quantity,
-      totalAmount:     Number(order.totalAmount),
+      id: order.id,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      quantity: order.quantity,
+      totalAmount: Number(order.totalAmount),
       deliveryAddress: order.deliveryAddress,
-      phone:           order.phone,
-      deliveredAt:     order.deliveredAt,
-      agentNote:       (order as any).agentNote || null,
-      isMyOrder:       (order as any).agentId === String(agent.id),
-      buyer:   { name: order.buyer?.name,   phone: order.buyer?.phone },
-      seller:  { name: order.seller?.name,  phone: order.seller?.phone },
+      phone: order.phone,
+      deliveredAt: order.deliveredAt,
+      agentNote: (order as any).agentNote || null,
+      isMyOrder: (order as any).agentId === String(agent.id),
+      buyer: { name: order.buyer?.name, phone: order.buyer?.phone },
+      seller: { name: order.seller?.name, phone: order.seller?.phone },
       product: { name: order.product?.name, images: order.product?.images },
     };
   }
@@ -222,14 +247,16 @@ export class AgentOrdersService {
       .getMany();
 
     return {
-      total:      all.length,
-      delivered:  all.filter(o => o.status === OrderStatus.DELIVERED).length,
-      inProgress: all.filter(o => [
-        OrderStatus.PREPARING,
-        OrderStatus.IN_TRANSIT,
-        OrderStatus.READY_PICKUP,
-      ].includes(o.status)).length,
-      pending: all.filter(o => o.status === OrderStatus.PAID).length,
+      total: all.length,
+      delivered: all.filter((o) => o.status === OrderStatus.DELIVERED).length,
+      inProgress: all.filter((o) =>
+        [
+          OrderStatus.PREPARING,
+          OrderStatus.IN_TRANSIT,
+          OrderStatus.READY_PICKUP,
+        ].includes(o.status),
+      ).length,
+      pending: all.filter((o) => o.status === OrderStatus.PAID).length,
     };
   }
 }

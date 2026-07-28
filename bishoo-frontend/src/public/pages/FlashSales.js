@@ -9,7 +9,6 @@ import Footer        from '../components/Footer';
 import WishlistHeart from '../components/WishlistHeart';
 import api           from '../../api/api';
 
-const B  = '#2563EB';
 const DK = '#0F172A';
 const GR = '#64748B';
 const WH = '#FFFFFF';

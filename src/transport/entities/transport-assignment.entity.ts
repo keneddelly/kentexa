@@ -7,23 +7,27 @@
  * Creates complete audit trail — who, what, when, proof photos.
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { TransportProvider }   from './transport-provider.entity';
+import { TransportProvider } from './transport-provider.entity';
 import { ProviderAvailability } from './provider-availability.entity';
-import { User }                 from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum AssignmentStatus {
-  PENDING   = 'pending',    // assigned, waiting for provider to accept (manual confirm)
-  ACCEPTED  = 'accepted',   // provider confirmed (or auto-confirmed)
-  DECLINED  = 'declined',   // provider declined — super agent must reassign
-  COLLECTED = 'collected',  // provider physically has the parcel
-  DEPARTED  = 'departed',   // in transit
-  ARRIVED   = 'arrived',    // at destination city
-  COMPLETED = 'completed',  // handed to destination super agent or buyer
-  CANCELLED = 'cancelled',  // cancelled by super agent
+  PENDING = 'pending', // assigned, waiting for provider to accept (manual confirm)
+  ACCEPTED = 'accepted', // provider confirmed (or auto-confirmed)
+  DECLINED = 'declined', // provider declined — super agent must reassign
+  COLLECTED = 'collected', // provider physically has the parcel
+  DEPARTED = 'departed', // in transit
+  ARRIVED = 'arrived', // at destination city
+  COMPLETED = 'completed', // handed to destination super agent or buyer
+  CANCELLED = 'cancelled', // cancelled by super agent
 }
 
 @Entity('transport_assignment')
@@ -73,7 +77,11 @@ export class TransportAssignment {
   toCity: string | null;
 
   // Status
-  @Column({ type: 'enum', enum: AssignmentStatus, default: AssignmentStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: AssignmentStatus,
+    default: AssignmentStatus.PENDING,
+  })
   status: AssignmentStatus;
 
   // Parcel details
@@ -95,16 +103,16 @@ export class TransportAssignment {
   collectedAt: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
-  collectionProofUrl: string | null;    // photo of parcel collected
+  collectionProofUrl: string | null; // photo of parcel collected
 
   @Column({ type: 'timestamp', nullable: true })
   departedAt: Date | null;
 
   @Column({ type: 'varchar', nullable: true })
-  departureProofUrl: string | null;     // photo of ticket / vehicle
+  departureProofUrl: string | null; // photo of ticket / vehicle
 
   @Column({ type: 'varchar', nullable: true })
-  scheduledDeparture: string | null;    // "18:00 today"
+  scheduledDeparture: string | null; // "18:00 today"
 
   @Column({ type: 'timestamp', nullable: true })
   arrivedAt: Date | null;
@@ -117,13 +125,13 @@ export class TransportAssignment {
 
   // Notes per stage
   @Column({ type: 'text', nullable: true })
-  providerNotes: string | null;         // from provider (e.g. "Bus imechelewa")
+  providerNotes: string | null; // from provider (e.g. "Bus imechelewa")
 
   @Column({ type: 'text', nullable: true })
   superAgentNotes: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  declineReason: string | null;         // if provider declined
+  declineReason: string | null; // if provider declined
 
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;

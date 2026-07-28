@@ -1,6 +1,15 @@
 import {
-  Controller, Get, Post, Patch, Delete, Body, Param,
-  UseGuards, Request, Query, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { AgentsService } from '../agents/agents.service';
 import { SuperAgentsService } from './super-agents.service';
@@ -43,7 +52,10 @@ export class SuperAgentsController {
     @Query('originCity') originCity: string,
     @Query('weightKg') weightKg: string,
   ) {
-    return this.service.estimateShippingFromOrigin(originCity, Number(weightKg) || 1);
+    return this.service.estimateShippingFromOrigin(
+      originCity,
+      Number(weightKg) || 1,
+    );
   }
 
   // Calculate shipping cost
@@ -53,7 +65,11 @@ export class SuperAgentsController {
     @Query('destination') destination: string,
     @Query('weight') weight: string,
   ) {
-    return this.service.calculateShipping(origin, destination, Number(weight) || 1);
+    return this.service.calculateShipping(
+      origin,
+      destination,
+      Number(weight) || 1,
+    );
   }
 
   // Get shipping rates for a city
@@ -117,21 +133,33 @@ export class SuperAgentsController {
   // Super agent receives parcel from seller
   @UseGuards(JwtAuthGuard)
   @Patch('parcels/:trackingNumber/receive')
-  receiveParcel(@Request() req, @Param('trackingNumber') tn: string, @Body() dto: any) {
+  receiveParcel(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @Body() dto: any,
+  ) {
     return this.service.receiveParcel(req.user, tn, dto);
   }
 
   // Super agent dispatches parcel
   @UseGuards(JwtAuthGuard)
   @Patch('parcels/:trackingNumber/dispatch')
-  dispatchParcel(@Request() req, @Param('trackingNumber') tn: string, @Body() dto: any) {
+  dispatchParcel(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @Body() dto: any,
+  ) {
     return this.service.dispatchParcel(req.user, tn, dto);
   }
 
   // Update parcel status (any agent)
   @UseGuards(JwtAuthGuard)
   @Patch('parcels/:trackingNumber/status')
-  updateStatus(@Request() req, @Param('trackingNumber') tn: string, @Body() dto: { status: ParcelStatus; city: string; note?: string }) {
+  updateStatus(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @Body() dto: { status: ParcelStatus; city: string; note?: string },
+  ) {
     return this.service.updateParcelStatus(req.user, tn, dto);
   }
 
@@ -161,8 +189,17 @@ export class SuperAgentsController {
   // Mark out-for-delivery / delivered (only my claimed parcels)
   @UseGuards(JwtAuthGuard)
   @Patch('parcels/:trackingNumber/delivery-status')
-  updateMyDeliveryStatus(@Request() req, @Param('trackingNumber') tn: string, @Body() dto: { status: ParcelStatus; note?: string }) {
-    return this.service.updateMyDeliveryStatus(req.user, tn, dto.status, dto.note);
+  updateMyDeliveryStatus(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @Body() dto: { status: ParcelStatus; note?: string },
+  ) {
+    return this.service.updateMyDeliveryStatus(
+      req.user,
+      tn,
+      dto.status,
+      dto.note,
+    );
   }
 
   // ── Bulk shipments ────────────────────────────────────────────────────────
@@ -176,7 +213,11 @@ export class SuperAgentsController {
   // Dispatch a sealed bulk shipment with courier cost + receipt
   @UseGuards(JwtAuthGuard)
   @Patch('bulk-shipments/:id/dispatch')
-  dispatchBulkShipment(@Request() req, @Param('id') id: string, @Body() dto: any) {
+  dispatchBulkShipment(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
     return this.service.dispatchBulkShipment(req.user, Number(id), dto);
   }
 
@@ -215,7 +256,10 @@ export class SuperAgentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch('admin/courier-cost/:type/:idOrTrackingNumber/settle')
-  markCostSettled(@Param('type') type: 'parcel' | 'bulk', @Param('idOrTrackingNumber') id: string) {
+  markCostSettled(
+    @Param('type') type: 'parcel' | 'bulk',
+    @Param('idOrTrackingNumber') id: string,
+  ) {
     return this.service.markCostSettled(type, id);
   }
   // ══ Intercity route table (admin) ══════════════════════════════════════
@@ -277,7 +321,6 @@ export class SuperAgentsController {
     );
   }
 
-
   // ══ Collection fee config ═══════════════════════════════════════════════
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -290,10 +333,15 @@ export class SuperAgentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @Post('admin/collection-fees')
-  setCollectionFee(@Body() body: { city: string; urbanFee: number; ruralFee: number }) {
-    return this.service.setCollectionFee(body.city, body.urbanFee, body.ruralFee);
+  setCollectionFee(
+    @Body() body: { city: string; urbanFee: number; ruralFee: number },
+  ) {
+    return this.service.setCollectionFee(
+      body.city,
+      body.urbanFee,
+      body.ruralFee,
+    );
   }
-
 
   // ══ Seller shipments ════════════════════════════════════════════════════
 
@@ -357,14 +405,18 @@ export class SuperAgentsController {
     return this.agentsService.findByCity(decodeURIComponent(city));
   }
 
-
-
   @Post('parcels/:trackingNumber/transfer-hub')
   @UseGuards(JwtAuthGuard)
   transferToHub(
     @Request() req,
     @Param('trackingNumber') trackingNumber: string,
-    @Body() dto: { destinationHub: string; destinationCity: string; transportMode?: string; note?: string },
+    @Body()
+    dto: {
+      destinationHub: string;
+      destinationCity: string;
+      transportMode?: string;
+      note?: string;
+    },
   ) {
     return this.service.transferToHub(req.user.id, trackingNumber, dto);
   }
@@ -380,7 +432,13 @@ export class SuperAgentsController {
   @UseGuards(JwtAuthGuard)
   adminAssignHub(
     @Param('id') id: string,
-    @Body() dto: { hubCity: string; hubName: string; hubAddress?: string; coverageZones?: string[] },
+    @Body()
+    dto: {
+      hubCity: string;
+      hubName: string;
+      hubAddress?: string;
+      coverageZones?: string[];
+    },
   ) {
     return this.service.adminAssignHub(Number(id), dto);
   }
@@ -390,5 +448,4 @@ export class SuperAgentsController {
   adminHubSummary() {
     return this.service.adminGetHubSummary();
   }
-
 }

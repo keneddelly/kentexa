@@ -269,19 +269,37 @@ const Agents = ({ onNavigate }) => {
 
                       {/* Mini stats */}
                       {agent.status === 'approved' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginTop: 10, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
-                          {[
-                            { l: 'Zimefishwa', v: agent.totalDeliveriesCompleted || 0, c: '#1d4ed8' },
-                            { l: 'Makusanyo',  v: agent.totalCollectionsCompleted || 0, c: '#7c3aed' },
-                            { l: 'Rating',     v: agent.rating ? `${Number(agent.rating).toFixed(1)}⭐` : '5.0⭐', c: '#f59e0b' },
-                            { l: 'Mapato',     v: `TZS ${Number(agent.totalEarnings || 0).toLocaleString()}`, c: '#16a34a' },
-                          ].map(s => (
-                            <div key={s.l} style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
-                              <div style={{ fontSize: 13, fontWeight: 800, color: s.c }}>{s.v}</div>
-                              <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{s.l}</div>
-                            </div>
-                          ))}
-                        </div>
+                        <>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6, marginTop: 10, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
+                            {[
+                              { l: 'Zimefishwa', v: agent.totalDeliveriesCompleted || 0, c: '#1d4ed8' },
+                              { l: 'Makusanyo',  v: agent.totalCollectionsCompleted || 0, c: '#7c3aed' },
+                              { l: 'Rating',     v: agent.rating ? `${Number(agent.rating).toFixed(1)}⭐` : '5.0⭐', c: '#f59e0b' },
+                              { l: 'Mapato',     v: `TZS ${Number(agent.totalEarnings || 0).toLocaleString()}`, c: '#16a34a' },
+                            ].map(s => (
+                              <div key={s.l} style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '6px 8px', textAlign: 'center' }}>
+                                <div style={{ fontSize: 13, fontWeight: 800, color: s.c }}>{s.v}</div>
+                                <div style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>{s.l}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Earnings breakdown */}
+                          <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginTop: 10 }}>
+                            <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>💰 Mgawanyo wa Mapato</div>
+                            {[
+                              { label: 'Utoaji wa Bidhaa', value: agent.totalEarningsDeliveries || 0, icon: '🏍️' },
+                              { label: 'Ukusanyaji wa Malipo', value: agent.totalEarningsPayments || 0, icon: '💳' },
+                              { label: 'Ukusanyaji wa Bidhaa', value: agent.totalEarningsCollections || 0, icon: '📦' },
+                              { label: 'Inayosubiri Kulipwa', value: agent.pendingEarnings || 0, icon: '⏳' },
+                            ].map(e => (
+                              <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #dcfce7' }}>
+                                <span style={{ fontSize: 11, color: '#475569' }}>{e.icon} {e.label}</span>
+                                <span style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>TZS {Number(e.value).toLocaleString()}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
                       )}
                     </div>
                   );
@@ -289,23 +307,6 @@ const Agents = ({ onNavigate }) => {
               </div>
             )}
           </div>
-
-
-                      {/* Earnings breakdown */}
-                      <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 12, marginTop: 10 }}>
-                        <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>💰 Mgawanyo wa Mapato</div>
-                        {[
-                          { label: 'Utoaji wa Bidhaa', value: agent.totalEarningsDeliveries || 0, icon: '🏍️' },
-                          { label: 'Ukusanyaji wa Malipo', value: agent.totalEarningsPayments || 0, icon: '💳' },
-                          { label: 'Ukusanyaji wa Bidhaa', value: agent.totalEarningsCollections || 0, icon: '📦' },
-                          { label: 'Inayosubiri Kulipwa', value: agent.pendingEarnings || 0, icon: '⏳' },
-                        ].map(e => (
-                          <div key={e.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #dcfce7' }}>
-                            <span style={{ fontSize: 11, color: '#475569' }}>{e.icon} {e.label}</span>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: '#16a34a' }}>TZS {Number(e.value).toLocaleString()}</span>
-                          </div>
-                        ))}
-                      </div>
 
           {/* Action panel */}
           {selected && (

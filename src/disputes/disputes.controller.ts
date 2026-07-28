@@ -1,14 +1,21 @@
 import {
-  Controller, Get, Post, Patch,
-  Body, Param, ParseIntPipe, Query,
-  UseGuards, Request,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { DisputesService } from './disputes.service';
 import { DisputeReason, DisputeResolution } from './entities/dispute.entity';
 import { JwtAuthGuard } from '../auth/auth.guard';
-import { RolesGuard }   from '../auth/roles.guard';
-import { Roles }        from '../auth/roles.decorator';
-import { UserRole }     from '../users/entities/user.entity';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('disputes')
 @UseGuards(JwtAuthGuard)
@@ -19,9 +26,12 @@ export class DisputesController {
   @Post()
   raise(
     @Request() req,
-    @Body() body: {
-      orderId: number; reason: DisputeReason;
-      description: string; evidencePhotos?: string[];
+    @Body()
+    body: {
+      orderId: number;
+      reason: DisputeReason;
+      description: string;
+      evidencePhotos?: string[];
     },
   ) {
     return this.service.raise(req.user, body);
@@ -77,7 +87,8 @@ export class DisputesController {
   resolve(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       resolution: DisputeResolution;
       resolutionNote: string;
       refundAmount?: number;

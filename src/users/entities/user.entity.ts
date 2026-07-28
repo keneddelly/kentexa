@@ -1,17 +1,20 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
 export enum UserRole {
-  USER          = 'user',
-  SELLER        = 'seller',
-  AGENT         = 'agent',
-  SUPER_AGENT   = 'super_agent',
+  USER = 'user',
+  SELLER = 'seller',
+  AGENT = 'agent',
+  SUPER_AGENT = 'super_agent',
   CUSTOMER_CARE = 'customer_care',
-  MANAGER       = 'manager',
-  ADMIN         = 'admin',
-  ARBITRATOR    = 'arbitrator',  // dispute resolver — assigned by admin per dispute
+  MANAGER = 'manager',
+  ADMIN = 'admin',
+  ARBITRATOR = 'arbitrator', // dispute resolver — assigned by admin per dispute
 }
 
 @Entity()
@@ -57,7 +60,7 @@ export class User {
   storeName: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  storeWhatsApp: string | null;  // e.g. 255788075633 — used for wa.me tracking links
+  storeWhatsApp: string | null; // e.g. 255788075633 — used for wa.me tracking links
 
   // ── Seller payout details — how KenteXa sends the seller their money ─────
   // Shown in the admin Payouts page so admin knows exactly where to send
@@ -127,25 +130,25 @@ export class User {
 
   // ── Commerce Identity ─────────────────────────────────────────────────────
   @Column({ type: 'int', default: 0 })
-  reputationScore: number;          // 0–1000, grows with activity
+  reputationScore: number; // 0–1000, grows with activity
 
   @Column({ type: 'simple-array', nullable: true })
-  activeRoles: string[] | null;     // ['buyer','seller','agent'] — activated roles
+  activeRoles: string[] | null; // ['buyer','seller','agent'] — activated roles
 
   @Column({ type: 'varchar', nullable: true })
-  kycLevel: string | null;          // 'none' | 'phone' | 'id_document' | 'business'
+  kycLevel: string | null; // 'none' | 'phone' | 'id_document' | 'business'
 
   @Column({ type: 'varchar', nullable: true })
-  bio: string | null;               // short commerce bio
+  bio: string | null; // short commerce bio
 
   @Column({ type: 'varchar', nullable: true })
-  city: string | null;              // primary city
+  city: string | null; // primary city
 
   @Column({ type: 'boolean', default: false })
-  onboardingCompleted: boolean;     // guided setup done
+  onboardingCompleted: boolean; // guided setup done
 
   @Column({ type: 'simple-array', nullable: true })
-  interests: string[] | null;       // ['electronics','fashion','food'...]
+  interests: string[] | null; // ['electronics','fashion','food'...]
 
   @Column({ type: 'int', default: 95 })
   responseRate: number;
@@ -156,7 +159,11 @@ export class User {
 
   // ✅ Active promotion (JSON object)
   @Column({ type: 'jsonb', nullable: true })
-  activePromotion: { title: string; description: string; expiresAt?: string } | null;
+  activePromotion: {
+    title: string;
+    description: string;
+    expiresAt?: string;
+  } | null;
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,11 +1,14 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 export enum ContactMessageStatus {
-  OPEN     = 'open',
-  REPLIED  = 'replied',
+  OPEN = 'open',
+  REPLIED = 'replied',
   RESOLVED = 'resolved',
 }
 
@@ -29,7 +32,11 @@ export class ContactMessage {
   @Column('text')
   message: string;
 
-  @Column({ type: 'enum', enum: ContactMessageStatus, default: ContactMessageStatus.OPEN })
+  @Column({
+    type: 'enum',
+    enum: ContactMessageStatus,
+    default: ContactMessageStatus.OPEN,
+  })
   status: ContactMessageStatus;
 
   @Column({ type: 'text', nullable: true })

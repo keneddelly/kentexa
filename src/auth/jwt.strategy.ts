@@ -14,7 +14,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private config: ConfigService,
   ) {
     super({
-      jwtFromRequest:   ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       // ✅ Must match JwtModule secret exactly
       secretOrKey: config.get<string>('JWT_SECRET') || 'kentexa_secret_key',

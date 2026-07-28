@@ -19,8 +19,14 @@ const STATUS_COLORS = {
 
 const ConversationItem = ({ convo, isActive, onClick }) => {
   const sc = STATUS_COLORS[convo.status] || STATUS_COLORS.open;
-  const name = convo.customer?.name || 'Mteja';
+  const isBuyerSide = convo._mode === 'buyer';
+  // Buyer side of the table shows the SELLER (who I'm talking to); seller
+  // side shows the CUSTOMER — same component, other party's name either way.
+  const name = isBuyerSide
+    ? (convo.seller?.storeName || convo.seller?.name || 'Muuzaji')
+    : (convo.customer?.name || 'Mteja');
   const initial = name[0].toUpperCase();
+  const unread = isBuyerSide ? convo.buyerUnreadCount : convo.unreadCount;
   const time = convo.lastMessageAt
     ? new Date(convo.lastMessageAt).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' })
     : '';
@@ -37,12 +43,12 @@ const ConversationItem = ({ convo, isActive, onClick }) => {
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 18, fontWeight: 900, color: '#fff', position: 'relative' }}>
         {initial}
-        {convo.unreadCount > 0 && (
+        {unread > 0 && (
           <div style={{ position: 'absolute', top: -2, right: -2, width: 16, height: 16,
             backgroundColor: '#dc2626', borderRadius: '50%', fontSize: 9,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontWeight: 900 }}>
-            {convo.unreadCount}
+            {unread}
           </div>
         )}
       </div>
@@ -65,8 +71,12 @@ const ConversationItem = ({ convo, isActive, onClick }) => {
   );
 };
 
-const MessageBubble = ({ msg, sellerId }) => {
-  const isSeller = msg.senderType === 'seller' || msg.senderType === 'employee';
+const MessageBubble = ({ msg, mode }) => {
+  // "Mine" = my own outgoing messages, aligned right — flips depending on
+  // which side of the conversation the current viewer is on.
+  const isMine = mode === 'buyer'
+    ? msg.senderType === 'customer'
+    : (msg.senderType === 'seller' || msg.senderType === 'employee');
   const isSystem = msg.senderType === 'system';
   const isNote   = msg.isNote;
 
@@ -82,7 +92,7 @@ const MessageBubble = ({ msg, sellerId }) => {
   // Product card
   if (msg.type === 'product' && msg.metadata) {
     return (
-      <div style={{ display: 'flex', justifyContent: isSeller ? 'flex-end' : 'flex-start',
+      <div style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start',
         margin: '6px 0' }}>
         <div style={{ maxWidth: '75%', backgroundColor: '#fff',
           border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden' }}>
@@ -120,15 +130,15 @@ const MessageBubble = ({ msg, sellerId }) => {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: isSeller ? 'flex-end' : 'flex-start',
+    <div style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start',
       margin: '4px 0' }}>
       <div style={{
         maxWidth: '78%',
-        backgroundColor: isNote ? '#fef3c7' : isSeller ? '#1d4ed8' : '#f1f5f9',
-        color: isNote ? '#92400e' : isSeller ? '#fff' : '#1e293b',
+        backgroundColor: isNote ? '#fef3c7' : isMine ? '#1d4ed8' : '#f1f5f9',
+        color: isNote ? '#92400e' : isMine ? '#fff' : '#1e293b',
         padding: '9px 14px', borderRadius: 16,
-        borderBottomRightRadius: isSeller ? 4 : 16,
-        borderBottomLeftRadius:  isSeller ? 16 : 4,
+        borderBottomRightRadius: isMine ? 4 : 16,
+        borderBottomLeftRadius:  isMine ? 16 : 4,
         fontSize: 13, lineHeight: 1.5,
       }}>
         {isNote && <div style={{ fontSize: 10, fontWeight: 800, marginBottom: 4 }}>📝 KUMBUKA (ya ndani)</div>}
@@ -138,7 +148,7 @@ const MessageBubble = ({ msg, sellerId }) => {
   );
 };
 
-const SellerInbox = ({ onNavigate, initialCustomerId }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);
   const [messages,      setMessages]        = useState([]);
@@ -153,50 +163,91 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
   const [orderForm,     setOrderForm]       = useState({ productName: '', qty: 1, price: '', phone: '', address: '' });
   const [creatingOrder, setCreatingOrder]   = useState(false);
   const [filter,        setFilter]          = useState('open');
+  const [error,         setError]           = useState('');
   const messagesEndRef = useRef(null);
+
+  // Deep-linked straight into a chat with one specific seller (MessageSeller-{id}).
+  const buyerDeepLink = !!sellerId;
 
   const fetchInbox = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/business/inbox?status=${filter}&limit=30`);
-      setConversations(res.data.conversations || []);
-      // Auto-open if initialCustomerId passed — always, even if inbox is empty
+      setError('');
+
+      // ── Deep-linked: open/start a single conversation as the buyer ──────
+      if (buyerDeepLink) {
+        try {
+          const r = await api.post('/business/my-conversations/start', {
+            sellerId: Number(sellerId),
+          });
+          const convo = { ...r.data, _mode: 'buyer' };
+          setConversations([convo]);
+          openConversation(convo);
+        } catch (err) {
+          setError(err?.response?.data?.message || 'Imeshindwa kuanza mazungumzo na muuzaji huyu.');
+        }
+        return;
+      }
+
+      // ── Existing seller-side deep link (from SellerCustomers) ───────────
       if (initialCustomerId) {
-        const match = (res.data.conversations || []).find(
-          c => c.customerId === Number(initialCustomerId)
-        );
+        const res = await api.get(`/business/inbox?status=${filter}&limit=30`);
+        const list = (res.data.conversations || []).map(c => ({ ...c, _mode: 'seller' }));
+        setConversations(list);
+        const match = list.find(c => c.customerId === Number(initialCustomerId));
         if (match) {
           openConversation(match);
         } else {
-          // No existing conversation — start one
           try {
             const r = await api.post('/business/inbox/start', {
-              customerId: Number(initialCustomerId)
+              customerId: Number(initialCustomerId),
             });
-            setActive(r.data);
-            setConversations(prev => [r.data, ...prev]);
-            fetchMessages(r.data.id);
+            const convo = { ...r.data, _mode: 'seller' };
+            setActive(convo);
+            setConversations(prev => [convo, ...prev]);
+            fetchMessages(convo);
           } catch (err) {
             setError('Imeshindwa kuanza mazungumzo. Hakikisha mteja yupo.');
           }
         }
+        return;
       }
+
+      // ── Bare inbox — merge both sides: my conversations as seller AND as buyer ──
+      const [sellerRes, buyerRes] = await Promise.allSettled([
+        api.get(`/business/inbox?status=${filter}&limit=30`),
+        api.get('/business/my-conversations?limit=30'),
+      ]);
+      const sellerList = sellerRes.status === 'fulfilled'
+        ? (sellerRes.value.data.conversations || []).map(c => ({ ...c, _mode: 'seller' }))
+        : [];
+      const buyerList = buyerRes.status === 'fulfilled'
+        ? (buyerRes.value.data.conversations || []).map(c => ({ ...c, _mode: 'buyer' }))
+        : [];
+      const merged = [...sellerList, ...buyerList].sort((a, b) =>
+        new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt)
+      );
+      setConversations(merged);
     } catch {} finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, initialCustomerId]);
+  }, [filter, initialCustomerId, sellerId]);
 
-  const fetchMessages = async (convoId) => {
+  const fetchMessages = async (convo) => {
     try {
       setMsgLoading(true);
-      const res = await api.get(`/business/inbox/${convoId}/messages`);
+      const res = await api.get(
+        convo._mode === 'buyer'
+          ? `/business/my-conversations/${convo.id}/messages`
+          : `/business/inbox/${convo.id}/messages`
+      );
       setMessages(res.data.messages || []);
-      setActive(res.data.conversation);
+      setActive({ ...res.data.conversation, _mode: convo._mode });
     } catch {} finally { setMsgLoading(false); }
   };
 
   const openConversation = (convo) => {
     setActive(convo);
-    fetchMessages(convo.id);
+    fetchMessages(convo);
   };
 
   useEffect(() => { fetchInbox(); }, [fetchInbox]);
@@ -246,9 +297,13 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
     if (!text.trim() || !active) return;
     setSending(true);
     try {
-      const res = await api.post(`/business/inbox/${active.id}/messages`, {
-        content: text.trim(), isNote,
-      });
+      const res = active._mode === 'buyer'
+        ? await api.post(`/business/my-conversations/${active.id}/messages`, {
+            content: text.trim(),
+          })
+        : await api.post(`/business/inbox/${active.id}/messages`, {
+            content: text.trim(), isNote,
+          });
       setMessages(prev => [...prev, res.data]);
       setText(''); setIsNote(false);
     } catch {} finally { setSending(false); }
@@ -279,7 +334,17 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
   return (
     <div style={{ display: 'flex', height: '100vh', flexDirection: 'column',
       backgroundColor: '#f8fafc' }}>
-      <BackBar title="Inbox ya Wateja" onBack={() => onNavigate('back')} />
+      <BackBar title="Inbox" onBack={() => onNavigate('back')} />
+
+      {error && (
+        <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 16px',
+          fontSize: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>❌ {error}</span>
+          <button onClick={() => setError('')}
+            style={{ background: 'none', border: 'none', cursor: 'pointer',
+              color: '#dc2626', fontWeight: 'bold' }}>×</button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', maxWidth: 480,
         margin: '0 auto', width: '100%' }}>
@@ -335,18 +400,23 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
             <div style={{ backgroundColor: '#fff', padding: '12px 16px',
               borderBottom: '1px solid #f1f5f9', display: 'flex',
               alignItems: 'center', gap: 12 }}>
-              <button onClick={() => { setActive(null); setMessages([]); }}
+              <button onClick={() => buyerDeepLink
+                  ? onNavigate('back')
+                  : (setActive(null), setMessages([]))}
                 style={{ background: 'none', border: 'none', fontSize: 20,
                   cursor: 'pointer', color: '#64748b' }}>←</button>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 800 }}>
-                  {active.customer?.name || 'Mteja'}
+                  {active._mode === 'buyer'
+                    ? (active.seller?.storeName || active.seller?.name || 'Muuzaji')
+                    : (active.customer?.name || 'Mteja')}
                 </div>
                 <div style={{ fontSize: 11, color: '#64748b' }}>
-                  {active.customer?.phone || ''}
+                  {active._mode === 'buyer' ? '' : (active.customer?.phone || '')}
                 </div>
               </div>
-              {/* Status dropdown */}
+              {/* Status dropdown — seller-only CRM control */}
+              {active._mode !== 'buyer' && (
               <select value={active.status}
                 onChange={e => handleStatusChange(e.target.value)}
                 style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8,
@@ -356,6 +426,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
                 <option value="resolved">✅ Imekamilika</option>
                 <option value="closed">⛔ Imefungwa</option>
               </select>
+              )}
             </div>
 
             {/* Messages */}
@@ -371,13 +442,13 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
                   </div>
                 </div>
               ) : messages.map(msg => (
-                <MessageBubble key={msg.id} msg={msg} />
+                <MessageBubble key={msg.id} msg={msg} mode={active._mode} />
               ))}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Order Form */}
-            {showOrderForm && (
+            {/* Quick Order Form — seller-only CRM tool */}
+            {active._mode !== 'buyer' && showOrderForm && (
               <div style={{ backgroundColor: '#f0fdf4', borderTop: '1px solid #86efac',
                 padding: 14 }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 10 }}>
@@ -425,8 +496,8 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
               </div>
             )}
 
-            {/* Product picker */}
-            {showProducts && (
+            {/* Product picker — seller-only CRM tool */}
+            {active._mode !== 'buyer' && showProducts && (
               <div style={{ backgroundColor: '#fff', borderTop: '1px solid #e2e8f0',
                 padding: 12, maxHeight: 200, overflowY: 'auto' }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 8 }}>
@@ -456,7 +527,8 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
             {/* Input bar */}
             <div style={{ backgroundColor: '#fff', padding: '10px 12px',
               borderTop: '1px solid #f1f5f9' }}>
-              {/* Action buttons */}
+              {/* Action buttons — seller-only CRM tools, hidden for the buyer side */}
+              {active._mode !== 'buyer' && (
               <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                 <button onClick={() => setShowProducts(!showProducts)}
                   title="Shiriki Bidhaa"
@@ -490,6 +562,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId }) => {
                   📝 {isNote ? 'Kumbuka ✓' : 'Kumbuka'}
                 </button>
               </div>
+              )}
 
               {isNote && (
                 <div style={{ fontSize: 10, color: '#92400e', backgroundColor: '#fef3c7',

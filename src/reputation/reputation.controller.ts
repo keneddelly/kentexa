@@ -3,10 +3,15 @@
  * Place at: src/reputation/reputation.controller.ts
  */
 import {
-  Controller, Get, Post, Param, Request,
-  UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Request,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard }      from '../auth/auth.guard';
+import { JwtAuthGuard } from '../auth/auth.guard';
 import { ReputationService } from './reputation.service';
 
 @Controller('reputation')

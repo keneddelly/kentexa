@@ -1,6 +1,13 @@
 import {
-  Controller, Post, Get, Headers, Body, Param,
-  UnauthorizedException, NotFoundException, BadRequestException,
+  Controller,
+  Post,
+  Get,
+  Headers,
+  Body,
+  Param,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -42,16 +49,20 @@ export class WebhookController {
   // ── Authenticate transport provider ──────────────────────────────────────
 
   private async authenticate(apiKey: string): Promise<TransportProvider> {
-    if (!apiKey) throw new UnauthorizedException('API key required. Use X-API-Key header.');
+    if (!apiKey)
+      throw new UnauthorizedException(
+        'API key required. Use X-API-Key header.',
+      );
     const provider = await this.providerRepo.findOne({
-      where: { apiKey, webhookEnabled: true } as any,
+      where: { apiKey, webhookEnabled: true },
     });
-    if (!provider) throw new UnauthorizedException('Invalid or disabled API key.');
+    if (!provider)
+      throw new UnauthorizedException('Invalid or disabled API key.');
     // Update usage stats
     await this.providerRepo.update(provider.id, {
       lastApiCallAt: new Date(),
       totalApiCalls: provider.totalApiCalls + 1,
-    } as any);
+    });
     return provider;
   }
 
@@ -60,7 +71,8 @@ export class WebhookController {
       where: { trackingNumber },
       relations: { order: { buyer: true } },
     });
-    if (!parcel) throw new NotFoundException(`Parcel ${trackingNumber} not found`);
+    if (!parcel)
+      throw new NotFoundException(`Parcel ${trackingNumber} not found`);
     return parcel;
   }
 
@@ -71,20 +83,22 @@ export class WebhookController {
     note: string,
     provider: TransportProvider,
   ) {
-    await this.trackingRepo.save(this.trackingRepo.create({
-      parcel:      { id: parcel.id } as any,
-      status,
-      city,
-      note,
-      updatedBy:   provider.name,
-      handlerType: provider.type === 'bus' ? 'super_agent' : 'system',
-    } as any));
-    await this.parcelRepo.update((parcel as any).id, { status } as any);
+    await this.trackingRepo.save(
+      this.trackingRepo.create({
+        parcel: { id: parcel.id } as any,
+        status,
+        city,
+        note,
+        updatedBy: provider.name,
+        handlerType: provider.type === 'bus' ? 'super_agent' : 'system',
+      } as any),
+    );
+    await this.parcelRepo.update((parcel as any).id, { status });
 
     // Update provider stats
     await this.providerRepo.update(provider.id, {
       totalParcelsTracked: provider.totalParcelsTracked + 1,
-    } as any);
+    });
   }
 
   // ── POST /api/v1/webhook/departure ────────────────────────────────────────
@@ -94,19 +108,21 @@ export class WebhookController {
   @Post('webhook/departure')
   async departure(
     @Headers('x-api-key') apiKey: string,
-    @Body() body: {
-      trackingNumber:  string;
-      ticketNumber?:   string;   // bus ticket / courier ref
-      departureTime?:  string;   // ISO datetime
-      originCity:      string;
+    @Body()
+    body: {
+      trackingNumber: string;
+      ticketNumber?: string; // bus ticket / courier ref
+      departureTime?: string; // ISO datetime
+      originCity: string;
       destinationCity: string;
-      vehicleId?:      string;   // bus plate / courier vehicle
-      driverName?:     string;
-      notes?:          string;
+      vehicleId?: string; // bus plate / courier vehicle
+      driverName?: string;
+      notes?: string;
     },
   ) {
     const provider = await this.authenticate(apiKey);
-    if (!body.trackingNumber) throw new BadRequestException('trackingNumber required');
+    if (!body.trackingNumber)
+      throw new BadRequestException('trackingNumber required');
 
     const parcel = await this.findParcel(body.trackingNumber);
 
@@ -114,24 +130,28 @@ export class WebhookController {
     const updates: any = { status: ParcelStatus.IN_TRANSIT };
     if (body.ticketNumber && !(parcel as any).busTicketNumber) {
       updates.busTicketNumber = body.ticketNumber;
-      updates.busCompany      = provider.name;
+      updates.busCompany = provider.name;
     }
     if (body.departureTime) updates.dispatchTime = new Date(body.departureTime);
     await this.parcelRepo.update((parcel as any).id, updates);
 
     await this.addEvent(
-      parcel, ParcelStatus.IN_TRANSIT, body.originCity,
+      parcel,
+      ParcelStatus.IN_TRANSIT,
+      body.originCity,
       `${provider.name}: Imetoka ${body.originCity}` +
-      (body.ticketNumber ? ` — Tiketi: ${body.ticketNumber}` : '') +
-      (body.departureTime ? ` — ${new Date(body.departureTime).toLocaleString('sw-TZ')}` : ''),
+        (body.ticketNumber ? ` — Tiketi: ${body.ticketNumber}` : '') +
+        (body.departureTime
+          ? ` — ${new Date(body.departureTime).toLocaleString('sw-TZ')}`
+          : ''),
       provider,
     );
 
     return {
-      success:        true,
+      success: true,
       trackingNumber: body.trackingNumber,
-      status:         'in_transit',
-      message:        'Departure recorded. Buyer can track at kentexa.com',
+      status: 'in_transit',
+      message: 'Departure recorded. Buyer can track at kentexa.com',
     };
   }
 
@@ -141,62 +161,77 @@ export class WebhookController {
   @Post('webhook/arrival')
   async arrival(
     @Headers('x-api-key') apiKey: string,
-    @Body() body: {
+    @Body()
+    body: {
       trackingNumber: string;
-      city:           string;     // city where parcel arrived
-      isFinal?:       boolean;    // true = final destination, false = transit
-      arrivedAt?:     string;     // ISO datetime
-      notes?:         string;
+      city: string; // city where parcel arrived
+      isFinal?: boolean; // true = final destination, false = transit
+      arrivedAt?: string; // ISO datetime
+      notes?: string;
     },
   ) {
     const provider = await this.authenticate(apiKey);
-    if (!body.trackingNumber) throw new BadRequestException('trackingNumber required');
-    if (!body.city)           throw new BadRequestException('city required');
+    if (!body.trackingNumber)
+      throw new BadRequestException('trackingNumber required');
+    if (!body.city) throw new BadRequestException('city required');
 
     const parcel = await this.findParcel(body.trackingNumber);
     const isFinal = body.isFinal !== false; // default: assume final
 
-    const newStatus = isFinal ? ParcelStatus.AWAITING_BUYER : ParcelStatus.IN_TRANSIT;
+    const newStatus = isFinal
+      ? ParcelStatus.AWAITING_BUYER
+      : ParcelStatus.IN_TRANSIT;
 
     if (isFinal) {
       await this.parcelRepo.update((parcel as any).id, {
-        status:           newStatus,
-        arrivedAtHubTime: body.arrivedAt ? new Date(body.arrivedAt) : new Date(),
-      } as any);
+        status: newStatus,
+        arrivedAtHubTime: body.arrivedAt
+          ? new Date(body.arrivedAt)
+          : new Date(),
+      });
     } else {
-      await this.parcelRepo.update((parcel as any).id, { status: newStatus } as any);
+      await this.parcelRepo.update((parcel as any).id, {
+        status: newStatus,
+      });
     }
 
     await this.addEvent(
-      parcel, newStatus, body.city,
+      parcel,
+      newStatus,
+      body.city,
       `${provider.name}: Imefika ${body.city}${isFinal ? ' (mwisho)' : ' (transit)'}` +
-      (body.notes ? ` — ${body.notes}` : ''),
+        (body.notes ? ` — ${body.notes}` : ''),
       provider,
     );
 
     // SMS buyer if final destination (action required)
     if (isFinal) {
-      const recipientName  = (parcel as any).recipientName || 'Mpokeaji';
-      const buyerPhone     = (parcel as any).buyerPhone    || parcel.order?.buyer?.phone;
+      const recipientName = (parcel as any).recipientName || 'Mpokeaji';
+      const buyerPhone =
+        (parcel as any).buyerPhone || parcel.order?.buyer?.phone;
       const trackingNumber = body.trackingNumber;
 
       if (buyerPhone) {
-        await this.smsService.sendSms(
-          buyerPhone,
-          `KenteXa: Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
-          `imefika ${body.city} kupitia ${provider.name}. ` +
-          `Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery. ` +
-          `kentexa.com/?track=${trackingNumber}`,
-        ).catch(() => {});
+        await this.smsService
+          .sendSms(
+            buyerPhone,
+            `KenteXa: Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
+              `imefika ${body.city} kupitia ${provider.name}. ` +
+              `Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery. ` +
+              `kentexa.com/?track=${trackingNumber}`,
+          )
+          .catch(() => {});
       }
     }
 
     return {
-      success:        true,
+      success: true,
       trackingNumber: body.trackingNumber,
-      status:         newStatus,
+      status: newStatus,
       isFinal,
-      message:        isFinal ? 'Arrival recorded. Buyer notified.' : 'Transit recorded.',
+      message: isFinal
+        ? 'Arrival recorded. Buyer notified.'
+        : 'Transit recorded.',
     };
   }
 
@@ -206,50 +241,55 @@ export class WebhookController {
   @Post('webhook/delivered')
   async delivered(
     @Headers('x-api-key') apiKey: string,
-    @Body() body: {
+    @Body()
+    body: {
       trackingNumber: string;
-      deliveredAt?:   string;
-      receivedBy?:    string;   // name of person who signed
+      deliveredAt?: string;
+      receivedBy?: string; // name of person who signed
       proofPhotoUrl?: string;
-      notes?:         string;
+      notes?: string;
     },
   ) {
     const provider = await this.authenticate(apiKey);
-    if (!body.trackingNumber) throw new BadRequestException('trackingNumber required');
+    if (!body.trackingNumber)
+      throw new BadRequestException('trackingNumber required');
 
     const parcel = await this.findParcel(body.trackingNumber);
 
     await this.parcelRepo.update((parcel as any).id, {
-      status:        ParcelStatus.DELIVERED,
+      status: ParcelStatus.DELIVERED,
       deliveredTime: body.deliveredAt ? new Date(body.deliveredAt) : new Date(),
-    } as any);
+    });
 
     await this.addEvent(
-      parcel, ParcelStatus.DELIVERED,
+      parcel,
+      ParcelStatus.DELIVERED,
       (parcel as any).destinationCity || '',
       `${provider.name}: Imefikishwa` +
-      (body.receivedBy ? ` — Alipokea: ${body.receivedBy}` : '') +
-      (body.notes ? ` — ${body.notes}` : ''),
+        (body.receivedBy ? ` — Alipokea: ${body.receivedBy}` : '') +
+        (body.notes ? ` — ${body.notes}` : ''),
       provider,
     );
 
     // SMS buyer: delivery confirmation
-    const buyerPhone    = (parcel as any).buyerPhone || parcel.order?.buyer?.phone;
+    const buyerPhone = (parcel as any).buyerPhone || parcel.order?.buyer?.phone;
     const recipientName = (parcel as any).recipientName || 'Mpokeaji';
 
     if (buyerPhone) {
-      await this.smsService.sendSms(
-        buyerPhone,
-        `KenteXa: ✅ Habari ${recipientName}! Bidhaa yako (${body.trackingNumber}) ` +
-        `imefikishwa na ${provider.name}. Asante kwa kutumia KenteXa! 🎉`,
-      ).catch(() => {});
+      await this.smsService
+        .sendSms(
+          buyerPhone,
+          `KenteXa: ✅ Habari ${recipientName}! Bidhaa yako (${body.trackingNumber}) ` +
+            `imefikishwa na ${provider.name}. Asante kwa kutumia KenteXa! 🎉`,
+        )
+        .catch(() => {});
     }
 
     return {
-      success:        true,
+      success: true,
       trackingNumber: body.trackingNumber,
-      status:         'delivered',
-      message:        'Delivery recorded. Buyer notified.',
+      status: 'delivered',
+      message: 'Delivery recorded. Buyer notified.',
     };
   }
 
@@ -263,62 +303,62 @@ export class WebhookController {
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
       relations: {
-        superAgent:            true,
+        superAgent: true,
         destinationSuperAgent: true,
-        seller:                true,
-        order:                 { buyer: true, seller: true },
+        seller: true,
+        order: { buyer: true, seller: true },
       },
     });
 
     if (!parcel) {
       throw new NotFoundException({
-        error:   'Parcel not found',
+        error: 'Parcel not found',
         message: `No parcel with tracking number ${trackingNumber}`,
       });
     }
 
     const tracking = await this.trackingRepo.find({
-      where: { parcel: { id: parcel.id } } as any,
+      where: { parcel: { id: parcel.id } },
       order: { createdAt: 'ASC' },
     });
 
     return {
-      trackingNumber:    parcel.trackingNumber,
-      status:            parcel.status,
+      trackingNumber: parcel.trackingNumber,
+      status: parcel.status,
       // Route
-      originCity:        (parcel as any).originCity,
-      destinationCity:   (parcel as any).destinationCity,
-      transitCity:       (parcel as any).transitCity        || null,
-      expectedArrival:   (parcel as any).expectedArrival    || null,
-      estimatedDays:     (parcel as any).estimatedDays      || null,
+      originCity: (parcel as any).originCity,
+      destinationCity: (parcel as any).destinationCity,
+      transitCity: (parcel as any).transitCity || null,
+      expectedArrival: (parcel as any).expectedArrival || null,
+      estimatedDays: (parcel as any).estimatedDays || null,
       // Item
-      description:       (parcel as any).description        || null,
-      weightKg:          (parcel as any).weightKg           || null,
+      description: (parcel as any).description || null,
+      weightKg: (parcel as any).weightKg || null,
       // People (no sensitive data like phone numbers in public API)
-      senderName:        (parcel as any).senderName         || parcel.seller?.name || null,
-      recipientName:     (parcel as any).recipientName      || null,
+      senderName: (parcel as any).senderName || parcel.seller?.name || null,
+      recipientName: (parcel as any).recipientName || null,
       // Hubs
-      originHub:         parcel.superAgent?.businessName    || null,
-      destinationHub:    parcel.destinationSuperAgent?.businessName || null,
+      originHub: parcel.superAgent?.businessName || null,
+      destinationHub: parcel.destinationSuperAgent?.businessName || null,
       // Transport
-      busCompany:        (parcel as any).busCompany         || null,
-      busTicketNumber:   (parcel as any).busTicketNumber    || null,
-      courierName:       (parcel as any).courierName        || null,
-      courierRef:        (parcel as any).courierTrackingRef || null,
+      busCompany: (parcel as any).busCompany || null,
+      busTicketNumber: (parcel as any).busTicketNumber || null,
+      courierName: (parcel as any).courierName || null,
+      courierRef: (parcel as any).courierTrackingRef || null,
       // Timestamps
-      dispatchTime:      (parcel as any).dispatchTime       || null,
-      arrivedAtHubTime:  (parcel as any).arrivedAtHubTime   || null,
+      dispatchTime: (parcel as any).dispatchTime || null,
+      arrivedAtHubTime: (parcel as any).arrivedAtHubTime || null,
       // History — full audit trail
-      history: tracking.map(t => ({
-        status:    t.status,
-        city:      t.city,
-        note:      t.note,
+      history: tracking.map((t) => ({
+        status: t.status,
+        city: t.city,
+        note: t.note,
         updatedBy: t.updatedBy,
         timestamp: t.createdAt,
       })),
       // Meta
-      source:      (parcel as any).source || 'unknown',
-      trackedBy:   'KenteXa Logistics Platform',
+      source: (parcel as any).source || 'unknown',
+      trackedBy: 'KenteXa Logistics Platform',
       trackingUrl: `https://kentexa.com/?track=${trackingNumber}`,
     };
   }

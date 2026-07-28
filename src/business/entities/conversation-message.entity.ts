@@ -1,24 +1,28 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import { Conversation } from './conversation.entity';
 import { User } from '../../users/entities/user.entity';
 
 export enum MessageSenderType {
-  SELLER   = 'seller',
+  SELLER = 'seller',
   CUSTOMER = 'customer',
-  SYSTEM   = 'system',   // auto messages: order created, payment received etc
+  SYSTEM = 'system', // auto messages: order created, payment received etc
   EMPLOYEE = 'employee',
 }
 
 export enum MessageType {
-  TEXT    = 'text',
-  IMAGE   = 'image',
-  PRODUCT = 'product',   // product card shared in chat
-  ORDER   = 'order',     // order created from chat
-  INVOICE = 'invoice',   // invoice sent
-  NOTE    = 'note',      // internal seller note (not visible to customer)
+  TEXT = 'text',
+  IMAGE = 'image',
+  PRODUCT = 'product', // product card shared in chat
+  ORDER = 'order', // order created from chat
+  INVOICE = 'invoice', // invoice sent
+  NOTE = 'note', // internal seller note (not visible to customer)
 }
 
 @Entity('conversation_message')
@@ -49,7 +53,7 @@ export class ConversationMessage {
   type: string;
 
   @Column({ type: 'text', nullable: true })
-  content: string | null;   // text message or caption
+  content: string | null; // text message or caption
 
   @Column({ type: 'varchar', nullable: true })
   imageUrl: string | null;
@@ -77,7 +81,7 @@ export class ConversationMessage {
   isRead: boolean;
 
   @Column({ type: 'boolean', default: false })
-  isNote: boolean;  // internal note — not shown to customer
+  isNote: boolean; // internal note — not shown to customer
 
   @Column({ type: 'timestamp', nullable: true })
   readAt: Date | null;

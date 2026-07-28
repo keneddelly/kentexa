@@ -1,6 +1,14 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, Param, Query, UseGuards, Request,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  Request,
   ParseIntPipe,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
@@ -96,10 +104,7 @@ export class ProductsController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.service.remove(id, req.user);
   }
 }

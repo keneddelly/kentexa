@@ -13,9 +13,6 @@
  *   - Products tab | Classifieds tab | Services tab | All
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import Navbar        from '../components/Navbar';
-import BackBar       from '../components/BackBar';
-import Footer        from '../components/Footer';
 import WishlistHeart from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
 import api           from '../../api/api';
@@ -270,10 +267,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
   };
 
   return (
-    <div style={{ minHeight:'100vh', backgroundColor:'#F8FAFC',
-      fontFamily:'Manrope,Inter,-apple-system,sans-serif', display:'flex', flexDirection:'column' }}>
-      <Navbar currentPage="Search" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+    <div style={{ minHeight:'100vh', backgroundColor:'#FAFAFA',
+      fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
 
       {/* ── Search bar (sticky) ── */}
       <div style={{ position:'sticky', top:0, zIndex:200, backgroundColor:WH,
@@ -519,7 +514,6 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
         ::-webkit-scrollbar { display:none }
       `}</style>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

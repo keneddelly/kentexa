@@ -8,8 +8,8 @@ export class MailService {
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      host:   process.env.MAIL_HOST   || 'smtp.gmail.com',
-      port:   parseInt(process.env.MAIL_PORT || '587', 10),
+      host: process.env.MAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.MAIL_PORT || '587', 10),
       secure: process.env.MAIL_SECURE === 'true', // true for 465, false for 587
       auth: {
         user: process.env.MAIL_USER,
@@ -26,8 +26,8 @@ export class MailService {
   async sendOtp(email: string, otp: string, name?: string): Promise<boolean> {
     try {
       await this.transporter.sendMail({
-        from:    this.from,
-        to:      email,
+        from: this.from,
+        to: email,
         subject: `${otp} is your KenteXa verification code`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:16px;">
@@ -62,8 +62,8 @@ export class MailService {
   async sendWelcome(email: string, name: string): Promise<void> {
     try {
       await this.transporter.sendMail({
-        from:    this.from,
-        to:      email,
+        from: this.from,
+        to: email,
         subject: `Welcome to KenteXa, ${name}! 🎉`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:16px;">
@@ -93,7 +93,9 @@ export class MailService {
       });
       this.logger.log(`Welcome email sent to ${email}`);
     } catch (err) {
-      this.logger.error(`Failed to send welcome email to ${email}: ${err.message}`);
+      this.logger.error(
+        `Failed to send welcome email to ${email}: ${err.message}`,
+      );
     }
   }
 
@@ -101,8 +103,8 @@ export class MailService {
   async sendPasswordReset(email: string, otp: string): Promise<boolean> {
     try {
       await this.transporter.sendMail({
-        from:    this.from,
-        to:      email,
+        from: this.from,
+        to: email,
         subject: `Reset your KenteXa password`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:16px;">
@@ -126,17 +128,25 @@ export class MailService {
       this.logger.log(`Password reset email sent to ${email}`);
       return true;
     } catch (err) {
-      this.logger.error(`Failed to send password reset email to ${email}: ${err.message}`);
+      this.logger.error(
+        `Failed to send password reset email to ${email}: ${err.message}`,
+      );
       return false;
     }
   }
 
   // ── Order confirmation ────────────────────────────────────────────────
-  async sendOrderConfirmation(email: string, name: string, orderId: number, amount: number, productName: string): Promise<void> {
+  async sendOrderConfirmation(
+    email: string,
+    name: string,
+    orderId: number,
+    amount: number,
+    productName: string,
+  ): Promise<void> {
     try {
       await this.transporter.sendMail({
-        from:    this.from,
-        to:      email,
+        from: this.from,
+        to: email,
         subject: `Order Confirmed #${orderId} — KenteXa`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:16px;">
@@ -172,16 +182,24 @@ export class MailService {
         `,
       });
     } catch (err) {
-      this.logger.error(`Failed to send order confirmation to ${email}: ${err.message}`);
+      this.logger.error(
+        `Failed to send order confirmation to ${email}: ${err.message}`,
+      );
     }
   }
 
   // ── Contact form submission — sent to support inbox ──────────────────
-  async sendContactFormMessage(data: { name: string; email: string; phone?: string; subject: string; message: string }) {
+  async sendContactFormMessage(data: {
+    name: string;
+    email: string;
+    phone?: string;
+    subject: string;
+    message: string;
+  }) {
     try {
       await this.transporter.sendMail({
-        from:    this.from,
-        to:      'support@kentexa.com',
+        from: this.from,
+        to: 'support@kentexa.com',
         replyTo: data.email,
         subject: `📩 Contact Form: ${data.subject}`,
         html: `
@@ -216,11 +234,16 @@ export class MailService {
   // ── Generic update email — used by NotificationsService for all
   // shipping/tracking/delivery/payout events. One flexible template
   // instead of writing a new method for every single event. ──────────────
-  async sendGenericUpdate(email: string, name: string, title: string, message: string) {
+  async sendGenericUpdate(
+    email: string,
+    name: string,
+    title: string,
+    message: string,
+  ) {
     try {
       await this.transporter.sendMail({
-        from:    `"KenteXa" <${process.env.MAIL_USER}>`,
-        to:      email,
+        from: `"KenteXa" <${process.env.MAIL_USER}>`,
+        to: email,
         subject: `KenteXa — ${title}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
@@ -241,7 +264,9 @@ ${message}</p>
         `,
       });
     } catch (err) {
-      this.logger.error(`Failed to send update email to ${email}: ${err.message}`);
+      this.logger.error(
+        `Failed to send update email to ${email}: ${err.message}`,
+      );
     }
   }
 }

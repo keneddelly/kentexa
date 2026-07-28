@@ -1,4 +1,4 @@
-import { IsNumber, IsString, Matches, Min } from 'class-validator';
+import { IsNumber, IsString, Matches } from 'class-validator';
 
 export class StkPushDto {
   @IsNumber()

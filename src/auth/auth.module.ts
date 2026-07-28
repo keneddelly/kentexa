@@ -15,18 +15,18 @@ import { MailModule } from '../mail/mail.module';
     TypeOrmModule.forFeature([User]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
-      imports:    [ConfigModule],
-      inject:     [ConfigService],
+      imports: [ConfigModule],
+      inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret:      config.get<string>('JWT_SECRET') || 'kentexa_secret_key',
+        secret: config.get<string>('JWT_SECRET') || 'kentexa_secret_key',
         signOptions: { expiresIn: '7d' },
       }),
     }),
     SmsModule,
     MailModule,
   ],
-  providers:   [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy],
   controllers: [AuthController],
-  exports:     [AuthService, JwtStrategy],
+  exports: [AuthService, JwtStrategy],
 })
 export class AuthModule {}

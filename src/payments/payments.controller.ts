@@ -1,6 +1,12 @@
 import {
-  Controller, Post, Get, Body,
-  UseGuards, Request, Param, ParseIntPipe,
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Request,
+  Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
@@ -55,7 +61,13 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @Post('invoice/pay')
   customerPayInvoice(
-    @Body() body: { invoiceNumber?: string; orderId?: number; phone: string; provider: string },
+    @Body()
+    body: {
+      invoiceNumber?: string;
+      orderId?: number;
+      phone: string;
+      provider: string;
+    },
     @Request() req,
   ) {
     return this.paymentsService.customerPayInvoice(
@@ -81,7 +93,8 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @Post('agent/initiate')
   agentInitiatePayment(
-    @Body() body: { invoiceNumber: string; agentPhone: string; provider: string },
+    @Body()
+    body: { invoiceNumber: string; agentPhone: string; provider: string },
     @Request() req,
   ) {
     return this.paymentsService.agentInitiatePayment(
@@ -93,10 +106,7 @@ export class PaymentsController {
   }
 
   @Post('agent/callback/:provider')
-  agentPaymentCallback(
-    @Body() body: any,
-    @Param('provider') provider: string,
-  ) {
+  agentPaymentCallback(@Body() body: any, @Param('provider') provider: string) {
     return this.paymentsService.agentPaymentCallback(body, provider);
   }
 
@@ -109,7 +119,10 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @Post('admin/:orderId/release-escrow')
   @UseGuards(JwtAuthGuard)
-  releaseEscrow(@Param('orderId', ParseIntPipe) orderId: number, @Request() req) {
+  releaseEscrow(
+    @Param('orderId', ParseIntPipe) orderId: number,
+    @Request() req,
+  ) {
     return this.paymentsService.releaseEscrow(orderId, req.user.id);
   }
 

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- no type declarations published for this package
 const AfricasTalking = require('africastalking');
 
 @Injectable()
@@ -10,21 +11,21 @@ export class SmsService {
   private readonly isDev: boolean;
 
   constructor(private config: ConfigService) {
-    const apiKey   = config.get<string>('AT_API_KEY')    || '';
-    const username = config.get<string>('AT_USERNAME')   || 'sandbox';
-    this.shortCode = config.get<string>('AT_SHORTCODE')  || 'KenteXa';
-    this.isDev     = config.get<string>('NODE_ENV') !== 'production';
+    const apiKey = config.get<string>('AT_API_KEY') || '';
+    const username = config.get<string>('AT_USERNAME') || 'sandbox';
+    this.shortCode = config.get<string>('AT_SHORTCODE') || 'KenteXa';
+    this.isDev = config.get<string>('NODE_ENV') !== 'production';
 
-    const at   = AfricasTalking({ apiKey, username });
-    this.sms   = at.SMS;
+    const at = AfricasTalking({ apiKey, username });
+    this.sms = at.SMS;
   }
 
   // ── Format phone to +255XXXXXXXXX ────────────────────────────────────
   private formatPhone(phone: string): string {
     const cleaned = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
-    if (cleaned.startsWith('+'))   return cleaned;
+    if (cleaned.startsWith('+')) return cleaned;
     if (cleaned.startsWith('255')) return `+${cleaned}`;
-    if (cleaned.startsWith('0'))   return `+255${cleaned.slice(1)}`;
+    if (cleaned.startsWith('0')) return `+255${cleaned.slice(1)}`;
     return `+255${cleaned}`;
   }
 
@@ -42,13 +43,13 @@ export class SmsService {
 
     try {
       const result = await this.sms.send({
-        to:      [formatted],
+        to: [formatted],
         message,
-        from:    this.shortCode,
+        from: this.shortCode,
       });
 
       const recipient = result?.SMSMessageData?.Recipients?.[0];
-      const status    = recipient?.status;
+      const status = recipient?.status;
 
       if (status === 'Success') {
         this.logger.log(`✅ SMS sent to ${formatted}`);
@@ -78,13 +79,21 @@ export class SmsService {
   }
 
   // ── Payment notification ──────────────────────────────────────────────
-  async sendPaymentNotification(phone: string, amount: number, invoiceNumber: string): Promise<void> {
+  async sendPaymentNotification(
+    phone: string,
+    amount: number,
+    invoiceNumber: string,
+  ): Promise<void> {
     const message = `KenteXa: Payment of TZS ${Number(amount).toLocaleString()} received for invoice ${invoiceNumber}. Thank you!`;
     await this.sendSms(phone, message);
   }
 
   // ── Order notification ────────────────────────────────────────────────
-  async sendOrderNotification(phone: string, orderId: number, status: string): Promise<void> {
+  async sendOrderNotification(
+    phone: string,
+    orderId: number,
+    status: string,
+  ): Promise<void> {
     const message = `KenteXa: Your order #${orderId} status updated to: ${status}. Open the app to track your order.`;
     await this.sendSms(phone, message);
   }

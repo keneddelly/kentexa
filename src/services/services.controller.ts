@@ -3,13 +3,21 @@
  * Place at: src/services/services.controller.ts
  */
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, Query, Request,
-  UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  Request,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard }    from '../auth/auth.guard';
+import { JwtAuthGuard } from '../auth/auth.guard';
 import { ServicesService } from './services.service';
-import { JobStatus }       from './entities/job-request.entity';
+import { JobStatus } from './entities/job-request.entity';
 
 @Controller('services')
 export class ServicesController {
@@ -24,18 +32,20 @@ export class ServicesController {
   // ── Public browse ─────────────────────────────────────────────────────────
   @Get()
   browse(
-    @Query('category')  category?:  string,
-    @Query('city')      city?:      string,
-    @Query('q')         q?:         string,
+    @Query('category') category?: string,
+    @Query('city') city?: string,
+    @Query('q') q?: string,
     @Query('available') available?: string,
-    @Query('limit')     limit?:     string,
-    @Query('offset')    offset?:    string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
     return this.svc.browse({
-      category, city, q,
+      category,
+      city,
+      q,
       available: available === 'true',
-      limit:     limit  ? Number(limit)  : 20,
-      offset:    offset ? Number(offset) : 0,
+      limit: limit ? Number(limit) : 20,
+      offset: offset ? Number(offset) : 0,
     });
   }
 
@@ -110,7 +120,8 @@ export class ServicesController {
   respondToJob(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: { accept: boolean; agreedPrice?: number; providerNote?: string },
+    @Body()
+    dto: { accept: boolean; agreedPrice?: number; providerNote?: string },
   ) {
     return this.svc.respondToJob(req.user.id, id, dto);
   }

@@ -17,7 +17,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     fetchOrders();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchOrders = async () => {
     try {

@@ -18,13 +18,6 @@ const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [existingProfile, setExistingProfile] = useState(null);
 
-  const CITIES = [
-    'Dar es Salaam','Mwanza','Arusha','Moshi','Dodoma','Mbeya','Tanga','Morogoro',
-    'Kigoma','Tabora','Songea','Iringa','Zanzibar','Lindi','Mtwara','Shinyanga',
-    'Singida','Musoma','Bukoba','Sumbawanga','Babati','Kibaha','Njombe','Kasulu',
-    'Mpanda','Masasi','Korogwe','Geita','Bariadi','Chato','Sengerema',
-  ];
-
   const regions = [
     'Dar es Salaam','Mwanza','Arusha','Dodoma','Mbeya','Morogoro','Tanga',
     'Zanzibar','Kilimanjaro','Kigoma','Shinyanga','Kagera','Tabora','Lindi',

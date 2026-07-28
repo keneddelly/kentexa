@@ -3,13 +3,21 @@
  * Place at: src/feed/feed.controller.ts
  */
 import {
-  Controller, Get, Post, Delete,
-  Body, Param, Query, Request,
-  UseGuards, ParseIntPipe, Optional,
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  Request,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
-import { FeedService }  from './feed.service';
-import { CvsService }   from './cvs.service';
+import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
+import { FeedService } from './feed.service';
+import { CvsService } from './cvs.service';
 import { EngagementType } from './entities/post-engagement.entity';
 
 @Controller('feed')
@@ -19,19 +27,21 @@ export class FeedController {
     private readonly cvs: CvsService,
   ) {}
 
-  // ── Discovery (no auth needed) ────────────────────────────────────────────
+  // ── Discovery (no auth required, but personalized when logged in) ────────
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('discover')
   getDiscover(@Request() req) {
     const userId = req?.user?.id || null;
     return this.svc.getDiscoverFeed(userId);
   }
 
-  // ── Filtered feed (works with or without auth) ────────────────────────────
+  // ── Filtered feed (works with or without auth, personalized when logged in) ─
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
   async getFiltered(
     @Query('filter') filter = 'for_you',
-    @Query('page')   page   = '1',
-    @Query('city')   city?: string,
+    @Query('page') page = '1',
+    @Query('city') city?: string,
     @Request() req?,
   ) {
     const userId = req?.user?.id || null;
@@ -39,12 +49,13 @@ export class FeedController {
       filter,
       userId,
       city,
-      page:  Number(page) || 1,
+      page: Number(page) || 1,
       limit: 15,
     });
   }
 
   // ── Trending feed ─────────────────────────────────────────────────────────
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('trending')
   getTrending(@Request() req) {
     const userId = req?.user?.id || null;
@@ -52,6 +63,7 @@ export class FeedController {
   }
 
   // ── Story ring — sellers with a fresh Moment in the last 48h ──────────────
+  @UseGuards(OptionalJwtAuthGuard)
   @Get('moments/stories')
   getMomentStories(@Request() req) {
     const userId = req?.user?.id || null;
@@ -74,10 +86,7 @@ export class FeedController {
   // ── Delete post ───────────────────────────────────────────────────────────
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  deletePost(
-    @Request() req,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  deletePost(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.svc.deletePost(req.user.id, id);
   }
 
@@ -103,18 +112,25 @@ export class FeedController {
   addComment(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body('body')     body:      string,
+    @Body('body') body: string,
     @Body('parentId') parentId?: number,
+    @Body('offer') offer?: { entityType: string; entityId: number },
+    @Body('type') type?: any,
+    @Body('rating') rating?: number,
+    @Body('media') media?: { url: string; type: 'image' | 'video' }[],
+    @Body('offlinePurchaseClaim') offlinePurchaseClaim?: boolean,
   ) {
-    return this.cvs.addComment(req.user.id, id, body, parentId);
+    return this.cvs.addComment(req.user.id, id, body, parentId, offer, {
+      type,
+      rating,
+      media,
+      offlinePurchaseClaim,
+    });
   }
 
   @Delete('comments/:id')
   @UseGuards(JwtAuthGuard)
-  deleteComment(
-    @Request() req,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  deleteComment(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.cvs.deleteComment(req.user.id, id);
   }
 
@@ -123,5 +139,12 @@ export class FeedController {
   @UseGuards(JwtAuthGuard)
   getSavedIds(@Request() req) {
     return this.cvs.getSavedPostIds(req.user.id);
+  }
+
+  // ── Everything saved, with full display data — powers Wishlist.js ────────
+  @Get('saved')
+  @UseGuards(JwtAuthGuard)
+  getSavedItems(@Request() req) {
+    return this.cvs.getMySavedItems(req.user.id);
   }
 }

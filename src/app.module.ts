@@ -23,34 +23,35 @@ import { ParcelCollectionsModule } from './parcel-collections/parcel-collections
 import { TzPricingModule } from './tz-location/tz-pricing.module';
 import { BusinessModule } from './business/business.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { TransportModule }     from './transport/transport.module';
-import { WishlistModule }      from './wishlist/wishlist.module';
-import { ReputationModule }    from './reputation/reputation.module';
-import { FeedModule }          from './feed/feed.module';
-import { OffersModule }        from './offers/offers.module';
-import { PickupPointsModule }   from './pickup-points/pickup-points.module';
-import { ServicesModule }      from './services/services.module';
+import { TransportModule } from './transport/transport.module';
+import { WishlistModule } from './wishlist/wishlist.module';
+import { ReputationModule } from './reputation/reputation.module';
+import { FeedModule } from './feed/feed.module';
+import { OffersModule } from './offers/offers.module';
+import { PickupPointsModule } from './pickup-points/pickup-points.module';
+import { ServicesModule } from './services/services.module';
 import { TzLocationModule } from './tz-location/tz-location.module';
 import { SuperAgentsModule } from './super-agents/super-agents.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { BodaRatesModule } from './boda-rates/boda-rates.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
-      type:     'postgres',
-      host:     process.env.DB_HOST     || 'localhost',
-      port:     parseInt(process.env.DB_PORT || '5432', 10),
+      type: 'postgres',
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432', 10),
       username: process.env.DB_USERNAME || 'postgres',
       password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME     || 'kentexa',
+      database: process.env.DB_NAME || 'kentexa',
       autoLoadEntities: true,
-      synchronize:      true,
+      synchronize: true,
       extra: {
-        query_timeout:     30000,
+        query_timeout: 30000,
         statement_timeout: 30000,
       },
     }),
@@ -87,6 +88,7 @@ import { BodaRatesModule } from './boda-rates/boda-rates.module';
     AnalyticsModule,
     AnnouncementsModule,
     BodaRatesModule,
+    ContactModule,
   ],
 })
 export class AppModule {}

@@ -33,10 +33,10 @@ import { InvoicesModule } from '../invoices/invoices.module';
   controllers: [PaymentsController],
   providers: [
     PaymentsService,
-    VodacomService,    // kept — hidden on frontend for now
-    AirtelService,     // kept — hidden on frontend for now
-    SelcomService,     // active
-    MockAgentService,  // dev only
+    VodacomService, // kept — hidden on frontend for now
+    AirtelService, // kept — hidden on frontend for now
+    SelcomService, // active
+    MockAgentService, // dev only
   ],
   exports: [PaymentsService],
 })

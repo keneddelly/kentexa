@@ -1,6 +1,12 @@
 import {
-  IsEnum, IsNumber, IsOptional,
-  IsString, Min, IsArray, IsBoolean, IsObject,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  IsArray,
+  IsBoolean,
+  IsObject,
 } from 'class-validator';
 import { ClassifiedCategory } from '../entities/classified.entity';
 

@@ -4,8 +4,9 @@ import api from '../../api/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
-const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
   const [orders, setOrders] = useState([]);
+  const highlightRef = React.useRef(null);
   const [classifiedInvoices, setClassifiedInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,6 +35,12 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     }
     fetchData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Deep-linked from a notification — scroll to and highlight that order.
+  useEffect(() => {
+    if (!highlightOrderId || !orders.length || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [orders, highlightOrderId]);
 
   const fetchData = async () => {
     try {
@@ -345,10 +352,13 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {filteredOrders.map(order => (
-                  <div key={order.id} style={{
+                {filteredOrders.map(order => {
+                  const isHighlighted = Number(highlightOrderId) === order.id;
+                  return (
+                  <div key={order.id} ref={isHighlighted ? highlightRef : null} style={{
                     backgroundColor: '#fff', borderRadius: '12px', padding: '24px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9',
+                    boxShadow: isHighlighted ? '0 0 0 3px #6366f1, 0 2px 8px rgba(0,0,0,0.06)' : '0 2px 8px rgba(0,0,0,0.06)',
+                    border: isHighlighted ? '1px solid #6366f1' : '1px solid #f1f5f9',
                   }}>
                     {/* Order Header */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
@@ -503,7 +513,8 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </>

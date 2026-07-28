@@ -15,7 +15,7 @@ const STATUS = {
   disputed: { label: 'Tatizo',      color: '#dc2626', bg: '#fee2e2', icon: '⚠️' },
 };
 
-const PayoutCard = ({ order }) => {
+const PayoutCard = ({ order, highlighted, cardRef }) => {
   const s   = STATUS[order.payoutStatus] || STATUS.pending;
   const date = new Date(order.createdAt).toLocaleDateString('sw-TZ',
     { day: 'numeric', month: 'short', year: 'numeric' });
@@ -27,8 +27,9 @@ const PayoutCard = ({ order }) => {
     : null;
 
   return (
-    <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: '14px 16px',
-      marginBottom: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    <div ref={cardRef} style={{ backgroundColor: '#fff', borderRadius: 14, padding: '14px 16px',
+      marginBottom: 10,
+      boxShadow: highlighted ? '0 0 0 3px #6366f1, 0 1px 4px rgba(0,0,0,0.06)' : '0 1px 4px rgba(0,0,0,0.06)',
       borderLeft: `4px solid ${s.color}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between',
         alignItems: 'flex-start', marginBottom: 8 }}>
@@ -90,10 +91,11 @@ const PayoutCard = ({ order }) => {
   );
 };
 
-const SellerPayouts = ({ onNavigate }) => {
+const SellerPayouts = ({ onNavigate, highlightOrderId }) => {
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('all'); // all | pending | released
+  const highlightRef = React.useRef(null);
 
   useEffect(() => {
     api.get('/seller/my-payouts')
@@ -101,6 +103,12 @@ const SellerPayouts = ({ onNavigate }) => {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // Deep-linked from a notification — scroll to and highlight that order.
+  useEffect(() => {
+    if (!highlightOrderId || !data?.orders?.length || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [data, highlightOrderId]);
 
   const filtered = (data?.orders || []).filter(o => {
     if (tab === 'pending')  return o.payoutStatus !== 'released';
@@ -186,7 +194,13 @@ const SellerPayouts = ({ onNavigate }) => {
                 <div style={{ fontSize: 36 }}>💰</div>
                 <div style={{ marginTop: 12, fontSize: 13 }}>Hakuna maagizo katika kikundi hiki</div>
               </div>
-            ) : filtered.map(o => <PayoutCard key={o.id} order={o} />)}
+            ) : filtered.map(o => {
+              const isHighlighted = Number(highlightOrderId) === o.id;
+              return (
+                <PayoutCard key={o.id} order={o} highlighted={isHighlighted}
+                  cardRef={isHighlighted ? highlightRef : null} />
+              );
+            })}
           </>
         )}
       </div>

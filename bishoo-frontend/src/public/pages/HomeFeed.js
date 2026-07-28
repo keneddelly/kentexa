@@ -12,8 +12,8 @@
  *  Comments go to POST /comments (entity-based)
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import WishlistHeart   from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
+import CommerceCommentSection from '../components/CommerceCommentSection';
 import api             from '../../api/api';
 
 const B   = '#2563EB';
@@ -54,17 +54,6 @@ const TYPE_META = {
   moment:      { label:'📸 Moment',      bg:'#EFF6FF', color:B         },
 };
 
-const REQUEST_CATEGORIES = [
-  { key:'electronics', icon:'📱', label:'Electronics' },
-  { key:'fashion',     icon:'👗', label:'Fashion'      },
-  { key:'food',        icon:'🍽️', label:'Food'         },
-  { key:'hardware',    icon:'🔧', label:'Hardware'     },
-  { key:'furniture',   icon:'🛋️', label:'Furniture'    },
-  { key:'beauty',      icon:'💄', label:'Beauty'       },
-  { key:'services',    icon:'🔨', label:'Services'     },
-  { key:'other',       icon:'📦', label:'Other'        },
-];
-
 // ── Engagement service (works on virtual + real post IDs) ─────────────────────
 const Engagement = {
   async track(postId, entityType, entityId, type, isLoggedIn, onNavigate) {
@@ -103,7 +92,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
         </div>
         <div style={{ fontSize:12, color:GR, marginBottom:20 }}>About: {title}</div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <button onClick={() => { onNavigate(isLoggedIn ? 'SellerInbox' : 'PublicLogin'); onClose(); }}
+          <button onClick={() => { onNavigate(isLoggedIn ? `MessageSeller-${biz.id}` : 'PublicLogin'); onClose(); }}
             style={{ display:'flex', alignItems:'center', gap:14, padding:'16px',
               backgroundColor:'#EFF6FF', borderRadius:14, border:'none', cursor:'pointer',
               textAlign:'left', width:'100%' }}>
@@ -475,9 +464,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const bizId   = biz.id;
   const bizName = biz.storeName || biz.name || 'Businesses';
   const repScore= biz.reputationScore || 0;
-  const phone   = (biz.storeWhatsApp || biz.phone || '')
-    .replace(/^0/,'255').replace(/[^0-9]/g,'');
-  const image   = !imgErr && (post.imageUrl || post.data?.images?.[0]) || null;
+  const image   = (!imgErr && (post.imageUrl || post.data?.images?.[0])) || null;
   // Badge: real, unambiguous post types (Moment, Looking For, Discount...)
   // always win over the entityType inference above, which is really about
   // what's tagged/for-sale, not what kind of post this is.
@@ -774,8 +761,27 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
       {/* ── Comments ── */}
       {showComments && (
-        <CommentSection post={post} isLoggedIn={isLoggedIn}
-          onNavigate={onNavigate} currentUser={currentUser} />
+        post.linkedEntityType && post.linkedEntityId ? (
+          // Tagged to a real product/classified/service — show THAT entity's
+          // own unified comment thread, so a review posted here is the exact
+          // same review shown on the entity's own detail page, not a
+          // separate copy tied to this specific post.
+          <CommerceCommentSection
+            entityType={post.linkedEntityType}
+            entityId={post.linkedEntityId}
+            entityTitle={post.title}
+            sellerId={bizId}
+            isLoggedIn={isLoggedIn}
+            currentUser={currentUser}
+            onNavigate={onNavigate}
+          />
+        ) : (
+          // No linked entity (e.g. a Looking For request) — keep the
+          // existing post-specific thread, including the "I Have This"
+          // reply flow, which only makes sense without a tagged item.
+          <CommentSection post={post} isLoggedIn={isLoggedIn}
+            onNavigate={onNavigate} currentUser={currentUser} />
+        )
       )}
 
       {/* ── Contact modal ── */}
@@ -1286,6 +1292,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
     if (p === 1) setLoading(true); else setLoadingMore(true);
     try {
       const params = new URLSearchParams({ filter: f, page: String(p) });
+      // Lets the backend's "for_you" blend (city-match component) and the
+      // "nearby" filter actually match against the viewer's own location —
+      // neither had ever received it before.
+      if (currentUser?.city) params.set('city', currentUser.city);
       const res = await api.get(`/feed?${params}`);
       const items = res.data?.items || res.data || [];
       if (append) setPosts(prev => [...prev, ...items]);
@@ -1293,7 +1303,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       setHasMore(items.length >= 15);
     } catch {}
     finally { setLoading(false); setLoadingMore(false); }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     setPage(1);

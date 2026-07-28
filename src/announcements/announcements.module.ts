@@ -7,10 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { SmsModule } from '../sms/sms.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Announcement, User]),
-    SmsModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Announcement, User]), SmsModule],
   controllers: [AnnouncementsController],
   providers: [AnnouncementsService],
   exports: [AnnouncementsService],

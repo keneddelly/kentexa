@@ -1,6 +1,13 @@
 import {
-  Controller, Get, Post, Patch,
-  Param, Body, Query, UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ContactService } from './contact.service';
 import { ContactMessageStatus } from './entities/contact-message.entity';
@@ -10,9 +17,9 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 
 interface ContactFormDto {
-  name:    string;
-  email:   string;
-  phone?:  string;
+  name: string;
+  email: string;
+  phone?: string;
   subject: string;
   message: string;
 }

@@ -1,55 +1,59 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Product } from '../../products/entities/products.entity';
 
 export enum OrderStatus {
   PENDING_PAYMENT = 'pending_payment',
-  PAID            = 'paid',
-  PREPARING       = 'preparing',
-  READY_PICKUP    = 'ready_for_pickup',
-  IN_TRANSIT      = 'in_transit',
-  DELIVERED       = 'delivered',
-  COMPLETED       = 'completed',
-  DISPUTED        = 'disputed',
-  CANCELLED       = 'cancelled',
+  PAID = 'paid',
+  PREPARING = 'preparing',
+  READY_PICKUP = 'ready_for_pickup',
+  IN_TRANSIT = 'in_transit',
+  DELIVERED = 'delivered',
+  COMPLETED = 'completed',
+  DISPUTED = 'disputed',
+  CANCELLED = 'cancelled',
 }
 
 export enum PaymentStatus {
-  PENDING  = 'pending',
-  PAID     = 'paid',
+  PENDING = 'pending',
+  PAID = 'paid',
   RELEASED = 'released',
   REFUNDED = 'refunded',
-  FAILED   = 'failed',
+  FAILED = 'failed',
 }
 
 export enum EscrowStatus {
-  HOLDING  = 'holding',
+  HOLDING = 'holding',
   RELEASED = 'released',
   REFUNDED = 'refunded',
   DISPUTED = 'disputed',
 }
 
 export enum PayoutStatus {
-  PENDING  = 'pending',
+  PENDING = 'pending',
   RELEASED = 'released',
-  PAID     = 'paid',
+  PAID = 'paid',
   REFUNDED = 'refunded',
 }
 
 export enum DeliveryMethod {
   DIRECT = 'direct',
-  AGENT  = 'agent',
+  AGENT = 'agent',
 }
 
 export enum OrderSource {
-  ONLINE            = 'online',            // normal checkout via KenteXa
-  OFFLINE           = 'offline',           // entered manually by seller/agent for a walk-in/cash sale
+  ONLINE = 'online', // normal checkout via KenteXa
+  OFFLINE = 'offline', // entered manually by seller/agent for a walk-in/cash sale
   OFFLINE_INTERCITY = 'offline_intercity', // Super Agent counter parcel — TZS 1,000 tracking fee applies
-  SELLER_SHIPMENT   = 'seller_shipment',   // seller ships their own offline sale via KenteXa network
+  SELLER_SHIPMENT = 'seller_shipment', // seller ships their own offline sale via KenteXa network
 }
 
 @Entity()
@@ -63,7 +67,11 @@ export class Order {
   buyer: User | null;
 
   // ✅ Nullable — offline sales may not map to a catalog Product
-  @ManyToOne(() => Product, { eager: true, nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Product, {
+    eager: true,
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn()
   product: Product | null;
 
@@ -127,7 +135,11 @@ export class Order {
   sellerAmount: number;
 
   // ── Status ────────────────────────────────────────────────────────────────
-  @Column({ type: 'enum', enum: OrderStatus, default: OrderStatus.PENDING_PAYMENT })
+  @Column({
+    type: 'enum',
+    enum: OrderStatus,
+    default: OrderStatus.PENDING_PAYMENT,
+  })
   status: OrderStatus;
 
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
@@ -187,16 +199,16 @@ export class Order {
   // themselves, they request a local agent to collect it. The collection fee
   // is added to the buyer's total — seller is not penalised for location.
   @Column({ type: 'boolean', default: false })
-  needsCollection: boolean;        // true = seller requested agent pickup
+  needsCollection: boolean; // true = seller requested agent pickup
 
   @Column({ type: 'text', nullable: true })
   sellerPickupAddress: string | null; // exact address for collection
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  collectionFee: number | null;    // added to totalAmount when needsCollection=true
+  collectionFee: number | null; // added to totalAmount when needsCollection=true
 
   @Column({ type: 'boolean', default: false })
-  isRuralCollection: boolean;      // flags rural rate (up to TZS 5,000)
+  isRuralCollection: boolean; // flags rural rate (up to TZS 5,000)
 
   @Column({ type: 'text', nullable: true })
   shipmentProofUrl: string | null;
@@ -289,14 +301,14 @@ export class Order {
   buyerConfirmedAt: Date | null;
 
   @Column({ type: 'boolean', default: false })
-  autoConfirmed: boolean;          // true = confirmed by cron, not buyer
+  autoConfirmed: boolean; // true = confirmed by cron, not buyer
 
   // ── Review / Rating ───────────────────────────────────────────────────────
   @Column({ type: 'int', nullable: true })
-  buyerRating: number | null;      // 1-5 stars
+  buyerRating: number | null; // 1-5 stars
 
   @Column({ type: 'text', nullable: true })
-  buyerReview: string | null;      // optional text review
+  buyerReview: string | null; // optional text review
 
   @Column({ type: 'timestamp', nullable: true })
   reviewedAt: Date | null;

@@ -7,12 +7,9 @@ import { Agent } from '../agents/entities/agent.entity';
 import { SmsModule } from '../sms/sms.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Order, Agent]),
-    SmsModule,
-  ],
+  imports: [TypeOrmModule.forFeature([Order, Agent]), SmsModule],
   controllers: [AgentOrdersController],
-  providers:   [AgentOrdersService],
-  exports:     [AgentOrdersService],
+  providers: [AgentOrdersService],
+  exports: [AgentOrdersService],
 })
 export class AgentOrdersModule {}

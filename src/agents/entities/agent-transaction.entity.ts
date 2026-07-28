@@ -40,7 +40,11 @@ export class AgentTransaction {
   @Column({ type: 'text', nullable: true })
   paymentMethod: string | null;
 
-  @Column({ type: 'enum', enum: AgentTransactionStatus, default: AgentTransactionStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: AgentTransactionStatus,
+    default: AgentTransactionStatus.PENDING,
+  })
   status: AgentTransactionStatus;
 
   @CreateDateColumn()

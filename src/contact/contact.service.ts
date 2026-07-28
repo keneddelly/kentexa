@@ -1,13 +1,21 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ContactMessage, ContactMessageStatus } from './entities/contact-message.entity';
+import {
+  ContactMessage,
+  ContactMessageStatus,
+} from './entities/contact-message.entity';
 import { MailService } from '../mail/mail.service';
 
 interface SubmitContactDto {
-  name:    string;
-  email:   string;
-  phone?:  string;
+  name: string;
+  email: string;
+  phone?: string;
   subject: string;
   message: string;
 }
@@ -23,39 +31,51 @@ export class ContactService {
 
   // ── Submit — saves to DB first (source of truth), then attempts email ──
   async submit(dto: SubmitContactDto) {
-    if (!dto.name?.trim())    throw new BadRequestException('Name is required');
-    if (!dto.email?.trim())   throw new BadRequestException('Email is required');
-    if (!dto.subject?.trim()) throw new BadRequestException('Subject is required');
-    if (!dto.message?.trim()) throw new BadRequestException('Message is required');
+    if (!dto.name?.trim()) throw new BadRequestException('Name is required');
+    if (!dto.email?.trim()) throw new BadRequestException('Email is required');
+    if (!dto.subject?.trim())
+      throw new BadRequestException('Subject is required');
+    if (!dto.message?.trim())
+      throw new BadRequestException('Message is required');
 
     // ✅ Save to database FIRST — this is the permanent record.
     // Even if the email fails to send, the message is never lost.
     const saved = await this.repo.save(
       this.repo.create({
-        name:    dto.name.trim(),
-        email:   dto.email.trim(),
-        phone:   dto.phone?.trim() || null,
+        name: dto.name.trim(),
+        email: dto.email.trim(),
+        phone: dto.phone?.trim() || null,
         subject: dto.subject.trim(),
         message: dto.message.trim(),
-        status:  ContactMessageStatus.OPEN,
+        status: ContactMessageStatus.OPEN,
         emailSent: false,
-      })
+      }),
     );
 
     // Then try to email the support inbox — best effort, never blocks the response
     try {
       await this.mailService.sendContactFormMessage({
-        name: saved.name, email: saved.email, phone: saved.phone || undefined,
-        subject: saved.subject, message: saved.message,
+        name: saved.name,
+        email: saved.email,
+        phone: saved.phone || undefined,
+        subject: saved.subject,
+        message: saved.message,
       });
       saved.emailSent = true;
       await this.repo.save(saved);
     } catch (err) {
-      this.logger.warn(`Contact form #${saved.id} saved but email failed: ${err.message}`);
+      this.logger.warn(
+        `Contact form #${saved.id} saved but email failed: ${err.message}`,
+      );
       // Don't throw — the message is safely in the database regardless
     }
 
-    return { success: true, id: saved.id, message: 'Your message has been received. We will get back to you within 24 hours.' };
+    return {
+      success: true,
+      id: saved.id,
+      message:
+        'Your message has been received. We will get back to you within 24 hours.',
+    };
   }
 
   // ── Admin: list all messages ─────────────────────────────────────────
@@ -73,7 +93,11 @@ export class ContactService {
   }
 
   // ── Admin: update status / add note ──────────────────────────────────
-  async updateStatus(id: number, status: ContactMessageStatus, adminNote?: string) {
+  async updateStatus(
+    id: number,
+    status: ContactMessageStatus,
+    adminNote?: string,
+  ) {
     const msg = await this.findOne(id);
     msg.status = status;
     if (adminNote !== undefined) msg.adminNote = adminNote;

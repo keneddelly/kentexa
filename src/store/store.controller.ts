@@ -1,5 +1,13 @@
 import {
-  Controller, Get, Patch, Post, Body, Param, Request, UseGuards, ParseIntPipe, Query,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Body,
+  Param,
+  Request,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { StoreService } from './store.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -43,7 +51,10 @@ export class StoreController {
   // ── Logged-in user: Follow/unfollow a store ──────────────────────────────────
   @UseGuards(JwtAuthGuard)
   @Post(':sellerId/follow')
-  toggleFollow(@Param('sellerId', ParseIntPipe) sellerId: number, @Request() req) {
+  toggleFollow(
+    @Param('sellerId', ParseIntPipe) sellerId: number,
+    @Request() req,
+  ) {
     return this.storeService.toggleFollow(req.user.id, sellerId);
   }
 

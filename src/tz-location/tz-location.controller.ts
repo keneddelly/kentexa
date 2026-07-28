@@ -32,21 +32,22 @@ export class TzLocationController {
   @Get('districts')
   getDistricts(
     @Query('regionId') regionId?: string,
-    @Query('region')   region?: string,
+    @Query('region') region?: string,
   ) {
     if (regionId) return this.locationService.getDistricts(Number(regionId));
-    if (region)   return this.locationService.getDistrictsByRegionName(region);
+    if (region) return this.locationService.getDistrictsByRegionName(region);
     return [];
   }
 
   @Get('wards')
   getWards(
     @Query('districtId') districtId?: string,
-    @Query('district')   district?: string,
-    @Query('region')     region?: string,
+    @Query('district') district?: string,
+    @Query('region') region?: string,
   ) {
     if (districtId) return this.locationService.getWards(Number(districtId));
-    if (district)   return this.locationService.getWardsByDistrictName(district, region);
+    if (district)
+      return this.locationService.getWardsByDistrictName(district, region);
     return [];
   }
 
@@ -58,15 +59,16 @@ export class TzLocationController {
 
   @Get('delivery-type')
   deliveryType(
-    @Query('originWard')   originWard?: string,
-    @Query('destWard')     destWard?: string,
+    @Query('originWard') originWard?: string,
+    @Query('destWard') destWard?: string,
     @Query('originRegion') originRegion?: string,
-    @Query('destRegion')   destRegion?: string,
+    @Query('destRegion') destRegion?: string,
   ) {
     return this.locationService.resolveDeliveryType(
-      originWard  ? Number(originWard)  : null,
-      destWard    ? Number(destWard)    : null,
-      originRegion, destRegion,
+      originWard ? Number(originWard) : null,
+      destWard ? Number(destWard) : null,
+      originRegion,
+      destRegion,
     );
   }
 

@@ -30,7 +30,14 @@ export class BodaRatesController {
   @Patch(':rateKey')
   updateRate(
     @Param('rateKey') rateKey: string,
-    @Body() dto: { fee?: number; label?: string; isActive?: boolean; keywords?: string[]; category?: string },
+    @Body()
+    dto: {
+      fee?: number;
+      label?: string;
+      isActive?: boolean;
+      keywords?: string[];
+      category?: string;
+    },
   ) {
     return this.service.updateRate(rateKey, dto);
   }

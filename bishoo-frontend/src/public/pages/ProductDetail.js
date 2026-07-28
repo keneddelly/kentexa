@@ -3,6 +3,8 @@ import api from '../../api/api';
 import { trackProductView, trackAddToCart } from '../hooks/useAnalytics';
 import { useCart } from '../../context/CartContext';
 import SocialProofBadge from '../components/SocialProofBadge';
+import WishlistHeart from '../components/WishlistHeart';
+import CommerceCommentSection from '../components/CommerceCommentSection';
 import { useTranslation } from 'react-i18next';
 
 const CATEGORIES = {
@@ -22,17 +24,18 @@ const Stars = ({ rating, size = 12, interactive = false, onRate }) => (
   </span>
 );
 
-const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, track, currentUser, onOpenMoment }) => {
+const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, track, currentUser, onOpenMoment, initialTab }) => {
   const { t } = useTranslation();
   const [product, setProduct]           = useState(null);
   const [loading, setLoading]           = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity]         = useState(1);
-  const [tab, setTab]                   = useState('features');
+  const [tab, setTab]                   = useState(initialTab || 'features');
   const [message, setMessage]           = useState('');
-  const [wishlist, setWishlist]         = useState(false);
   const [related, setRelated]           = useState([]);
   const [recommended, setRecommended]   = useState([]);
+  const [sharingMoment, setSharingMoment] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const [reviews, setReviews]           = useState([]);
   const [reviewRating, setReviewRating] = useState(5);
@@ -43,6 +46,10 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
   const { addToCart, isInCart } = useCart();
 
   useEffect(() => { if (productId) fetchProduct(); }, [productId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Deep-linked from a "New comment"/"New save" notification — land on the
+  // reviews/comments tab instead of the default tab.
+  useEffect(() => { setTab(initialTab || 'features'); }, [productId, initialTab]);
 
   const fetchProduct = async () => {
     try {
@@ -85,6 +92,30 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
     if (track) trackAddToCart(track, product);
     setMessage(`${product.name} ${t('product_detail.added_to_cart')}`);
     setTimeout(() => setMessage(''), 3000);
+  };
+
+  // One click — we already know the product, its image, and its title, so
+  // there's nothing left for the user to fill in. No modal, just publish.
+  const handleShareMoment = async () => {
+    if (!product || sharingMoment) return;
+    try {
+      setSharingMoment(true);
+      await api.post('/feed/publish', {
+        type: 'moment',
+        title: product.name,
+        body: null,
+        imageUrl: product.images?.[0] || null,
+        linkedEntityType: 'product',
+        linkedEntityId: product.id,
+      });
+      setMessage('📸 Shared to your Moments!');
+      setTimeout(() => setMessage(''), 3000);
+    } catch (err) {
+      setMessage(err?.response?.data?.message || 'Could not share — try again');
+      setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setSharingMoment(false);
+    }
   };
 
   const handleSubmitReview = async () => {
@@ -165,7 +196,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
 
   const ProductCard = ({ p }) => (
     <div onClick={() => onNavigate(`ProductDetail-${p.id}`)}
-      style={{ flexShrink: 0, width: 130, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+      style={{ minWidth: 0, backgroundColor: '#fff', borderRadius: 12, overflow: 'hidden', cursor: 'pointer', border: '1px solid #f1f5f9', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
       <div style={{ width: '100%', height: 100, backgroundColor: '#f1f5f9', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {p.images?.[0] ? <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 28 }}>📦</span>}
       </div>
@@ -184,8 +215,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
         .pd-left { width: 100%; }
         .pd-right { width: 100%; }
         .pd-sticky-bar { position: fixed; bottom: calc(60px + env(safe-area-inset-bottom)); left: 0; right: 0; background: #fff; border-top: 1px solid #e2e8f0; padding: 10px 14px; display: flex; gap: 10px; align-items: center; z-index: 2000; box-shadow: 0 -4px 20px rgba(0,0,0,0.1); }
-        .pd-scroll { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
-        .pd-scroll::-webkit-scrollbar { display: none; }
+        .pd-scroll { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
         @media (min-width: 768px) {
           .pd-root { max-width: 1100px; padding-bottom: 0; }
           .pd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
@@ -210,6 +240,31 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#1d4ed8', padding: '4px 0', flexShrink:0, marginLeft:12 }}>
           🛒 {t('product_detail.cart')}
         </button>
+        {isLoggedIn && currentUser?.id === product.seller?.id && (
+          <div style={{ position:'relative', flexShrink:0, marginLeft:8 }}>
+            <button onClick={() => setShowMenu(s => !s)}
+              style={{ background:'none', border:'none', cursor:'pointer', fontSize:18,
+                color:'#0F172A', padding:'4px 6px' }}>
+              ⋯
+            </button>
+            {showMenu && (
+              <>
+                <div onClick={() => setShowMenu(false)}
+                  style={{ position:'fixed', inset:0, zIndex:150 }} />
+                <div style={{ position:'absolute', top:'100%', right:0, marginTop:4,
+                  backgroundColor:'#fff', borderRadius:10, boxShadow:'0 4px 20px rgba(0,0,0,0.15)',
+                  overflow:'hidden', zIndex:151, minWidth:140 }}>
+                  <button onClick={() => { setShowMenu(false); onNavigate(`EditProduct-${product.id}`); }}
+                    style={{ width:'100%', textAlign:'left', background:'none', border:'none',
+                      cursor:'pointer', padding:'12px 16px', fontSize:13, fontWeight:700,
+                      color:'#0F172A' }}>
+                    ✏️ Edit
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {message && (
@@ -235,10 +290,9 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                     -{discount}% {t('product_detail.off')}
                   </div>
                 )}
-                <button onClick={() => setWishlist(w => !w)}
-                  style={{ position: 'absolute', top: 10, right: 12, width: 36, height: 36, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.9)', border: 'none', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
-                  {wishlist ? '❤️' : '🤍'}
-                </button>
+                <div style={{ position: 'absolute', top: 10, right: 12, width: 36, height: 36, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <WishlistHeart entityType="product" entityId={product.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} size={20} />
+                </div>
                 {product.images?.length > 1 && (
                   <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
                     {product.images.map((_, i) => (
@@ -322,13 +376,10 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
 
             {isLoggedIn && currentUser?.id === product.seller?.id && (
               <div style={{ backgroundColor: '#fff', padding: '0 16px 12px' }}>
-                <button onClick={() => onOpenMoment?.('selling', {
-                    type: 'product', id: product.id, title: product.name,
-                    image: product.images?.[0] || null,
-                  })}
-                  style={{ background:'none', border:'none', cursor:'pointer', padding:0,
-                    color:'#2563EB', fontSize:12, fontWeight:700 }}>
-                  📸 Share as Moment
+                <button onClick={handleShareMoment} disabled={sharingMoment}
+                  style={{ background:'none', border:'none', cursor: sharingMoment ? 'default' : 'pointer', padding:0,
+                    color:'#2563EB', fontSize:12, fontWeight:700, opacity: sharingMoment ? 0.6 : 1 }}>
+                  {sharingMoment ? '⏳ Sharing...' : '📸 Share as Moment'}
                 </button>
               </div>
             )}
@@ -520,6 +571,21 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                         ))}
                       </div>
                     )}
+
+                    {/* Comments/questions from the wider engagement system —
+                        e.g. left via a Moment tagged to this product. This
+                        used to have nowhere to show at all, so a "New
+                        comment" notification about this product landed here
+                        with no way to actually see or reply to it. */}
+                    <div style={{ marginTop: 20 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', marginBottom: 10 }}>
+                        💬 Comments & Questions
+                      </div>
+                      <CommerceCommentSection
+                        entityType="product" entityId={product.id}
+                        entityTitle={product.name} sellerId={product.seller?.id}
+                        isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate} />
+                    </div>
                   </div>
                 )}
               </div>

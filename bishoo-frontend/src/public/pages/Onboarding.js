@@ -40,7 +40,7 @@ const INTERESTS = [
 
 const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
   const [step,        setStep]        = useState(1);
-  const [name,        setName]        = useState(currentUser?.name || '');
+  const [name]        = useState(currentUser?.name || '');
   const [city,        setCity]        = useState(currentUser?.city || '');
   const [interests,   setInterests]   = useState([]);
   const [sellers,     setSellers]     = useState([]);
@@ -103,13 +103,6 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
     if (step === 2) await saveStep({ interests });
     if (step === 3) { handleFinish(); return; }
     setStep(s => s + 1);
-  };
-
-  const inp = {
-    width: '100%', padding: '14px 16px', borderRadius: 14,
-    border: '1.5px solid #E2E8F0', fontSize: 16, outline: 'none',
-    boxSizing: 'border-box', fontFamily: 'inherit', color: DK,
-    backgroundColor: WH,
   };
 
   return (

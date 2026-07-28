@@ -1,18 +1,22 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { User }   from '../../users/entities/user.entity';
-import { Order }  from '../../orders/entities/order.entity';
+import { User } from '../../users/entities/user.entity';
+import { Order } from '../../orders/entities/order.entity';
 import { Parcel } from '../../super-agents/entities/parcel.entity';
 
 export enum CollectionStatus {
-  REQUESTED   = 'requested',     // Seller requested pickup — no agent yet
-  CLAIMED     = 'claimed',       // Agent claimed — on their way to seller
-  COLLECTED   = 'collected',     // Agent has the parcel — heading to hub
-  HANDED_OVER = 'handed_over',   // Delivered to Super Agent hub — job done
-  CANCELLED   = 'cancelled',     // No agent available / seller cancelled
+  REQUESTED = 'requested', // Seller requested pickup — no agent yet
+  CLAIMED = 'claimed', // Agent claimed — on their way to seller
+  COLLECTED = 'collected', // Agent has the parcel — heading to hub
+  HANDED_OVER = 'handed_over', // Delivered to Super Agent hub — job done
+  CANCELLED = 'cancelled', // No agent available / seller cancelled
 }
 
 /**
@@ -38,11 +42,19 @@ export class ParcelCollection {
   id: number;
 
   // ── Linked records ────────────────────────────────────────────────────────
-  @ManyToOne(() => Order, { eager: false, nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => Order, {
+    eager: false,
+    nullable: false,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   order: Order;
 
-  @ManyToOne(() => Parcel, { eager: false, nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Parcel, {
+    eager: false,
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn()
   parcel: Parcel | null;
 
@@ -57,13 +69,13 @@ export class ParcelCollection {
 
   // ── Location ──────────────────────────────────────────────────────────────
   @Column({ type: 'text' })
-  pickupAddress: string;          // seller's exact pickup location
+  pickupAddress: string; // seller's exact pickup location
 
   @Column()
-  city: string;                   // city where collection happens (e.g. 'Geita')
+  city: string; // city where collection happens (e.g. 'Geita')
 
   @Column({ type: 'boolean', default: false })
-  isRural: boolean;               // rural = higher collection fee
+  isRural: boolean; // rural = higher collection fee
 
   // ── Status ────────────────────────────────────────────────────────────────
   @Column({
@@ -81,17 +93,17 @@ export class ParcelCollection {
   collectionFee: number;
 
   @Column({ type: 'boolean', default: false })
-  agentPaidOut: boolean;          // admin has released fee to agent
+  agentPaidOut: boolean; // admin has released fee to agent
 
   // ── Timestamps ────────────────────────────────────────────────────────────
   @Column({ type: 'timestamp', nullable: true })
   claimedAt: Date | null;
 
   @Column({ type: 'timestamp', nullable: true })
-  collectedAt: Date | null;       // agent confirms pickup from seller
+  collectedAt: Date | null; // agent confirms pickup from seller
 
   @Column({ type: 'timestamp', nullable: true })
-  handedOverAt: Date | null;      // agent confirms handover at Super Agent hub
+  handedOverAt: Date | null; // agent confirms handover at Super Agent hub
 
   // ── Notes ─────────────────────────────────────────────────────────────────
   @Column({ type: 'text', nullable: true })

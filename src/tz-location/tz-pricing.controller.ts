@@ -15,20 +15,20 @@ export class TzPricingController {
   // Simple estimate — main endpoint used by SellerShipment and Checkout
   @Get('estimate')
   estimate(
-    @Query('from')           from:           string,
-    @Query('to')             to:             string,
-    @Query('weight')         weight?:        string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('weight') weight?: string,
     @Query('destDistrictId') destDistrictId?: string,
-    @Query('destDistrict')   destDistrict?:  string,
-    @Query('originRegion')   originRegion?:  string,
-    @Query('destRegion')     destRegion?:    string,
+    @Query('destDistrict') destDistrict?: string,
+    @Query('originRegion') originRegion?: string,
+    @Query('destRegion') destRegion?: string,
   ) {
     if (!from || !to) return { error: 'from and to are required' };
     return this.pricingService.estimate({
-      originCity:       from,
-      destinationCity:  to,
-      weightKg:         weight ? Number(weight) : 1,
-      destDistrictId:   destDistrictId ? Number(destDistrictId) : undefined,
+      originCity: from,
+      destinationCity: to,
+      weightKg: weight ? Number(weight) : 1,
+      destDistrictId: destDistrictId ? Number(destDistrictId) : undefined,
       destDistrictName: destDistrict,
       originRegion,
       destRegion,
@@ -38,15 +38,15 @@ export class TzPricingController {
   // All providers for a route (future: comparison UI)
   @Get('providers')
   providers(
-    @Query('from')   from:    string,
-    @Query('to')     to:      string,
+    @Query('from') from: string,
+    @Query('to') to: string,
     @Query('weight') weight?: string,
   ) {
     if (!from || !to) return { error: 'from and to are required' };
     return this.pricingService.estimateAllProviders({
-      originCity:      from,
+      originCity: from,
       destinationCity: to,
-      weightKg:        weight ? Number(weight) : 1,
+      weightKg: weight ? Number(weight) : 1,
     });
   }
 }

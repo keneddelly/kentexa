@@ -1,6 +1,10 @@
 import {
-  Controller, Post, UseInterceptors, UploadedFiles,
-  UseGuards, BadRequestException,
+  Controller,
+  Post,
+  UseInterceptors,
+  UploadedFiles,
+  UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -11,13 +15,12 @@ import { v2 as cloudinary } from 'cloudinary';
 // ✅ Cloudinary configuration
 cloudinary.config({
   cloud_name: 'djuvxyklu',
-  api_key:    '587314271732793',
+  api_key: '587314271732793',
   api_secret: 'mTTXKpBy5KPoEiC_Ar7qQhikFVM',
 });
 
 @Controller('upload')
 export class UploadController {
-
   @UseGuards(JwtAuthGuard)
   @Post('images')
   @UseInterceptors(
@@ -47,11 +50,11 @@ export class UploadController {
       const url = await new Promise<string>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           {
-            folder:         'kentexa',
-            resource_type:  'image',
+            folder: 'kentexa',
+            resource_type: 'image',
             transformation: [
               { quality: 'auto', fetch_format: 'auto' }, // auto optimize
-              { width: 1200, crop: 'limit' },             // max width 1200px
+              { width: 1200, crop: 'limit' }, // max width 1200px
             ],
           },
           (error, result) => {

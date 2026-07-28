@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -19,7 +23,9 @@ export class UsersService {
   }
 
   async create(dto: CreateUserDto) {
-    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+    const existing = await this.userRepo.findOne({
+      where: { email: dto.email },
+    });
     if (existing) throw new ConflictException('Email already in use');
     const hashed = await bcrypt.hash(dto.password, 10);
     const user = this.userRepo.create({ ...dto, password: hashed });
@@ -29,7 +35,7 @@ export class UsersService {
 
   async findAll() {
     const users = await this.userRepo.find();
-    return users.map(u => this.exclude(u));
+    return users.map((u) => this.exclude(u));
   }
 
   async findOne(id: number) {
@@ -50,20 +56,24 @@ export class UsersService {
 
     // ✅ Check phone uniqueness before saving
     if (dto.phone && dto.phone !== user.phone) {
-      const existingPhone = await this.userRepo.findOne({ where: { phone: dto.phone } });
+      const existingPhone = await this.userRepo.findOne({
+        where: { phone: dto.phone },
+      });
       if (existingPhone && existingPhone.id !== id) {
         throw new ConflictException(
-          'This phone number is already linked to another account. Please use a different number.'
+          'This phone number is already linked to another account. Please use a different number.',
         );
       }
     }
 
     // ✅ Check email uniqueness before saving
     if (dto.email && dto.email.toLowerCase() !== user.email?.toLowerCase()) {
-      const existingEmail = await this.userRepo.findOne({ where: { email: dto.email.toLowerCase() } });
+      const existingEmail = await this.userRepo.findOne({
+        where: { email: dto.email.toLowerCase() },
+      });
       if (existingEmail && existingEmail.id !== id) {
         throw new ConflictException(
-          'This email is already linked to another account.'
+          'This email is already linked to another account.',
         );
       }
       dto.email = dto.email.toLowerCase();

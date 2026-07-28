@@ -1,43 +1,50 @@
 /**
- * WishlistHeart.js — Heart toggle button for any listing
+ * WishlistHeart.js — Heart toggle button for any saveable thing
  * Place at: src/public/components/WishlistHeart.js
  *
- * Usage:
- *   import WishlistHeart from '../components/WishlistHeart';
+ * Usage (classified — original, still works unchanged):
  *   <WishlistHeart classifiedId={item.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
  *
- * Add to any card or detail page. Handles its own state.
+ * Usage (any other type):
+ *   <WishlistHeart entityType="product" entityId={item.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
+ *
+ * Routes through the same unified save system (PostEngagement, type=SAVE)
+ * used everywhere else in the app — Wishlist.js reads from that same
+ * system, so anything saved here now actually shows up there. The old
+ * /wishlist/toggle endpoint was a separate, classified-only table that
+ * never fed into the unified saved-items list.
  */
 import React, { useState, useEffect } from 'react';
 import api from '../../api/api';
 
 const WishlistHeart = ({
-  classifiedId,
+  classifiedId,       // backward-compat shorthand for entityType="classified"
+  entityType,
+  entityId,
   isLoggedIn,
   onNavigate,
   size = 28,
   style = {},
 }) => {
+  const type = entityType || (classifiedId != null ? 'classified' : null);
+  const id   = entityId ?? classifiedId;
+
   const [saved,   setSaved]   = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const PREFIX = { classified: 'cls', product: 'prd', service: 'svc' };
+
   // Check if already saved
   useEffect(() => {
-    if (!isLoggedIn || !classifiedId) return;
-    // Use cached wishlist IDs from localStorage if available
-    try {
-      const cached = JSON.parse(localStorage.getItem('kentexa_wishlist_ids') || '[]');
-      if (cached.includes(Number(classifiedId))) { setSaved(true); return; }
-    } catch {}
-    // Fetch from API
-    api.get('/wishlist/ids')
+    if (!isLoggedIn || !type || id == null) return;
+    api.get('/feed/saved/ids')
       .then(r => {
         const ids = r.data || [];
-        localStorage.setItem('kentexa_wishlist_ids', JSON.stringify(ids));
-        setSaved(ids.includes(Number(classifiedId)));
+        const prefixed = `${PREFIX[type] || type}-${id}`;
+        setSaved(ids.includes(prefixed) || ids.includes(Number(id)));
       })
       .catch(() => {});
-  }, [classifiedId, isLoggedIn]);
+  }, [type, id, isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggle = async (e) => {
     e.stopPropagation();
@@ -47,21 +54,12 @@ const WishlistHeart = ({
       onNavigate('PublicLogin');
       return;
     }
+    if (!type || id == null) return;
 
     try {
       setLoading(true);
-      const res = await api.post(`/wishlist/toggle/${classifiedId}`);
-      const nowSaved = res.data.saved;
-      setSaved(nowSaved);
-
-      // Update localStorage cache
-      try {
-        const cached = JSON.parse(localStorage.getItem('kentexa_wishlist_ids') || '[]');
-        const updated = nowSaved
-          ? [...cached, Number(classifiedId)]
-          : cached.filter(id => id !== Number(classifiedId));
-        localStorage.setItem('kentexa_wishlist_ids', JSON.stringify(updated));
-      } catch {}
+      const res = await api.post('/engagements', { entityType: type, entityId: id, type: 'save' });
+      setSaved(!!res.data.toggled);
     } catch {
       // Silent fail
     } finally {
@@ -73,7 +71,7 @@ const WishlistHeart = ({
     <button
       onClick={handleToggle}
       disabled={loading}
-      title={saved ? 'Ondoa kwenye orodha' : 'Hifadhi'}
+      title={saved ? 'Remove from saved' : 'Save'}
       style={{
         background: 'none',
         border: 'none',

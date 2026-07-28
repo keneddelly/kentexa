@@ -1,6 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, OneToMany, JoinColumn, CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+  JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import { TzRegion } from './tz-region.entity';
 import { TzWard } from './tz-ward.entity';
@@ -15,12 +20,12 @@ export class TzDistrict {
   id: number;
 
   @Column({ type: 'varchar' })
-  name: string;                    // "Kinondoni"
+  name: string; // "Kinondoni"
 
   @Column({ type: 'varchar', nullable: true })
-  nameSw: string | null;           // Swahili name if different
+  nameSw: string | null; // Swahili name if different
 
-  @ManyToOne(() => TzRegion, r => r.districts)
+  @ManyToOne(() => TzRegion, (r) => r.districts)
   @JoinColumn({ name: 'region_id' })
   region: TzRegion;
 
@@ -34,12 +39,12 @@ export class TzDistrict {
   lng: number | null;
 
   @Column({ type: 'boolean', default: true })
-  isUrban: boolean;                // urban vs rural district
+  isUrban: boolean; // urban vs rural district
 
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  @OneToMany(() => TzWard, w => w.district)
+  @OneToMany(() => TzWard, (w) => w.district)
   wards: TzWard[];
 
   @CreateDateColumn()

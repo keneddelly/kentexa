@@ -5,13 +5,6 @@ import Footer from '../components/Footer';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
-const CITIES = [
-  'Dar es Salaam','Mwanza','Arusha','Moshi','Dodoma','Mbeya','Tanga','Morogoro',
-  'Kigoma','Tabora','Songea','Iringa','Zanzibar','Lindi','Mtwara','Shinyanga',
-  'Singida','Musoma','Bukoba','Sumbawanga','Babati','Kibaha','Njombe','Kasulu',
-  'Mpanda','Masasi','Korogwe','Geita','Bariadi','Chato','Sengerema','Songwe','Tunduma',
-];
-
 const SIZES = [
   { value: 'small',  label: 'Ndogo',  desc: 'Hadi 2kg — bahasha, vitu vidogo' },
   { value: 'medium', label: 'Wastani', desc: '2–10kg — sanduku la kati' },
@@ -43,7 +36,6 @@ const Field = ({ label, required, children, hint }) => (
 );
 
 const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
-  const [senderLocation, setSenderLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [recipientLocation, setRecipientLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   React.useEffect(() => {
     if (!currentUser) return;

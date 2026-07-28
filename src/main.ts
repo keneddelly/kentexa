@@ -33,9 +33,7 @@ async function bootstrap() {
   );
 
   // Enable @Exclude() serialization globally
-  app.useGlobalInterceptors(
-    new ClassSerializerInterceptor(app.get(Reflector)),
-  );
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   // Use the port provided by the hosting platform (Render) or default to 3001
   const port = parseInt(process.env.PORT || '3001', 10);

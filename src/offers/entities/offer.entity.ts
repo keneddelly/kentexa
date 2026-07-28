@@ -3,19 +3,23 @@
  * Place at: src/offers/entities/offer.entity.ts
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { User }       from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { Classified } from '../../classifieds/entities/classified.entity';
 
 export enum OfferStatus {
-  PENDING   = 'pending',
-  ACCEPTED  = 'accepted',
-  DECLINED  = 'declined',
+  PENDING = 'pending',
+  ACCEPTED = 'accepted',
+  DECLINED = 'declined',
   COUNTERED = 'countered',
-  EXPIRED   = 'expired',
+  EXPIRED = 'expired',
 }
 
 @Entity('offer')

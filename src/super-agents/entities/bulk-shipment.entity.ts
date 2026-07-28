@@ -1,15 +1,19 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, ManyToOne,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
 } from 'typeorm';
 import { SuperAgent } from './super-agent.entity';
 
 export enum BulkShipmentStatus {
-  OPEN       = 'open',        // Accepting more parcels
-  SEALED     = 'sealed',      // No more parcels, ready to dispatch
-  DISPATCHED = 'dispatched',  // Sent out
-  ARRIVED    = 'arrived',     // Reached destination
-  COMPLETED  = 'completed',   // All parcels delivered
+  OPEN = 'open', // Accepting more parcels
+  SEALED = 'sealed', // No more parcels, ready to dispatch
+  DISPATCHED = 'dispatched', // Sent out
+  ARRIVED = 'arrived', // Reached destination
+  COMPLETED = 'completed', // All parcels delivered
 }
 
 @Entity('bulk_shipment')
@@ -17,7 +21,11 @@ export class BulkShipment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => SuperAgent, { eager: true, onDelete: 'SET NULL', nullable: true })
+  @ManyToOne(() => SuperAgent, {
+    eager: true,
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
   superAgent: SuperAgent | null;
 
   @Column()
@@ -26,11 +34,15 @@ export class BulkShipment {
   @Column()
   destinationCity: string;
 
-  @Column({ type: 'enum', enum: BulkShipmentStatus, default: BulkShipmentStatus.OPEN })
+  @Column({
+    type: 'enum',
+    enum: BulkShipmentStatus,
+    default: BulkShipmentStatus.OPEN,
+  })
   status: BulkShipmentStatus;
 
   @Column({ type: 'varchar', nullable: true })
-  shipmentCode: string | null;    // e.g. BULK-DAR-MZA-20260611-001
+  shipmentCode: string | null; // e.g. BULK-DAR-MZA-20260611-001
 
   @Column({ type: 'int', default: 0 })
   totalParcels: number;
@@ -42,10 +54,10 @@ export class BulkShipment {
   totalShippingCost: number;
 
   @Column({ type: 'varchar', nullable: true })
-  transportCompany: string | null;  // Bus/truck company used
+  transportCompany: string | null; // Bus/truck company used
 
   @Column({ type: 'varchar', nullable: true })
-  transportRef: string | null;      // Bus ticket or waybill number
+  transportRef: string | null; // Bus ticket or waybill number
 
   @Column({ type: 'timestamp', nullable: true })
   dispatchTime: Date | null;

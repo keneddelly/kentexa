@@ -207,7 +207,9 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [actionLoading, setActionLoading] = useState(false);
   const [isOnline, setIsOnline]               = useState(false);
   const [togglingOnline, setTogglingOnline]     = useState(false);
+  // eslint-disable-next-line no-unused-vars -- read once /delivery-jobs/available ships, see fetchJobs TODO
   const [availableJobs, setAvailableJobs]     = useState([]);
+  // eslint-disable-next-line no-unused-vars -- read once /delivery-jobs/available ships, see fetchJobs TODO
   const [jobsLoading, setJobsLoading]           = useState(false);
   const [transportForms, setTransportForms]     = useState({});
   const [savingTransport, setSavingTransport]   = useState(null);

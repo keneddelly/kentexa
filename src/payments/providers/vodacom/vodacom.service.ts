@@ -1,28 +1,39 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import {
-  IPaymentProvider, PaymentRequest,
-  PaymentResponse, CallbackResult,
+  IPaymentProvider,
+  PaymentRequest,
+  PaymentResponse,
+  CallbackResult,
 } from '../payment-provider.interface';
 
 @Injectable()
 export class VodacomService implements IPaymentProvider {
   private readonly logger = new Logger(VodacomService.name);
-  private readonly baseUrl = process.env.VODACOM_BASE_URL || 'https://openapi.m-pesa.com/sandbox';
+  private readonly baseUrl =
+    process.env.VODACOM_BASE_URL || 'https://openapi.m-pesa.com/sandbox';
 
-  private get consumerKey() { return process.env.VODACOM_CONSUMER_KEY; }
-  private get consumerSecret() { return process.env.VODACOM_CONSUMER_SECRET; }
-  private get shortcode() { return process.env.VODACOM_SHORTCODE; }
-  private get callbackUrl() { return process.env.VODACOM_CALLBACK_URL; }
+  private get consumerKey() {
+    return process.env.VODACOM_CONSUMER_KEY;
+  }
+  private get consumerSecret() {
+    return process.env.VODACOM_CONSUMER_SECRET;
+  }
+  private get shortcode() {
+    return process.env.VODACOM_SHORTCODE;
+  }
+  private get callbackUrl() {
+    return process.env.VODACOM_CALLBACK_URL;
+  }
 
   private async getAccessToken(): Promise<string> {
     const credentials = Buffer.from(
-      `${this.consumerKey}:${this.consumerSecret}`
+      `${this.consumerKey}:${this.consumerSecret}`,
     ).toString('base64');
 
     const response = await axios.get(
       `${this.baseUrl}/oauth/v1/generate?grant_type=client_credentials`,
-      { headers: { Authorization: `Basic ${credentials}` } }
+      { headers: { Authorization: `Basic ${credentials}` } },
     );
 
     return response.data.access_token;
@@ -50,7 +61,7 @@ export class VodacomService implements IPaymentProvider {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-        }
+        },
       );
 
       return {
@@ -64,7 +75,9 @@ export class VodacomService implements IPaymentProvider {
       return {
         success: false,
         providerRequestId: '',
-        message: error?.response?.data?.output_ResponseDesc || 'Payment initiation failed',
+        message:
+          error?.response?.data?.output_ResponseDesc ||
+          'Payment initiation failed',
       };
     }
   }

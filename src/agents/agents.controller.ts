@@ -1,12 +1,20 @@
 import {
-  Controller, Get, Post, Patch, Body,
-  Param, ParseIntPipe, UseGuards, Request, Query,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+  Request,
+  Query,
 } from '@nestjs/common';
 import { AgentsService } from './agents.service';
-import { JwtAuthGuard }  from '../auth/auth.guard';
-import { RolesGuard }    from '../auth/roles.guard';
-import { Roles }         from '../auth/roles.decorator';
-import { UserRole }      from '../users/entities/user.entity';
+import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('agents')
 @UseGuards(JwtAuthGuard)
@@ -31,7 +39,10 @@ export class AgentsController {
     @Query('city') city: string,
     @Query('weight') weight?: string,
   ) {
-    return this.service.getAvailableAgents(city, weight ? Number(weight) : undefined);
+    return this.service.getAvailableAgents(
+      city,
+      weight ? Number(weight) : undefined,
+    );
   }
 
   // ── Public: find agents by city (for Super Agent dispatch modal) ──────────
@@ -75,10 +86,7 @@ export class AgentsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @Get('admin/all')
-  findAll(
-    @Query('status') status?: string,
-    @Query('city')   city?: string,
-  ) {
+  findAll(@Query('status') status?: string, @Query('city') city?: string) {
     return this.service.findAll({ status, city });
   }
 
@@ -113,10 +121,7 @@ export class AgentsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @Patch(':id/settings')
-  updateSettings(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() body: any,
-  ) {
+  updateSettings(@Param('id', ParseIntPipe) id: number, @Body() body: any) {
     return this.service.updateSettings(id, body);
   }
 }

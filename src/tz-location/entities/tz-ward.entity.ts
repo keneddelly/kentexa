@@ -1,6 +1,10 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import { TzDistrict } from './tz-district.entity';
 import { TzRegion } from './tz-region.entity';
@@ -16,12 +20,12 @@ export class TzWard {
   id: number;
 
   @Column({ type: 'varchar' })
-  name: string;                    // "Kariakoo"
+  name: string; // "Kariakoo"
 
   @Column({ type: 'varchar', nullable: true })
   nameSw: string | null;
 
-  @ManyToOne(() => TzDistrict, d => d.wards)
+  @ManyToOne(() => TzDistrict, (d) => d.wards)
   @JoinColumn({ name: 'district_id' })
   district: TzDistrict;
 
@@ -36,7 +40,7 @@ export class TzWard {
   region: TzRegion;
 
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
-  lat: number | null;              // centroid — good enough for proximity
+  lat: number | null; // centroid — good enough for proximity
 
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
   lng: number | null;
@@ -49,7 +53,7 @@ export class TzWard {
 
   // Population density hint — helps estimate delivery demand
   @Column({ type: 'varchar', nullable: true })
-  densityClass: string | null;     // 'high' | 'medium' | 'low' | 'rural'
+  densityClass: string | null; // 'high' | 'medium' | 'low' | 'rural'
 
   @CreateDateColumn()
   createdAt: Date;

@@ -1,147 +1,206 @@
 /**
- * Wishlist.js — Buyer's saved items
+ * Wishlist.js — Everything a buyer has saved, one unified view
  * Place at: src/public/pages/Wishlist.js
+ *
+ * Pulls from the same unified save system used everywhere else in the app
+ * (PostEngagement, type=SAVE) — a product saved from search, a Moment
+ * saved from the feed, a route saved from a transport provider's page,
+ * all show up here together, filterable by type.
  */
 import React, { useState, useEffect } from 'react';
-import Navbar   from '../components/Navbar';
-import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
-import api      from '../../api/api';
+import api from '../../api/api';
 
+const B  = '#2563EB';
+const DK = '#0F172A';
+const GR = '#64748B';
+const WH = '#FFFFFF';
 const fmt = n => Number(n||0).toLocaleString();
 
-const Wishlist = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const TYPE_META = {
+  product:    { label: 'Products',    icon: '📦', detailPage: 'ProductDetail' },
+  classified: { label: 'Listings',    icon: '🏷️', detailPage: 'ClassifiedDetail' },
+  service:    { label: 'Services',    icon: '🔧', detailPage: 'ServiceDetail' },
+  route:      { label: 'Routes',      icon: '🚌', detailPage: 'SellerShipment' },
+  moment:     { label: 'Moments',     icon: '📸', detailPage: null },
+};
+
+const FILTERS = [
+  { key: 'all',        label: 'All' },
+  { key: 'product',     label: '📦 Products' },
+  { key: 'classified',  label: '🏷️ Listings' },
+  { key: 'service',     label: '🔧 Services' },
+  { key: 'moment',      label: '📸 Moments' },
+  { key: 'route',       label: '🚌 Routes' },
+];
+
+const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
   const [items,   setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter,  setFilter]  = useState('all');
+  const [removing, setRemoving] = useState(null);
 
-  const fetchWishlist = async () => {
+  const fetchSaved = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/wishlist');
+      const res = await api.get('/feed/saved');
       setItems(res.data || []);
     } catch { setItems([]); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchWishlist(); }, []);
+  useEffect(() => {
+    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    fetchSaved();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleRemove = async (id) => {
+  const handleRemove = async (item) => {
+    const key = `${item.type}-${item.id}`;
+    setRemoving(key);
     try {
-      await api.delete(`/wishlist/${id}`);
-      setItems(prev => prev.filter(i => i.id !== id));
-    } catch { alert('Imeshindwa kuondoa'); }
+      if (item.type === 'moment') {
+        await api.post(`/feed/${item.id}/engage`, { type: 'save' });
+      } else {
+        await api.post('/engagements', { entityType: item.type, entityId: item.id, type: 'save' });
+      }
+      setItems(prev => prev.filter(i => !(i.type === item.type && i.id === item.id)));
+    } catch {
+      alert('Could not remove — try again.');
+    } finally {
+      setRemoving(null);
+    }
   };
 
-  return (
-    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#f1f5f9' }}>
-      <Navbar currentPage="Wishlist" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title="❤️ Bidhaa Zilizohifadhiwa" />
+  const goTo = (item) => {
+    if (item.type === 'moment') {
+      // A saved Moment opens whatever it's tagged to, same as tapping it in the feed
+      if (item.linkedEntityType && item.linkedEntityId) {
+        const meta = TYPE_META[item.linkedEntityType];
+        if (meta?.detailPage) { onNavigate(`${meta.detailPage}-${item.linkedEntityId}`); return; }
+        if (item.linkedEntityType === 'route') { onNavigate('SellerShipment'); return; }
+      }
+      onNavigate('Home');
+      return;
+    }
+    const meta = TYPE_META[item.type];
+    if (item.type === 'route') { onNavigate('SellerShipment'); return; }
+    if (meta?.detailPage) onNavigate(`${meta.detailPage}-${item.id}`);
+  };
 
-      <div style={{ flex:1, padding:'16px 16px 40px', maxWidth:900,
+  const filtered = filter === 'all' ? items : items.filter(i => i.type === filter);
+  const counts = items.reduce((acc, i) => { acc[i.type] = (acc[i.type]||0)+1; return acc; }, {});
+
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#F8FAFC' }}>
+
+      {/* Header */}
+      <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9', padding:'14px 16px',
+        position:'sticky', top:0, zIndex:100 }}>
+        <button onClick={() => onNavigate('back')} style={{ background:'none', border:'none', cursor:'pointer',
+          display:'flex', alignItems:'center', gap:10 }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={DK} strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+          <span style={{ fontSize:15, fontWeight:800, color:DK }}>❤️ Saved</span>
+        </button>
+      </div>
+
+      {/* Filter tabs */}
+      {items.length > 0 && (
+        <div style={{ display:'flex', gap:8, padding:'12px 16px', overflowX:'auto',
+          backgroundColor:WH, borderBottom:'1px solid #F1F5F9' }}>
+          {FILTERS.filter(f => f.key === 'all' || counts[f.key] > 0).map(f => (
+            <button key={f.key} onClick={() => setFilter(f.key)}
+              style={{ flexShrink:0, padding:'7px 14px', borderRadius:100, cursor:'pointer',
+                border: filter===f.key ? `1.5px solid ${B}` : '1.5px solid #E2E8F0',
+                backgroundColor: filter===f.key ? '#EFF6FF' : WH,
+                color: filter===f.key ? B : GR, fontSize:12, fontWeight:700, whiteSpace:'nowrap' }}>
+              {f.label}{f.key !== 'all' && counts[f.key] ? ` (${counts[f.key]})` : ''}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ flex:1, padding:'16px 16px 100px', maxWidth:900,
         margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
 
         {loading ? (
-          <div style={{ textAlign:'center', padding:60, color:'#94a3b8' }}>
+          <div style={{ textAlign:'center', padding:60, color:GR }}>
             <div style={{ fontSize:40, marginBottom:12 }}>❤️</div>
-            <div>Inapakia...</div>
+            <div>Loading...</div>
           </div>
-        ) : items.length === 0 ? (
-          <div style={{ textAlign:'center', padding:80, backgroundColor:'#fff',
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign:'center', padding:80, backgroundColor:WH,
             borderRadius:20, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize:64, marginBottom:16 }}>🤍</div>
-            <div style={{ fontSize:20, fontWeight:900, color:'#1e293b', marginBottom:8 }}>
-              Hujahifadhi bidhaa yoyote
+            <div style={{ fontSize:18, fontWeight:900, color:DK, marginBottom:8 }}>
+              {items.length === 0 ? 'Nothing saved yet' : `No saved ${TYPE_META[filter]?.label.toLowerCase() || ''}`}
             </div>
-            <div style={{ fontSize:14, color:'#64748b', marginBottom:24 }}>
-              Bonyeza ❤️ kwenye bidhaa yoyote ili kuihifadhi hapa
+            <div style={{ fontSize:13, color:GR, marginBottom:24 }}>
+              Tap ❤️ on any product, listing, service, Moment, or route to save it here
             </div>
-            <button onClick={() => onNavigate('Classifieds')}
-              style={{ backgroundColor:'#1d4ed8', color:'#fff', border:'none',
+            <button onClick={() => onNavigate('Stores')}
+              style={{ backgroundColor:B, color:WH, border:'none',
                 borderRadius:12, padding:'12px 28px', cursor:'pointer',
                 fontSize:14, fontWeight:700 }}>
-              🛍️ Tembea Sokoni
+              🏪 Discover Businesses
             </button>
           </div>
         ) : (
-          <>
-            <div style={{ fontSize:13, color:'#64748b', marginBottom:16 }}>
-              Bidhaa {items.length} zilizohifadhiwa
-            </div>
-            <div style={{ display:'grid',
-              gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:16 }}>
-              {items.map(item => {
-                const c = item.classified;
-                if (!c) return null;
-                return (
-                  <div key={item.id} style={{ backgroundColor:'#fff', borderRadius:16,
-                    boxShadow:'0 2px 8px rgba(0,0,0,0.06)', overflow:'hidden',
-                    position:'relative' }}>
+          <div style={{ display:'grid',
+            gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:14 }}>
+            {filtered.map(item => {
+              const meta = TYPE_META[item.type] || {};
+              const key = `${item.type}-${item.id}`;
+              return (
+                <div key={key} style={{ backgroundColor:WH, borderRadius:16,
+                  boxShadow:'0 2px 8px rgba(0,0,0,0.06)', overflow:'hidden', position:'relative' }}>
 
-                    {/* Remove button */}
-                    <button onClick={() => handleRemove(item.id)}
-                      style={{ position:'absolute', top:8, right:8, zIndex:10,
-                        backgroundColor:'rgba(0,0,0,0.5)', color:'#fff', border:'none',
-                        borderRadius:'50%', width:28, height:28, cursor:'pointer',
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        fontSize:14 }}>
-                      ✕
-                    </button>
+                  <button onClick={() => handleRemove(item)} disabled={removing === key}
+                    style={{ position:'absolute', top:8, right:8, zIndex:10,
+                      backgroundColor:'rgba(0,0,0,0.5)', color:WH, border:'none',
+                      borderRadius:'50%', width:26, height:26, cursor:'pointer',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:13 }}>
+                    {removing === key ? '⏳' : '✕'}
+                  </button>
 
-                    {/* Image */}
-                    <div onClick={() => onNavigate(`ClassifiedDetail-${c.id}`)}
-                      style={{ height:160, backgroundColor:'#f8fafc', cursor:'pointer',
-                        display:'flex', alignItems:'center', justifyContent:'center',
-                        overflow:'hidden' }}>
-                      {c.images?.[0]
-                        ? <img src={c.images[0]} alt={c.title}
-                            style={{ width:'100%', height:'100%', objectFit:'cover' }}
-                            onError={e => e.target.style.display='none'} />
-                        : <span style={{ fontSize:48 }}>🏷️</span>}
-                    </div>
-
-                    <div style={{ padding:14 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:'#1e293b',
-                        marginBottom:6, overflow:'hidden',
-                        textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {c.title}
-                      </div>
-                      <div style={{ fontSize:18, fontWeight:900, color:'#1d4ed8', marginBottom:4 }}>
-                        TZS {fmt(c.price)}
-                      </div>
-                      <div style={{ fontSize:11, color:'#64748b', marginBottom:10 }}>
-                        📍 {c.location || 'Tanzania'}
-                      </div>
-                      <div style={{ display:'flex', gap:8 }}>
-                        <button onClick={() => onNavigate(`ClassifiedDetail-${c.id}`)}
-                          style={{ flex:1, backgroundColor:'#1d4ed8', color:'#fff',
-                            border:'none', borderRadius:8, padding:'8px 0',
-                            cursor:'pointer', fontSize:12, fontWeight:700 }}>
-                          Angalia →
-                        </button>
-                        <button onClick={() => {
-                          const phone = c.seller?.phone || '';
-                          const msg = `Habari! Nimevutiwa na tangazo lako: ${c.title} - TZS ${fmt(c.price)}`;
-                          window.open(`https://wa.me/${phone.replace(/^0/, '255')}?text=${encodeURIComponent(msg)}`);
-                        }}
-                          style={{ backgroundColor:'#dcfce7', color:'#16a34a',
-                            border:'none', borderRadius:8, padding:'8px 12px',
-                            cursor:'pointer', fontSize:14 }}>
-                          📲
-                        </button>
-                      </div>
-                      <div style={{ fontSize:10, color:'#94a3b8', marginTop:6 }}>
-                        Ilihifadhiwa: {new Date(item.savedAt).toLocaleDateString('sw-TZ')}
-                      </div>
-                    </div>
+                  <div onClick={() => goTo(item)}
+                    style={{ height:130, backgroundColor:'#F1F5F9', cursor:'pointer',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      overflow:'hidden' }}>
+                    {item.image
+                      ? <img src={item.image} alt={item.title}
+                          style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                          onError={e => e.target.style.display='none'} />
+                      : <span style={{ fontSize:36 }}>{meta.icon || '📦'}</span>}
                   </div>
-                );
-              })}
-            </div>
-          </>
+
+                  <div style={{ padding:12 }}>
+                    <div style={{ fontSize:9, fontWeight:800, color:GR, textTransform:'uppercase',
+                      letterSpacing:0.4, marginBottom:4 }}>
+                      {meta.icon} {meta.label}
+                    </div>
+                    <div onClick={() => goTo(item)} style={{ fontSize:13, fontWeight:700, color:DK,
+                      marginBottom:6, overflow:'hidden', textOverflow:'ellipsis',
+                      whiteSpace:'nowrap', cursor:'pointer' }}>
+                      {item.title}
+                    </div>
+                    {item.price != null && (
+                      <div style={{ fontSize:14, fontWeight:900, color:B, marginBottom:4 }}>
+                        TZS {fmt(item.price)}
+                      </div>
+                    )}
+                    {item.business?.name && (
+                      <div style={{ fontSize:11, color:GR, overflow:'hidden',
+                        textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {item.business.name}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

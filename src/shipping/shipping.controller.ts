@@ -1,6 +1,12 @@
 import {
-  Controller, Get, Post, Patch,
-  Body, Param, UseGuards, Request,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+  Request,
   ParseIntPipe,
 } from '@nestjs/common';
 import { ShippingService } from './shipping.service';
@@ -16,10 +22,7 @@ export class ShippingController {
   // Seller: Mark preparing
   @UseGuards(JwtAuthGuard)
   @Patch('orders/:id/preparing')
-  markPreparing(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  markPreparing(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.shippingService.markPreparing(id, req.user.id);
   }
 
@@ -28,7 +31,8 @@ export class ShippingController {
   @Post('orders/:id/ship')
   uploadShipmentInfo(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: {
+    @Body()
+    body: {
       trackingNumber: string;
       courierName: string;
       shipmentProofUrl?: string;
@@ -41,20 +45,14 @@ export class ShippingController {
   // Agent: Mark delivered
   @UseGuards(JwtAuthGuard)
   @Patch('orders/:id/delivered')
-  markDelivered(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  markDelivered(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.shippingService.markDelivered(id, req.user.id);
   }
 
   // Buyer: Confirm receipt
   @UseGuards(JwtAuthGuard)
   @Patch('orders/:id/confirm')
-  confirmDelivery(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-  ) {
+  confirmDelivery(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.shippingService.buyerConfirmDelivery(id, req.user.id);
   }
 

@@ -1,6 +1,12 @@
 import {
-  Controller, Get, Post, Body,
-  Param, ParseIntPipe, UseGuards, Request,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  ParseIntPipe,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { PayoutsService } from './payouts.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -30,7 +36,12 @@ export class PayoutsController {
   @Post('admin/process/:orderId')
   processPayout(
     @Param('orderId', ParseIntPipe) orderId: number,
-    @Body() body: { paymentMethod: string; transactionReference: string; notes?: string },
+    @Body()
+    body: {
+      paymentMethod: string;
+      transactionReference: string;
+      notes?: string;
+    },
   ) {
     return this.payoutsService.processPayout(
       orderId,
@@ -43,7 +54,12 @@ export class PayoutsController {
   @Post('admin/bulk/:sellerId')
   processBulkPayout(
     @Param('sellerId', ParseIntPipe) sellerId: number,
-    @Body() body: { paymentMethod: string; transactionReference: string; notes?: string },
+    @Body()
+    body: {
+      paymentMethod: string;
+      transactionReference: string;
+      notes?: string;
+    },
   ) {
     return this.payoutsService.processBulkPayout(
       sellerId,

@@ -8,7 +8,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/api';
 
-const fmt  = n => Number(n||0).toLocaleString();
 const ago  = d => {
   const diff = Date.now() - new Date(d).getTime();
   const m = Math.floor(diff / 60000);

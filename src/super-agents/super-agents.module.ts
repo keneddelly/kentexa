@@ -21,10 +21,17 @@ import { NotificationsModule } from '../notifications/notifications.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      SuperAgent, Parcel, ParcelTracking,
-      ShippingRate, BulkShipment, Order,
-      Agent, AgentTransaction,
-      BatchParcel, DailyBatch, DeliveryZone,   // all three needed — BatchParcel has relations to both
+      SuperAgent,
+      Parcel,
+      ParcelTracking,
+      ShippingRate,
+      BulkShipment,
+      Order,
+      Agent,
+      AgentTransaction,
+      BatchParcel,
+      DailyBatch,
+      DeliveryZone, // all three needed — BatchParcel has relations to both
       IntercityRoute,
     ]),
     AgentsModule,
@@ -33,7 +40,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     NotificationsModule,
   ],
   controllers: [SuperAgentsController],
-  providers:   [SuperAgentsService],
-  exports:     [SuperAgentsService],
+  providers: [SuperAgentsService],
+  exports: [SuperAgentsService],
 })
 export class SuperAgentsModule {}

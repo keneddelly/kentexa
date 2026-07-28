@@ -3,13 +3,21 @@
  * Place at: src/transport/transport.controller.ts
  */
 import {
-  Controller, Get, Post, Patch, Body, Param, Query,
-  Request, UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  Request,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard }        from '../auth/auth.guard';
-import { TransportService }    from './transport.service';
-import { AssignmentStatus }    from './entities/transport-assignment.entity';
-import { AvailabilityStatus }  from './entities/provider-availability.entity';
+import { JwtAuthGuard } from '../auth/auth.guard';
+import { TransportService } from './transport.service';
+import { AssignmentStatus } from './entities/transport-assignment.entity';
+import { AvailabilityStatus } from './entities/provider-availability.entity';
 
 @Controller('transport')
 export class TransportController {
@@ -55,7 +63,11 @@ export class TransportController {
 
   @Patch('routes/:id')
   @UseGuards(JwtAuthGuard)
-  updateRoute(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() dto: any) {
+  updateRoute(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: any,
+  ) {
     return this.svc.updateRoute(req.user.id, id, dto);
   }
 
@@ -84,10 +96,7 @@ export class TransportController {
 
   // ── SUPER AGENT: FIND TRANSPORT ───────────────────────────────────────────
   @Get('available') // Public — used on homepage
-  findAvailable(
-    @Query('from') from: string,
-    @Query('to')   to:   string,
-  ) {
+  findAvailable(@Query('from') from: string, @Query('to') to: string) {
     return this.svc.findAvailableForRoute(from, to);
   }
 
@@ -111,7 +120,12 @@ export class TransportController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: { accept: boolean; declineReason?: string },
   ) {
-    return this.svc.respondToAssignment(req.user.id, id, dto.accept, dto.declineReason);
+    return this.svc.respondToAssignment(
+      req.user.id,
+      id,
+      dto.accept,
+      dto.declineReason,
+    );
   }
 
   @Patch('assignments/:id/status')
@@ -119,7 +133,8 @@ export class TransportController {
   updateAssignmentStatus(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: { status: AssignmentStatus; proofUrl?: string; notes?: string },
+    @Body()
+    dto: { status: AssignmentStatus; proofUrl?: string; notes?: string },
   ) {
     return this.svc.updateAssignmentStatus(req.user.id, id, dto);
   }

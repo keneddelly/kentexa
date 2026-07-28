@@ -1,14 +1,18 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, ManyToOne,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Classified } from './classified.entity';
 
 export enum ClassifiedInvoiceStatus {
-  PENDING   = 'pending',
-  SENT      = 'sent',
-  PAID      = 'paid',
+  PENDING = 'pending',
+  SENT = 'sent',
+  PAID = 'paid',
   CANCELLED = 'cancelled',
 }
 
@@ -17,13 +21,17 @@ export class ClassifiedInvoiceRequest {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Classified, { eager: true, onDelete: 'CASCADE', nullable: true })
+  @ManyToOne(() => Classified, {
+    eager: true,
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
   classified: Classified;
 
   @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE', nullable: true })
   buyer: User;
 
-  @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE',nullable: true })
+  @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE', nullable: true })
   seller: User;
 
   @Column({ type: 'text', nullable: true })
@@ -41,7 +49,11 @@ export class ClassifiedInvoiceRequest {
   @Column({ type: 'timestamp', nullable: true })
   dueDate: Date | null;
 
-  @Column({ type: 'enum', enum: ClassifiedInvoiceStatus, default: ClassifiedInvoiceStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: ClassifiedInvoiceStatus,
+    default: ClassifiedInvoiceStatus.PENDING,
+  })
   status: ClassifiedInvoiceStatus;
 
   // ✅ explicit varchar to prevent TypeORM misreading the type

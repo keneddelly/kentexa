@@ -1,22 +1,27 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { BusinessCustomer } from './business-customer.entity';
 
 export enum ConversationStatus {
-  OPEN     = 'open',
-  PENDING  = 'pending',   // waiting for customer reply
+  OPEN = 'open',
+  PENDING = 'pending', // waiting for customer reply
   RESOLVED = 'resolved',
-  CLOSED   = 'closed',
+  CLOSED = 'closed',
 }
 
 export enum ConversationChannel {
-  KENTEXA   = 'kentexa',
-  WHATSAPP  = 'whatsapp',
+  KENTEXA = 'kentexa',
+  WHATSAPP = 'whatsapp',
   INSTAGRAM = 'instagram',
-  MANUAL    = 'manual',
+  MANUAL = 'manual',
 }
 
 @Entity('conversation')
@@ -65,7 +70,10 @@ export class Conversation {
   messageCount: number;
 
   @Column({ type: 'int', default: 0 })
-  unreadCount: number;              // seller unread messages
+  unreadCount: number; // seller's unread messages (from customer)
+
+  @Column({ type: 'int', default: 0 })
+  buyerUnreadCount: number; // buyer's unread messages (from seller)
 
   @Column({ type: 'timestamp', nullable: true })
   lastMessageAt: Date | null;

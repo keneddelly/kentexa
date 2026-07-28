@@ -46,7 +46,7 @@ const Analytics = ({ activePage, onNavigate, onLogout }) => {
   const [error, setError]       = useState('');
   const refreshRef              = useRef(null);
 
-  useEffect(() => { fetchStats(); }, [days]);
+  useEffect(() => { fetchStats(); }, [days]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchLive();

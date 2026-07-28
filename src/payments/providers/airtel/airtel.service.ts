@@ -1,18 +1,27 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import {
-  IPaymentProvider, PaymentRequest,
-  PaymentResponse, CallbackResult,
+  IPaymentProvider,
+  PaymentRequest,
+  PaymentResponse,
+  CallbackResult,
 } from '../payment-provider.interface';
 
 @Injectable()
 export class AirtelService implements IPaymentProvider {
   private readonly logger = new Logger(AirtelService.name);
-  private readonly baseUrl = process.env.AIRTEL_BASE_URL || 'https://openapiuat.airtel.africa';
+  private readonly baseUrl =
+    process.env.AIRTEL_BASE_URL || 'https://openapiuat.airtel.africa';
 
-  private get clientId() { return process.env.AIRTEL_CLIENT_ID; }
-  private get clientSecret() { return process.env.AIRTEL_CLIENT_SECRET; }
-  private get callbackUrl() { return process.env.AIRTEL_CALLBACK_URL; }
+  private get clientId() {
+    return process.env.AIRTEL_CLIENT_ID;
+  }
+  private get clientSecret() {
+    return process.env.AIRTEL_CLIENT_SECRET;
+  }
+  private get callbackUrl() {
+    return process.env.AIRTEL_CALLBACK_URL;
+  }
 
   private async getAccessToken(): Promise<string> {
     const response = await axios.post(
@@ -22,7 +31,7 @@ export class AirtelService implements IPaymentProvider {
         client_secret: this.clientSecret,
         grant_type: 'client_credentials',
       },
-      { headers: { 'Content-Type': 'application/json' } }
+      { headers: { 'Content-Type': 'application/json' } },
     );
     return response.data.access_token;
   }
@@ -54,7 +63,7 @@ export class AirtelService implements IPaymentProvider {
             'X-Country': 'TZ',
             'X-Currency': 'TZS',
           },
-        }
+        },
       );
 
       return {
@@ -68,7 +77,8 @@ export class AirtelService implements IPaymentProvider {
       return {
         success: false,
         providerRequestId: '',
-        message: error?.response?.data?.status?.message || 'Payment initiation failed',
+        message:
+          error?.response?.data?.status?.message || 'Payment initiation failed',
       };
     }
   }

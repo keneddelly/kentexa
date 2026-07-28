@@ -9,6 +9,13 @@
  * One thread, filterable — no separate Reviews/Questions/Comments pages.
  * Styling matches the rest of KenteXa (inline styles, same B/DK/GR/WH
  * palette, Manrope font) rather than introducing a new design system.
+ *
+ * FIX (this pass): every api.post()/api.get() in here previously had an
+ * empty `catch {}` — if the backend rejected a submission for any reason
+ * (validation error, a bad enum reference, anything), the UI silently did
+ * nothing. That's very likely why a submitted review "didn't display" —
+ * it may never have saved at all, with zero feedback to the user. Every
+ * catch below now surfaces the real error message.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../../api/api';
@@ -18,14 +25,15 @@ const DK = '#0F172A';
 const GR = '#64748B';
 const WH = '#FFFFFF';
 const AMBER = '#D97706';
+const RED = '#DC2626';
 
 const ago = d => {
   if (!d) return '';
   const s = Math.floor((Date.now() - new Date(d)) / 1000);
   if (s < 60)    return 'Just now';
-  if (s < 3600)  return `Dakika ${Math.floor(s/60)}`;
-  if (s < 86400) return `Saa ${Math.floor(s/3600)}`;
-  return `Siku ${Math.floor(s/86400)}`;
+  if (s < 3600)  return `${Math.floor(s/60)}m ago`;
+  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+  return `${Math.floor(s/86400)}d ago`;
 };
 
 const FILTERS = [
@@ -142,16 +150,23 @@ const CommentRow = ({
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyBody, setReplyBody] = useState('');
   const [sending, setSending] = useState(false);
+  const [replyError, setReplyError] = useState('');
   const isReview = c.type === 'review';
   const badge = PURCHASE_BADGE[c.purchaseVerification];
 
   const submitReply = async () => {
     if (!replyBody.trim()) return;
     setSending(true);
-    await onReplySubmit(c.id, replyBody.trim());
-    setSending(false);
-    setReplyBody('');
-    setShowReplyBox(false);
+    setReplyError('');
+    try {
+      await onReplySubmit(c.id, replyBody.trim());
+      setReplyBody('');
+      setShowReplyBox(false);
+    } catch (err) {
+      setReplyError(err?.response?.data?.message || 'Could not send your reply — try again.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -214,16 +229,23 @@ const CommentRow = ({
           </div>
 
           {showReplyBox && (
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-              <input value={replyBody} onChange={e => setReplyBody(e.target.value)}
-                placeholder="Write your reply..."
-                style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid #E2E8F0',
-                  fontSize: 12, outline: 'none', fontFamily: 'inherit' }} />
-              <button onClick={submitReply} disabled={sending || !replyBody.trim()}
-                style={{ backgroundColor: B, color: WH, border: 'none', borderRadius: 10,
-                  padding: '0 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                {sending ? '...' : 'Send'}
-              </button>
+            <div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <input value={replyBody} onChange={e => setReplyBody(e.target.value)}
+                  placeholder="Write your reply..."
+                  style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid #E2E8F0',
+                    fontSize: 12, outline: 'none', fontFamily: 'inherit' }} />
+                <button onClick={submitReply} disabled={sending || !replyBody.trim()}
+                  style={{ backgroundColor: B, color: WH, border: 'none', borderRadius: 10,
+                    padding: '0 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                  {sending ? '...' : 'Send'}
+                </button>
+              </div>
+              {replyError && (
+                <div style={{ fontSize: 11, color: RED, marginTop: 6, fontWeight: 600 }}>
+                  {replyError}
+                </div>
+              )}
             </div>
           )}
 
@@ -259,6 +281,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
   const [media, setMedia] = useState([]); // [{url, type}]
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
   // TODO / INTEGRATION POINT: point this at whatever endpoint
   // upload.controller.ts exposes (per the project handoff doc it's the
@@ -268,6 +291,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
     const files = Array.from(e.target.files || []).slice(0, 10 - media.length);
     if (!files.length) return;
     setUploading(true);
+    setError('');
     try {
       for (const file of files) {
         const form = new FormData();
@@ -278,7 +302,9 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
           setMedia(prev => [...prev, { url, type: file.type.startsWith('video') ? 'video' : 'image' }]);
         }
       }
-    } catch {}
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Could not upload that file — try again.');
+    }
     finally { setUploading(false); }
   };
 
@@ -289,6 +315,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
     if (!canSubmit) return;
     try {
       setSending(true);
+      setError('');
       const dto = {
         entityType, entityId,
         type: mode === 'review' ? 'review' : mode === 'question' ? 'question' : 'comment',
@@ -300,7 +327,13 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
       const res = await api.post('/comments', dto);
       onPosted(res.data);
       setBody(''); setRating(0); setMedia([]); setOfflineClaim(false); setMode('comment');
-    } catch {}
+    } catch (err) {
+      // This used to be an empty catch — any backend rejection (validation
+      // error, a bad query, anything) failed completely silently, which is
+      // very likely why a submitted review "didn't display": it may never
+      // have saved, with zero feedback that anything went wrong.
+      setError(err?.response?.data?.message || 'Could not post — please try again.');
+    }
     finally { setSending(false); }
   };
 
@@ -312,7 +345,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
           { key: 'question', label: '❓ Ask'      },
           { key: 'review',   label: '⭐ Review'    },
         ].map(m => (
-          <button key={m.key} onClick={() => setMode(m.key)}
+          <button key={m.key} onClick={() => { setMode(m.key); setError(''); }}
             style={{ flex: 1, padding: '7px 0', borderRadius: 10, cursor: 'pointer',
               border: `1.5px solid ${mode === m.key ? B : '#E2E8F0'}`,
               backgroundColor: mode === m.key ? '#EFF6FF' : WH,
@@ -366,6 +399,13 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
         </div>
       )}
 
+      {error && (
+        <div style={{ fontSize: 12, color: RED, marginTop: 8, fontWeight: 600,
+          backgroundColor: '#FEF2F2', borderRadius: 8, padding: '8px 10px' }}>
+          ⚠️ {error}
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
         <button onClick={submit} disabled={!canSubmit || sending}
           style={{ backgroundColor: canSubmit ? B : '#E2E8F0', color: canSubmit ? WH : GR,
@@ -388,11 +428,13 @@ const CommerceCommentSection = ({
   const [items,   setItems]   = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const isSeller = !!currentUser && !!sellerId && currentUser.id === sellerId;
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const [listRes, summaryRes] = await Promise.all([
         api.get('/comments', { params: { entityType, entityId, filter } }),
@@ -401,7 +443,9 @@ const CommerceCommentSection = ({
       setPinned(listRes.data?.pinned || null);
       setItems(listRes.data?.items || []);
       setSummary(summaryRes.data || null);
-    } catch {}
+    } catch (err) {
+      setLoadError(err?.response?.data?.message || 'Could not load comments — try again.');
+    }
     finally { setLoading(false); }
   }, [entityType, entityId, filter]);
 
@@ -414,16 +458,18 @@ const CommerceCommentSection = ({
       setItems(prev => prev.map(c => c.id === commentId
         ? { ...c, helpfulByMe: res.data.helpful, helpfulCount: res.data.helpfulCount }
         : c));
-    } catch {}
+    } catch {
+      // Non-critical toggle — fails quietly, but no state is left
+      // inconsistent since we never optimistically updated first.
+    }
   };
 
+  // Re-throws so CommentRow's submitReply can show the real error inline.
   const handleReply = async (parentId, body) => {
-    try {
-      const res = await api.post(`/comments/${parentId}/reply`, { body });
-      setItems(prev => prev.map(c => c.id === parentId
-        ? { ...c, replies: [...(c.replies || []), res.data] }
-        : c));
-    } catch {}
+    const res = await api.post(`/comments/${parentId}/reply`, { body });
+    setItems(prev => prev.map(c => c.id === parentId
+      ? { ...c, replies: [...(c.replies || []), res.data] }
+      : c));
   };
 
   const handlePosted = (newComment) => {
@@ -458,6 +504,10 @@ const CommerceCommentSection = ({
       <div>
         {loading ? (
           <div style={{ padding: 30, textAlign: 'center', color: GR, fontSize: 12 }}>Loading...</div>
+        ) : loadError ? (
+          <div style={{ padding: '30px 20px', textAlign: 'center', color: RED, fontSize: 12 }}>
+            ⚠️ {loadError}
+          </div>
         ) : items.length === 0 ? (
           <div style={{ padding: '30px 20px', textAlign: 'center', color: GR, fontSize: 12 }}>
             {filter === 'reviews' ? 'No reviews yet — be the first to share your experience.'

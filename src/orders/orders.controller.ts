@@ -1,7 +1,15 @@
 import {
-  Controller, Get, Post, Patch,
-  Body, Param, UseGuards, Request,
-  ParseIntPipe, Query, BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+  Request,
+  ParseIntPipe,
+  Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -29,7 +37,12 @@ export class OrdersController {
     @Request() req,
     @Body() body: { rating: number; comment?: string },
   ) {
-    return this.ordersService.rateSellerForOrder(id, req.user, body.rating, body.comment);
+    return this.ordersService.rateSellerForOrder(
+      id,
+      req.user,
+      body.rating,
+      body.comment,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -108,12 +121,13 @@ export class OrdersController {
   uploadShippingProof(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
-    @Body() body: {
-      trackingNumber:       string;
+    @Body()
+    body: {
+      trackingNumber: string;
       shippingReceiptImage: string;
       shippingProductImage: string;
-      shippingNote?:        string;
-      shippingMethod?:      string;
+      shippingNote?: string;
+      shippingMethod?: string;
     },
   ) {
     return this.ordersService.uploadShippingProof(id, req.user, body);
@@ -155,12 +169,13 @@ export class OrdersController {
   superAgentReceiveOrder(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
-    @Body() body: {
-      originCity:        string;
-      destinationCity:   string;
-      weightKg?:         number;
-      parcelPhoto?:      string;
-      notes?:            string;
+    @Body()
+    body: {
+      originCity: string;
+      destinationCity: string;
+      weightKg?: number;
+      parcelPhoto?: string;
+      notes?: string;
       actualShippingFee?: number;
     },
   ) {
@@ -236,16 +251,16 @@ export class OrdersController {
   // ── Public: Confirm or dispute via token (no auth) ────────────────────────
   @Post('confirm/submit')
   confirmViaToken(
-    @Body() body: {
-      token:       string;
-      confirmed:   boolean;
-      rating?:     number;
-      review?:     string;
+    @Body()
+    body: {
+      token: string;
+      confirmed: boolean;
+      rating?: number;
+      review?: string;
       reportNote?: string;
     },
   ) {
     if (!body.token) throw new BadRequestException('Token inahitajika');
     return this.ordersService.confirmViaToken(body.token, body);
   }
-
 }

@@ -15,7 +15,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
 
   useEffect(() => {
     if (sellerId) fetchStoreData();
-  }, [sellerId]);
+  }, [sellerId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchStoreData = async () => {
     try {

@@ -1,12 +1,20 @@
 import {
-  Controller, Get, Post, Patch, Param,
-  Body, UseGuards, Request, Query, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  Query,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ParcelCollectionsService } from './parcel-collections.service';
-import { JwtAuthGuard }  from '../auth/auth.guard';
-import { RolesGuard }    from '../auth/roles.guard';
-import { Roles }         from '../auth/roles.decorator';
-import { UserRole }      from '../users/entities/user.entity';
+import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('collections')
 @UseGuards(JwtAuthGuard)
@@ -61,10 +69,7 @@ export class ParcelCollectionsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @Get('admin/all')
-  getAll(
-    @Query('status') status?: string,
-    @Query('city')   city?: string,
-  ) {
+  getAll(@Query('status') status?: string, @Query('city') city?: string) {
     return this.service.getAllCollections({ status, city });
   }
 

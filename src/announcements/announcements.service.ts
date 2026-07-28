@@ -12,40 +12,43 @@ export class AnnouncementsService {
 
   constructor(
     @InjectRepository(Announcement) private repo: Repository<Announcement>,
-    @InjectRepository(User)         private userRepo: Repository<User>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private smsService: SmsService,
   ) {}
 
   // ── Admin: create announcement ───────────────────────────────────────────
-  async create(admin: User, dto: {
-    title:     string;
-    message:   string;
-    audience:  string;
-    priority:  string;
-    linkUrl?:  string;
-    linkLabel?: string;
-    sendSms?:  boolean;
-    expiresAt?: string;
-  }) {
+  async create(
+    admin: User,
+    dto: {
+      title: string;
+      message: string;
+      audience: string;
+      priority: string;
+      linkUrl?: string;
+      linkLabel?: string;
+      sendSms?: boolean;
+      expiresAt?: string;
+    },
+  ) {
     const announcement = new Announcement();
-    announcement.title         = dto.title;
-    announcement.message       = dto.message;
-    announcement.audience      = (dto.audience || 'all') as any;
-    announcement.priority      = (dto.priority || 'info') as any;
-    announcement.linkUrl       = dto.linkUrl   || null;
-    announcement.linkLabel     = dto.linkLabel || null;
-    announcement.sendSms       = dto.sendSms   || false;
-    announcement.expiresAt     = dto.expiresAt ? new Date(dto.expiresAt) : null;
-    announcement.createdBy     = admin;
-    announcement.isActive      = true;
+    announcement.title = dto.title;
+    announcement.message = dto.message;
+    announcement.audience = dto.audience || 'all';
+    announcement.priority = dto.priority || 'info';
+    announcement.linkUrl = dto.linkUrl || null;
+    announcement.linkLabel = dto.linkLabel || null;
+    announcement.sendSms = dto.sendSms || false;
+    announcement.expiresAt = dto.expiresAt ? new Date(dto.expiresAt) : null;
+    announcement.createdBy = admin;
+    announcement.isActive = true;
     announcement.readByUserIds = [];
 
     const saved = await this.repo.save(announcement);
 
     // Send SMS if requested
     if (dto.sendSms) {
-      this.sendSmsBlast(saved).catch(e =>
-        this.logger.error('SMS blast failed: ' + e.message)
+      this.sendSmsBlast(saved).catch((e) =>
+        this.logger.error('SMS blast failed: ' + e.message),
       );
     }
 
@@ -56,11 +59,11 @@ export class AnnouncementsService {
   private async sendSmsBlast(announcement: Announcement) {
     // Build user query based on audience
     const roleMap: Record<string, UserRole[]> = {
-      all:         ['user', 'seller', 'agent', 'super_agent'] as any[],
-      sellers:     ['seller'] as any[],
-      agents:      ['agent'] as any[],
-      super_agents:['super_agent'] as any[],
-      buyers:      ['user'] as any[],
+      all: ['user', 'seller', 'agent', 'super_agent'] as any[],
+      sellers: ['seller'] as any[],
+      agents: ['agent'] as any[],
+      super_agents: ['super_agent'] as any[],
+      buyers: ['user'] as any[],
     };
 
     const roles = roleMap[announcement.audience] || roleMap.all;
@@ -81,7 +84,7 @@ export class AnnouncementsService {
         if (user.phone) await this.smsService.sendSms(user.phone, msg);
         sent++;
         // Small delay to avoid rate limiting
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 100));
       } catch (e) {
         this.logger.warn(`SMS to ${user.phone} failed: ${e.message}`);
       }
@@ -98,13 +101,13 @@ export class AnnouncementsService {
 
     // Audience filter
     const audienceMap: Record<string, string[]> = {
-      'user':         ['all', 'buyers'],
-      'seller':       ['all', 'sellers'],
-      'agent':        ['all', 'agents'],
-      'super_agent':  ['all', 'super_agents'],
-      'admin':        ['all'],
-      'manager':      ['all'],
-      'customer_care':['all'],
+      user: ['all', 'buyers'],
+      seller: ['all', 'sellers'],
+      agent: ['all', 'agents'],
+      super_agent: ['all', 'super_agents'],
+      admin: ['all'],
+      manager: ['all'],
+      customer_care: ['all'],
     };
     const audiences = audienceMap[user.role as string] || ['all'];
 
@@ -118,17 +121,17 @@ export class AnnouncementsService {
       .getMany();
 
     // Filter out ones user already read
-    return announcements.filter(a =>
-      !a.readByUserIds?.includes(user.id)
-    ).map(a => ({
-      id:        a.id,
-      title:     a.title,
-      message:   a.message,
-      priority:  a.priority,
-      linkUrl:   a.linkUrl,
-      linkLabel: a.linkLabel,
-      createdAt: a.createdAt,
-    }));
+    return announcements
+      .filter((a) => !a.readByUserIds?.includes(user.id))
+      .map((a) => ({
+        id: a.id,
+        title: a.title,
+        message: a.message,
+        priority: a.priority,
+        linkUrl: a.linkUrl,
+        linkLabel: a.linkLabel,
+        createdAt: a.createdAt,
+      }));
   }
 
   // ── Mark as read ─────────────────────────────────────────────────────────
@@ -154,11 +157,18 @@ export class AnnouncementsService {
   }
 
   // ── Admin: update ─────────────────────────────────────────────────────────
-  async update(id: number, dto: Partial<{
-    title: string; message: string; isActive: boolean;
-    priority: string; audience: string; expiresAt: string;
-  }>) {
-    await this.repo.update(id, dto as any);
+  async update(
+    id: number,
+    dto: Partial<{
+      title: string;
+      message: string;
+      isActive: boolean;
+      priority: string;
+      audience: string;
+      expiresAt: string;
+    }>,
+  ) {
+    await this.repo.update(id, dto);
     return this.repo.findOne({ where: { id } });
   }
 

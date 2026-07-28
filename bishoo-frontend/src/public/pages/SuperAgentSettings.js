@@ -105,11 +105,28 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               { k: 'description',    l: 'Maelezo ya Huduma',      ph: 'Tunapokea mzigo, vifurushi...' },
             ].map(f => (
               <div key={f.k} style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
-                  color: '#475569', marginBottom: 5 }}>{f.l}</label>
-                <input type="text" placeholder={f.ph} value={form[f.k] || ''}
-                  onChange={e => setForm(p => ({ ...p, [f.k]: e.target.value }))}
-                  style={inp} />
+                {f.isCustom ? (
+                  <LocationPicker
+                    label="Chagua Mkoa / Wilaya ya Hub"
+                    value={location}
+                    onChange={loc => {
+                      setLocation(loc);
+                      setForm(p => ({
+                        ...p,
+                        city: loc.districtName || p.city,
+                        region: loc.regionName || p.region,
+                      }));
+                    }}
+                  />
+                ) : (
+                  <>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
+                      color: '#475569', marginBottom: 5 }}>{f.l}</label>
+                    <input type="text" placeholder={f.ph} value={form[f.k] || ''}
+                      onChange={e => setForm(p => ({ ...p, [f.k]: e.target.value }))}
+                      style={inp} />
+                  </>
+                )}
               </div>
             ))}
 

@@ -6,20 +6,24 @@
  *       → Job in progress → Completed → Review
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { User }       from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum JobStatus {
-  PENDING    = 'pending',    // sent, waiting for provider
-  ACCEPTED   = 'accepted',   // provider accepted
-  DECLINED   = 'declined',   // provider declined
-  IN_PROGRESS= 'in_progress',// work started
-  COMPLETED  = 'completed',  // job done
-  CANCELLED  = 'cancelled',  // buyer cancelled
-  DISPUTED   = 'disputed',   // raised a dispute
+  PENDING = 'pending', // sent, waiting for provider
+  ACCEPTED = 'accepted', // provider accepted
+  DECLINED = 'declined', // provider declined
+  IN_PROGRESS = 'in_progress', // work started
+  COMPLETED = 'completed', // job done
+  CANCELLED = 'cancelled', // buyer cancelled
+  DISPUTED = 'disputed', // raised a dispute
 }
 
 @Entity('job_request')
@@ -45,16 +49,16 @@ export class JobRequest {
 
   // Job details
   @Column({ type: 'text' })
-  description: string;              // what exactly the buyer needs
+  description: string; // what exactly the buyer needs
 
   @Column({ type: 'varchar', nullable: true })
-  preferredDate: string | null;     // "2025-07-20"
+  preferredDate: string | null; // "2025-07-20"
 
   @Column({ type: 'varchar', nullable: true })
-  preferredTime: string | null;     // "10:00"
+  preferredTime: string | null; // "10:00"
 
   @Column({ type: 'varchar' })
-  jobLocation: string;              // where the job will be done
+  jobLocation: string; // where the job will be done
 
   @Column({ type: 'varchar', nullable: true })
   buyerPhone: string | null;
@@ -68,7 +72,7 @@ export class JobRequest {
   status: JobStatus;
 
   @Column({ type: 'text', nullable: true })
-  providerNote: string | null;      // reason for decline / progress note
+  providerNote: string | null; // reason for decline / progress note
 
   @Column({ type: 'text', nullable: true })
   buyerNote: string | null;
@@ -85,7 +89,7 @@ export class JobRequest {
 
   // Review (after completion)
   @Column({ type: 'int', nullable: true })
-  rating: number | null;            // 1-5
+  rating: number | null; // 1-5
 
   @Column({ type: 'text', nullable: true })
   review: string | null;

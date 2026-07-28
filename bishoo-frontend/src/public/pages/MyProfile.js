@@ -77,7 +77,7 @@ const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => 
 );
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
+const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment }) => {
   const [section,    setSection]    = useState(null); // null = list home, like IG Settings
   const [profile,    setProfile]    = useState(currentUser || null);
   const [rep,        setRep]        = useState(null);
@@ -114,7 +114,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) 
     // card can show real numbers right away, without loading all 9 sections.
     const r = userRole;
     if (['seller','admin','manager'].includes(r))
-      api.get('/seller/dashboard-stats').then(res => setSellerStats(res.data)).catch(()=>{});
+      api.get('/seller/dashboard').then(res => setSellerStats(res.data)).catch(()=>{});
     if (r === 'agent')
       api.get('/agents/my-profile').then(res => setAgentData(res.data)).catch(()=>{});
     if (r === 'super_agent')
@@ -148,7 +148,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) 
         break;
       case 'businesses':
         if (!sellerStats && ['seller','admin','manager'].includes(role))
-          api.get('/seller/dashboard-stats').then(r => setSellerStats(r.data)).catch(()=>{});
+          api.get('/seller/dashboard').then(r => setSellerStats(r.data)).catch(()=>{});
         if (!myServices.length)
           api.get('/services/my/ads').then(r => setMyServices(r.data || [])).catch(()=>{});
         break;
@@ -164,17 +164,25 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) 
   const tier  = getTier(score);
   const roles = [role, ...(profile?.activeRoles || [])].filter((r,i,a) => a.indexOf(r)===i);
 
+  // "Businesses Zangu" is store/products/services/analytics — only means
+  // anything if you actually run a store. "Finance" is payouts/invoices/
+  // payout method — only means anything if you're paid by KenteXa (seller
+  // or agent). Neither applied to a plain buyer, who saw them anyway with
+  // zero content that worked for them.
+  const isBusinessOwner = roles.some(r => ['seller','admin','manager'].includes(r));
+  const isPaidRole      = roles.some(r => ['seller','admin','manager','agent'].includes(r));
+
   const NAV = [
     { key:'identity',      icon:'👤', label:'Identity' },
     { key:'roles',         icon:'🏷️', label:'My Roles' },
-    { key:'businesses',    icon:'🏢', label:'Businesses Zangu' },
+    isBusinessOwner && { key:'businesses', icon:'🏢', label:'Businesses Zangu' },
     { key:'commerce',      icon:'📦', label:'Businesses' },
     { key:'logistics',     icon:'🚚', label:'Logistics' },
-    { key:'finance',       icon:'💰', label:'Finance' },
+    isPaidRole && { key:'finance', icon:'💰', label:'Finance' },
     { key:'reputation',    icon:'⭐', label:'Reputation' },
     { key:'communication', icon:'💬', label:'Messages', badge: unread },
     { key:'settings',      icon:'⚙️', label:'Settings' },
-  ];
+  ].filter(Boolean);
 
   if (!isLoggedIn) return null;
 
@@ -540,7 +548,9 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) 
                 onAction={() => onNavigate('MyServices')} />
               <Row icon="📊" label="Business Analytics"
                 onAction={() => onNavigate('SellerAnalytics')} />
-              <Row icon="📢" label="Posts to Followers"
+              <Row icon="📸" label="Share a Moment"
+                onAction={() => onOpenMoment?.('selling')} />
+              <Row icon="📢" label="My Posts"
                 onAction={() => onNavigate('CommerceProfile')} />
             </SCard>
 

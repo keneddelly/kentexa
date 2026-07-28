@@ -3,10 +3,14 @@
  * Place at: src/wishlist/entities/wishlist.entity.ts
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { User }       from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { Classified } from '../../classifieds/entities/classified.entity';
 
 @Entity('wishlist')

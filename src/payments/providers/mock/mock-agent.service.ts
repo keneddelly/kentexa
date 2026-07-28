@@ -1,7 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
-  IPaymentProvider, PaymentRequest,
-  PaymentResponse, CallbackResult,
+  IPaymentProvider,
+  PaymentRequest,
+  PaymentResponse,
+  CallbackResult,
 } from '../payment-provider.interface';
 
 /**
@@ -18,11 +20,11 @@ export class MockAgentService implements IPaymentProvider {
 
   async initiatePayment(request: PaymentRequest): Promise<PaymentResponse> {
     this.logger.log(
-      `[MOCK] USSD push to ${request.phone} for TZS ${request.amount} ref: ${request.reference}`
+      `[MOCK] USSD push to ${request.phone} for TZS ${request.amount} ref: ${request.reference}`,
     );
 
     // Simulate network delay
-    await new Promise(res => setTimeout(res, 500));
+    await new Promise((res) => setTimeout(res, 500));
 
     // Mock always succeeds — replace with real API call when ready
     return {

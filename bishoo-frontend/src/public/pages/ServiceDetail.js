@@ -6,6 +6,8 @@ import React, { useState, useEffect } from 'react';
 
 import api             from '../../api/api';
 import ReputationBadge from '../components/ReputationBadge';
+import WishlistHeart   from '../components/WishlistHeart';
+import CommerceCommentSection from '../components/CommerceCommentSection';
 
 const PRICE_LABELS = {
   per_hour: '/saa', per_job: '/kazi', per_day: '/siku',
@@ -17,9 +19,10 @@ const DAYS_SW = { Mon:'Jumatatu', Tue:'Jumanne', Wed:'Jumatano',
 
 const fmt = n => Number(n||0).toLocaleString();
 
-const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, currentUser, onOpenMoment }) => {
+const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, currentUser, onOpenMoment, openComments }) => {
   const [ad,       setAd]       = useState(null);
   const [loading,  setLoading]  = useState(true);
+  const commentsRef = React.useRef(null);
   const [showForm, setShowForm] = useState(false);
   const [sending,  setSending]  = useState(false);
   const [sent,     setSent]     = useState(false);
@@ -35,6 +38,13 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
       .catch(() => setAd(null))
       .finally(() => setLoading(false));
   }, [serviceId]);
+
+  // Deep-linked from a "New comment"/"New save" notification — scroll to
+  // the comments section instead of leaving it wherever it falls on the page.
+  useEffect(() => {
+    if (!openComments || !ad || !commentsRef.current) return;
+    commentsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [openComments, ad]);
 
   const handleRequest = async () => {
     if (!form.description.trim()) return setError('Eleza unahitaji nini');
@@ -128,10 +138,16 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
             {/* Image gallery */}
             {ad.images?.length > 0 && (
               <div style={{ marginBottom: 20, borderRadius: 16, overflow: 'hidden',
-                height: 260, backgroundColor: '#f1f5f9' }}>
+                height: 260, backgroundColor: '#f1f5f9', position: 'relative' }}>
                 <img src={ad.images[0]} alt={ad.title}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   onError={e => e.target.style.display = 'none'} />
+                <div style={{ position: 'absolute', top: 10, right: 12, width: 36, height: 36,
+                  borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.9)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center' }}>
+                  <WishlistHeart entityType="service" entityId={ad.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} size={20} />
+                </div>
               </div>
             )}
 
@@ -412,6 +428,20 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                   </div>
                 )}
 
+            </div>
+
+            {/* Comments/questions from the wider engagement system — this
+                service had nowhere at all to show them before, so a "New
+                comment" notification about it landed here with no way to
+                actually see or reply to it. */}
+            <div ref={commentsRef} style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
+                💬 Comments & Questions
+              </div>
+              <CommerceCommentSection
+                entityType="service" entityId={ad.id}
+                entityTitle={ad.title} sellerId={ad.provider?.id}
+                isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate} />
             </div>
           </div>
         </div>

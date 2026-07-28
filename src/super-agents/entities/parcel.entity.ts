@@ -1,29 +1,33 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, OneToMany,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Order } from '../../orders/entities/order.entity';
 import { SuperAgent } from './super-agent.entity';
 
 export enum ParcelStatus {
-  PENDING              = 'pending',              // Created, waiting for seller handover
+  PENDING = 'pending', // Created, waiting for seller handover
   COLLECTION_REQUESTED = 'collection_requested', // Seller requested agent pickup
-  COLLECTED_BY_AGENT   = 'collected_by_agent',   // Local agent has it, going to hub/bus
-  RECEIVED_AT_HUB      = 'received_at_hub',      // Super agent received from seller/agent
-  VERIFIED             = 'verified',             // Super agent verified contents
-  READY_FOR_DISPATCH   = 'ready_for_dispatch',   // Packaged and ready
-  DISPATCHED           = 'dispatched',           // Sent to destination city
-  IN_TRANSIT           = 'in_transit',           // On the way
-  TRANSFERRED_HUB      = 'transferred_hub',      // Moved from origin hub to transit hub
-  ARRIVED_AT_HUB       = 'arrived_at_hub',       // Reached destination city hub/terminal
-  AWAITING_BUYER       = 'awaiting_buyer',        // Arrived — waiting for buyer decision (pickup or delivery)
-  OUT_FOR_DELIVERY     = 'out_for_delivery',     // Local agent delivering
-  DELIVERED            = 'delivered',            // Buyer received
-  SELF_PICKUP          = 'self_pickup',           // Buyer collected themselves from hub
-  RETURNED             = 'returned',             // Returned to sender
-  DISPUTED             = 'disputed',             // Issue raised
+  COLLECTED_BY_AGENT = 'collected_by_agent', // Local agent has it, going to hub/bus
+  RECEIVED_AT_HUB = 'received_at_hub', // Super agent received from seller/agent
+  VERIFIED = 'verified', // Super agent verified contents
+  READY_FOR_DISPATCH = 'ready_for_dispatch', // Packaged and ready
+  DISPATCHED = 'dispatched', // Sent to destination city
+  IN_TRANSIT = 'in_transit', // On the way
+  TRANSFERRED_HUB = 'transferred_hub', // Moved from origin hub to transit hub
+  ARRIVED_AT_HUB = 'arrived_at_hub', // Reached destination city hub/terminal
+  AWAITING_BUYER = 'awaiting_buyer', // Arrived — waiting for buyer decision (pickup or delivery)
+  OUT_FOR_DELIVERY = 'out_for_delivery', // Local agent delivering
+  DELIVERED = 'delivered', // Buyer received
+  SELF_PICKUP = 'self_pickup', // Buyer collected themselves from hub
+  RETURNED = 'returned', // Returned to sender
+  DISPUTED = 'disputed', // Issue raised
 }
 
 @Entity('parcel')
@@ -33,7 +37,7 @@ export class Parcel {
 
   // ── Tracking ──────────────────────────────────────────────────────────────
   @Column({ type: 'varchar', unique: true, nullable: true })
-  trackingNumber: string | null;  // e.g. KTX-DAR-MZA-000001
+  trackingNumber: string | null; // e.g. KTX-DAR-MZA-000001
 
   @Column({ type: 'enum', enum: ParcelStatus, default: ParcelStatus.PENDING })
   status: ParcelStatus;
@@ -56,10 +60,18 @@ export class Parcel {
   @ManyToOne(() => User, { eager: false, nullable: true, onDelete: 'SET NULL' })
   buyer: User | null;
 
-  @ManyToOne(() => SuperAgent, { eager: false, nullable: true, onDelete: 'SET NULL' })
-  superAgent: SuperAgent | null;          // Origin hub
+  @ManyToOne(() => SuperAgent, {
+    eager: false,
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  superAgent: SuperAgent | null; // Origin hub
 
-  @ManyToOne(() => SuperAgent, { eager: false, nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => SuperAgent, {
+    eager: false,
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   destinationSuperAgent: SuperAgent | null; // Destination hub
 
   // ── Route ─────────────────────────────────────────────────────────────────
@@ -90,7 +102,7 @@ export class Parcel {
 
   // ── Local (last-mile) agent ─────────────────────────────────────────────────
   @Column({ type: 'varchar', nullable: true })
-  localAgentId: string | null;     // User.id of the local agent doing last-mile delivery
+  localAgentId: string | null; // User.id of the local agent doing last-mile delivery
 
   @Column({ type: 'varchar', nullable: true })
   localAgentName: string | null;
@@ -100,7 +112,7 @@ export class Parcel {
 
   // ── Dispatch cost (single-parcel dispatch only — bulk uses BulkShipment) ────
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
-  courierCost: number | null;       // What agent actually paid the bus/courier
+  courierCost: number | null; // What agent actually paid the bus/courier
 
   @Column({ type: 'varchar', nullable: true })
   courierCostReceipt: string | null; // Photo of bus ticket / courier receipt
@@ -127,23 +139,23 @@ export class Parcel {
   weightKg: number | null;
 
   @Column({ type: 'varchar', nullable: true })
-  parcelSize: string | null;    // 'small' | 'medium' | 'large' | 'extra_large'
+  parcelSize: string | null; // 'small' | 'medium' | 'large' | 'extra_large'
 
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
   // ── Financials ────────────────────────────────────────────────────────────
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  estimatedShippingFee: number;  // What seller estimated
+  estimatedShippingFee: number; // What seller estimated
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  actualShippingFee: number;     // What super agent calculated
+  actualShippingFee: number; // What super agent calculated
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  shippingMargin: number;        // estimatedFee - actualFee = KenteXa profit
+  shippingMargin: number; // estimatedFee - actualFee = KenteXa profit
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
-  superAgentEarnings: number;    // Super agent's cut
+  superAgentEarnings: number; // Super agent's cut
 
   // ── Seller-initiated shipment fields ─────────────────────────────────────
   // When source = 'seller_shipment': seller created this, cash already collected
@@ -155,7 +167,7 @@ export class Parcel {
 
   // Transport method seller chose
   @Column({ type: 'varchar', nullable: true })
-  transportMethod: string | null;   // 'super_agent' | 'bus' | 'courier' | 'boda'
+  transportMethod: string | null; // 'super_agent' | 'bus' | 'courier' | 'boda'
 
   // Bus/courier details — uploaded by seller or Super Agent
   @Column({ type: 'varchar', nullable: true })
@@ -165,7 +177,7 @@ export class Parcel {
   busTicketNumber: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  busDeparture: string | null;    // e.g. "Jumanne 6am" — when bus departs
+  busDeparture: string | null; // e.g. "Jumanne 6am" — when bus departs
 
   @Column({ type: 'varchar', nullable: true })
   courierName: string | null;
@@ -175,11 +187,11 @@ export class Parcel {
 
   // Platform fee payment
   @Column({ type: 'boolean', default: false })
-  platformFeePaid: boolean;         // TZS 1,000 paid → tracking activates
+  platformFeePaid: boolean; // TZS 1,000 paid → tracking activates
 
   // Buyer action at destination
   @Column({ type: 'boolean', nullable: true })
-  buyerRequestedDelivery: boolean | null;  // null=not decided, true=wants delivery, false=self-pickup
+  buyerRequestedDelivery: boolean | null; // null=not decided, true=wants delivery, false=self-pickup
 
   // Agreed last-mile delivery fee (set when buyer picks an agent)
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
@@ -187,16 +199,16 @@ export class Parcel {
 
   // Source of parcel
   @Column({ type: 'varchar', default: 'super_agent' })
-  source: string;   // 'super_agent' | 'seller_shipment' | 'online_order'────────────────────────────────────────────────────
+  source: string; // 'super_agent' | 'seller_shipment' | 'online_order'────────────────────────────────────────────────────
   @Column({ type: 'varchar', nullable: true })
-  parcelPhoto: string | null;    // Photo taken by super agent at handover
+  parcelPhoto: string | null; // Photo taken by super agent at handover
 
   @Column({ type: 'varchar', nullable: true })
-  deliveryPhoto: string | null;  // Photo taken at delivery
+  deliveryPhoto: string | null; // Photo taken at delivery
 
   // ── Handover ──────────────────────────────────────────────────────────────
   @Column({ type: 'timestamp', nullable: true })
-  handoverTime: Date | null;     // When seller handed to super agent
+  handoverTime: Date | null; // When seller handed to super agent
 
   @Column({ type: 'timestamp', nullable: true })
   dispatchTime: Date | null;
@@ -209,7 +221,7 @@ export class Parcel {
 
   // ── Delivery confirmation ─────────────────────────────────────────────────
   @Column({ type: 'varchar', nullable: true })
-  deliveryCode: string | null;   // SMS code buyer must confirm
+  deliveryCode: string | null; // SMS code buyer must confirm
 
   @Column({ type: 'boolean', default: false })
   buyerConfirmed: boolean;
@@ -225,7 +237,7 @@ export class Parcel {
   @Column({ type: 'text', nullable: true })
   disputeReason: string | null;
 
-  @OneToMany(() => ParcelTracking, t => t.parcel)
+  @OneToMany(() => ParcelTracking, (t) => t.parcel)
   trackingHistory: ParcelTracking[];
 
   @CreateDateColumn() createdAt: Date;
@@ -238,7 +250,7 @@ export class ParcelTracking {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Parcel, p => p.trackingHistory, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Parcel, (p) => p.trackingHistory, { onDelete: 'CASCADE' })
   parcel: Parcel;
 
   @Column({ type: 'enum', enum: ParcelStatus })
@@ -252,16 +264,16 @@ export class ParcelTracking {
 
   // Who handled this step — name, phone, location, type
   @Column({ type: 'varchar', nullable: true })
-  updatedBy: string | null;        // handler name e.g. "Geita Express Hub" / "Juma Salehe"
+  updatedBy: string | null; // handler name e.g. "Geita Express Hub" / "Juma Salehe"
 
   @Column({ type: 'varchar', nullable: true })
-  handlerPhone: string | null;     // contact phone for this handler
+  handlerPhone: string | null; // contact phone for this handler
 
   @Column({ type: 'varchar', nullable: true })
-  handlerLocation: string | null;  // physical address / landmark of hub or agent
+  handlerLocation: string | null; // physical address / landmark of hub or agent
 
   @Column({ type: 'varchar', nullable: true })
-  handlerType: string | null;      // 'super_agent' | 'local_agent' | 'system'
+  handlerType: string | null; // 'super_agent' | 'local_agent' | 'system'
 
   @CreateDateColumn()
   createdAt: Date;

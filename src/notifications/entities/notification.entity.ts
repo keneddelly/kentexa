@@ -6,24 +6,28 @@
  * Frontend polls /notifications/my (or uses SSE in future).
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 export enum NotificationType {
-  ORDER_PLACED      = 'order_placed',
-  ORDER_PAID        = 'order_paid',
-  ORDER_DELIVERED   = 'order_delivered',
-  ORDER_CONFIRMED   = 'order_confirmed',    // buyer confirmed receipt
-  ORDER_DISPUTED    = 'order_disputed',
-  PAYOUT_RELEASED   = 'payout_released',
-  REVIEW_RECEIVED   = 'review_received',
-  PARCEL_ARRIVED    = 'parcel_arrived',
-  AGENT_CLAIMED     = 'agent_claimed',
-  SHIPMENT_CREATED  = 'shipment_created',
-  PAYMENT_RECEIVED  = 'payment_received',
-  SYSTEM            = 'system',
+  ORDER_PLACED = 'order_placed',
+  ORDER_PAID = 'order_paid',
+  ORDER_DELIVERED = 'order_delivered',
+  ORDER_CONFIRMED = 'order_confirmed', // buyer confirmed receipt
+  ORDER_DISPUTED = 'order_disputed',
+  PAYOUT_RELEASED = 'payout_released',
+  REVIEW_RECEIVED = 'review_received',
+  PARCEL_ARRIVED = 'parcel_arrived',
+  AGENT_CLAIMED = 'agent_claimed',
+  SHIPMENT_CREATED = 'shipment_created',
+  PAYMENT_RECEIVED = 'payment_received',
+  SYSTEM = 'system',
 }
 
 @Entity('notification')

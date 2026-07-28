@@ -143,7 +143,7 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 <button key={c.value}
                   onClick={() => { set('category', c.value); setStep(2); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 14,
-                    padding: '14px 18px', backgroundColor: '#fff', borderRadius: 12,
+                    padding: '14px 18px', borderRadius: 12,
                     border: `2px solid ${form.category === c.value ? '#1d4ed8' : '#e2e8f0'}`,
                     cursor: 'pointer', textAlign: 'left',
                     backgroundColor: form.category === c.value ? '#eff6ff' : '#fff' }}>

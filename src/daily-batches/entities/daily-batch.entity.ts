@@ -1,17 +1,20 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
 import { BatchParcel } from './batch-parcel.entity';
 
 export enum BatchStatus {
-  OPEN        = 'open',         // accepting parcels, van hasn't departed
-  CUTOFF      = 'cutoff',       // cutoff passed, no more parcels can join
-  DEPARTED    = 'departed',     // van has left Kariakoo
-  IN_PROGRESS = 'in_progress',  // van is actively delivering to zones
-  COMPLETED   = 'completed',    // all zones delivered
-  CANCELLED   = 'cancelled',
+  OPEN = 'open', // accepting parcels, van hasn't departed
+  CUTOFF = 'cutoff', // cutoff passed, no more parcels can join
+  DEPARTED = 'departed', // van has left Kariakoo
+  IN_PROGRESS = 'in_progress', // van is actively delivering to zones
+  COMPLETED = 'completed', // all zones delivered
+  CANCELLED = 'cancelled',
 }
 
 /**
@@ -58,7 +61,7 @@ export class DailyBatch {
   @Column({ type: 'text', nullable: true })
   notes: string | null;
 
-  @OneToMany(() => BatchParcel, bp => bp.batch)
+  @OneToMany(() => BatchParcel, (bp) => bp.batch)
   parcels: BatchParcel[];
 
   @CreateDateColumn()

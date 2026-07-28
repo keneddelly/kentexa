@@ -47,7 +47,6 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [showInvite, setShowInvite] = useState(false);
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState('');
-  const [editId,     setEditId]     = useState(null);
 
   const [form, setForm] = useState({
     phone: '', role: 'sales', permissions: { ...ROLE_DEFAULTS.sales },

@@ -2,10 +2,10 @@
  * WishlistService
  * Place at: src/wishlist/wishlist.service.ts
  */
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectRepository }                from '@nestjs/typeorm';
-import { Repository }                      from 'typeorm';
-import { Wishlist }                        from './entities/wishlist.entity';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Wishlist } from './entities/wishlist.entity';
 
 @Injectable()
 export class WishlistService {
@@ -22,13 +22,21 @@ export class WishlistService {
     });
   }
 
-  async toggle(userId: number, classifiedId: number, note?: string): Promise<{ saved: boolean }> {
-    const existing = await this.repo.findOne({ where: { userId, classifiedId } });
+  async toggle(
+    userId: number,
+    classifiedId: number,
+    note?: string,
+  ): Promise<{ saved: boolean }> {
+    const existing = await this.repo.findOne({
+      where: { userId, classifiedId },
+    });
     if (existing) {
       await this.repo.delete(existing.id);
       return { saved: false };
     }
-    await this.repo.save(this.repo.create({ userId, classifiedId, note: note || null }));
+    await this.repo.save(
+      this.repo.create({ userId, classifiedId, note: note || null }),
+    );
     return { saved: true };
   }
 
@@ -42,7 +50,10 @@ export class WishlistService {
   }
 
   async getWishlistIds(userId: number): Promise<number[]> {
-    const items = await this.repo.find({ where: { userId }, select: { classifiedId: true } });
-    return items.map(i => i.classifiedId).filter(Boolean) as number[];
+    const items = await this.repo.find({
+      where: { userId },
+      select: { classifiedId: true },
+    });
+    return items.map((i) => i.classifiedId).filter(Boolean) as number[];
   }
 }

@@ -1,6 +1,14 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Body, UseGuards, Request, Param, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  UseGuards,
+  Request,
+  Param,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { SellerService } from './seller.service';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
@@ -110,7 +118,11 @@ export class SellerController {
 
   @Patch('team/:id')
   @UseGuards(JwtAuthGuard)
-  updateMember(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() dto: any) {
+  updateMember(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: any,
+  ) {
     return this.sellerService.updateTeamMember(req.user.id, id, dto);
   }
 
@@ -119,6 +131,4 @@ export class SellerController {
   removeMember(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.sellerService.removeTeamMember(req.user.id, id);
   }
-
-
 }

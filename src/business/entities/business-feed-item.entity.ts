@@ -3,20 +3,24 @@
  * Place at: src/business/entities/business-feed-item.entity.ts
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 export enum FeedItemType {
-  NEW_PRODUCT    = 'new_product',
-  DISCOUNT       = 'discount',
-  ANNOUNCEMENT   = 'announcement',
-  RESTOCK        = 'restock',
-  NEW_SERVICE    = 'new_service',
-  DELIVERY_INFO  = 'delivery_info',
-  MOMENT         = 'moment',       // "I'm Selling" — photo tagged to a listing
-  LOOKING_FOR    = 'looking_for',  // "I'm Looking For" — any user asking for a product/service
+  NEW_PRODUCT = 'new_product',
+  DISCOUNT = 'discount',
+  ANNOUNCEMENT = 'announcement',
+  RESTOCK = 'restock',
+  NEW_SERVICE = 'new_service',
+  DELIVERY_INFO = 'delivery_info',
+  MOMENT = 'moment', // "I'm Selling" — photo tagged to a listing
+  LOOKING_FOR = 'looking_for', // "I'm Looking For" — any user asking for a product/service
 }
 
 @Entity('business_feed_item')

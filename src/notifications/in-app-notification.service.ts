@@ -9,14 +9,14 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository }       from 'typeorm';
+import { Repository } from 'typeorm';
 import { Notification, NotificationType } from './entities/notification.entity';
-import { PushService }      from './push.service';
+import { PushService } from './push.service';
 
 export interface NotifyTarget {
   email?: string;
   phone?: string;
-  name?:  string;
+  name?: string;
 }
 
 @Injectable()
@@ -29,130 +29,155 @@ export class InAppNotificationService {
 
   // ── Core notify — saves in-app + fires push ───────────────────────────────
   async notify(params: {
-    userId:       number;
-    type:         NotificationType | string;
-    title:        string;
-    body:         string;
-    icon?:        string;
-    actionPage?:  string;
+    userId: number;
+    type: NotificationType | string;
+    title: string;
+    body: string;
+    icon?: string;
+    actionPage?: string;
     actionParam?: string;
-    orderId?:     number;
+    orderId?: number;
     trackingNumber?: string;
   }): Promise<Notification> {
     const notif = await this.repo.save(
       this.repo.create({
-        userId:        params.userId,
-        type:          params.type as NotificationType,
-        title:         params.title,
-        body:          params.body,
-        icon:          params.icon          || '🔔',
-        actionPage:    params.actionPage    || null,
-        actionParam:   params.actionParam   || null,
-        orderId:       params.orderId       || null,
-        trackingNumber:params.trackingNumber|| null,
-        isRead:        false,
-      })
+        userId: params.userId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+        icon: params.icon || '🔔',
+        actionPage: params.actionPage || null,
+        actionParam: params.actionParam || null,
+        orderId: params.orderId || null,
+        trackingNumber: params.trackingNumber || null,
+        isRead: false,
+      }),
     );
 
     // Fire push — non-blocking, never throws
-    this.push.sendToUser(params.userId, {
-      title: params.title,
-      body:  params.body,
-      icon:  '/icons/icon-192x192.png',
-      url:   params.actionPage
-        ? `/?page=${params.actionPage}${params.actionParam ? `&param=${params.actionParam}` : ''}`
-        : '/',
-      tag: params.type as string,
-    }).catch(() => {});
+    this.push
+      .sendToUser(params.userId, {
+        title: params.title,
+        body: params.body,
+        icon: '/icons/icon-192x192.png',
+        url: params.actionPage
+          ? `/?page=${params.actionPage}${params.actionParam ? `&param=${params.actionParam}` : ''}`
+          : '/',
+        tag: params.type,
+      })
+      .catch(() => {});
 
     return notif;
   }
 
   // ── Event helpers ─────────────────────────────────────────────────────────
 
-  async orderPlaced(buyer: NotifyTarget, seller: NotifyTarget, orderId: number, productName: string) {
+  async orderPlaced(
+    buyer: NotifyTarget,
+    seller: NotifyTarget,
+    orderId: number,
+    productName: string,
+  ) {
     const buyerUser = await this.getUserByPhone(buyer.phone);
     const sellerUser = await this.getUserByPhone(seller.phone);
 
     if (buyerUser) {
       await this.notify({
-        userId:    buyerUser.id,
-        type:      NotificationType.ORDER_PLACED,
-        title:     '✅ Agizo Limepokelewa',
-        body:      `Agizo lako la "${productName}" limepokelewa. Subiri uthibitisho wa muuzaji.`,
-        actionPage:'TrackParcel',
+        userId: buyerUser.id,
+        type: NotificationType.ORDER_PLACED,
+        title: '✅ Agizo Limepokelewa',
+        body: `Agizo lako la "${productName}" limepokelewa. Subiri uthibitisho wa muuzaji.`,
+        actionPage: 'MyOrders',
+        actionParam: String(orderId),
         orderId,
         icon: '📦',
       });
     }
     if (sellerUser) {
       await this.notify({
-        userId:    sellerUser.id,
-        type:      NotificationType.ORDER_PLACED,
-        title:     '🛒 Agizo Jipya!',
-        body:      `${buyer.name || 'Mnunuzi'} amenunua "${productName}". Tuma haraka!`,
-        actionPage:'SellerOrders',
+        userId: sellerUser.id,
+        type: NotificationType.ORDER_PLACED,
+        title: '🛒 Agizo Jipya!',
+        body: `${buyer.name || 'Mnunuzi'} amenunua "${productName}". Tuma haraka!`,
+        actionPage: 'SellerOrders',
+        actionParam: String(orderId),
         orderId,
         icon: '🛒',
       });
     }
   }
 
-  async orderPaid(buyer: NotifyTarget, seller: NotifyTarget, orderId: number, amount: number) {
+  async orderPaid(
+    buyer: NotifyTarget,
+    seller: NotifyTarget,
+    orderId: number,
+    amount: number,
+  ) {
     const sellerUser = await this.getUserByPhone(seller.phone);
     if (sellerUser) {
       await this.notify({
-        userId:    sellerUser.id,
-        type:      NotificationType.ORDER_PAID,
-        title:     '💰 Malipo Yamepokelewa!',
-        body:      `TZS ${Number(amount).toLocaleString()} imewekwa kwenye escrow. Tuma bidhaa.`,
-        actionPage:'SellerOrders',
+        userId: sellerUser.id,
+        type: NotificationType.ORDER_PAID,
+        title: '💰 Malipo Yamepokelewa!',
+        body: `TZS ${Number(amount).toLocaleString()} imewekwa kwenye escrow. Tuma bidhaa.`,
+        actionPage: 'SellerOrders',
+        actionParam: String(orderId),
         orderId,
         icon: '💰',
       });
     }
   }
 
-  async orderCompleted(seller: NotifyTarget, buyer: NotifyTarget, orderId: number, sellerAmount: number) {
+  async orderCompleted(
+    seller: NotifyTarget,
+    buyer: NotifyTarget,
+    orderId: number,
+    sellerAmount: number,
+  ) {
     const sellerUser = await this.getUserByPhone(seller.phone);
-    const buyerUser  = await this.getUserByPhone(buyer.phone);
+    const buyerUser = await this.getUserByPhone(buyer.phone);
 
     if (sellerUser) {
       await this.notify({
-        userId:    sellerUser.id,
-        type:      NotificationType.ORDER_CONFIRMED,
-        title:     '🎉 Bidhaa Imetolewa — Pata Malipo!',
-        body:      `Mnunuzi amethibitisha utoaji. TZS ${Number(sellerAmount).toLocaleString()} itatolewa hivi karibuni.`,
-        actionPage:'SellerPayouts',
+        userId: sellerUser.id,
+        type: NotificationType.ORDER_CONFIRMED,
+        title: '🎉 Bidhaa Imetolewa — Pata Malipo!',
+        body: `Mnunuzi amethibitisha utoaji. TZS ${Number(sellerAmount).toLocaleString()} itatolewa hivi karibuni.`,
+        actionPage: 'SellerPayouts',
+        actionParam: String(orderId),
         orderId,
         icon: '🎉',
       });
     }
     if (buyerUser) {
       await this.notify({
-        userId:    buyerUser.id,
-        type:      NotificationType.ORDER_CONFIRMED,
-        title:     '📦 Asante kwa Ununuzi!',
-        body:      'Bidhaa imekufikia. Karibuni tena KenteXa!',
-        // Was 'Orders' — that's the ADMIN-ONLY dashboard route in App.js
-        // (requireAdmin), so a regular buyer tapping this got silently
-        // bounced to Home instead of seeing their own orders.
-        actionPage:'MyOrders',
+        userId: buyerUser.id,
+        type: NotificationType.ORDER_CONFIRMED,
+        title: '📦 Asante kwa Ununuzi!',
+        body: 'Bidhaa imekufikia. Karibuni tena KenteXa!',
+        actionPage: 'MyOrders', // was 'Orders' — that's the ADMIN dashboard, not a buyer-reachable page
+        actionParam: String(orderId),
         orderId,
         icon: '⭐',
       });
     }
   }
 
-  async shipmentCreated(superAgent: NotifyTarget, sender: NotifyTarget, trackingNumber: string, destination: string) {
+  async shipmentCreated(
+    superAgent: NotifyTarget,
+    sender: NotifyTarget,
+    trackingNumber: string,
+    destination: string,
+  ) {
     const senderUser = await this.getUserByPhone(sender.phone);
     if (senderUser) {
       await this.notify({
-        userId:        senderUser.id,
-        type:          NotificationType.SHIPMENT_CREATED,
-        title:         '📦 Kifurushi Kimesajiliwa',
-        body:          `Kifurushi chako ${trackingNumber} kuelekea ${destination} kimesajiliwa.`,
-        actionPage:    'TrackParcel',
+        userId: senderUser.id,
+        type: NotificationType.SHIPMENT_CREATED,
+        title: '📦 Kifurushi Kimesajiliwa',
+        body: `Kifurushi chako ${trackingNumber} kuelekea ${destination} kimesajiliwa.`,
+        actionPage: 'TrackParcel',
+        actionParam: trackingNumber,
         trackingNumber,
         icon: '📦',
       });
@@ -163,69 +188,85 @@ export class InAppNotificationService {
     const sellerUser = await this.getUserByPhone(seller.phone);
     if (sellerUser) {
       await this.notify({
-        userId:    sellerUser.id,
-        type:      NotificationType.ORDER_CONFIRMED,
-        title:     '💸 Malipo Yatumwa!',
-        body:      `TZS ${Number(amount).toLocaleString()} inatumwa kwenye akaunti yako.`,
-        actionPage:'SellerPayouts',
+        userId: sellerUser.id,
+        type: NotificationType.ORDER_CONFIRMED,
+        title: '💸 Malipo Yatumwa!',
+        body: `TZS ${Number(amount).toLocaleString()} inatumwa kwenye akaunti yako.`,
+        actionPage: 'SellerPayouts',
+        actionParam: String(orderId),
         orderId,
         icon: '💸',
       });
     }
   }
 
-  async reviewReceived(seller: NotifyTarget, rating: number, productName: string) {
-    const sellerUser = await this.getUserByPhone(seller.phone);
-    if (sellerUser) {
-      const stars = '⭐'.repeat(rating);
-      await this.notify({
-        userId:    sellerUser.id,
-        type:      NotificationType.ORDER_CONFIRMED,
-        title:     `${stars} Tathmini Mpya`,
-        body:      `"${productName}" imepata tathmini ya nyota ${rating}.`,
-        actionPage:'SellerDashboard',
-        icon: '⭐',
-      });
-    }
+  async reviewReceived(
+    sellerId: number,
+    rating: number,
+    productName: string,
+    productId?: number,
+  ) {
+    const stars = '⭐'.repeat(rating);
+    await this.notify({
+      userId: sellerId,
+      type: NotificationType.ORDER_CONFIRMED,
+      title: `${stars} Tathmini Mpya`,
+      body: `"${productName}" imepata tathmini ya nyota ${rating}.`,
+      actionPage: productId ? 'ProductDetail' : 'SellerDashboard',
+      actionParam: productId ? String(productId) : undefined,
+      icon: '⭐',
+    });
   }
 
-  async disputeRaised(seller: NotifyTarget, buyer: NotifyTarget, orderId: number) {
+  async disputeRaised(
+    seller: NotifyTarget,
+    buyer: NotifyTarget,
+    orderId: number,
+  ) {
     const sellerUser = await this.getUserByPhone(seller.phone);
     if (sellerUser) {
       await this.notify({
-        userId:    sellerUser.id,
-        type:      NotificationType.ORDER_PLACED,
-        title:     '⚠️ Malalamiko Yamewasilishwa',
-        body:      'Mnunuzi amefungua shauri. Toa maelezo yako haraka.',
-        actionPage:'SellerOrders',
+        userId: sellerUser.id,
+        type: NotificationType.ORDER_PLACED,
+        title: '⚠️ Malalamiko Yamewasilishwa',
+        body: 'Mnunuzi amefungua shauri. Toa maelezo yako haraka.',
+        actionPage: 'SellerOrders',
+        actionParam: String(orderId),
         orderId,
         icon: '⚠️',
       });
     }
   }
 
-  async newFollower(businessUserId: number, followerName: string) {
+  async newFollower(
+    businessUserId: number,
+    followerName: string,
+    followerId?: number,
+  ) {
     await this.notify({
-      userId:    businessUserId,
-      type:      NotificationType.ORDER_CONFIRMED,
-      title:     '👤 Mfuataji Mpya!',
-      body:      `${followerName} ameanza kufuata biashara yako.`,
-      actionPage:'CommerceProfile',
+      userId: businessUserId,
+      type: NotificationType.ORDER_CONFIRMED,
+      title: '👤 Mfuataji Mpya!',
+      body: `${followerName} ameanza kufuata biashara yako.`,
+      actionPage: 'CommerceProfile',
+      actionParam: followerId ? String(followerId) : undefined,
       icon: '👤',
     });
   }
 
-  async businessFeedPost(followerUserId: number, businessName: string, postTitle: string, sellerId: number) {
+  async businessFeedPost(
+    followerUserId: number,
+    businessName: string,
+    postTitle: string,
+    sellerId: number,
+  ) {
     await this.notify({
-      userId:      followerUserId,
-      type:        NotificationType.ORDER_PLACED,
-      title:       `📢 ${businessName}`,
-      body:        postTitle,
-      actionPage:  'CommerceProfile',
-      // "-feed" lands on the Posts/Feed tab (where the actual announcement
-      // lives) instead of the default Products tab — was just the bare
-      // sellerId before, which is what sent people to the generic profile.
-      actionParam: `${sellerId}-feed`,
+      userId: followerUserId,
+      type: NotificationType.ORDER_PLACED,
+      title: `📢 ${businessName}`,
+      body: postTitle,
+      actionPage: 'CommerceProfile',
+      actionParam: String(sellerId),
       icon: '📢',
     });
   }
@@ -233,39 +274,53 @@ export class InAppNotificationService {
   // ── Read management ───────────────────────────────────────────────────────
   async getMyNotifications(userId: number, page = 1, limit = 30) {
     const [items, total] = await this.repo.findAndCount({
-      where:  { userId },
-      order:  { createdAt: 'DESC' },
-      take:   limit,
-      skip:   (page - 1) * limit,
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: limit,
+      skip: (page - 1) * limit,
     });
-    return { items, total, unread: items.filter(n => !n.isRead).length };
+    return { items, total, unread: items.filter((n) => !n.isRead).length };
   }
 
   async markRead(userId: number, notifId: number) {
-    await this.repo.update({ id: notifId, userId }, { isRead: true, readAt: new Date() });
+    await this.repo.update(
+      { id: notifId, userId },
+      { isRead: true, readAt: new Date() },
+    );
   }
 
   async markAllRead(userId: number) {
-    await this.repo.update({ userId, isRead: false }, { isRead: true, readAt: new Date() });
+    await this.repo.update(
+      { userId, isRead: false },
+      { isRead: true, readAt: new Date() },
+    );
   }
 
   async getUnreadCount(userId: number): Promise<number> {
     return this.repo.count({ where: { userId, isRead: false } });
   }
 
-
   // ── Backward-compatible aliases (old signature → new) ────────────────────
 
   // Old: orderConfirmed(sellerId, orderId, productName, rating?, review?)
-  async orderConfirmed(sellerId: number, orderId: number, productName: string, rating?: number, review?: string) {
+  async orderConfirmed(
+    sellerId: number,
+    orderId: number,
+    productName: string,
+    rating?: number,
+    review?: string,
+  ) {
     await this.notify({
-      userId:    sellerId,
-      type:      NotificationType.ORDER_CONFIRMED,
-      title:     rating ? `${'⭐'.repeat(rating)} Tathmini Mpya` : '🎉 Bidhaa Imetolewa!',
-      body:      rating
+      userId: sellerId,
+      type: NotificationType.ORDER_CONFIRMED,
+      title: rating
+        ? `${'⭐'.repeat(rating)} Tathmini Mpya`
+        : '🎉 Bidhaa Imetolewa!',
+      body: rating
         ? `"${productName}" imepata tathmini ya nyota ${rating}.${review ? ' "' + review + '"' : ''}`
         : `Mnunuzi amethibitisha utoaji wa "${productName}". Pata malipo yako!`,
-      actionPage:'SellerOrders',
+      actionPage: 'SellerOrders',
+      actionParam: String(orderId),
       orderId,
       icon: rating ? '⭐' : '🎉',
     });
@@ -274,26 +329,37 @@ export class InAppNotificationService {
   // Old: orderPlaced(sellerId, orderId, trackingNumber, productName)
   // overloaded — the new signature uses NotifyTarget objects
   // Keep both working by detecting if first arg is a number or object
-  async orderPlacedById(sellerId: number, orderId: number, trackingNumber: string, productName: string) {
+  async orderPlacedById(
+    sellerId: number,
+    orderId: number,
+    trackingNumber: string,
+    productName: string,
+  ) {
     await this.notify({
-      userId:    sellerId,
-      type:      NotificationType.ORDER_PLACED,
-      title:     '🛒 Agizo Jipya!',
-      body:      `Agizo jipya la "${productName}" limepokelewa. Nambari: ${trackingNumber}`,
-      actionPage:'SellerOrders',
+      userId: sellerId,
+      type: NotificationType.ORDER_PLACED,
+      title: '🛒 Agizo Jipya!',
+      body: `Agizo jipya la "${productName}" limepokelewa. Nambari: ${trackingNumber}`,
+      actionPage: 'SellerOrders',
+      actionParam: String(orderId),
       orderId,
       icon: '🛒',
     });
   }
 
   // Old: disputeRaised(sellerId, orderId, trackingNumber)
-  async disputeRaisedById(sellerId: number, orderId: number, trackingNumber: string) {
+  async disputeRaisedById(
+    sellerId: number,
+    orderId: number,
+    trackingNumber: string,
+  ) {
     await this.notify({
-      userId:    sellerId,
-      type:      NotificationType.ORDER_PLACED,
-      title:     '⚠️ Malalamiko Yamewasilishwa',
-      body:      `Mnunuzi amefungua shauri kwa agizo ${trackingNumber}. Toa maelezo yako haraka.`,
-      actionPage:'SellerOrders',
+      userId: sellerId,
+      type: NotificationType.ORDER_PLACED,
+      title: '⚠️ Malalamiko Yamewasilishwa',
+      body: `Mnunuzi amefungua shauri kwa agizo ${trackingNumber}. Toa maelezo yako haraka.`,
+      actionPage: 'SellerOrders',
+      actionParam: String(orderId),
       orderId,
       icon: '⚠️',
     });
@@ -302,25 +368,32 @@ export class InAppNotificationService {
   // Old: payoutReleased(sellerId, amount, orderId)
   async payoutReleasedById(sellerId: number, amount: number, orderId: number) {
     await this.notify({
-      userId:    sellerId,
-      type:      NotificationType.ORDER_CONFIRMED,
-      title:     '💸 Malipo Yatumwa!',
-      body:      `TZS ${Number(amount).toLocaleString()} inatumwa kwenye akaunti yako.`,
-      actionPage:'SellerPayouts',
+      userId: sellerId,
+      type: NotificationType.ORDER_CONFIRMED,
+      title: '💸 Malipo Yatumwa!',
+      body: `TZS ${Number(amount).toLocaleString()} inatumwa kwenye akaunti yako.`,
+      actionPage: 'SellerPayouts',
+      actionParam: String(orderId),
       orderId,
       icon: '💸',
     });
   }
 
   // Old: shipmentCreated(buyerId|null, trackingNumber, description, ...)
-  async shipmentCreatedById(buyerId: number | null, trackingNumber: string, description?: string, destination?: string) {
+  async shipmentCreatedById(
+    buyerId: number | null,
+    trackingNumber: string,
+    description?: string,
+    destination?: string,
+  ) {
     if (!buyerId) return;
     await this.notify({
-      userId:        buyerId,
-      type:          NotificationType.SHIPMENT_CREATED,
-      title:         '📦 Kifurushi Kimesajiliwa',
-      body:          `Kifurushi chako ${trackingNumber}${destination ? ' kuelekea ' + destination : ''} kimesajiliwa.`,
-      actionPage:    'TrackParcel',
+      userId: buyerId,
+      type: NotificationType.SHIPMENT_CREATED,
+      title: '📦 Kifurushi Kimesajiliwa',
+      body: `Kifurushi chako ${trackingNumber}${destination ? ' kuelekea ' + destination : ''} kimesajiliwa.`,
+      actionPage: 'TrackParcel',
+      actionParam: trackingNumber,
       trackingNumber,
       icon: '📦',
     });
@@ -328,7 +401,10 @@ export class InAppNotificationService {
 
   // markAllRead without second arg (controller calls with just userId)
   async markAllReadById(userId: number) {
-    await this.repo.update({ userId, isRead: false }, { isRead: true, readAt: new Date() });
+    await this.repo.update(
+      { userId, isRead: false },
+      { isRead: true, readAt: new Date() },
+    );
   }
 
   // ── Helper ────────────────────────────────────────────────────────────────
@@ -337,9 +413,11 @@ export class InAppNotificationService {
     try {
       const result = await this.repo.query(
         'SELECT id FROM "user" WHERE phone = $1 LIMIT 1',
-        [phone]
+        [phone],
       );
       return result?.[0] || null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   }
 }

@@ -98,6 +98,10 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       <div style={{ flex:1, maxWidth:900, margin:'0 auto', width:'100%',
         padding:'16px 16px 80px', boxSizing:'border-box' }}>
 
+        {loading && (
+          <div style={{ textAlign:'center', padding:20, color:'#94a3b8' }}>⏳ Inapakia...</div>
+        )}
+
         {/* Legend */}
         <div style={{ display:'flex', gap:16, flexWrap:'wrap',
           backgroundColor:'#fff', borderRadius:14, padding:'12px 16px',

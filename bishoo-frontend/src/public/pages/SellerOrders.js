@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 // eslint-disable-next-line no-unused-vars
@@ -83,7 +81,8 @@ const SHIPPING_METHODS = [
   },
 ];
 
-const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
+  const highlightRef = React.useRef(null);
   const [orders, setOrders]               = useState([]);
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState('');
@@ -111,6 +110,12 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     if (!localStorage.getItem('token')) { onNavigate('PublicLogin'); return; }
     fetchOrders();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Deep-linked from a notification — scroll to and highlight that order.
+  useEffect(() => {
+    if (!highlightOrderId || !orders.length || !highlightRef.current) return;
+    highlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [orders, highlightOrderId]);
 
   const fetchOrders = async () => {
     try {
@@ -301,7 +306,6 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <Navbar currentPage="SellerOrders" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <BackBar onBack={() => onNavigate('back')} title="My Orders"
         right={
           <button onClick={fetchOrders}
@@ -318,7 +322,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         </button>
       </div>
 
-      <div style={{ padding: '14px 16px 32px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ padding: '14px 16px 90px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
         {message && (
           <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13, fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
@@ -384,8 +388,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               const isPaid      = order.status === 'paid';
               const isPreparing = order.status === 'preparing';
               const sc          = statusStyle(order.status);
+              const isHighlighted = Number(highlightOrderId) === order.id;
               return (
-                <div key={order.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', border: isPaid ? '2px solid #fcd34d' : '1px solid #f1f5f9' }}>
+                <div key={order.id} ref={isHighlighted ? highlightRef : null} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14,
+                  boxShadow: isHighlighted ? '0 0 0 3px #6366f1, 0 2px 10px rgba(0,0,0,0.06)' : '0 2px 10px rgba(0,0,0,0.06)',
+                  border: isHighlighted ? '2px solid #6366f1' : isPaid ? '2px solid #fcd34d' : '1px solid #f1f5f9' }}>
 
                   {/* Header */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 }}>
@@ -915,8 +922,6 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         </div>
       )}
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

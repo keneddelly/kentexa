@@ -1,6 +1,9 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
@@ -9,16 +12,16 @@ import { Order } from '../../orders/entities/order.entity';
 export enum PaymentStatus {
   PENDING = 'pending',
   SUCCESS = 'success',
-  FAILED  = 'failed',
+  FAILED = 'failed',
 }
 
 export enum PaymentProvider {
-  VODACOM  = 'vodacom',
-  AIRTEL   = 'airtel',
-  TIGO     = 'tigo',
+  VODACOM = 'vodacom',
+  AIRTEL = 'airtel',
+  TIGO = 'tigo',
   HALOPESA = 'halopesa',
-  SELCOM   = 'selcom',
-  MOCK     = 'mock',
+  SELCOM = 'selcom',
+  MOCK = 'mock',
 }
 
 @Entity()
@@ -26,7 +29,11 @@ export class Payment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Order, { eager: false, nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Order, {
+    eager: false,
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   order: Order | null;
 
   @ManyToOne(() => User, { eager: false, nullable: true, onDelete: 'SET NULL' })

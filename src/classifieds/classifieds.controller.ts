@@ -1,10 +1,18 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, UseGuards, Request,
-  Query, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  Query,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { ClassifiedsService }     from './classifieds.service';
-import { PriceSuggestionService }  from './price-suggestion.service';
+import { ClassifiedsService } from './classifieds.service';
+import { PriceSuggestionService } from './price-suggestion.service';
 import { CreateClassifiedDto } from './dto/create-classified.dto';
 import { updateClassifiedDto } from './dto/update-classified.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -15,7 +23,7 @@ import { UserRole } from '../users/entities/user.entity';
 @Controller('classifieds')
 export class ClassifiedsController {
   constructor(
-    private readonly service:   ClassifiedsService,
+    private readonly service: ClassifiedsService,
     private readonly priceSvc: PriceSuggestionService,
   ) {}
 
@@ -23,11 +31,11 @@ export class ClassifiedsController {
 
   @Get('search')
   search(
-    @Query('q')        q:         string,
+    @Query('q') q: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
     @Query('location') location?: string,
-    @Query('sort')     sort?:     string,
+    @Query('sort') sort?: string,
   ) {
     if (!q) return [];
     return this.service.search(q, {
@@ -103,7 +111,8 @@ export class ClassifiedsController {
   @Post('invoices/manual')
   createManualInvoice(
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       buyerName: string;
       buyerPhone: string;
       deliveryAddress?: string;
@@ -122,7 +131,8 @@ export class ClassifiedsController {
   createInvoiceForRequest(
     @Param('requestId', ParseIntPipe) requestId: number,
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       amount: number;
       invoiceDescription: string;
       sellerNotes?: string;
@@ -166,7 +176,8 @@ export class ClassifiedsController {
   requestInvoice(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
-    @Body() body: {
+    @Body()
+    body: {
       buyerName: string;
       buyerPhone: string;
       deliveryAddress: string;
@@ -201,9 +212,9 @@ export class ClassifiedsController {
   // ── Price suggestion ──────────────────────────────────────────────────────
   @Get('price-suggestion')
   getPriceSuggestion(
-    @Query('category')    category:    string,
-    @Query('title')       title?:      string,
-    @Query('condition')   condition?:  string,
+    @Query('category') category: string,
+    @Query('title') title?: string,
+    @Query('condition') condition?: string,
     @Query('subcategory') subcategory?: string,
   ) {
     return this.priceSvc.suggest({ category, title, condition, subcategory });
@@ -213,5 +224,4 @@ export class ClassifiedsController {
   checkPrice(@Param('id', ParseIntPipe) id: number) {
     return this.priceSvc.checkPrice(id);
   }
-
 }

@@ -1,6 +1,8 @@
 import {
-  Injectable, BadRequestException,
-  UnauthorizedException, ConflictException,
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -22,29 +24,40 @@ export class AuthService {
 
   private signToken(user: User) {
     return this.jwtService.sign({
-      sub:   user.id,
+      sub: user.id,
       phone: user.phone,
       email: user.email,
-      role:  user.role,
+      role: user.role,
       onboardingCompleted: !!user.onboardingCompleted,
     });
   }
 
   // ── REGISTER WITH PHONE ───────────────────────────────────────────────
-  async registerWithPhone(dto: { phone: string; password: string; name: string }) {
-    const existing = await this.userRepo.findOne({ where: { phone: dto.phone } });
+  async registerWithPhone(dto: {
+    phone: string;
+    password: string;
+    name: string;
+  }) {
+    const existing = await this.userRepo.findOne({
+      where: { phone: dto.phone },
+    });
     if (existing) {
       if (!existing.isVerified) return this.resendPhoneOtp(dto.phone);
       throw new ConflictException('Phone number already registered');
     }
 
-    const hashed    = await bcrypt.hash(dto.password, 10);
-    const otp       = this.smsService.generateOtp();
+    const hashed = await bcrypt.hash(dto.password, 10);
+    const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
     const user = this.userRepo.create({
-      phone: dto.phone, name: dto.name, password: hashed,
-      otp, otpExpiry, isVerified: false, otpAttempts: 0,
+      phone: dto.phone,
+      name: dto.name,
+      password: hashed,
+      otp,
+      otpExpiry,
+      isVerified: false,
+      otpAttempts: 0,
     } as any);
 
     await this.userRepo.save(user);
@@ -52,27 +65,40 @@ export class AuthService {
 
     return {
       message: 'OTP sent to your phone number.',
-      method: 'phone', phone: dto.phone, otpSent: sent,
+      method: 'phone',
+      phone: dto.phone,
+      otpSent: sent,
       ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
     };
   }
 
   // ── REGISTER WITH EMAIL ───────────────────────────────────────────────
-  async registerWithEmail(dto: { email: string; password: string; name: string }) {
+  async registerWithEmail(dto: {
+    email: string;
+    password: string;
+    name: string;
+  }) {
     dto.email = dto.email.toLowerCase().trim();
-    const existing = await this.userRepo.findOne({ where: { email: dto.email } });
+    const existing = await this.userRepo.findOne({
+      where: { email: dto.email },
+    });
     if (existing) {
       if (!existing.isVerified) return this.resendEmailOtp(dto.email);
       throw new ConflictException('Email already registered');
     }
 
-    const hashed    = await bcrypt.hash(dto.password, 10);
-    const otp       = this.smsService.generateOtp();
+    const hashed = await bcrypt.hash(dto.password, 10);
+    const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
 
     const user = this.userRepo.create({
-      email: dto.email, name: dto.name, password: hashed,
-      otp, otpExpiry, isVerified: false, otpAttempts: 0,
+      email: dto.email,
+      name: dto.name,
+      password: hashed,
+      otp,
+      otpExpiry,
+      isVerified: false,
+      otpAttempts: 0,
     } as any);
 
     await this.userRepo.save(user);
@@ -82,7 +108,9 @@ export class AuthService {
 
     return {
       message: 'OTP sent to your email address.',
-      method: 'email', email: dto.email, otpSent: sent,
+      method: 'email',
+      email: dto.email,
+      otpSent: sent,
       ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
     };
   }
@@ -90,34 +118,51 @@ export class AuthService {
   // ── VERIFY OTP ────────────────────────────────────────────────────────
   async verifyOtp(identifier: string, otp: string) {
     const isEmail = identifier.includes('@');
-    const user    = isEmail
+    const user = isEmail
       ? await this.userRepo.findOne({ where: { email: identifier } })
       : await this.userRepo.findOne({ where: { phone: identifier } });
 
     if (!user) throw new BadRequestException('Account not found');
-    if (user.isVerified) throw new BadRequestException('Account already verified. Please login.');
-    if (user.otpAttempts >= 5) throw new BadRequestException('Too many attempts. Request a new OTP.');
-    if (!user.otpExpiry || new Date() > user.otpExpiry) throw new BadRequestException('OTP expired. Request a new one.');
+    if (user.isVerified)
+      throw new BadRequestException('Account already verified. Please login.');
+    if (user.otpAttempts >= 5)
+      throw new BadRequestException('Too many attempts. Request a new OTP.');
+    if (!user.otpExpiry || new Date() > user.otpExpiry)
+      throw new BadRequestException('OTP expired. Request a new one.');
     if (user.otp !== otp) {
-      await this.userRepo.update(user.id, { otpAttempts: user.otpAttempts + 1 });
+      await this.userRepo.update(user.id, {
+        otpAttempts: user.otpAttempts + 1,
+      });
       const remaining = 5 - (user.otpAttempts + 1);
-      throw new BadRequestException(`Incorrect OTP. ${remaining} attempts remaining.`);
+      throw new BadRequestException(
+        `Incorrect OTP. ${remaining} attempts remaining.`,
+      );
     }
 
     await this.userRepo.update(user.id, {
-      isVerified: true, otp: null as any,
-      otpExpiry: null as any, otpAttempts: 0,
+      isVerified: true,
+      otp: null,
+      otpExpiry: null,
+      otpAttempts: 0,
     });
 
     // Send welcome messages
-    if (user.phone) await this.smsService.sendWelcome(user.phone, String(user.name || ''));
-    if (user.email) await this.mailService.sendWelcome(user.email, String(user.name || ''));
+    if (user.phone)
+      await this.smsService.sendWelcome(user.phone, String(user.name || ''));
+    if (user.email)
+      await this.mailService.sendWelcome(user.email, String(user.name || ''));
 
     const token = this.signToken(user);
     return {
       message: 'Account verified successfully! Welcome to KenteXa.',
       access_token: token,
-      user: { id: user.id, phone: user.phone, email: user.email, name: user.name, role: user.role },
+      user: {
+        id: user.id,
+        phone: user.phone,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
     };
   }
 
@@ -127,13 +172,14 @@ export class AuthService {
     if (!user) throw new BadRequestException('Phone number not found');
     if (user.isVerified) throw new BadRequestException('Already verified');
 
-    const otp       = this.smsService.generateOtp();
+    const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await this.userRepo.update(user.id, { otp, otpExpiry, otpAttempts: 0 });
     const sent = await this.smsService.sendOtp(phone, otp);
 
     return {
-      message: 'New OTP sent to your phone.', otpSent: sent,
+      message: 'New OTP sent to your phone.',
+      otpSent: sent,
       ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
     };
   }
@@ -145,35 +191,45 @@ export class AuthService {
     if (!user) throw new BadRequestException('Email not found');
     if (user.isVerified) throw new BadRequestException('Already verified');
 
-    const otp       = this.smsService.generateOtp();
+    const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await this.userRepo.update(user.id, { otp, otpExpiry, otpAttempts: 0 });
 
     // ✅ Actually send the email
-    const sent = await this.mailService.sendOtp(email, otp, user.name ? String(user.name) : undefined);
+    const sent = await this.mailService.sendOtp(
+      email,
+      otp,
+      user.name ? String(user.name) : undefined,
+    );
 
     return {
-      message: 'New OTP sent to your email.', otpSent: sent,
+      message: 'New OTP sent to your email.',
+      otpSent: sent,
       ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
     };
   }
 
   // ── LOGIN ─────────────────────────────────────────────────────────────
   async login(identifier: string, password: string) {
-    if (!identifier || !identifier.trim()) throw new UnauthorizedException('Invalid credentials');
+    if (!identifier || !identifier.trim())
+      throw new UnauthorizedException('Invalid credentials');
 
-    const id      = identifier.trim();
+    const id = identifier.trim();
     const isEmail = id.includes('@');
     // ✅ Always lowercase email — case-insensitive login
     const normalizedId = isEmail ? id.toLowerCase() : id;
 
     let user: User | null = null;
     if (isEmail) {
-      user = await this.userRepo.createQueryBuilder('u')
-        .where('LOWER(u.email) = :id', { id: normalizedId }).getOne();
+      user = await this.userRepo
+        .createQueryBuilder('u')
+        .where('LOWER(u.email) = :id', { id: normalizedId })
+        .getOne();
     } else {
-      user = await this.userRepo.createQueryBuilder('u')
-        .where('u.phone = :id', { id: normalizedId }).getOne();
+      user = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.phone = :id', { id: normalizedId })
+        .getOne();
     }
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -181,7 +237,9 @@ export class AuthService {
     if (!user.isVerified) {
       if (user.phone) await this.resendPhoneOtp(user.phone);
       else if (user.email) await this.resendEmailOtp(user.email);
-      throw new UnauthorizedException('Account not verified. A new OTP has been sent.');
+      throw new UnauthorizedException(
+        'Account not verified. A new OTP has been sent.',
+      );
     }
 
     const match = await bcrypt.compare(password, user.password);
@@ -190,7 +248,14 @@ export class AuthService {
     const token = this.signToken(user);
     return {
       access_token: token,
-      user: { id: user.id, phone: user.phone, email: user.email, name: user.name, role: user.role, onboardingCompleted: !!user.onboardingCompleted },
+      user: {
+        id: user.id,
+        phone: user.phone,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        onboardingCompleted: !!user.onboardingCompleted,
+      },
     };
   }
 
@@ -200,20 +265,28 @@ export class AuthService {
     let user: User | null = null;
 
     if (isEmail) {
-      user = await this.userRepo.createQueryBuilder('u')
-        .where('LOWER(u.email) = :id', { id: identifier.toLowerCase().trim() }).getOne();
+      user = await this.userRepo
+        .createQueryBuilder('u')
+        .where('LOWER(u.email) = :id', { id: identifier.toLowerCase().trim() })
+        .getOne();
     } else {
-      user = await this.userRepo.createQueryBuilder('u').where('u.phone = :id', { id: identifier }).getOne();
+      user = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.phone = :id', { id: identifier })
+        .getOne();
     }
 
     if (!user) throw new BadRequestException('Account not found');
 
-    const otp       = this.smsService.generateOtp();
+    const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await this.userRepo.update(user.id, { otp, otpExpiry, otpAttempts: 0 });
 
     if (user.phone) {
-      await this.smsService.sendSms(user.phone, `KenteXa password reset code: ${otp}. Valid 10 minutes.`);
+      await this.smsService.sendSms(
+        user.phone,
+        `KenteXa password reset code: ${otp}. Valid 10 minutes.`,
+      );
     }
     if (user.email) {
       // ✅ Send password reset email
@@ -232,34 +305,59 @@ export class AuthService {
     let user: User | null = null;
 
     if (isEmail) {
-      user = await this.userRepo.createQueryBuilder('u').where('u.email = :id', { id: identifier }).getOne();
+      user = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.email = :id', { id: identifier })
+        .getOne();
     } else {
-      user = await this.userRepo.createQueryBuilder('u').where('u.phone = :id', { id: identifier }).getOne();
+      user = await this.userRepo
+        .createQueryBuilder('u')
+        .where('u.phone = :id', { id: identifier })
+        .getOne();
     }
 
     if (!user) throw new BadRequestException('Account not found');
-    if (user.otpAttempts >= 5) throw new BadRequestException('Too many attempts.');
-    if (!user.otpExpiry || new Date() > user.otpExpiry) throw new BadRequestException('OTP expired.');
+    if (user.otpAttempts >= 5)
+      throw new BadRequestException('Too many attempts.');
+    if (!user.otpExpiry || new Date() > user.otpExpiry)
+      throw new BadRequestException('OTP expired.');
     if (user.otp !== otp) {
-      await this.userRepo.update(user.id, { otpAttempts: user.otpAttempts + 1 });
+      await this.userRepo.update(user.id, {
+        otpAttempts: user.otpAttempts + 1,
+      });
       throw new BadRequestException('Incorrect OTP.');
     }
 
     const hashed = await bcrypt.hash(newPassword, 10);
     await this.userRepo.update(user.id, {
-      password: hashed, otp: null as any,
-      otpExpiry: null as any, otpAttempts: 0,
+      password: hashed,
+      otp: null,
+      otpExpiry: null,
+      otpAttempts: 0,
     });
 
     return { message: 'Password reset successfully. You can now login.' };
   }
 
   // ── Legacy register ───────────────────────────────────────────────────
-  async register(dto: { phone?: string; email?: string; password: string; name?: string }) {
+  async register(dto: {
+    phone?: string;
+    email?: string;
+    password: string;
+    name?: string;
+  }) {
     if (dto.email && !dto.phone) {
-      return this.registerWithEmail({ email: dto.email, password: dto.password, name: dto.name || '' });
+      return this.registerWithEmail({
+        email: dto.email,
+        password: dto.password,
+        name: dto.name || '',
+      });
     }
-    return this.registerWithPhone({ phone: dto.phone!, password: dto.password, name: dto.name || '' });
+    return this.registerWithPhone({
+      phone: dto.phone!,
+      password: dto.password,
+      name: dto.name || '',
+    });
   }
 
   async resendOtp(identifier: string) {

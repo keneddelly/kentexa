@@ -1,11 +1,18 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, Query, UseGuards, Request,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+  Request,
   ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { BusinessCustomerService } from './business-customer.service';
-import { ConversationService }     from './conversation.service';
+import { ConversationService } from './conversation.service';
 
 /**
  * BusinessController — Seller Business Platform API
@@ -28,14 +35,15 @@ export class BusinessController {
   @Get('customers')
   getCustomers(
     @Request() req,
-    @Query('search')  search?:  string,
+    @Query('search') search?: string,
     @Query('segment') segment?: string,
-    @Query('page')    page?:    string,
-    @Query('limit')   limit?:   string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.customerService.getMyCustomers(req.user.id, {
-      search, segment,
-      page:  page  ? Number(page)  : 1,
+      search,
+      segment,
+      page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : 20,
     });
   }
@@ -46,10 +54,7 @@ export class BusinessController {
   }
 
   @Get('customers/:id')
-  getCustomer(
-    @Request() req,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  getCustomer(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.customerService.getCustomerDetail(req.user.id, id);
   }
 
@@ -61,15 +66,16 @@ export class BusinessController {
   @Post('customers')
   addCustomer(
     @Request() req,
-    @Body() dto: {
-      name:     string;
-      phone?:   string;
-      email?:   string;
+    @Body()
+    dto: {
+      name: string;
+      phone?: string;
+      email?: string;
       address?: string;
       district?: string;
-      region?:   string;
-      tags?:     string[];
-      notes?:    string;
+      region?: string;
+      tags?: string[];
+      notes?: string;
     },
   ) {
     return this.customerService.addCustomer(req.user.id, dto);
@@ -93,29 +99,25 @@ export class BusinessController {
     @Request() req,
     @Query('status') status?: string,
     @Query('search') search?: string,
-    @Query('page')   page?:   string,
+    @Query('page') page?: string,
   ) {
     return this.conversationService.getSellerInbox(req.user.id, {
-      status, search,
+      status,
+      search,
       page: page ? Number(page) : 1,
     });
   }
 
   @Post('inbox/start')
-  startConversation(
-    @Request() req,
-    @Body() body: { customerId: number },
-  ) {
+  startConversation(@Request() req, @Body() body: { customerId: number }) {
     return this.conversationService.getOrCreateConversation(
-      req.user.id, body.customerId
+      req.user.id,
+      body.customerId,
     );
   }
 
   @Get('inbox/:id/messages')
-  getMessages(
-    @Request() req,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
+  getMessages(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.conversationService.getMessages(req.user.id, id);
   }
 
@@ -123,10 +125,11 @@ export class BusinessController {
   sendMessage(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: {
-      content?:  string;
+    @Body()
+    dto: {
+      content?: string;
       imageUrl?: string;
-      isNote?:   boolean;
+      isNote?: boolean;
     },
   ) {
     return this.conversationService.sendMessage(req.user.id, id, dto, req.user);
@@ -136,9 +139,15 @@ export class BusinessController {
   shareProduct(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() product: { id: number; name: string; price: number; image?: string },
+    @Body()
+    product: { id: number; name: string; price: number; image?: string },
   ) {
-    return this.conversationService.shareProduct(req.user.id, id, product, req.user);
+    return this.conversationService.shareProduct(
+      req.user.id,
+      id,
+      product,
+      req.user,
+    );
   }
 
   @Patch('inbox/:id/status')
@@ -156,6 +165,51 @@ export class BusinessController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { assignedToId: number },
   ) {
-    return this.conversationService.assignTo(req.user.id, id, body.assignedToId);
+    return this.conversationService.assignTo(
+      req.user.id,
+      id,
+      body.assignedToId,
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MY CONVERSATIONS (as the buyer — same inbox, other side of the table)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  @Get('my-conversations')
+  getMyConversations(@Request() req, @Query('page') page?: string) {
+    return this.conversationService.getMyConversations(req.user.id, {
+      page: page ? Number(page) : 1,
+    });
+  }
+
+  @Post('my-conversations/start')
+  startConversationAsBuyer(@Request() req, @Body() body: { sellerId: number }) {
+    return this.conversationService.getOrCreateConversationAsBuyer(
+      req.user,
+      body.sellerId,
+    );
+  }
+
+  @Get('my-conversations/:id/messages')
+  getMyConversationMessages(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.conversationService.getMessagesAsBuyer(req.user.id, id);
+  }
+
+  @Post('my-conversations/:id/messages')
+  sendMyConversationMessage(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { content?: string; imageUrl?: string },
+  ) {
+    return this.conversationService.sendMessageAsBuyer(
+      req.user.id,
+      id,
+      dto,
+      req.user,
+    );
   }
 }

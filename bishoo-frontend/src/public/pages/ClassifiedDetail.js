@@ -4,6 +4,7 @@ import api from '../../api/api';
 
 import WishlistHeart   from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
+import CommerceCommentSection from '../components/CommerceCommentSection';
 import { useTranslation } from 'react-i18next';
 
 // Simple countdown for ClassifiedDetail
@@ -37,7 +38,7 @@ const CAT_ICONS = {
   books: '📚', arts: '🎨', general: '📦',
 };
 
-const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifiedId, currentUser, onOpenMoment }) => {
+const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifiedId, currentUser, onOpenMoment, openComments }) => {
   const { t } = useTranslation();
   const [classified, setClassified]     = useState(null);
   const [loading, setLoading]           = useState(true);
@@ -55,11 +56,20 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   const [offerSent,   setOfferSent]     = useState(false);
   const [offerLoading,setOfferLoading]  = useState(false);
   const [message, setMessage]           = useState(''); // eslint-disable-line no-unused-vars
+  const [showMenu, setShowMenu]         = useState(false);
   const [related, setRelated]           = useState([]);
   const [error, setError]               = useState('');
   const [wishlist, setWishlist]         = useState(false);
+  const commentsRef = React.useRef(null);
 
   useEffect(() => { if (classifiedId) fetchClassified(); }, [classifiedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Deep-linked from a "New comment"/"New save" notification — scroll to
+  // the comments section instead of leaving it wherever it falls on the page.
+  useEffect(() => {
+    if (!openComments || !classified || !commentsRef.current) return;
+    commentsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [openComments, classified]);
 
   useEffect(() => {
     if (!classified?.category) return;
@@ -179,13 +189,39 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
       `}</style>
 
       <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
         position:'sticky', top:0, zIndex:100 }}>
         <button onClick={() => onNavigate('ClassifiedsPublic')} style={{ background:'none', border:'none', cursor:'pointer',
-          display:'flex', alignItems:'center', gap:10, width:'100%', minWidth:0 }}>
+          display:'flex', alignItems:'center', gap:10, minWidth:0, flex:1 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" style={{ flexShrink:0 }}><polyline points="15,18 9,12 15,6"/></svg>
           <span style={{ fontSize:15, fontWeight:800, color:'#0F172A', overflow:'hidden',
             textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>{classified.title}</span>
         </button>
+        {isLoggedIn && currentUser?.id === classified.seller?.id && (
+          <div style={{ position:'relative', flexShrink:0, marginLeft:8 }}>
+            <button onClick={() => setShowMenu(s => !s)}
+              style={{ background:'none', border:'none', cursor:'pointer', fontSize:18,
+                color:'#0F172A', padding:'4px 6px' }}>
+              ⋯
+            </button>
+            {showMenu && (
+              <>
+                <div onClick={() => setShowMenu(false)}
+                  style={{ position:'fixed', inset:0, zIndex:150 }} />
+                <div style={{ position:'absolute', top:'100%', right:0, marginTop:4,
+                  backgroundColor:'#fff', borderRadius:10, boxShadow:'0 4px 20px rgba(0,0,0,0.15)',
+                  overflow:'hidden', zIndex:151, minWidth:140 }}>
+                  <button onClick={() => { setShowMenu(false); onNavigate(`EditClassified-${classified.id}`); }}
+                    style={{ width:'100%', textAlign:'left', background:'none', border:'none',
+                      cursor:'pointer', padding:'12px 16px', fontSize:13, fontWeight:700,
+                      color:'#0F172A' }}>
+                    ✏️ Edit
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {message && <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 16px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>✅ {message}</div>}
@@ -498,6 +534,22 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
           ← {t('classified_detail.back_to_classifieds')}
         </button>
 
+        {/* Comments/questions from the wider engagement system — this
+            listing had nowhere at all to show them before, so a "New
+            comment" notification about it landed here with no way to
+            actually see or reply to it. */}
+        {classified && (
+          <div ref={commentsRef} style={{ marginTop: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
+              💬 Comments & Questions
+            </div>
+            <CommerceCommentSection
+              entityType="classified" entityId={classified.id}
+              entityTitle={classified.title} sellerId={classified.seller?.id}
+              isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate} />
+          </div>
+        )}
+
         </div>
         </div>
       </div>
@@ -544,7 +596,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
           <div style={{ width:'100%',backgroundColor:'#fff',
             borderRadius:'20px 20px 0 0',padding:'24px 20px 40px' }}>
             <div style={{ fontSize:16,fontWeight:900,color:'#1e293b',marginBottom:4 }}>
-              💰 Remove Price Yako
+              💰 Toa Bei Yako
             </div>
             <div style={{ fontSize:12,color:'#64748b',marginBottom:16 }}>
               Price ya muuzaji: TZS {Number(classified.price||0).toLocaleString()}

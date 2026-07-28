@@ -1,8 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payout, PayoutStatus } from './entities/payout.entity';
-import { Order, PayoutStatus as OrderPayoutStatus, PaymentStatus } from '../orders/entities/order.entity';
+import {
+  Order,
+  PayoutStatus as OrderPayoutStatus,
+  PaymentStatus,
+} from '../orders/entities/order.entity';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -18,8 +26,8 @@ export class PayoutsService {
   // ─── Admin: Get all pending payouts ──────────────────────────────────────
   async getAllPending() {
     return this.payoutRepo.find({
-      where:     { status: PayoutStatus.PENDING },
-      order:     { createdAt: 'DESC' },
+      where: { status: PayoutStatus.PENDING },
+      order: { createdAt: 'DESC' },
       relations: { seller: true, order: { product: true } },
     });
   }
@@ -27,7 +35,7 @@ export class PayoutsService {
   // ─── Admin: Get all payouts ───────────────────────────────────────────────
   async getAll() {
     return this.payoutRepo.find({
-      order:     { createdAt: 'DESC' },
+      order: { createdAt: 'DESC' },
       relations: { seller: true, order: { product: true } },
     });
   }
@@ -35,8 +43,8 @@ export class PayoutsService {
   // ─── Admin: Get payouts by seller ─────────────────────────────────────────
   async getBySeller(sellerId: number) {
     return this.payoutRepo.find({
-      where:     { seller: { id: sellerId } },
-      order:     { createdAt: 'DESC' },
+      where: { seller: { id: sellerId } },
+      order: { createdAt: 'DESC' },
       relations: { order: { product: true } },
     });
   }
@@ -49,7 +57,7 @@ export class PayoutsService {
     notes?: string,
   ) {
     const order = await this.orderRepo.findOne({
-      where:     { id: orderId },
+      where: { id: orderId },
       relations: { seller: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
@@ -60,19 +68,22 @@ export class PayoutsService {
       throw new BadRequestException('Payout already processed for this order');
     }
     if (!order.seller) {
-      throw new BadRequestException('This order has no seller (admin store order)');
+      throw new BadRequestException(
+        'This order has no seller (admin store order)',
+      );
     }
 
     const payout = await this.payoutRepo.findOne({
       where: { order: { id: orderId } },
     });
-    if (!payout) throw new NotFoundException('Payout record not found for this order');
+    if (!payout)
+      throw new NotFoundException('Payout record not found for this order');
 
-    payout.status               = PayoutStatus.PAID;
-    payout.paidAt               = new Date();
-    payout.paymentMethod        = paymentMethod;
+    payout.status = PayoutStatus.PAID;
+    payout.paidAt = new Date();
+    payout.paymentMethod = paymentMethod;
     payout.transactionReference = transactionReference;
-    payout.notes                = notes ?? null;
+    payout.notes = notes ?? null;
     await this.payoutRepo.save(payout);
 
     order.payoutStatus = OrderPayoutStatus.PAID;
@@ -89,7 +100,7 @@ export class PayoutsService {
     notes?: string,
   ) {
     const pending = await this.payoutRepo.find({
-      where:     { seller: { id: sellerId }, status: PayoutStatus.PENDING },
+      where: { seller: { id: sellerId }, status: PayoutStatus.PENDING },
       relations: { order: true },
     });
     if (pending.length === 0) {
@@ -98,11 +109,11 @@ export class PayoutsService {
 
     const now = new Date();
     for (const payout of pending) {
-      payout.status               = PayoutStatus.PAID;
-      payout.paidAt               = now;
-      payout.paymentMethod        = paymentMethod;
+      payout.status = PayoutStatus.PAID;
+      payout.paidAt = now;
+      payout.paymentMethod = paymentMethod;
       payout.transactionReference = transactionReference;
-      payout.notes                = notes ?? null;
+      payout.notes = notes ?? null;
       await this.payoutRepo.save(payout);
 
       await this.orderRepo.update(payout.order.id, {
@@ -112,26 +123,26 @@ export class PayoutsService {
 
     const totalPaid = pending.reduce((s, p) => s + Number(p.sellerAmount), 0);
     return {
-      message:  `${pending.length} payouts processed`,
+      message: `${pending.length} payouts processed`,
       totalPaid,
-      count:    pending.length,
+      count: pending.length,
     };
   }
 
   // ─── Seller: Get my payouts ───────────────────────────────────────────────
   async getMyPayouts(user: User) {
     const payouts = await this.payoutRepo.find({
-      where:     { seller: { id: user.id } },
-      order:     { createdAt: 'DESC' },
+      where: { seller: { id: user.id } },
+      order: { createdAt: 'DESC' },
       relations: { order: { product: true, buyer: true } },
     });
 
     const totalEarned = payouts
-      .filter(p => p.status === PayoutStatus.PAID)
+      .filter((p) => p.status === PayoutStatus.PAID)
       .reduce((s, p) => s + Number(p.sellerAmount), 0);
 
     const totalPending = payouts
-      .filter(p => p.status === PayoutStatus.PENDING)
+      .filter((p) => p.status === PayoutStatus.PENDING)
       .reduce((s, p) => s + Number(p.sellerAmount), 0);
 
     return { payouts, totalEarned, totalPending };

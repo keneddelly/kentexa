@@ -147,7 +147,7 @@ const EMPTY_FORM = {
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
 };
 
-const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProductId }) => {
   const { t } = useTranslation();
   const [products, setProducts]       = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -190,6 +190,15 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     if (saved) setOriginCity(saved);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Deep-linked straight into editing one product (e.g. from its Product
+  // Detail page's ••• menu) — open the edit form the moment it's loaded.
+  useEffect(() => {
+    if (!editProductId || !products.length) return;
+    const match = products.find(p => p.id === Number(editProductId));
+    if (match) handleEdit(match);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products, editProductId]);
 
   // When category changes, reset subcategory + specs
   const handleCategoryChange = (cat) => {

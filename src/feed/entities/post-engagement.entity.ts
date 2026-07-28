@@ -10,35 +10,40 @@
  * Place at: src/feed/entities/post-engagement.entity.ts
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne, JoinColumn, Index,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
-import { User }            from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { BusinessFeedItem } from '../../business/entities/business-feed-item.entity';
 
 export enum EngagementType {
-  SAVE      = 'save',       // weight 3
-  COMMENT   = 'comment',    // weight 2
-  SHARE     = 'share',      // weight 1
-  VIEW      = 'view',       // weight 0.5
-  PURCHASE  = 'purchase',   // weight 10
-  SHIPMENT  = 'shipment',   // weight 8
+  SAVE = 'save', // weight 3
+  COMMENT = 'comment', // weight 2
+  SHARE = 'share', // weight 1
+  VIEW = 'view', // weight 0.5
+  PURCHASE = 'purchase', // weight 10
+  SHIPMENT = 'shipment', // weight 8
 }
 
 export const CVS_WEIGHTS: Record<EngagementType, number> = {
   [EngagementType.PURCHASE]: 10,
-  [EngagementType.SHIPMENT]:  8,
-  [EngagementType.SAVE]:      3,
-  [EngagementType.COMMENT]:   2,
-  [EngagementType.SHARE]:     1,
-  [EngagementType.VIEW]:      0.5,
+  [EngagementType.SHIPMENT]: 8,
+  [EngagementType.SAVE]: 3,
+  [EngagementType.COMMENT]: 2,
+  [EngagementType.SHARE]: 1,
+  [EngagementType.VIEW]: 0.5,
 };
 
 // Prefix used to build virtual post ids on the frontend (cls-12, prd-8, svc-3)
 export const ENTITY_PREFIX: Record<string, string> = {
   classified: 'cls',
-  product:    'prd',
-  service:    'svc',
+  product: 'prd',
+  service: 'svc',
 };
 
 @Entity('post_engagement')

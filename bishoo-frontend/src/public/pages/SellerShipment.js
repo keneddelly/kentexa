@@ -275,10 +275,16 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         } catch {}
       }
 
+      const itemsWithClassifiedId = items.map(i =>
+        i.source === 'classified' && !i.classifiedId && classifiedId
+          ? { ...i, classifiedId }
+          : i
+      );
+
       const res = await api.post('/super-agents/shipments', {
-        classifiedId:    items.find(i => i.classifiedId)?.classifiedId || null,
+        classifiedId:    classifiedId || itemsWithClassifiedId.find(i => i.classifiedId)?.classifiedId || null,
         description:     getDescription(),
-        items:           items.map(i => ({ name: i.name, qty: i.qty, price: i.price, weight: i.weight, productId: i.productId, classifiedId: i.classifiedId })),
+        items:           itemsWithClassifiedId.map(i => ({ name: i.name, qty: i.qty, price: i.price, weight: i.weight, productId: i.productId, classifiedId: i.classifiedId })),
         weightKg:        getTotalWeight() || (form.weightKg ? Number(form.weightKg) : undefined),
         parcelSize:      form.parcelSize,
         recipientName:   form.recipientName.trim(),

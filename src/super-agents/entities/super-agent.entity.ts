@@ -1,37 +1,81 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 export enum SuperAgentStatus {
-  PENDING   = 'pending',
-  ACTIVE    = 'active',
+  PENDING = 'pending',
+  ACTIVE = 'active',
   SUSPENDED = 'suspended',
-  BLOCKED   = 'blocked',
+  BLOCKED = 'blocked',
 }
 
 // All Tanzania regions/cities
 export const TANZANIA_CITIES = [
-  'Dar es Salaam', 'Mwanza',   'Arusha',   'Dodoma',
-  'Mbeya',         'Tanga',    'Zanzibar', 'Morogoro',
-  'Kigoma',        'Songea',   'Tabora',   'Shinyanga',
-  'Iringa',        'Lindi',    'Mtwara',   'Musoma',
-  'Bukoba',        'Sumbawanga','Singida',  'Babati',
-  'Kibaha',        'Kilosa',   'Njombe',   'Kasulu',
-  'Mpanda',        'Masasi',   'Korogwe',  'Moshi',
+  'Dar es Salaam',
+  'Mwanza',
+  'Arusha',
+  'Dodoma',
+  'Mbeya',
+  'Tanga',
+  'Zanzibar',
+  'Morogoro',
+  'Kigoma',
+  'Songea',
+  'Tabora',
+  'Shinyanga',
+  'Iringa',
+  'Lindi',
+  'Mtwara',
+  'Musoma',
+  'Bukoba',
+  'Sumbawanga',
+  'Singida',
+  'Babati',
+  'Kibaha',
+  'Kilosa',
+  'Njombe',
+  'Kasulu',
+  'Mpanda',
+  'Masasi',
+  'Korogwe',
+  'Moshi',
 ];
 
 export const CITY_CODES: Record<string, string> = {
-  'Dar es Salaam': 'DAR', 'Mwanza': 'MZA', 'Arusha': 'ARU',
-  'Dodoma': 'DOD', 'Mbeya': 'MBY', 'Tanga': 'TNG',
-  'Zanzibar': 'ZNZ', 'Morogoro': 'MRG', 'Kigoma': 'KGM',
-  'Songea': 'SNG', 'Tabora': 'TAB', 'Shinyanga': 'SHY',
-  'Iringa': 'IRN', 'Lindi': 'LND', 'Mtwara': 'MTW',
-  'Musoma': 'MSM', 'Bukoba': 'BKB', 'Sumbawanga': 'SMB',
-  'Singida': 'SGD', 'Babati': 'BBT', 'Kibaha': 'KBH',
-  'Kilosa': 'KLS', 'Njombe': 'NJB', 'Kasulu': 'KSL',
-  'Mpanda': 'MPD', 'Masasi': 'MSS', 'Korogwe': 'KRG', 'Moshi': 'MSH',
+  'Dar es Salaam': 'DAR',
+  Mwanza: 'MZA',
+  Arusha: 'ARU',
+  Dodoma: 'DOD',
+  Mbeya: 'MBY',
+  Tanga: 'TNG',
+  Zanzibar: 'ZNZ',
+  Morogoro: 'MRG',
+  Kigoma: 'KGM',
+  Songea: 'SNG',
+  Tabora: 'TAB',
+  Shinyanga: 'SHY',
+  Iringa: 'IRN',
+  Lindi: 'LND',
+  Mtwara: 'MTW',
+  Musoma: 'MSM',
+  Bukoba: 'BKB',
+  Sumbawanga: 'SMB',
+  Singida: 'SGD',
+  Babati: 'BBT',
+  Kibaha: 'KBH',
+  Kilosa: 'KLS',
+  Njombe: 'NJB',
+  Kasulu: 'KSL',
+  Mpanda: 'MPD',
+  Masasi: 'MSS',
+  Korogwe: 'KRG',
+  Moshi: 'MSH',
 };
 
 @Entity('super_agent')
@@ -47,10 +91,10 @@ export class SuperAgent {
   businessName: string;
 
   @Column()
-  city: string;               // Operating city (hub location)
+  city: string; // Operating city (hub location)
 
   @Column({ type: 'varchar', nullable: true })
-  cityCode: string | null;    // e.g. DAR, MZA
+  cityCode: string | null; // e.g. DAR, MZA
 
   @Column({ type: 'text', nullable: true })
   address: string | null;
@@ -65,7 +109,11 @@ export class SuperAgent {
   governmentIdImage: string | null;
 
   // ── Status ────────────────────────────────────────────────────────────────
-  @Column({ type: 'enum', enum: SuperAgentStatus, default: SuperAgentStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: SuperAgentStatus,
+    default: SuperAgentStatus.PENDING,
+  })
   status: SuperAgentStatus;
 
   @Column({ type: 'text', nullable: true })
@@ -87,7 +135,7 @@ export class SuperAgent {
   withdrawableEarnings: number;
 
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 10 })
-  commissionRate: number;     // % of shipping fee earned by super agent
+  commissionRate: number; // % of shipping fee earned by super agent
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   @Column({ type: 'int', default: 0 })
@@ -97,19 +145,19 @@ export class SuperAgent {
   totalParcelsDelivered: number;
 
   @Column({ type: 'int', default: 0 })
-  totalParcelsLost: number;      // parcels that went missing under this agent
+  totalParcelsLost: number; // parcels that went missing under this agent
 
   @Column({ type: 'int', default: 0 })
-  totalParcelsDelayed: number;   // delivered but past estimated window
+  totalParcelsDelayed: number; // delivered but past estimated window
 
   @Column({ type: 'int', default: 0 })
-  totalComplaints: number;       // complaints raised against this agent
+  totalComplaints: number; // complaints raised against this agent
 
-  @Column({ type: 'decimal', precision: 3, scale: 2, default: 5.00 })
-  rating: number;                // 1.00 – 5.00, updated after each delivery
+  @Column({ type: 'decimal', precision: 3, scale: 2, default: 5.0 })
+  rating: number; // 1.00 – 5.00, updated after each delivery
 
   @Column({ type: 'int', default: 0 })
-  totalRatings: number;          // how many ratings contributed to above
+  totalRatings: number; // how many ratings contributed to above
 
   // Cities this agent can RECEIVE from (origin coverage)
   // Stored as simple-array: ['Dar es Salaam', 'Kibaha', 'Bagamoyo']
@@ -121,7 +169,7 @@ export class SuperAgent {
   coverageCitiesDestination: string[] | null;
 
   @Column({ type: 'varchar', nullable: true })
-  agentCode: string | null;   // Unique code e.g. SA-DAR-001
+  agentCode: string | null; // Unique code e.g. SA-DAR-001
 
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;

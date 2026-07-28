@@ -1,4 +1,4 @@
-import { Injectable, ExecutionContext } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 // ✅ Like JwtAuthGuard but doesn't throw if no/invalid token —
@@ -6,7 +6,7 @@ import { AuthGuard } from '@nestjs/passport';
 // show extra info (e.g. isFollowing) when logged in.
 @Injectable()
 export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
-  handleRequest(err, user, info, context: ExecutionContext) {
+  handleRequest(err, user) {
     return user || null;
   }
 }

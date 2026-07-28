@@ -21,7 +21,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
     const token = localStorage.getItem('token');
     if (!token) { onNavigate('PublicLogin'); return; }
     if (orderId) fetchOrderData();
-  }, [orderId]);
+  }, [orderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchOrderData = async () => {
     try {

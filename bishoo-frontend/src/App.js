@@ -57,7 +57,6 @@ import SellerOrders from './public/pages/SellerOrders';
 import SellerInvoices from './public/pages/SellerInvoices';
 import SellerShipping from './public/pages/SellerShipping';
 import PayInvoice from './public/pages/PayInvoice';
-import StorePage from './public/pages/StorePage';
 import Dashboard from './admin/pages/Dashboard';
 import Products from './admin/pages/Products';
 import Classifieds from './admin/pages/Classifieds';
@@ -97,6 +96,7 @@ import BecomeSuperAgentInfo from './public/pages/BecomeSuperAgentInfo';
 import CategoryPage from './public/pages/CategoryPage';
 import ListingsPage from './public/pages/ListingsPage';
 import AboutUs from './public/pages/AboutUs';
+import ContactUs from './public/pages/ContactUs';
 import HowItWorks from './public/pages/HowItWorks';
 import TermsAndConditions from './public/pages/TermsAndConditions';
 import PrivacyPolicy from './public/pages/PrivacyPolicy';
@@ -320,12 +320,31 @@ function App() {
     if (pageStr !== page) { setPage('Home'); return <HomeFeed {...publicProps} />; }
 
     // ── Dynamic routes (single source of truth — do not duplicate below) ────
-    if (page.startsWith('ClassifiedDetail-'))
-      return <ClassifiedDetail {...publicProps} classifiedId={Number(page.split('ClassifiedDetail-')[1])} />;
-    if (page.startsWith('ProductDetail-'))
-      return <ProductDetail {...publicProps} productId={Number(page.split('ProductDetail-')[1])} track={track} />;
-    if (page.startsWith('ServiceDetail-'))
-      return <ServiceDetail {...publicProps} serviceId={Number(page.split('ServiceDetail-')[1])} />;
+    // "New comment"/"New save" notifications append "-comments" so the
+    // detail page opens straight on its comment thread instead of its
+    // default view — split it off before Number() parsing so a suffix can
+    // never turn the id into NaN (see CommerceProfile's pageParam parsing
+    // for the same fix, applied earlier this session).
+    if (page.startsWith('ClassifiedDetail-')) {
+      const [rawId, suffix] = page.split('ClassifiedDetail-')[1].split('-');
+      return <ClassifiedDetail {...publicProps} classifiedId={Number(rawId)} openComments={suffix === 'comments'} />;
+    }
+    if (page.startsWith('ProductDetail-')) {
+      const [rawId, suffix] = page.split('ProductDetail-')[1].split('-');
+      return <ProductDetail {...publicProps} productId={Number(rawId)} track={track}
+        initialTab={suffix === 'comments' ? 'reviews' : null} />;
+    }
+    // Deep-links straight into editing one item — from that item's own
+    // detail page ••• menu, so the owner doesn't have to re-find it on the
+    // separate SellerProducts/SellerClassifieds management page.
+    if (page.startsWith('EditProduct-'))
+      return requireLogin(<SellerProducts {...publicProps} editProductId={Number(page.split('EditProduct-')[1])} />);
+    if (page.startsWith('EditClassified-'))
+      return requireLogin(<SellerClassifieds {...publicProps} editItemId={Number(page.split('EditClassified-')[1])} />);
+    if (page.startsWith('ServiceDetail-')) {
+      const [rawId, suffix] = page.split('ServiceDetail-')[1].split('-');
+      return <ServiceDetail {...publicProps} serviceId={Number(rawId)} openComments={suffix === 'comments'} />;
+    }
     if (page.startsWith('SellerStore-'))
       return <SellerStore {...publicProps} sellerId={page.split('SellerStore-')[1]} />;
     // Store- is a legacy alias — route it through the same CommerceProfile
@@ -337,6 +356,17 @@ function App() {
       const pid = page.split('CommerceProfile-')[1];
       return <CommerceProfile {...publicProps} pageParam={pid} />;
     }
+    // Order-lifecycle notifications (orderPlaced, orderPaid, disputeRaised,
+    // payoutReleased, ...) carry actionPage + orderId as actionParam. Without
+    // these, Activity.js builds "MyOrders-42" and the switch below has no
+    // case for that literal string, so it silently fell through to Home
+    // instead of even the plain list.
+    if (page.startsWith('MyOrders-'))
+      return requireLogin(<MyOrders {...publicProps} highlightOrderId={Number(page.split('MyOrders-')[1])} />);
+    if (page.startsWith('SellerOrders-'))
+      return requireLogin(<SellerOrders {...publicProps} highlightOrderId={Number(page.split('SellerOrders-')[1])} />);
+    if (page.startsWith('SellerPayouts-'))
+      return requireLogin(<SellerPayouts {...publicProps} highlightOrderId={Number(page.split('SellerPayouts-')[1])} />);
     // Tracking must work without an account — the recipient of a parcel
     // often isn't the buyer and may not be logged in at all.
     if (page.startsWith('TrackParcel-'))

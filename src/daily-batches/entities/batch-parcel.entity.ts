@@ -1,7 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { DailyBatch } from './daily-batch.entity';
 import { DeliveryZone } from './delivery-zone.entity';
@@ -9,12 +13,12 @@ import { Order } from '../../orders/entities/order.entity';
 
 export enum BatchParcelStatus {
   AWAITING_HANDOVER = 'awaiting_handover', // seller hasn't dropped off yet
-  AT_HUB             = 'at_hub',            // received at Kariakoo, waiting for van
-  ON_VAN             = 'on_van',            // van has departed with this parcel
-  AT_ZONE            = 'at_zone',           // arrived at destination zone agent
-  OUT_FOR_DELIVERY   = 'out_for_delivery',  // zone agent doing last-mile
-  DELIVERED          = 'delivered',
-  RETURNED           = 'returned',          // couldn't deliver, returned to hub
+  AT_HUB = 'at_hub', // received at Kariakoo, waiting for van
+  ON_VAN = 'on_van', // van has departed with this parcel
+  AT_ZONE = 'at_zone', // arrived at destination zone agent
+  OUT_FOR_DELIVERY = 'out_for_delivery', // zone agent doing last-mile
+  DELIVERED = 'delivered',
+  RETURNED = 'returned', // couldn't deliver, returned to hub
 }
 
 /**
@@ -26,7 +30,9 @@ export class BatchParcel {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => DailyBatch, batch => batch.parcels, { onDelete: 'CASCADE' })
+  @ManyToOne(() => DailyBatch, (batch) => batch.parcels, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn()
   batch: DailyBatch;
 
@@ -38,7 +44,11 @@ export class BatchParcel {
   @JoinColumn()
   zone: DeliveryZone;
 
-  @Column({ type: 'enum', enum: BatchParcelStatus, default: BatchParcelStatus.AWAITING_HANDOVER })
+  @Column({
+    type: 'enum',
+    enum: BatchParcelStatus,
+    default: BatchParcelStatus.AWAITING_HANDOVER,
+  })
   status: BatchParcelStatus;
 
   @Column({ type: 'text', nullable: true })

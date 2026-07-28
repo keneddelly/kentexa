@@ -1,11 +1,17 @@
 import {
-  Injectable, NotFoundException,
-  BadRequestException, ForbiddenException, Logger,
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Order, OrderStatus, EscrowStatus } from '../orders/entities/order.entity';
-import { User, UserRole } from '../users/entities/user.entity';
+import {
+  Order,
+  OrderStatus,
+  EscrowStatus,
+} from '../orders/entities/order.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
@@ -21,7 +27,7 @@ export class ShippingService {
   async markPreparing(orderId: number, sellerId: number): Promise<Order> {
     const order = await this.getSellerOrder(orderId, sellerId);
 
-    if (order.paymentStatus !== 'paid' as any) {
+    if (order.paymentStatus !== ('paid' as any)) {
       throw new BadRequestException('Cannot prepare unpaid order');
     }
 
@@ -42,20 +48,26 @@ export class ShippingService {
     const order = await this.getSellerOrder(orderId, sellerId);
 
     if (order.shippingMethod !== 'direct') {
-      throw new BadRequestException('This order uses Agent delivery, not Direct shipping');
+      throw new BadRequestException(
+        'This order uses Agent delivery, not Direct shipping',
+      );
     }
 
     if (!['preparing', 'paid'].includes(order.status)) {
-      throw new BadRequestException(`Order status is ${order.status}, cannot ship`);
+      throw new BadRequestException(
+        `Order status is ${order.status}, cannot ship`,
+      );
     }
 
-    order.trackingNumber    = data.trackingNumber;
-    order.courierName       = data.courierName;
-    order.shipmentProofUrl  = data.shipmentProofUrl || null;
-    order.shippedAt         = new Date();
-    order.status            = OrderStatus.IN_TRANSIT;
+    order.trackingNumber = data.trackingNumber;
+    order.courierName = data.courierName;
+    order.shipmentProofUrl = data.shipmentProofUrl || null;
+    order.shippedAt = new Date();
+    order.status = OrderStatus.IN_TRANSIT;
 
-    this.logger.log(`Order ${orderId} shipped via ${data.courierName}, tracking: ${data.trackingNumber}`);
+    this.logger.log(
+      `Order ${orderId} shipped via ${data.courierName}, tracking: ${data.trackingNumber}`,
+    );
     return this.orderRepo.save(order);
   }
 
@@ -63,13 +75,19 @@ export class ShippingService {
   async markDelivered(orderId: number, agentUserId: number): Promise<Order> {
     const order = await this.orderRepo.findOne({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found');
+    if (order.agentId !== String(agentUserId))
+      throw new ForbiddenException('Not assigned to you');
 
-    if (order.status !== OrderStatus.IN_TRANSIT &&
-        order.status !== OrderStatus.READY_PICKUP) {
-      throw new BadRequestException(`Cannot mark delivered. Status: ${order.status}`);
+    if (
+      order.status !== OrderStatus.IN_TRANSIT &&
+      order.status !== OrderStatus.READY_PICKUP
+    ) {
+      throw new BadRequestException(
+        `Cannot mark delivered. Status: ${order.status}`,
+      );
     }
 
-    order.status      = OrderStatus.DELIVERED;
+    order.status = OrderStatus.DELIVERED;
     order.deliveredAt = new Date();
     order.escrowStatus = EscrowStatus.HOLDING;
 
@@ -90,11 +108,11 @@ export class ShippingService {
       throw new BadRequestException('Order not yet delivered');
     }
 
-    order.status         = OrderStatus.COMPLETED;
-    order.completedAt    = new Date();
-    order.escrowStatus   = EscrowStatus.RELEASED;
+    order.status = OrderStatus.COMPLETED;
+    order.completedAt = new Date();
+    order.escrowStatus = EscrowStatus.RELEASED;
     order.fundsReleasedAt = new Date();
-    order.paymentStatus  = 'released' as any;
+    order.paymentStatus = 'released' as any;
 
     this.logger.log(`Order ${orderId} completed. Funds released to seller.`);
     return this.orderRepo.save(order);
@@ -118,10 +136,10 @@ export class ShippingService {
       throw new BadRequestException('Cannot dispute at this stage');
     }
 
-    order.status          = OrderStatus.DISPUTED;
-    order.disputeReason   = reason;
+    order.status = OrderStatus.DISPUTED;
+    order.disputeReason = reason;
     order.disputeOpenedAt = new Date();
-    order.escrowStatus    = EscrowStatus.DISPUTED;
+    order.escrowStatus = EscrowStatus.DISPUTED;
 
     this.logger.log(`Order ${orderId} disputed by buyer ${buyerId}: ${reason}`);
     return this.orderRepo.save(order);
@@ -140,13 +158,13 @@ export class ShippingService {
     }
 
     if (resolution === 'release_to_seller') {
-      order.status          = OrderStatus.COMPLETED;
-      order.escrowStatus    = EscrowStatus.RELEASED;
+      order.status = OrderStatus.COMPLETED;
+      order.escrowStatus = EscrowStatus.RELEASED;
       order.fundsReleasedAt = new Date();
-      order.paymentStatus   = 'released' as any;
+      order.paymentStatus = 'released' as any;
     } else {
-      order.status        = OrderStatus.CANCELLED;
-      order.escrowStatus  = EscrowStatus.REFUNDED;
+      order.status = OrderStatus.CANCELLED;
+      order.escrowStatus = EscrowStatus.REFUNDED;
       order.paymentStatus = 'refunded' as any;
     }
 
@@ -162,24 +180,24 @@ export class ShippingService {
     const timeline = this.buildTimeline(order);
 
     return {
-      orderId:          order.id,
-      status:           order.status,
-      shippingMethod:   order.shippingMethod,
-      trackingNumber:   order.trackingNumber,
-      courierName:      order.courierName,
+      orderId: order.id,
+      status: order.status,
+      shippingMethod: order.shippingMethod,
+      trackingNumber: order.trackingNumber,
+      courierName: order.courierName,
       shipmentProofUrl: order.shipmentProofUrl,
-      shippedAt:        order.shippedAt,
-      deliveredAt:      order.deliveredAt,
-      completedAt:      order.completedAt,
-      escrowStatus:     order.escrowStatus,
-      fundsReleasedAt:  order.fundsReleasedAt,
-      disputeReason:    order.disputeReason,
+      shippedAt: order.shippedAt,
+      deliveredAt: order.deliveredAt,
+      completedAt: order.completedAt,
+      escrowStatus: order.escrowStatus,
+      fundsReleasedAt: order.fundsReleasedAt,
+      disputeReason: order.disputeReason,
       timeline,
       amounts: {
-        total:    Number(order.totalAmount),
-        base:     Number(order.baseAmount),
+        total: Number(order.totalAmount),
+        base: Number(order.baseAmount),
         delivery: 0,
-        label:    'Free Delivery',
+        label: 'Free Delivery',
       },
     };
   }
@@ -209,11 +227,11 @@ export class ShippingService {
       .getMany();
 
     for (const order of orders) {
-      order.status          = OrderStatus.COMPLETED;
-      order.completedAt     = new Date();
-      order.escrowStatus    = EscrowStatus.RELEASED;
+      order.status = OrderStatus.COMPLETED;
+      order.completedAt = new Date();
+      order.escrowStatus = EscrowStatus.RELEASED;
       order.fundsReleasedAt = new Date();
-      order.paymentStatus   = 'released' as any;
+      order.paymentStatus = 'released' as any;
       await this.orderRepo.save(order);
       this.logger.log(`Auto-completed order ${order.id}`);
     }
@@ -224,25 +242,77 @@ export class ShippingService {
   }
 
   // ── Helpers ──
-  private async getSellerOrder(orderId: number, sellerId: number): Promise<Order> {
+  private async getSellerOrder(
+    orderId: number,
+    sellerId: number,
+  ): Promise<Order> {
     const order = await this.orderRepo.findOne({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.seller?.id !== sellerId) throw new ForbiddenException('Not your order');
+    if (order.seller?.id !== sellerId)
+      throw new ForbiddenException('Not your order');
     return order;
   }
 
   private buildTimeline(order: Order) {
     const steps = [
-      { status: 'pending_payment', label: 'Order Placed',        icon: '🛒', done: true },
-      { status: 'paid',           label: 'Payment Confirmed',    icon: '💳', done: ['paid','preparing','ready_for_pickup','in_transit','delivered','completed'].includes(order.status) },
-      { status: 'preparing',      label: 'Seller Preparing',     icon: '📦', done: ['preparing','ready_for_pickup','in_transit','delivered','completed'].includes(order.status) },
-      { status: 'in_transit',     label: 'In Transit',           icon: '🚚', done: ['in_transit','delivered','completed'].includes(order.status) },
-      { status: 'delivered',      label: 'Delivered',            icon: '📬', done: ['delivered','completed'].includes(order.status) },
-      { status: 'completed',      label: 'Completed',            icon: '✅', done: order.status === 'completed' },
+      {
+        status: 'pending_payment',
+        label: 'Order Placed',
+        icon: '🛒',
+        done: true,
+      },
+      {
+        status: 'paid',
+        label: 'Payment Confirmed',
+        icon: '💳',
+        done: [
+          'paid',
+          'preparing',
+          'ready_for_pickup',
+          'in_transit',
+          'delivered',
+          'completed',
+        ].includes(order.status),
+      },
+      {
+        status: 'preparing',
+        label: 'Seller Preparing',
+        icon: '📦',
+        done: [
+          'preparing',
+          'ready_for_pickup',
+          'in_transit',
+          'delivered',
+          'completed',
+        ].includes(order.status),
+      },
+      {
+        status: 'in_transit',
+        label: 'In Transit',
+        icon: '🚚',
+        done: ['in_transit', 'delivered', 'completed'].includes(order.status),
+      },
+      {
+        status: 'delivered',
+        label: 'Delivered',
+        icon: '📬',
+        done: ['delivered', 'completed'].includes(order.status),
+      },
+      {
+        status: 'completed',
+        label: 'Completed',
+        icon: '✅',
+        done: order.status === 'completed',
+      },
     ];
 
     if (order.status === 'disputed') {
-      steps.push({ status: 'disputed', label: 'Under Dispute', icon: '⚠️', done: true });
+      steps.push({
+        status: 'disputed',
+        label: 'Under Dispute',
+        icon: '⚠️',
+        done: true,
+      });
     }
 
     return steps;

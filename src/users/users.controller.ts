@@ -1,6 +1,14 @@
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, UseGuards, ParseIntPipe, Request,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  ParseIntPipe,
+  Request,
   ForbiddenException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
@@ -44,8 +52,9 @@ export class UsersController {
     @Request() req,
   ) {
     const requestingUser = req.user;
-    const isAdmin = requestingUser?.role === UserRole.ADMIN ||
-                    requestingUser?.role === UserRole.MANAGER;
+    const isAdmin =
+      requestingUser?.role === UserRole.ADMIN ||
+      requestingUser?.role === UserRole.MANAGER;
     const isOwnProfile = requestingUser?.id === id;
 
     if (!isAdmin && !isOwnProfile) {

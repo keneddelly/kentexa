@@ -3,13 +3,21 @@
  * Place at: src/pickup-points/pickup-points.controller.ts
  */
 import {
-  Controller, Get, Post, Patch, Delete,
-  Param, Body, Query, Request,
-  UseGuards, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  Query,
+  Request,
+  UseGuards,
+  ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard }        from '../auth/auth.guard';
+import { JwtAuthGuard } from '../auth/auth.guard';
 import { PickupPointsService } from './pickup-points.service';
-import { PickupPointStatus }   from './entities/pickup-point.entity';
+import { PickupPointStatus } from './entities/pickup-point.entity';
 
 @Controller('pickup-points')
 export class PickupPointsController {

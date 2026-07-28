@@ -1,31 +1,35 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn, ManyToOne,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 export enum ClassifiedStatus {
-  ACTIVE  = 'active',
-  SOLD    = 'sold',
+  ACTIVE = 'active',
+  SOLD = 'sold',
   EXPIRED = 'expired',
 }
 
 export enum ClassifiedCategory {
-  ELECTRONICS   = 'electronics',
-  FASHION       = 'fashion',
-  VEHICLES      = 'vehicles',
-  FOOD          = 'food',
-  HOME_GARDEN   = 'home_garden',
+  ELECTRONICS = 'electronics',
+  FASHION = 'fashion',
+  VEHICLES = 'vehicles',
+  FOOD = 'food',
+  HOME_GARDEN = 'home_garden',
   HEALTH_BEAUTY = 'health_beauty',
-  BABY_KIDS     = 'baby_kids',
-  SPORTS        = 'sports',
-  AGRICULTURE   = 'agriculture',
-  SECURITY      = 'security',
-  BOOKS         = 'books',
-  ARTS          = 'arts',
-  GENERAL       = 'general',
-  PROPERTY      = 'property',
-  SERVICES      = 'services',
+  BABY_KIDS = 'baby_kids',
+  SPORTS = 'sports',
+  AGRICULTURE = 'agriculture',
+  SECURITY = 'security',
+  BOOKS = 'books',
+  ARTS = 'arts',
+  GENERAL = 'general',
+  PROPERTY = 'property',
+  SERVICES = 'services',
 }
 
 @Entity()
@@ -42,14 +46,22 @@ export class Classified {
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
 
-  @Column({ type: 'enum', enum: ClassifiedCategory, default: ClassifiedCategory.GENERAL })
+  @Column({
+    type: 'enum',
+    enum: ClassifiedCategory,
+    default: ClassifiedCategory.GENERAL,
+  })
   category: ClassifiedCategory;
 
   // ── Subcategory (free text, driven by frontend dropdown per category) ──
   @Column({ type: 'text', nullable: true })
   subcategory: string | null;
 
-  @Column({ type: 'enum', enum: ClassifiedStatus, default: ClassifiedStatus.ACTIVE })
+  @Column({
+    type: 'enum',
+    enum: ClassifiedStatus,
+    default: ClassifiedStatus.ACTIVE,
+  })
   status: ClassifiedStatus;
 
   @Column({ nullable: true })
@@ -85,19 +97,19 @@ export class Classified {
   isFlashSale: boolean;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  flashSalePrice: number | null;        // discounted price
+  flashSalePrice: number | null; // discounted price
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
-  originalPrice: number | null;         // original price (shown crossed out)
+  originalPrice: number | null; // original price (shown crossed out)
 
   @Column({ type: 'timestamp', nullable: true })
-  flashSaleEndsAt: Date | null;         // countdown target
+  flashSaleEndsAt: Date | null; // countdown target
 
   @Column({ type: 'int', nullable: true })
-  flashSaleQuantity: number | null;     // limited units
+  flashSaleQuantity: number | null; // limited units
 
   @Column({ type: 'int', default: 0 })
-  flashSaleSold: number;                // units sold so far
+  flashSaleSold: number; // units sold so far
 
   @CreateDateColumn()
   createdAt: Date;

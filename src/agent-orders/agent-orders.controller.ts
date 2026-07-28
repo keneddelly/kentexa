@@ -1,6 +1,13 @@
 import {
-  Controller, Get, Post, Patch,
-  Param, Body, UseGuards, Request, ParseIntPipe,
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { AgentOrdersService } from './agent-orders.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -34,19 +41,13 @@ export class AgentOrdersController {
 
   // Get single order details
   @Get(':orderId')
-  getDetails(
-    @Param('orderId', ParseIntPipe) orderId: number,
-    @Request() req,
-  ) {
+  getDetails(@Param('orderId', ParseIntPipe) orderId: number, @Request() req) {
     return this.service.getOrderDetails(orderId, req.user);
   }
 
   // Claim an order for pickup
   @Post(':orderId/claim')
-  claim(
-    @Param('orderId', ParseIntPipe) orderId: number,
-    @Request() req,
-  ) {
+  claim(@Param('orderId', ParseIntPipe) orderId: number, @Request() req) {
     return this.service.claimOrder(orderId, req.user);
   }
 

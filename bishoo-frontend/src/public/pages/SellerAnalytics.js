@@ -3,9 +3,7 @@
  * Place at: src/public/pages/SellerAnalytics.js
  */
 import React, { useState, useEffect } from 'react';
-import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
 const fmt   = n => Number(n || 0).toLocaleString();
@@ -77,7 +75,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', display: 'flex', flexDirection: 'column' }}>
-      <Navbar currentPage="SellerAnalytics" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title="📊 Takwimu za Biashara" />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
@@ -101,10 +99,9 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SellerAnalytics" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <BackBar onBack={() => onNavigate('SellerDashboard')} title="📊 Takwimu za Biashara" />
 
-      <div style={{ flex: 1, padding: '16px 16px 40px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ flex: 1, padding: '16px 16px 90px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
         {/* Hero revenue card */}
         <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#7c3aed)', borderRadius: 20,
@@ -336,7 +333,6 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

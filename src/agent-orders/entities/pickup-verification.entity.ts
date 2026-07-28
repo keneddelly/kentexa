@@ -1,6 +1,9 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
 } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
 import { Agent } from '../../agents/entities/agent.entity';

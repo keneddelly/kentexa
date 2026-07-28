@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import ReputationBadge from '../components/ReputationBadge';
 import ProfileCompletion from '../components/ProfileCompletion';
+import CommerceCommentSection from '../components/CommerceCommentSection';
 import api             from '../../api/api';
 
 const B  = '#2563EB';
@@ -138,8 +139,16 @@ const tabs = (role, isOwn) => {
 const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   currentUser, pageParam }) => {
 
-  const targetId   = pageParam ? Number(pageParam) : null;
+  // pageParam is usually just a numeric seller id, but notification deep-links
+  // may append a tab and a specific post id, e.g. "42-feed-17" — split it off
+  // before parsing the number so a suffix never turns targetId into NaN (NaN
+  // is falsy, which used to make isOwnProfile true and silently redirect
+  // people to their OWN profile instead of the seller's).
+  const [rawTargetId, deepLinkTab, deepLinkPostId] = String(pageParam || '').split('-');
+  const targetId   = rawTargetId ? Number(rawTargetId) : null;
   const isOwnProfile = !targetId || (currentUser && targetId === currentUser.id);
+  const highlightPostId = deepLinkPostId ? Number(deepLinkPostId) : null;
+  const highlightPostRef = React.useRef(null);
 
   const [profile,    setProfile]    = useState(null);
   const [rep,        setRep]        = useState(null);
@@ -148,7 +157,6 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   const [services,   setServices]   = useState([]);
   const [classifieds,setClassifieds]= useState([]);
   const [products,   setProducts]   = useState([]);
-  const [itemCounts, setItemCounts] = useState({}); // `${type}-${id}` -> {saves,comments}
   const [agentData,  setAgentData]  = useState(null);
   const [publicAgentData,     setPublicAgentData]     = useState(null);
   const [publicHubData,       setPublicHubData]       = useState(null);
@@ -167,7 +175,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
 
   useEffect(() => {
     setLoading(true);
-    setTab('posts');
+    setTab(deepLinkTab === 'feed' ? 'feed' : 'posts');
 
     const uid = targetId || currentUser?.id || 0;
 
@@ -213,26 +221,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
     }
   }, [profile, targetId]); // eslint-disable-line
 
-  // Fetch real like/comment counts for the products tab, once catalog loads
+  // Deep-linked from a "New save"/"New comment" notification — scroll to and
+  // highlight that specific post once it's loaded into the Feed tab.
   useEffect(() => {
-    const clIds = classifieds.map(c => c.id);
-    const prIds = products.map(p => p.id);
-    if (!clIds.length && !prIds.length) return;
+    if (!highlightPostId || tab !== 'feed' || !feed.length || !highlightPostRef.current) return;
+    highlightPostRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [feed, tab, highlightPostId]);
 
-    Promise.allSettled([
-      clIds.length ? api.get(`/engagements/counts?entityType=classified&entityIds=${clIds.join(',')}`) : Promise.resolve({data:{}}),
-      prIds.length ? api.get(`/engagements/counts?entityType=product&entityIds=${prIds.join(',')}`)    : Promise.resolve({data:{}}),
-    ]).then(([clRes, prRes]) => {
-      const merged = {};
-      if (clRes.status==='fulfilled') {
-        Object.entries(clRes.value.data||{}).forEach(([id,c]) => { merged[`classified-${id}`] = c; });
-      }
-      if (prRes.status==='fulfilled') {
-        Object.entries(prRes.value.data||{}).forEach(([id,c]) => { merged[`product-${id}`] = c; });
-      }
-      setItemCounts(merged);
-    }).catch(() => {});
-  }, [classifieds, products]);
 
   const handleFollow = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -360,6 +355,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
                 {following ? '✓ Unafuata' : '+ Fuata'}
               </button>
+              <button onClick={() => onNavigate(isLoggedIn ? `MessageSeller-${targetId}` : 'PublicLogin')}
+                style={{ backgroundColor:'#eff6ff', color:B,
+                  border:'1px solid #bfdbfe', borderRadius:10,
+                  padding:'8px 14px', cursor:'pointer',
+                  fontSize:12, fontWeight:800,
+                  boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
+                💬 Message
+              </button>
               {(profile.storeWhatsApp || profile.phone) && (
                 <a href={`https://wa.me/${(profile.storeWhatsApp||profile.phone).replace(/^0/,'255').replace(/[^0-9]/g,'')}`}
                   target="_blank" rel="noreferrer"
@@ -479,7 +482,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
       <div style={{ padding:'16px 16px 32px', maxWidth:900,
         margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
 
-        {/* Posts / Products */}
+        {/* Posts / Products — clean Instagram-style photo grid, no
+            price/title/stats baked into the cells. Tap opens the normal
+            detail page; editing (owner-only) lives behind that page's
+            ••• menu instead of an icon sitting on the grid. */}
         {tab==='posts' && (
           <div>
             {(classifieds.length === 0 && products.length === 0) ? (
@@ -487,111 +493,41 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                 action={isOwnProfile ? 'Add a Product' : null}
                 onAction={() => onNavigate('SellerClassifieds')} />
             ) : (
-              <>
-                {products.length > 0 && (
-                  <div style={{ marginBottom: classifieds.length > 0 ? 20 : 0 }}>
-                    <div style={{ fontSize:12, fontWeight:800, color:GR, marginBottom:10,
-                      textTransform:'uppercase', letterSpacing:0.4 }}>
-                      🛍️ Shop Products ({products.length})
-                    </div>
-                    <div style={{ display:'grid',
-                      gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:12 }}>
-                      {products.map(p => (
-                        <div key={`p-${p.id}`}
-                          onClick={() => onNavigate(`ProductDetail-${p.id}`)}
-                          style={{ backgroundColor:WH, borderRadius:14,
-                            boxShadow:'0 2px 8px rgba(0,0,0,0.06)',
-                            cursor:'pointer', overflow:'hidden' }}>
-                          <div style={{ height:120, backgroundColor:'#F8FAFC',
-                            display:'flex', alignItems:'center', justifyContent:'center',
-                            overflow:'hidden' }}>
-                            {p.images?.[0]
-                              ? <img src={p.images[0]} alt={p.name}
-                                  style={{ width:'100%',height:'100%',objectFit:'cover' }}
-                                  onError={e => e.target.style.display='none'} />
-                              : <span style={{ fontSize:32 }}>🛍️</span>}
-                          </div>
-                          <div style={{ padding:'10px 12px' }}>
-                            <div style={{ fontSize:12,fontWeight:700,color:DK,marginBottom:3,
-                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
-                              {p.name}
-                            </div>
-                            <div style={{ fontSize:13,fontWeight:900,color:B }}>
-                              TZS {fmt(p.displayPrice || p.basePrice)}
-                            </div>
-                            {!p.isAvailable && (
-                              <div style={{ fontSize:9,color:'#DC2626',fontWeight:700,marginTop:2 }}>
-                                Out of stock
-                              </div>
-                            )}
-                            {(() => {
-                              const c = itemCounts[`product-${p.id}`];
-                              if (!c || (!c.saves && !c.comments)) return null;
-                              return (
-                                <div style={{ fontSize:10, color:GR, marginTop:4 }}>
-                                  {c.saves > 0 && `❤️ ${c.saves}`}
-                                  {c.saves > 0 && c.comments > 0 && '  '}
-                                  {c.comments > 0 && `💬 ${c.comments}`}
-                                </div>
-                              );
-                            })()}
-                          </div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
+                {[
+                  ...products.map(p => ({ kind:'product', id:p.id, image:p.images?.[0], icon:'🛍️',
+                    createdAt:p.createdAt, available:p.isAvailable })),
+                  ...classifieds.map(c => ({ kind:'classified', id:c.id, image:c.images?.[0], icon:'🏷️',
+                    createdAt:c.createdAt })),
+                ]
+                  .sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0))
+                  .map(item => (
+                    <div key={`${item.kind}-${item.id}`}
+                      onClick={() => onNavigate(item.kind==='product'
+                        ? `ProductDetail-${item.id}` : `ClassifiedDetail-${item.id}`)}
+                      style={{ position:'relative', aspectRatio:'1', backgroundColor:'#F8FAFC',
+                        cursor:'pointer', overflow:'hidden' }}>
+                      {item.image
+                        ? <img src={item.image} alt=""
+                            style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                            onError={e => e.target.style.display='none'} />
+                        : <div style={{ width:'100%', height:'100%', display:'flex',
+                            alignItems:'center', justifyContent:'center', fontSize:28 }}>
+                            {item.icon}
+                          </div>}
+                      <span style={{ position:'absolute', top:4, right:4, fontSize:11 }}>
+                        {item.icon}
+                      </span>
+                      {item.kind==='product' && item.available===false && (
+                        <div style={{ position:'absolute', inset:0, backgroundColor:'rgba(15,23,42,0.55)',
+                          display:'flex', alignItems:'center', justifyContent:'center',
+                          fontSize:10, fontWeight:800, color:WH }}>
+                          Out of stock
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                )}
-
-                {classifieds.length > 0 && (
-                  <div>
-                    <div style={{ fontSize:12, fontWeight:800, color:GR, marginBottom:10,
-                      textTransform:'uppercase', letterSpacing:0.4 }}>
-                      📢 Listings ({classifieds.length})
-                    </div>
-                    <div style={{ display:'grid',
-                      gridTemplateColumns:'repeat(auto-fill,minmax(150px,1fr))', gap:12 }}>
-                      {classifieds.map(c => (
-                        <div key={`c-${c.id}`}
-                          onClick={() => onNavigate(`ClassifiedDetail-${c.id}`)}
-                          style={{ backgroundColor:WH, borderRadius:14,
-                            boxShadow:'0 2px 8px rgba(0,0,0,0.06)',
-                            cursor:'pointer', overflow:'hidden' }}>
-                          <div style={{ height:120, backgroundColor:'#F8FAFC',
-                            display:'flex', alignItems:'center', justifyContent:'center',
-                            overflow:'hidden' }}>
-                            {c.images?.[0]
-                              ? <img src={c.images[0]} alt={c.title}
-                                  style={{ width:'100%',height:'100%',objectFit:'cover' }}
-                                  onError={e => e.target.style.display='none'} />
-                              : <span style={{ fontSize:32 }}>🏷️</span>}
-                          </div>
-                          <div style={{ padding:'10px 12px' }}>
-                            <div style={{ fontSize:12,fontWeight:700,color:DK,marginBottom:3,
-                              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>
-                              {c.title}
-                            </div>
-                            <div style={{ fontSize:13,fontWeight:900,
-                              color: c.isFlashSale ? '#DC2626' : B }}>
-                              TZS {fmt(c.flashSalePrice || c.price)}
-                            </div>
-                            {(() => {
-                              const cnt = itemCounts[`classified-${c.id}`];
-                              if (!cnt || (!cnt.saves && !cnt.comments)) return null;
-                              return (
-                                <div style={{ fontSize:10, color:GR, marginTop:4 }}>
-                                  {cnt.saves > 0 && `❤️ ${cnt.saves}`}
-                                  {cnt.saves > 0 && cnt.comments > 0 && '  '}
-                                  {cnt.comments > 0 && `💬 ${cnt.comments}`}
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+                  ))}
+              </div>
             )}
           </div>
         )}
@@ -666,7 +602,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
             {feed.length === 0
               ? <Empty icon="📢" text="Bado hakuna matangazo" />
               : feed.map(f => (
-                  <FeedPost key={f.id} f={f} onNavigate={onNavigate} />
+                  <FeedPost key={f.id} f={f} onNavigate={onNavigate}
+                    isLoggedIn={isLoggedIn} currentUser={currentUser}
+                    highlighted={highlightPostId === f.id}
+                    postRef={highlightPostId === f.id ? highlightPostRef : null} />
                 ))}
           </div>
         )}
@@ -1092,43 +1031,142 @@ const Empty = ({ icon, text, action, onAction }) => (
   </div>
 );
 
-const FeedPost = ({ f, onNavigate }) => (
-  <div style={{ backgroundColor:WH, borderRadius:14, padding:16,
-    marginBottom:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
-    <div style={{ display:'flex', justifyContent:'space-between',
-      marginBottom:8 }}>
-      <span style={{ fontSize:10, fontWeight:800, color:B,
-        backgroundColor:'#eff6ff', padding:'2px 10px', borderRadius:100 }}>
-        {f.type==='new_product'?'🛍️ New Product':
-         f.type==='discount'?'🏷️ Discount':
-         f.type==='restock'?'📦 Restocked':'📣 Listing'}
-      </span>
-      <span style={{ fontSize:10, color:'#94a3b8' }}>
-        {new Date(f.createdAt).toLocaleDateString('en-GB')}
-      </span>
-    </div>
-    <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:4 }}>{f.title}</div>
-    {f.body && <div style={{ fontSize:12, color:'#475569', lineHeight:1.5 }}>{f.body}</div>}
-    {f.imageUrl && (
-      <img src={f.imageUrl} alt="" style={{ width:'100%', borderRadius:10,
-        marginTop:10, maxHeight:200, objectFit:'cover' }} />
-    )}
-    {((f.saveCount||0) > 0 || (f.commentCount||0) > 0) && (
-      <div style={{ fontSize:12, fontWeight:700, color:DK, marginTop:10 }}>
-        {(f.saveCount||0) > 0 && `${Number(f.saveCount).toLocaleString()} liked`}
-        {(f.saveCount||0) > 0 && (f.commentCount||0) > 0 && '  ·  '}
-        {(f.commentCount||0) > 0 && `${Number(f.commentCount).toLocaleString()} comment${f.commentCount!==1?'s':''}`}
+// ── Flat comment thread for a feed post that ISN'T tagged to a real
+// product/classified/service — e.g. a plain announcement or "Looking For".
+// Tagged posts reuse CommerceCommentSection instead (see FeedPost below).
+const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
+  const [comments, setComments] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [body,     setBody]     = useState('');
+  const [sending,  setSending]  = useState(false);
+  const [error,    setError]    = useState('');
+
+  useEffect(() => {
+    api.get(`/feed/${postId}/comments`)
+      .then(r => setComments(r.data || []))
+      .catch(() => setComments([]))
+      .finally(() => setLoading(false));
+  }, [postId]);
+
+  const handleSend = async () => {
+    if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!body.trim()) return;
+    try {
+      setSending(true);
+      setError('');
+      const res = await api.post(`/feed/${postId}/comments`, { body: body.trim() });
+      setComments(prev => [...prev, { ...res.data, replies: [] }]);
+      setBody('');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Could not post — try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div style={{ marginTop:12, borderTop:'1px solid #F1F5F9', paddingTop:12 }}>
+      {loading ? (
+        <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>Loading...</div>
+      ) : comments.length === 0 ? (
+        <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>No comments yet.</div>
+      ) : comments.map(c => (
+        <div key={c.id} style={{ display:'flex', gap:8, marginBottom:10 }}>
+          <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
+            backgroundColor:B, display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:11, color:WH, fontWeight:900, overflow:'hidden' }}>
+            {c.author?.logo
+              ? <img src={c.author.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              : (c.author?.storeName || c.author?.name || 'U').charAt(0).toUpperCase()}
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:12, fontWeight:800, color:DK }}>
+              {c.author?.storeName || c.author?.name || 'User'}
+            </div>
+            <div style={{ fontSize:12, color:DK, lineHeight:1.4 }}>{c.body}</div>
+          </div>
+        </div>
+      ))}
+      {error && (
+        <div style={{ fontSize:11, color:'#DC2626', marginBottom:8, fontWeight:600 }}>{error}</div>
+      )}
+      <div style={{ display:'flex', gap:8 }}>
+        <input value={body} onChange={e => setBody(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleSend()}
+          placeholder="Write a comment..."
+          style={{ flex:1, padding:'8px 12px', borderRadius:10, border:'1px solid #E2E8F0',
+            fontSize:12, outline:'none', fontFamily:'inherit' }} />
+        <button onClick={handleSend} disabled={sending || !body.trim()}
+          style={{ backgroundColor:B, color:WH, border:'none', borderRadius:10,
+            padding:'0 16px', cursor:'pointer', fontSize:12, fontWeight:700 }}>
+          {sending ? '...' : 'Send'}
+        </button>
       </div>
-    )}
-    {f.ctaLabel && f.linkedEntityId && (
-      <button onClick={() => onNavigate(`ClassifiedDetail-${f.linkedEntityId}`)}
-        style={{ marginTop:10, backgroundColor:B, color:WH,
-          border:'none', borderRadius:8, padding:'8px 18px',
-          cursor:'pointer', fontSize:12, fontWeight:700 }}>
-        {f.ctaLabel}
+    </div>
+  );
+};
+
+const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef }) => {
+  const [showComments, setShowComments] = useState(false);
+  const isTagged = !!(f.linkedEntityType && f.linkedEntityId);
+
+  return (
+    <div ref={postRef} style={{ backgroundColor:WH, borderRadius:14, padding:16,
+      marginBottom:12,
+      boxShadow: highlighted ? '0 0 0 3px #2563EB, 0 2px 8px rgba(0,0,0,0.06)' : '0 2px 8px rgba(0,0,0,0.06)' }}>
+      <div style={{ display:'flex', justifyContent:'space-between',
+        marginBottom:8 }}>
+        <span style={{ fontSize:10, fontWeight:800, color:B,
+          backgroundColor:'#eff6ff', padding:'2px 10px', borderRadius:100 }}>
+          {f.type==='new_product'?'🛍️ New Product':
+           f.type==='discount'?'🏷️ Discount':
+           f.type==='restock'?'📦 Restocked':'📣 Listing'}
+        </span>
+        <span style={{ fontSize:10, color:'#94a3b8' }}>
+          {new Date(f.createdAt).toLocaleDateString('en-GB')}
+        </span>
+      </div>
+      <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:4 }}>{f.title}</div>
+      {f.body && <div style={{ fontSize:12, color:'#475569', lineHeight:1.5 }}>{f.body}</div>}
+      {f.imageUrl && (
+        <img src={f.imageUrl} alt="" style={{ width:'100%', borderRadius:10,
+          marginTop:10, maxHeight:200, objectFit:'cover' }} />
+      )}
+      {((f.saveCount||0) > 0 || (f.commentCount||0) > 0) && (
+        <div style={{ fontSize:12, fontWeight:700, color:DK, marginTop:10 }}>
+          {(f.saveCount||0) > 0 && `${Number(f.saveCount).toLocaleString()} liked`}
+          {(f.saveCount||0) > 0 && (f.commentCount||0) > 0 && '  ·  '}
+          {(f.commentCount||0) > 0 && `${Number(f.commentCount).toLocaleString()} comment${f.commentCount!==1?'s':''}`}
+        </div>
+      )}
+      <button onClick={() => setShowComments(s => !s)}
+        style={{ background:'none', border:'none', cursor:'pointer', padding:0,
+          marginTop:6, color:GR, fontSize:12, fontWeight:700 }}>
+        {showComments ? '▲ Hide comments' : (f.commentCount||0) > 0 ? '💬 View comments' : '💬 Comment'}
       </button>
-    )}
-  </div>
-);
+      {f.ctaLabel && f.linkedEntityId && (
+        <button onClick={() => onNavigate(`ClassifiedDetail-${f.linkedEntityId}`)}
+          style={{ marginTop:10, backgroundColor:B, color:WH,
+            border:'none', borderRadius:8, padding:'8px 18px',
+            cursor:'pointer', fontSize:12, fontWeight:700 }}>
+          {f.ctaLabel}
+        </button>
+      )}
+      {showComments && (
+        isTagged ? (
+          <div style={{ marginTop:12, borderTop:'1px solid #F1F5F9', paddingTop:12,
+            marginLeft:-16, marginRight:-16, marginBottom:-16 }}>
+            <CommerceCommentSection
+              entityType={f.linkedEntityType} entityId={f.linkedEntityId}
+              entityTitle={f.title} sellerId={f.businessId}
+              isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate} />
+          </div>
+        ) : (
+          <PostThread postId={f.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
+        )
+      )}
+    </div>
+  );
+};
 
 export default CommerceProfile;

@@ -7,8 +7,6 @@
  * row up top. Replaces the old plain marketplace grid.
  */
 import React, { useState, useEffect } from 'react';
-import Navbar          from '../components/Navbar';
-import Footer          from '../components/Footer';
 import ReputationBadge from '../components/ReputationBadge';
 import api              from '../../api/api';
 
@@ -208,7 +206,20 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#FAFAFA',
       fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
-      <Navbar onNavigate={onNavigate} isLoggedIn={isLoggedIn} userRole={userRole} />
+
+      {/* ── Top bar ── */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 200, backgroundColor: WH,
+        borderBottom: '1px solid #F1F5F9', display: 'flex', alignItems: 'center',
+        gap: 12, padding: '12px 16px' }}>
+        <button onClick={() => onNavigate('back')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+            stroke={DK} strokeWidth="2.5">
+            <polyline points="15,18 9,12 15,6"/>
+          </svg>
+        </button>
+        <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>🏪 Discover Businesses</div>
+      </div>
 
       {/* Header banner */}
       <div style={{ background: 'linear-gradient(135deg,#1E1B4B,#1D4ED8,#7C3AED)',
@@ -346,7 +357,6 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
       </div>
 
       <style>{`::-webkit-scrollbar { display: none }`}</style>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

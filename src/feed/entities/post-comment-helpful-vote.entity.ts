@@ -8,7 +8,14 @@
  * counts at the post/entity level, not per individual comment), so it's
  * additive rather than a duplicate of anything that already exists.
  */
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Unique, Index } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  Unique,
+  Index,
+} from 'typeorm';
 
 @Entity('post_comment_helpful_vote')
 @Unique(['commentId', 'userId'])

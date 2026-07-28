@@ -1,7 +1,11 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { SuperAgent } from '../../super-agents/entities/super-agent.entity';
 
@@ -30,7 +34,11 @@ export class DeliveryZone {
   @Column({ type: 'int', default: 60 })
   etaMinutesFromDeparture: number;
 
-  @ManyToOne(() => SuperAgent, { eager: true, nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => SuperAgent, {
+    eager: true,
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn()
   zoneAgent: SuperAgent | null;
 

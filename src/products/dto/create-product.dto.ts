@@ -1,11 +1,17 @@
 import {
-  IsArray, IsBoolean, IsEnum,
-  IsNumber, IsOptional, IsString, Min, IsObject,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  IsObject,
 } from 'class-validator';
 
 export enum ShippingMethod {
   DIRECT = 'direct',
-  AGENT  = 'agent',
+  AGENT = 'agent',
 }
 
 export class CreateProductDto {

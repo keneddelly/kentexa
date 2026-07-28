@@ -5,13 +5,26 @@
  * Seller can: view messages, reply, share products,
  * create orders/invoices directly from the chat.
  */
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Conversation, ConversationStatus } from './entities/conversation.entity';
-import { ConversationMessage, MessageSenderType, MessageType } from './entities/conversation-message.entity';
+import {
+  Conversation,
+  ConversationStatus,
+} from './entities/conversation.entity';
+import {
+  ConversationMessage,
+  MessageSenderType,
+  MessageType,
+} from './entities/conversation-message.entity';
 import { BusinessCustomer } from './entities/business-customer.entity';
+import { BusinessCustomerService } from './business-customer.service';
 import { User } from '../users/entities/user.entity';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
 
 @Injectable()
 export class ConversationService {
@@ -22,21 +35,27 @@ export class ConversationService {
     private msgRepo: Repository<ConversationMessage>,
     @InjectRepository(BusinessCustomer)
     private customerRepo: Repository<BusinessCustomer>,
+    private customerService: BusinessCustomerService,
+    private notifService: InAppNotificationService,
   ) {}
 
   // ── Get all conversations for seller ─────────────────────────────────────
 
-  async getSellerInbox(sellerId: number, params: {
-    status?:  string;
-    search?:  string;
-    page?:    number;
-    limit?:   number;
-  }) {
-    const page  = params.page  || 1;
+  async getSellerInbox(
+    sellerId: number,
+    params: {
+      status?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    const page = params.page || 1;
     const limit = params.limit || 20;
-    const skip  = (page - 1) * limit;
+    const skip = (page - 1) * limit;
 
-    const query = this.convoRepo.createQueryBuilder('c')
+    const query = this.convoRepo
+      .createQueryBuilder('c')
       .leftJoinAndSelect('c.customer', 'customer')
       .leftJoinAndSelect('c.assignedTo', 'assignedTo')
       .where('c.seller_id = :sellerId', { sellerId });
@@ -45,14 +64,16 @@ export class ConversationService {
       query.andWhere('c.status = :status', { status: params.status });
     }
     if (params.search) {
-      query.andWhere('LOWER(customer.name) LIKE :q OR customer.phone LIKE :q',
-        { q: `%${params.search.toLowerCase()}%` });
+      query.andWhere('LOWER(customer.name) LIKE :q OR customer.phone LIKE :q', {
+        q: `%${params.search.toLowerCase()}%`,
+      });
     }
 
     const [conversations, total] = await query
       .orderBy('c.lastMessageAt', 'DESC', 'NULLS LAST')
       .addOrderBy('c.createdAt', 'DESC')
-      .skip(skip).take(limit)
+      .skip(skip)
+      .take(limit)
       .getManyAndCount();
 
     // Unread count
@@ -65,21 +86,63 @@ export class ConversationService {
     return { conversations, total, page, unread };
   }
 
+  // ── Get all conversations for a buyer (as the customer, across sellers) ──
+
+  async getMyConversations(
+    userId: number,
+    params: {
+      page?: number;
+      limit?: number;
+    } = {},
+  ) {
+    const page = params.page || 1;
+    const limit = params.limit || 20;
+    const skip = (page - 1) * limit;
+
+    const query = this.convoRepo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.customer', 'customer')
+      .leftJoinAndSelect('c.seller', 'seller')
+      .where('customer.user_id = :userId', { userId });
+
+    const [conversations, total] = await query
+      .orderBy('c.lastMessageAt', 'DESC', 'NULLS LAST')
+      .addOrderBy('c.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    const unread = await this.convoRepo
+      .createQueryBuilder('c')
+      .leftJoin('c.customer', 'customer')
+      .where('customer.user_id = :userId', { userId })
+      .andWhere('c.buyerUnreadCount > 0')
+      .getCount();
+
+    return { conversations, total, page, unread };
+  }
+
   // ── Get or create conversation ────────────────────────────────────────────
 
-  async getOrCreateConversation(sellerId: number, customerId: number): Promise<Conversation> {
+  async getOrCreateConversation(
+    sellerId: number,
+    customerId: number,
+  ): Promise<Conversation> {
     let convo = await this.convoRepo.findOne({
       where: {
         sellerId,
         customerId,
         status: ConversationStatus.OPEN,
       },
-      relations: { customer: true },
+      // "seller" is needed so the buyer-side chat header can show the real
+      // business name instead of a generic placeholder on first load.
+      relations: { customer: true, seller: true },
     });
 
     if (!convo) {
       const customer = await this.customerRepo.findOne({
         where: { id: customerId, sellerId },
+        relations: { seller: true },
       });
       if (!customer) throw new NotFoundException('Customer not found');
 
@@ -92,9 +155,32 @@ export class ConversationService {
       });
       convo = await this.convoRepo.save(convo);
       convo.customer = customer;
+      convo.seller = customer.seller;
     }
 
     return convo;
+  }
+
+  // ── Get or create conversation, initiated by a BUYER ──────────────────────
+  // No BusinessCustomer row is required up front — auto-created on first
+  // contact, same as when an order comes in, just without the order stats.
+
+  async getOrCreateConversationAsBuyer(
+    buyer: User,
+    sellerId: number,
+  ): Promise<Conversation> {
+    if (sellerId === buyer.id) {
+      throw new BadRequestException('Cannot message yourself');
+    }
+
+    const customer = await this.customerService.findOrCreateForChat(sellerId, {
+      id: buyer.id,
+      name: buyer.name || buyer.storeName || 'Mnunuzi',
+      phone: buyer.phone,
+      email: buyer.email,
+    });
+
+    return this.getOrCreateConversation(sellerId, customer.id);
   }
 
   // ── Get messages in a conversation ───────────────────────────────────────
@@ -118,90 +204,222 @@ export class ConversationService {
     return { conversation: convo, messages };
   }
 
+  // ── Get messages in a conversation, as the BUYER ──────────────────────────
+
+  async getMessagesAsBuyer(userId: number, conversationId: number) {
+    const convo = await this.convoRepo.findOne({
+      where: { id: conversationId },
+      relations: { customer: true, seller: true },
+    });
+    if (!convo || convo.customer?.userId !== userId) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    const messages = await this.msgRepo.find({
+      where: { conversationId, isNote: false },
+      order: { createdAt: 'ASC' },
+      take: 100,
+    });
+
+    await this.convoRepo.update(conversationId, { buyerUnreadCount: 0 });
+
+    return { conversation: convo, messages };
+  }
+
   // ── Send a message ────────────────────────────────────────────────────────
 
-  async sendMessage(sellerId: number, conversationId: number, dto: {
-    content?:  string;
-    imageUrl?: string;
-    isNote?:   boolean;    // internal note
-    type?:     string;
-    metadata?: any;
-  }, sender: User): Promise<ConversationMessage> {
+  async sendMessage(
+    sellerId: number,
+    conversationId: number,
+    dto: {
+      content?: string;
+      imageUrl?: string;
+      isNote?: boolean; // internal note
+      type?: string;
+      metadata?: any;
+    },
+    sender: User,
+  ): Promise<ConversationMessage> {
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId, sellerId },
+      relations: { customer: true },
     });
     if (!convo) throw new NotFoundException('Conversation not found');
 
     const msg = this.msgRepo.create({
       conversationId,
       senderType: MessageSenderType.SELLER,
-      senderId:   sender.id,
-      type:       dto.type    || MessageType.TEXT,
-      content:    dto.content || null,
-      imageUrl:   dto.imageUrl || null,
-      metadata:   dto.metadata || null,
-      isNote:     dto.isNote  || false,
+      senderId: sender.id,
+      type: dto.type || MessageType.TEXT,
+      content: dto.content || null,
+      imageUrl: dto.imageUrl || null,
+      metadata: dto.metadata || null,
+      isNote: dto.isNote || false,
     });
     await this.msgRepo.save(msg);
 
-    // Update conversation
-    await this.convoRepo.update(conversationId, {
-      lastMessageAt:      new Date(),
-      lastMessagePreview: dto.content?.slice(0, 100) || '[Picha]',
-      status:             ConversationStatus.PENDING,
-      messageCount:       () => '"messageCount" + 1',
+    // Update conversation — internal notes aren't visible to the buyer, so
+    // they don't touch lastMessage*/buyerUnreadCount, only messageCount.
+    await this.convoRepo.update(
+      conversationId,
+      dto.isNote
+        ? {
+            messageCount: () => '"messageCount" + 1',
+          }
+        : {
+            lastMessageAt: new Date(),
+            lastMessagePreview: dto.content?.slice(0, 100) || '[Picha]',
+            status: ConversationStatus.PENDING,
+            messageCount: () => '"messageCount" + 1',
+            buyerUnreadCount: () => '"buyerUnreadCount" + 1',
+          },
+    );
+
+    // Notify the buyer — internal notes are seller-only, never surfaced.
+    // "MessageSeller-{sellerId}" is the exact route SellerInbox.js already
+    // uses to open this conversation as the buyer.
+    if (!dto.isNote && convo.customer?.userId) {
+      this.notifService
+        .notify({
+          userId: convo.customer.userId,
+          type: 'message',
+          title: `💬 ${sender.storeName || sender.name || 'Muuzaji'}`,
+          body: dto.content?.slice(0, 80) || '📷 Picha',
+          icon: '💬',
+          actionPage: 'MessageSeller',
+          actionParam: String(sellerId),
+        })
+        .catch(() => {});
+    }
+
+    return msg;
+  }
+
+  // ── Send a message, as the BUYER ──────────────────────────────────────────
+
+  async sendMessageAsBuyer(
+    userId: number,
+    conversationId: number,
+    dto: {
+      content?: string;
+      imageUrl?: string;
+    },
+    sender: User,
+  ): Promise<ConversationMessage> {
+    const convo = await this.convoRepo.findOne({
+      where: { id: conversationId },
+      relations: { customer: true },
     });
+    if (!convo || convo.customer?.userId !== userId) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    const msg = this.msgRepo.create({
+      conversationId,
+      senderType: MessageSenderType.CUSTOMER,
+      senderId: sender.id,
+      type: MessageType.TEXT,
+      content: dto.content || null,
+      imageUrl: dto.imageUrl || null,
+    });
+    await this.msgRepo.save(msg);
+
+    await this.convoRepo.update(conversationId, {
+      lastMessageAt: new Date(),
+      lastMessagePreview: dto.content?.slice(0, 100) || '[Picha]',
+      status: ConversationStatus.OPEN, // seller needs to respond
+      messageCount: () => '"messageCount" + 1',
+      unreadCount: () => '"unreadCount" + 1',
+    });
+
+    // Notify the seller — "SellerInbox-{customerId}" is the exact route
+    // SellerInbox.js already uses to auto-open this conversation.
+    this.notifService
+      .notify({
+        userId: convo.sellerId,
+        type: 'message',
+        title: `💬 ${sender.name || sender.storeName || 'Mnunuzi'}`,
+        body: dto.content?.slice(0, 80) || '📷 Picha',
+        icon: '💬',
+        actionPage: 'SellerInbox',
+        actionParam: String(convo.customer.id),
+      })
+      .catch(() => {});
 
     return msg;
   }
 
   // ── Share product in chat ─────────────────────────────────────────────────
 
-  async shareProduct(sellerId: number, conversationId: number, product: {
-    id: number; name: string; price: number; image?: string;
-  }, sender: User): Promise<ConversationMessage> {
-    return this.sendMessage(sellerId, conversationId, {
-      type:    MessageType.PRODUCT,
-      content: `Bidhaa: ${product.name} — TZS ${product.price.toLocaleString()}`,
-      metadata: {
-        productId:    product.id,
-        productName:  product.name,
-        productPrice: product.price,
-        productImage: product.image,
+  async shareProduct(
+    sellerId: number,
+    conversationId: number,
+    product: {
+      id: number;
+      name: string;
+      price: number;
+      image?: string;
+    },
+    sender: User,
+  ): Promise<ConversationMessage> {
+    return this.sendMessage(
+      sellerId,
+      conversationId,
+      {
+        type: MessageType.PRODUCT,
+        content: `Bidhaa: ${product.name} — TZS ${product.price.toLocaleString()}`,
+        metadata: {
+          productId: product.id,
+          productName: product.name,
+          productPrice: product.price,
+          productImage: product.image,
+        },
       },
-    }, sender);
+      sender,
+    );
   }
 
   // ── Create order from chat ────────────────────────────────────────────────
   // Adds a system message to the conversation after order is created
 
-  async addOrderMessage(conversationId: number, order: {
-    id: number; trackingNumber: string; totalAmount: number; status: string;
-  }): Promise<void> {
-    await this.msgRepo.save(this.msgRepo.create({
-      conversationId,
-      senderType: MessageSenderType.SYSTEM,
-      type:       MessageType.ORDER,
-      content:    `Agizo #${order.id} limeundwa — TZS ${order.totalAmount.toLocaleString()}`,
-      metadata: {
-        orderId:        order.id,
-        trackingNumber: order.trackingNumber,
-        orderStatus:    order.status,
-      },
-    }));
+  async addOrderMessage(
+    conversationId: number,
+    order: {
+      id: number;
+      trackingNumber: string;
+      totalAmount: number;
+      status: string;
+    },
+  ): Promise<void> {
+    await this.msgRepo.save(
+      this.msgRepo.create({
+        conversationId,
+        senderType: MessageSenderType.SYSTEM,
+        type: MessageType.ORDER,
+        content: `Agizo #${order.id} limeundwa — TZS ${order.totalAmount.toLocaleString()}`,
+        metadata: {
+          orderId: order.id,
+          trackingNumber: order.trackingNumber,
+          orderStatus: order.status,
+        },
+      }),
+    );
 
     await this.convoRepo.update(conversationId, {
-      linkedOrderId:      order.id,
-      lastMessageAt:      new Date(),
+      linkedOrderId: order.id,
+      lastMessageAt: new Date(),
       lastMessagePreview: `📦 Agizo limeundwa — TZS ${order.totalAmount.toLocaleString()}`,
-      messageCount:       () => '"messageCount" + 1',
+      messageCount: () => '"messageCount" + 1',
     });
   }
 
   // ── Update conversation status ────────────────────────────────────────────
 
-  async updateStatus(sellerId: number, conversationId: number,
-    status: string): Promise<Conversation> {
+  async updateStatus(
+    sellerId: number,
+    conversationId: number,
+    status: string,
+  ): Promise<Conversation> {
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId, sellerId },
     });
@@ -212,8 +430,11 @@ export class ConversationService {
 
   // ── Assign conversation to team member ────────────────────────────────────
 
-  async assignTo(sellerId: number, conversationId: number,
-    assignedToId: number): Promise<Conversation> {
+  async assignTo(
+    sellerId: number,
+    conversationId: number,
+    assignedToId: number,
+  ): Promise<Conversation> {
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId, sellerId },
     });
@@ -221,12 +442,14 @@ export class ConversationService {
     convo.assignedToId = assignedToId;
 
     // System message
-    await this.msgRepo.save(this.msgRepo.create({
-      conversationId,
-      senderType: MessageSenderType.SYSTEM,
-      type:       MessageType.TEXT,
-      content:    `Mazungumzo yamepewa mwanachama wa timu.`,
-    }));
+    await this.msgRepo.save(
+      this.msgRepo.create({
+        conversationId,
+        senderType: MessageSenderType.SYSTEM,
+        type: MessageType.TEXT,
+        content: `Mazungumzo yamepewa mwanachama wa timu.`,
+      }),
+    );
 
     return this.convoRepo.save(convo);
   }

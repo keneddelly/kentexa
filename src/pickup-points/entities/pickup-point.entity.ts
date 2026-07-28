@@ -3,16 +3,20 @@
  * Place at: src/pickup-points/entities/pickup-point.entity.ts
  */
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, ManyToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
-import { User }  from '../../users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 import { Agent } from '../../agents/entities/agent.entity';
 
 export enum PickupPointStatus {
-  ACTIVE   = 'active',
+  ACTIVE = 'active',
   INACTIVE = 'inactive',
-  BUSY     = 'busy',
+  BUSY = 'busy',
 }
 
 @Entity('pickup_point')
@@ -35,22 +39,22 @@ export class PickupPoint {
   userId: number;
 
   @Column({ type: 'varchar' })
-  name: string;              // "KenteXa Pickup — Kariakoo"
+  name: string; // "KenteXa Pickup — Kariakoo"
 
   @Column({ type: 'text' })
-  address: string;           // full street address
+  address: string; // full street address
 
   @Column({ type: 'varchar' })
   city: string;
 
   @Column({ type: 'varchar', nullable: true })
-  landmark: string | null;   // "Karibu na Total petrol station"
+  landmark: string | null; // "Karibu na Total petrol station"
 
   @Column({ type: 'varchar', nullable: true })
   phone: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  openHours: string | null;  // "Jumatatu-Ijumaa 8am-6pm"
+  openHours: string | null; // "Jumatatu-Ijumaa 8am-6pm"
 
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
   latitude: number | null;
@@ -58,11 +62,15 @@ export class PickupPoint {
   @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
   longitude: number | null;
 
-  @Column({ type: 'enum', enum: PickupPointStatus, default: PickupPointStatus.ACTIVE })
+  @Column({
+    type: 'enum',
+    enum: PickupPointStatus,
+    default: PickupPointStatus.ACTIVE,
+  })
   status: PickupPointStatus;
 
   @Column({ type: 'int', default: 0 })
-  totalPickups: number;       // lifetime pickups handled
+  totalPickups: number; // lifetime pickups handled
 
   @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
   rating: number;

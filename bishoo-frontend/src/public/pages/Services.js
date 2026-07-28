@@ -5,8 +5,6 @@
  * Primary discovery page — search, filter by category, browse providers
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import Navbar  from '../components/Navbar';
-import Footer  from '../components/Footer';
 import api     from '../../api/api';
 
 const CATEGORIES = [
@@ -168,10 +166,22 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   useEffect(() => { fetchAds(); }, [fetchAds]);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
+    <div style={{ minHeight: '100vh', paddingBottom: 90,
       backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
-      <Navbar currentPage="Services" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+
+      {/* ── Top bar ── */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 200, backgroundColor: '#fff',
+        borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center',
+        gap: 12, padding: '12px 16px' }}>
+        <button onClick={() => onNavigate('back')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+            stroke="#0F172A" strokeWidth="2.5">
+            <polyline points="15,18 9,12 15,6"/>
+          </svg>
+        </button>
+        <div style={{ fontSize: 15, fontWeight: 900, color: '#0F172A' }}>🔧 Huduma</div>
+      </div>
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b 0%,#1d4ed8 60%,#0891b2 100%)',
@@ -325,7 +335,6 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       </div>
 
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

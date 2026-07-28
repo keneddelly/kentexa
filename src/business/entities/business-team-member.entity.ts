@@ -1,15 +1,20 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  ManyToOne, JoinColumn, CreateDateColumn, UpdateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
 export enum TeamMemberRole {
-  OWNER     = 'owner',
-  SALES     = 'sales',
-  SUPPORT   = 'customer_support',
+  OWNER = 'owner',
+  SALES = 'sales',
+  SUPPORT = 'customer_support',
   INVENTORY = 'inventory',
-  DELIVERY  = 'delivery',
+  DELIVERY = 'delivery',
 }
 
 @Entity('business_team_member')

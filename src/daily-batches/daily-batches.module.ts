@@ -13,14 +13,17 @@ import { NotificationsModule } from '../notifications/notifications.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      DailyBatch, BatchParcel, DeliveryZone,
-      Order, Product,
-      SuperAgent,   // needed by DeliveryZone#superAgent relation
+      DailyBatch,
+      BatchParcel,
+      DeliveryZone,
+      Order,
+      Product,
+      SuperAgent, // needed by DeliveryZone#superAgent relation
     ]),
     NotificationsModule,
   ],
   controllers: [DailyBatchesController],
-  providers:   [DailyBatchesService],
-  exports:     [DailyBatchesService],
+  providers: [DailyBatchesService],
+  exports: [DailyBatchesService],
 })
 export class DailyBatchesModule {}

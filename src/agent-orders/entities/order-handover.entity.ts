@@ -1,7 +1,12 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
-  CreateDateColumn, UpdateDateColumn,
-  ManyToOne, OneToOne, JoinColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  OneToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
 import { Agent } from '../../agents/entities/agent.entity';
@@ -37,7 +42,11 @@ export class OrderHandover {
   @Column({ unique: true })
   handoverCode: string;
 
-  @Column({ type: 'enum', enum: HandoverStatus, default: HandoverStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: HandoverStatus,
+    default: HandoverStatus.PENDING,
+  })
   status: HandoverStatus;
 
   @Column({ type: 'enum', enum: ProductCondition, nullable: true })
