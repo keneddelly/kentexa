@@ -3,6 +3,7 @@
  * Place at: src/public/pages/FlashSales.js
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar        from '../components/Navbar';
 import BackBar       from '../components/BackBar';
 import Footer        from '../components/Footer';
@@ -35,22 +36,23 @@ const useCountdown = (endsAt) => {
 
 // ── Countdown display ─────────────────────────────────────────────────────────
 const Countdown = ({ endsAt, size = 'md' }) => {
+  const { t } = useTranslation();
   const { h, m, s, expired } = useCountdown(endsAt);
   const big  = size === 'lg';
   const pad  = n => String(n).padStart(2, '0');
 
   if (expired) return (
     <span style={{ fontSize: big ? 14 : 11, fontWeight: 800, color: '#DC2626' }}>
-      Imekwisha
+      {t('flash_sales.expired')}
     </span>
   );
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: big ? 6 : 4 }}>
       {[
-        { val: h, label: 'Saa' },
-        { val: m, label: 'Dak' },
-        { val: s, label: 'Sek' },
+        { val: h, label: t('flash_sales.hours_label') },
+        { val: m, label: t('flash_sales.minutes_label') },
+        { val: s, label: t('flash_sales.seconds_label') },
       ].map(({ val, label }, i) => (
         <React.Fragment key={label}>
           {i > 0 && <span style={{ color: '#DC2626', fontWeight: 900,
@@ -76,6 +78,7 @@ const Countdown = ({ endsAt, size = 'md' }) => {
 
 // ── Flash sale card ───────────────────────────────────────────────────────────
 const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
+  const { t } = useTranslation();
   const discount = item.originalPrice && item.flashSalePrice
     ? Math.round((1 - item.flashSalePrice / item.originalPrice) * 100)
     : 0;
@@ -138,7 +141,7 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
         {/* Countdown */}
         <div style={{ display: 'flex', alignItems: 'center',
           justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 10, color: GR, fontWeight: 700 }}>⏰ Inaisha:</span>
+          <span style={{ fontSize: 10, color: GR, fontWeight: 700 }}>{t('flash_sales.ends_in')}</span>
           <Countdown endsAt={item.flashSaleEndsAt} />
         </div>
 
@@ -148,10 +151,10 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between',
               marginBottom: 4 }}>
               <span style={{ fontSize: 10, color: GR }}>
-                {remaining !== null ? `${remaining} zilizobaki` : 'Zimebaki chache'}
+                {remaining !== null ? t('flash_sales.remaining_count', { count: remaining }) : t('flash_sales.few_remaining')}
               </span>
               <span style={{ fontSize: 10, color: '#DC2626', fontWeight: 700 }}>
-                {pctSold}% imeuzwa
+                {t('flash_sales.percent_sold', { percent: pctSold })}
               </span>
             </div>
             <div style={{ height: 5, backgroundColor: '#F1F5F9', borderRadius: 100 }}>
@@ -167,7 +170,7 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
           style={{ width: '100%', backgroundColor: '#DC2626', color: WH,
             border: 'none', borderRadius: 10, padding: '10px 0',
             cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-          🛒 Nunua Sasa
+          {t('flash_sales.buy_now')}
         </button>
       </div>
     </div>
@@ -176,17 +179,18 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
 
 // ── Main FlashSales page ──────────────────────────────────────────────────────
 const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const [items,   setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter,  setFilter]  = useState('all');
 
   const CATEGORIES = [
-    { key:'all',         label:'🔥 Zote'       },
-    { key:'electronics', label:'📱 Teknolojia'  },
-    { key:'fashion',     label:'👗 Mitindo'     },
-    { key:'food',        label:'🍔 Chakula'     },
-    { key:'hardware',    label:'🔨 Vifaa'       },
-    { key:'furniture',   label:'🛋️ Samani'     },
+    { key:'all',         label:t('flash_sales.cat_all')       },
+    { key:'electronics', label:t('flash_sales.cat_electronics')  },
+    { key:'fashion',     label:t('flash_sales.cat_fashion')     },
+    { key:'food',        label:t('flash_sales.cat_food')     },
+    { key:'hardware',    label:t('flash_sales.cat_hardware')       },
+    { key:'furniture',   label:t('flash_sales.cat_furniture')     },
   ];
 
   const loadItems = useCallback(async () => {
@@ -217,18 +221,18 @@ const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
       <Navbar currentPage="FlashSales" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title="🔥 Flash Sales" />
+      <BackBar onBack={() => onNavigate('back')} title={t('flash_sales.page_title')} />
 
       {/* Hero banner */}
       <div style={{ background: 'linear-gradient(135deg,#DC2626,#EA580C)',
         padding: '20px 16px', color: WH }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
-          marginBottom: 4 }}>ORODHA YA HARAKA</div>
+          marginBottom: 4 }}>{t('flash_sales.eyebrow')}</div>
         <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
-          🔥 Flash Sales Tanzania
+          {t('flash_sales.hero_title')}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
-          Punguzo kubwa · Muda mfupi · Idadi ndogo
+          {t('flash_sales.hero_desc')}
         </div>
         {isLoggedIn && (
           <button onClick={() => onNavigate('SellerClassifieds')}
@@ -236,7 +240,7 @@ const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               color: WH, border: '1px solid rgba(255,255,255,0.4)',
               borderRadius: 10, padding: '8px 16px', cursor: 'pointer',
               fontSize: 12, fontWeight: 700 }}>
-            + Weka Flash Sale Yako
+            {t('flash_sales.post_flash_sale_button')}
           </button>
         )}
       </div>
@@ -272,24 +276,24 @@ const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🔥</div>
             <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 8 }}>
-              Hakuna Flash Sales sasa hivi
+              {t('flash_sales.no_sales_title')}
             </div>
             <div style={{ fontSize: 13, color: GR, marginBottom: 20 }}>
-              Rudi baadaye au weka flash sale yako
+              {t('flash_sales.no_sales_desc')}
             </div>
             {isLoggedIn && (
               <button onClick={() => onNavigate('SellerClassifieds')}
                 style={{ backgroundColor: '#DC2626', color: WH, border: 'none',
                   borderRadius: 12, padding: '12px 28px', cursor: 'pointer',
                   fontSize: 14, fontWeight: 700 }}>
-                + Anza Flash Sale
+                {t('flash_sales.start_flash_sale_button')}
               </button>
             )}
           </div>
         ) : (
           <>
             <div style={{ fontSize: 13, fontWeight: 700, color: DK, marginBottom: 14 }}>
-              🔥 {items.length} Flash Sale{items.length !== 1 ? 's' : ''} zinaendelea sasa
+              {t('flash_sales.active_count', { count: items.length })}
             </div>
             <div style={{ display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 14 }}>

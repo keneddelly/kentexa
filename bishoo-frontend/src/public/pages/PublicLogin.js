@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
 const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
+  const { t } = useTranslation();
   const [loginMethod, setLoginMethod]   = useState('phone');
   const [identifier, setIdentifier]     = useState('');
   const [password, setPassword]         = useState('');
@@ -19,7 +21,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password) {
-      setError(`Please enter your ${loginMethod === 'phone' ? 'phone number' : 'email'} and password`);
+      setError(t('login.phone_email_required', { method: loginMethod === 'phone' ? t('login.method_phone') : t('login.method_email') }));
       return;
     }
     try {
@@ -32,29 +34,29 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
       localStorage.setItem('token', res.data.access_token);
       if (onLoginSuccess) onLoginSuccess(res.data);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Invalid credentials. Please try again.');
+      setError(err?.response?.data?.message || t('login.invalid_credentials'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleForgotSend = async () => {
-    if (!fpIdentifier.trim()) { setError('Enter your phone or email'); return; }
+    if (!fpIdentifier.trim()) { setError(t('login.enter_phone_or_email')); return; }
     try {
       setFpLoading(true); setError('');
       await api.post('/auth/forgot-password', { identifier: fpIdentifier.trim() });
-      setFpMessage(`OTP sent to ${fpIdentifier.trim()}`);
+      setFpMessage(t('login.otp_sent_to', { identifier: fpIdentifier.trim() }));
       setStep('reset');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to send OTP');
+      setError(err?.response?.data?.message || t('login.send_otp_failed'));
     } finally {
       setFpLoading(false);
     }
   };
 
   const handleResetPassword = async () => {
-    if (fpOtp.length !== 6) { setError('Enter the 6-digit OTP'); return; }
-    if (fpNewPassword.length < 6) { setError('Password must be at least 6 characters'); return; }
+    if (fpOtp.length !== 6) { setError(t('login.enter_otp')); return; }
+    if (fpNewPassword.length < 6) { setError(t('login.password_min')); return; }
     try {
       setFpLoading(true); setError('');
       await api.post('/auth/reset-password', {
@@ -62,13 +64,13 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
         otp: fpOtp,
         newPassword: fpNewPassword,
       });
-      setFpMessage('✅ Password reset successfully! Please login.');
+      setFpMessage(t('login.reset_success'));
       setTimeout(() => {
         setStep('login');
         setFpIdentifier(''); setFpOtp(''); setFpNewPassword(''); setFpMessage('');
       }, 2000);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to reset password');
+      setError(err?.response?.data?.message || t('login.reset_failed'));
     } finally {
       setFpLoading(false);
     }
@@ -101,7 +103,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
             <span style={{ fontSize: 28, fontWeight: 900, color: '#1d4ed8', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
           <div style={{ fontSize: 14, color: '#64748b', fontWeight: 600 }}>
-            {step === 'login' ? 'Welcome back 👋' : step === 'forgot' ? '🔑 Forgot Password' : '🔒 Reset Password'}
+            {step === 'login' ? t('login.welcome_back') : step === 'forgot' ? t('login.forgot_password_title') : t('login.reset_password_title')}
           </div>
         </div>
 
@@ -126,8 +128,8 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
             {/* Phone / Email toggle */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
               {[
-                { method: 'phone', icon: '📞', label: 'Phone' },
-                { method: 'email', icon: '📧', label: 'Email' },
+                { method: 'phone', icon: '📞', label: t('login.tab_phone') },
+                { method: 'email', icon: '📧', label: t('login.tab_email') },
               ].map(({ method, icon, label }) => (
                 <button key={method}
                   onClick={() => { setLoginMethod(method); setIdentifier(''); setError(''); }}
@@ -140,10 +142,10 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
             {/* Identifier */}
             <div style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>
-                {loginMethod === 'phone' ? 'Phone Number' : 'Email Address'}
+                {loginMethod === 'phone' ? t('login.phone_number_label') : t('login.email_address_label')}
               </label>
               <input type={loginMethod === 'phone' ? 'tel' : 'email'}
-                placeholder={loginMethod === 'phone' ? '255XXXXXXXXX' : 'you@example.com'}
+                placeholder={loginMethod === 'phone' ? t('login.phone_placeholder') : t('login.email_placeholder')}
                 value={identifier} onChange={e => setIdentifier(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && handleLogin()}
                 style={inputStyle} />
@@ -151,10 +153,10 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
 
             {/* Password */}
             <div style={{ marginBottom: 8 }}>
-              <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>Password</label>
+              <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>{t('login.password_label')}</label>
               <div style={{ position: 'relative' }}>
                 <input type={showPassword ? 'text' : 'password'}
-                  placeholder="Your password"
+                  placeholder={t('login.password_placeholder')}
                   value={password} onChange={e => setPassword(e.target.value)}
                   onKeyPress={e => e.key === 'Enter' && handleLogin()}
                   style={{ ...inputStyle, paddingRight: 48 }} />
@@ -169,30 +171,30 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
             <div style={{ textAlign: 'right', marginBottom: 20 }}>
               <button onClick={() => { setStep('forgot'); setFpIdentifier(identifier); setError(''); }}
                 style={{ background: 'none', border: 'none', color: '#1d4ed8', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
-                Forgot Password?
+                {t('login.forgot_password_link')}
               </button>
             </div>
 
             <button onClick={handleLogin} disabled={loading}
               style={{ ...btnPrimary, background: loading ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', cursor: loading ? 'not-allowed' : 'pointer' }}>
-              {loading ? '⏳ Logging in...' : '🔐 Login'}
+              {loading ? t('login.logging_in') : t('login.login_button')}
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ flex: 1, height: 1, backgroundColor: '#e2e8f0' }} />
-              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>OR</span>
+              <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{t('login.or_divider')}</span>
               <div style={{ flex: 1, height: 1, backgroundColor: '#e2e8f0' }} />
             </div>
 
             <button onClick={() => onNavigate('Register')}
               style={{ width: '100%', padding: 13, backgroundColor: '#f8fafc', color: '#1d4ed8', border: '2px solid #e2e8f0', borderRadius: 12, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 20 }}>
-              ✨ Create New Account
+              {t('login.create_account_button')}
             </button>
 
             <div style={{ textAlign: 'center' }}>
               <button onClick={() => onNavigate('Home')}
                 style={{ background: 'none', border: 'none', fontSize: 13, color: '#1d4ed8', cursor: 'pointer', fontWeight: 700, padding: '8px 0' }}>
-                ← Back to Home
+                {t('login.back_to_home')}
               </button>
             </div>
           </>
@@ -202,22 +204,22 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
         {step === 'forgot' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <p style={{ fontSize: 13, color: '#64748b', margin: 0, lineHeight: 1.6 }}>
-              Enter your phone number or email address and we'll send you a reset code.
+              {t('login.forgot_desc')}
             </p>
             <div>
-              <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>Phone or Email</label>
-              <input type="text" placeholder="255XXXXXXXXX or you@example.com"
+              <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>{t('login.phone_or_email_label')}</label>
+              <input type="text" placeholder={t('login.phone_or_email_placeholder')}
                 value={fpIdentifier} onChange={e => setFpIdentifier(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && handleForgotSend()}
                 style={inputStyle} />
             </div>
             <button onClick={handleForgotSend} disabled={fpLoading}
               style={{ ...btnPrimary, marginBottom: 0, cursor: fpLoading ? 'not-allowed' : 'pointer', background: fpLoading ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)' }}>
-              {fpLoading ? '⏳ Sending...' : '📨 Send Reset Code'}
+              {fpLoading ? t('login.sending_button') : t('login.send_reset_code_button')}
             </button>
             <button onClick={() => { setStep('login'); setError(''); setFpMessage(''); }}
               style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-              ← Back to Login
+              {t('login.back_to_login')}
             </button>
           </div>
         )}
@@ -226,35 +228,35 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
         {step === 'reset' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-              Enter the 6-digit code sent to <strong>{fpIdentifier}</strong> and your new password.
+              {t('login.reset_desc_prefix')} <strong>{fpIdentifier}</strong> {t('login.reset_desc_suffix')}
             </p>
             <div>
-              <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>OTP Code</label>
+              <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>{t('login.otp_code_label')}</label>
               <input type="tel" placeholder="000000" maxLength={6}
                 value={fpOtp} onChange={e => setFpOtp(e.target.value.replace(/\D/g,'').slice(0,6))}
                 style={{ ...inputStyle, fontSize: 24, fontWeight: 900, letterSpacing: 8, textAlign: 'center' }} />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>New Password</label>
-              <input type="password" placeholder="Min. 6 characters"
+              <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>{t('login.new_password_label')}</label>
+              <input type="password" placeholder={t('login.new_password_placeholder')}
                 value={fpNewPassword} onChange={e => setFpNewPassword(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && handleResetPassword()}
                 style={inputStyle} />
             </div>
             <button onClick={handleResetPassword} disabled={fpLoading}
               style={{ ...btnPrimary, marginBottom: 0, cursor: fpLoading ? 'not-allowed' : 'pointer', background: fpLoading ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)' }}>
-              {fpLoading ? '⏳ Resetting...' : '🔒 Reset Password'}
+              {fpLoading ? t('login.resetting_button') : t('login.reset_password_button')}
             </button>
             <button onClick={() => { setStep('forgot'); setFpOtp(''); setFpNewPassword(''); setError(''); }}
               style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>
-              ← Resend Code
+              {t('login.resend_code')}
             </button>
           </div>
         )}
       </div>
 
       <p style={{ marginTop: 20, fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
-        KenteXa © 2026 · Tanzania's #1 Marketplace
+        {t('login.footer_tagline')}
       </p>
     </div>
   );

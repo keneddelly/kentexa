@@ -9,6 +9,7 @@
  * 4. Done → HomeFeed
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
 const B  = '#2563EB';
@@ -23,22 +24,24 @@ const CITIES = [
   'Kahama','Moshi','Geita','Singida',
 ];
 
-const INTERESTS = [
-  { key:'electronics',  icon:'📱', label:'Teknolojia'     },
-  { key:'fashion',      icon:'👗', label:'Mitindo'        },
-  { key:'food',         icon:'🍔', label:'Chakula'        },
-  { key:'hardware',     icon:'🔨', label:'Vifaa'          },
-  { key:'furniture',    icon:'🛋️', label:'Samani'        },
-  { key:'agriculture',  icon:'🌾', label:'Kilimo'         },
-  { key:'beauty',       icon:'💄', label:'Urembo'         },
-  { key:'automotive',   icon:'🚗', label:'Magari'         },
-  { key:'health',       icon:'💊', label:'Afya'           },
-  { key:'education',    icon:'📚', label:'Elimu'          },
-  { key:'services',     icon:'🔧', label:'Services'         },
-  { key:'transport',    icon:'🚌', label:'Transport'        },
+const getInterests = (t) => [
+  { key:'electronics',  icon:'📱', label:t('onboarding.interest_electronics')     },
+  { key:'fashion',      icon:'👗', label:t('onboarding.interest_fashion')        },
+  { key:'food',         icon:'🍔', label:t('onboarding.interest_food')        },
+  { key:'hardware',     icon:'🔨', label:t('onboarding.interest_hardware')          },
+  { key:'furniture',    icon:'🛋️', label:t('onboarding.interest_furniture')        },
+  { key:'agriculture',  icon:'🌾', label:t('onboarding.interest_agriculture')         },
+  { key:'beauty',       icon:'💄', label:t('onboarding.interest_beauty')         },
+  { key:'automotive',   icon:'🚗', label:t('onboarding.interest_automotive')         },
+  { key:'health',       icon:'💊', label:t('onboarding.interest_health')           },
+  { key:'education',    icon:'📚', label:t('onboarding.interest_education')          },
+  { key:'services',     icon:'🔧', label:t('onboarding.interest_services')         },
+  { key:'transport',    icon:'🚌', label:t('onboarding.interest_transport')        },
 ];
 
 const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
+  const { t } = useTranslation();
+  const INTERESTS = getInterests(t);
   const [step,        setStep]        = useState(1);
   const [name]        = useState(currentUser?.name || '');
   const [city,        setCity]        = useState(currentUser?.city || '');
@@ -121,13 +124,13 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
       <div style={{ padding: '16px 20px 0',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ fontSize: 12, color: GR, fontWeight: 700 }}>
-          Hatua {step} ya {TOTAL_STEPS}
+          {t('onboarding.step_indicator', { step, total: TOTAL_STEPS })}
         </div>
         {step < TOTAL_STEPS && (
           <button onClick={() => setStep(s => s + 1)}
             style={{ background: 'none', border: 'none', cursor: 'pointer',
               color: GR, fontSize: 12, fontWeight: 700 }}>
-            Skip →
+            {t('onboarding.skip')}
           </button>
         )}
       </div>
@@ -142,10 +145,10 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             <div style={{ fontSize: 32, marginBottom: 16 }}>📍</div>
             <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
               margin: '0 0 8px', lineHeight: 1.2 }}>
-              Karibu{currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : ''}!
+              {t('onboarding.greeting', { name: currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : '' })}
             </h1>
             <p style={{ fontSize: 15, color: GR, margin: '0 0 24px', lineHeight: 1.6 }}>
-              Tutakuonyesha bidhaa, huduma na wasafirishaji karibu nawe.
+              {t('onboarding.step1_desc')}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {CITIES.map(c => (
@@ -169,10 +172,10 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             <div style={{ fontSize: 32, marginBottom: 16 }}>🎯</div>
             <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
               margin: '0 0 8px', lineHeight: 1.2 }}>
-              What are you into?
+              {t('onboarding.step2_title')}
             </h1>
             <p style={{ fontSize: 15, color: GR, margin: '0 0 24px', lineHeight: 1.6 }}>
-              Chagua angalau moja. Tutatumia hii kukuonyesha bidhaa zinazokufaa.
+              {t('onboarding.step2_desc')}
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {INTERESTS.map(i => {
@@ -201,7 +204,7 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             </div>
             {interests.length > 0 && (
               <div style={{ marginTop: 12, fontSize: 12, color: B, fontWeight: 700 }}>
-                ✓ Umechagua {interests.length} — vizuri!
+                {t('onboarding.selected_count', { count: interests.length })}
               </div>
             )}
           </div>
@@ -213,17 +216,17 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             <div style={{ fontSize: 32, marginBottom: 16 }}>🏪</div>
             <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
               margin: '0 0 8px', lineHeight: 1.2 }}>
-              Follow businesses!
+              {t('onboarding.step3_title')}
             </h1>
             <p style={{ fontSize: 15, color: GR, margin: '0 0 24px', lineHeight: 1.6 }}>
-              Fuata biashara unazo{city ? ` ${city}` : ''} ili uone bidhaa zao mpya kwenye feed yako.
-              {followed.size >= 3 ? ' 🎉 Umefuata wa kutosha!' : ` Fuata angalau 3 (${followed.size}/3).`}
+              {t('onboarding.step3_desc_prefix', { city: city ? ` ${city}` : '' })}
+              {followed.size >= 3 ? t('onboarding.step3_desc_done') : t('onboarding.step3_desc_progress', { count: followed.size })}
             </p>
 
             {loadingSellers ? (
               <div style={{ textAlign: 'center', padding: 40, color: GR }}>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>🏪</div>
-                <div>Inapakia biashara...</div>
+                <div>{t('onboarding.loading_sellers')}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -253,7 +256,7 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
                           {s.storeName || s.name}
                         </div>
                         <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
-                          📍 {s.businessLocation || s.city || 'Tanzania'}
+                          📍 {s.businessLocation || s.city || t('onboarding.default_location')}
                           {s.reputationScore > 0 && ` · ⭐ ${s.reputationScore}`}
                         </div>
                       </div>
@@ -265,7 +268,7 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
                           padding: '8px 16px', cursor: isFollowed ? 'default' : 'pointer',
                           fontSize: 12, fontWeight: 800, flexShrink: 0,
                           transition: 'all 0.2s' }}>
-                        {isFollowed ? '✓ Unafuata' : '+ Fuata'}
+                        {isFollowed ? t('onboarding.following_button') : t('onboarding.follow_button')}
                       </button>
                     </div>
                   );
@@ -291,9 +294,9 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             fontSize: 16, fontWeight: 900,
             boxShadow: canNext() ? '0 4px 16px rgba(37,99,235,0.3)' : 'none',
             transition: 'all 0.2s' }}>
-          {saving ? '⏳ Inahifadhi...' :
-           step === 3 ? (followed.size >= 3 ? '🎉 Anza KenteXa!' : 'Continue →') :
-           'Continue →'}
+          {saving ? t('onboarding.saving_button') :
+           step === 3 ? (followed.size >= 3 ? t('onboarding.finish_button') : t('onboarding.continue_button')) :
+           t('onboarding.continue_button')}
         </button>
 
         {step === 3 && followed.size < 3 && (
@@ -301,7 +304,7 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             style={{ width: '100%', marginTop: 10, padding: '12px 0',
               background: 'none', border: 'none', cursor: 'pointer',
               color: GR, fontSize: 13, fontWeight: 700 }}>
-            Skip kwa sasa — nitafuata baadaye
+            {t('onboarding.skip_for_now')}
           </button>
         )}
       </div>

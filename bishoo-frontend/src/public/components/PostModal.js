@@ -6,8 +6,10 @@
  * One person, one button, all their capabilities
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment }) => {
+  const { t } = useTranslation();
   const role = userRole || currentUser?.role || 'user';
   const isSeller = ['seller', 'admin', 'manager'].includes(role);
   const [showListChoice, setShowListChoice] = useState(false);
@@ -18,8 +20,8 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
     // One tile only: the modal itself has a Selling / Looking For toggle inside.
     {
       icon: '📸',
-      title: 'Share a Moment',
-      sub: 'Show what you\u2019re selling, or ask for what you need',
+      title: t('post_modal.action_moment_title'),
+      sub: t('post_modal.action_moment_sub'),
       mode: 'selling',
       color: '#EFF6FF',
       accent: '#2563EB',
@@ -28,10 +30,10 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
     // Everyone can list something — sellers get an extra choice (see below)
     {
       icon: '🏷️',
-      title: 'Add Listing',
+      title: t('post_modal.action_listing_title'),
       sub: isSeller
-        ? 'A casual item, or add to your shop catalog'
-        : 'Sell anything — phone, clothes, furniture...',
+        ? t('post_modal.action_listing_sub_seller')
+        : t('post_modal.action_listing_sub_buyer'),
       key: 'list',
       color: '#F5F3FF',
       accent: '#7C3AED',
@@ -40,8 +42,8 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
     // Everyone can offer a service
     {
       icon: '🔧',
-      title: 'Offer a Service',
-      sub: 'Repairs, cleaning, tutoring, cooking...',
+      title: t('post_modal.action_service_title'),
+      sub: t('post_modal.action_service_sub'),
       page: 'PostService',
       color: '#F0FDF4',
       accent: '#16A34A',
@@ -50,8 +52,8 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
     // Sellers post to followers
     {
       icon: '📢',
-      title: 'Post Update',
-      sub: 'News, discounts, new arrivals for your followers',
+      title: t('post_modal.action_update_title'),
+      sub: t('post_modal.action_update_sub'),
       page: 'CommerceProfile',
       color: '#FFF7ED',
       accent: '#EA580C',
@@ -60,8 +62,8 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
     // Agents toggle availability
     {
       icon: '🏍️',
-      title: 'Go Online',
-      sub: 'Turn on your status — get jobs near you',
+      title: t('post_modal.action_online_title'),
+      sub: t('post_modal.action_online_sub'),
       page: 'AgentDashboard',
       color: '#FDF2F8',
       accent: '#A21CAF',
@@ -70,8 +72,8 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
     // Transport providers publish availability
     {
       icon: '🚌',
-      title: 'Post Today\u2019s Route',
-      sub: 'List the seats or space available today',
+      title: t('post_modal.action_route_title'),
+      sub: t('post_modal.action_route_sub'),
       page: 'TransportProviderDashboard',
       color: '#FEF3C7',
       accent: '#D97706',
@@ -80,8 +82,8 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
     // Sellers and super agents create shipments
     {
       icon: '📦',
-      title: 'Create Shipment',
-      sub: 'Register a new parcel in the system',
+      title: t('post_modal.action_shipment_title'),
+      sub: t('post_modal.action_shipment_sub'),
       page: 'SellerShipment',
       color: '#F5F3FF',
       accent: '#7C3AED',
@@ -136,10 +138,10 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
         }} />
 
         <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 4 }}>
-          {showListChoice ? 'Add Listing' : 'Post'}
+          {showListChoice ? t('post_modal.header_add_listing') : t('post_modal.header_post')}
         </div>
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-          {showListChoice ? 'What are you listing?' : 'Choose what you want to do'}
+          {showListChoice ? t('post_modal.sub_what_listing') : t('post_modal.sub_choose_action')}
         </div>
 
         {showListChoice ? (
@@ -151,9 +153,9 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
                 cursor: 'pointer', textAlign: 'left', width: '100%' }}>
               <span style={{ fontSize: 32, flexShrink: 0 }}>🏷️</span>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Casual Listing</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>{t('post_modal.casual_listing_title')}</div>
                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                  A one-off item — phone, clothes, furniture...
+                  {t('post_modal.casual_listing_desc')}
                 </div>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -168,9 +170,9 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
                 cursor: 'pointer', textAlign: 'left', width: '100%' }}>
               <span style={{ fontSize: 32, flexShrink: 0 }}>🛍️</span>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Shop Product</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>{t('post_modal.shop_product_title')}</div>
                 <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                  Add to your store catalog — stock, pricing, shipping
+                  {t('post_modal.shop_product_desc')}
                 </div>
               </div>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -181,7 +183,7 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
             <button onClick={() => setShowListChoice(false)}
               style={{ background: 'none', border: 'none', cursor: 'pointer',
                 color: '#64748b', fontSize: 13, fontWeight: 700, padding: '8px 0' }}>
-              ← Back
+              {t('common.back')}
             </button>
           </div>
         ) : (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import Footer from '../components/Footer';
@@ -18,6 +19,7 @@ const inputStyle = {
 };
 
 const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const [step, setStep]                   = useState('info');  // 'info' | 'form' | 'done'
   const [existingProfile, setExistingProfile] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
@@ -37,10 +39,10 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
   }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
-    if (!form.businessName.trim()) { setError('Weka jina la biashara'); return; }
-    if (!form.city) { setError('Chagua mji wa kufanyia kazi'); return; }
-    if (!form.phone.trim()) { setError('Weka namba ya simu'); return; }
-    if (!form.address.trim()) { setError('Weka anwani ya biashara'); return; }
+    if (!form.businessName.trim()) { setError(t('become_super_agent_info.business_name_required')); return; }
+    if (!form.city) { setError(t('become_super_agent_info.city_required')); return; }
+    if (!form.phone.trim()) { setError(t('become_super_agent_info.phone_required')); return; }
+    if (!form.address.trim()) { setError(t('become_super_agent_info.address_required')); return; }
     if (!isLoggedIn) {
       localStorage.setItem('kentexa_after_login', 'BecomeSuperAgentInfo');
       onNavigate('PublicLogin');
@@ -51,30 +53,30 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
       await api.post('/super-agents/apply', form);
       setStep('done');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kutuma ombi');
+      setError(err?.response?.data?.message || t('become_super_agent_info.submit_failed'));
     } finally { setLoading(false); }
   };
 
   const statusInfo = existingProfile ? {
-    pending:   { icon: '⏳', color: '#f59e0b', title: 'Ombi Liko Chini ya Mapitio', desc: 'Tutalipigia kazi ndani ya saa 24–48. Utapata ujumbe ukithibitishwa.' },
-    active:    { icon: '✅', color: '#16a34a', title: 'Umeidhinishwa kama Super Agent!', desc: `Msimbo wako: ${existingProfile.agentCode || '—'} · Mji: ${existingProfile.city}` },
-    suspended: { icon: '🚫', color: '#dc2626', title: 'Akaunti Imesimamishwa', desc: existingProfile.rejectionReason || 'Wasiliana na KenteXa support.' },
-    blocked:   { icon: '⛔', color: '#dc2626', title: 'Akaunti Imezuiwa', desc: existingProfile.rejectionReason || 'Wasiliana na KenteXa support.' },
+    pending:   { icon: '⏳', color: '#f59e0b', title: t('become_super_agent_info.status_pending_title'), desc: t('become_super_agent_info.status_pending_desc') },
+    active:    { icon: '✅', color: '#16a34a', title: t('become_super_agent_info.status_active_title'), desc: t('become_super_agent_info.status_active_desc', { code: existingProfile.agentCode || '—', city: existingProfile.city }) },
+    suspended: { icon: '🚫', color: '#dc2626', title: t('become_super_agent_info.status_suspended_title'), desc: existingProfile.rejectionReason || t('become_super_agent_info.status_default_desc') },
+    blocked:   { icon: '⛔', color: '#dc2626', title: t('become_super_agent_info.status_blocked_title'), desc: existingProfile.rejectionReason || t('become_super_agent_info.status_default_desc') },
   }[existingProfile.status] : null;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
       <Navbar currentPage="BecomeSuperAgentInfo" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('Home')} title="Kuwa Super Agent" />
+      <BackBar onBack={() => onNavigate('Home')} title={t('become_super_agent_info.page_title')} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
         <div style={{ fontSize: 52, marginBottom: 10 }}>🏢</div>
         <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>
-          Kuwa Super Agent wa KenteXa
+          {t('become_super_agent_info.hero_title')}
         </h1>
         <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', margin: 0 }}>
-          Simamia vifurushi vya intercity na uongeze mapato yako
+          {t('become_super_agent_info.hero_desc')}
         </p>
       </div>
 
@@ -89,7 +91,7 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
             {existingProfile.status === 'active' && (
               <button onClick={() => onNavigate('SuperAgentDashboard')}
                 style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-                📊 Nenda Dashibodini
+                {t('become_super_agent_info.go_to_dashboard_button')}
               </button>
             )}
           </div>
@@ -98,13 +100,13 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
         {/* Benefits */}
         {(!existingProfile || step === 'info') && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>💼 Kwa Nini Kuwa Super Agent?</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>{t('become_super_agent_info.benefits_title')}</h3>
             {[
-              { icon: '💰', title: 'Mapato Imara', desc: 'Pata kamisheni kwa kila kifurushi unachoshughulikia — intercity na Dar es Salaam' },
-              { icon: '🌍', title: 'Mtandao wa Tanzania Nzima', desc: 'Unganika na wauzaji na wanunuzi kutoka kote nchini kupitia KenteXa' },
-              { icon: '📱', title: 'Mfumo Rahisi', desc: 'Dashibodi yako ya simu inaonyesha kila kitu — vifurushi, mapato, hali' },
-              { icon: '🚀', title: 'Ukuaji wa Haraka', desc: 'KenteXa inakua — Super Agents wanaanzisha mapema watanufaika zaidi' },
-              { icon: '🤝', title: 'Msaada Kamili', desc: 'Mafunzo, mwongozo, na msaada wa KenteXa team nyuma yako' },
+              { icon: '💰', title: t('become_super_agent_info.benefit1_title'), desc: t('become_super_agent_info.benefit1_desc') },
+              { icon: '🌍', title: t('become_super_agent_info.benefit2_title'), desc: t('become_super_agent_info.benefit2_desc') },
+              { icon: '📱', title: t('become_super_agent_info.benefit3_title'), desc: t('become_super_agent_info.benefit3_desc') },
+              { icon: '🚀', title: t('become_super_agent_info.benefit4_title'), desc: t('become_super_agent_info.benefit4_desc') },
+              { icon: '🤝', title: t('become_super_agent_info.benefit5_title'), desc: t('become_super_agent_info.benefit5_desc') },
             ].map(b => (
               <div key={b.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 14 }}>
                 <div style={{ width: 40, height: 40, flexShrink: 0, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
@@ -119,11 +121,11 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
 
             {/* Earnings example */}
             <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginTop: 4 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 8 }}>📊 MFANO WA MAPATO</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: 8 }}>{t('become_super_agent_info.earnings_example_title')}</div>
               {[
-                ['Vifurushi 50/mwezi @ TZS 5,000/kila kimoja', 'TZS 250,000'],
-                ['Kamisheni ya 10%', 'TZS 25,000/mwezi'],
-                ['Makusanyo ya mauzo ya nje (20 @ TZS 2,000)', 'TZS 40,000/mwezi'],
+                [t('become_super_agent_info.earnings_line1_label'), t('become_super_agent_info.earnings_line1_value')],
+                [t('become_super_agent_info.earnings_line2_label'), t('become_super_agent_info.earnings_line2_value')],
+                [t('become_super_agent_info.earnings_line3_label'), t('become_super_agent_info.earnings_line3_value')],
               ].map(([l, v]) => (
                 <div key={l} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
                   <span style={{ color: '#475569' }}>{l}</span>
@@ -131,8 +133,8 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
                 </div>
               ))}
               <div style={{ borderTop: '1px solid #bfdbfe', marginTop: 8, paddingTop: 8, display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: 13 }}>
-                <span style={{ color: '#1e293b' }}>Jumla ya Mwezi</span>
-                <span style={{ color: '#16a34a' }}>TZS 65,000+</span>
+                <span style={{ color: '#1e293b' }}>{t('become_super_agent_info.earnings_total_label')}</span>
+                <span style={{ color: '#16a34a' }}>{t('become_super_agent_info.earnings_total_value')}</span>
               </div>
             </div>
           </div>
@@ -141,13 +143,13 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
         {/* Requirements */}
         {(!existingProfile || step === 'info') && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>✅ Mahitaji</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>{t('become_super_agent_info.requirements_title')}</h3>
             {[
-              'Eneo la kuhifadhia vifurushi (nyumba, ofisi, au duka)',
-              'Simu ya mkononi (Android au iPhone)',
-              'Kitambulisho cha serikali (NIDA, Pasipoti, au Leseni)',
-              'Uwezo wa kupokea na kutuma vifurushi kila siku',
-              'Akaunti ya KenteXa (bure — unda hapa hapa)',
+              t('become_super_agent_info.req1'),
+              t('become_super_agent_info.req2'),
+              t('become_super_agent_info.req3'),
+              t('become_super_agent_info.req4'),
+              t('become_super_agent_info.req5'),
             ].map((r, i) => (
               <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 8 }}>
                 <span style={{ color: '#16a34a', fontWeight: 800, flexShrink: 0 }}>✓</span>
@@ -161,18 +163,18 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
         {step === 'done' ? (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 32, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 52, marginBottom: 12 }}>🎉</div>
-            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 8px' }}>Ombi Limetumwa!</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 8px' }}>{t('become_super_agent_info.done_title')}</h2>
             <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 20px' }}>
-              Tutakipigia kazi ombi lako ndani ya saa 24. Utapata SMS na email ukithibitishwa.
+              {t('become_super_agent_info.done_desc')}
             </p>
             <button onClick={() => onNavigate('Home')}
               style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-              🏠 Rudi Nyumbani
+              {t('become_super_agent_info.back_home_button')}
             </button>
           </div>
         ) : !existingProfile ? (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>📝 Jaza Fomu ya Ombi</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px' }}>{t('become_super_agent_info.form_title')}</h3>
 
             {error && (
               <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
@@ -182,58 +184,58 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>Jina la Biashara / Hub *</label>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.business_name_label')}</label>
                 <input type="text" placeholder="e.g. Geita Express Hub"
                   value={form.businessName} onChange={e => setForm({ ...form, businessName: e.target.value })}
                   style={inputStyle} />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>Mji wa Kufanyia Kazi *</label>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.city_label')}</label>
                 <select value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inputStyle}>
-                  <option value="">— Chagua Mji —</option>
+                  <option value="">{t('become_super_agent_info.select_city_placeholder')}</option>
                   {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                  Mji ambao utashughulikia vifurushi vingi — vifurushi vya mji huu vitakuwa chini yako
+                  {t('become_super_agent_info.city_hint')}
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>Anwani ya Hub / Biashara *</label>
-                <textarea rows={2} placeholder="e.g. Mtaa wa Geita, karibu na soko kuu, jengo jekundu"
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.address_label')}</label>
+                <textarea rows={2} placeholder={t('become_super_agent_info.address_placeholder')}
                   value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
                   style={{ ...inputStyle, resize: 'vertical' }} />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>Namba ya Simu * (255XXXXXXXXX)</label>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.phone_label')}</label>
                 <input type="tel" placeholder="255712345678"
                   value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
                   style={inputStyle} />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>Namba ya Kitambulisho *</label>
-                <input type="text" placeholder="NIDA / Pasipoti / Leseni"
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.gov_id_label')}</label>
+                <input type="text" placeholder={t('become_super_agent_info.gov_id_placeholder')}
                   value={form.governmentId} onChange={e => setForm({ ...form, governmentId: e.target.value })}
                   style={inputStyle} />
               </div>
 
               {!isLoggedIn && (
                 <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#92400e' }}>
-                  💡 Unahitaji{' '}
+                  💡 {t('become_super_agent_info.login_required_pre')}{' '}
                   <span onClick={() => { localStorage.setItem('kentexa_after_login', 'BecomeSuperAgentInfo'); onNavigate('PublicLogin'); }}
                     style={{ color: '#d97706', cursor: 'pointer', fontWeight: 700, textDecoration: 'underline' }}>
-                    kuingia
+                    {t('become_super_agent_info.login_required_link')}
                   </span>
-                  {' '}kwanza ili kutuma ombi
+                  {' '}{t('become_super_agent_info.login_required_post')}
                 </div>
               )}
 
               <button onClick={handleSubmit} disabled={loading}
                 style={{ width: '100%', background: loading ? '#64748b' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: loading ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, boxShadow: '0 4px 12px rgba(29,78,216,0.3)' }}>
-                {loading ? '⏳ Inatuma...' : '🚀 Wasilisha Ombi la Super Agent'}
+                {loading ? t('become_super_agent_info.submitting') : t('become_super_agent_info.submit_button')}
               </button>
             </div>
           </div>

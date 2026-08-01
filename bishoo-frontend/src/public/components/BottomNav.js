@@ -6,10 +6,12 @@
  * Role-aware: same tabs for everyone, profile content changes by role
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const B = '#2563EB';
 
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, userRole, currentUser, onPostClick }) => {
+  const { t } = useTranslation();
   const tabs = [
     {
       key:   'Home',
@@ -20,7 +22,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, userRole, currentUser,
           <polyline points="9,22 9,12 15,12 15,22"/>
         </svg>
       ),
-      label: 'Nyumbani',
+      label: t('nav.home'),
     },
     {
       key:   'Search',
@@ -31,7 +33,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, userRole, currentUser,
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
       ),
-      label: 'Gundua',
+      label: t('common.search'),
     },
     {
       key:   '__POST__',
@@ -60,7 +62,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, userRole, currentUser,
           <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
         </svg>
       ),
-      label: 'Shughuli',
+      label: t('bottom_nav.activity'),
     },
     {
       key:   'MyProfile',
@@ -78,7 +80,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, userRole, currentUser,
             {(currentUser?.name || currentUser?.storeName || 'U').charAt(0).toUpperCase()}
           </div>
         ),
-      label: 'Wasifu',
+      label: t('nav.profile'),
     },
   ];
 

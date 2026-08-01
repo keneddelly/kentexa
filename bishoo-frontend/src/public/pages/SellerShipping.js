@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -25,7 +27,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       const res = await api.get('/shipping/seller/orders');
       setOrders(res.data);
     } catch (err) {
-      setError('Failed to load orders');
+      setError(t('seller_shipping.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -34,27 +36,27 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const handleMarkPreparing = async (orderId) => {
     try {
       await api.patch(`/shipping/orders/${orderId}/preparing`);
-      setMessage('Order marked as preparing');
+      setMessage(t('seller_shipping.marked_preparing_msg'));
       fetchOrders();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to update');
+      setError(err?.response?.data?.message || t('seller_shipping.update_failed'));
     }
   };
 
   const handleShip = async () => {
     if (!shipForm.trackingNumber || !shipForm.courierName) {
-      setError('Tracking number and courier name are required');
+      setError(t('seller_shipping.tracking_courier_required'));
       return;
     }
     try {
       setSubmitting(true);
       await api.post(`/shipping/orders/${selectedOrder.id}/ship`, shipForm);
-      setMessage('Shipment info uploaded! Order is now In Transit.');
+      setMessage(t('seller_shipping.shipment_uploaded_msg'));
       setShowShipForm(false);
       setShipForm({ trackingNumber: '', courierName: '', shipmentProofUrl: '' });
       fetchOrders();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to upload shipment info');
+      setError(err?.response?.data?.message || t('seller_shipping.upload_failed'));
     } finally {
       setSubmitting(false);
     }
@@ -77,11 +79,11 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   const escrowColor = (status) => {
     switch (status) {
-      case 'holding':  return { bg: '#fef9c3', color: '#ca8a04', label: '🔒 Held in Escrow' };
-      case 'released': return { bg: '#dcfce7', color: '#16a34a', label: '✅ Released to You' };
-      case 'refunded': return { bg: '#fee2e2', color: '#dc2626', label: '↩️ Refunded to Buyer' };
-      case 'disputed': return { bg: '#fee2e2', color: '#dc2626', label: '⚠️ Under Dispute' };
-      default:         return { bg: '#f1f5f9', color: '#64748b', label: '⏳ Awaiting Payment' };
+      case 'holding':  return { bg: '#fef9c3', color: '#ca8a04', label: t('seller_shipping.escrow_holding') };
+      case 'released': return { bg: '#dcfce7', color: '#16a34a', label: t('seller_shipping.escrow_released') };
+      case 'refunded': return { bg: '#fee2e2', color: '#dc2626', label: t('seller_shipping.escrow_refunded') };
+      case 'disputed': return { bg: '#fee2e2', color: '#dc2626', label: t('seller_shipping.escrow_disputed') };
+      default:         return { bg: '#f1f5f9', color: '#64748b', label: t('seller_shipping.escrow_awaiting') };
     }
   };
 
@@ -106,13 +108,13 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             onClick={() => onNavigate('SellerDashboard')}
             style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#94a3b8', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', marginBottom: '12px' }}
           >
-            ← Seller Dashboard
+            {t('seller_shipping.back_dashboard')}
           </button>
           <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: '0 0 4px' }}>
-            🚚 Shipping & Delivery
+            {t('seller_shipping.page_title')}
           </h1>
           <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>
-            Manage your shipments and track fund releases
+            {t('seller_shipping.page_desc')}
           </p>
         </div>
       </div>
@@ -121,9 +123,9 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       <div style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', padding: '20px 32px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
           {[
-            { label: 'In Escrow (Held)', value: `TZS ${totalEscrow.toLocaleString()}`, icon: '🔒', color: '#f59e0b' },
-            { label: 'Released to You', value: `TZS ${totalReleased.toLocaleString()}`, icon: '✅', color: '#10b981' },
-            { label: 'Total Orders', value: orders.length, icon: '📦', color: '#6366f1' },
+            { label: t('seller_shipping.stat_in_escrow'), value: `TZS ${totalEscrow.toLocaleString()}`, icon: '🔒', color: '#f59e0b' },
+            { label: t('seller_shipping.stat_released'), value: `TZS ${totalReleased.toLocaleString()}`, icon: '✅', color: '#10b981' },
+            { label: t('seller_shipping.stat_total_orders'), value: orders.length, icon: '📦', color: '#6366f1' },
           ].map(stat => (
             <div key={stat.label} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', border: `1px solid ${stat.color}30` }}>
               <div style={{ fontSize: '20px', marginBottom: '6px' }}>{stat.icon}</div>
@@ -137,8 +139,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       {/* Escrow Explanation */}
       <div style={{ backgroundColor: '#fef9c3', borderLeft: '4px solid #f59e0b', padding: '14px 32px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', fontSize: '13px', color: '#92400e' }}>
-          🔒 <strong>Kentexa Escrow:</strong> Payments are held securely until delivery is confirmed.
-          Funds are released to you automatically after the buyer confirms receipt or 7 days after delivery.
+          🔒 <strong>{t('seller_shipping.escrow_explanation_title')}</strong> {t('seller_shipping.escrow_explanation_desc')}
         </div>
       </div>
 
@@ -167,18 +168,18 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               color: filter === s ? '#fff' : '#64748b',
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
             }}>
-              {s.replace(/_/g, ' ').charAt(0).toUpperCase() + s.replace(/_/g, ' ').slice(1)}
+              {s === 'all' ? t('seller_shipping.filter_all') : s.replace(/_/g, ' ').charAt(0).toUpperCase() + s.replace(/_/g, ' ').slice(1)}
             </button>
           ))}
         </div>
 
         {/* Orders */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>⏳ Loading orders...</div>
+          <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>{t('seller_shipping.loading_orders')}</div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '16px' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
-            <p style={{ color: '#64748b' }}>No orders found</p>
+            <p style={{ color: '#64748b' }}>{t('seller_shipping.no_orders_found')}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -192,7 +193,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
                     <div>
                       <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#1e293b', margin: '0 0 4px' }}>
-                        Order #{order.id}
+                        {t('seller_shipping.order_hash', { id: order.id })}
                       </h3>
                       <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
                         {new Date(order.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -211,15 +212,15 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   {/* Product & Customer */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                     <div style={{ padding: '14px', backgroundColor: '#f8fafc', borderRadius: '10px' }}>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', marginBottom: '6px' }}>PRODUCT</div>
+                      <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', marginBottom: '6px' }}>{t('seller_shipping.product_label')}</div>
                       <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>{order.product?.name}</div>
-                      <div style={{ fontSize: '12px', color: '#64748b' }}>Qty: {order.quantity}</div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>{t('seller_shipping.qty_label', { qty: order.quantity })}</div>
                       <div style={{ fontSize: '13px', fontWeight: '700', color: '#7c3aed', marginTop: '4px' }}>
-                        TZS {Number(order.totalAmount).toLocaleString()} (buyer paid)
+                        TZS {Number(order.totalAmount).toLocaleString()} {t('seller_shipping.buyer_paid_suffix')}
                       </div>
                     </div>
                     <div style={{ padding: '14px', backgroundColor: '#f8fafc', borderRadius: '10px' }}>
-                      <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', marginBottom: '6px' }}>BUYER</div>
+                      <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600', marginBottom: '6px' }}>{t('seller_shipping.buyer_label')}</div>
                       <div style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b' }}>{order.buyer?.email}</div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>📞 {order.phone || '—'}</div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>📍 {order.deliveryAddress || '—'}</div>
@@ -230,10 +231,10 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   <div style={{ backgroundColor: '#0f172a', borderRadius: '10px', padding: '14px', marginBottom: '16px' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', fontSize: '13px' }}>
                       {[
-                        { label: 'Buyer Paid', value: `TZS ${Number(order.totalAmount).toLocaleString()}`, color: '#fff' },
-                        { label: 'Platform Fee (5%)', value: `TZS ${Number(order.platformFeeAmount || 0).toLocaleString()}`, color: '#f59e0b' },
-                        { label: 'Agent Commission', value: `TZS ${Number(order.agentCommissionAmount || 0).toLocaleString()}`, color: '#a78bfa' },
-                        { label: 'Your Earnings', value: `TZS ${Number(order.sellerAmount || 0).toLocaleString()}`, color: '#4ade80' },
+                        { label: t('seller_shipping.fin_buyer_paid'), value: `TZS ${Number(order.totalAmount).toLocaleString()}`, color: '#fff' },
+                        { label: t('seller_shipping.fin_platform_fee'), value: `TZS ${Number(order.platformFeeAmount || 0).toLocaleString()}`, color: '#f59e0b' },
+                        { label: t('seller_shipping.fin_agent_commission'), value: `TZS ${Number(order.agentCommissionAmount || 0).toLocaleString()}`, color: '#a78bfa' },
+                        { label: t('seller_shipping.fin_your_earnings'), value: `TZS ${Number(order.sellerAmount || 0).toLocaleString()}`, color: '#4ade80' },
                       ].map(item => (
                         <div key={item.label}>
                           <div style={{ color: '#64748b', marginBottom: '2px' }}>{item.label}</div>
@@ -246,11 +247,11 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   {/* Shipping info (if direct and in transit) */}
                   {order.trackingNumber && (
                     <div style={{ backgroundColor: '#f0fdf4', borderRadius: '10px', padding: '12px', marginBottom: '14px', border: '1px solid #bbf7d0' }}>
-                      <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: '700', marginBottom: '6px' }}>📦 SHIPMENT INFO</div>
+                      <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: '700', marginBottom: '6px' }}>{t('seller_shipping.shipment_info_title')}</div>
                       <div style={{ fontSize: '13px', color: '#1e293b' }}>
-                        <strong>Courier:</strong> {order.courierName} &nbsp;|&nbsp;
-                        <strong>Tracking:</strong> {order.trackingNumber}
-                        {order.shippedAt && <>&nbsp;|&nbsp; <strong>Shipped:</strong> {new Date(order.shippedAt).toLocaleDateString()}</>}
+                        <strong>{t('seller_shipping.courier_label')}</strong> {order.courierName} &nbsp;|&nbsp;
+                        <strong>{t('seller_shipping.tracking_label')}</strong> {order.trackingNumber}
+                        {order.shippedAt && <>&nbsp;|&nbsp; <strong>{t('seller_shipping.shipped_label')}</strong> {new Date(order.shippedAt).toLocaleDateString()}</>}
                       </div>
                     </div>
                   )}
@@ -263,7 +264,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                         onClick={() => handleMarkPreparing(order.id)}
                         style={{ background: 'linear-gradient(135deg, #f7971e 0%, #ffd200 100%)', color: '#1e293b', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}
                       >
-                        📦 Mark Preparing
+                        {t('seller_shipping.mark_preparing_button')}
                       </button>
                     )}
 
@@ -273,14 +274,14 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                         onClick={() => { setSelectedOrder(order); setShowShipForm(true); }}
                         style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}
                       >
-                        🚚 Upload Shipment Info
+                        {t('seller_shipping.upload_shipment_button')}
                       </button>
                     )}
 
                     {/* Agent shipping — show status */}
                     {order.shippingMethod === 'agent' && order.status === 'preparing' && (
                       <div style={{ backgroundColor: '#ede9fe', color: '#7c3aed', padding: '10px 16px', borderRadius: '10px', fontSize: '13px', fontWeight: '600' }}>
-                        🤝 Waiting for Kentexa Agent to pickup
+                        {t('seller_shipping.waiting_agent_pickup')}
                       </div>
                     )}
 
@@ -288,7 +289,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                       onClick={() => onNavigate(`OrderTracking-${order.id}`)}
                       style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
                     >
-                      📍 Track
+                      {t('seller_shipping.track_button')}
                     </button>
                   </div>
                 </div>
@@ -303,16 +304,16 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', width: '480px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px' }}>
-              🚚 Upload Shipment Info
+              {t('seller_shipping.modal_title')}
             </h2>
             <p style={{ color: '#64748b', fontSize: '13px', marginBottom: '24px' }}>
-              Order #{selectedOrder.id} — {selectedOrder.product?.name}
+              {t('seller_shipping.modal_order_desc', { id: selectedOrder.id, product: selectedOrder.product?.name })}
             </p>
 
             {[
-              { label: 'Courier / Carrier Name *', key: 'courierName', placeholder: 'e.g. DHL, UPS, Dar Express, Bus' },
-              { label: 'Tracking Number *', key: 'trackingNumber', placeholder: 'e.g. DHL1234567' },
-              { label: 'Shipment Proof URL (optional)', key: 'shipmentProofUrl', placeholder: 'e.g. link to photo/screenshot' },
+              { label: t('seller_shipping.field_courier_label'), key: 'courierName', placeholder: t('seller_shipping.field_courier_placeholder') },
+              { label: t('seller_shipping.field_tracking_label'), key: 'trackingNumber', placeholder: t('seller_shipping.field_tracking_placeholder') },
+              { label: t('seller_shipping.field_proof_label'), key: 'shipmentProofUrl', placeholder: t('seller_shipping.field_proof_placeholder') },
             ].map(field => (
               <div key={field.key} style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>{field.label}</label>
@@ -328,7 +329,7 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             ))}
 
             <div style={{ backgroundColor: '#fef9c3', borderRadius: '10px', padding: '12px', marginBottom: '20px', fontSize: '13px', color: '#92400e' }}>
-              ⚠️ By submitting, you confirm the item has been handed to the courier. Funds will be released after delivery confirmation.
+              {t('seller_shipping.confirm_note')}
             </div>
 
             <div style={{ display: 'flex', gap: '12px' }}>
@@ -336,14 +337,14 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 onClick={() => { setShowShipForm(false); setShipForm({ trackingNumber: '', courierName: '', shipmentProofUrl: '' }); }}
                 style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}
               >
-                Cancel
+                {t('seller_shipping.cancel_button')}
               </button>
               <button
                 onClick={handleShip}
                 disabled={submitting}
                 style={{ flex: 1, background: submitting ? '#a5b4fc' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none', padding: '12px', borderRadius: '8px', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: '800', fontSize: '14px' }}
               >
-                {submitting ? '⏳ Submitting...' : '✅ Confirm Shipment'}
+                {submitting ? t('seller_shipping.submitting') : t('seller_shipping.confirm_shipment_button')}
               </button>
             </div>
           </div>

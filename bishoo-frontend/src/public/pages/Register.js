@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import api from '../../api/api';
 
 const Register = ({ onNavigate, onLoginSuccess }) => {
+  const { t } = useTranslation();
   const [method, setMethod]   = useState('phone');
   const [step, setStep]       = useState(1);
   const [name, setName]       = useState('');
@@ -34,10 +36,10 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
 
   const handleRegister = async () => {
     setError('');
-    if (!name.trim() || name.trim().length < 2) { setError('Please enter your full name'); return; }
-    if (!identifier.trim()) { setError(method === 'phone' ? 'Phone number is required' : 'Email is required'); return; }
-    if (!password || password.length < 6) { setError('Password must be at least 6 characters'); return; }
-    if (method === 'email' && !identifier.includes('@')) { setError('Enter a valid email'); return; }
+    if (!name.trim() || name.trim().length < 2) { setError(t('register.name_required')); return; }
+    if (!identifier.trim()) { setError(method === 'phone' ? t('register.phone_required') : t('register.email_required')); return; }
+    if (!password || password.length < 6) { setError(t('register.password_min')); return; }
+    if (method === 'email' && !identifier.includes('@')) { setError(t('register.invalid_email')); return; }
 
     try {
       setLoading(true);
@@ -50,14 +52,14 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       setStep(2);
       startTimer();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Registration failed. Try again.');
+      setError(err?.response?.data?.message || t('register.registration_failed'));
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerify = async () => {
-    if (otp.length !== 6) { setError('Enter the 6-digit OTP'); return; }
+    if (otp.length !== 6) { setError(t('register.enter_otp')); return; }
     try {
       setOtpLoading(true);
       setError('');
@@ -65,7 +67,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       localStorage.setItem('token', res.data.access_token);
       if (onLoginSuccess) onLoginSuccess('Home'); // navigates inside handleLoginSuccess
     } catch (err) {
-      setError(err?.response?.data?.message || 'Invalid OTP');
+      setError(err?.response?.data?.message || t('register.invalid_otp'));
     } finally {
       setOtpLoading(false);
     }
@@ -78,7 +80,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       startTimer();
       setOtp('');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to resend');
+      setError(err?.response?.data?.message || t('register.resend_failed'));
     } finally {
       setResendLoading(false);
     }
@@ -111,10 +113,10 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
               <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', color:'#0f172a' }}>a</span>
             </div>
             <h2 style={{ fontSize:20, fontWeight:900, color:'#0f172a', margin:'0 0 4px', fontFamily:'Manrope,sans-serif' }}>
-              {step === 1 ? 'Create Account' : `Verify Your ${method === 'phone' ? 'Phone' : 'Email'}`}
+              {step === 1 ? t('register.create_account_title') : t('register.verify_title', { method: method === 'phone' ? t('register.method_phone') : t('register.method_email') })}
             </h2>
             <p style={{ fontSize:13, color:'#64748b', margin:0 }}>
-              {step === 1 ? "Join Tanzania's #1 marketplace" : `Code sent to ${identifier}`}
+              {step === 1 ? t('register.subtitle_create') : t('register.subtitle_code_sent', { identifier })}
             </p>
           </div>
 
@@ -133,9 +135,9 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
               {/* Full Name — required */}
               <div>
                 <label style={{ display:'block', fontSize:12, color:'#64748b', marginBottom:5, fontWeight:700 }}>
-                  👤 Full Name *
+                  {t('register.full_name_label')}
                 </label>
-                <input className="ri" placeholder="e.g. John Mwangi" type="text"
+                <input className="ri" placeholder={t('register.full_name_placeholder')} type="text"
                   value={name} onChange={e => setName(e.target.value)} />
               </div>
 
@@ -143,11 +145,11 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
               <div style={{ display:'flex', gap:4, backgroundColor:'#f1f5f9', borderRadius:10, padding:4 }}>
                 <button className="tab" onClick={() => { setMethod('phone'); setIdentifier(''); setError(''); }}
                   style={{ backgroundColor: method==='phone' ? '#2563eb' : 'transparent', color: method==='phone' ? '#fff' : '#64748b' }}>
-                  📱 Phone
+                  {t('register.tab_phone')}
                 </button>
                 <button className="tab" onClick={() => { setMethod('email'); setIdentifier(''); setError(''); }}
                   style={{ backgroundColor: method==='email' ? '#2563eb' : 'transparent', color: method==='email' ? '#fff' : '#64748b' }}>
-                  📧 Email
+                  {t('register.tab_email')}
                 </button>
               </div>
 
@@ -155,9 +157,9 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
               {method === 'phone' ? (
                 <div>
                   <label style={{ display:'block', fontSize:12, color:'#64748b', marginBottom:5, fontWeight:700 }}>
-                    📱 Phone Number * <span style={{ color:'#94a3b8', fontWeight:400 }}>(OTP sent here)</span>
+                    {t('register.phone_label')} <span style={{ color:'#94a3b8', fontWeight:400 }}>{t('register.otp_sent_here')}</span>
                   </label>
-                  <input className="ri" placeholder="0712345678 or 255712345678" type="tel"
+                  <input className="ri" placeholder={t('register.phone_placeholder')} type="tel"
                     value={identifier} onChange={e => handlePhoneChange(e.target.value)} />
                   {identifier.startsWith('255') && (
                     <div style={{ fontSize:11, color:'#16a34a', marginTop:4, fontWeight:700 }}>✅ +{identifier}</div>
@@ -166,28 +168,28 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
               ) : (
                 <div>
                   <label style={{ display:'block', fontSize:12, color:'#64748b', marginBottom:5, fontWeight:700 }}>
-                    📧 Email Address * <span style={{ color:'#94a3b8', fontWeight:400 }}>(OTP sent here)</span>
+                    {t('register.email_label')} <span style={{ color:'#94a3b8', fontWeight:400 }}>{t('register.otp_sent_here')}</span>
                   </label>
-                  <input className="ri" placeholder="you@example.com" type="email"
+                  <input className="ri" placeholder={t('register.email_placeholder')} type="email"
                     value={identifier} onChange={e => setIdentifier(e.target.value)} />
                 </div>
               )}
 
               {/* Password */}
               <div>
-                <label style={{ display:'block', fontSize:12, color:'#64748b', marginBottom:5, fontWeight:700 }}>Password *</label>
-                <input className="ri" placeholder="Min. 6 characters" type="password"
+                <label style={{ display:'block', fontSize:12, color:'#64748b', marginBottom:5, fontWeight:700 }}>{t('register.password_label')}</label>
+                <input className="ri" placeholder={t('register.password_placeholder')} type="password"
                   value={password} onChange={e => setPassword(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleRegister()} />
               </div>
 
               <button className="rb" onClick={handleRegister} disabled={loading}>
-                {loading ? '⏳ Creating...' : `${method === 'phone' ? '📱' : '📧'} Register & Get OTP`}
+                {loading ? t('register.creating') : t('register.register_button', { icon: method === 'phone' ? '📱' : '📧' })}
               </button>
 
               <div style={{ textAlign:'center', fontSize:13, color:'#64748b' }}>
-                Already have an account?{' '}
-                <span onClick={() => onNavigate('PublicLogin')} style={{ color:'#2563eb', fontWeight:700, cursor:'pointer' }}>Login</span>
+                {t('register.already_have_account')}{' '}
+                <span onClick={() => onNavigate('PublicLogin')} style={{ color:'#2563eb', fontWeight:700, cursor:'pointer' }}>{t('register.login_link')}</span>
               </div>
             </div>
           )}
@@ -198,7 +200,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
               <div style={{ textAlign:'center' }}>
                 <div style={{ fontSize:48, marginBottom:8 }}>{method === 'phone' ? '📱' : '📧'}</div>
                 <div style={{ backgroundColor:'#f0f9ff', borderRadius:12, padding:'10px 14px', border:'1px solid #bae6fd', fontSize:12, color:'#0369a1', fontWeight:600 }}>
-                  6-digit code sent via {method === 'phone' ? 'SMS' : 'Email'}. Check your {method === 'phone' ? 'messages' : 'inbox'}.
+                  {t('register.code_sent_via', { channel: method === 'phone' ? t('register.sms_channel') : t('register.email_channel'), location: method === 'phone' ? t('register.messages_location') : t('register.inbox_location') })}
                 </div>
               </div>
 
@@ -208,22 +210,22 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
                 maxLength={6} type="tel" />
 
               <button className="rb" onClick={handleVerify} disabled={otpLoading || otp.length !== 6}>
-                {otpLoading ? '⏳ Verifying...' : '✅ Verify & Continue'}
+                {otpLoading ? t('register.verifying') : t('register.verify_button')}
               </button>
 
               <div style={{ textAlign:'center' }}>
                 {resendTimer > 0
-                  ? <p style={{ fontSize:13, color:'#94a3b8', margin:0 }}>Resend in <strong style={{ color:'#2563eb' }}>{resendTimer}s</strong></p>
+                  ? <p style={{ fontSize:13, color:'#94a3b8', margin:0 }}>{t('register.resend_in')} <strong style={{ color:'#2563eb' }}>{t('register.resend_seconds', { seconds: resendTimer })}</strong></p>
                   : <button onClick={handleResend} disabled={resendLoading}
                       style={{ background:'none', border:'none', color:'#2563eb', fontWeight:700, cursor:'pointer', fontSize:13 }}>
-                      {resendLoading ? '⏳ Sending...' : '🔁 Resend OTP'}
+                      {resendLoading ? t('register.sending') : t('register.resend_otp')}
                     </button>
                 }
               </div>
 
               <button onClick={() => { setStep(1); setOtp(''); setError(''); }}
                 style={{ background:'none', border:'none', color:'#94a3b8', cursor:'pointer', fontSize:13 }}>
-                ← Change {method === 'phone' ? 'phone' : 'email'}
+                {t('register.change_button', { method: method === 'phone' ? t('register.method_phone') : t('register.method_email') })}
               </button>
             </div>
           )}

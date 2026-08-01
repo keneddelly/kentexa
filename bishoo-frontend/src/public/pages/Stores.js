@@ -7,6 +7,7 @@
  * row up top. Replaces the old plain marketplace grid.
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
 import api              from '../../api/api';
 
@@ -16,16 +17,16 @@ const GR = '#64748B';
 const WH = '#FFFFFF';
 const fmt = n => Number(n||0).toLocaleString();
 
-const CATEGORIES = [
-  { key: 'all',         label: 'All',         icon: '🏪' },
-  { key: 'electronics', label: 'Electronics', icon: '📱' },
-  { key: 'fashion',     label: 'Fashion',     icon: '👗' },
-  { key: 'food',        label: 'Food',        icon: '🍽️' },
-  { key: 'hardware',    label: 'Hardware',    icon: '🔧' },
-  { key: 'beauty',      label: 'Beauty',      icon: '💄' },
-  { key: 'furniture',   label: 'Furniture',   icon: '🛋️' },
-  { key: 'wholesale',   label: 'Wholesale',   icon: '📦' },
-  { key: 'services',    label: 'Services',    icon: '⚙️' },
+const getCategories = (t) => [
+  { key: 'all',         label: t('stores.cat_all'),         icon: '🏪' },
+  { key: 'electronics', label: t('stores.cat_electronics'), icon: '📱' },
+  { key: 'fashion',     label: t('stores.cat_fashion'),     icon: '👗' },
+  { key: 'food',        label: t('stores.cat_food'),        icon: '🍽️' },
+  { key: 'hardware',    label: t('stores.cat_hardware'),    icon: '🔧' },
+  { key: 'beauty',      label: t('stores.cat_beauty'),      icon: '💄' },
+  { key: 'furniture',   label: t('stores.cat_furniture'),   icon: '🛋️' },
+  { key: 'wholesale',   label: t('stores.cat_wholesale'),   icon: '📦' },
+  { key: 'services',    label: t('stores.cat_services'),    icon: '⚙️' },
 ];
 
 const REGIONS = [
@@ -36,6 +37,8 @@ const REGIONS = [
 
 // ── Store card (feed-style: cover, avatar overlap, inline Follow) ─────────────
 const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
+  const { t } = useTranslation();
+  const CATEGORIES = getCategories(t);
   const name     = seller.storeName || seller.businessName || 'Store';
   const initial  = name[0]?.toUpperCase() || '?';
   const rating   = Number(seller.rating || 0);
@@ -142,7 +145,7 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
           </div>
           {seller.completedOrders > 0 && (
             <div style={{ fontSize: 10, color: '#16A34A', fontWeight: 700 }}>
-              ✅ {fmt(seller.completedOrders)} sold
+              ✅ {fmt(seller.completedOrders)} {t('stores.sold_suffix')}
             </div>
           )}
         </div>
@@ -154,7 +157,7 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
             fontSize: 12, fontWeight: 800,
             backgroundColor: followed ? '#F1F5F9' : B,
             color: followed ? DK : WH, transition: 'all 0.15s' }}>
-          {followed ? '✓ Following' : '+ Follow'}
+          {followed ? t('stores.following_button') : t('stores.follow_button')}
         </button>
       </div>
     </div>
@@ -163,6 +166,8 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
+  const { t } = useTranslation();
+  const CATEGORIES = getCategories(t);
   const [sellers,  setSellers]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState('');
@@ -218,19 +223,19 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
             <polyline points="15,18 9,12 15,6"/>
           </svg>
         </button>
-        <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>🏪 Discover Businesses</div>
+        <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>{t('stores.page_title')}</div>
       </div>
 
       {/* Header banner */}
       <div style={{ background: 'linear-gradient(135deg,#1E1B4B,#1D4ED8,#7C3AED)',
         padding: '22px 16px 20px', color: WH }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)',
-          marginBottom: 4 }}>KENTEXA DIRECTORY</div>
+          marginBottom: 4 }}>{t('stores.directory_eyebrow')}</div>
         <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 4 }}>
-          🏪 Discover Businesses
+          {t('stores.page_title')}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>
-          {sellers.length} verified stores across Tanzania
+          {t('stores.verified_stores_count', { count: sellers.length })}
         </div>
       </div>
 
@@ -242,7 +247,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
           <span style={{ position: 'absolute', left: 14, top: '50%',
             transform: 'translateY(-50%)', fontSize: 16 }}>🔍</span>
           <input type="text"
-            placeholder="Search stores, products, or services..."
+            placeholder={t('stores.search_placeholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{ width: '100%', padding: '13px 14px 13px 42px', borderRadius: 14,
@@ -274,15 +279,15 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
               border: '1px solid #E2E8F0', fontSize: 12, outline: 'none',
               backgroundColor: WH, color: region === 'all' ? '#94A3B8' : DK }}>
             {REGIONS.map(r => (
-              <option key={r} value={r}>{r === 'All Regions' ? '📍 All Regions' : r}</option>
+              <option key={r} value={r}>{r === 'All Regions' ? `📍 ${t('stores.all_regions')}` : r}</option>
             ))}
           </select>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)}
             style={{ flexShrink: 0, fontSize: 12, padding: '9px 10px', borderRadius: 10,
               border: '1px solid #E2E8F0', outline: 'none', color: GR, backgroundColor: WH }}>
-            <option value="newest">Newest</option>
-            <option value="rating">Top Rated</option>
-            <option value="orders">Best Selling</option>
+            <option value="newest">{t('stores.sort_newest')}</option>
+            <option value="rating">{t('stores.sort_rating')}</option>
+            <option value="orders">{t('stores.sort_orders')}</option>
           </select>
         </div>
 
@@ -298,10 +303,10 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
           <div style={{ textAlign: 'center', padding: '60px 24px' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
             <div style={{ fontSize: 16, fontWeight: 800, color: DK, marginBottom: 8 }}>
-              No stores yet
+              {t('stores.no_stores_title')}
             </div>
             <div style={{ fontSize: 13, color: GR }}>
-              Be the first business to join KenteXa
+              {t('stores.no_stores_desc')}
             </div>
           </div>
         ) : (
@@ -310,7 +315,7 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
             {isDefaultView && featured.length > 0 && (
               <div style={{ marginBottom: 24 }}>
                 <div style={{ fontSize: 14, fontWeight: 900, color: DK, marginBottom: 12 }}>
-                  ⭐ Top Rated This Week
+                  {t('stores.top_rated_title')}
                 </div>
                 <div style={{ display: 'flex', gap: 12, overflowX: 'auto',
                   paddingBottom: 4, scrollbarWidth: 'none' }}>
@@ -325,23 +330,23 @@ const Stores = ({ onNavigate, isLoggedIn, userRole }) => {
 
             {/* Full grid */}
             <div style={{ fontSize: 13, fontWeight: 800, color: DK, marginBottom: 12 }}>
-              {isDefaultView ? 'All Businesses' : `${filtered.length} result${filtered.length !== 1 ? 's' : ''}`}
+              {isDefaultView ? t('stores.all_businesses') : t('stores.results_count', { count: filtered.length })}
             </div>
 
             {filtered.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60 }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: DK, marginBottom: 8 }}>
-                  No matches
+                  {t('stores.no_matches_title')}
                 </div>
                 <div style={{ fontSize: 13, color: GR, marginBottom: 20 }}>
-                  Try a different search or filter
+                  {t('stores.no_matches_desc')}
                 </div>
                 <button onClick={() => { setSearch(''); setCategory('all'); setRegion('all'); }}
                   style={{ backgroundColor: B, color: WH, border: 'none',
                     padding: '10px 22px', borderRadius: 10, cursor: 'pointer',
                     fontSize: 13, fontWeight: 700 }}>
-                  Show All Businesses
+                  {t('stores.show_all_button')}
                 </button>
               </div>
             ) : (

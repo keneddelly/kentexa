@@ -12,9 +12,8 @@
  * seller doesn't have them yet. Agent fills after reaching bus office/hub.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import Navbar from '../components/Navbar';
+import { useTranslation, Trans } from 'react-i18next';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
@@ -46,7 +45,11 @@ const SectionTitle = ({ icon, title, subtitle }) => (
   </div>
 );
 
+const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
+
 const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = null, currentUser }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [products, setProducts]       = useState([]);
   const [classifieds, setClassifieds] = useState([]);
   const [sellerCity, setSellerCity]   = useState('');
@@ -116,12 +119,19 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
       recipientPhone:  prefill.phone   || prev.recipientPhone,
       deliveryAddress: prefill.address || prev.deliveryAddress,
     }));
-    // Also pre-set destination location label if district/region available
-    if (prefill.district || prefill.region) {
+    // Pre-set the full destination location cascade — using the *Id fields
+    // (not just names) is what makes LocationPicker actually render this as
+    // already-selected instead of asking the seller to pick it again for a
+    // customer whose location we already captured (e.g. via SellerCustomers).
+    if (prefill.regionId || prefill.district || prefill.region) {
       setDestLocation(prev => ({
         ...prev,
-        districtName: prefill.district || prev.districtName,
-        regionName:   prefill.region   || prev.regionName,
+        regionId:     prefill.regionId   ?? prev.regionId,
+        regionName:   prefill.region     || prev.regionName,
+        districtId:   prefill.districtId ?? prev.districtId,
+        districtName: prefill.district   || prev.districtName,
+        wardId:       prefill.wardId     ?? prev.wardId,
+        wardName:     prefill.ward       || prev.wardName,
       }));
     }
   }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -186,6 +196,18 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     lookupRoute(city);
   };
 
+  // Drive the same city-change logic the LocationPicker itself would once we
+  // know both the prefilled customer destination AND the seller's own city
+  // (needed for the same-city/route lookup) — otherwise the destination
+  // looks pre-selected but the route/pricing info behind it was never
+  // computed, which just moves the "asks again" problem one step later.
+  useEffect(() => {
+    if (!prefill || !sellerCity || form.destinationCity) return;
+    const city = prefill.district || prefill.region;
+    if (city) handleCityChange(city);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill, sellerCity]);
+
   // eslint-disable-next-line no-unused-vars
   const lookupEstimate = async (dest, weight) => {
     const kg = parseFloat(weight) || 0;
@@ -241,15 +263,15 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     const d = new Date();
     d.setDate(d.getDate() + days);
     while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
-    return d.toLocaleDateString('sw-TZ', { weekday: 'long', day: 'numeric', month: 'long' });
+    return d.toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
   const validate = () => {
-    if (items.length === 0)            return 'Ongeza bidhaa angalau moja';
-    if (!form.recipientName.trim())    return 'Weka jina la mpokeaji';
-    if (!form.recipientPhone.trim())   return 'Weka simu ya mpokeaji';
-    if (!form.destinationCity)         return 'Chagua mji wa mwisho';
-    if (!form.deliveryAddress.trim())  return 'Weka anwani ya mpokeaji';
+    if (items.length === 0)            return t('seller_shipment.validate_add_item');
+    if (!form.recipientName.trim())    return t('seller_shipment.validate_recipient_name');
+    if (!form.recipientPhone.trim())   return t('seller_shipment.validate_recipient_phone');
+    if (!form.destinationCity)         return t('seller_shipment.validate_destination');
+    if (!form.deliveryAddress.trim())  return t('seller_shipment.validate_address');
     // Shipping validation — required for tracking to work
     if (isSameCity) {
       // boda/local — just need address (already validated above)
@@ -291,6 +313,12 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         recipientPhone:  form.recipientPhone.trim(),
         destinationCity: form.destinationCity,
         deliveryAddress: form.deliveryAddress.trim(),
+        regionId:        destLocation.regionId   || null,
+        regionName:      destLocation.regionName || null,
+        districtId:      destLocation.districtId   || null,
+        districtName:    destLocation.districtName || null,
+        wardId:          destLocation.wardId   || null,
+        wardName:        destLocation.wardName || null,
         originCity:      sellerCity || 'Dar es Salaam',
         transportMethod: isSameCity ? 'boda' : form.transportMethod,
         busCompany:         form.busCompany      || null,
@@ -303,12 +331,12 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
       });
       setResult(res.data);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kuunda agizo. Jaribu tena.');
+      setError(err?.response?.data?.message || t('seller_shipment.create_order_failed'));
     } finally { setLoading(false); }
   };
 
   const handlePayFee = async () => {
-    if (!feePhone.trim()) { setFeeError('Weka namba yako ya M-Pesa'); return; }
+    if (!feePhone.trim()) { setFeeError(t('seller_shipment.enter_mpesa_number')); return; }
     try {
       setPayingFee(true); setFeeError('');
       const res = await api.post('/payments/invoice/pay', {
@@ -328,11 +356,11 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
             setAvailableAgents(agRes.data || []);
           } catch { setAvailableAgents([]); }
           finally { setAgentsLoading(false); }
-        } catch { setFeeError('Malipo yameshindwa. Jaribu tena.'); }
+        } catch { setFeeError(t('seller_shipment.payment_failed_retry')); }
         setPayingFee(false);
       }, 3000);
     } catch (err) {
-      setFeeError(err?.response?.data?.message || 'Imeshindwa');
+      setFeeError(err?.response?.data?.message || t('seller_shipment.failed'));
       setPayingFee(false);
     }
   };
@@ -352,32 +380,31 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
   // ── Success screen ────────────────────────────────────────────────────────
   if (result) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SellerShipment" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title="Tuma Bidhaa" />
-      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
+      <BackBar onBack={() => onNavigate('back')} title={t('seller_shipment.title')} />
+      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 90 }}>
         {!feePaid ? (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <div style={{ fontSize: 44, marginBottom: 8 }}>📱</div>
-              <h3 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>Lipa Ada ya Ufuatiliaji</h3>
+              <h3 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>{t('seller_shipment.pay_fee_title')}</h3>
               <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-                Lipa TZS 1,000 kuamsha ufuatiliaji na kutuma SMS kwa {form.recipientName}
+                {t('seller_shipment.pay_fee_desc', { name: form.recipientName })}
               </p>
             </div>
             <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 8 }}>MPOKEAJI ATAPATA:</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 8 }}>{t('seller_shipment.recipient_gets')}</div>
               {[
-                `📱 SMS: "Bidhaa yako ipo njiani kutoka ${sellerCity}"`,
-                `🔗 Link ya kufuatilia: kentexa.com/?track=${result.trackingNumber}`,
-                `📅 Inatarajiwa: ${getExpectedArrival() || 'Leo/Kesho'}`,
-                `🔔 SMS kila hatua — Hub, Njiani, Imefika`,
+                t('seller_shipment.sms_line', { city: sellerCity }),
+                t('seller_shipment.track_link_line', { trackingNumber: result.trackingNumber }),
+                t('seller_shipment.expected_line', { date: getExpectedArrival() || t('seller_shipment.today_tomorrow') }),
+                t('seller_shipment.updates_line'),
               ].map(item => <div key={item} style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>{item}</div>)}
             </div>
             <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '12px 14px', marginBottom: 14, textAlign: 'center' }}>
               <div style={{ fontSize: 22, fontWeight: 900, color: '#92400e' }}>TZS 1,000</div>
-              <div style={{ fontSize: 11, color: '#92400e' }}>Ada ya mfumo wa ufuatiliaji wa KenteXa</div>
+              <div style={{ fontSize: 11, color: '#92400e' }}>{t('seller_shipment.tracking_fee_note')}</div>
             </div>
-            <Field label="Namba ya M-Pesa (255XXXXXXXXX)">
+            <Field label={t('seller_shipment.mpesa_number')}>
               <input type="tel" placeholder="255712345678"
                 value={feePhone} onChange={e => setFeePhone(e.target.value)} style={inputStyle} />
             </Field>
@@ -386,20 +413,20 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               style={{ width: '100%', background: payingFee ? '#94a3b8' : 'linear-gradient(135deg,#16a34a,#15803d)',
                 color: '#fff', border: 'none', padding: 14, borderRadius: 12,
                 cursor: payingFee ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 900 }}>
-              {payingFee ? '⏳ Inashughulikia M-Pesa...' : '💳 Lipa TZS 1,000 — Amsha Tracking'}
+              {payingFee ? `⏳ ${t('seller_shipment.processing_mpesa')}` : `💳 ${t('seller_shipment.pay_activate_tracking')}`}
             </button>
           </div>
         ) : (
           <>
             <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', borderRadius: 20, padding: 24, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
               <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
-              <h2 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 4px' }}>Agizo Limesajiliwa!</h2>
+              <h2 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 4px' }}>{t('seller_shipment.order_registered')}</h2>
               <p style={{ fontSize: 13, opacity: 0.85, margin: '0 0 12px' }}>
-                SMS imetumwa kwa {form.recipientName} — {form.recipientPhone}
+                {t('seller_shipment.sms_sent_to', { name: form.recipientName, phone: form.recipientPhone })}
               </p>
             </div>
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>NAMBA YA KUFUATILIA</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>{t('seller_shipment.tracking_number_label')}</div>
               <div style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 2 }}>
                 {result.trackingNumber}
               </div>
@@ -407,17 +434,17 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
             </div>
             <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
               {[
-                ['Bidhaa', getDescription()],
-                  ['Idadi ya Vitu', `${items.length} ${items.length === 1 ? 'bidhaa' : 'bidhaa'}`],
-                  ['Thamani', getTotalValue() > 0 ? `TZS ${getTotalValue().toLocaleString()}` : '—'],
-                ['Kutoka', sellerCity],
-                ['Kwenda', form.destinationCity],
-                ...(result.transitCity ? [['Via', result.transitCity]] : []),
-                ['Inatarajiwa', getExpectedArrival() || (isSameCity ? 'Leo/Kesho' : '—')],
-                ['Usafirishaji', isSameCity ? 'Boda/Agent wa mtaa' :
-                  form.transportMethod === 'bus' ? `🚌 ${form.busCompany} — Tiketi: ${form.busTicketNumber}` :
-                  form.transportMethod === 'courier' ? `📦 ${form.courierName} — Ref: ${form.courierTrackingRef}` :
-                  '🏢 KenteXa Super Agent'],
+                [t('seller_shipment.item_label'), getDescription()],
+                  [t('seller_shipment.item_count_label'), `${items.length} ${t('seller_shipment.items_unit')}`],
+                  [t('seller_shipment.value_label'), getTotalValue() > 0 ? `TZS ${getTotalValue().toLocaleString()}` : '—'],
+                [t('seller_shipment.from_label'), sellerCity],
+                [t('seller_shipment.to_label'), form.destinationCity],
+                ...(result.transitCity ? [[t('seller_shipment.via_label'), result.transitCity]] : []),
+                [t('seller_shipment.expected_label'), getExpectedArrival() || (isSameCity ? t('seller_shipment.today_tomorrow') : '—')],
+                [t('seller_shipment.shipping_label'), isSameCity ? t('seller_shipment.boda_agent_local') :
+                  form.transportMethod === 'bus' ? `🚌 ${form.busCompany} — ${t('seller_shipment.ticket_label')}: ${form.busTicketNumber}` :
+                  form.transportMethod === 'courier' ? `📦 ${form.courierName} — ${t('seller_shipment.ref_label')}: ${form.courierTrackingRef}` :
+                  `🏢 ${t('seller_shipment.kentexa_super_agent')}`],
               ].map(([l, v]) => (
                 <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f8fafc', fontSize: 13 }}>
                   <span style={{ color: '#64748b' }}>{l}</span>
@@ -428,20 +455,20 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
             {/* Available agents — shown after payment */}
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>
-                🏍️ Chagua Dereva wa Kuchukua Bidhaa
+                🏍️ {t('seller_shipment.choose_driver')}
               </div>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-                {isSameCity ? 'Dereva atakuja kwako na kukufikishia mteja moja kwa moja'
-                  : `Atakuchukua na kulipeleka kwenye Super Agent hub ya ${sellerCity}`}
+                {isSameCity ? t('seller_shipment.driver_comes_to_you')
+                  : t('seller_shipment.driver_takes_to_hub', { city: sellerCity })}
               </div>
 
               {agentsLoading ? (
-                <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳ Inatafuta madereva...</div>
+                <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳ {t('seller_shipment.finding_drivers')}</div>
               ) : availableAgents.length === 0 ? (
                 <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: 14, fontSize: 13, color: '#c2410c' }}>
-                  😔 Hakuna dereva mtandaoni sasa hivi katika {sellerCity}.
+                  😔 {t('seller_shipment.no_drivers_online', { city: sellerCity })}
                   <div style={{ fontSize: 12, color: '#92400e', marginTop: 6 }}>
-                    Wasiliana na Super Agent hub moja kwa moja, au jaribu tena baadaye.
+                    {t('seller_shipment.contact_hub_directly')}
                   </div>
                 </div>
               ) : (
@@ -460,10 +487,10 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                               {selectedAgent?.id === agent.id && <span>✅</span>}
                             </div>
                             <div style={{ fontSize: 11, color: '#64748b' }}>
-                              {agent.agentTypeLabel} · ⭐ {Number(agent.rating || 5).toFixed(1)} · {agent.totalDeliveries || 0} zimefishwa
+                              {agent.agentTypeLabel} · ⭐ {Number(agent.rating || 5).toFixed(1)} · {agent.totalDeliveries || 0} {t('seller_shipment.deliveries_done')}
                             </div>
                             <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                              ⏱️ {agent.deliveryTime} · Hadi {agent.maxWeightKg}kg
+                              ⏱️ {agent.deliveryTime} · {t('seller_shipment.up_to')} {agent.maxWeightKg}kg
                             </div>
                             {agent.vehicleDescription && (
                               <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>🚗 {agent.vehicleDescription}</div>
@@ -473,7 +500,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                             <div style={{ fontSize: 18, fontWeight: 900, color: '#1d4ed8' }}>
                               TZS {Number(agent.deliveryFee).toLocaleString()}
                             </div>
-                            <div style={{ fontSize: 10, color: '#94a3b8' }}>ada ya kuchukua</div>
+                            <div style={{ fontSize: 10, color: '#94a3b8' }}>{t('seller_shipment.pickup_fee')}</div>
                           </div>
                         </div>
                       </div>
@@ -484,11 +511,11 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                       style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 12,
                         cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
-                      📞 Wasiliana na {selectedAgent.fullName} — TZS {Number(selectedAgent.deliveryFee).toLocaleString()}
+                      📞 {t('seller_shipment.contact_driver_button', { name: selectedAgent.fullName, fee: Number(selectedAgent.deliveryFee).toLocaleString() })}
                     </button>
                   ) : jobPosted ? (
                     <div style={{ backgroundColor: '#dcfce7', borderRadius: 10, padding: 14, fontSize: 13, color: '#15803d', fontWeight: 700, textAlign: 'center' }}>
-                      ✅ Piga simu {selectedAgent?.fullName}: <a href={`tel:${selectedAgent?.phone}`} style={{ color: '#1d4ed8' }}>{selectedAgent?.phone}</a>
+                      ✅ {t('seller_shipment.call_driver', { name: selectedAgent?.fullName })} <a href={`tel:${selectedAgent?.phone}`} style={{ color: '#1d4ed8' }}>{selectedAgent?.phone}</a>
                     </div>
                   ) : null}
                 </>
@@ -497,17 +524,16 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={handleNew}
                 style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-                📦 Tuma Kingine
+                📦 {t('seller_shipment.ship_another')}
               </button>
               <button onClick={() => onNavigate('SellerDashboard')}
                 style={{ flex: 1, background: '#fff', color: '#475569', border: '2px solid #e2e8f0', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-                🏪 Dashibodi
+                🏪 {t('seller_shipment.dashboard')}
               </button>
             </div>
           </>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -516,15 +542,13 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SellerShipment" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title="📦 Tuma Bidhaa" />
+      <BackBar onBack={() => onNavigate('back')} title={`📦 ${t('seller_shipment.title')}`} />
 
-      <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
+      <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 90 }}>
 
         {/* Mission reminder */}
         <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1d4ed8' }}>
-          🎯 KenteXa inafuatilia kila hatua — mteja wako ataona bidhaa yake iko wapi wakati wote.
-          Maelezo ya usafirishaji yanahitajika ili ufuatiliaji ufanye kazi vizuri.
+          {t('seller_shipment.mission_reminder')}
         </div>
 
         {error && (
@@ -537,8 +561,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
           {/* ── STEP 1: BIDHAA (Multi-item cart) ─────────────────────────────── */}
-          <SectionTitle icon="1️⃣" title="Bidhaa Unazotuma"
-            subtitle="Ongeza bidhaa moja au nyingi — zote zitafuatiliwa pamoja" />
+          <SectionTitle icon="1️⃣" title={t('seller_shipment.step1_title')}
+            subtitle={t('seller_shipment.step1_subtitle')} />
 
           {/* Cart — items added so far */}
           {items.length > 0 && (
@@ -575,7 +599,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               <div style={{ display: 'flex', justifyContent: 'space-between',
                 marginTop: 10, paddingTop: 10, borderTop: '2px solid #e2e8f0' }}>
                 <div style={{ fontSize: 12, color: '#64748b' }}>
-                  {items.length} bidhaa · {items.reduce((s,i) => s + i.qty, 0)} vipande
+                  {t('seller_shipment.items_count_summary', { count: items.length, pieces: items.reduce((s,i) => s + i.qty, 0) })}
                   {getTotalWeight() > 0 && ` · ${getTotalWeight().toFixed(1)}kg`}
                 </div>
                 {getTotalValue() > 0 && (
@@ -593,21 +617,21 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               style={{ width: '100%', padding: '10px 14px', borderRadius: 10,
                 border: '2px dashed #1d4ed8', backgroundColor: '#eff6ff',
                 color: '#1d4ed8', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-              + Ongeza Bidhaa Nyingine
+              + {t('seller_shipment.add_another_item')}
             </button>
           ) : (
             <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14,
               border: '2px solid #1d4ed8' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 12 }}>
-                {items.length === 0 ? '📦 Ongeza Bidhaa ya Kwanza' : '+ Ongeza Bidhaa Nyingine'}
+                {items.length === 0 ? t('seller_shipment.add_first_item') : `+ ${t('seller_shipment.add_another_item')}`}
               </div>
 
               {/* Source mode tabs */}
               <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
                 {[
-                  { key: 'product',    label: '🛒 Dukani' },
-                  { key: 'classified', label: '📋 Matangazo' },
-                  { key: 'text',       label: '✏️ Eleza' },
+                  { key: 'product',    label: t('seller_shipment.mode_store') },
+                  { key: 'classified', label: t('seller_shipment.mode_listings') },
+                  { key: 'text',       label: t('seller_shipment.mode_describe') },
                 ].map(m => (
                   <button key={m.key} onClick={() => { setAddMode(m.key); setSelectedProduct(null); setSelectedClassified(null); }}
                     style={{ flex: 1, padding: '7px 4px', borderRadius: 7, cursor: 'pointer',
@@ -624,10 +648,10 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               {addMode === 'product' && (
                 products.length === 0 ? (
                   <div style={{ fontSize: 12, color: '#64748b', padding: '8px 0' }}>
-                    Huna bidhaa dukani.{' '}
+                    {t('seller_shipment.no_products_in_store')}{' '}
                     <button onClick={() => setAddMode('text')}
                       style={{ color: '#1d4ed8', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
-                      Eleza kwa maneno →
+                      {t('seller_shipment.describe_in_words')}
                     </button>
                   </div>
                 ) : (
@@ -680,7 +704,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                     </div>
                   )}
                   {!selectedClassified && (
-                    <input type="text" placeholder="Jina la bidhaa mpya..."
+                    <input type="text" placeholder={t('seller_shipment.new_listing_title_placeholder')}
                       value={newClassifiedTitle}
                       onChange={e => setNewClassifiedTitle(e.target.value)}
                       style={{ width: '100%', padding: '9px 12px', borderRadius: 8,
@@ -692,7 +716,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
 
               {/* Text mode */}
               {addMode === 'text' && (
-                <input type="text" placeholder="e.g. Nguo za watoto 3, rangi nyekundu"
+                <input type="text" placeholder={t('seller_shipment.describe_item_placeholder')}
                   value={addText} onChange={e => setAddText(e.target.value)}
                   style={{ width: '100%', padding: '9px 12px', borderRadius: 8,
                     border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box',
@@ -702,21 +726,21 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               {/* Qty, price, weight row */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 3 }}>IDADI</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 3 }}>{t('seller_shipment.qty_label')}</div>
                   <input type="number" min="1" value={addQty}
                     onChange={e => setAddQty(Number(e.target.value))}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 7,
                       border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 3 }}>BEI (TZS)</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 3 }}>{t('seller_shipment.price_tzs_label')}</div>
                   <input type="number" placeholder="0" value={addPrice}
                     onChange={e => setAddPrice(e.target.value)}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 7,
                       border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 3 }}>UZITO (kg)</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 3 }}>{t('seller_shipment.weight_kg_label')}</div>
                   <input type="number" placeholder="0" value={addWeight}
                     onChange={e => setAddWeight(e.target.value)}
                     style={{ width: '100%', padding: '8px 10px', borderRadius: 7,
@@ -751,14 +775,14 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                   style={{ flex: 2, backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
                     padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
                     fontSize: 13, fontWeight: 800 }}>
-                  ✅ Ongeza kwenye Kifurushi
+                  {t('seller_shipment.add_to_cart_button')}
                 </button>
                 {items.length > 0 && (
                   <button onClick={() => setShowAddItem(false)}
                     style={{ flex: 1, backgroundColor: '#fff', color: '#64748b',
                       border: '1px solid #e2e8f0', padding: '10px 14px',
                       borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>
-                    Imaliza
+                    {t('seller_shipment.done_button')}
                   </button>
                 )}
               </div>
@@ -767,20 +791,20 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
 
 
           {/* ── STEP 2: BUYER ─────────────────────────────────────────────── */}
-          <SectionTitle icon="2️⃣" title="Mpokeaji"
-            subtitle="Mteja wako — atatumwa SMS na link ya kufuatilia mara moja" />
+          <SectionTitle icon="2️⃣" title={t('seller_shipment.step2_title')}
+            subtitle={t('seller_shipment.step2_subtitle')} />
 
-          <Field label="Jina la Mpokeaji" required>
-            <input type="text" placeholder="e.g. Amina Hassan"
+          <Field label={t('seller_shipment.recipient_name_label')} required>
+            <input type="text" placeholder={t('seller_shipment.recipient_name_placeholder')}
               value={form.recipientName} onChange={e => set('recipientName', e.target.value)} style={inputStyle} />
           </Field>
-          <Field label="Simu ya Mpokeaji" required hint="Atatumwa SMS: 'Bidhaa yako ipo njiani — fuatilia hapa'">
+          <Field label={t('seller_shipment.recipient_phone_label')} required hint={t('seller_shipment.recipient_phone_hint')}>
             <input type="tel" placeholder="0712345678"
               value={form.recipientPhone} onChange={e => set('recipientPhone', e.target.value)} style={inputStyle} />
           </Field>
-          <Field label="Mji wa Mwisho" required>
+          <Field label={t('seller_shipment.destination_city_label')} required>
             <LocationPicker
-              label="Mji / Kata ya Mpokeaji *"
+              label={t('seller_shipment.location_picker_label')}
               value={destLocation}
               onChange={loc => {
                 setDestLocation(loc);
@@ -800,7 +824,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
             {/* Live price estimate */}
             {priceLoading && (
               <div style={{ fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>
-                ⏳ Inahesabu bei...
+                {t('seller_shipment.calculating_price')}
               </div>
             )}
             {priceEstimate && !priceLoading && (
@@ -812,7 +836,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                     <div style={{ fontSize: 11, fontWeight: 700,
                       color: priceEstimate.confidence === 'exact' ? '#15803d' : '#92400e',
                       marginBottom: 2 }}>
-                      {priceEstimate.confidence === 'exact' ? '✅ Bei Halisi' : '📊 Makisio ya Bei'}
+                      {priceEstimate.confidence === 'exact' ? `✅ ${t('seller_shipment.exact_price')}` : `📊 ${t('seller_shipment.price_estimate')}`}
                     </div>
                     <div style={{ fontSize: 11, color: '#64748b' }}>
                       {priceEstimate.displayNote}
@@ -830,7 +854,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                       {priceEstimate.displayPrice}
                     </div>
                     <div style={{ fontSize: 11, color: '#64748b' }}>
-                      Siku {priceEstimate.estimatedDays}
+                      {t('seller_shipment.days_label')} {priceEstimate.estimatedDays}
                       {priceEstimate.perKgFee > 0 &&
                         ` · +TZS ${Number(priceEstimate.perKgFee).toLocaleString()}/kg`}
                     </div>
@@ -839,8 +863,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                 {priceEstimate.districtFee > 0 && (
                   <div style={{ fontSize: 11, color: '#92400e', marginTop: 6,
                     paddingTop: 6, borderTop: '1px solid #fed7aa' }}>
-                    Bei ya msingi: TZS {Number(priceEstimate.basePrice).toLocaleString()} +
-                    ada ya wilaya: TZS {Number(priceEstimate.districtFee).toLocaleString()}
+                    {t('seller_shipment.base_price_line', { base: Number(priceEstimate.basePrice).toLocaleString(), district: Number(priceEstimate.districtFee).toLocaleString() })}
                   </div>
                 )}
               </div>
@@ -853,61 +876,61 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               {isSameCity ? (
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '12px 14px', border: '1px solid #86efac' }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#15803d', marginBottom: 4 }}>
-                    🏍️ Uwasilishaji wa Ndani — {form.destinationCity}
+                    🏍️ {t('seller_shipment.local_delivery_title', { city: form.destinationCity })}
                   </div>
                   <div style={{ fontSize: 12, color: '#475569' }}>
-                    Boda au wakala wa mtaa · Kawaida masaa 1-4 kulingana na dereva · Mpokeaji ataona tracking mara moja
+                    {t('seller_shipment.local_delivery_desc')}
                   </div>
                 </div>
               ) : routeLoading ? (
-                <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#94a3b8' }}>⏳ Inatafuta njia...</div>
+                <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#94a3b8' }}>{t('seller_shipment.finding_route')}</div>
               ) : routeInfo ? (
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '12px 14px', border: '1px solid #86efac' }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: '#15803d', marginBottom: 6 }}>
-                    📍 {sellerCity} → {form.destinationCity}
+                    {t('seller_shipment.route_summary', { from: sellerCity, to: form.destinationCity })}
                   </div>
                   {routeInfo.transitCity && (
                     <div style={{ backgroundColor: '#fef9c3', borderRadius: 6, padding: '4px 10px', marginBottom: 6, fontSize: 11, color: '#92400e' }}>
-                      🔄 Via <strong>{routeInfo.transitCity}</strong>
-                      {routeInfo.leg1Days && routeInfo.leg2Days && ` (siku ${routeInfo.leg1Days} + ${routeInfo.leg2Days})`}
+                      🔄 {t('seller_shipment.via_label')} <strong>{routeInfo.transitCity}</strong>
+                      {routeInfo.leg1Days && routeInfo.leg2Days && ` ${t('seller_shipment.leg_days', { leg1: routeInfo.leg1Days, leg2: routeInfo.leg2Days })}`}
                     </div>
                   )}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px' }}>
-                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>MUDA WA SAFARI</div>
-                      <div style={{ fontSize: 16, fontWeight: 900, color: '#15803d' }}>Siku {routeInfo.estimatedDays}</div>
+                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>{t('seller_shipment.travel_time')}</div>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: '#15803d' }}>{t('seller_shipment.days_label')} {routeInfo.estimatedDays}</div>
                     </div>
                     <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px' }}>
-                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>INATARAJIWA KUFIKA</div>
+                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>{t('seller_shipment.expected_arrival')}</div>
                       <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8' }}>{getExpectedArrival() || '—'}</div>
                     </div>
                   </div>
                 </div>
               ) : (
                 <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#c2410c' }}>
-                  ⚠️ Hakuna njia iliyosajiliwa kwa {form.destinationCity} bado. Unaweza bado kutuma — weka maelezo ya usafirishaji hapa chini.
+                  {t('seller_shipment.no_route_registered', { city: form.destinationCity })}
                 </div>
               )}
             </div>
           )}
 
-          <Field label="Anwani ya Uwasilishaji" required hint="Mtaa, alama muhimu — wakala atatumia hii kufika kwa mpokeaji">
-            <textarea rows={2} placeholder="e.g. Karibu na kanisa kuu, nyumba ya paa la bati nyekundu, Mtaa wa Geita"
+          <Field label={t('seller_shipment.delivery_address_label')} required hint={t('seller_shipment.delivery_address_hint')}>
+            <textarea rows={2} placeholder={t('seller_shipment.delivery_address_placeholder')}
               value={form.deliveryAddress} onChange={e => set('deliveryAddress', e.target.value)}
               style={{ ...inputStyle, resize: 'vertical' }} />
           </Field>
 
           {/* Weight */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 4 }}>
-            <Field label="Uzito (kg)">
+            <Field label={t('seller_shipment.weight_kg_field')}>
               <input type="number" min="0.1" step="0.1" placeholder="e.g. 1.5"
                 value={form.weightKg} onChange={e => set('weightKg', e.target.value)} style={inputStyle} />
             </Field>
-            <Field label="Ukubwa">
+            <Field label={t('seller_shipment.size_label')}>
               <select value={form.parcelSize} onChange={e => set('parcelSize', e.target.value)} style={inputStyle}>
-                <option value="small">Ndogo (hadi 2kg)</option>
-                <option value="medium">Wastani (2–10kg)</option>
-                <option value="large">Kubwa (10kg+)</option>
+                <option value="small">{t('seller_shipment.size_small')}</option>
+                <option value="medium">{t('seller_shipment.size_medium')}</option>
+                <option value="large">{t('seller_shipment.size_large')}</option>
               </select>
             </Field>
           </div>
@@ -915,18 +938,18 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
           {/* ── STEP 3: SHIPPING — REQUIRED ───────────────────────────────── */}
           {form.destinationCity && (
             <>
-              <SectionTitle icon="3️⃣" title="Jinsi Unavyotuma"
-                subtitle="Hii INAHITAJIKA — bila maelezo ya usafirishaji, mpokeaji hawezi kujua bidhaa yake iko wapi" />
+              <SectionTitle icon="3️⃣" title={t('seller_shipment.step3_title')}
+                subtitle={t('seller_shipment.step3_subtitle')} />
 
               {isSameCity ? (
                 /* Same city — boda */
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: '14px 16px', marginBottom: 14, border: '2px solid #86efac' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#15803d', marginBottom: 6 }}>🏍️ Boda / Wakala wa Mtaa</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#15803d', marginBottom: 6 }}>{t('seller_shipment.boda_local_agent_title')}</div>
                   <div style={{ fontSize: 12, color: '#475569', marginBottom: 10 }}>
-                    Baada ya kulipa, mawakala wa KenteXa katika {form.destinationCity} wataona agizo hili na mmoja atachukua kazi ya kuwasilisha kwa mpokeaji.
+                    {t('seller_shipment.boda_local_agent_desc', { city: form.destinationCity })}
                   </div>
-                  <Field label="Maelezo ya Ziada (si lazima)" hint="e.g. Mpokeaji yuko nyumbani baada ya 2pm">
-                    <input type="text" placeholder="e.g. Piga simu kabla ya kufika..."
+                  <Field label={t('seller_shipment.extra_notes_optional')} hint={t('seller_shipment.extra_notes_hint')}>
+                    <input type="text" placeholder={t('seller_shipment.extra_notes_placeholder')}
                       value={form.bodaNote} onChange={e => set('bodaNote', e.target.value)} style={inputStyle} />
                   </Field>
                 </div>
@@ -935,9 +958,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                 <>
                   <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                     {[
-                      { value: 'super_agent', icon: '🏢', label: 'Super Agent', desc: 'Peleka hub karibu nawe' },
-                      { value: 'bus',         icon: '🚌', label: 'Basi',        desc: 'Umeweka kwenye basi' },
-                      { value: 'courier',     icon: '📦', label: 'Courier',     desc: 'DHL, EMS, G4S n.k.' },
+                      { value: 'super_agent', icon: '🏢', label: t('seller_shipment.transport_super_agent'), desc: t('seller_shipment.transport_super_agent_desc') },
+                      { value: 'bus',         icon: '🚌', label: t('seller_shipment.transport_bus'),        desc: t('seller_shipment.transport_bus_desc') },
+                      { value: 'courier',     icon: '📦', label: t('seller_shipment.transport_courier'),     desc: t('seller_shipment.transport_courier_desc') },
                     ].map(m => (
                       <button key={m.value} onClick={() => set('transportMethod', m.value)}
                         style={{ flex: 1, padding: '10px 6px', borderRadius: 10, cursor: 'pointer',
@@ -955,13 +978,14 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                   {/* Super Agent details */}
                   {transport === 'super_agent' && (
                     <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '14px 16px', marginBottom: 14, border: '2px solid #bfdbfe' }}>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 6 }}>🏢 KenteXa Super Agent Network</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 6 }}>{t('seller_shipment.super_agent_network_title')}</div>
                       <div style={{ fontSize: 12, color: '#475569', marginBottom: 10 }}>
-                        Peleka bidhaa yako kwenye <strong>Super Agent hub ya {sellerCity}</strong>.
-                        Watashughulikia safari yote hadi {form.destinationCity} na mawakala wa huko watawasilisha kwa {form.recipientName}.
+                        <Trans i18nKey="seller_shipment.super_agent_network_desc"
+                          values={{ sellerCity, destCity: form.destinationCity, recipient: form.recipientName }}
+                          components={{ strong: <strong /> }} />
                       </div>
                       <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b' }}>
-                        📍 Hii ndiyo njia rahisi zaidi — KenteXa inashughulikia kila kitu na mpokeaji ataona kila hatua.
+                        {t('seller_shipment.super_agent_network_note')}
                       </div>
                     </div>
                   )}
@@ -969,10 +993,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                   {/* Bus — agent fills ticket after pickup */}
                   {transport === 'bus' && (
                     <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: '12px 14px', marginBottom: 14, border: '1px solid #fed7aa' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#c2410c', marginBottom: 4 }}>🚌 Via Basi</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#c2410c', marginBottom: 4 }}>{t('seller_shipment.via_bus_title')}</div>
                       <div style={{ fontSize: 12, color: '#92400e' }}>
-                        Dereva atakayechukua bidhaa yako ndiye atakayeweka tiketi ya basi na maelezo yote kwenye KenteXa
-                        baada ya kufika ofisini. Wewe huhitaji kujua tiketi sasa hivi.
+                        {t('seller_shipment.via_bus_desc')}
                       </div>
                     </div>
                   )}
@@ -980,10 +1003,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                   {/* Courier — agent fills ref after handover */}
                   {transport === 'courier' && (
                     <div style={{ backgroundColor: '#fdf4ff', borderRadius: 10, padding: '12px 14px', marginBottom: 14, border: '1px solid #e9d5ff' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', marginBottom: 4 }}>📦 Via Courier</div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#7c3aed', marginBottom: 4 }}>{t('seller_shipment.via_courier_title')}</div>
                       <div style={{ fontSize: 12, color: '#6b21a8' }}>
-                        Dereva atakayepeleka bidhaa kwa courier ndiye atakayeweka namba ya kufuatilia baada ya kukabidhi.
-                        Mpokeaji wako ataona taarifa mara tu inapowekwa.
+                        {t('seller_shipment.via_courier_desc')}
                       </div>
                     </div>
                   )}
@@ -993,8 +1015,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
           )}
 
           {/* Notes */}
-          <Field label="Maelezo Zaidi (si lazima)">
-            <input type="text" placeholder="e.g. Vitu laini — shughulikia kwa uangalifu"
+          <Field label={t('seller_shipment.extra_notes_label')}>
+            <input type="text" placeholder={t('seller_shipment.extra_notes_placeholder2')}
               value={form.notes} onChange={e => set('notes', e.target.value)} style={inputStyle} />
           </Field>
 
@@ -1007,17 +1029,16 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               cursor: loading || !form.destinationCity ? 'not-allowed' : 'pointer',
               fontSize: 15, fontWeight: 900, marginTop: 8,
               boxShadow: form.destinationCity ? '0 4px 12px rgba(29,78,216,0.3)' : 'none' }}>
-            {loading ? '⏳ Inasajili...' : '📦 Sajili Agizo → Lipa TZS 1,000'}
+            {loading ? `⏳ ${t('seller_shipment.registering')}` : t('seller_shipment.register_pay')}
           </button>
 
           {!form.destinationCity && (
             <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 8 }}>
-              Chagua mji wa mwisho kwanza
+              {t('seller_shipment.choose_destination_first')}
             </div>
           )}
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

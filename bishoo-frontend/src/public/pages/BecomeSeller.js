@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     businessName: '',
     businessDescription: '',
@@ -16,7 +18,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   const handleSubmit = async () => {
     if (!form.businessName) {
-      setError('Business name is required');
+      setError(t('become_seller.business_name_required'));
       return;
     }
     if (!isLoggedIn) {
@@ -26,9 +28,9 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     try {
       setLoading(true);
       await api.post('/seller/apply', form);
-      setMessage('Application submitted! We will review and approve your account.');
+      setMessage(t('become_seller.apply_success'));
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to submit application');
+      setError(err?.response?.data?.message || t('become_seller.apply_failed'));
     } finally {
       setLoading(false);
     }
@@ -45,10 +47,10 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         textAlign: 'center',
       }}>
         <h1 style={{ fontSize: '42px', fontWeight: '900', color: '#fff', margin: '0 0 12px' }}>
-          🏪 Become a Seller
+          {t('become_seller.hero_title')}
         </h1>
         <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.85)', marginBottom: '0' }}>
-          Join thousands of sellers on Kentexa Tanzania
+          {t('become_seller.hero_desc')}
         </p>
       </div>
 
@@ -57,10 +59,10 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {/* Benefits */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '48px' }}>
           {[
-            { icon: '📦', title: 'List Products', desc: 'Add unlimited products to the Kentexa store', color: '#667eea' },
-            { icon: '📋', title: 'Post Classifieds', desc: 'Reach buyers across Tanzania', color: '#f093fb' },
-            { icon: '💰', title: 'Earn Revenue', desc: 'Get paid securely via mobile money', color: '#43e97b' },
-            { icon: '📊', title: 'Track Sales', desc: 'Monitor orders and revenue in real-time', color: '#f7971e' },
+            { icon: '📦', title: t('become_seller.benefit_list_title'), desc: t('become_seller.benefit_list_desc'), color: '#667eea' },
+            { icon: '📋', title: t('become_seller.benefit_classifieds_title'), desc: t('become_seller.benefit_classifieds_desc'), color: '#f093fb' },
+            { icon: '💰', title: t('become_seller.benefit_earn_title'), desc: t('become_seller.benefit_earn_desc'), color: '#43e97b' },
+            { icon: '📊', title: t('become_seller.benefit_track_title'), desc: t('become_seller.benefit_track_desc'), color: '#f7971e' },
           ].map(benefit => (
             <div key={benefit.title} style={{
               backgroundColor: '#fff',
@@ -86,7 +88,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
           <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
             <h2 style={{ fontSize: '22px', fontWeight: '800', color: '#1e293b', margin: '0 0 24px' }}>
-              📝 Apply Now
+              {t('become_seller.apply_title')}
             </h2>
 
             {message && (
@@ -101,9 +103,9 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             )}
 
             {[
-              { label: 'Business Name *', key: 'businessName', placeholder: 'e.g. Dar Tech Solutions', type: 'text' },
-              { label: 'Phone Number', key: 'phone', placeholder: '255XXXXXXXXX', type: 'text' },
-              { label: 'Business Address', key: 'address', placeholder: 'e.g. Dar es Salaam, Kariakoo', type: 'text' },
+              { label: t('become_seller.field_business_name_label'), key: 'businessName', placeholder: t('become_seller.field_business_name_placeholder'), type: 'text' },
+              { label: t('become_seller.field_phone_label'), key: 'phone', placeholder: t('become_seller.field_phone_placeholder'), type: 'text' },
+              { label: t('become_seller.field_address_label'), key: 'address', placeholder: t('become_seller.field_address_placeholder'), type: 'text' },
             ].map(field => (
               <div key={field.key} style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>
@@ -128,10 +130,10 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
             <div style={{ marginBottom: '24px' }}>
               <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>
-                Business Description
+                {t('become_seller.field_description_label')}
               </label>
               <textarea
-                placeholder="Tell us about your business..."
+                placeholder={t('become_seller.field_description_placeholder')}
                 value={form.businessDescription}
                 onChange={e => setForm({ ...form, businessDescription: e.target.value })}
                 rows={4}
@@ -159,16 +161,16 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 boxShadow: '0 4px 12px rgba(102,126,234,0.4)',
               }}
             >
-              {loading ? 'Submitting...' : '🚀 Submit Application'}
+              {loading ? t('become_seller.submitting') : t('become_seller.submit_button')}
             </button>
 
             {!isLoggedIn && (
               <p style={{ textAlign: 'center', fontSize: '13px', color: '#64748b', marginTop: '16px' }}>
-                You need to{' '}
+                {t('become_seller.login_required_pre')}{' '}
                 <span onClick={() => onNavigate('PublicLogin')} style={{ color: '#7c3aed', cursor: 'pointer', fontWeight: '700' }}>
-                  login
+                  {t('become_seller.login_required_link')}
                 </span>
-                {' '}first to apply
+                {' '}{t('become_seller.login_required_post')}
               </p>
             )}
           </div>
@@ -177,13 +179,13 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           <div>
             <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '32px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)', marginBottom: '20px' }}>
               <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: '0 0 20px' }}>
-                ⚡ How it Works
+                {t('become_seller.how_it_works_title')}
               </h3>
               {[
-                { step: '1', title: 'Submit Application', desc: 'Fill in your business details and submit', color: '#667eea' },
-                { step: '2', title: 'Admin Review', desc: 'Our team reviews your application within 24hrs', color: '#f093fb' },
-                { step: '3', title: 'Get Approved', desc: 'Receive approval and access seller dashboard', color: '#43e97b' },
-                { step: '4', title: 'Start Selling', desc: 'List products and start earning revenue', color: '#f7971e' },
+                { step: '1', title: t('become_seller.step1_title'), desc: t('become_seller.step1_desc'), color: '#667eea' },
+                { step: '2', title: t('become_seller.step2_title'), desc: t('become_seller.step2_desc'), color: '#f093fb' },
+                { step: '3', title: t('become_seller.step3_title'), desc: t('become_seller.step3_desc'), color: '#43e97b' },
+                { step: '4', title: t('become_seller.step4_title'), desc: t('become_seller.step4_desc'), color: '#f7971e' },
               ].map(item => (
                 <div key={item.step} style={{ display: 'flex', gap: '16px', marginBottom: '20px', alignItems: 'flex-start' }}>
                   <div style={{
@@ -210,10 +212,10 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 borderRadius: '16px', padding: '24px', color: '#fff',
               }}>
                 <h4 style={{ margin: '0 0 8px', fontSize: '16px', fontWeight: '800' }}>
-                  Already applied?
+                  {t('become_seller.already_applied_title')}
                 </h4>
                 <p style={{ margin: '0 0 16px', fontSize: '13px', opacity: 0.85 }}>
-                  Check your application status and access your seller dashboard
+                  {t('become_seller.already_applied_desc')}
                 </p>
                 <button
                   onClick={() => onNavigate('SellerDashboard')}
@@ -224,7 +226,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     cursor: 'pointer', fontSize: '13px', fontWeight: '700',
                   }}
                 >
-                  📊 Go to Seller Dashboard
+                  {t('become_seller.go_to_dashboard_button')}
                 </button>
               </div>
             )}

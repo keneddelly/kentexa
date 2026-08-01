@@ -118,6 +118,7 @@ export class ProductsService {
       stock: dto.stock || 0,
       category: dto.category || 'general',
       subcategory: (dto as any).subcategory || null,
+      model: dto.model || null,
       specs: (dto as any).specs || null,
       features: (dto as any).features || null,
       images: dto.images || [],

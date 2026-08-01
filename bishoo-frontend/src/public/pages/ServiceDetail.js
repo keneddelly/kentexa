@@ -3,23 +3,27 @@
  * Place at: src/public/pages/ServiceDetail.js
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import api             from '../../api/api';
 import ReputationBadge from '../components/ReputationBadge';
 import WishlistHeart   from '../components/WishlistHeart';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 
-const PRICE_LABELS = {
-  per_hour: '/saa', per_job: '/kazi', per_day: '/siku',
-  negotiate: 'Bei kwa Mazungumzo', free_quote: 'Omba Bei',
-};
+const getPriceLabels = (t) => ({
+  per_hour: t('service_detail.price_per_hour'), per_job: t('service_detail.price_per_job'), per_day: t('service_detail.price_per_day'),
+  negotiate: t('service_detail.price_negotiate'), free_quote: t('service_detail.price_free_quote'),
+});
 
-const DAYS_SW = { Mon:'Jumatatu', Tue:'Jumanne', Wed:'Jumatano',
-  Thu:'Alhamisi', Fri:'Ijumaa', Sat:'Jumamosi', Sun:'Jumapili' };
+const getDays = (t) => ({ Mon:t('service_detail.day_mon'), Tue:t('service_detail.day_tue'), Wed:t('service_detail.day_wed'),
+  Thu:t('service_detail.day_thu'), Fri:t('service_detail.day_fri'), Sat:t('service_detail.day_sat'), Sun:t('service_detail.day_sun') });
 
 const fmt = n => Number(n||0).toLocaleString();
 
 const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, currentUser, onOpenMoment, openComments }) => {
+  const { t } = useTranslation();
+  const PRICE_LABELS = getPriceLabels(t);
+  const DAYS_SW = getDays(t);
   const [ad,       setAd]       = useState(null);
   const [loading,  setLoading]  = useState(true);
   const commentsRef = React.useRef(null);
@@ -47,8 +51,8 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
   }, [openComments, ad]);
 
   const handleRequest = async () => {
-    if (!form.description.trim()) return setError('Eleza unahitaji nini');
-    if (!form.jobLocation.trim()) return setError('Weka mahali pa kazi');
+    if (!form.description.trim()) return setError(t('service_detail.description_required'));
+    if (!form.jobLocation.trim()) return setError(t('service_detail.location_required'));
     try {
       setSending(true); setError('');
       await api.post('/services/jobs/request', {
@@ -62,7 +66,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
       setSent(true);
       setShowForm(false);
     } catch (e) {
-      setError(e.response?.data?.message || 'Imeshindwa kutuma. Jaribu tena.');
+      setError(e.response?.data?.message || t('service_detail.request_failed'));
     } finally { setSending(false); }
   };
 
@@ -83,7 +87,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🔧</div>
-          <div>Loading...</div>
+          <div>{t('service_detail.loading')}</div>
         </div>
       </div>
     </div>
@@ -100,11 +104,11 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>😕</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Service not found</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b' }}>{t('service_detail.not_found_title')}</div>
           <button onClick={() => onNavigate('Services')}
             style={{ marginTop: 16, backgroundColor: '#1d4ed8', color: '#fff',
               border: 'none', borderRadius: 10, padding: '10px 20px', cursor: 'pointer' }}>
-            Back to Services
+            {t('service_detail.back_to_services')}
           </button>
         </div>
       </div>
@@ -123,7 +127,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
         <button onClick={() => onNavigate('Services')} style={{ background:'none', border:'none', cursor:'pointer',
           display:'flex', alignItems:'center', gap:10 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" style={{ flexShrink:0 }}><polyline points="15,18 9,12 15,6"/></svg>
-          <span style={{ fontSize:15, fontWeight:800, color:'#0F172A' }}>Service Details</span>
+          <span style={{ fontSize:15, fontWeight:800, color:'#0F172A' }}>{t('service_detail.page_title')}</span>
         </button>
       </div>
 
@@ -158,13 +162,13 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                 {ad.isVerified && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8',
                     backgroundColor: '#eff6ff', padding: '3px 10px', borderRadius: 100 }}>
-                    ✓ Imethibitishwa na KenteXa
+                    {t('service_detail.verified_by_kentexa')}
                   </span>
                 )}
                 {ad.isAvailableNow && (
                   <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a',
                     backgroundColor: '#dcfce7', padding: '3px 10px', borderRadius: 100 }}>
-                    🟢 Yuko Tayari Sasa
+                    {t('service_detail.available_now')}
                   </span>
                 )}
               </div>
@@ -188,7 +192,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                     {Number(ad.rating).toFixed(1)}
                   </span>
                   <span style={{ fontSize: 13, color: '#94a3b8' }}>
-                    ({ad.totalRatings} tathmini · {ad.totalJobs} kazi)
+                    {t('service_detail.ratings_jobs', { ratings: ad.totalRatings, jobs: ad.totalJobs })}
                   </span>
                 </div>
               )}
@@ -196,14 +200,14 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
               {/* Details grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
                 {[
-                  { icon: '💰', label: 'Bei',
+                  { icon: '💰', label: t('service_detail.detail_price_label'),
                     value: ad.priceType === 'negotiate' || ad.priceType === 'free_quote'
                       ? PRICE_LABELS[ad.priceType]
                       : `TZS ${fmt(ad.price)}${PRICE_LABELS[ad.priceType] || ''}` },
-                  { icon: '📍', label: 'Mji', value: ad.coverageCity },
-                  { icon: '📅', label: 'Siku za Kazi',
-                    value: ad.workingDays?.map(d => DAYS_SW[d] || d).join(', ') || 'Zote' },
-                  { icon: '🕐', label: 'Masaa', value: ad.workingHours || 'Kwa makubaliano' },
+                  { icon: '📍', label: t('service_detail.detail_city_label'), value: ad.coverageCity },
+                  { icon: '📅', label: t('service_detail.detail_days_label'),
+                    value: ad.workingDays?.map(d => DAYS_SW[d] || d).join(', ') || t('service_detail.detail_days_all') },
+                  { icon: '🕐', label: t('service_detail.detail_hours_label'), value: ad.workingHours || t('service_detail.detail_hours_default') },
                 ].map(d => (
                   <div key={d.label} style={{ backgroundColor: '#f8fafc',
                     borderRadius: 10, padding: '10px 14px' }}>
@@ -217,7 +221,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
               {ad.coverageWards?.length > 0 && (
                 <div style={{ marginTop: 14 }}>
                   <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 700 }}>
-                    📍 Maeneo Yanayofunikwa:
+                    {t('service_detail.coverage_areas_label')}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {ad.coverageWards.map(w => (
@@ -235,7 +239,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
             <div style={{ backgroundColor: '#fff', borderRadius: 16,
               padding: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>
-                👤 Mtoa Huduma
+                {t('service_detail.provider_title')}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ width: 52, height: 52, borderRadius: '50%',
@@ -249,7 +253,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                     <span
                       onClick={() => ad.provider?.id && onNavigate('CommerceProfile-' + ad.provider.id)}
                       style={{ cursor: ad.provider?.id ? 'pointer' : 'default', color: '#1d4ed8' }}>
-                      {ad.provider?.name || 'Mtoa Huduma'}
+                      {ad.provider?.name || t('service_detail.default_provider_name')}
                     </span>
                     {ad.provider?.reputationScore > 0 && (
                       <ReputationBadge score={ad.provider.reputationScore} size="xs"
@@ -257,8 +261,8 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                     )}
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                    {ad.totalJobs} kazi zimekamilika
-                    {ad.isVerified && ' · ✓ Imethibitishwa'}
+                    {t('service_detail.jobs_completed', { count: ad.totalJobs })}
+                    {ad.isVerified && t('service_detail.verified_suffix')}
                   </div>
                 </div>
               </div>
@@ -270,7 +274,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                     })}
                     style={{ background:'none', border:'none', cursor:'pointer', padding:0,
                       color:'#2563EB', fontSize:12, fontWeight:700 }}>
-                    📸 Share as Moment
+                    {t('service_detail.share_as_moment')}
                   </button>
                 </div>
               )}
@@ -286,10 +290,10 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                 padding: 20, marginBottom: 14, textAlign: 'center' }}>
                 <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#16a34a' }}>
-                  Ombi Limetumwa!
+                  {t('service_detail.request_sent_title')}
                 </div>
                 <div style={{ fontSize: 12, color: '#475569', marginTop: 6 }}>
-                  Mtoa huduma atawasiliana nawe hivi karibuni.
+                  {t('service_detail.request_sent_desc')}
                 </div>
               </div>
             )}
@@ -326,33 +330,33 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                       <div style={{ marginBottom: 10 }}>
                         <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b',
                           display: 'block', marginBottom: 4 }}>
-                          Unahitaji nini? *
+                          {t('service_detail.field_need_label')}
                         </label>
                         <textarea rows={3} style={{ ...inp, resize: 'none' }}
-                          placeholder="Eleza kwa undani zaidi unahitaji nini..."
+                          placeholder={t('service_detail.field_need_placeholder')}
                           value={form.description}
                           onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
                       </div>
                       <div style={{ marginBottom: 10 }}>
                         <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b',
                           display: 'block', marginBottom: 4 }}>
-                          Mahali pa Kazi *
+                          {t('service_detail.field_job_location_label')}
                         </label>
-                        <input style={inp} placeholder="e.g. Kariakoo, nyumba namba 23"
+                        <input style={inp} placeholder={t('service_detail.field_job_location_placeholder')}
                           value={form.jobLocation}
                           onChange={e => setForm(f => ({ ...f, jobLocation: e.target.value }))} />
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                         <div>
                           <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b',
-                            display: 'block', marginBottom: 4 }}>Tarehe</label>
+                            display: 'block', marginBottom: 4 }}>{t('service_detail.field_date_label')}</label>
                           <input type="date" style={inp}
                             value={form.preferredDate}
                             onChange={e => setForm(f => ({ ...f, preferredDate: e.target.value }))} />
                         </div>
                         <div>
                           <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b',
-                            display: 'block', marginBottom: 4 }}>Saa</label>
+                            display: 'block', marginBottom: 4 }}>{t('service_detail.field_time_label')}</label>
                           <input type="time" style={inp}
                             value={form.preferredTime}
                             onChange={e => setForm(f => ({ ...f, preferredTime: e.target.value }))} />
@@ -360,7 +364,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                       </div>
                       <div style={{ marginBottom: 14 }}>
                         <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b',
-                          display: 'block', marginBottom: 4 }}>Simu Yako</label>
+                          display: 'block', marginBottom: 4 }}>{t('service_detail.field_phone_label')}</label>
                         <input type="tel" style={inp} placeholder="0788 000 000"
                           value={form.buyerPhone}
                           onChange={e => setForm(f => ({ ...f, buyerPhone: e.target.value }))} />
@@ -370,14 +374,14 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                           style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b',
                             border: 'none', borderRadius: 10, padding: '11px 0',
                             cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-                          Rudi
+                          {t('service_detail.back_button')}
                         </button>
                         <button onClick={handleRequest} disabled={sending}
                           style={{ flex: 2, background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
                             color: '#fff', border: 'none', borderRadius: 10, padding: '11px 0',
                             cursor: sending ? 'not-allowed' : 'pointer',
                             fontWeight: 800, fontSize: 13 }}>
-                          {sending ? '⏳...' : '✅ Tuma Ombi'}
+                          {sending ? t('service_detail.sending_button') : t('service_detail.send_request_button')}
                         </button>
                       </div>
                     </div>
@@ -387,7 +391,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                         style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
                           color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0',
                           cursor: 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10 }}>
-                        📋 Omba Huduma Hii
+                        {t('service_detail.request_service_button')}
                       </button>
                       {waPhone && (
                         <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`}
@@ -396,7 +400,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                             backgroundColor: '#dcfce7', color: '#16a34a', textDecoration: 'none',
                             borderRadius: 12, padding: '12px 0', fontSize: 14,
                             fontWeight: 700, boxSizing: 'border-box' }}>
-                          📲 Wasiliana WhatsApp
+                          {t('service_detail.whatsapp_contact_button')}
                         </a>
                       )}
                     </>
@@ -407,23 +411,23 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
 
             {/* Views */}
             <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>
-              👁️ Imetembelewa mara {ad.views + 1}
+              {t('service_detail.views_count', { count: ad.views + 1 })}
 
                 {/* Transport availability link */}
                 {ad.category === 'usafirishaji' && (
                   <div style={{ backgroundColor: '#eff6ff', borderRadius: 14,
                     padding: 18, marginTop: 16, border: '1px solid #bfdbfe' }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 6 }}>
-                      🚌 Msafirishaji Aliyehakikiwa na KenteXa
+                      {t('service_detail.transport_verified_title')}
                     </div>
                     <div style={{ fontSize: 12, color: '#475569', marginBottom: 12 }}>
-                      Mtoa huduma huyu ana safari za kila siku. Angalia upatikanaji wa leo.
+                      {t('service_detail.transport_verified_desc')}
                     </div>
                     <button onClick={() => onNavigate('TransportProviderDashboard')}
                       style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff',
                         border: 'none', borderRadius: 8, padding: '10px 0',
                         cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                      🗓️ View Today's Trips
+                      {t('service_detail.view_todays_trips')}
                     </button>
                   </div>
                 )}
@@ -436,7 +440,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                 actually see or reply to it. */}
             <div ref={commentsRef} style={{ marginTop: 20 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
-                💬 Comments & Questions
+                {t('service_detail.comments_title')}
               </div>
               <CommerceCommentSection
                 entityType="service" entityId={ad.id}

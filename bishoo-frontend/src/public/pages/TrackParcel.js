@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
 
@@ -7,15 +8,15 @@ const CITY_TRANSIT_DAYS = {
   'dar-tanga': 1, 'dar-morogoro': 1, 'dar-mtwara': 2, 'dar-songea': 2,
   'dar-kigoma': 3, 'dar-tabora': 2, 'dar-shinyanga': 2, 'dar-bukoba': 2,
 };
-const getETA = (origin, dest, type) => {
+const getETA = (origin, dest, type, t) => {
   if (!origin || !dest) return null;
   const key = `${origin.toLowerCase().split(' ')[0]}-${dest.toLowerCase().split(' ')[0]}`;
   const rev = `${dest.toLowerCase().split(' ')[0]}-${origin.toLowerCase().split(' ')[0]}`;
   const days = CITY_TRANSIT_DAYS[key] || CITY_TRANSIT_DAYS[rev] || 2;
   const total = type === 'boda' ? 0 : type === 'van' ? Math.round(days * 0.5) : days;
   const eta = new Date(); eta.setDate(eta.getDate() + total);
-  if (total === 0) return 'Today';
-  if (total === 1) return 'Tomorrow';
+  if (total === 0) return t('track_parcel.eta_today');
+  if (total === 1) return t('track_parcel.eta_tomorrow');
   return eta.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
 };
 
@@ -31,15 +32,15 @@ const BATCH_STATUS_MAP = {
   delivered:         'delivered',
 };
 
-const STATUS_STEPS = [
-  { key: 'pending',            icon: '📋', swLabel: 'Agizo Limeundwa',   desc: 'Agizo lako limepokelewa na mfumo',            color: '#64748b' },
-  { key: 'paid',               icon: '💳', swLabel: 'Payment Yamepokelewa', desc: 'Muuzaji amepokea malipo yako',               color: '#7c3aed' },
-  { key: 'ready_for_dispatch', icon: '📦', swLabel: 'Muuzaji Anaandaa',  desc: 'Bidhaa yako inatengenezwa kutumwa',            color: '#f59e0b' },
-  { key: 'dispatched',         icon: '🚀', swLabel: 'Imetumwa',          desc: 'Bidhaa imekabidhiwa kwa msafirishaji',         color: '#f97316' },
-  { key: 'in_transit',         icon: '🚌', swLabel: 'Inasafirishwa',     desc: 'Bidhaa yako ipo njiani kwenda kwako',          color: '#1d4ed8' },
-  { key: 'arrived_at_hub',     icon: '🏙️', swLabel: 'Delivered Kituo',    desc: 'Bidhaa imefika kituo karibu nawe',             color: '#0891b2' },
-  { key: 'out_for_delivery',   icon: '🏍️', swLabel: 'Inaelekea Kwako', desc: 'Dereva yuko njiani kukufikishia bidhaa',        color: '#059669' },
-  { key: 'delivered',          icon: '✅', swLabel: 'Imetolewa',         desc: 'Bidhaa imefika! Thibitisha kupokea.',           color: '#16a34a' },
+const getStatusSteps = t => [
+  { key: 'pending',            icon: '📋', swLabel: t('track_parcel.step_pending_label'),            desc: t('track_parcel.step_pending_desc'),            color: '#64748b' },
+  { key: 'paid',               icon: '💳', swLabel: t('track_parcel.step_paid_label'),               desc: t('track_parcel.step_paid_desc'),               color: '#7c3aed' },
+  { key: 'ready_for_dispatch', icon: '📦', swLabel: t('track_parcel.step_ready_for_dispatch_label'), desc: t('track_parcel.step_ready_for_dispatch_desc'), color: '#f59e0b' },
+  { key: 'dispatched',         icon: '🚀', swLabel: t('track_parcel.step_dispatched_label'),         desc: t('track_parcel.step_dispatched_desc'),         color: '#f97316' },
+  { key: 'in_transit',         icon: '🚌', swLabel: t('track_parcel.step_in_transit_label'),         desc: t('track_parcel.step_in_transit_desc'),         color: '#1d4ed8' },
+  { key: 'arrived_at_hub',     icon: '🏙️', swLabel: t('track_parcel.step_arrived_at_hub_label'),     desc: t('track_parcel.step_arrived_at_hub_desc'),     color: '#0891b2' },
+  { key: 'out_for_delivery',   icon: '🏍️', swLabel: t('track_parcel.step_out_for_delivery_label'), desc: t('track_parcel.step_out_for_delivery_desc'),   color: '#059669' },
+  { key: 'delivered',          icon: '✅', swLabel: t('track_parcel.step_delivered_label'),          desc: t('track_parcel.step_delivered_desc'),          color: '#16a34a' },
 ];
 
 const STATUS_COLOR = {
@@ -55,14 +56,17 @@ const STATUS_COLOR = {
   disputed:           { bg: '#fee2e2', color: '#991b1b' },
 };
 
-const METHOD_INFO = {
-  boda:     { icon: '🛵', label: 'Boda Boda', desc: 'Utoaji wa moja kwa moja kwa boda boda' },
-  personal: { icon: '🚶', label: 'Personal', desc: 'Muuzaji atatoa mwenyewe' },
-  direct:   { icon: '📦', label: 'Courier', desc: 'Kampuni ya usafirishaji' },
-  agent:    { icon: '🏢', label: 'KenteXa Agent', desc: 'Mtandao wa Super Agents' },
-};
+const getMethodInfo = t => ({
+  boda:     { icon: '🛵', label: t('track_parcel.method_boda_label'),     desc: t('track_parcel.method_boda_desc') },
+  personal: { icon: '🚶', label: t('track_parcel.method_personal_label'), desc: t('track_parcel.method_personal_desc') },
+  direct:   { icon: '📦', label: t('track_parcel.method_direct_label'),   desc: t('track_parcel.method_direct_desc') },
+  agent:    { icon: '🏢', label: t('track_parcel.method_agent_label'),    desc: t('track_parcel.method_agent_desc') },
+});
 
 const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumber: propTracking, orderId: propOrderId }) => {
+  const { t } = useTranslation();
+  const STATUS_STEPS = getStatusSteps(t);
+  const METHOD_INFO = getMethodInfo(t);
   const [trackingInput, setTrackingInput] = useState(propTracking || (propOrderId ? `KTX-ORD-${propOrderId}` : ''));
   const [result, setResult]               = useState(null);
   const [loading, setLoading]             = useState(false);
@@ -77,7 +81,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
   const handleSearch = async (input) => {
     const raw = (typeof input === 'string' ? input : null) || trackingInput;
     const val = String(raw || '').trim().toUpperCase();
-    if (!val) { setError('Weka nambari ya ufuatiliaji au nambari ya agizo'); return; }
+    if (!val) { setError(t('track_parcel.error_empty')); return; }
 
     setLoading(true); setError(''); setResult(null);
 
@@ -144,15 +148,15 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
             const orderRes = await api.get(`/super-agents/track-order/${searchRes.data.id}`);
             setResult({ ...orderRes.data, _source: 'order' });
           } else {
-            setError(`Number "${val}" haikupatikana. Weka nambari ya agizo lako (mfano: 1234).`);
+            setError(t('track_parcel.error_not_found', { val }));
           }
         } catch {
-          setError(`Number "${val}" haikupatikana. Weka nambari ya agizo lako (mfano: 1234).`);
+          setError(t('track_parcel.error_not_found', { val }));
         }
       }
 
     } catch (err) {
-      setError(err?.response?.data?.message || 'Haikupatikana. Angalia nambari na ujaribu tena.');
+      setError(err?.response?.data?.message || t('track_parcel.error_generic'));
     } finally {
       setLoading(false);
     }
@@ -166,7 +170,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
       const res = await api.get(`/super-agents/track-order/${id}`);
       setResult({ ...res.data, _source: 'order' });
     } catch (err) {
-      setError(err?.response?.data?.message || `Agizo #${id} haikupatikana`);
+      setError(err?.response?.data?.message || t('track_parcel.error_order_not_found', { id }));
     } finally {
       setLoading(false);
     }
@@ -189,8 +193,8 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
         </button>
         <div style={{ fontSize: 40, marginBottom: 10 }}>📦</div>
-        <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>Track Your Parcel</h1>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>Enter a tracking number or order number</p>
+        <h1 style={{ fontSize: 24, fontWeight: 900, color: '#fff', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>{t('track_parcel.header_title')}</h1>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>{t('track_parcel.header_subtitle')}</p>
       </div>
 
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -200,7 +204,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               type="text"
-              placeholder="KTX-DAR-MZA-000001 au Number ya Agizo"
+              placeholder={t('track_parcel.search_placeholder')}
               value={trackingInput}
               onChange={e => setTrackingInput(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
@@ -210,7 +214,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
             />
             <button onClick={() => handleSearch()} disabled={loading}
               style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' }}>
-              {loading ? '⏳' : '🔍 Track'}
+              {loading ? '⏳' : t('track_parcel.track_button')}
             </button>
           </div>
           {error && (
@@ -227,10 +231,10 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>NAMBARI YA UFUATILIAJI</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('track_parcel.tracking_number_label')}</div>
                   <div style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 900, color: '#1d4ed8' }}>{result.trackingNumber}</div>
                   {result.trackingRef && result.trackingRef !== result.trackingNumber && (
-                    <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b', marginTop: 2 }}>Ref: {result.trackingRef}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b', marginTop: 2 }}>{t('track_parcel.ref_label', { ref: result.trackingRef })}</div>
                   )}
                 </div>
                 <span style={{
@@ -263,7 +267,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
                   padding: '11px 16px', borderRadius: 12, fontSize: 13, fontWeight: 800,
                   textDecoration: 'none', marginBottom: 14,
                 }}>
-                💬 Contact kwa WhatsApp
+                {t('track_parcel.whatsapp_contact')}
               </a>
 
               {/* Delivery method badge */}
@@ -283,37 +287,37 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               {/* Rich shipping info based on method */}
               {result.shippingMethod === 'bus' && (result.busCompany || result.busTicketNumber) && (
                 <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>🚌 Description ya Basi</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>{t('track_parcel.bus_details_title')}</div>
                   {result.busCompany && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: '#92400e' }}>Kampuni</span>
+                      <span style={{ fontSize: 12, color: '#92400e' }}>{t('track_parcel.company_label')}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.busCompany}</span>
                     </div>
                   )}
                   {result.busTicketNumber && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: '#92400e' }}>Namba ya Tiketi</span>
+                      <span style={{ fontSize: 12, color: '#92400e' }}>{t('track_parcel.ticket_number_label')}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontFamily: 'monospace' }}>{result.busTicketNumber}</span>
                     </div>
                   )}
                   <div style={{ fontSize: 11, color: '#b45309', marginTop: 8, lineHeight: 1.5 }}>
-                    💡 Contact na kampuni ya basi ukitaka taarifa zaidi za safari
+                    {t('track_parcel.bus_contact_hint')}
                   </div>
                 </div>
               )}
 
               {result.shippingMethod === 'courier' && (result.courierName || result.externalTrackingRef) && (
                 <div style={{ backgroundColor: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#4338ca', marginBottom: 8 }}>📦 Description ya Courier</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#4338ca', marginBottom: 8 }}>{t('track_parcel.courier_details_title')}</div>
                   {result.courierName && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: '#4338ca' }}>Kampuni</span>
+                      <span style={{ fontSize: 12, color: '#4338ca' }}>{t('track_parcel.company_label')}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.courierName}</span>
                     </div>
                   )}
                   {result.externalTrackingRef && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
-                      <span style={{ fontSize: 12, color: '#4338ca' }}>Tracking Ref</span>
+                      <span style={{ fontSize: 12, color: '#4338ca' }}>{t('track_parcel.tracking_ref_label')}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', fontFamily: 'monospace' }}>{result.externalTrackingRef}</span>
                     </div>
                   )}
@@ -322,16 +326,16 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
 
               {result.shippingMethod === 'kentexa_delivery' && (
                 <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>🚐 Van ya KenteXa — Dar es Salaam</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>{t('track_parcel.van_title')}</div>
                   {result.superAgentHub && <div style={{ fontSize: 12, color: '#1d4ed8', marginBottom: 4 }}>🗺️ {result.superAgentHub}</div>}
                   {result.dispatchTime && (
                     <div style={{ fontSize: 12, color: '#1d4ed8' }}>
-                      🕐 Imeondoka: {new Date(result.dispatchTime).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' })}
+                      🕐 {t('track_parcel.departed_label', { time: new Date(result.dispatchTime).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' }) })}
                     </div>
                   )}
                   {result.estimatedArrival && (
                     <div style={{ fontSize: 12, color: '#1d4ed8', marginTop: 4 }}>
-                      ⏰ ETA: {new Date(result.estimatedArrival).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' })}
+                      ⏰ {t('track_parcel.eta_label', { time: new Date(result.estimatedArrival).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' }) })}
                     </div>
                   )}
                 </div>
@@ -339,21 +343,21 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
 
               {result.shippingMethod === 'agent' && result.superAgentHub && result.superAgentHub !== '—' && (
                 <div style={{ backgroundColor: '#dcfce7', border: '1px solid #86efac', borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>🏢 Super Agent</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>{t('track_parcel.super_agent_title')}</div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.superAgentHub}</div>
                   {result.destinationCity && <div style={{ fontSize: 12, color: '#16a34a', marginTop: 3 }}>📍 {result.destinationCity}</div>}
                   {(() => {
-                    const eta = getETA(result.originCity, result.destinationCity, result.transportType);
+                    const eta = getETA(result.originCity, result.destinationCity, result.transportType, t);
                     return eta && !['completed','delivered'].includes(result.status) ? (
                       <div style={{ fontSize: 12, color: '#7c3aed', fontWeight: 700, marginTop: 4,
                         backgroundColor: '#f5f3ff', borderRadius: 6, padding: '3px 8px', display: 'inline-block' }}>
-                        📅 Inatarajiwa: {eta}
+                        {t('track_parcel.expected_label', { eta })}
                       </div>
                     ) : null;
                   })()}
                   {result.localAgent && (
                     <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #bbf7d0' }}>
-                      <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, marginBottom: 4 }}>AGENT WA ENEO LAKO</div>
+                      <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700, marginBottom: 4 }}>{t('track_parcel.local_agent_title')}</div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{result.localAgent.name}</div>
                       {result.localAgent.phone && <div style={{ fontSize: 12, color: '#16a34a' }}>📞 {result.localAgent.phone}</div>}
                       {result.localAgent.address && <div style={{ fontSize: 12, color: '#64748b' }}>📍 {result.localAgent.address}</div>}
@@ -378,8 +382,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
                 <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '8px 14px', marginBottom: 12, fontSize: 12, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 16 }}>🔄</span>
                   <span>
-                    Njia hii inapita <strong>{result.transitCity}</strong> kabla ya kufika {result.destinationCity}.
-                    {' '}Kawaida siku 2 jumla.
+                    {t('track_parcel.via_transit_notice', { city: result.transitCity, dest: result.destinationCity })}
                   </span>
                 </div>
               )}
@@ -388,20 +391,20 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               {result.expectedArrival && (
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '8px 14px', marginBottom: 12, fontSize: 12, color: '#15803d', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 16 }}>📅</span>
-                  <span>Inatarajiwa kufika: <strong>{new Date(result.expectedArrival).toLocaleDateString('sw-TZ', { weekday: 'long', day: 'numeric', month: 'long' })}</strong></span>
+                  <span>{t('track_parcel.expected_arrival_notice', { date: new Date(result.expectedArrival).toLocaleDateString('sw-TZ', { weekday: 'long', day: 'numeric', month: 'long' }) })}</span>
                 </div>
               )}
               {/* ── COMPLETE PARCEL INFORMATION ──────────────────────────── */}
 
               {/* Item details */}
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 10 }}>📦 MAELEZO YA BIDHAA</div>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 10 }}>{t('track_parcel.item_details_title')}</div>
                 {[
-                  ['Bidhaa', result.description || result.product || result.manualProductName],
-                  ['Uzito', result.weightKg ? `${result.weightKg} kg` : null],
-                  ['Ukubwa', result.parcelSize ? ({small:'Ndogo',medium:'Wastani',large:'Kubwa',cargo:'Cargo'}[result.parcelSize]||result.parcelSize) : null],
-                  ['Thamani', result.declaredValue ? `TZS ${Number(result.declaredValue).toLocaleString()}` : null],
-                  ['Time', result.estimatedDays ? `Siku ${result.estimatedDays}` : null],
+                  [t('track_parcel.product_label'), result.description || result.product || result.manualProductName],
+                  [t('track_parcel.weight_label'), result.weightKg ? `${result.weightKg} kg` : null],
+                  [t('track_parcel.size_label'), result.parcelSize ? ({small:t('track_parcel.size_small'),medium:t('track_parcel.size_medium'),large:t('track_parcel.size_large'),cargo:t('track_parcel.size_cargo')}[result.parcelSize]||result.parcelSize) : null],
+                  [t('track_parcel.value_label'), result.declaredValue ? `TZS ${Number(result.declaredValue).toLocaleString()}` : null],
+                  [t('track_parcel.time_label'), result.estimatedDays ? t('track_parcel.days_value', { count: result.estimatedDays }) : null],
                 ].filter(([,v]) => v).map(([l,v]) => (
                   <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid #f1f5f9', fontSize:13 }}>
                     <span style={{ color:'#64748b' }}>{l}</span>
@@ -413,7 +416,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               {/* Sender */}
               {(result.senderName || result.sellerStoreName) && (
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 8 }}>👤 MTUMAJI</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 8 }}>{t('track_parcel.sender_title')}</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.senderName || result.sellerStoreName}</div>
                   {result.senderPhone && <a href={`tel:${result.senderPhone}`} style={{ fontSize:13, color:'#1d4ed8', textDecoration:'none', display:'block', marginTop:4 }}>📞 {result.senderPhone}</a>}
                   {result.originCity && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.originCity}</div>}
@@ -423,7 +426,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               {/* Recipient */}
               {result.recipientName && (
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 8 }}>👤 MPOKEAJI</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', letterSpacing: 0.5, marginBottom: 8 }}>{t('track_parcel.recipient_title')}</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.recipientName}</div>
                   {result.deliveryAddress && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.deliveryAddress}</div>}
                   {result.destinationCity && <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>🏙️ {result.destinationCity}</div>}
@@ -454,7 +457,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               {/* Origin Hub */}
               {result.originAgent && (
                 <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', letterSpacing: 0.5, marginBottom: 8 }}>🏢 HUB YA KUTUMA</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8', letterSpacing: 0.5, marginBottom: 8 }}>{t('track_parcel.origin_hub_title')}</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.originAgent}</div>
                   {result.originAgentPhone && <a href={`tel:${result.originAgentPhone}`} style={{ fontSize:13, color:'#1d4ed8', textDecoration:'none', display:'block', marginTop:4 }}>📞 {result.originAgentPhone}</a>}
                   {result.originCity && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.originCity}</div>}
@@ -464,7 +467,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               {/* Destination Hub */}
               {result.destinationAgent && (
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#15803d', letterSpacing: 0.5, marginBottom: 8 }}>🏢 HUB YA KUPOKEA</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#15803d', letterSpacing: 0.5, marginBottom: 8 }}>{t('track_parcel.destination_hub_title')}</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.destinationAgent}</div>
                   {result.destinationAgentPhone && <a href={`tel:${result.destinationAgentPhone}`} style={{ fontSize:13, color:'#16a34a', textDecoration:'none', display:'block', marginTop:4 }}>📞 {result.destinationAgentPhone}</a>}
                   {result.destinationCity && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.destinationCity}</div>}
@@ -475,16 +478,16 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               {(result.busCompany || result.busTicketNumber || result.courierName || result.courierTrackingRef) && (
                 <div style={{ backgroundColor: '#fef9c3', borderRadius: 12, padding: '14px 16px', marginBottom: 12 }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: '#92400e', letterSpacing: 0.5, marginBottom: 10 }}>
-                    {result.busCompany ? '🚌 MAELEZO YA BASI' : '📦 MAELEZO YA COURIER'}
+                    {result.busCompany ? t('track_parcel.bus_details_title') : t('track_parcel.courier_details_title')}
                   </div>
                   {[
-                    ['Kampuni', result.busCompany || result.courierName],
-                    ['Tiketi / Ref', result.busTicketNumber || result.courierTrackingRef],
-                    ['Kuondoka', result.busDeparture],
+                    [t('track_parcel.company_label'), result.busCompany || result.courierName],
+                    [t('track_parcel.tracking_ref_label'), result.busTicketNumber || result.courierTrackingRef],
+                    [t('track_parcel.departure_label'), result.busDeparture],
                   ].filter(([,v]) => v).map(([l,v]) => (
                     <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid #fde68a', fontSize:13 }}>
                       <span style={{ color:'#92400e' }}>{l}</span>
-                      <span style={{ fontWeight:900, color: l==='Tiketi / Ref' ? '#1d4ed8' : '#1e293b', fontFamily: l==='Tiketi / Ref' ? 'monospace' : 'inherit', fontSize: l==='Tiketi / Ref' ? 15 : 13 }}>{v}</span>
+                      <span style={{ fontWeight:900, color: l===t('track_parcel.tracking_ref_label') ? '#1d4ed8' : '#1e293b', fontFamily: l===t('track_parcel.tracking_ref_label') ? 'monospace' : 'inherit', fontSize: l===t('track_parcel.tracking_ref_label') ? 15 : 13 }}>{v}</span>
                     </div>
                   ))}
                 </div>
@@ -494,29 +497,28 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
             {/* ── KenteXa Marketing Footer ─────────────────────────────── */}
             <div style={{ backgroundColor: '#0f172a', borderRadius: 16, padding: 20, marginTop: 8, marginBottom: 12 }}>
               <div style={{ fontSize: 16, marginBottom: 6 }}>🛡️</div>
-              <div style={{ fontSize: 15, fontWeight: 900, color: '#fff', marginBottom: 6 }}>Ulindwa na KenteXa</div>
+              <div style={{ fontSize: 15, fontWeight: 900, color: '#fff', marginBottom: 6 }}>{t('track_parcel.protected_title')}</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, marginBottom: 14 }}>
-                Kila ununuzi wako unahakikishiwa.{' '}
-                Tracking · SMS · Delivery · Payment Salama
+                {t('track_parcel.protected_desc')}
               </div>
               <div style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 14 }} />
               <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>
-                📢 Muuzaji wako bado hatumii KenteXa?
+                {t('track_parcel.seller_not_using_prompt')}
               </div>
               <div style={{ fontSize: 12, color: '#93c5fd', marginBottom: 16, lineHeight: 1.6 }}>
-                Mwambie akutumie namba ya kufuatilia kila wakati anapotuma bidhaa yako.
+                {t('track_parcel.seller_not_using_desc')}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <a href="https://kentexa.com/for-sellers" target="_blank" rel="noreferrer"
                   style={{ flex: 1, backgroundColor: '#1d4ed8', color: '#fff', padding: '10px 8px',
                     borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
-                  🏪 Jisajili Kuuza
+                  {t('track_parcel.register_seller_button')}
                 </a>
                 <a href={'https://wa.me/255788075633?text=' + encodeURIComponent('Habari! Nataka kujua zaidi kuhusu KenteXa kwa wauzaji')}
                   target="_blank" rel="noreferrer"
                   style={{ flex: 1, backgroundColor: '#25D366', color: '#fff', padding: '10px 8px',
                     borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
-                  💬 Uliza WhatsApp
+                  {t('track_parcel.ask_whatsapp_button')}
                 </a>
               </div>
             </div>
@@ -525,7 +527,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
             {result.localAgent && (
               <div style={{ background: 'linear-gradient(135deg,#ecfdf5,#d1fae5)', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12, border: '1px solid #a7f3d0' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#047857', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  🛵 Wakala Wako wa Utoaji
+                  {t('track_parcel.your_delivery_agent_title')}
                 </div>
                 <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a', marginBottom: 4 }}>{result.localAgent.name}</div>
                 {result.localAgent.address && (
@@ -535,11 +537,11 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
                   <div style={{ display: 'flex', gap: 8 }}>
                     <a href={`tel:${result.localAgent.phone}`}
                       style={{ flex: 1, textAlign: 'center', backgroundColor: '#fff', color: '#047857', border: '2px solid #6ee7b7', padding: '9px 14px', borderRadius: 10, fontSize: 13, fontWeight: 800, textDecoration: 'none' }}>
-                      📞 Call
+                      {t('track_parcel.call_button')}
                     </a>
                     <a href={`https://wa.me/${result.localAgent.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer"
                       style={{ flex: 1, textAlign: 'center', backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '9px 14px', borderRadius: 10, fontSize: 13, fontWeight: 800, textDecoration: 'none' }}>
-                      💬 WhatsApp
+                      {t('track_parcel.whatsapp_button')}
                     </a>
                   </div>
                 )}
@@ -550,23 +552,23 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
             {(result.shippingMethod === 'boda' || result.shippingMethod === 'personal') && result.status !== 'delivered' && (
               <div style={{ background: 'linear-gradient(135deg,#fff7ed,#ffedd5)', borderRadius: 16, padding: 18, marginBottom: 12, border: '1px solid #fed7aa' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#ea580c', marginBottom: 8 }}>
-                  {result.shippingMethod === 'boda' ? '🛵 Boda Boda Anakuja Kwako' : '🚶 Muuzaji Atatoa Mwenyewe'}
+                  {result.shippingMethod === 'boda' ? t('track_parcel.boda_coming_title') : t('track_parcel.personal_delivery_title')}
                 </div>
                 <div style={{ fontSize: 13, color: '#7c2d12', marginBottom: 10, lineHeight: 1.6 }}>
                   {result.shippingMethod === 'boda'
-                    ? 'Muuzaji amepanga boda boda kukupelekea bidhaa yako. Kama una maswali, wasiliana na muuzaji moja kwa moja.'
-                    : 'Muuzaji atakuletea bidhaa yako mwenyewe. Angalia simu yako kwa ujumbe au simu kutoka kwa muuzaji.'
+                    ? t('track_parcel.boda_desc')
+                    : t('track_parcel.personal_desc')
                   }
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#ea580c' }}>
-                  💡 Number ya Agizo lako: <span style={{ fontFamily: 'monospace' }}>#{result.trackingNumber?.replace('KTX-ORD-', '') || '—'}</span>
+                  {t('track_parcel.order_number_hint', { num: result.trackingNumber?.replace('KTX-ORD-', '') || '—' })}
                 </div>
               </div>
             )}
 
             {/* Progress steps */}
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif' }}>Maendeleo ya Usafirishaji</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif' }}>{t('track_parcel.progress_title')}</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {STATUS_STEPS.map((step, index) => {
                   const isDone    = currentStep >= 0 && index <= currentStep;
@@ -601,7 +603,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
                           </div>
                         )}
                         {isDone && !isCurrent && (
-                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>✓ Imekamilika</div>
+                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>{t('track_parcel.step_done')}</div>
                         )}
                       </div>
                     </div>
@@ -614,7 +616,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
             {/* Tracking history */}
             {result.history?.length > 0 && (
               <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>Historia ya Ufuatiliaji</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>{t('track_parcel.history_title')}</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {[...result.history].reverse().map((event, i) => (
                     <div key={i} style={{ display: 'flex', gap: 12, padding: '10px 12px', backgroundColor: i === 0 ? '#eff6ff' : '#f8fafc', borderRadius: 10, border: i === 0 ? '1px solid #bfdbfe' : 'none' }}>
@@ -667,10 +669,10 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
             {result.status === 'delivered' && (
               <div style={{ backgroundColor: '#f0fdf4', borderRadius: 16, padding: 20, border: '2px solid #86efac', textAlign: 'center', marginBottom: 12 }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
-                <div style={{ fontSize: 16, fontWeight: 900, color: '#15803d', marginBottom: 4 }}>Kifurushi Kimetolewa!</div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: '#15803d', marginBottom: 4 }}>{t('track_parcel.delivered_title')}</div>
                 {result.deliveredTime && (
                   <div style={{ fontSize: 13, color: '#16a34a' }}>
-                    Kimetolewa: {new Date(result.deliveredTime).toLocaleString('sw-TZ')}
+                    {t('track_parcel.delivered_time_label', { time: new Date(result.deliveredTime).toLocaleString('sw-TZ') })}
                   </div>
                 )}
               </div>
@@ -682,23 +684,23 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
         {!result && !loading && !error && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', textAlign: 'center' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>Track kifurushi chako cha KenteXa</h3>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>{t('track_parcel.empty_title')}</h3>
             <p style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
-              Weka nambari ya ufuatiliaji au nambari ya agizo lako
+              {t('track_parcel.empty_desc')}
             </p>
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, fontSize: 12, color: '#64748b', textAlign: 'left' }}>
-              <div style={{ fontWeight: 800, marginBottom: 8, color: '#1e293b' }}>Category za nambari:</div>
+              <div style={{ fontWeight: 800, marginBottom: 8, color: '#1e293b' }}>{t('track_parcel.number_types_title')}</div>
               <div style={{ marginBottom: 4 }}>
                 <span style={{ fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 700 }}>KTX-DAR-MZA-000001</span>
-                <span style={{ marginLeft: 8 }}>— Super Agent (intercity)</span>
+                <span style={{ marginLeft: 8 }}>{t('track_parcel.type_super_agent')}</span>
               </div>
               <div style={{ marginBottom: 4 }}>
                 <span style={{ fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 700 }}>KTX-ORD-1234</span>
-                <span style={{ marginLeft: 8 }}>— Boda / Personal / Direct</span>
+                <span style={{ marginLeft: 8 }}>{t('track_parcel.type_boda')}</span>
               </div>
               <div>
                 <span style={{ fontFamily: 'monospace', color: '#1d4ed8', fontWeight: 700 }}>1234</span>
-                <span style={{ marginLeft: 8 }}>— a direct order number</span>
+                <span style={{ marginLeft: 8 }}>{t('track_parcel.type_order')}</span>
               </div>
             </div>
           </div>

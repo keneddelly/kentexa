@@ -1,10 +1,13 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * BackBar — universal back navigation bar
  * Usage: <BackBar onBack={() => onNavigate('Home')} title="Product Name" />
  */
-const BackBar = ({ onBack, title, right }) => (
+const BackBar = ({ onBack, title, right }) => {
+  const { t } = useTranslation();
+  return (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '10px 14px', backgroundColor: '#fff',
@@ -14,7 +17,7 @@ const BackBar = ({ onBack, title, right }) => (
   }}>
     <button onClick={onBack}
       style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#1d4ed8', padding: '4px 0' }}>
-      ← Back
+      {t('common.back')}
     </button>
     {title && (
       <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%', textAlign: 'center' }}>
@@ -23,6 +26,7 @@ const BackBar = ({ onBack, title, right }) => (
     )}
     {right ? right : <div style={{ width: 60 }} />}
   </div>
-);
+  );
+};
 
 export default BackBar;

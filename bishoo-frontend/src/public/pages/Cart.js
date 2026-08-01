@@ -1,7 +1,9 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCart } from '../../context/CartContext';
 
 const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
 
   const getItemPrice = (item) => Number(item.displayPrice || item.basePrice || item.price || 0);
@@ -48,9 +50,9 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           ← Home
         </button>
         <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>🛒 Shopping Cart</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('cart.title')}</h1>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: 0 }}>
-            {cart.length} item{cart.length !== 1 ? 's' : ''} in your cart
+            {t('cart.header_subtitle', { count: cart.length })}
           </p>
         </div>
       </div>
@@ -59,11 +61,11 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {cart.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: 8 }}>
             <div style={{ fontSize: 56, marginBottom: 14 }}>🛒</div>
-            <h2 style={{ color: '#1e293b', marginBottom: 8, fontSize: 18 }}>Your cart is empty</h2>
-            <p style={{ color: '#64748b', marginBottom: 24, fontSize: 14 }}>Add products from our store to get started</p>
+            <h2 style={{ color: '#1e293b', marginBottom: 8, fontSize: 18 }}>{t('cart.empty')}</h2>
+            <p style={{ color: '#64748b', marginBottom: 24, fontSize: 14 }}>{t('cart.empty_desc')}</p>
             <button onClick={() => onNavigate('Stores')}
               style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '13px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-              🏪 Browse Store
+              {t('cart.browse')}
             </button>
           </div>
         ) : (
@@ -72,10 +74,10 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             {/* ── ITEMS COLUMN ── */}
             <div className="cart-items-col">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <h2 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: 0 }}>Cart Items ({cart.length})</h2>
+                <h2 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: 0 }}>{t('cart.items_col_title', { count: cart.length })}</h2>
                 <button onClick={clearCart}
                   style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                  🗑 Clear All
+                  {t('cart.clear_all')}
                 </button>
               </div>
 
@@ -114,7 +116,7 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                             <div style={{ fontSize: 13, fontWeight: 900, color: '#0f172a' }}>
                               TZS {itemTotal.toLocaleString()}
                             </div>
-                            <button className="cart-remove" onClick={() => removeFromCart(item.id)}>Remove</button>
+                            <button className="cart-remove" onClick={() => removeFromCart(item.id)}>{t('cart.remove')}</button>
                           </div>
                         </div>
                       </div>
@@ -125,14 +127,14 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
               <button onClick={() => onNavigate('Stores')}
                 style={{ backgroundColor: 'transparent', color: '#1d4ed8', border: '2px solid #1d4ed8', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, marginTop: 12 }}>
-                ← Continue Shopping
+                {t('cart.continue')}
               </button>
             </div>
 
             {/* ── SUMMARY COLUMN ── */}
             <div className="cart-summary-col">
               <div className="cart-summary">
-                <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>📋 Order Summary</h2>
+                <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 14px' }}>{t('cart.order_summary_title')}</h2>
 
                 {/* Item list */}
                 <div style={{ maxHeight: 160, overflowY: 'auto', marginBottom: 10 }}>
@@ -150,27 +152,27 @@ const Cart = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
                 <div style={{ borderTop: '2px dashed #e2e8f0', paddingTop: 12, marginBottom: 4 }}>
                   <div className="cart-summary-row">
-                    <span style={{ color: '#64748b' }}>Subtotal</span>
+                    <span style={{ color: '#64748b' }}>{t('cart.subtotal')}</span>
                     <span style={{ color: '#1e293b', fontWeight: 700 }}>TZS {total.toLocaleString()}</span>
                   </div>
                   <div className="cart-summary-row">
-                    <span style={{ color: '#64748b' }}>Delivery</span>
-                    <span style={{ color: '#16a34a', fontWeight: 800 }}>🚚 FREE</span>
+                    <span style={{ color: '#64748b' }}>{t('cart.delivery')}</span>
+                    <span style={{ color: '#16a34a', fontWeight: 800 }}>{t('cart.free')}</span>
                   </div>
                 </div>
 
                 <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Total</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>{t('cart.total')}</span>
                   <span style={{ fontSize: 20, fontWeight: 900, color: '#1d4ed8' }}>TZS {total.toLocaleString()}</span>
                 </div>
 
                 <button className="cart-checkout-btn"
                   onClick={() => isLoggedIn ? onNavigate('Checkout') : onNavigate('PublicLogin')}>
-                  {isLoggedIn ? '🛒 Proceed to Checkout' : '🔐 Login to Checkout'}
+                  {isLoggedIn ? t('cart.checkout') : t('cart.login_checkout')}
                 </button>
 
                 <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8', marginTop: 10 }}>
-                  🔒 Secure checkout · KenteXa Protected
+                  {t('cart.secure_note')}
                 </div>
               </div>
             </div>

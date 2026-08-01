@@ -3,23 +3,27 @@
  * Place at: src/public/pages/MyServices.js
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
 import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
-const JOB_STATUS = {
-  pending:     { bg: '#fef3c7', text: '#d97706', label: '⏳ Inasubiri'    },
-  accepted:    { bg: '#dcfce7', text: '#16a34a', label: '✅ Imekubaliwa'  },
-  declined:    { bg: '#fee2e2', text: '#dc2626', label: '❌ Imekataliwa'  },
-  in_progress: { bg: '#dbeafe', text: '#1d4ed8', label: '🔨 Inafanyika'  },
-  completed:   { bg: '#f0fdf4', text: '#15803d', label: '🎉 Imekamilika'  },
-  cancelled:   { bg: '#f1f5f9', text: '#64748b', label: '🚫 Imefutwa'    },
-};
+const getJobStatus = (t) => ({
+  pending:     { bg: '#fef3c7', text: '#d97706', label: t('my_services.status_pending')    },
+  accepted:    { bg: '#dcfce7', text: '#16a34a', label: t('my_services.status_accepted')  },
+  declined:    { bg: '#fee2e2', text: '#dc2626', label: t('my_services.status_declined')  },
+  in_progress: { bg: '#dbeafe', text: '#1d4ed8', label: t('my_services.status_in_progress')  },
+  completed:   { bg: '#f0fdf4', text: '#15803d', label: t('my_services.status_completed')  },
+  cancelled:   { bg: '#f1f5f9', text: '#64748b', label: t('my_services.status_cancelled')    },
+});
 
 const fmt = n => Number(n||0).toLocaleString();
 
 const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
+  const JOB_STATUS = getJobStatus(t);
   const [ads,     setAds]     = useState([]);
   const [jobs,    setJobs]    = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,8 +46,8 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   useEffect(() => { fetchAll(); }, []);
 
   const handleRespond = async (jobId, accept) => {
-    const agreedPrice = accept ? prompt('Bei iliyokubaliwa (TZS) — acha tupu kama haijabadilika:') : null;
-    const note        = !accept ? prompt('Sababu ya kukataa (hiari):') : null;
+    const agreedPrice = accept ? prompt(t('my_services.prompt_agreed_price')) : null;
+    const note        = !accept ? prompt(t('my_services.prompt_decline_reason')) : null;
     try {
       setActing(jobId);
       await api.patch(`/services/jobs/${jobId}/respond`, {
@@ -51,7 +55,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         providerNote: note || undefined,
       });
       fetchAll();
-    } catch { alert('Imeshindwa'); }
+    } catch { alert(t('my_services.action_failed')); }
     finally { setActing(null); }
   };
 
@@ -60,7 +64,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       setActing(jobId);
       await api.patch(`/services/jobs/${jobId}/status`, { status });
       fetchAll();
-    } catch { alert('Imeshindwa'); }
+    } catch { alert(t('my_services.action_failed')); }
     finally { setActing(null); }
   };
 
@@ -70,7 +74,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         status: currentStatus === 'active' ? 'paused' : 'active',
       });
       fetchAll();
-    } catch { alert('Imeshindwa'); }
+    } catch { alert(t('my_services.action_failed')); }
   };
 
   const pendingJobs = jobs.filter(j => j.status === 'pending');
@@ -81,7 +85,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
       <Navbar currentPage="MyServices" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title="🔧 Huduma Zangu" />
+      <BackBar onBack={() => onNavigate('back')} title={t('my_services.page_title')} />
 
       <div style={{ flex: 1, maxWidth: 900, margin: '0 auto',
         padding: '16px 16px 48px', width: '100%', boxSizing: 'border-box' }}>
@@ -89,9 +93,9 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {/* Stats header */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { icon: '📋', label: 'Matangazo', value: ads.length,          bg: '#eff6ff', color: '#1d4ed8' },
-            { icon: '⏳', label: 'Zinasubiri', value: pendingJobs.length,  bg: '#fef3c7', color: '#d97706' },
-            { icon: '🔨', label: 'Zinafanyika', value: activeJobs.length,  bg: '#dcfce7', color: '#16a34a' },
+            { icon: '📋', label: t('my_services.stat_ads'), value: ads.length,          bg: '#eff6ff', color: '#1d4ed8' },
+            { icon: '⏳', label: t('my_services.stat_pending'), value: pendingJobs.length,  bg: '#fef3c7', color: '#d97706' },
+            { icon: '🔨', label: t('my_services.stat_in_progress'), value: activeJobs.length,  bg: '#dcfce7', color: '#16a34a' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '14px 16px' }}>
               <div style={{ fontSize: 24, marginBottom: 4 }}>{s.icon}</div>
@@ -105,22 +109,22 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ display: 'flex', backgroundColor: '#fff', borderRadius: 12,
           padding: 4, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
           {[
-            { key: 'jobs', label: `📋 Maombi${pendingJobs.length > 0 ? ` (${pendingJobs.length} mapya)` : ''}` },
-            { key: 'ads',  label: '🏷️ Matangazo Yangu' },
-            { key: 'done', label: '✅ Zilizokamilika'   },
-          ].map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            { key: 'jobs', label: t('my_services.tab_jobs') + (pendingJobs.length > 0 ? t('my_services.tab_jobs_new', { count: pendingJobs.length }) : '') },
+            { key: 'ads',  label: t('my_services.tab_ads') },
+            { key: 'done', label: t('my_services.tab_done')   },
+          ].map(tabItem => (
+            <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
               style={{ flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
                 borderRadius: 9, fontSize: 12, fontWeight: 700,
-                backgroundColor: tab === t.key ? '#1d4ed8' : 'transparent',
-                color: tab === t.key ? '#fff' : '#64748b' }}>
-              {t.label}
+                backgroundColor: tab === tabItem.key ? '#1d4ed8' : 'transparent',
+                color: tab === tabItem.key ? '#fff' : '#64748b' }}>
+              {tabItem.label}
             </button>
           ))}
         </div>
 
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Inapakia...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>{t('my_services.loading')}</div>
         ) : (<>
 
           {/* Jobs tab */}
@@ -130,7 +134,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
                   borderRadius: 16, color: '#94a3b8' }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
-                  <div>Hakuna maombi ya kazi kwa sasa</div>
+                  <div>{t('my_services.no_jobs')}</div>
                 </div>
               ) : jobs.filter(j => !['completed','cancelled','declined'].includes(j.status)).map(job => {
                 const sc = JOB_STATUS[job.status] || JOB_STATUS.pending;
@@ -144,10 +148,10 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                       alignItems: 'flex-start', marginBottom: 10 }}>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
-                          {job.serviceAd?.title || 'Huduma'}
+                          {job.serviceAd?.title || t('my_services.default_service_name')}
                         </div>
                         <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
-                          👤 {job.buyer?.name || 'Mteja'} · {job.buyer?.phone || ''}
+                          👤 {job.buyer?.name || t('my_services.default_buyer_name')} · {job.buyer?.phone || ''}
                         </div>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px',
@@ -179,14 +183,14 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                           style={{ flex: 1, backgroundColor: '#dcfce7', color: '#16a34a',
                             border: 'none', borderRadius: 8, padding: '10px 0',
                             cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                          ✅ Kubali
+                          {t('my_services.accept_button')}
                         </button>
                         <button onClick={() => handleRespond(job.id, false)}
                           disabled={acting === job.id}
                           style={{ flex: 1, backgroundColor: '#fee2e2', color: '#dc2626',
                             border: 'none', borderRadius: 8, padding: '10px 0',
                             cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                          ❌ Kataa
+                          {t('my_services.decline_button')}
                         </button>
                         {job.buyer?.phone && (
                           <a href={`https://wa.me/${(job.buyerPhone||job.buyer.phone).replace(/^0/,'255')}?text=${encodeURIComponent('Habari! Nimeona ombi lako la huduma kwenye KenteXa.')}`}
@@ -206,7 +210,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                         style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff',
                           border: 'none', borderRadius: 8, padding: '10px 0',
                           cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                        🔨 Anza Kazi
+                        {t('my_services.start_job_button')}
                       </button>
                     )}
 
@@ -216,7 +220,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                         style={{ width: '100%', backgroundColor: '#16a34a', color: '#fff',
                           border: 'none', borderRadius: 8, padding: '10px 0',
                           cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                        🎉 Kazi Imekamilika
+                        {t('my_services.complete_job_button')}
                       </button>
                     )}
                   </div>
@@ -232,14 +236,14 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff',
                   border: 'none', borderRadius: 12, padding: '13px 0',
                   cursor: 'pointer', fontSize: 14, fontWeight: 800, marginBottom: 16 }}>
-                + Ongeza Tangazo Jipya
+                {t('my_services.add_new_ad_button')}
               </button>
 
               {ads.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
                   borderRadius: 16, color: '#94a3b8' }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>🏷️</div>
-                  <div>Huna matangazo bado</div>
+                  <div>{t('my_services.no_ads')}</div>
                 </div>
               ) : ads.map(ad => (
                 <div key={ad.id} style={{ backgroundColor: '#fff', borderRadius: 14,
@@ -252,7 +256,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                         {ad.title}
                       </div>
                       <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
-                        👁️ {ad.views} tazamo · ⭐ {Number(ad.rating).toFixed(1)} · {ad.totalJobs} kazi
+                        👁️ {ad.views} {t('my_services.views_label')} · ⭐ {Number(ad.rating).toFixed(1)} · {ad.totalJobs} {t('my_services.jobs_label')}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -261,13 +265,13 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                           cursor: 'pointer', fontSize: 12, fontWeight: 700,
                           backgroundColor: ad.status === 'active' ? '#fef3c7' : '#dcfce7',
                           color: ad.status === 'active' ? '#d97706' : '#16a34a' }}>
-                        {ad.status === 'active' ? '⏸ Simamisha' : '▶ Washa'}
+                        {ad.status === 'active' ? t('my_services.pause_button') : t('my_services.activate_button')}
                       </button>
                       <button onClick={() => onNavigate(`ServiceDetail-${ad.id}`)}
                         style={{ padding: '6px 12px', borderRadius: 8, border: 'none',
                           cursor: 'pointer', fontSize: 12, fontWeight: 700,
                           backgroundColor: '#eff6ff', color: '#1d4ed8' }}>
-                        Angalia
+                        {t('my_services.view_button')}
                       </button>
                     </div>
                   </div>
@@ -283,7 +287,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff',
                   borderRadius: 16, color: '#94a3b8' }}>
                   <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
-                  <div>Bado hujamalizia kazi yoyote</div>
+                  <div>{t('my_services.no_completed')}</div>
                 </div>
               ) : jobs.filter(j => j.status === 'completed').map(job => (
                 <div key={job.id} style={{ backgroundColor: '#fff', borderRadius: 14,
@@ -292,7 +296,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     {job.serviceAd?.title}
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>
-                    👤 {job.buyer?.name} · {new Date(job.completedAt).toLocaleDateString('sw-TZ')}
+                    👤 {job.buyer?.name} · {new Date(job.completedAt).toLocaleDateString(dateLocale)}
                   </div>
                   {job.agreedPrice > 0 && (
                     <div style={{ fontSize: 15, fontWeight: 900, color: '#16a34a' }}>

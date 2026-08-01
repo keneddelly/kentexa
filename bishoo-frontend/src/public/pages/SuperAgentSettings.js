@@ -3,6 +3,7 @@
  * Accessed via ⚙️ gear icon on SuperAgentDashboard
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import Footer from '../components/Footer';
@@ -16,6 +17,7 @@ const inp = {
 };
 
 const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const [profile, setProfile]   = useState(null);
   const [form, setForm]         = useState({
     businessName: '', phone: '', address: '', city: '',
@@ -42,7 +44,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           whatsappNumber:res.data.whatsappNumber|| '',
         });
       })
-      .catch(() => setError('Imeshindwa kupakia maelezo'))
+      .catch(() => setError(t('super_agent_settings.load_failed')))
       .finally(() => setLoading(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -50,9 +52,9 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     try {
       setSaving(true); setError(''); setSuccess('');
       await api.patch('/super-agents/my-profile', form);
-      setSuccess('✅ Mipangilio imehifadhiwa');
+      setSuccess(t('super_agent_settings.save_success'));
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kuhifadhi');
+      setError(err?.response?.data?.message || t('super_agent_settings.save_failed'));
     } finally { setSaving(false); }
   };
 
@@ -61,7 +63,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       backgroundColor: '#f1f5f9' }}>
       <Navbar currentPage="SuperAgentSettings" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title="⚙️ Mipangilio ya Hub" />
+      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_settings.page_title')} />
 
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto',
         width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
@@ -95,19 +97,19 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             )}
 
             {[
-              { k: 'businessName',   l: 'Jina la Hub *',         ph: 'Geita Express Hub' },
-              { k: 'phone',          l: 'Simu *',                 ph: '0712345678' },
-              { k: 'whatsappNumber', l: 'WhatsApp',               ph: '255712345678' },
+              { k: 'businessName',   l: t('super_agent_settings.field_business_name_label'),         ph: 'Geita Express Hub' },
+              { k: 'phone',          l: t('super_agent_settings.field_phone_label'),                 ph: '0712345678' },
+              { k: 'whatsappNumber', l: t('super_agent_settings.field_whatsapp_label'),               ph: '255712345678' },
               { k: '__location_picker__', isCustom: true },
-            { k: 'city',           l: 'Mji *',                  ph: 'Geita' },
-              { k: 'region',         l: 'Mkoa',                   ph: 'Geita' },
-              { k: 'address',        l: 'Anwani ya Hub',          ph: 'Mtaa, alama muhimu' },
-              { k: 'description',    l: 'Maelezo ya Huduma',      ph: 'Tunapokea mzigo, vifurushi...' },
+            { k: 'city',           l: t('super_agent_settings.field_city_label'),                  ph: t('super_agent_settings.field_city_placeholder') },
+              { k: 'region',         l: t('super_agent_settings.field_region_label'),                   ph: t('super_agent_settings.field_region_placeholder') },
+              { k: 'address',        l: t('super_agent_settings.field_address_label'),          ph: t('super_agent_settings.field_address_placeholder') },
+              { k: 'description',    l: t('super_agent_settings.field_description_label'),      ph: t('super_agent_settings.field_description_placeholder') },
             ].map(f => (
               <div key={f.k} style={{ marginBottom: 14 }}>
                 {f.isCustom ? (
                   <LocationPicker
-                    label="Chagua Mkoa / Wilaya ya Hub"
+                    label={t('super_agent_settings.location_picker_label')}
                     value={location}
                     onChange={loc => {
                       setLocation(loc);
@@ -135,7 +137,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                 cursor: saving ? 'not-allowed' : 'pointer',
                 fontSize: 15, fontWeight: 900, marginTop: 8 }}>
-              {saving ? '⏳ Inahifadhi...' : '💾 Hifadhi Mabadiliko'}
+              {saving ? t('super_agent_settings.saving') : t('super_agent_settings.save_button')}
             </button>
           </div>
         )}

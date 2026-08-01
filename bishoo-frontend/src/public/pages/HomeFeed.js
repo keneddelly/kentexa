@@ -12,6 +12,7 @@
  *  Comments go to POST /comments (entity-based)
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import api             from '../../api/api';
@@ -21,38 +22,38 @@ const DK  = '#0F172A';
 const GR  = '#64748B';
 const WH  = '#FFFFFF';
 const fmt = n => Number(n||0).toLocaleString();
-const ago = d => {
+const getAgo = t => d => {
   if (!d) return '';
   const s = Math.floor((Date.now() - new Date(d)) / 1000);
-  if (s < 60)    return 'Just now';
-  if (s < 3600)  return `Dakika ${Math.floor(s/60)}`;
-  if (s < 86400) return `Saa ${Math.floor(s/3600)}`;
-  return `Siku ${Math.floor(s/86400)}`;
+  if (s < 60)    return t('home_feed.just_now');
+  if (s < 3600)  return t('home_feed.minutes_ago', { count: Math.floor(s/60) });
+  if (s < 86400) return t('home_feed.hours_ago', { count: Math.floor(s/3600) });
+  return t('home_feed.days_ago', { count: Math.floor(s/86400) });
 };
 
-const FILTERS = [
-  { key:'for_you',    label:'💫 For You'       },
-  { key:'following',  label:'👥 Following' },
-  { key:'nearby',     label:'📍 Nearby'      },
-  { key:'trending',   label:'🔥 Trending'     },
-  { key:'products',   label:'🛍️ Products'    },
-  { key:'services',   label:'🔧 Services'      },
-  { key:'transport',  label:'🚌 Transport'     },
-  { key:'businesses', label:'🏪 Businesses'    },
+const getFilters = t => [
+  { key:'for_you',    label:t('home_feed.filter_for_you')       },
+  { key:'following',  label:t('home_feed.filter_following') },
+  { key:'nearby',     label:t('home_feed.filter_nearby')      },
+  { key:'trending',   label:t('home_feed.filter_trending')     },
+  { key:'products',   label:t('home_feed.filter_products')    },
+  { key:'services',   label:t('home_feed.filter_services')      },
+  { key:'transport',  label:t('home_feed.filter_transport')     },
+  { key:'businesses', label:t('home_feed.filter_businesses')    },
 ];
 
-const TYPE_META = {
-  classified:  { label:'📢 Listing',   bg:'#FFF7ED', color:'#EA580C' },
-  product:     { label:'🛍️ Products',  bg:'#EFF6FF', color:B         },
-  service:     { label:'🔧 Services',    bg:'#F0FDF4', color:'#16A34A' },
-  new_product: { label:'🛍️ Products',  bg:'#EFF6FF', color:B         },
-  new_service: { label:'🔧 Services',    bg:'#F0FDF4', color:'#16A34A' },
-  discount:    { label:'🎉 Discount',   bg:'#FFF7ED', color:'#EA580C' },
-  announcement:{ label:'📢 Listing',   bg:'#FEF3C7', color:'#D97706' },
-  delivery_info:{ label:'🚌 Transport',  bg:'#FEF3C7', color:'#D97706' },
-  looking_for: { label:'🙋 Looking For', bg:'#F5F3FF', color:'#7C3AED' },
-  moment:      { label:'📸 Moment',      bg:'#EFF6FF', color:B         },
-};
+const getTypeMeta = t => ({
+  classified:  { label:t('home_feed.type_listing'),   bg:'#FFF7ED', color:'#EA580C' },
+  product:     { label:t('home_feed.type_products'),  bg:'#EFF6FF', color:B         },
+  service:     { label:t('home_feed.type_services'),    bg:'#F0FDF4', color:'#16A34A' },
+  new_product: { label:t('home_feed.type_products'),  bg:'#EFF6FF', color:B         },
+  new_service: { label:t('home_feed.type_services'),    bg:'#F0FDF4', color:'#16A34A' },
+  discount:    { label:t('home_feed.type_discount'),   bg:'#FFF7ED', color:'#EA580C' },
+  announcement:{ label:t('home_feed.type_listing'),   bg:'#FEF3C7', color:'#D97706' },
+  delivery_info:{ label:t('home_feed.type_transport'),  bg:'#FEF3C7', color:'#D97706' },
+  looking_for: { label:t('home_feed.type_looking_for'), bg:'#F5F3FF', color:'#7C3AED' },
+  moment:      { label:t('home_feed.type_moment'),      bg:'#EFF6FF', color:B         },
+});
 
 // ── Engagement service (works on virtual + real post IDs) ─────────────────────
 const Engagement = {
@@ -75,6 +76,7 @@ const Engagement = {
 
 // ── Contact modal ─────────────────────────────────────────────────────────────
 const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
+  const { t } = useTranslation();
   const biz   = post.business || {};
   const phone = (biz.storeWhatsApp || biz.phone || '').replace(/^0/,'255').replace(/[^0-9]/g,'');
   const title = post.title || '';
@@ -88,9 +90,9 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
         <div style={{ width:36, height:4, borderRadius:100, backgroundColor:'#E2E8F0',
           margin:'0 auto 20px' }} />
         <div style={{ fontSize:16, fontWeight:900, color:DK, marginBottom:4 }}>
-          Contact {biz.storeName || biz.name}
+          {t('home_feed.contact_title', { name: biz.storeName || biz.name })}
         </div>
-        <div style={{ fontSize:12, color:GR, marginBottom:20 }}>About: {title}</div>
+        <div style={{ fontSize:12, color:GR, marginBottom:20 }}>{t('home_feed.about_label', { title })}</div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           <button onClick={() => { onNavigate(isLoggedIn ? `MessageSeller-${biz.id}` : 'PublicLogin'); onClose(); }}
             style={{ display:'flex', alignItems:'center', gap:14, padding:'16px',
@@ -98,8 +100,8 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
               textAlign:'left', width:'100%' }}>
             <span style={{ fontSize:28 }}>📨</span>
             <div>
-              <div style={{ fontSize:14, fontWeight:800, color:DK }}>KenteXa Inbox</div>
-              <div style={{ fontSize:11, color:GR }}>Send a message inside the app</div>
+              <div style={{ fontSize:14, fontWeight:800, color:DK }}>{t('home_feed.kentexa_inbox_label')}</div>
+              <div style={{ fontSize:11, color:GR }}>{t('home_feed.send_in_app_desc')}</div>
             </div>
           </button>
           {phone && (
@@ -110,15 +112,15 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
                 backgroundColor:'#F0FDF4', borderRadius:14, textDecoration:'none' }}>
               <span style={{ fontSize:28 }}>📲</span>
               <div>
-                <div style={{ fontSize:14, fontWeight:800, color:'#16A34A' }}>WhatsApp</div>
-                <div style={{ fontSize:11, color:GR }}>Chat directly</div>
+                <div style={{ fontSize:14, fontWeight:800, color:'#16A34A' }}>{t('home_feed.whatsapp_label')}</div>
+                <div style={{ fontSize:11, color:GR }}>{t('home_feed.chat_directly_desc')}</div>
               </div>
             </a>
           )}
           <button onClick={onClose}
             style={{ padding:'13px', backgroundColor:'#F1F5F9', border:'none',
               borderRadius:12, cursor:'pointer', fontSize:14, fontWeight:700, color:GR }}>
-            Close
+            {t('home_feed.close_button')}
           </button>
         </div>
       </div>
@@ -128,6 +130,8 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
 
 // ── Comments section ──────────────────────────────────────────────────────────
 const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
+  const { t } = useTranslation();
+  const ago = getAgo(t);
   const [comments, setComments] = useState([]);
   const [body,     setBody]     = useState('');
   const [replyTo,  setReplyTo]  = useState(null);
@@ -244,7 +248,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
       <div style={{ flex:1 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
           <span style={{ fontSize:12, fontWeight:800, color:DK }}>
-            {c.author?.storeName || c.author?.name || 'User'}
+            {c.author?.storeName || c.author?.name || t('home_feed.user_fallback')}
           </span>
           <span style={{ fontSize:10, color:GR }}>{ago(c.createdAt)}</span>
         </div>
@@ -254,11 +258,11 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
         </div>
         {c.offerCard && (
           <button onClick={() => {
-              const t = c.offerCard.entityType;
+              const entType = c.offerCard.entityType;
               const id = c.offerCard.entityId;
-              if (t === 'product') onNavigate(`ProductDetail-${id}`);
-              else if (t === 'service') onNavigate(`ServiceDetail-${id}`);
-              else if (t === 'route') onNavigate('SellerShipment');
+              if (entType === 'product') onNavigate(`ProductDetail-${id}`);
+              else if (entType === 'service') onNavigate(`ServiceDetail-${id}`);
+              else if (entType === 'route') onNavigate('SellerShipment');
               else onNavigate(`ClassifiedDetail-${id}`);
             }}
             style={{ display:'flex', alignItems:'center', gap:10, marginTop:8,
@@ -284,7 +288,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
               )}
             </div>
             <span style={{ fontSize:10, fontWeight:800, color:'#7C3AED', flexShrink:0 }}>
-              View →
+              {t('home_feed.view_arrow')}
             </span>
           </button>
         )}
@@ -295,7 +299,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
           }}
             style={{ background:'none', border:'none', cursor:'pointer',
               color:GR, fontSize:11, fontWeight:700, padding:'4px 0 0' }}>
-            Reply
+            {t('home_feed.reply_button')}
           </button>
         )}
         {c.replies?.map(r => <Comment key={r.id} c={r} isReply />)}
@@ -307,10 +311,10 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
     <div style={{ backgroundColor:'#F8FAFC', borderTop:'1px solid #F1F5F9' }}>
       <div style={{ padding:'8px 14px', maxHeight:260, overflowY:'auto' }}>
         {loading
-          ? <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>Loading comments...</div>
+          ? <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('home_feed.loading_comments')}</div>
           : comments.length === 0
             ? <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>
-                Be the first to ask! 👇
+                {t('home_feed.be_first_to_ask')}
               </div>
             : comments.map(c => <Comment key={c.id} c={c} />)
         }
@@ -321,7 +325,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
             style={{ width:'100%', backgroundColor:'#F5F3FF', color:'#7C3AED',
               border:'1px solid #E9D5FF', borderRadius:10, padding:'10px 0',
               cursor:'pointer', fontSize:13, fontWeight:800 }}>
-            🙋 I Have This — Reply with a Product
+            {t('home_feed.have_this_reply_button')}
           </button>
         </div>
       )}
@@ -344,8 +348,8 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
             onClick={() => !isLoggedIn && onNavigate('PublicLogin')}
             placeholder={isLoggedIn
-              ? (replyTo ? `Reply to ${replyTo.author?.name?.split(' ')[0]}...` : 'Ask a question...')
-              : 'Sign in to comment...'}
+              ? (replyTo ? t('home_feed.reply_to_placeholder', { name: replyTo.author?.name?.split(' ')[0] }) : t('home_feed.ask_question_placeholder'))
+              : t('home_feed.sign_in_to_comment_placeholder')}
             style={{ flex:1, border:'none', background:'none', outline:'none',
               fontSize:13, padding:'8px 0', color:DK, fontFamily:'inherit' }}
           />
@@ -379,17 +383,17 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
               flexDirection:'column' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
               padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
-              <div style={{ fontSize:15, fontWeight:900, color:DK }}>🙋 What do you have?</div>
+              <div style={{ fontSize:15, fontWeight:900, color:DK }}>{t('home_feed.what_do_you_have_title')}</div>
               <button onClick={() => setShowReply(false)} style={{ background:'none',
                 border:'none', cursor:'pointer', fontSize:20, color:GR }}>×</button>
             </div>
             <div style={{ flex:1, overflowY:'auto', padding:16 }}>
               {loadingItems ? (
-                <div style={{ fontSize:12, color:GR, padding:'12px 0' }}>Loading your items...</div>
+                <div style={{ fontSize:12, color:GR, padding:'12px 0' }}>{t('home_feed.loading_your_items')}</div>
               ) : myItems.length === 0 ? (
                 <div style={{ fontSize:12, color:GR, backgroundColor:'#F8FAFC',
                   borderRadius:10, padding:14 }}>
-                  You don't have any products, listings, or services to offer yet.
+                  {t('home_feed.no_items_to_offer')}
                 </div>
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -428,7 +432,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
                   color: replyItem ? WH : GR, border:'none', borderRadius:12, padding:'13px 0',
                   cursor: replyItem && !replySending ? 'pointer' : 'not-allowed',
                   fontSize:14, fontWeight:800 }}>
-                {replySending ? 'Sending...' : '🙋 Send Reply'}
+                {replySending ? t('home_feed.sending_button') : t('home_feed.send_reply_button')}
               </button>
             </div>
           </div>
@@ -440,6 +444,9 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
 
 // ── Post card ─────────────────────────────────────────────────────────────────
 const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle }) => {
+  const { t } = useTranslation();
+  const ago = getAgo(t);
+  const TYPE_META = getTypeMeta(t);
   const [saved,        setSaved]        = useState(savedIds?.includes(post.id));
   const [showComments, setShowComments] = useState(false);
   const [showContact,  setShowContact]  = useState(false);
@@ -462,7 +469,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
   const biz     = post.business || {};
   const bizId   = biz.id;
-  const bizName = biz.storeName || biz.name || 'Businesses';
+  const bizName = biz.storeName || biz.name || t('home_feed.business_fallback');
   const repScore= biz.reputationScore || 0;
   const image   = (!imgErr && (post.imageUrl || post.data?.images?.[0])) || null;
   // Badge: real, unambiguous post types (Moment, Looking For, Discount...)
@@ -497,7 +504,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
       navigator.share({ title: post.title, url: window.location.href }).catch(() => {});
     } else {
       navigator.clipboard?.writeText(window.location.href).catch(() => {});
-      setShareMsg('✓ Kiungo kimekilipiwa');
+      setShareMsg(t('home_feed.link_copied'));
       setTimeout(() => setShareMsg(''), 2000);
     }
   };
@@ -597,7 +604,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
             TZS {fmt(price)}
           </div>
           {post.isNegotiable && !isProduct && (
-            <span style={{ fontSize:10, color:GR, fontWeight:600 }}>· Bei inaweza kushuka</span>
+            <span style={{ fontSize:10, color:GR, fontWeight:600 }}>{t('home_feed.negotiable_price')}</span>
           )}
 
           {/* ── Action buttons based on type ── */}
@@ -609,7 +616,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
               }}
                 style={{ backgroundColor:B, color:WH, border:'none', borderRadius:10,
                   padding:'8px 14px', cursor:'pointer', fontSize:12, fontWeight:800 }}>
-                🛒 Buy
+                {t('home_feed.buy_button')}
               </button>
             )}
             {isService && (
@@ -617,7 +624,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
                 style={{ backgroundColor:'#F0FDF4', color:'#16A34A', border:'none',
                   borderRadius:10, padding:'8px 14px', cursor:'pointer',
                   fontSize:12, fontWeight:800 }}>
-                📅 Omba Services
+                {t('home_feed.request_service_button')}
               </button>
             )}
             {isClassified && (
@@ -625,7 +632,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
                 style={{ backgroundColor:'#F8FAFC', color:DK, border:'1px solid #E2E8F0',
                   borderRadius:10, padding:'8px 14px', cursor:'pointer',
                   fontSize:12, fontWeight:700 }}>
-                📞 Contact
+                {t('home_feed.contact_button')}
               </button>
             )}
           </div>
@@ -700,7 +707,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
                 border:'none', cursor:'pointer', padding:'6px 8px', borderRadius:8,
                 backgroundColor:'#F0FDF4' }}>
               <span style={{ fontSize:14 }}>📦</span>
-              <span style={{ fontSize:11, color:'#16A34A', fontWeight:700 }}>Ship</span>
+              <span style={{ fontSize:11, color:'#16A34A', fontWeight:700 }}>{t('home_feed.ship_label')}</span>
             </button>
           )}
 
@@ -710,7 +717,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
               style={{ backgroundColor: followed ? '#F1F5F9' : B,
                 color: followed ? DK : WH, border:'none', borderRadius:8,
                 padding:'6px 10px', cursor:'pointer', fontSize:11, fontWeight:700 }}>
-              {followed ? '✓ Following' : '+ Follow'}
+              {followed ? t('home_feed.following_badge') : t('home_feed.follow_button')}
             </button>
           )}
         </div>
@@ -718,9 +725,9 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
         {/* Social-proof summary — "22 liked · 4 comments" */}
         {(counts.saves > 0 || counts.comments > 0) && (
           <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:6 }}>
-            {counts.saves > 0 && `${fmt(counts.saves)} liked`}
+            {counts.saves > 0 && t('home_feed.liked_count', { count: counts.saves })}
             {counts.saves > 0 && counts.comments > 0 && '  ·  '}
-            {counts.comments > 0 && `${fmt(counts.comments)} comment${counts.comments !== 1 ? 's' : ''}`}
+            {counts.comments > 0 && t('home_feed.comment_count', { count: counts.comments })}
           </div>
         )}
 
@@ -741,7 +748,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
           <button onClick={openComments}
             style={{ background:'none', border:'none', cursor:'pointer',
               color:GR, fontSize:12, padding:'2px 0' }}>
-            View all comments
+            {t('home_feed.view_all_comments')}
           </button>
         )}
 
@@ -751,9 +758,9 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
             <button onClick={goToDetail}
               style={{ background:'none', border:'none', cursor:'pointer',
                 color:B, fontSize:12, fontWeight:700, padding:0 }}>
-              {isProduct ? 'View Product →'
-               : isService ? 'View Service →'
-               : 'View Listing →'}
+              {isProduct ? t('home_feed.view_product')
+               : isService ? t('home_feed.view_service')
+               : t('home_feed.view_listing')}
             </button>
           </div>
         )}
@@ -795,6 +802,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
 // ── Trending card (with inline Follow) ────────────────────────────────────────
 const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
+  const { t } = useTranslation();
   const bizId = p.businessId || p.business?.id;
   const [followed, setFollowed] = useState(!!p.business?.isFollowing);
   const [busy,     setBusy]     = useState(false);
@@ -825,13 +833,13 @@ const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
       <div style={{ fontSize:10, color:GR, marginTop:2, marginBottom:6 }}>{label}</div>
       {bizId && (
         followed ? (
-          <span style={{ fontSize:9, color:'#16A34A', fontWeight:700 }}>✓ Following</span>
+          <span style={{ fontSize:9, color:'#16A34A', fontWeight:700 }}>{t('home_feed.following_badge')}</span>
         ) : (
           <button onClick={handleFollow} disabled={busy}
             style={{ fontSize:9, fontWeight:800, color:WH, backgroundColor:B,
               border:'none', borderRadius:100, padding:'3px 10px',
               cursor: busy ? 'wait' : 'pointer' }}>
-            + Follow
+            {t('home_feed.follow_button')}
           </button>
         )
       )}
@@ -840,14 +848,16 @@ const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
 };
 
 // ── Discovery rail — small horizontal-scroll row interleaved between posts ──
-const RAIL_CONFIG = {
-  product:    { title: '🛍️ Products You Might Like',   detailPage: 'ProductDetail'    },
-  classified: { title: '🏷️ Fresh Listings',            detailPage: 'ClassifiedDetail'  },
-  service:    { title: '🔧 Popular Services',           detailPage: 'ServiceDetail'     },
-  store:      { title: '🏪 Stores to Discover',         detailPage: null }, // navigates to CommerceProfile
-};
+const getRailConfig = t => ({
+  product:    { title: t('home_feed.rail_products_title'),   detailPage: 'ProductDetail'    },
+  classified: { title: t('home_feed.rail_classifieds_title'),            detailPage: 'ClassifiedDetail'  },
+  service:    { title: t('home_feed.rail_services_title'),           detailPage: 'ServiceDetail'     },
+  store:      { title: t('home_feed.rail_stores_title'),         detailPage: null }, // navigates to CommerceProfile
+});
 
 const DiscoveryRail = ({ type, items, onNavigate }) => {
+  const { t } = useTranslation();
+  const RAIL_CONFIG = getRailConfig(t);
   if (!items?.length) return null;
   const cfg = RAIL_CONFIG[type];
 
@@ -911,25 +921,26 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
 
 // ── Trending bar ──────────────────────────────────────────────────────────────
 const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
+  const { t } = useTranslation();
   if (!trending) return null;
   const items = [
-    { icon:'🔥', label:'Most Purchased Today', posts: trending.topPurchased   },
-    { icon:'📈', label:'Growing Fast',      posts: trending.fastestGrowing },
-    { icon:'🏪', label:'Businesses Trending',     posts: trending.topBusinesses  },
-    { icon:'🔧', label:'Services Trending',       posts: trending.topServices    },
-  ].filter(t => t.posts?.length > 0);
+    { icon:'🔥', label:t('home_feed.most_purchased_today'), posts: trending.topPurchased   },
+    { icon:'📈', label:t('home_feed.growing_fast'),      posts: trending.fastestGrowing },
+    { icon:'🏪', label:t('home_feed.businesses_trending'),     posts: trending.topBusinesses  },
+    { icon:'🔧', label:t('home_feed.services_trending'),       posts: trending.topServices    },
+  ].filter(item => item.posts?.length > 0);
   if (!items.length) return null;
 
   return (
     <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9',
       padding:'10px 0 8px' }}>
       <div style={{ fontSize:12, fontWeight:800, color:DK, padding:'0 14px 8px' }}>
-        🔥 Trending Now
+        {t('home_feed.trending_now_title')}
       </div>
       <div style={{ display:'flex', gap:10, overflowX:'auto',
         padding:'0 14px', scrollbarWidth:'none' }}>
-        {items.map((t, i) => t.posts.slice(0,1).map(p => (
-          <TrendingCard key={i} icon={t.icon} label={t.label} p={p}
+        {items.map((item, i) => item.posts.slice(0,1).map(p => (
+          <TrendingCard key={i} icon={item.icon} label={item.label} p={p}
             onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
         )))}
       </div>
@@ -940,13 +951,15 @@ const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
 // ── Create a Moment — photo + tag one listing + optional caption ─────────────
 // ── View a Moment — full-screen, tap CTA to jump to the tagged listing ───────
 const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser }) => {
+  const { t } = useTranslation();
+  const ago = getAgo(t);
   const [saved, setSaved] = useState(false);
   const biz = moment.business || {};
-  const bizName = biz.storeName || biz.name || 'Store';
+  const bizName = biz.storeName || biz.name || t('home_feed.store_fallback');
   const isLookingFor = moment.postType === 'looking_for';
-  const typeLabel = moment.linkedEntityType === 'product' ? 'View Product'
-    : moment.linkedEntityType === 'service' ? 'View Service'
-    : moment.linkedEntityType === 'route' ? 'Ship on This Route' : 'View Listing';
+  const typeLabel = moment.linkedEntityType === 'product' ? t('home_feed.view_product_short')
+    : moment.linkedEntityType === 'service' ? t('home_feed.view_service_short')
+    : moment.linkedEntityType === 'route' ? t('home_feed.ship_this_route') : t('home_feed.view_listing_short');
 
   const [showReply,   setShowReply]   = useState(false);
   const [myItems,     setMyItems]     = useState([]);
@@ -1037,7 +1050,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
         {isLookingFor && (
           <span style={{ fontSize:10, fontWeight:800, color:WH, backgroundColor:'#7C3AED',
             padding:'4px 10px', borderRadius:100, flexShrink:0, marginRight:6 }}>
-            🙋 {moment.category || 'Looking For'}
+            🙋 {moment.category || t('home_feed.looking_for_fallback')}
           </span>
         )}
         <button onClick={onClose} style={{ background:'none', border:'none',
@@ -1084,7 +1097,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
               style={{ flex:1, backgroundColor:'#7C3AED', color:WH, border:'none',
                 borderRadius:12, padding:'0 20px', cursor:'pointer',
                 fontSize:14, fontWeight:800 }}>
-              🙋 I Have This
+              {t('home_feed.i_have_this_button')}
             </button>
           )}
           {isLookingFor && replySent && (
@@ -1092,7 +1105,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
               border:'1px solid #16A34A', borderRadius:12, padding:'0 20px',
               display:'flex', alignItems:'center', justifyContent:'center',
               fontSize:13, fontWeight:800 }}>
-              ✓ You replied
+              {t('home_feed.you_replied_label')}
             </div>
           )}
         </div>
@@ -1109,17 +1122,17 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
               flexDirection:'column' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
               padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
-              <div style={{ fontSize:15, fontWeight:900, color:DK }}>🙋 What do you have?</div>
+              <div style={{ fontSize:15, fontWeight:900, color:DK }}>{t('home_feed.what_do_you_have_title')}</div>
               <button onClick={() => setShowReply(false)} style={{ background:'none',
                 border:'none', cursor:'pointer', fontSize:20, color:GR }}>×</button>
             </div>
             <div style={{ flex:1, overflowY:'auto', padding:16 }}>
               {loadingItems ? (
-                <div style={{ fontSize:12, color:GR, padding:'12px 0' }}>Loading your items...</div>
+                <div style={{ fontSize:12, color:GR, padding:'12px 0' }}>{t('home_feed.loading_your_items')}</div>
               ) : myItems.length === 0 ? (
                 <div style={{ fontSize:12, color:GR, backgroundColor:'#F8FAFC',
                   borderRadius:10, padding:14 }}>
-                  You don't have any products, listings, or services to offer yet.
+                  {t('home_feed.no_items_to_offer')}
                 </div>
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -1158,7 +1171,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
                   color: replyItem ? WH : GR, border:'none', borderRadius:12, padding:'13px 0',
                   cursor: replyItem && !replySending ? 'pointer' : 'not-allowed',
                   fontSize:14, fontWeight:800 }}>
-                {replySending ? 'Sending...' : '🙋 Send Reply'}
+                {replySending ? t('home_feed.sending_button') : t('home_feed.send_reply_button')}
               </button>
             </div>
           </div>
@@ -1170,8 +1183,9 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
 
 // ── Story ring item for a real Moment ─────────────────────────────────────────
 const MomentStory = ({ moment, onView }) => {
+  const { t } = useTranslation();
   const biz = moment.business || {};
-  const name = biz.storeName || biz.name || 'Store';
+  const name = biz.storeName || biz.name || t('home_feed.store_fallback');
   const isLookingFor = moment.postType === 'looking_for';
   return (
     <button onClick={() => onView(moment)}
@@ -1214,7 +1228,8 @@ const MomentStory = ({ moment, onView }) => {
 
 // ── Story circle (with inline Follow) ─────────────────────────────────────────
 const Story = ({ seller, onNavigate, isLoggedIn }) => {
-  const name = seller.storeName || seller.name || 'Store';
+  const { t } = useTranslation();
+  const name = seller.storeName || seller.name || t('home_feed.store_fallback');
   const sellerId = seller.userId || seller.id;
   const [followed, setFollowed] = useState(!!seller.isFollowing);
   const [busy,     setBusy]     = useState(false);
@@ -1260,13 +1275,13 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
         {name.split(' ')[0]}
       </span>
       {followed ? (
-        <span style={{ fontSize:8, color:'#16A34A', fontWeight:700 }}>✓ Following</span>
+        <span style={{ fontSize:8, color:'#16A34A', fontWeight:700 }}>{t('home_feed.following_badge')}</span>
       ) : (
         <button onClick={handleFollow} disabled={busy}
           style={{ fontSize:9, fontWeight:800, color:WH, backgroundColor:B,
             border:'none', borderRadius:100, padding:'2px 10px',
             cursor: busy ? 'wait' : 'pointer' }}>
-          + Follow
+          {t('home_feed.follow_button')}
         </button>
       )}
     </div>
@@ -1275,6 +1290,8 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
 
 // ── Main HomeFeed ─────────────────────────────────────────────────────────────
 const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRefreshKey }) => {
+  const { t } = useTranslation();
+  const FILTERS = getFilters(t);
   const [filter,      setFilter]      = useState('for_you');
   const [posts,       setPosts]       = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -1452,7 +1469,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                   </div>
                 </div>
                 <span style={{ fontSize:9, color:DK, fontWeight:600 }}>
-                  {isLoggedIn ? 'You' : 'Join'}
+                  {isLoggedIn ? t('home_feed.you_label') : t('home_feed.join_label')}
                 </span>
               </button>
               {isLoggedIn && (
@@ -1502,22 +1519,22 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           background:'linear-gradient(135deg,#1E1B4B,#1D4ED8,#7C3AED)',
           padding:'22px 20px', color:WH }}>
           <div style={{ fontSize:18, fontWeight:900, lineHeight:1.3, marginBottom:8 }}>
-            Tanzania's Commerce<br/>Identity Network
+            {t('home_feed.hero_title_line1')}<br/>{t('home_feed.hero_title_line2')}
           </div>
           <div style={{ fontSize:12, color:'rgba(255,255,255,0.75)',
             marginBottom:16, lineHeight:1.6 }}>
-            Fuata biashara, uone bidhaa mpya, tuma mizigo na pata huduma.
+            {t('home_feed.hero_desc')}
           </div>
           <div style={{ display:'flex', gap:10 }}>
             <button onClick={() => onNavigate('Register')}
               style={{ flex:1, backgroundColor:WH, color:B, border:'none',
                 borderRadius:10, padding:'11px 0', cursor:'pointer',
-                fontSize:13, fontWeight:900 }}>Join Free</button>
+                fontSize:13, fontWeight:900 }}>{t('home_feed.join_free_button')}</button>
             <button onClick={() => onNavigate('PublicLogin')}
               style={{ flex:1, backgroundColor:'rgba(255,255,255,0.15)',
                 color:WH, border:'1.5px solid rgba(255,255,255,0.3)',
                 borderRadius:10, padding:'11px 0', cursor:'pointer',
-                fontSize:13, fontWeight:700 }}>Sign In</button>
+                fontSize:13, fontWeight:700 }}>{t('home_feed.sign_in_button')}</button>
           </div>
         </div>
       )}
@@ -1547,24 +1564,24 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           </div>
           <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
             {filter==='following'
-              ? 'Businesses unazofuata hazijachapisha bado'
+              ? t('home_feed.empty_following')
               : filter==='transport'
-              ? 'Hakuna safari zilizochapishwa'
+              ? t('home_feed.empty_transport')
               : filter==='services'
-              ? 'Hakuna huduma zilizopo'
-              : 'Hakuna machapisho bado'}
+              ? t('home_feed.empty_services')
+              : t('home_feed.empty_default')}
           </div>
           <div style={{ display:'flex', gap:10, justifyContent:'center', marginTop:16 }}>
             <button onClick={() => onNavigate('Stores')}
               style={{ backgroundColor:B, color:WH, border:'none', borderRadius:12,
                 padding:'11px 20px', cursor:'pointer', fontSize:13, fontWeight:700 }}>
-              🏪 Discover Businesses
+              {t('home_feed.discover_businesses_button')}
             </button>
             <button onClick={() => setFilter('for_you')}
               style={{ backgroundColor:'#F1F5F9', color:DK, border:'none',
                 borderRadius:12, padding:'11px 20px', cursor:'pointer',
                 fontSize:13, fontWeight:700 }}>
-              💫 For You
+              {t('home_feed.for_you_button')}
             </button>
           </div>
         </div>
@@ -1611,7 +1628,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 style={{ backgroundColor:'#F1F5F9', color:DK, border:'none',
                   borderRadius:12, padding:'11px 32px', cursor:'pointer',
                   fontSize:13, fontWeight:700 }}>
-                {loadingMore ? 'Loading...' : 'Load More'}
+                {loadingMore ? t('home_feed.loading_ellipsis') : t('home_feed.load_more_button')}
               </button>
             </div>
           )}
@@ -1624,18 +1641,18 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           padding:'14px 18px', boxShadow:'0 2px 8px rgba(0,0,0,0.05)',
           display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
-            <div style={{ fontSize:13, fontWeight:800, color:DK }}>Have something to share?</div>
-            <div style={{ fontSize:11, color:GR, marginTop:2 }}>Post for free today</div>
+            <div style={{ fontSize:13, fontWeight:800, color:DK }}>{t('home_feed.share_prompt_title')}</div>
+            <div style={{ fontSize:11, color:GR, marginTop:2 }}>{t('home_feed.share_prompt_desc')}</div>
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => onNavigate(isLoggedIn?'SellerClassifieds':'Register')}
               style={{ backgroundColor:B, color:WH, border:'none',
                 borderRadius:8, padding:'8px 12px', cursor:'pointer',
-                fontSize:12, fontWeight:700 }}>📢 List Item</button>
+                fontSize:12, fontWeight:700 }}>{t('home_feed.list_item_button')}</button>
             <button onClick={() => onNavigate(isLoggedIn?'PostService':'Register')}
               style={{ backgroundColor:'#F0FDF4', color:'#16A34A', border:'none',
                 borderRadius:8, padding:'8px 12px', cursor:'pointer',
-                fontSize:12, fontWeight:700 }}>🔧 Services</button>
+                fontSize:12, fontWeight:700 }}>{t('home_feed.services_button')}</button>
           </div>
         </div>
       )}

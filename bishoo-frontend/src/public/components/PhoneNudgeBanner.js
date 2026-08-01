@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
 /**
@@ -9,9 +10,10 @@ import api from '../../api/api';
  * Usage in SellerDashboard.js:
  *   import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
  *   ...
- *   {profile && !profile.phone && <PhoneNudgeBanner onSaved={() => fetchAll()} />}
+ *   {profile && !profile.phone && <PhoneNudgeBanner userId={currentUser?.id} onSaved={() => fetchAll()} />}
  */
-const PhoneNudgeBanner = ({ onSaved }) => {
+const PhoneNudgeBanner = ({ userId, onSaved }) => {
+  const { t } = useTranslation();
   const [show, setShow]       = useState(true);
   const [editing, setEditing] = useState(false);
   const [phone, setPhone]     = useState('');
@@ -21,14 +23,15 @@ const PhoneNudgeBanner = ({ onSaved }) => {
   if (!show) return null;
 
   const handleSave = async () => {
-    if (!phone.trim()) { setError('Enter your phone number'); return; }
+    if (!phone.trim()) { setError(t('phone_nudge.enter_phone')); return; }
+    if (!userId) { setError(t('phone_nudge.no_user_id')); return; }
     try {
       setSaving(true); setError('');
-      await api.patch('/users/me', { phone: phone.trim() });
+      await api.patch(`/users/${userId}`, { phone: phone.trim() });
       setShow(false);
       if (onSaved) onSaved();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to save phone number');
+      setError(err?.response?.data?.message || t('phone_nudge.save_failed'));
     } finally { setSaving(false); }
   };
 
@@ -38,12 +41,12 @@ const PhoneNudgeBanner = ({ onSaved }) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 22, flexShrink: 0 }}>📱</span>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e' }}>Add your phone number</div>
-            <div style={{ fontSize: 11, color: '#92400e' }}>Get instant SMS alerts when you receive a new paid order</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#92400e' }}>{t('phone_nudge.add_phone_title')}</div>
+            <div style={{ fontSize: 11, color: '#92400e' }}>{t('phone_nudge.add_phone_desc')}</div>
           </div>
           <button onClick={() => setEditing(true)}
             style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-            Add
+            {t('phone_nudge.add_button')}
           </button>
           <button onClick={() => setShow(false)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400e', fontSize: 18, flexShrink: 0, padding: 0 }}>×</button>
@@ -55,10 +58,10 @@ const PhoneNudgeBanner = ({ onSaved }) => {
             <input type="tel" placeholder="255712345678" value={phone} onChange={e => setPhone(e.target.value)}
               style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '2px solid #fde68a', fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
             <button onClick={() => setEditing(false)}
-              style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Cancel</button>
+              style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>{t('common.cancel')}</button>
             <button onClick={handleSave} disabled={saving}
               style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-              {saving ? '⏳' : 'Save'}
+              {saving ? '⏳' : t('common.save')}
             </button>
           </div>
         </div>

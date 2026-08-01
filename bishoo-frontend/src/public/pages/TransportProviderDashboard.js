@@ -4,6 +4,7 @@
  * Route: 'TransportProviderDashboard'
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import Footer  from '../components/Footer';
@@ -15,22 +16,22 @@ import api     from '../../api/api';
 // logic gets more real-world testing. Flip this back on later.
 const TRANSPORT_OPS_ENABLED = false;
 
-const STATUS_STYLE = {
-  pending:   { bg: '#fef3c7', text: '#d97706', label: 'Inasubiri' },
-  accepted:  { bg: '#dcfce7', text: '#16a34a', label: 'Imekubaliwa' },
-  declined:  { bg: '#fee2e2', text: '#dc2626', label: 'Imekataliwa' },
-  collected: { bg: '#dbeafe', text: '#1d4ed8', label: 'Imechukuliwa' },
-  departed:  { bg: '#ede9fe', text: '#7c3aed', label: 'Njiani' },
-  arrived:   { bg: '#f0fdf4', text: '#16a34a', label: 'Imefika' },
-  completed: { bg: '#f8fafc', text: '#64748b', label: 'Imekamilika' },
-};
+const getStatusStyle = t => ({
+  pending:   { bg: '#fef3c7', text: '#d97706', label: t('transport_provider_dashboard.status_pending') },
+  accepted:  { bg: '#dcfce7', text: '#16a34a', label: t('transport_provider_dashboard.status_accepted') },
+  declined:  { bg: '#fee2e2', text: '#dc2626', label: t('transport_provider_dashboard.status_declined') },
+  collected: { bg: '#dbeafe', text: '#1d4ed8', label: t('transport_provider_dashboard.status_collected') },
+  departed:  { bg: '#ede9fe', text: '#7c3aed', label: t('transport_provider_dashboard.status_departed') },
+  arrived:   { bg: '#f0fdf4', text: '#16a34a', label: t('transport_provider_dashboard.status_arrived') },
+  completed: { bg: '#f8fafc', text: '#64748b', label: t('transport_provider_dashboard.status_completed') },
+});
 
-const AVAIL_STATUS = {
-  open:      { bg: '#dcfce7', text: '#16a34a', label: 'Wazi' },
-  full:      { bg: '#fee2e2', text: '#dc2626', label: 'Imejaa' },
-  departed:  { bg: '#f1f5f9', text: '#64748b', label: 'Imeondoka' },
-  cancelled: { bg: '#fef3c7', text: '#d97706', label: 'Imefutwa' },
-};
+const getAvailStatus = t => ({
+  open:      { bg: '#dcfce7', text: '#16a34a', label: t('transport_provider_dashboard.avail_open') },
+  full:      { bg: '#fee2e2', text: '#dc2626', label: t('transport_provider_dashboard.avail_full') },
+  departed:  { bg: '#f1f5f9', text: '#64748b', label: t('transport_provider_dashboard.avail_departed') },
+  cancelled: { bg: '#fef3c7', text: '#d97706', label: t('transport_provider_dashboard.avail_cancelled') },
+});
 
 const inp = {
   width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -39,6 +40,9 @@ const inp = {
 };
 
 const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment }) => {
+  const { t } = useTranslation();
+  const STATUS_STYLE = getStatusStyle(t);
+  const AVAIL_STATUS = getAvailStatus(t);
   const [profile,       setProfile]       = useState(null);
   const [routes,        setRoutes]        = useState([]);
   const [availability,  setAvailability]  = useState([]);
@@ -84,25 +88,25 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
       });
       setShowAvailForm(false);
       fetchAll();
-    } catch (e) { alert(e.response?.data?.message || 'Imeshindwa'); }
+    } catch (e) { alert(e.response?.data?.message || t('transport_provider_dashboard.publish_error')); }
     finally { setSavingAvail(false); }
   };
 
   const handleRespond = async (id, accept) => {
-    const reason = accept ? null : prompt('Sababu ya kukataa (hiari):');
+    const reason = accept ? null : prompt(t('transport_provider_dashboard.decline_reason_prompt'));
     try {
       await api.patch(`/transport/assignments/${id}/respond`, { accept, declineReason: reason });
       fetchAll();
-    } catch { alert('Imeshindwa'); }
+    } catch { alert(t('transport_provider_dashboard.generic_error')); }
   };
 
   const handleUpdateStatus = async (id, status) => {
     const proofUrl = ['collected','departed','arrived'].includes(status)
-      ? prompt(`URL ya picha ya uthibitisho (hiari):`) : null;
+      ? prompt(t('transport_provider_dashboard.proof_url_prompt')) : null;
     try {
       await api.patch(`/transport/assignments/${id}/status`, { status, proofUrl });
       fetchAll();
-    } catch { alert('Imeshindwa'); }
+    } catch { alert(t('transport_provider_dashboard.generic_error')); }
   };
 
   if (loading) return (
@@ -112,7 +116,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🚌</div>
-          <div>Inapakia...</div>
+          <div>{t('transport_provider_dashboard.loading')}</div>
         </div>
       </div>
     </div>
@@ -126,15 +130,15 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
-            Huna akaunti ya usafirishaji
+            {t('transport_provider_dashboard.no_account_title')}
           </div>
           <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>
-            Jiunge kama msafirishaji na uanze kupata maagizo
+            {t('transport_provider_dashboard.no_account_desc')}
           </div>
           <button onClick={() => onNavigate('BecomeTransportProvider')}
             style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
               borderRadius: 12, padding: '14px 28px', fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
-            🚀 Jiunge Sasa
+            {t('transport_provider_dashboard.join_now_button')}
           </button>
         </div>
       </div>
@@ -156,14 +160,13 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
         <div style={{ textAlign: 'center', maxWidth: 340 }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
           <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
-            You're Registered ✅
+            {t('transport_provider_dashboard.registered_title')}
           </div>
           <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>
-            {profile.status === 'verified' ? '✅ Verified' : profile.status === 'pending' ? '⏳ Under review' : profile.status}
+            {profile.status === 'verified' ? t('transport_provider_dashboard.status_verified') : profile.status === 'pending' ? t('transport_provider_dashboard.status_under_review') : profile.status}
           </div>
           <div style={{ fontSize: 13, color: '#64748b' }}>
-            Posting routes and accepting deliveries is launching soon —
-            we'll notify you as soon as it's ready.
+            {t('transport_provider_dashboard.ops_disabled_desc')}
           </div>
         </div>
       </div>
@@ -178,7 +181,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
       <Navbar currentPage="TransportProviderDashboard" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title="🚌 Dashibodi ya Msafirishaji" />
+      <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} />
 
       <div style={{ flex: 1, padding: '16px 16px 40px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
@@ -194,16 +197,16 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
             <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 100, marginTop: 8, display: 'inline-block',
               backgroundColor: profile.status === 'verified' ? '#16a34a' : profile.status === 'pending' ? '#d97706' : '#dc2626',
               color: '#fff', fontWeight: 700 }}>
-              {profile.status === 'verified' ? '✅ Imehakikiwa' : profile.status === 'pending' ? '⏳ Inasubiri Ukaguzi' : '❌ Imekataliwa'}
+              {profile.status === 'verified' ? t('transport_provider_dashboard.status_verified') : profile.status === 'pending' ? t('transport_provider_dashboard.status_under_review') : '❌ ' + t('transport_provider_dashboard.status_declined')}
             </span>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 28, fontWeight: 900 }}>{profile.completedAssignments || 0}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Zilizokamilika</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{t('transport_provider_dashboard.completed_label')}</div>
             {pendingAssignments.length > 0 && (
               <div style={{ backgroundColor: '#ef4444', borderRadius: 100,
                 padding: '2px 10px', fontSize: 11, fontWeight: 800, marginTop: 6 }}>
-                {pendingAssignments.length} zinasubiri jibu
+                {t('transport_provider_dashboard.pending_response_badge', { count: pendingAssignments.length })}
               </div>
             )}
           </div>
@@ -213,17 +216,17 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
         <div style={{ display: 'flex', backgroundColor: '#fff', borderRadius: 12,
           padding: 4, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
           {[
-            { key: 'home',         label: '🏠 Leo' },
-            { key: 'availability', label: '📅 Upatikanaji' },
-            { key: 'assignments',  label: `📋 Maagizo${assignments.length > 0 ? ` (${assignments.length})` : ''}` },
-            { key: 'routes',       label: '🗺️ Njia' },
-          ].map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            { key: 'home',         label: t('transport_provider_dashboard.tab_home') },
+            { key: 'availability', label: t('transport_provider_dashboard.tab_availability') },
+            { key: 'assignments',  label: `${t('transport_provider_dashboard.tab_assignments')}${assignments.length > 0 ? ` (${assignments.length})` : ''}` },
+            { key: 'routes',       label: t('transport_provider_dashboard.tab_routes') },
+          ].map(tabItem => (
+            <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
               style={{ flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
                 borderRadius: 9, fontSize: 11, fontWeight: 700,
-                backgroundColor: tab === t.key ? '#1d4ed8' : 'transparent',
-                color: tab === t.key ? '#fff' : '#64748b' }}>
-              {t.label}
+                backgroundColor: tab === tabItem.key ? '#1d4ed8' : 'transparent',
+                color: tab === tabItem.key ? '#fff' : '#64748b' }}>
+              {tabItem.label}
             </button>
           ))}
         </div>
@@ -234,7 +237,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
             {pendingAssignments.length > 0 && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#dc2626', marginBottom: 10 }}>
-                  ⚠️ Zinahitaji Jibu Lako ({pendingAssignments.length})
+                  {t('transport_provider_dashboard.needs_response_title', { count: pendingAssignments.length })}
                 </div>
                 {pendingAssignments.map(a => (
                   <div key={a.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
@@ -244,7 +247,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
                       {a.fromCity} → {a.toCity}
                     </div>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-                      📦 {a.parcelCount} vifurushi · {a.weightKg}kg
+                      {t('transport_provider_dashboard.parcel_count_label', { count: a.parcelCount, weight: a.weightKg })}
                       {a.scheduledDeparture && ` · ${a.scheduledDeparture}`}
                       {a.trackingNumber && ` · ${a.trackingNumber}`}
                     </div>
@@ -259,13 +262,13 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
                         style={{ flex: 1, backgroundColor: '#dcfce7', color: '#16a34a',
                           border: 'none', borderRadius: 8, padding: '10px 0',
                           cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                        ✅ Kubali
+                        {t('transport_provider_dashboard.accept_button')}
                       </button>
                       <button onClick={() => handleRespond(a.id, false)}
                         style={{ flex: 1, backgroundColor: '#fee2e2', color: '#dc2626',
                           border: 'none', borderRadius: 8, padding: '10px 0',
                           cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                        ❌ Kataa
+                        {t('transport_provider_dashboard.decline_button')}
                       </button>
                     </div>
                   </div>
@@ -277,15 +280,15 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
             {activeAssignments.length > 0 && (
               <div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
-                  🚌 Zinazoendelea ({activeAssignments.length})
+                  {t('transport_provider_dashboard.active_title', { count: activeAssignments.length })}
                 </div>
                 {activeAssignments.map(a => {
                   const sc = STATUS_STYLE[a.status] || STATUS_STYLE.accepted;
                   const nextStatus =
-                    a.status === 'accepted'  ? { status: 'collected', label: '📦 Nimechukua' } :
-                    a.status === 'collected' ? { status: 'departed',  label: '🚌 Nimeondoka' } :
-                    a.status === 'departed'  ? { status: 'arrived',   label: '🏙️ Nimefika' } :
-                    a.status === 'arrived'   ? { status: 'completed', label: '✅ Imekamilika' } : null;
+                    a.status === 'accepted'  ? { status: 'collected', label: t('transport_provider_dashboard.next_status_collected') } :
+                    a.status === 'collected' ? { status: 'departed',  label: t('transport_provider_dashboard.next_status_departed') } :
+                    a.status === 'departed'  ? { status: 'arrived',   label: t('transport_provider_dashboard.next_status_arrived') } :
+                    a.status === 'arrived'   ? { status: 'completed', label: t('transport_provider_dashboard.next_status_completed') } : null;
                   return (
                     <div key={a.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
                       marginBottom: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -297,7 +300,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
                         </span>
                       </div>
                       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                        {a.trackingNumber || `Mgawo #${a.id}`} · {a.parcelCount} vifurushi
+                        {a.trackingNumber || t('transport_provider_dashboard.assignment_number', { id: a.id })} · {t('transport_provider_dashboard.parcel_count_label', { count: a.parcelCount, weight: a.weightKg })}
                       </div>
                       {nextStatus && (
                         <button onClick={() => handleUpdateStatus(a.id, nextStatus.status)}
@@ -316,9 +319,9 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
             {pendingAssignments.length === 0 && activeAssignments.length === 0 && (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16 }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>😴</div>
-                <div style={{ color: '#64748b' }}>Hakuna maagizo kwa sasa</div>
+                <div style={{ color: '#64748b' }}>{t('transport_provider_dashboard.no_assignments_title')}</div>
                 <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
-                  Chapisha upatikanaji wako ili Super Agents wakuone
+                  {t('transport_provider_dashboard.no_assignments_desc')}
                 </div>
               </div>
             )}
@@ -332,66 +335,66 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
               style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)',
                 color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0',
                 fontSize: 14, fontWeight: 800, cursor: 'pointer', marginBottom: 16 }}>
-              + Chapisha Upatikanaji wa Leo
+              {t('transport_provider_dashboard.publish_today_button')}
             </button>
 
             {showAvailForm && (
               <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
                 marginBottom: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
                 <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>
-                  📅 Safari Mpya
+                  {t('transport_provider_dashboard.new_trip_title')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>Tarehe *</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_date')}</label>
                     <input type="date" style={inp} value={availForm.date}
                       onChange={e => setAvailForm(p => ({ ...p, date: e.target.value }))} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>Saa ya Kuondoka</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_departure_time')}</label>
                     <input type="time" style={inp} value={availForm.departureTime}
                       onChange={e => setAvailForm(p => ({ ...p, departureTime: e.target.value }))} />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>Kutoka</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_from')}</label>
                     <input style={inp} value={availForm.fromCity} placeholder="Dar es Salaam"
                       onChange={e => setAvailForm(p => ({ ...p, fromCity: e.target.value }))} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>Kwenda</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_to')}</label>
                     <input style={inp} value={availForm.toCity} placeholder="Mbeya"
                       onChange={e => setAvailForm(p => ({ ...p, toCity: e.target.value }))} />
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>Nafasi (vifurushi)</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_slots')}</label>
                     <input type="number" style={inp} value={availForm.totalSlots}
                       onChange={e => setAvailForm(p => ({ ...p, totalSlots: e.target.value }))} />
                   </div>
                   <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>Uzito Max (kg)</label>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_max_weight')}</label>
                     <input type="number" style={inp} value={availForm.totalCapacityKg}
                       onChange={e => setAvailForm(p => ({ ...p, totalCapacityKg: e.target.value }))} />
                   </div>
                 </div>
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>Maelezo (hiari)</label>
-                  <input style={inp} value={availForm.notes} placeholder="e.g. Basi la biashara, kinga ya mvua inafaa"
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_notes')}</label>
+                  <input style={inp} value={availForm.notes} placeholder={t('transport_provider_dashboard.notes_placeholder')}
                     onChange={e => setAvailForm(p => ({ ...p, notes: e.target.value }))} />
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setShowAvailForm(false)}
                     style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none',
                       borderRadius: 8, padding: '10px 0', cursor: 'pointer', fontWeight: 700 }}>
-                    Funga
+                    {t('transport_provider_dashboard.close_button')}
                   </button>
                   <button onClick={handlePublishAvailability} disabled={savingAvail}
                     style={{ flex: 2, backgroundColor: '#16a34a', color: '#fff', border: 'none',
                       borderRadius: 8, padding: '10px 0', cursor: 'pointer', fontWeight: 800 }}>
-                    {savingAvail ? '⏳...' : '✅ Chapisha'}
+                    {savingAvail ? t('transport_provider_dashboard.publishing_button') : t('transport_provider_dashboard.publish_button')}
                   </button>
                 </div>
               </div>
@@ -399,7 +402,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
 
             {availability.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, backgroundColor: '#fff', borderRadius: 14, color: '#94a3b8' }}>
-                Bado haujachapisha upatikanaji wowote
+                {t('transport_provider_dashboard.no_availability_yet')}
               </div>
             ) : availability.map(a => {
               const sc = AVAIL_STATUS[a.status] || AVAIL_STATUS.open;
@@ -416,7 +419,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
                         📅 {a.date} {a.departureTime && `· ${a.departureTime}`}
                       </div>
                       <div style={{ fontSize: 12, color: slotsLeft > 0 ? '#16a34a' : '#dc2626', marginTop: 2 }}>
-                        {slotsLeft > 0 ? `✅ Nafasi ${slotsLeft} zimebaki` : '❌ Imejaa'}
+                        {slotsLeft > 0 ? t('transport_provider_dashboard.slots_left', { count: slotsLeft }) : t('transport_provider_dashboard.slots_full')}
                         {a.totalCapacityKg > 0 && ` · ${a.totalCapacityKg - a.usedCapacityKg}kg`}
                       </div>
                     </div>
@@ -443,7 +446,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
             {assignments.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, color: '#94a3b8' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-                <div>Bado haujapata maagizo yoyote</div>
+                <div>{t('transport_provider_dashboard.no_assignments_yet_title')}</div>
               </div>
             ) : assignments.map(a => {
               const sc = STATUS_STYLE[a.status] || STATUS_STYLE.pending;
@@ -458,7 +461,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
                     </span>
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b' }}>
-                    {a.trackingNumber || `Mgawo #${a.id}`} · {a.parcelCount} vifurushi · {a.weightKg}kg
+                    {a.trackingNumber || t('transport_provider_dashboard.assignment_number', { id: a.id })} · {t('transport_provider_dashboard.parcel_count_label', { count: a.parcelCount, weight: a.weightKg })}
                   </div>
                   {a.agreedPrice && (
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', marginTop: 4 }}>
@@ -477,8 +480,8 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
             {routes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, color: '#94a3b8' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
-                <div>Bado haujasajili njia yoyote</div>
-                <div style={{ fontSize: 12, marginTop: 6 }}>Wasiliana na msaada wa KenteXa kuongeza njia</div>
+                <div>{t('transport_provider_dashboard.no_routes_title')}</div>
+                <div style={{ fontSize: 12, marginTop: 6 }}>{t('transport_provider_dashboard.no_routes_desc')}</div>
               </div>
             ) : routes.map(r => {
               const routeLabel = r.routeType === 'intercity'  ? `${r.originCity} → ${r.destinationCity}` :
@@ -491,18 +494,18 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
                   {routeLabel}
                 </div>
                 <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                  {r.routeType === 'intercity' ? '🚌 Safari ya Miji' :
-                   r.routeType === 'local_loop' ? '🔄 Mzunguko wa Ndani' :
-                   '🏍️ Utoaji wa Mwisho'}
-                  {r.estimatedHours && ` · ~${r.estimatedHours} masaa`}
+                  {r.routeType === 'intercity' ? t('transport_provider_dashboard.route_type_intercity') :
+                   r.routeType === 'local_loop' ? t('transport_provider_dashboard.route_type_local_loop') :
+                   t('transport_provider_dashboard.route_type_last_mile')}
+                  {r.estimatedHours && ` ${t('transport_provider_dashboard.hours_suffix', { hours: r.estimatedHours })}`}
                   {r.pricePerKg > 0 && ` · TZS ${Number(r.pricePerKg).toLocaleString()}/kg`}
                 </div>
                 <button onClick={() => onOpenMoment?.('selling', {
-                    type: 'route', id: r.id, title: routeLabel || 'My Route', image: null,
+                    type: 'route', id: r.id, title: routeLabel || t('transport_provider_dashboard.my_route_fallback'), image: null,
                   })}
                   style={{ background:'none', border:'none', cursor:'pointer', padding:0,
                     color:'#2563EB', fontSize:12, fontWeight:700 }}>
-                  📸 Share as Moment
+                  {t('transport_provider_dashboard.share_moment_button')}
                 </button>
               </div>
               );

@@ -59,6 +59,12 @@ export class BusinessCustomer {
 
   // ── Location (from location engine) ──────────────────────────────────────
   @Column({ type: 'int', nullable: true })
+  regionId: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  districtId: number | null;
+
+  @Column({ type: 'int', nullable: true })
   wardId: number | null;
 
   @Column({ type: 'varchar', nullable: true })

@@ -11,10 +11,11 @@
  * Shows ETA + transit city before submitting so seller can inform buyer.
  */
 import React, { useState, useEffect, useCallback } from 'react';
-import Navbar from '../components/Navbar';
+import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
+
+const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 
 const CITIES = [
   'Dar es Salaam','Mwanza','Arusha','Moshi','Dodoma','Mbeya','Tanga','Morogoro',
@@ -58,6 +59,8 @@ const Field = ({ label, required, children, hint }) => (
 );
 
 const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'en-GB';
   const [products, setProducts]       = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [result, setResult]           = useState(null);
@@ -121,20 +124,20 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
     const date = new Date();
     date.setDate(date.getDate() + routeInfo.estimatedDays);
     while (date.getDay() === 0 || date.getDay() === 6) date.setDate(date.getDate() + 1);
-    return date.toLocaleDateString('sw-TZ', { weekday: 'long', day: 'numeric', month: 'long' });
+    return date.toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' });
   };
 
   const selectedProduct = products.find(p => String(p.id) === String(form.productId));
   const busCompanies = BUS_COMPANIES[form.destinationCity] || BUS_COMPANIES.default;
 
   const validate = () => {
-    if (!form.productId)                return 'Chagua bidhaa';
-    if (!form.buyerName.trim())         return 'Weka jina la mnunuzi';
-    if (!form.buyerPhone.trim())        return 'Weka simu ya mnunuzi';
-    if (!form.destinationCity)          return 'Chagua mji wa mwisho';
-    if (!form.deliveryAddress.trim())   return 'Weka anwani ya uwasilishaji';
-    if (form.shippingMethod === 'bus' && !form.busCompany)  return 'Chagua kampuni ya basi';
-    if (form.shippingMethod === 'bus' && !form.busTicketNumber.trim()) return 'Weka nambari ya tiketi';
+    if (!form.productId)                return t('offline_intercity_order.validate_select_product');
+    if (!form.buyerName.trim())         return t('offline_intercity_order.validate_buyer_name');
+    if (!form.buyerPhone.trim())        return t('offline_intercity_order.validate_buyer_phone');
+    if (!form.destinationCity)          return t('offline_intercity_order.validate_destination_city');
+    if (!form.deliveryAddress.trim())   return t('offline_intercity_order.validate_delivery_address');
+    if (form.shippingMethod === 'bus' && !form.busCompany)  return t('offline_intercity_order.validate_bus_company');
+    if (form.shippingMethod === 'bus' && !form.busTicketNumber.trim()) return t('offline_intercity_order.validate_ticket_number');
     return null;
   };
 
@@ -169,7 +172,7 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
       });
       setResult(res.data);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kuunda agizo');
+      setError(err?.response?.data?.message || t('offline_intercity_order.create_failed'));
     } finally { setLoading(false); }
   };
 
@@ -187,43 +190,42 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
   // ── Success screen ────────────────────────────────────────────────────────
   if (result) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="OfflineIntercityOrder" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('SellerDashboard')} title="Agizo la Mkoa" />
-      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('offline_intercity_order.success_page_title')} />
+      <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 90 }}>
 
         <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', borderRadius: 20, padding: 24, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
           <div style={{ fontSize: 48, marginBottom: 10 }}>✅</div>
-          <h2 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 6px' }}>Agizo Limesajiliwa!</h2>
-          <p style={{ fontSize: 13, opacity: 0.9, margin: 0 }}>Mpe mnunuzi namba hii ya kufuatilia</p>
+          <h2 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 6px' }}>{t('offline_intercity_order.success_title')}</h2>
+          <p style={{ fontSize: 13, opacity: 0.9, margin: 0 }}>{t('offline_intercity_order.success_desc')}</p>
         </div>
 
         {/* Tracking number */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>NAMBA YA KUFUATILIA</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>{t('offline_intercity_order.tracking_number_label')}</div>
           <div style={{ fontSize: 24, fontWeight: 900, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 2 }}>
             {result.trackingNumber}
           </div>
           <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
-            Fuatilia: kentexa.com/?track={result.trackingNumber}
+            {t('offline_intercity_order.track_link', { number: result.trackingNumber })}
           </div>
         </div>
 
         {/* Route + ETA summary */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>📋 Muhtasari</div>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>{t('offline_intercity_order.summary_title')}</div>
           {[
-            ['Bidhaa', selectedProduct?.name || form.productId],
-            ['Mnunuzi', form.buyerName],
-            ['Simu', form.buyerPhone],
-            ['Kutoka', sellerCity || 'Dar es Salaam'],
-            ['Kwenda', form.destinationCity],
-            ...(result.transitCity ? [['Via (Transit)', result.transitCity]] : []),
-            ['Muda wa Utoaji', result.estimatedDays ? `Siku ${result.estimatedDays}` : '—'],
-            ['Inatarajiwa Kufika', getExpectedArrival() || '—'],
-            ['Njia ya Usafirishaji',
-              form.shippingMethod === 'agent'   ? '🏢 KenteXa Super Agent' :
-              form.shippingMethod === 'bus'     ? `🚌 ${form.busCompany} (Tiketi: ${form.busTicketNumber})` :
-              `📦 ${form.courierName} (Ref: ${form.externalTrackingRef})`],
+            [t('offline_intercity_order.summary_product'), selectedProduct?.name || form.productId],
+            [t('offline_intercity_order.summary_buyer'), form.buyerName],
+            [t('offline_intercity_order.summary_phone'), form.buyerPhone],
+            [t('offline_intercity_order.summary_from'), sellerCity || 'Dar es Salaam'],
+            [t('offline_intercity_order.summary_to'), form.destinationCity],
+            ...(result.transitCity ? [[t('offline_intercity_order.summary_via_transit'), result.transitCity]] : []),
+            [t('offline_intercity_order.summary_delivery_time'), result.estimatedDays ? t('offline_intercity_order.days_value', { count: result.estimatedDays }) : '—'],
+            [t('offline_intercity_order.summary_expected_arrival'), getExpectedArrival() || '—'],
+            [t('offline_intercity_order.summary_shipping_method'),
+              form.shippingMethod === 'agent'   ? t('offline_intercity_order.method_agent_name') :
+              form.shippingMethod === 'bus'     ? t('offline_intercity_order.method_bus_name', { company: form.busCompany, ticket: form.busTicketNumber }) :
+              t('offline_intercity_order.method_courier_name', { courier: form.courierName, ref: form.externalTrackingRef })],
           ].map(([l, v]) => (
             <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f8fafc', fontSize: 13 }}>
               <span style={{ color: '#64748b' }}>{l}</span>
@@ -235,28 +237,26 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={handleNew}
             style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-            📦 Agizo Jipya
+            {t('offline_intercity_order.new_order_button')}
           </button>
           <button onClick={() => onNavigate('SellerDashboard')}
             style={{ flex: 1, background: '#fff', color: '#475569', border: '2px solid #e2e8f0', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
-            🏪 Dashibodi
+            {t('offline_intercity_order.dashboard_button')}
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
   // ── Form ─────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="OfflineIntercityOrder" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('SellerDashboard')} title="🚚 Agizo la Mkoa — Mkono" />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('offline_intercity_order.form_title')} />
 
-      <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
+      <div style={{ padding: 16, maxWidth: 520, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 90 }}>
 
         <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1d4ed8' }}>
-          💡 Mnunuzi alikuja dukani au alikupigia simu? Sajili hapa. Malipo umeshapata. Tutashughulikia usafirishaji.
+          {t('offline_intercity_order.info_banner')}
         </div>
 
         {error && (
@@ -269,13 +269,13 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
 
           {/* Product selection */}
-          <SectionTitle icon="📦" title="Bidhaa" />
-          <Field label="Chagua Bidhaa *">
+          <SectionTitle icon="📦" title={t('offline_intercity_order.section_product')} />
+          <Field label={t('offline_intercity_order.select_product_label')}>
             {loadingProducts ? (
-              <div style={{ padding: 12, color: '#94a3b8', fontSize: 13 }}>⏳ Inapakia bidhaa...</div>
+              <div style={{ padding: 12, color: '#94a3b8', fontSize: 13 }}>{t('offline_intercity_order.loading_products')}</div>
             ) : (
               <select value={form.productId} onChange={e => set('productId', e.target.value)} style={inputStyle}>
-                <option value="">— Chagua Bidhaa —</option>
+                <option value="">{t('offline_intercity_order.select_product_placeholder')}</option>
                 {products.map(p => (
                   <option key={p.id} value={p.id}>
                     {p.name} — TZS {Number(p.basePrice).toLocaleString()}
@@ -295,34 +295,34 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
                 <div style={{ fontSize: 12, color: '#1d4ed8', fontWeight: 700 }}>
                   TZS {Number(selectedProduct.basePrice).toLocaleString()}
                   {selectedProduct.deliveryFee > 0 && (
-                    <span style={{ color: '#64748b', fontWeight: 400 }}> + TZS {Number(selectedProduct.deliveryFee).toLocaleString()} (usafirishaji)</span>
+                    <span style={{ color: '#64748b', fontWeight: 400 }}> + TZS {Number(selectedProduct.deliveryFee).toLocaleString()} {t('offline_intercity_order.shipping_fee_suffix')}</span>
                   )}
                 </div>
               </div>
             </div>
           )}
 
-          <Field label="Idadi">
+          <Field label={t('offline_intercity_order.quantity_label')}>
             <input type="number" min="1" value={form.quantity}
               onChange={e => set('quantity', e.target.value)} style={inputStyle} />
           </Field>
 
           {/* Buyer info */}
-          <SectionTitle icon="👤" title="Mnunuzi" />
-          <Field label="Jina la Mnunuzi *">
-            <input type="text" placeholder="e.g. Amina Hassan"
+          <SectionTitle icon="👤" title={t('offline_intercity_order.section_buyer')} />
+          <Field label={t('offline_intercity_order.buyer_name_label')}>
+            <input type="text" placeholder={t('offline_intercity_order.buyer_name_placeholder')}
               value={form.buyerName} onChange={e => set('buyerName', e.target.value)} style={inputStyle} />
           </Field>
-          <Field label="Simu ya Mnunuzi *" hint="Atatumwa SMS na namba ya kufuatilia">
-            <input type="tel" placeholder="0712345678 au 255712345678"
+          <Field label={t('offline_intercity_order.buyer_phone_label')} hint={t('offline_intercity_order.buyer_phone_hint')}>
+            <input type="tel" placeholder={t('offline_intercity_order.buyer_phone_placeholder')}
               value={form.buyerPhone} onChange={e => set('buyerPhone', e.target.value)} style={inputStyle} />
           </Field>
 
           {/* Destination */}
-          <SectionTitle icon="📍" title="Mji wa Mwisho" />
-          <Field label="Mji *">
+          <SectionTitle icon="📍" title={t('offline_intercity_order.section_destination')} />
+          <Field label={t('offline_intercity_order.city_label')}>
             <select value={form.destinationCity} onChange={e => set('destinationCity', e.target.value)} style={inputStyle}>
-              <option value="">— Chagua Mji —</option>
+              <option value="">{t('offline_intercity_order.select_city_placeholder')}</option>
               {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
@@ -332,31 +332,31 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
             <div style={{ marginBottom: 14 }}>
               {routeLoading ? (
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#94a3b8' }}>
-                  ⏳ Inatafuta njia...
+                  {t('offline_intercity_order.finding_route')}
                 </div>
               ) : routeInfo ? (
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '12px 14px', border: '1px solid #86efac' }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#15803d', marginBottom: 8 }}>📅 Maelezo ya Njia</div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#15803d', marginBottom: 8 }}>{t('offline_intercity_order.route_details_title')}</div>
 
                   {/* Transit route */}
                   {routeInfo.transitCity && (
                     <div style={{ backgroundColor: '#fef9c3', borderRadius: 8, padding: '6px 10px', marginBottom: 8, fontSize: 11, color: '#92400e' }}>
-                      🔄 <strong>Via {routeInfo.transitCity}</strong> — hakuna basi la moja kwa moja
+                      🔄 <strong>{t('offline_intercity_order.via_transit', { city: routeInfo.transitCity })}</strong>{t('offline_intercity_order.no_direct_bus')}
                       {routeInfo.leg1Days && routeInfo.leg2Days && (
-                        <span> (siku {routeInfo.leg1Days} + siku {routeInfo.leg2Days})</span>
+                        <span>{t('offline_intercity_order.days_suffix', { leg1: routeInfo.leg1Days, leg2: routeInfo.leg2Days })}</span>
                       )}
                     </div>
                   )}
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px' }}>
-                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>MUDA WA UTOAJI</div>
+                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>{t('offline_intercity_order.delivery_time_label')}</div>
                       <div style={{ fontSize: 16, fontWeight: 900, color: '#15803d' }}>
-                        Siku {routeInfo.estimatedDays}
+                        {t('offline_intercity_order.days_value', { count: routeInfo.estimatedDays })}
                       </div>
                     </div>
                     <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 10px' }}>
-                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>INATARAJIWA KUFIKA</div>
+                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>{t('offline_intercity_order.expected_arrival_label')}</div>
                       <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8' }}>
                         {getExpectedArrival() || '—'}
                       </div>
@@ -365,35 +365,35 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
 
                   {routeInfo.primaryTransport && (
                     <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
-                      🚌 Usafiri wa kawaida: {
-                        routeInfo.primaryTransport === 'bus'       ? 'Basi' :
-                        routeInfo.primaryTransport === 'agent_van' ? 'Van ya Agent' :
-                        routeInfo.primaryTransport === 'courier'   ? 'Courier' : routeInfo.primaryTransport
+                      🚌 {t('offline_intercity_order.common_transport_label')} {
+                        routeInfo.primaryTransport === 'bus'       ? t('offline_intercity_order.transport_bus') :
+                        routeInfo.primaryTransport === 'agent_van' ? t('offline_intercity_order.transport_agent_van') :
+                        routeInfo.primaryTransport === 'courier'   ? t('offline_intercity_order.transport_courier') : routeInfo.primaryTransport
                       }
                     </div>
                   )}
                 </div>
               ) : (
                 <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#c2410c' }}>
-                  ⚠️ Hakuna njia iliyosajiliwa kwa {form.destinationCity}. Muda wa utoaji utategemea usafiri unaochagua.
+                  {t('offline_intercity_order.no_route_registered', { city: form.destinationCity })}
                 </div>
               )}
             </div>
           )}
 
-          <Field label="Anwani ya Uwasilishaji *" hint="Mtaa, alama muhimu — wakala atatumia hii">
-            <textarea rows={2} placeholder="e.g. Karibu na kanisa, nyumba ya paa la bati nyekundu"
+          <Field label={t('offline_intercity_order.delivery_address_label')} hint={t('offline_intercity_order.delivery_address_hint')}>
+            <textarea rows={2} placeholder={t('offline_intercity_order.delivery_address_placeholder')}
               value={form.deliveryAddress} onChange={e => set('deliveryAddress', e.target.value)}
               style={{ ...inputStyle, resize: 'vertical' }} />
           </Field>
 
           {/* Shipping method */}
-          <SectionTitle icon="🚚" title="Njia ya Usafirishaji" />
+          <SectionTitle icon="🚚" title={t('offline_intercity_order.section_shipping_method')} />
           <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             {[
-              { value: 'agent',   label: '🏢 Super Agent', desc: 'KenteXa itashughulikia' },
-              { value: 'bus',     label: '🚌 Basi',         desc: 'Wewe unatuma' },
-              { value: 'courier', label: '📦 Courier',       desc: 'DHL, EMS n.k.' },
+              { value: 'agent',   label: t('offline_intercity_order.method_agent'), desc: t('offline_intercity_order.method_agent_desc') },
+              { value: 'bus',     label: t('offline_intercity_order.method_bus'),         desc: t('offline_intercity_order.method_bus_desc') },
+              { value: 'courier', label: t('offline_intercity_order.method_courier'),       desc: t('offline_intercity_order.method_courier_desc') },
             ].map(m => (
               <button key={m.value} onClick={() => set('shippingMethod', m.value)}
                 style={{ flex: 1, padding: '10px 8px', borderRadius: 10, cursor: 'pointer', fontSize: 11,
@@ -410,18 +410,18 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
           {/* Bus fields */}
           {form.shippingMethod === 'bus' && (
             <>
-              <Field label="Kampuni ya Basi *">
+              <Field label={t('offline_intercity_order.bus_company_label')}>
                 <select value={form.busCompany} onChange={e => set('busCompany', e.target.value)} style={inputStyle}>
-                  <option value="">— Chagua Kampuni —</option>
+                  <option value="">{t('offline_intercity_order.select_company_placeholder')}</option>
                   {busCompanies.map(b => <option key={b} value={b}>{b}</option>)}
                 </select>
               </Field>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Field label="Namba ya Tiketi *">
+                <Field label={t('offline_intercity_order.ticket_number_label')}>
                   <input type="text" placeholder="e.g. KE-12345"
                     value={form.busTicketNumber} onChange={e => set('busTicketNumber', e.target.value)} style={inputStyle} />
                 </Field>
-                <Field label="Tarehe ya Kuondoka">
+                <Field label={t('offline_intercity_order.departure_date_label')}>
                   <input type="date" value={form.busDeparture}
                     onChange={e => set('busDeparture', e.target.value)} style={inputStyle} />
                 </Field>
@@ -432,20 +432,20 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
           {/* Courier fields */}
           {form.shippingMethod === 'courier' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-              <Field label="Jina la Courier">
+              <Field label={t('offline_intercity_order.courier_name_label')}>
                 <input type="text" placeholder="e.g. DHL, EMS"
                   value={form.courierName} onChange={e => set('courierName', e.target.value)} style={inputStyle} />
               </Field>
-              <Field label="Ref ya Kufuatilia">
-                <input type="text" placeholder="Namba ya courier"
+              <Field label={t('offline_intercity_order.courier_ref_label')}>
+                <input type="text" placeholder={t('offline_intercity_order.courier_ref_placeholder')}
                   value={form.externalTrackingRef} onChange={e => set('externalTrackingRef', e.target.value)} style={inputStyle} />
               </Field>
             </div>
           )}
 
           {/* Payment */}
-          <SectionTitle icon="💰" title="Malipo (Umeshapokea)" />
-          <Field label="Njia ya Malipo">
+          <SectionTitle icon="💰" title={t('offline_intercity_order.section_payment')} />
+          <Field label={t('offline_intercity_order.payment_method_label')}>
             <div style={{ display: 'flex', gap: 8 }}>
               {['M-Pesa','Airtel Money','Tigo Pesa','Halotel','Pesa Taslimu'].map(m => (
                 <button key={m} onClick={() => set('paymentMethod', m)}
@@ -459,12 +459,12 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
               ))}
             </div>
           </Field>
-          <Field label="Ref ya Malipo (si lazima)">
-            <input type="text" placeholder="e.g. namba ya M-Pesa confirmation"
+          <Field label={t('offline_intercity_order.payment_ref_label')}>
+            <input type="text" placeholder={t('offline_intercity_order.payment_ref_placeholder')}
               value={form.paymentRef} onChange={e => set('paymentRef', e.target.value)} style={inputStyle} />
           </Field>
-          <Field label="Maelezo Zaidi">
-            <input type="text" placeholder="Maelezo yoyote ya ziada"
+          <Field label={t('offline_intercity_order.notes_label')}>
+            <input type="text" placeholder={t('offline_intercity_order.notes_placeholder')}
               value={form.notes} onChange={e => set('notes', e.target.value)} style={inputStyle} />
           </Field>
 
@@ -473,11 +473,10 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
               color: '#fff', border: 'none', padding: 16, borderRadius: 12,
               cursor: loading ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 900,
               marginTop: 8, boxShadow: '0 4px 12px rgba(29,78,216,0.3)' }}>
-            {loading ? '⏳ Inasajili...' : '✅ Sajili Agizo'}
+            {loading ? t('offline_intercity_order.registering') : t('offline_intercity_order.register_order_button')}
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

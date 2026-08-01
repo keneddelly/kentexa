@@ -7,28 +7,30 @@
  * Converting conversations into transactions.
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
-const STATUS_COLORS = {
-  open:     { bg: '#dbeafe', color: '#1d4ed8', label: 'Wazi' },
-  pending:  { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
-  resolved: { bg: '#dcfce7', color: '#16a34a', label: 'Imekamilika' },
-  closed:   { bg: '#f1f5f9', color: '#64748b', label: 'Imefungwa' },
-};
+const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 
-const ConversationItem = ({ convo, isActive, onClick }) => {
+const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
+  const STATUS_COLORS = {
+    open:     { bg: '#dbeafe', color: '#1d4ed8', label: t('seller_inbox.status_open') },
+    pending:  { bg: '#fef9c3', color: '#ca8a04', label: t('seller_inbox.status_pending') },
+    resolved: { bg: '#dcfce7', color: '#16a34a', label: t('seller_inbox.status_resolved') },
+    closed:   { bg: '#f1f5f9', color: '#64748b', label: t('seller_inbox.status_closed') },
+  };
   const sc = STATUS_COLORS[convo.status] || STATUS_COLORS.open;
   const isBuyerSide = convo._mode === 'buyer';
   // Buyer side of the table shows the SELLER (who I'm talking to); seller
   // side shows the CUSTOMER — same component, other party's name either way.
   const name = isBuyerSide
-    ? (convo.seller?.storeName || convo.seller?.name || 'Muuzaji')
-    : (convo.customer?.name || 'Mteja');
+    ? (convo.seller?.storeName || convo.seller?.name || t('seller_inbox.seller_fallback'))
+    : (convo.customer?.name || t('seller_inbox.customer_fallback'));
   const initial = name[0].toUpperCase();
   const unread = isBuyerSide ? convo.buyerUnreadCount : convo.unreadCount;
   const time = convo.lastMessageAt
-    ? new Date(convo.lastMessageAt).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' })
+    ? new Date(convo.lastMessageAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })
     : '';
 
   return (
@@ -71,7 +73,7 @@ const ConversationItem = ({ convo, isActive, onClick }) => {
   );
 };
 
-const MessageBubble = ({ msg, mode }) => {
+const MessageBubble = ({ msg, mode, t }) => {
   // "Mine" = my own outgoing messages, aligned right — flips depending on
   // which side of the conversation the current viewer is on.
   const isMine = mode === 'buyer'
@@ -117,7 +119,7 @@ const MessageBubble = ({ msg, mode }) => {
       <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
         <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac',
           borderRadius: 12, padding: 12, maxWidth: '85%', textAlign: 'center' }}>
-          <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>📦 AGIZO LIMEUNDWA</div>
+          <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>📦 {t('seller_inbox.order_card_label')}</div>
           <div style={{ fontSize: 13, fontWeight: 900, color: '#1e293b', marginTop: 4 }}>
             #{msg.metadata.orderId}
           </div>
@@ -141,7 +143,7 @@ const MessageBubble = ({ msg, mode }) => {
         borderBottomLeftRadius:  isMine ? 16 : 4,
         fontSize: 13, lineHeight: 1.5,
       }}>
-        {isNote && <div style={{ fontSize: 10, fontWeight: 800, marginBottom: 4 }}>📝 KUMBUKA (ya ndani)</div>}
+        {isNote && <div style={{ fontSize: 10, fontWeight: 800, marginBottom: 4 }}>📝 {t('seller_inbox.internal_note_label')}</div>}
         {msg.content}
       </div>
     </div>
@@ -149,6 +151,8 @@ const MessageBubble = ({ msg, mode }) => {
 };
 
 const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);
   const [messages,      setMessages]        = useState([]);
@@ -184,7 +188,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
           setConversations([convo]);
           openConversation(convo);
         } catch (err) {
-          setError(err?.response?.data?.message || 'Imeshindwa kuanza mazungumzo na muuzaji huyu.');
+          setError(err?.response?.data?.message || t('seller_inbox.start_failed'));
         }
         return;
       }
@@ -207,7 +211,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
             setConversations(prev => [convo, ...prev]);
             fetchMessages(convo);
           } catch (err) {
-            setError('Imeshindwa kuanza mazungumzo. Hakikisha mteja yupo.');
+            setError(t('seller_inbox.start_customer_failed'));
           }
         }
         return;
@@ -261,7 +265,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
     setCreatingOrder(true);
     try {
       const res = await api.post('/super-agents/shipments', {
-        recipientName:   active.customer?.name || 'Mteja',
+        recipientName:   active.customer?.name || t('seller_inbox.customer_fallback'),
         recipientPhone:  orderForm.phone || active.customer?.phone,
         destinationCity: orderForm.address,
         description:     orderForm.productName,
@@ -272,7 +276,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
       });
       // Add order card to conversation
       await api.post(`/business/inbox/${active.id}/messages`, {
-        content: `📦 Agizo limeundwa: ${orderForm.productName}`,
+        content: t('seller_inbox.order_created_msg', { name: orderForm.productName }),
         type: 'order',
         metadata: {
           orderId:        res.data?.id,
@@ -282,7 +286,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
       });
       setMessages(prev => [...prev, {
         id: Date.now(), senderType: 'system', type: 'order',
-        content: `Agizo limeundwa: ${orderForm.productName}`,
+        content: t('seller_inbox.order_created_system_msg', { name: orderForm.productName }),
         metadata: { orderId: res.data?.id, trackingNumber: res.data?.trackingNumber, orderStatus: 'preparing' },
         createdAt: new Date().toISOString(),
       }]);
@@ -332,9 +336,9 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100vh', flexDirection: 'column',
+    <div style={{ display: 'flex', height: '100dvh', flexDirection: 'column',
       backgroundColor: '#f8fafc' }}>
-      <BackBar title="Inbox" onBack={() => onNavigate('back')} />
+      <BackBar title={t('seller_inbox.title')} onBack={() => onNavigate('back')} />
 
       {error && (
         <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 16px',
@@ -361,31 +365,31 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
                     color: filter === s ? '#1d4ed8' : '#64748b',
                     fontSize: 12, fontWeight: 700,
                     borderBottom: filter === s ? '2px solid #1d4ed8' : '2px solid transparent' }}>
-                  {s === 'open' ? '🟢 Wazi' : s === 'pending' ? '🟡 Inasubiri' : '✅ Imekamilika'}
+                  {s === 'open' ? t('seller_inbox.filter_open') : s === 'pending' ? t('seller_inbox.filter_pending') : t('seller_inbox.filter_resolved')}
                 </button>
               ))}
             </div>
 
             {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>⏳ Inapakia...</div>
+              <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>{t('seller_inbox.loading')}</div>
             ) : conversations.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>💬</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
-                  Hakuna mazungumzo
+                  {t('seller_inbox.no_conversations')}
                 </div>
                 <div style={{ fontSize: 12, color: '#64748b' }}>
-                  Nenda kwa mteja na ubonyeze "Anza Mazungumzo"
+                  {t('seller_inbox.go_to_customer_hint')}
                 </div>
                 <button onClick={() => onNavigate('SellerCustomers')}
                   style={{ marginTop: 16, backgroundColor: '#1d4ed8', color: '#fff',
                     border: 'none', padding: '10px 20px', borderRadius: 10,
                     cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                  👥 Ona Wateja
+                  {t('seller_inbox.view_customers')}
                 </button>
               </div>
             ) : conversations.map(c => (
-              <ConversationItem key={c.id} convo={c}
+              <ConversationItem key={c.id} convo={c} t={t} dateLocale={dateLocale}
                 isActive={active?.id === c.id}
                 onClick={() => openConversation(c)} />
             ))}
@@ -408,8 +412,8 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 800 }}>
                   {active._mode === 'buyer'
-                    ? (active.seller?.storeName || active.seller?.name || 'Muuzaji')
-                    : (active.customer?.name || 'Mteja')}
+                    ? (active.seller?.storeName || active.seller?.name || t('seller_inbox.seller_fallback'))
+                    : (active.customer?.name || t('seller_inbox.customer_fallback'))}
                 </div>
                 <div style={{ fontSize: 11, color: '#64748b' }}>
                   {active._mode === 'buyer' ? '' : (active.customer?.phone || '')}
@@ -421,10 +425,10 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
                 onChange={e => handleStatusChange(e.target.value)}
                 style={{ fontSize: 11, padding: '4px 8px', borderRadius: 8,
                   border: '1px solid #e2e8f0', cursor: 'pointer' }}>
-                <option value="open">🟢 Wazi</option>
-                <option value="pending">🟡 Inasubiri</option>
-                <option value="resolved">✅ Imekamilika</option>
-                <option value="closed">⛔ Imefungwa</option>
+                <option value="open">{t('seller_inbox.filter_open')}</option>
+                <option value="pending">{t('seller_inbox.filter_pending')}</option>
+                <option value="resolved">{t('seller_inbox.filter_resolved')}</option>
+                <option value="closed">⛔ {t('seller_inbox.status_closed')}</option>
               </select>
               )}
             </div>
@@ -438,11 +442,11 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
                 <div style={{ textAlign: 'center', padding: 40 }}>
                   <div style={{ fontSize: 36 }}>👋</div>
                   <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 8 }}>
-                    Anza mazungumzo
+                    {t('seller_inbox.start_conversation_prompt')}
                   </div>
                 </div>
               ) : messages.map(msg => (
-                <MessageBubble key={msg.id} msg={msg} mode={active._mode} />
+                <MessageBubble key={msg.id} msg={msg} mode={active._mode} t={t} />
               ))}
               <div ref={messagesEndRef} />
             </div>
@@ -452,29 +456,29 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
               <div style={{ backgroundColor: '#f0fdf4', borderTop: '1px solid #86efac',
                 padding: 14 }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 10 }}>
-                  🚀 Unda Agizo Haraka
+                  {t('seller_inbox.quick_order_title')}
                 </div>
-                <input placeholder="Jina la Bidhaa *" value={orderForm.productName}
+                <input placeholder={t('seller_inbox.product_name_placeholder')} value={orderForm.productName}
                   onChange={e => setOrderForm(p => ({...p, productName: e.target.value}))}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
                     border: '1px solid #86efac', fontSize: 12, marginBottom: 6,
                     boxSizing: 'border-box', outline: 'none' }} />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>
-                  <input placeholder="Bei (TZS)" type="number" value={orderForm.price}
+                  <input placeholder={t('seller_inbox.price_tzs_placeholder')} type="number" value={orderForm.price}
                     onChange={e => setOrderForm(p => ({...p, price: e.target.value}))}
                     style={{ padding: '8px 10px', borderRadius: 8,
                       border: '1px solid #86efac', fontSize: 12, outline: 'none' }} />
-                  <input placeholder="Idadi" type="number" value={orderForm.qty}
+                  <input placeholder={t('seller_inbox.qty_placeholder')} type="number" value={orderForm.qty}
                     onChange={e => setOrderForm(p => ({...p, qty: e.target.value}))}
                     style={{ padding: '8px 10px', borderRadius: 8,
                       border: '1px solid #86efac', fontSize: 12, outline: 'none' }} />
                 </div>
-                <input placeholder="Simu ya Mpokeaji" value={orderForm.phone}
+                <input placeholder={t('seller_inbox.recipient_phone_placeholder')} value={orderForm.phone}
                   onChange={e => setOrderForm(p => ({...p, phone: e.target.value}))}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
                     border: '1px solid #86efac', fontSize: 12, marginBottom: 6,
                     boxSizing: 'border-box', outline: 'none' }} />
-                <input placeholder="Anwani ya Uwasilishaji" value={orderForm.address}
+                <input placeholder={t('seller_inbox.delivery_address_placeholder')} value={orderForm.address}
                   onChange={e => setOrderForm(p => ({...p, address: e.target.value}))}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
                     border: '1px solid #86efac', fontSize: 12, marginBottom: 8,
@@ -484,13 +488,13 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
                     style={{ flex: 2, backgroundColor: '#16a34a', color: '#fff', border: 'none',
                       padding: '9px 12px', borderRadius: 8, cursor: 'pointer',
                       fontSize: 12, fontWeight: 800 }}>
-                    {creatingOrder ? '⏳...' : '✅ Unda Agizo'}
+                    {creatingOrder ? '⏳...' : t('seller_inbox.create_order_button')}
                   </button>
                   <button onClick={() => setShowOrderForm(false)}
                     style={{ flex: 1, backgroundColor: '#fff', color: '#64748b',
                       border: '1px solid #e2e8f0', padding: '9px 12px', borderRadius: 8,
                       cursor: 'pointer', fontSize: 12 }}>
-                    Funga
+                    {t('seller_inbox.close_button')}
                   </button>
                 </div>
               </div>
@@ -501,7 +505,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
               <div style={{ backgroundColor: '#fff', borderTop: '1px solid #e2e8f0',
                 padding: 12, maxHeight: 200, overflowY: 'auto' }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#64748b', marginBottom: 8 }}>
-                  Chagua Bidhaa
+                  {t('seller_inbox.choose_product_title')}
                 </div>
                 {products.slice(0, 20).map(p => (
                   <div key={p.id} onClick={() => handleShareProduct(p)}
@@ -518,7 +522,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
                         TZS {Number(p.basePrice || 0).toLocaleString()}
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, color: '#1d4ed8' }}>Tuma →</span>
+                    <span style={{ fontSize: 11, color: '#1d4ed8' }}>{t('seller_inbox.send_arrow')}</span>
                   </div>
                 ))}
               </div>
@@ -531,35 +535,39 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
               {active._mode !== 'buyer' && (
               <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                 <button onClick={() => setShowProducts(!showProducts)}
-                  title="Shiriki Bidhaa"
+                  title={t('seller_inbox.share_product_title')}
                   style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: showProducts ? '#eff6ff' : '#fff', cursor: 'pointer',
                     fontSize: 11, fontWeight: 700, color: '#1d4ed8' }}>
-                  📦 Bidhaa
+                  {t('seller_inbox.products_button')}
                 </button>
                 <button onClick={() => setShowOrderForm(!showOrderForm)}
                   style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: showOrderForm ? '#f0fdf4' : '#fff', cursor: 'pointer',
                     fontSize: 11, fontWeight: 700, color: '#16a34a' }}>
-                  🚀 Agizo
+                  {t('seller_inbox.order_button')}
                 </button>
                 <button onClick={() => onNavigate('SellerShipment', {
-                    name:     active?.customer?.name    || '',
-                    phone:    active?.customer?.phone   || '',
-                    address:  active?.customer?.address || '',
-                    district: active?.customer?.district || '',
-                    region:   active?.customer?.region   || '',
+                    name:       active?.customer?.name       || '',
+                    phone:      active?.customer?.phone      || '',
+                    address:    active?.customer?.address    || '',
+                    regionId:   active?.customer?.regionId   || null,
+                    region:     active?.customer?.region     || '',
+                    districtId: active?.customer?.districtId || null,
+                    district:   active?.customer?.district   || '',
+                    wardId:     active?.customer?.wardId     || null,
+                    ward:       active?.customer?.ward       || '',
                   })}
                   style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: '#fff', cursor: 'pointer',
                     fontSize: 11, fontWeight: 700, color: '#7c3aed' }}>
-                  📦 Tuma
+                  {t('seller_inbox.ship_button')}
                 </button>
                 <button onClick={() => setIsNote(!isNote)}
                   style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: isNote ? '#fef3c7' : '#fff', cursor: 'pointer',
                     fontSize: 11, fontWeight: 700, color: '#92400e' }}>
-                  📝 {isNote ? 'Kumbuka ✓' : 'Kumbuka'}
+                  📝 {isNote ? t('seller_inbox.note_button_checked') : t('seller_inbox.note_button')}
                 </button>
               </div>
               )}
@@ -567,7 +575,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
               {isNote && (
                 <div style={{ fontSize: 10, color: '#92400e', backgroundColor: '#fef3c7',
                   padding: '4px 8px', borderRadius: 6, marginBottom: 6 }}>
-                  📝 Kumbuka ya ndani — mteja hataona
+                  {t('seller_inbox.internal_note_hint')}
                 </div>
               )}
 
@@ -576,7 +584,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
                   value={text}
                   onChange={e => setText(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                  placeholder={isNote ? 'Andika kumbuka ya ndani...' : 'Andika ujumbe...'}
+                  placeholder={isNote ? t('seller_inbox.note_placeholder') : t('seller_inbox.message_placeholder')}
                   style={{ flex: 1, padding: '10px 14px', borderRadius: 24,
                     border: `2px solid ${isNote ? '#fde68a' : '#e2e8f0'}`,
                     fontSize: 13, outline: 'none',

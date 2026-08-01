@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-GB';
   const [receiptNumber, setReceiptNumber] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -12,7 +15,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   const handleVerify = async () => {
     if (!receiptNumber.trim()) {
-      setError('Please enter a receipt number');
+      setError(t('verify_receipt.receipt_number_required'));
       return;
     }
     try {
@@ -23,7 +26,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       const res = await api.get(`/invoices/verify/${receiptNumber.trim()}`);
       setResult(res.data);
     } catch (err) {
-      setError('Failed to verify receipt. Please try again.');
+      setError(t('verify_receipt.verify_failed'));
     } finally {
       setLoading(false);
     }
@@ -66,17 +69,17 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             🔍
           </div>
           <h1 style={{ fontSize: '40px', fontWeight: '900', color: '#fff', margin: '0 0 12px' }}>
-            Verify Receipt
+            {t('verify_receipt.hero_title')}
           </h1>
           <p style={{ fontSize: '17px', color: 'rgba(255,255,255,0.9)', marginBottom: '36px', maxWidth: '500px', margin: '0 auto 36px' }}>
-            Verify the authenticity of your Kentexa payment receipt instantly
+            {t('verify_receipt.hero_desc')}
           </p>
 
           {/* Search Box */}
           <div style={{ maxWidth: '560px', margin: '0 auto', display: 'flex', gap: '12px' }}>
             <input
               type="text"
-              placeholder="Enter receipt number e.g. KNT-RCP-2026-00001"
+              placeholder={t('verify_receipt.search_placeholder')}
               value={receiptNumber}
               onChange={e => setReceiptNumber(e.target.value.toUpperCase())}
               onKeyPress={handleKeyPress}
@@ -101,12 +104,12 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 whiteSpace: 'nowrap',
               }}
             >
-              {loading ? '⏳' : '✅ Verify'}
+              {loading ? '⏳' : t('verify_receipt.verify_button')}
             </button>
           </div>
 
           <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginTop: '12px' }}>
-            Format: KNT-RCP-YYYY-XXXXX
+            {t('verify_receipt.format_hint')}
           </p>
         </div>
       </div>
@@ -122,7 +125,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {loading && (
           <div style={{ textAlign: 'center', padding: '48px', backgroundColor: '#fff', borderRadius: '16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-            <p style={{ color: '#64748b', fontSize: '15px' }}>Verifying receipt...</p>
+            <p style={{ color: '#64748b', fontSize: '15px' }}>{t('verify_receipt.verifying')}</p>
           </div>
         )}
 
@@ -136,10 +139,10 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             }}>
               <div style={{ fontSize: '56px', marginBottom: '12px' }}>✅</div>
               <h2 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: '0 0 8px' }}>
-                Receipt Verified!
+                {t('verify_receipt.verified_title')}
               </h2>
               <p style={{ fontSize: '15px', color: 'rgba(255,255,255,0.9)', margin: 0 }}>
-                This is an authentic Kentexa payment receipt
+                {t('verify_receipt.verified_desc')}
               </p>
             </div>
 
@@ -150,10 +153,10 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     <span style={{ fontSize: '22px' }}>⚡</span>
                     <span style={{ fontSize: '20px', fontWeight: '900', color: '#7c3aed', letterSpacing: '1px' }}>KENTEXA</span>
                   </div>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>Marketplace Tanzania</div>
+                  <div style={{ fontSize: '13px', color: '#64748b' }}>{t('verify_receipt.company_tagline')}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>Receipt Number</div>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>{t('verify_receipt.receipt_number_label')}</div>
                   <div style={{ fontSize: '16px', fontWeight: '900', color: '#7c3aed', letterSpacing: '1px' }}>
                     {result.receiptNumber}
                   </div>
@@ -162,10 +165,10 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                 {[
-                  { label: 'Invoice Number', value: result.invoiceNumber, icon: '📄' },
-                  { label: 'Order ID', value: `#${result.orderId}`, icon: '🛒' },
-                  { label: 'Payment Method', value: result.paymentMethod || 'N/A', icon: '💳' },
-                  { label: 'Paid On', value: result.paidAt ? new Date(result.paidAt).toLocaleString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A', icon: '📅' },
+                  { label: t('verify_receipt.label_invoice_number'), value: result.invoiceNumber, icon: '📄' },
+                  { label: t('verify_receipt.label_order_id'), value: `#${result.orderId}`, icon: '🛒' },
+                  { label: t('verify_receipt.label_payment_method'), value: result.paymentMethod || t('verify_receipt.not_available'), icon: '💳' },
+                  { label: t('verify_receipt.label_paid_on'), value: result.paidAt ? new Date(result.paidAt).toLocaleString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : t('verify_receipt.not_available'), icon: '📅' },
                 ].map(item => (
                   <div key={item.label} style={{ padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #f1f5f9' }}>
                     <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>
@@ -184,7 +187,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
                 <div>
-                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>Amount Paid</div>
+                  <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.8)', marginBottom: '4px' }}>{t('verify_receipt.amount_paid_label')}</div>
                   <div style={{ fontSize: '32px', fontWeight: '900', color: '#fff' }}>
                     TZS {Number(result.amount).toLocaleString()}
                   </div>
@@ -195,7 +198,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   color: '#fff', fontSize: '14px', fontWeight: '800',
                   border: '2px solid rgba(255,255,255,0.3)',
                 }}>
-                  ✅ PAID
+                  {t('verify_receipt.paid_badge')}
                 </div>
               </div>
             </div>
@@ -215,10 +218,10 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               </div>
               <div>
                 <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '4px' }}>
-                  Verified by Kentexa Payment System
+                  {t('verify_receipt.verified_by_title')}
                 </div>
                 <div style={{ fontSize: '13px', color: '#64748b' }}>
-                  This receipt is authentic and recorded in the Kentexa system. Keep it safe for your records.
+                  {t('verify_receipt.verified_by_desc')}
                 </div>
               </div>
             </div>
@@ -237,7 +240,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   boxShadow: '0 4px 16px rgba(102,126,234,0.4)',
                 }}
               >
-                📄 Download Receipt PDF
+                {t('verify_receipt.download_pdf_button')}
               </a>
             </div>
           </div>
@@ -250,13 +253,13 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           }}>
             <div style={{ fontSize: '64px', marginBottom: '16px' }}>❌</div>
             <h2 style={{ fontSize: '22px', fontWeight: '900', color: '#dc2626', marginBottom: '8px' }}>
-              Receipt Not Valid
+              {t('verify_receipt.not_valid_title')}
             </h2>
             <p style={{ color: '#64748b', fontSize: '15px', marginBottom: '24px' }}>
-              {result.message || 'This receipt number was not found or is not valid.'}
+              {result.message || t('verify_receipt.not_valid_default_message')}
             </p>
             <div style={{ backgroundColor: '#fef2f2', borderRadius: '12px', padding: '16px', marginBottom: '24px', fontSize: '14px', color: '#991b1b' }}>
-              ⚠️ If you believe this is an error, please contact Kentexa support with your order details.
+              {t('verify_receipt.error_contact_note')}
             </div>
             <button
               onClick={() => { setReceiptNumber(''); setResult(null); setSearched(false); }}
@@ -266,7 +269,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '700',
               }}
             >
-              🔍 Try Again
+              {t('verify_receipt.try_again_button')}
             </button>
           </div>
         )}
@@ -274,10 +277,10 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {!searched && !loading && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
             {[
-              { icon: '🔒', title: 'Secure Verification', desc: 'Every receipt is cryptographically linked to its transaction in our secure system.', color: '#667eea' },
-              { icon: '⚡', title: 'Instant Results', desc: 'Get verification results in seconds. No login required.', color: '#f7971e' },
-              { icon: '📄', title: 'Download PDF', desc: 'Download an official PDF copy of your verified receipt anytime.', color: '#43e97b' },
-              { icon: '🛡️', title: 'Fraud Prevention', desc: 'Protect yourself from fake receipts by always verifying on Kentexa.', color: '#f093fb' },
+              { icon: '🔒', title: t('verify_receipt.card1_title'), desc: t('verify_receipt.card1_desc'), color: '#667eea' },
+              { icon: '⚡', title: t('verify_receipt.card2_title'), desc: t('verify_receipt.card2_desc'), color: '#f7971e' },
+              { icon: '📄', title: t('verify_receipt.card3_title'), desc: t('verify_receipt.card3_desc'), color: '#43e97b' },
+              { icon: '🛡️', title: t('verify_receipt.card4_title'), desc: t('verify_receipt.card4_desc'), color: '#f093fb' },
             ].map(card => (
               <div key={card.title} style={{
                 backgroundColor: '#fff', borderRadius: '14px', padding: '24px',
@@ -295,14 +298,14 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {!searched && (
           <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '28px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: '24px' }}>
             <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#1e293b', margin: '0 0 20px' }}>
-              📋 Where to find your receipt number?
+              {t('verify_receipt.where_to_find_title')}
             </h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {[
-                { step: '1', title: 'From SMS', desc: 'After payment, you receive an SMS with your receipt number starting with KNT-RCP-' },
-                { step: '2', title: 'From My Orders', desc: 'Go to My Orders → Select your order → Find the receipt number in order details' },
-                { step: '3', title: 'From PDF Receipt', desc: 'Open your downloaded PDF receipt and find the receipt number at the top' },
-                { step: '4', title: 'From Email', desc: 'Check your email for the Kentexa payment confirmation email' },
+                { step: '1', title: t('verify_receipt.step1_title'), desc: t('verify_receipt.step1_desc') },
+                { step: '2', title: t('verify_receipt.step2_title'), desc: t('verify_receipt.step2_desc') },
+                { step: '3', title: t('verify_receipt.step3_title'), desc: t('verify_receipt.step3_desc') },
+                { step: '4', title: t('verify_receipt.step4_title'), desc: t('verify_receipt.step4_desc') },
               ].map(item => (
                 <div key={item.step} style={{ display: 'flex', gap: '14px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px' }}>
                   <div style={{
@@ -333,7 +336,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 cursor: 'pointer', fontSize: '14px', fontWeight: '700',
               }}
             >
-              🔍 Verify Another Receipt
+              {t('verify_receipt.verify_another_button')}
             </button>
           </div>
         )}

@@ -6,26 +6,27 @@
  * Each role has preset permissions the seller can customise
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
 import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
-const ROLES = [
-  { value: 'sales',            label: '🛒 Mauzo',          desc: 'Inaweza kuona na kuunda maagizo' },
-  { value: 'customer_support', label: '💬 Msaada wa Wateja', desc: 'Inaweza kuwasiliana na wateja' },
-  { value: 'inventory',        label: '📦 Ghala',           desc: 'Inaweza kusimamia bidhaa' },
-  { value: 'delivery',         label: '🏍️ Utoaji',         desc: 'Inaweza kutoa na kuthibitisha' },
+const getRoles = (t) => [
+  { value: 'sales',            label: t('seller_team.role_sales'),    desc: t('seller_team.role_sales_desc') },
+  { value: 'customer_support', label: t('seller_team.role_support'),  desc: t('seller_team.role_support_desc') },
+  { value: 'inventory',        label: t('seller_team.role_inventory'),desc: t('seller_team.role_inventory_desc') },
+  { value: 'delivery',         label: t('seller_team.role_delivery'), desc: t('seller_team.role_delivery_desc') },
 ];
 
-const PERMS = [
-  { key: 'canViewOrders',     label: 'Ona Maagizo'         },
-  { key: 'canCreateOrders',   label: 'Unda Maagizo'        },
-  { key: 'canViewCustomers',  label: 'Ona Wateja'          },
-  { key: 'canSendMessages',   label: 'Tuma Ujumbe'         },
-  { key: 'canViewRevenue',    label: 'Ona Mapato'          },
-  { key: 'canManageProducts', label: 'Simamia Bidhaa'      },
-  { key: 'canManageTeam',     label: 'Simamia Timu'        },
+const getPerms = (t) => [
+  { key: 'canViewOrders',     label: t('seller_team.perm_view_orders')     },
+  { key: 'canCreateOrders',   label: t('seller_team.perm_create_orders')   },
+  { key: 'canViewCustomers',  label: t('seller_team.perm_view_customers')  },
+  { key: 'canSendMessages',   label: t('seller_team.perm_send_messages')   },
+  { key: 'canViewRevenue',    label: t('seller_team.perm_view_revenue')    },
+  { key: 'canManageProducts', label: t('seller_team.perm_manage_products') },
+  { key: 'canManageTeam',     label: t('seller_team.perm_manage_team')     },
 ];
 
 const ROLE_DEFAULTS = {
@@ -42,6 +43,9 @@ const inp = {
 };
 
 const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
+  const ROLES = getRoles(t);
+  const PERMS = getPerms(t);
   const [members,    setMembers]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [showInvite, setShowInvite] = useState(false);
@@ -72,7 +76,7 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   };
 
   const handleInvite = async () => {
-    if (!form.phone.trim()) return setError('Weka nambari ya simu');
+    if (!form.phone.trim()) return setError(t('seller_team.phone_required'));
     try {
       setSaving(true); setError('');
       await api.post('/seller/team/invite', form);
@@ -80,30 +84,30 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       setForm({ phone: '', role: 'sales', permissions: { ...ROLE_DEFAULTS.sales } });
       fetchMembers();
     } catch (e) {
-      setError(e.response?.data?.message || 'Imeshindwa. Jaribu tena.');
+      setError(e.response?.data?.message || t('seller_team.invite_failed'));
     } finally { setSaving(false); }
   };
 
   const handleRemove = async (id, name) => {
-    if (!window.confirm(`Ondoa ${name} kwenye timu?`)) return;
+    if (!window.confirm(t('seller_team.confirm_remove', { name }))) return;
     try {
       await api.delete(`/seller/team/${id}`);
       fetchMembers();
-    } catch { alert('Imeshindwa'); }
+    } catch { alert(t('seller_team.remove_failed')); }
   };
 
   const handleToggleActive = async (id, current) => {
     try {
       await api.patch(`/seller/team/${id}`, { isActive: !current });
       fetchMembers();
-    } catch { alert('Imeshindwa'); }
+    } catch { alert(t('seller_team.toggle_failed')); }
   };
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#f1f5f9' }}>
       <Navbar currentPage="SellerTeam" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('SellerDashboard')} title="👥 Timu Yangu" />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('seller_team.page_title')} />
 
       <div style={{ flex:1, padding:'16px 16px 40px', maxWidth:720,
         margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
@@ -112,17 +116,16 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ background:'linear-gradient(135deg,#1e1b4b,#1d4ed8)',
           borderRadius:20, padding:'24px 28px', marginBottom:20, color:'#fff' }}>
           <div style={{ fontSize:18, fontWeight:900, marginBottom:6 }}>
-            👥 Timu ya Biashara
+            {t('seller_team.hero_title')}
           </div>
           <div style={{ fontSize:13, color:'rgba(255,255,255,0.75)', marginBottom:20, lineHeight:1.6 }}>
-            Ongeza wafanyakazi, weka majukumu na ruhusa.
-            Kila mwanachama ataona tu sehemu unayomruhusu.
+            {t('seller_team.hero_desc')}
           </div>
           <button onClick={() => setShowInvite(true)}
             style={{ backgroundColor:'#fff', color:'#1d4ed8', border:'none',
               borderRadius:10, padding:'10px 22px', cursor:'pointer',
               fontSize:14, fontWeight:800 }}>
-            + Ongeza Mwanachama
+            {t('seller_team.add_member_button')}
           </button>
         </div>
 
@@ -131,7 +134,7 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           <div style={{ backgroundColor:'#fff', borderRadius:16, padding:24,
             marginBottom:20, boxShadow:'0 4px 20px rgba(0,0,0,0.08)' }}>
             <div style={{ fontSize:16, fontWeight:900, color:'#1e293b', marginBottom:16 }}>
-              ➕ Ongeza Mwanachama Mpya
+              {t('seller_team.invite_form_title')}
             </div>
 
             {error && (
@@ -145,10 +148,10 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ marginBottom:14 }}>
               <label style={{ display:'block', fontSize:13, fontWeight:700,
                 color:'#64748b', marginBottom:6 }}>
-                Nambari ya Simu *
+                {t('seller_team.phone_label')}
               </label>
               <input style={inp} type="tel" value={form.phone}
-                placeholder="0788 000 000 — lazima awe na akaunti ya KenteXa"
+                placeholder={t('seller_team.phone_placeholder')}
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
             </div>
 
@@ -156,7 +159,7 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ marginBottom:16 }}>
               <label style={{ display:'block', fontSize:13, fontWeight:700,
                 color:'#64748b', marginBottom:8 }}>
-                Jukumu
+                {t('seller_team.role_label')}
               </label>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
                 {ROLES.map(r => (
@@ -182,7 +185,7 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ marginBottom:20 }}>
               <label style={{ display:'block', fontSize:13, fontWeight:700,
                 color:'#64748b', marginBottom:8 }}>
-                Ruhusa
+                {t('seller_team.permissions_label')}
               </label>
               <div style={{ backgroundColor:'#f8fafc', borderRadius:12, padding:14 }}>
                 {PERMS.map(p => (
@@ -205,13 +208,13 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 style={{ flex:1, backgroundColor:'#f1f5f9', color:'#64748b',
                   border:'none', borderRadius:10, padding:'12px 0',
                   cursor:'pointer', fontSize:14, fontWeight:700 }}>
-                Funga
+                {t('seller_team.close_button')}
               </button>
               <button onClick={handleInvite} disabled={saving}
                 style={{ flex:2, background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',
                   color:'#fff', border:'none', borderRadius:10, padding:'12px 0',
                   cursor:saving?'not-allowed':'pointer', fontSize:14, fontWeight:800 }}>
-                {saving ? '⏳ Inatuma...' : '✅ Ongeza Mwanachama'}
+                {saving ? t('seller_team.sending') : t('seller_team.add_member_confirm')}
               </button>
             </div>
           </div>
@@ -219,22 +222,22 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
         {/* Members list */}
         {loading ? (
-          <div style={{ textAlign:'center', padding:40, color:'#94a3b8' }}>Inapakia timu...</div>
+          <div style={{ textAlign:'center', padding:40, color:'#94a3b8' }}>{t('seller_team.loading_team')}</div>
         ) : members.length === 0 ? (
           <div style={{ textAlign:'center', padding:60, backgroundColor:'#fff',
             borderRadius:16, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize:48, marginBottom:12 }}>👥</div>
             <div style={{ fontSize:16, fontWeight:800, color:'#1e293b', marginBottom:6 }}>
-              Timu yako iko tupu
+              {t('seller_team.team_empty_title')}
             </div>
             <div style={{ fontSize:13, color:'#64748b', marginBottom:20 }}>
-              Ongeza wafanyakazi wa biashara yako
+              {t('seller_team.team_empty_desc')}
             </div>
             <button onClick={() => setShowInvite(true)}
               style={{ backgroundColor:'#1d4ed8', color:'#fff', border:'none',
                 borderRadius:10, padding:'11px 24px', cursor:'pointer',
                 fontSize:14, fontWeight:700 }}>
-              + Ongeza Wa Kwanza
+              {t('seller_team.add_first_button')}
             </button>
           </div>
         ) : members.map(m => {
@@ -257,7 +260,7 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   </div>
                   <div>
                     <div style={{ fontSize:15, fontWeight:800, color:'#1e293b' }}>
-                      {m.user?.name || m.user?.phone || 'Mwanachama'}
+                      {m.user?.name || m.user?.phone || t('seller_team.member_fallback')}
                     </div>
                     <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>
                       {m.user?.phone} · {role?.label || m.role}
@@ -265,7 +268,7 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     {!m.isActive && (
                       <span style={{ fontSize:10, fontWeight:700, color:'#dc2626',
                         backgroundColor:'#fee2e2', padding:'2px 8px', borderRadius:100 }}>
-                        Imesimamishwa
+                        {t('seller_team.suspended_badge')}
                       </span>
                     )}
                   </div>
@@ -276,13 +279,13 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                       color: m.isActive ? '#d97706' : '#16a34a',
                       border:'none', borderRadius:8, padding:'6px 12px',
                       cursor:'pointer', fontSize:12, fontWeight:700 }}>
-                    {m.isActive ? '⏸ Simamisha' : '▶ Rudisha'}
+                    {m.isActive ? t('seller_team.suspend_button') : t('seller_team.restore_button')}
                   </button>
-                  <button onClick={() => handleRemove(m.id, m.user?.name || 'mwanachama')}
+                  <button onClick={() => handleRemove(m.id, m.user?.name || t('seller_team.member_fallback_lower'))}
                     style={{ backgroundColor:'#fee2e2', color:'#dc2626',
                       border:'none', borderRadius:8, padding:'6px 12px',
                       cursor:'pointer', fontSize:12, fontWeight:700 }}>
-                    Ondoa
+                    {t('seller_team.remove_button')}
                   </button>
                 </div>
               </div>
@@ -307,7 +310,7 @@ const SellerTeam = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ backgroundColor:'#fff', borderRadius:14, padding:20, marginTop:8,
           boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
           <div style={{ fontSize:13, fontWeight:800, color:'#1e293b', marginBottom:14 }}>
-            📋 Mwongozo wa Majukumu
+            {t('seller_team.role_guide_title')}
           </div>
           {ROLES.map(r => (
             <div key={r.value} style={{ display:'flex', gap:12, padding:'8px 0',

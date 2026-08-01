@@ -72,8 +72,12 @@ export class BusinessController {
       phone?: string;
       email?: string;
       address?: string;
-      district?: string;
+      regionId?: number;
       region?: string;
+      districtId?: number;
+      district?: string;
+      wardId?: number;
+      ward?: string;
       tags?: string[];
       notes?: string;
     },

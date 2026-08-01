@@ -1,27 +1,29 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 
 const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const team = [
-    { name: 'Kened Delly', role: 'Founder & CEO', emoji: '👨‍💼', desc: 'Visionary behind KenteXa — building Tanzania\'s digital commerce future.' },
-    { name: 'Tech Team', role: 'Engineering', emoji: '👨‍💻', desc: 'Building and maintaining the platform infrastructure.' },
-    { name: 'Support Team', role: 'Customer Success', emoji: '🤝', desc: 'Ensuring every buyer and seller has a great experience.' },
+    { name: t('about_us.team1_name'), role: t('about_us.team1_role'), emoji: '👨‍💼', desc: t('about_us.team1_desc') },
+    { name: t('about_us.team2_name'), role: t('about_us.team2_role'), emoji: '👨‍💻', desc: t('about_us.team2_desc') },
+    { name: t('about_us.team3_name'), role: t('about_us.team3_role'), emoji: '🤝', desc: t('about_us.team3_desc') },
   ];
 
   const milestones = [
-    { year: '2024', event: 'KenteXa idea conceived — solving Tanzania\'s fragmented marketplace problem' },
-    { year: '2025', event: 'Platform development begins under Bishoo Intelligence Systems (BiS)' },
-    { year: '2026', event: 'KenteXa launches publicly — connecting buyers, sellers and agents nationwide' },
+    { year: '2024', event: t('about_us.milestone1') },
+    { year: '2025', event: t('about_us.milestone2') },
+    { year: '2026', event: t('about_us.milestone3') },
   ];
 
   const values = [
-    { icon: '🛡️', title: 'Trust & Safety', desc: 'Every transaction is protected. Buyers pay securely, sellers receive verified payments.' },
-    { icon: '🇹🇿', title: 'Made for Tanzania', desc: 'Built for Tanzanian people — supporting M-Pesa, Airtel, Tigo and local agent networks.' },
-    { icon: '🤝', title: 'Community First', desc: 'We empower small businesses, individual sellers and local agents to earn and grow.' },
-    { icon: '🚀', title: 'Innovation', desc: 'Continuous improvement — from AI-powered search to real-time parcel tracking.' },
-    { icon: '💯', title: 'Transparency', desc: 'Clear fees, honest policies, no hidden charges for buyers or sellers.' },
-    { icon: '📦', title: 'Reliability', desc: 'Our Super Agent network ensures your parcel reaches you anywhere in Tanzania.' },
+    { icon: '🛡️', title: t('about_us.value1_title'), desc: t('about_us.value1_desc') },
+    { icon: '🇹🇿', title: t('about_us.value2_title'), desc: t('about_us.value2_desc') },
+    { icon: '🤝', title: t('about_us.value3_title'), desc: t('about_us.value3_desc') },
+    { icon: '🚀', title: t('about_us.value4_title'), desc: t('about_us.value4_desc') },
+    { icon: '💯', title: t('about_us.value5_title'), desc: t('about_us.value5_desc') },
+    { icon: '📦', title: t('about_us.value6_title'), desc: t('about_us.value6_desc') },
   ];
 
   return (
@@ -37,12 +39,12 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
             <span style={{ fontSize: 48, fontWeight: 900, color: '#60a5fa', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
-          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20 }}>Tanzania's #1 Marketplace</p>
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20 }}>{t('about_us.hero_tagline')}</p>
           <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif', lineHeight: 1.3 }}>
-            Connecting Tanzania —<br />One Transaction at a Time
+            {t('about_us.hero_title_line1')}<br />{t('about_us.hero_title_line2')}
           </h1>
           <p style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)', maxWidth: 560, margin: '0 auto', lineHeight: 1.7 }}>
-            KenteXa is a secure digital marketplace built for Tanzania — empowering buyers, sellers, and agents to trade with confidence across all 21 regions.
+            {t('about_us.hero_desc')}
           </p>
         </div>
       </div>
@@ -51,29 +53,29 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
         {/* Mission */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '28px 24px', margin: '24px 0 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>🎯 Our Mission</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>{t('about_us.mission_title')}</h2>
           <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.8, margin: 0 }}>
-            To democratize commerce in Tanzania by building a trusted digital marketplace where anyone — from a mama ntilie in Mwanza to a tech seller in Dar es Salaam — can buy and sell safely, pay easily, and receive goods reliably anywhere in the country.
+            {t('about_us.mission_desc')}
           </p>
         </div>
 
         {/* Story */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '28px 24px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>📖 Our Story</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>{t('about_us.story_title')}</h2>
           <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.8, marginBottom: 14 }}>
-            KenteXa was born from a simple observation — Tanzania has millions of talented sellers, creative entrepreneurs, and hardworking small business owners, but no single trusted platform where they could reach customers safely across the entire country.
+            {t('about_us.story_p1')}
           </p>
           <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.8, marginBottom: 14 }}>
-            Traditional online marketplaces lacked mobile money integration, local delivery networks, and the trust mechanisms needed for Tanzanian commerce. Buyers feared being scammed. Sellers struggled to get paid. Parcels got lost with no tracking.
+            {t('about_us.story_p2')}
           </p>
           <p style={{ fontSize: 15, color: '#475569', lineHeight: 1.8, margin: 0 }}>
-            KenteXa solves all of this — with built-in escrow protection, a nationwide Super Agent delivery network, mobile money payments (M-Pesa, Airtel, Tigo), real-time parcel tracking, and a community of verified sellers. Built by Tanzanians, for Tanzania.
+            {t('about_us.story_p3')}
           </p>
         </div>
 
         {/* Values */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '28px 24px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 20px', fontFamily: 'Manrope,sans-serif' }}>💎 Our Values</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 20px', fontFamily: 'Manrope,sans-serif' }}>{t('about_us.values_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 14 }}>
             {values.map(v => (
               <div key={v.title} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '16px 14px', border: '1px solid #e2e8f0' }}>
@@ -87,7 +89,7 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
         {/* Milestones */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '28px 24px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 20px', fontFamily: 'Manrope,sans-serif' }}>🏆 Our Journey</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 20px', fontFamily: 'Manrope,sans-serif' }}>{t('about_us.journey_title')}</h2>
           {milestones.map((m, i) => (
             <div key={i} style={{ display: 'flex', gap: 16, marginBottom: i < milestones.length - 1 ? 20 : 0 }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -103,14 +105,14 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
         {/* Team */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '28px 24px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 20px', fontFamily: 'Manrope,sans-serif' }}>👥 The Team</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 20px', fontFamily: 'Manrope,sans-serif' }}>{t('about_us.team_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 14 }}>
-            {team.map(t => (
-              <div key={t.name} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '20px 16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>{t.emoji}</div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{t.name}</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>{t.role}</div>
-                <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>{t.desc}</div>
+            {team.map(m => (
+              <div key={m.name} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: '20px 16px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>{m.emoji}</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>{m.name}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>{m.role}</div>
+                <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>{m.desc}</div>
               </div>
             ))}
           </div>
@@ -118,13 +120,13 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
         {/* Stats */}
         <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', borderRadius: 16, padding: '28px 24px', marginBottom: 16 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#fff', margin: '0 0 20px', textAlign: 'center', fontFamily: 'Manrope,sans-serif' }}>KenteXa by the Numbers</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 900, color: '#fff', margin: '0 0 20px', textAlign: 'center', fontFamily: 'Manrope,sans-serif' }}>{t('about_us.stats_title')}</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 16 }}>
             {[
-              { value: '21', label: 'Regions Covered', icon: '🇹🇿' },
-              { value: '100%', label: 'Secure Payments', icon: '🔒' },
-              { value: '3', label: 'Payment Networks', icon: '💳' },
-              { value: '24/7', label: 'Platform Available', icon: '⏰' },
+              { value: '21', label: t('about_us.stat1_label'), icon: '🇹🇿' },
+              { value: '100%', label: t('about_us.stat2_label'), icon: '🔒' },
+              { value: '3', label: t('about_us.stat3_label'), icon: '💳' },
+              { value: '24/7', label: t('about_us.stat4_label'), icon: '⏰' },
             ].map(s => (
               <div key={s.label} style={{ textAlign: 'center', padding: '16px 8px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12 }}>
                 <div style={{ fontSize: 28 }}>{s.icon}</div>
@@ -137,14 +139,14 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
         {/* Contact */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: '28px 24px', marginBottom: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>📬 Get in Touch</h2>
-          <p style={{ fontSize: 14, color: '#64748b', marginBottom: 16, lineHeight: 1.7 }}>Have questions, feedback or partnership inquiries? We'd love to hear from you.</p>
+          <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 14px', fontFamily: 'Manrope,sans-serif' }}>{t('about_us.contact_title')}</h2>
+          <p style={{ fontSize: 14, color: '#64748b', marginBottom: 16, lineHeight: 1.7 }}>{t('about_us.contact_desc')}</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { icon: '📧', label: 'Email', value: 'support@kentexa.com', href: 'mailto:support@kentexa.com' },
-              { icon: '🌐', label: 'Website', value: 'kentexa.com', href: 'https://kentexa.com' },
-              { icon: '🏢', label: 'Company', value: 'Bishoo Intelligence Systems (BiS)', href: null },
-              { icon: '🇹🇿', label: 'Location', value: 'Tanzania', href: null },
+              { icon: '📧', label: t('about_us.contact_email_label'), value: 'support@kentexa.com', href: 'mailto:support@kentexa.com' },
+              { icon: '🌐', label: t('about_us.contact_website_label'), value: 'kentexa.com', href: 'https://kentexa.com' },
+              { icon: '🏢', label: t('about_us.contact_company_label'), value: t('about_us.contact_company_value'), href: null },
+              { icon: '🇹🇿', label: t('about_us.contact_location_label'), value: t('about_us.contact_location_value'), href: null },
             ].map(c => (
               <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 10 }}>
                 <span style={{ fontSize: 20 }}>{c.icon}</span>

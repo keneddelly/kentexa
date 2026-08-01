@@ -326,7 +326,12 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                   </span>
                 )}
               </div>
-              <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 10px', lineHeight: 1.5 }}>{product.name}</h1>
+              <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 4px', lineHeight: 1.5 }}>{product.name}</h1>
+              {product.model && (
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8, fontWeight: 600 }}>
+                  {t('product_detail.model_label')}: {product.model}
+                </div>
+              )}
               <SocialProofBadge viewsToday={product.viewsToday} salesCount={product.salesCount} createdAt={product.createdAt} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Stars rating={avgRating || sellerRating} />

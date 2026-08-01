@@ -7,16 +7,17 @@
  *   <ReputationBadge score={seller.reputationScore} size="sm" />
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
-const TIERS = [
-  { min:900, name:'Elite',    icon:'🏆', color:'#dc2626', bg:'#fee2e2' },
-  { min:600, name:'Mkuu',     icon:'💎', color:'#7c3aed', bg:'#ede9fe' },
-  { min:300, name:'Mwaminifu',icon:'🌟', color:'#1d4ed8', bg:'#dbeafe' },
-  { min:100, name:'Imani',    icon:'⭐', color:'#16a34a', bg:'#dcfce7' },
-  { min:0,   name:'Mpya',     icon:'🌱', color:'#64748b', bg:'#f1f5f9' },
+const getTiers = (t) => [
+  { min:900, name:t('reputation_badge.tier_elite'),    icon:'🏆', color:'#dc2626', bg:'#fee2e2' },
+  { min:600, name:t('reputation_badge.tier_master'),     icon:'💎', color:'#7c3aed', bg:'#ede9fe' },
+  { min:300, name:t('reputation_badge.tier_trusted'),icon:'🌟', color:'#1d4ed8', bg:'#dbeafe' },
+  { min:100, name:t('reputation_badge.tier_rising'),    icon:'⭐', color:'#16a34a', bg:'#dcfce7' },
+  { min:0,   name:t('reputation_badge.tier_new'),     icon:'🌱', color:'#64748b', bg:'#f1f5f9' },
 ];
 
-const getTier = s => TIERS.find(t => Number(s||0) >= t.min) || TIERS[4];
+const getTier = (s, tiers) => tiers.find(t => Number(s||0) >= t.min) || tiers[4];
 
 /**
  * size: 'xs' | 'sm' | 'md'
@@ -25,7 +26,9 @@ const getTier = s => TIERS.find(t => Number(s||0) >= t.min) || TIERS[4];
  * md  = full badge with label (profile pages)
  */
 const ReputationBadge = ({ score = 0, size = 'sm', style = {} }) => {
-  const tier = getTier(score);
+  const { t } = useTranslation();
+  const tiers = getTiers(t);
+  const tier = getTier(score, tiers);
   const s    = Number(score || 0);
 
   if (size === 'xs') return (

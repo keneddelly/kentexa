@@ -6,6 +6,7 @@
  * Own profile shows dashboard actions. Others' profiles show public info.
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
 import ProfileCompletion from '../components/ProfileCompletion';
 import CommerceCommentSection from '../components/CommerceCommentSection';
@@ -19,14 +20,13 @@ const WH = '#FFFFFF';
 const fmt  = n => Number(n||0).toLocaleString();
 const fmtM = n => { const v=Number(n||0); return v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1000?`${(v/1e3).toFixed(0)}K`:String(v); };
 
-const TIERS = [
-  {min:900,name:'KenteXa Elite',icon:'🏆',color:'#dc2626',bg:'#fee2e2'},
-  {min:600,name:'Mshirika Mkuu',icon:'💎',color:'#7c3aed',bg:'#ede9fe'},
-  {min:300,name:'Mwaminifu',    icon:'🌟',color:'#1d4ed8',bg:'#dbeafe'},
-  {min:100,name:'Mwenye Imani', icon:'⭐',color:'#16a34a',bg:'#dcfce7'},
-  {min:0,  name:'New',         icon:'🌱',color:'#64748b',bg:'#f1f5f9'},
+const getTiers = t => [
+  {min:900,name:t('my_profile.tier_elite'),  icon:'🏆',color:'#dc2626',bg:'#fee2e2'},
+  {min:600,name:t('my_profile.tier_partner'),icon:'💎',color:'#7c3aed',bg:'#ede9fe'},
+  {min:300,name:t('my_profile.tier_loyal'),  icon:'🌟',color:'#1d4ed8',bg:'#dbeafe'},
+  {min:100,name:t('my_profile.tier_trusted'),icon:'⭐',color:'#16a34a',bg:'#dcfce7'},
+  {min:0,  name:t('my_profile.tier_new'),    icon:'🌱',color:'#64748b',bg:'#f1f5f9'},
 ];
-const getTier = s => TIERS.find(t => Number(s||0) >= t.min) || TIERS[4];
 
 // ─── Stat pill ────────────────────────────────────────────────────────────────
 const Stat = ({ value, label, onClick }) => (
@@ -52,41 +52,42 @@ const Action = ({ icon, label, onClick, color=B, bg='#eff6ff' }) => (
 
 // ─── Quick action grid by role ────────────────────────────────────────────────
 const RoleActions = ({ role, onNavigate }) => {
+  const { t } = useTranslation();
   const actions = {
     seller: [
-      {icon:'📦',label:'Orders',    page:'SellerOrders',     bg:'#eff6ff', color:B},
-      {icon:'🏷️',label:'Products',    page:'SellerClassifieds', bg:'#f0fdf4', color:'#16a34a'},
-      {icon:'📊',label:'Analytics',  page:'SellerAnalytics',  bg:'#f5f3ff', color:'#7c3aed'},
-      {icon:'📢',label:'Listing',    page:'CommerceProfile',  bg:'#fff7ed', color:'#ea580c'},
-      {icon:'👥',label:'Timu',       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
-      {icon:'💳',label:'Malipo',     page:'SellerPayouts',    bg:'#fef9c3', color:'#ca8a04'},
+      {icon:'📦',label:t('commerce_profile.action_orders'),    page:'SellerOrders',     bg:'#eff6ff', color:B},
+      {icon:'🏷️',label:t('commerce_profile.action_products'),    page:'SellerClassifieds', bg:'#f0fdf4', color:'#16a34a'},
+      {icon:'📊',label:t('commerce_profile.action_analytics'),  page:'SellerAnalytics',  bg:'#f5f3ff', color:'#7c3aed'},
+      {icon:'📢',label:t('commerce_profile.action_listing'),    page:'CommerceProfile',  bg:'#fff7ed', color:'#ea580c'},
+      {icon:'👥',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
+      {icon:'💳',label:t('commerce_profile.action_payments'),     page:'SellerPayouts',    bg:'#fef9c3', color:'#ca8a04'},
     ],
     agent: [
-      {icon:'🏍️',label:'Jobs Zangu', page:'AgentDashboard',   bg:'#fdf2f8', color:'#a21caf'},
-      {icon:'💰',label:'Mapato',     page:'AgentEarnings',    bg:'#f0fdf4', color:'#16a34a'},
-      {icon:'📊',label:'Scorecard',  page:'AgentScorecard',   bg:'#eff6ff', color:B},
-      {icon:'📦',label:'Vifurushi',  page:'AgentDashboard',   bg:'#fff7ed', color:'#ea580c'},
+      {icon:'🏍️',label:t('commerce_profile.action_my_jobs'), page:'AgentDashboard',   bg:'#fdf2f8', color:'#a21caf'},
+      {icon:'💰',label:t('commerce_profile.action_earnings'),     page:'AgentEarnings',    bg:'#f0fdf4', color:'#16a34a'},
+      {icon:'📊',label:t('commerce_profile.action_scorecard'),  page:'AgentScorecard',   bg:'#eff6ff', color:B},
+      {icon:'📦',label:t('commerce_profile.action_parcels'),  page:'AgentDashboard',   bg:'#fff7ed', color:'#ea580c'},
     ],
     super_agent: [
-      {icon:'🏢',label:'Hub Yangu',  page:'SuperAgentDashboard',bg:'#f5f3ff',color:'#7c3aed'},
-      {icon:'📦',label:'Vifurushi',  page:'SuperAgentDashboard',bg:'#eff6ff',color:B},
-      {icon:'🚌',label:'Transport',    page:'SuperAgentDashboard',bg:'#fff7ed',color:'#ea580c'},
-      {icon:'📊',label:'Analytics',  page:'SuperAgentDashboard',bg:'#f0fdf4',color:'#16a34a'},
+      {icon:'🏢',label:t('commerce_profile.action_my_hub'),  page:'SuperAgentDashboard',bg:'#f5f3ff',color:'#7c3aed'},
+      {icon:'📦',label:t('commerce_profile.action_parcels'),  page:'SuperAgentDashboard',bg:'#eff6ff',color:B},
+      {icon:'🚌',label:t('commerce_profile.action_transport'),    page:'SuperAgentDashboard',bg:'#fff7ed',color:'#ea580c'},
+      {icon:'📊',label:t('commerce_profile.action_analytics'),  page:'SuperAgentDashboard',bg:'#f0fdf4',color:'#16a34a'},
     ],
     transport_provider: [
-      {icon:'🚌',label:'Routes Zangu',page:'TransportProviderDashboard',bg:'#fff7ed',color:'#ea580c'},
-      {icon:'📅',label:'Upatikanaji',page:'TransportProviderDashboard',bg:'#f0fdf4',color:'#16a34a'},
-      {icon:'📦',label:'Orders',    page:'TransportProviderDashboard',bg:'#eff6ff',color:B},
-      {icon:'🗺️',label:'Njia Zangu', page:'RouteCoverageMap',          bg:'#f5f3ff',color:'#7c3aed'},
+      {icon:'🚌',label:t('commerce_profile.action_my_routes'),page:'TransportProviderDashboard',bg:'#fff7ed',color:'#ea580c'},
+      {icon:'📅',label:t('commerce_profile.action_availability'),page:'TransportProviderDashboard',bg:'#f0fdf4',color:'#16a34a'},
+      {icon:'📦',label:t('commerce_profile.action_orders'),    page:'TransportProviderDashboard',bg:'#eff6ff',color:B},
+      {icon:'🗺️',label:t('commerce_profile.action_my_routes'), page:'RouteCoverageMap',          bg:'#f5f3ff',color:'#7c3aed'},
     ],
   };
 
   // Buyer actions (everyone)
   const buyerActions = [
-    {icon:'📦',label:'Orders Yangu',page:'MyOrders',       bg:'#eff6ff', color:B},
-    {icon:'❤️',label:'Zilizohifadhiwa',page:'Wishlist',     bg:'#fff1f2', color:'#e11d48'},
-    {icon:'🔍',label:'Discover',        page:'Search',        bg:'#f0fdf4', color:'#16a34a'},
-    {icon:'🏷️',label:'List Item',       page:'SellerClassifieds',bg:'#fef9c3',color:'#ca8a04'},
+    {icon:'📦',label:t('commerce_profile.action_my_orders'),page:'MyOrders',       bg:'#eff6ff', color:B},
+    {icon:'❤️',label:t('commerce_profile.action_saved'),page:'Wishlist',     bg:'#fff1f2', color:'#e11d48'},
+    {icon:'🔍',label:t('commerce_profile.action_discover'),        page:'Search',        bg:'#f0fdf4', color:'#16a34a'},
+    {icon:'🏷️',label:t('commerce_profile.action_list_item'),       page:'SellerClassifieds',bg:'#fef9c3',color:'#ca8a04'},
   ];
 
   const roleActions = actions[role] || [];
@@ -105,31 +106,31 @@ const RoleActions = ({ role, onNavigate }) => {
 };
 
 // ─── Tab content sections ─────────────────────────────────────────────────────
-const tabs = (role, isOwn) => {
-  const base = [{ key:'posts',      label:'📋 Products'   }];
+const tabs = (role, isOwn, t) => {
+  const base = [{ key:'posts',      label:t('commerce_profile.tab_products')   }];
   if (isOwn && ['seller','admin','manager'].includes(role)) {
     base.push(
-      { key:'feed',       label:'📢 Posts' },
-      { key:'orders',     label:'📦 Orders'   },
-      { key:'analytics',  label:'📊 Analytics' },
+      { key:'feed',       label:t('commerce_profile.tab_posts') },
+      { key:'orders',     label:t('commerce_profile.tab_orders')   },
+      { key:'analytics',  label:t('commerce_profile.tab_analytics') },
     );
   }
   // Identity tabs — public for everyone, not just the owner. What differs
   // by isOwn is the CONTENT (public stats vs. private earnings/dashboard
   // shortcut), not whether the tab is visible at all.
   if (role === 'agent') {
-    base.push({ key:'jobs', label:'🏍️ Agent' });
+    base.push({ key:'jobs', label:t('commerce_profile.tab_agent') });
   }
   if (role === 'super_agent') {
-    base.push({ key:'hub', label:'🏢 Hub' });
+    base.push({ key:'hub', label:t('commerce_profile.tab_hub') });
   }
   if (role === 'transport_provider') {
-    base.push({ key:'transport', label:'🚌 Routes' });
+    base.push({ key:'transport', label:t('commerce_profile.tab_routes') });
   }
   if (isOwn) {
-    base.push({ key:'services', label:'🔧 Services' });
+    base.push({ key:'services', label:t('commerce_profile.tab_services') });
   }
-  base.push({ key:'reputation', label:'🏆 Reputation' });
+  base.push({ key:'reputation', label:t('commerce_profile.tab_reputation') });
   return base;
 };
 
@@ -138,6 +139,9 @@ const tabs = (role, isOwn) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   currentUser, pageParam }) => {
+  const { t } = useTranslation();
+  const TIERS = getTiers(t);
+  const getTier = s => TIERS.find(tier => Number(s||0) >= tier.min) || TIERS[4];
 
   // pageParam is usually just a numeric seller id, but notification deep-links
   // may append a tab and a specific post id, e.g. "42-feed-17" — split it off
@@ -255,7 +259,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
       fontFamily:'Manrope,Inter,sans-serif' }}>
       <div style={{ textAlign:'center', color:'#94a3b8' }}>
         <div style={{ fontSize:40, marginBottom:12 }}>👤</div>
-        <div>Inapakia wasifu...</div>
+        <div>{t('commerce_profile.loading_profile')}</div>
       </div>
     </div>
   );
@@ -272,7 +276,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
         <div style={{ textAlign:'center', color:'#94a3b8' }}>
           <div style={{ fontSize:64 }}>😕</div>
-          <div style={{ marginTop:12 }}>Profile not found</div>
+          <div style={{ marginTop:12 }}>{t('commerce_profile.profile_not_found')}</div>
         </div>
       </div>
     </div>
@@ -281,7 +285,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   const score     = rep?.score || profile.reputationScore || 0;
   const tier      = getTier(score);
   const role      = profile.role || userRole || 'user';
-  const profileTabs = tabs(role, isOwnProfile);
+  const profileTabs = tabs(role, isOwnProfile, t);
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc', paddingBottom:100,
@@ -301,13 +305,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
         </button>
         <div style={{ flex:1, fontSize:15, fontWeight:900, color:DK, overflow:'hidden',
           textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-          {profile.storeName || profile.name || 'Profile'}
+          {profile.storeName || profile.name || t('commerce_profile.profile_fallback')}
         </div>
         {isOwnProfile && (
           <button onClick={() => onNavigate('MyProfile')}
             style={{ background:'none', border:'none', cursor:'pointer',
               color:B, fontSize:13, fontWeight:700 }}>
-            Edit
+            {t('commerce_profile.edit_button')}
           </button>
         )}
       </div>
@@ -342,7 +346,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                 padding:'8px 16px', cursor:'pointer',
                 fontSize:12, fontWeight:800,
                 boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
-              + Add Role
+              {t('commerce_profile.add_role_button')}
             </button>
           ) : (
             <>
@@ -353,7 +357,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   borderRadius:10, padding:'8px 16px',
                   cursor:'pointer', fontSize:12, fontWeight:800,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
-                {following ? '✓ Unafuata' : '+ Fuata'}
+                {following ? t('commerce_profile.unfollow_button') : t('commerce_profile.follow_button')}
               </button>
               <button onClick={() => onNavigate(isLoggedIn ? `MessageSeller-${targetId}` : 'PublicLogin')}
                 style={{ backgroundColor:'#eff6ff', color:B,
@@ -361,7 +365,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   padding:'8px 14px', cursor:'pointer',
                   fontSize:12, fontWeight:800,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
-                💬 Message
+                {t('commerce_profile.message_button')}
               </button>
               {(profile.storeWhatsApp || profile.phone) && (
                 <a href={`https://wa.me/${(profile.storeWhatsApp||profile.phone).replace(/^0/,'255').replace(/[^0-9]/g,'')}`}
@@ -386,21 +390,21 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
         {/* Name + verified */}
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2, flexWrap:'wrap' }}>
           <h1 style={{ fontSize:20, fontWeight:900, color:DK, margin:0 }}>
-            {profile.storeName || profile.name || 'Mtumiaji wa KenteXa'}
+            {profile.storeName || profile.name || t('commerce_profile.default_name')}
           </h1>
           {profile.isOfficialStore && (
-            <span style={{ fontSize:16 }} title="Imehakikiwa">✅</span>
+            <span style={{ fontSize:16 }} title={t('commerce_profile.verified_title')}>✅</span>
           )}
           <ReputationBadge score={score} size="sm" />
         </div>
 
         {/* Role badges */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
-          {role === 'seller'             && <span style={pillStyle('#eff6ff',B)}>🏪 Seller</span>}
-          {role === 'agent'              && <span style={pillStyle('#fdf2f8','#a21caf')}>🏍️ Agent</span>}
-          {role === 'super_agent'        && <span style={pillStyle('#f5f3ff','#7c3aed')}>🏢 Super Agent</span>}
-          {role === 'transport_provider' && <span style={pillStyle('#fff7ed','#ea580c')}>🚌 Transporter</span>}
-          {                               <span style={pillStyle('#f1f5f9',GR)}>🛒 Buyer</span>}
+          {role === 'seller'             && <span style={pillStyle('#eff6ff',B)}>{t('commerce_profile.role_seller')}</span>}
+          {role === 'agent'              && <span style={pillStyle('#fdf2f8','#a21caf')}>{t('commerce_profile.role_agent')}</span>}
+          {role === 'super_agent'        && <span style={pillStyle('#f5f3ff','#7c3aed')}>{t('commerce_profile.role_super_agent')}</span>}
+          {role === 'transport_provider' && <span style={pillStyle('#fff7ed','#ea580c')}>{t('commerce_profile.role_transporter')}</span>}
+          {                               <span style={pillStyle('#f1f5f9',GR)}>{t('commerce_profile.role_buyer')}</span>}
           {profile.businessLocation && (
             <span style={{ fontSize:11, color:GR }}>📍 {profile.businessLocation}</span>
           )}
@@ -417,9 +421,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
         {/* Stats */}
         <div style={{ display:'flex', borderTop:'1px solid #f1f5f9',
           marginTop:8 }}>
-          <Stat value={fmtM(profile.completedOrders||0)} label="Mauzo" />
+          <Stat value={fmtM(profile.completedOrders||0)} label={t('commerce_profile.stat_sales')} />
           <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-          <Stat value={fmtM(profile.followersCount||0)} label="Followers"
+          <Stat value={fmtM(profile.followersCount||0)} label={t('commerce_profile.stat_followers')}
             onClick={!isOwnProfile ? undefined : () => {
               setShowFollowers(true);
               if (followers.length) return;
@@ -430,9 +434,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                 .finally(() => setLoadingFollowers(false));
             }} />
           <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-          <Stat value={Number(profile.rating||0).toFixed(1)} label="Ukadiriaji" />
+          <Stat value={Number(profile.rating||0).toFixed(1)} label={t('commerce_profile.stat_rating')} />
           <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-          <Stat value={score} label="Reputation" />
+          <Stat value={score} label={t('commerce_profile.stat_reputation')} />
         </div>
       </div>
 
@@ -461,19 +465,19 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
       <div style={{ backgroundColor:WH, borderBottom:'1px solid #f1f5f9',
         position:'sticky', top:52, zIndex:90,
         display:'flex', overflowX:'auto', scrollbarWidth:'none' }}>
-        {profileTabs.map(t => (
-          <button key={t.key} onClick={() => {
-            setTab(t.key);
-            if (t.key==='services' && services.length===0) {
+        {profileTabs.map(tabItem => (
+          <button key={tabItem.key} onClick={() => {
+            setTab(tabItem.key);
+            if (tabItem.key==='services' && services.length===0) {
               api.get('/services/my').then(r=>setServices(r.data||[])).catch(()=>{});
             }
           }}
             style={{ padding:'12px 16px', border:'none', cursor:'pointer',
               backgroundColor:'transparent', fontSize:12, fontWeight:700,
               whiteSpace:'nowrap', flexShrink:0,
-              color: tab===t.key ? B : GR,
-              borderBottom: tab===t.key ? `2px solid ${B}` : '2px solid transparent' }}>
-            {t.label}
+              color: tab===tabItem.key ? B : GR,
+              borderBottom: tab===tabItem.key ? `2px solid ${B}` : '2px solid transparent' }}>
+            {tabItem.label}
           </button>
         ))}
       </div>
@@ -489,8 +493,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
         {tab==='posts' && (
           <div>
             {(classifieds.length === 0 && products.length === 0) ? (
-              <Empty icon="🏷️" text="No products listed yet"
-                action={isOwnProfile ? 'Add a Product' : null}
+              <Empty icon="🏷️" text={t('commerce_profile.no_products_yet')}
+                action={isOwnProfile ? t('commerce_profile.add_product_action') : null}
                 onAction={() => onNavigate('SellerClassifieds')} />
             ) : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
@@ -522,7 +526,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                         <div style={{ position:'absolute', inset:0, backgroundColor:'rgba(15,23,42,0.55)',
                           display:'flex', alignItems:'center', justifyContent:'center',
                           fontSize:10, fontWeight:800, color:WH }}>
-                          Out of stock
+                          {t('commerce_profile.out_of_stock')}
                         </div>
                       )}
                     </div>
@@ -544,40 +548,40 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                       padding:16, cursor:'pointer', fontSize:14,
                       fontWeight:700, color:B,
                       boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
-                    + Post Listing kwa Wafuataji Wako
+                    {t('commerce_profile.post_listing_button')}
                   </button>
                 ) : (
                   <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                     boxShadow:'0 4px 20px rgba(0,0,0,0.08)' }}>
                     <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:14 }}>
-                      📢 Listing Jipya
+                      {t('commerce_profile.new_listing_title')}
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr',
                       gap:8, marginBottom:12 }}>
                       {[
-                        {value:'new_product',  label:'🛍️ Products New'},
-                        {value:'discount',     label:'🏷️ Discount'},
-                        {value:'announcement', label:'📣 Listing'},
-                        {value:'restock',      label:'📦 Imerejesha'},
-                      ].map(t => (
-                        <label key={t.value}
+                        {value:'new_product',  label:t('commerce_profile.type_new_product')},
+                        {value:'discount',     label:t('commerce_profile.type_discount')},
+                        {value:'announcement', label:t('commerce_profile.type_announcement')},
+                        {value:'restock',      label:t('commerce_profile.type_restock')},
+                      ].map(opt => (
+                        <label key={opt.value}
                           style={{ display:'flex', alignItems:'center', gap:8,
                             padding:'10px 12px', borderRadius:10, cursor:'pointer',
-                            border:`2px solid ${postForm.type===t.value?B:'#e2e8f0'}`,
-                            backgroundColor:postForm.type===t.value?'#eff6ff':WH }}>
-                          <input type="radio" name="ft" value={t.value}
-                            checked={postForm.type===t.value}
+                            border:`2px solid ${postForm.type===opt.value?B:'#e2e8f0'}`,
+                            backgroundColor:postForm.type===opt.value?'#eff6ff':WH }}>
+                          <input type="radio" name="ft" value={opt.value}
+                            checked={postForm.type===opt.value}
                             onChange={e=>setPostForm(f=>({...f,type:e.target.value}))} />
-                          <span style={{ fontSize:12, fontWeight:700 }}>{t.label}</span>
+                          <span style={{ fontSize:12, fontWeight:700 }}>{opt.label}</span>
                         </label>
                       ))}
                     </div>
-                    <input style={inputSt} placeholder="Kichwa cha tangazo *"
+                    <input style={inputSt} placeholder={t('commerce_profile.title_placeholder')}
                       value={postForm.title}
                       onChange={e=>setPostForm(f=>({...f,title:e.target.value}))} />
                     <textarea style={{...inputSt, minHeight:80, resize:'vertical',
                       display:'block', marginBottom:10}}
-                      placeholder="Maelezo zaidi (hiari)..."
+                      placeholder={t('commerce_profile.body_placeholder')}
                       value={postForm.body}
                       onChange={e=>setPostForm(f=>({...f,body:e.target.value}))} />
                     <div style={{ display:'flex', gap:10 }}>
@@ -585,14 +589,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                         style={{ flex:1, backgroundColor:'#f1f5f9', color:GR,
                           border:'none', borderRadius:10, padding:'11px 0',
                           cursor:'pointer', fontSize:14, fontWeight:700 }}>
-                        Close
+                        {t('commerce_profile.close_button')}
                       </button>
                       <button onClick={handlePublish} disabled={publishing}
                         style={{ flex:2, background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',
                           color:WH, border:'none', borderRadius:10, padding:'11px 0',
                           cursor:publishing?'not-allowed':'pointer',
                           fontSize:14, fontWeight:800 }}>
-                        {publishing ? '⏳...' : '📢 Post'}
+                        {publishing ? t('commerce_profile.posting_button') : t('commerce_profile.post_button')}
                       </button>
                     </div>
                   </div>
@@ -600,7 +604,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
               </div>
             )}
             {feed.length === 0
-              ? <Empty icon="📢" text="Bado hakuna matangazo" />
+              ? <Empty icon="📢" text={t('commerce_profile.no_announcements')} />
               : feed.map(f => (
                   <FeedPost key={f.id} f={f} onNavigate={onNavigate}
                     isLoggedIn={isLoggedIn} currentUser={currentUser}
@@ -614,8 +618,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
         {tab==='orders' && (
           <div>
             {orders.length === 0
-              ? <Empty icon="📦" text="Bado hakuna maagizo"
-                  action="Enda Sokoni" onAction={()=>onNavigate('Classifieds')} />
+              ? <Empty icon="📦" text={t('commerce_profile.no_orders')}
+                  action={t('commerce_profile.go_to_market_button')} onAction={()=>onNavigate('Classifieds')} />
               : orders.map(o => (
                   <div key={o.id}
                     onClick={()=>onNavigate(`TrackParcel-${o.trackingNumber||o.id}`)}
@@ -625,7 +629,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                     <div style={{ display:'flex', justifyContent:'space-between' }}>
                       <div>
                         <div style={{ fontSize:13, fontWeight:700, color:DK }}>
-                          {o.product?.name || o.manualProductName || 'Products'}
+                          {o.product?.name || o.manualProductName || t('commerce_profile.product_fallback')}
                         </div>
                         <div style={{ fontSize:11, color:GR, marginTop:2 }}>
                           {o.trackingNumber} · {new Date(o.createdAt).toLocaleDateString('sw-TZ')}
@@ -657,11 +661,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   padding:14, cursor:'pointer', fontSize:14,
                   fontWeight:700, color:'#16a34a',
                   boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
-                + Add Services New
+                {t('commerce_profile.add_service_button')}
               </button>
             )}
             {services.length === 0
-              ? <Empty icon="🔧" text="Bado hakuna huduma" />
+              ? <Empty icon="🔧" text={t('commerce_profile.no_services')} />
               : <div style={{ display:'grid',
                   gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12 }}>
                   {services.map(s => (
@@ -679,8 +683,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                         {s.title}
                       </div>
                       <div style={{ fontSize:14, fontWeight:900, color:B }}>
-                        {s.priceType==='negotiate' ? 'Bei kwa mazungumzo'
-                         : s.priceType==='free_quote' ? 'Omba bei'
+                        {s.priceType==='negotiate' ? t('search.negotiate_price')
+                         : s.priceType==='free_quote' ? t('search.request_quote')
                          : `TZS ${fmt(s.price)}`}
                       </div>
                     </div>
@@ -698,15 +702,15 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   style={{ width:'100%', backgroundColor:B, color:WH,
                     border:'none', borderRadius:12, padding:'14px 0',
                     cursor:'pointer', fontSize:15, fontWeight:800 }}>
-                  🏍️ Go to Agent Dashboard
+                  {t('commerce_profile.go_to_agent_dashboard')}
                 </button>
                 {agentData && (
                   <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                     marginTop:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                     {[
-                      ['Completed Deliveries', agentData.totalDeliveriesCompleted||0, '#16a34a'],
-                      ['Total Earnings', `TZS ${fmt(agentData.totalEarnings||0)}`, B],
-                      ['Rating', `${Number(agentData.rating||0).toFixed(1)}/5.0`, '#d97706'],
+                      [t('commerce_profile.completed_deliveries_label'), agentData.totalDeliveriesCompleted||0, '#16a34a'],
+                      [t('commerce_profile.total_earnings_label'), `TZS ${fmt(agentData.totalEarnings||0)}`, B],
+                      [t('commerce_profile.rating_label'), `${Number(agentData.rating||0).toFixed(1)}/5.0`, '#d97706'],
                     ].map(([l,v,c]) => (
                       <div key={l} style={{ display:'flex', justifyContent:'space-between',
                         padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
@@ -718,7 +722,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                 )}
               </>
             ) : !publicAgentData ? (
-              <Empty icon="🏍️" text="Agent profile not available" />
+              <Empty icon="🏍️" text={t('commerce_profile.agent_profile_unavailable')} />
             ) : (
               <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                 boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -726,17 +730,17 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   <span style={{ fontSize:28 }}>🏍️</span>
                   <div>
                     <div style={{ fontSize:15, fontWeight:900, color:DK }}>
-                      {publicAgentData.fullName || 'Delivery Agent'}
+                      {publicAgentData.fullName || t('commerce_profile.delivery_agent_fallback')}
                     </div>
                     <div style={{ fontSize:12, color:GR }}>
-                      📍 {publicAgentData.district || publicAgentData.city || 'Tanzania'}
+                      📍 {publicAgentData.district || publicAgentData.city || t('commerce_profile.location_fallback')}
                     </div>
                   </div>
                 </div>
                 {publicAgentData.coverageAreas?.length > 0 && (
                   <div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:GR, marginBottom:6 }}>
-                      SERVICE AREAS
+                      {t('commerce_profile.service_areas_label')}
                     </div>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       {publicAgentData.coverageAreas.map(a => (
@@ -749,8 +753,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   </div>
                 )}
                 {[
-                  ['Deliveries Completed', fmt(publicAgentData.totalDeliveriesCompleted||0), '#16A34A'],
-                  ['Rating', `⭐ ${Number(publicAgentData.rating||0).toFixed(1)} (${publicAgentData.totalRatings||0})`, '#D97706'],
+                  [t('commerce_profile.deliveries_completed_label'), fmt(publicAgentData.totalDeliveriesCompleted||0), '#16A34A'],
+                  [t('commerce_profile.rating_label'), `⭐ ${Number(publicAgentData.rating||0).toFixed(1)} (${publicAgentData.totalRatings||0})`, '#D97706'],
                 ].map(([l,v,c]) => (
                   <div key={l} style={{ display:'flex', justifyContent:'space-between',
                     padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
@@ -771,10 +775,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                 style={{ width:'100%', backgroundColor:'#7c3aed', color:WH,
                   border:'none', borderRadius:12, padding:'14px 0',
                   cursor:'pointer', fontSize:15, fontWeight:800 }}>
-                🏢 Go to Hub Dashboard
+                {t('commerce_profile.go_to_hub_dashboard')}
               </button>
             ) : !publicHubData ? (
-              <Empty icon="🏢" text="Hub profile not available" />
+              <Empty icon="🏢" text={t('commerce_profile.hub_profile_unavailable')} />
             ) : (
               <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                 boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -792,7 +796,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                 {publicHubData.coverageCitiesDestination?.length > 0 && (
                   <div style={{ marginBottom:14 }}>
                     <div style={{ fontSize:11, fontWeight:800, color:GR, marginBottom:6 }}>
-                      DELIVERS TO
+                      {t('commerce_profile.delivers_to_label')}
                     </div>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       {publicHubData.coverageCitiesDestination.map(c => (
@@ -805,9 +809,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   </div>
                 )}
                 {[
-                  ['Parcels Handled', fmt(publicHubData.totalParcelsHandled||0), '#7C3AED'],
-                  ['Parcels Delivered', fmt(publicHubData.totalParcelsDelivered||0), '#16A34A'],
-                  ['Rating', `⭐ ${Number(publicHubData.rating||0).toFixed(1)} (${publicHubData.totalRatings||0})`, '#D97706'],
+                  [t('commerce_profile.parcels_handled_label'), fmt(publicHubData.totalParcelsHandled||0), '#7C3AED'],
+                  [t('commerce_profile.parcels_delivered_label'), fmt(publicHubData.totalParcelsDelivered||0), '#16A34A'],
+                  [t('commerce_profile.rating_label'), `⭐ ${Number(publicHubData.rating||0).toFixed(1)} (${publicHubData.totalRatings||0})`, '#D97706'],
                 ].map(([l,v,c]) => (
                   <div key={l} style={{ display:'flex', justifyContent:'space-between',
                     padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
@@ -828,10 +832,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                 style={{ width:'100%', backgroundColor:'#ea580c', color:WH,
                   border:'none', borderRadius:12, padding:'14px 0',
                   cursor:'pointer', fontSize:15, fontWeight:800 }}>
-                🚌 Go to Transport Dashboard
+                {t('commerce_profile.go_to_transport_dashboard')}
               </button>
             ) : !publicTransportData ? (
-              <Empty icon="🚌" text="Transport profile not available" />
+              <Empty icon="🚌" text={t('commerce_profile.transport_profile_unavailable')} />
             ) : (
               <div>
                 <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
@@ -859,7 +863,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   <div style={{ backgroundColor:WH, borderRadius:16, padding:16,
                     boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                     <div style={{ fontSize:12, fontWeight:800, color:GR, marginBottom:10 }}>
-                      ACTIVE ROUTES
+                      {t('commerce_profile.active_routes_label')}
                     </div>
                     {publicTransportData.routes.map(r => (
                       <div key={r.id} onClick={() => onNavigate('SellerShipment')}
@@ -873,9 +877,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                             ? r.loopStops.join(' → ')
                             : r.routeType === 'last_mile' && r.coverageWards?.length
                             ? `${r.coverageCity || ''} — ${r.coverageWards.slice(0,3).join(', ')}`
-                            : 'Route'}
+                            : t('commerce_profile.route_fallback')}
                         </div>
-                        <span style={{ fontSize:11, fontWeight:700, color:'#EA580C' }}>Ship →</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:'#EA580C' }}>{t('commerce_profile.ship_button')}</span>
                       </div>
                     ))}
                   </div>
@@ -891,7 +895,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
             style={{ width:'100%', backgroundColor:'#7c3aed', color:WH,
               border:'none', borderRadius:12, padding:'14px 0',
               cursor:'pointer', fontSize:15, fontWeight:800 }}>
-            📊 Angalia Analytics Kamili
+            {t('commerce_profile.view_full_analytics_button')}
           </button>
         )}
 
@@ -903,13 +907,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
               <div style={{ fontSize:48, marginBottom:8 }}>{tier.icon}</div>
               <div style={{ fontSize:24, fontWeight:900 }}>{tier.name}</div>
               <div style={{ fontSize:36, fontWeight:900, margin:'8px 0' }}>{score}</div>
-              <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)' }}>Score za Imani / 1000</div>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)' }}>{t('commerce_profile.trust_score_label')}</div>
             </div>
             {rep?.history?.length > 0 && (
               <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                 boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                 <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:12 }}>
-                  Historia ya Score
+                  {t('commerce_profile.score_history_title')}
                 </div>
                 {rep.history.map(e => (
                   <div key={e.id} style={{ display:'flex', justifyContent:'space-between',
@@ -950,7 +954,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
               padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
               <div style={{ fontSize:15, fontWeight:900, color:DK }}>
-                Followers {followers.length > 0 && `(${followers.length})`}
+                {t('commerce_profile.followers_title')} {followers.length > 0 && `(${followers.length})`}
               </div>
               <button onClick={() => setShowFollowers(false)}
                 style={{ background:'none', border:'none', cursor:'pointer',
@@ -959,11 +963,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
             <div style={{ flex:1, overflowY:'auto', padding:'8px 16px 16px' }}>
               {loadingFollowers ? (
                 <div style={{ fontSize:13, color:GR, padding:'20px 0', textAlign:'center' }}>
-                  Loading...
+                  {t('commerce_profile.loading_ellipsis')}
                 </div>
               ) : followers.length === 0 ? (
                 <div style={{ fontSize:13, color:GR, padding:'30px 0', textAlign:'center' }}>
-                  No followers yet — share your profile to get your first one!
+                  {t('commerce_profile.no_followers_desc')}
                 </div>
               ) : (
                 followers.map(f => (
@@ -986,7 +990,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                         {f.name}
                       </div>
                       <div style={{ fontSize:11, color:GR }}>
-                        Following since {new Date(f.followedAt).toLocaleDateString('en-GB')}
+                        {t('commerce_profile.following_since_label', { date: new Date(f.followedAt).toLocaleDateString('en-GB') })}
                       </div>
                     </div>
                   </div>
@@ -1035,6 +1039,7 @@ const Empty = ({ icon, text, action, onAction }) => (
 // product/classified/service — e.g. a plain announcement or "Looking For".
 // Tagged posts reuse CommerceCommentSection instead (see FeedPost below).
 const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
+  const { t } = useTranslation();
   const [comments, setComments] = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [body,     setBody]     = useState('');
@@ -1058,7 +1063,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
       setComments(prev => [...prev, { ...res.data, replies: [] }]);
       setBody('');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Could not post — try again.');
+      setError(err?.response?.data?.message || t('commerce_profile.post_error'));
     } finally {
       setSending(false);
     }
@@ -1067,9 +1072,9 @@ const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
   return (
     <div style={{ marginTop:12, borderTop:'1px solid #F1F5F9', paddingTop:12 }}>
       {loading ? (
-        <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>Loading...</div>
+        <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('commerce_profile.loading_ellipsis')}</div>
       ) : comments.length === 0 ? (
-        <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>No comments yet.</div>
+        <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('commerce_profile.no_comments_yet')}</div>
       ) : comments.map(c => (
         <div key={c.id} style={{ display:'flex', gap:8, marginBottom:10 }}>
           <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
@@ -1081,7 +1086,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:12, fontWeight:800, color:DK }}>
-              {c.author?.storeName || c.author?.name || 'User'}
+              {c.author?.storeName || c.author?.name || t('commerce_profile.user_fallback')}
             </div>
             <div style={{ fontSize:12, color:DK, lineHeight:1.4 }}>{c.body}</div>
           </div>
@@ -1093,13 +1098,13 @@ const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
       <div style={{ display:'flex', gap:8 }}>
         <input value={body} onChange={e => setBody(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSend()}
-          placeholder="Write a comment..."
+          placeholder={t('commerce_profile.write_comment_placeholder')}
           style={{ flex:1, padding:'8px 12px', borderRadius:10, border:'1px solid #E2E8F0',
             fontSize:12, outline:'none', fontFamily:'inherit' }} />
         <button onClick={handleSend} disabled={sending || !body.trim()}
           style={{ backgroundColor:B, color:WH, border:'none', borderRadius:10,
             padding:'0 16px', cursor:'pointer', fontSize:12, fontWeight:700 }}>
-          {sending ? '...' : 'Send'}
+          {sending ? t('commerce_profile.sending_ellipsis') : t('commerce_profile.send_button')}
         </button>
       </div>
     </div>
@@ -1107,6 +1112,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
 };
 
 const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef }) => {
+  const { t } = useTranslation();
   const [showComments, setShowComments] = useState(false);
   const isTagged = !!(f.linkedEntityType && f.linkedEntityId);
 
@@ -1118,9 +1124,9 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef
         marginBottom:8 }}>
         <span style={{ fontSize:10, fontWeight:800, color:B,
           backgroundColor:'#eff6ff', padding:'2px 10px', borderRadius:100 }}>
-          {f.type==='new_product'?'🛍️ New Product':
-           f.type==='discount'?'🏷️ Discount':
-           f.type==='restock'?'📦 Restocked':'📣 Listing'}
+          {f.type==='new_product'?t('commerce_profile.type_new_product'):
+           f.type==='discount'?t('commerce_profile.type_discount'):
+           f.type==='restock'?t('commerce_profile.type_restock'):t('commerce_profile.type_announcement')}
         </span>
         <span style={{ fontSize:10, color:'#94a3b8' }}>
           {new Date(f.createdAt).toLocaleDateString('en-GB')}
@@ -1134,15 +1140,15 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef
       )}
       {((f.saveCount||0) > 0 || (f.commentCount||0) > 0) && (
         <div style={{ fontSize:12, fontWeight:700, color:DK, marginTop:10 }}>
-          {(f.saveCount||0) > 0 && `${Number(f.saveCount).toLocaleString()} liked`}
+          {(f.saveCount||0) > 0 && t('commerce_profile.liked_count', { count: Number(f.saveCount).toLocaleString() })}
           {(f.saveCount||0) > 0 && (f.commentCount||0) > 0 && '  ·  '}
-          {(f.commentCount||0) > 0 && `${Number(f.commentCount).toLocaleString()} comment${f.commentCount!==1?'s':''}`}
+          {(f.commentCount||0) > 0 && t('commerce_profile.comment_count', { count: Number(f.commentCount) })}
         </div>
       )}
       <button onClick={() => setShowComments(s => !s)}
         style={{ background:'none', border:'none', cursor:'pointer', padding:0,
           marginTop:6, color:GR, fontSize:12, fontWeight:700 }}>
-        {showComments ? '▲ Hide comments' : (f.commentCount||0) > 0 ? '💬 View comments' : '💬 Comment'}
+        {showComments ? t('commerce_profile.hide_comments') : (f.commentCount||0) > 0 ? t('commerce_profile.view_comments') : t('commerce_profile.comment_button')}
       </button>
       {f.ctaLabel && f.linkedEntityId && (
         <button onClick={() => onNavigate(`ClassifiedDetail-${f.linkedEntityId}`)}

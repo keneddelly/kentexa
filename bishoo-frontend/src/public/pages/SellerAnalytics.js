@@ -3,6 +3,7 @@
  * Place at: src/public/pages/SellerAnalytics.js
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
 import api      from '../../api/api';
 
@@ -62,6 +63,7 @@ const StatCard = ({ icon, label, value, sub, color = '#1d4ed8', bg = '#eff6ff' }
 );
 
 const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('overview');
@@ -75,11 +77,11 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', display: 'flex', flexDirection: 'column' }}>
-      <BackBar onBack={() => onNavigate('SellerDashboard')} title="📊 Takwimu za Biashara" />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('seller_analytics.page_title')} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📊</div>
-          <div>Inapakia takwimu...</div>
+          <div>{t('seller_analytics.loading')}</div>
         </div>
       </div>
     </div>
@@ -99,7 +101,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <BackBar onBack={() => onNavigate('SellerDashboard')} title="📊 Takwimu za Biashara" />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('seller_analytics.page_title')} />
 
       <div style={{ flex: 1, padding: '16px 16px 90px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
@@ -107,17 +109,17 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#7c3aed)', borderRadius: 20,
           padding: 24, marginBottom: 20, color: '#fff' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)',
-            letterSpacing: 1, marginBottom: 6 }}>JUMLA YA MAPATO</div>
+            letterSpacing: 1, marginBottom: 6 }}>{t('seller_analytics.total_revenue_label')}</div>
           <div style={{ fontSize: 34, fontWeight: 900, marginBottom: 4 }}>
             TZS {fmt(stats.totalRevenue)}
           </div>
           <div style={{ display: 'flex', gap: 24, marginTop: 12 }}>
             {[
-              { label: 'Maagizo',   value: stats.totalOrders || 0 },
-              { label: 'Wiki Hii',  value: `TZS ${fmtM(weekTotal)}` },
-              { label: 'Mabadiliko', value: `${weekChange >= 0 ? '+' : ''}${weekChange}%`,
+              { label: t('seller_analytics.hero_orders'),   value: stats.totalOrders || 0 },
+              { label: t('seller_analytics.hero_this_week'),  value: `TZS ${fmtM(weekTotal)}` },
+              { label: t('seller_analytics.hero_change'), value: `${weekChange >= 0 ? '+' : ''}${weekChange}%`,
                 color: weekChange >= 0 ? '#86efac' : '#fca5a5' },
-              { label: 'Wateja',    value: totalCustomers },
+              { label: t('seller_analytics.hero_customers'),    value: totalCustomers },
             ].map(s => (
               <div key={s.label}>
                 <div style={{ fontSize: 16, fontWeight: 900, color: s.color || '#fff' }}>{s.value}</div>
@@ -129,21 +131,21 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 20 }}>
-          <StatCard icon="🔁" label="Wateja Wanaorudia"
+          <StatCard icon="🔁" label={t('seller_analytics.stat_repeat_customers')}
             value={`${repeatRate}%`}
-            sub={`${repeatCount} kati ya ${totalCustomers}`}
+            sub={t('seller_analytics.stat_repeat_sub', { count: repeatCount, total: totalCustomers })}
             color="#7c3aed" bg="#f5f3ff" />
-          <StatCard icon="📦" label="Bidhaa Zinazouzwa"
+          <StatCard icon="📦" label={t('seller_analytics.stat_products_sold')}
             value={topProducts.length}
-            sub={`Bora: ${topProducts[0]?.name?.slice(0, 20) || '—'}`}
+            sub={t('seller_analytics.stat_products_sub', { name: topProducts[0]?.name?.slice(0, 20) || '—' })}
             color="#1d4ed8" bg="#eff6ff" />
-          <StatCard icon="✅" label="Maagizo Yaliyokamilika"
+          <StatCard icon="✅" label={t('seller_analytics.stat_completed_orders')}
             value={stats.completedOrders || 0}
-            sub={`${Math.round((stats.completedOrders || 0) / (stats.totalOrders || 1) * 100)}% ya yote`}
+            sub={t('seller_analytics.stat_completed_sub', { pct: Math.round((stats.completedOrders || 0) / (stats.totalOrders || 1) * 100) })}
             color="#16a34a" bg="#f0fdf4" />
-          <StatCard icon="⏳" label="Yanayosubiri Kutumwa"
+          <StatCard icon="⏳" label={t('seller_analytics.stat_pending_shipping')}
             value={stats.needsShipping || 0}
-            sub="Yanahitaji hatua"
+            sub={t('seller_analytics.stat_pending_sub')}
             color="#f59e0b" bg="#fef3c7" />
         </div>
 
@@ -151,16 +153,16 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ display: 'flex', backgroundColor: '#fff', borderRadius: 12,
           padding: 4, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
           {[
-            { key: 'overview',   label: '📈 Mapato' },
-            { key: 'products',   label: '📦 Bidhaa' },
-            { key: 'customers',  label: '👥 Wateja' },
-          ].map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            { key: 'overview',   label: t('seller_analytics.tab_overview') },
+            { key: 'products',   label: t('seller_analytics.tab_products') },
+            { key: 'customers',  label: t('seller_analytics.tab_customers') },
+          ].map(tabItem => (
+            <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
               style={{ flex: 1, padding: '9px 8px', border: 'none', cursor: 'pointer',
                 borderRadius: 9, fontSize: 12, fontWeight: 700,
-                backgroundColor: tab === t.key ? '#7c3aed' : 'transparent',
-                color: tab === t.key ? '#fff' : '#64748b' }}>
-              {t.label}
+                backgroundColor: tab === tabItem.key ? '#7c3aed' : 'transparent',
+                color: tab === tabItem.key ? '#fff' : '#64748b' }}>
+              {tabItem.label}
             </button>
           ))}
         </div>
@@ -170,15 +172,15 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>
-              Mapato — Siku 14 Zilizopita
+              {t('seller_analytics.revenue_chart_title')}
             </div>
             <BarChart data={dailyRevenue} color="#7c3aed" valueKey="revenue" />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16,
               paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
               {[
-                { label: 'Wiki Hii',    value: `TZS ${fmtM(weekTotal)}` },
-                { label: 'Wiki Iliyopita', value: `TZS ${fmtM(prevTotal)}` },
-                { label: 'Mabadiliko',  value: `${weekChange >= 0 ? '+' : ''}${weekChange}%`,
+                { label: t('seller_analytics.this_week'),    value: `TZS ${fmtM(weekTotal)}` },
+                { label: t('seller_analytics.last_week'), value: `TZS ${fmtM(prevTotal)}` },
+                { label: t('seller_analytics.change_label'),  value: `${weekChange >= 0 ? '+' : ''}${weekChange}%`,
                   color: weekChange >= 0 ? '#16a34a' : '#dc2626' },
               ].map(s => (
                 <div key={s.label} style={{ textAlign: 'center' }}>
@@ -195,11 +197,11 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>
-              🏆 Bidhaa Bora kwa Mapato
+              {t('seller_analytics.top_products_title')}
             </div>
             {topProducts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>
-                Bado hakuna data ya bidhaa
+                {t('seller_analytics.no_product_data')}
               </div>
             ) : topProducts.map((p, i) => {
               const pct = Math.round((p.revenue / (stats.totalRevenue || 1)) * 100);
@@ -214,14 +216,14 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                         color: '#fff', fontSize: 12, fontWeight: 900 }}>{i + 1}</div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: '#64748b' }}>{p.orders} maagizo</div>
+                        <div style={{ fontSize: 11, color: '#64748b' }}>{t('seller_analytics.orders_suffix', { count: p.orders })}</div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: 14, fontWeight: 900, color: '#7c3aed' }}>
                         TZS {fmtM(p.revenue)}
                       </div>
-                      <div style={{ fontSize: 10, color: '#94a3b8' }}>{pct}% ya jumla</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8' }}>{t('seller_analytics.of_total_pct', { pct })}</div>
                     </div>
                   </div>
                   <div style={{ height: 6, backgroundColor: '#f1f5f9', borderRadius: 100 }}>
@@ -242,18 +244,18 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
-                👥 Wateja Bora
+                {t('seller_analytics.top_customers_title')}
               </div>
               <div style={{ fontSize: 12, backgroundColor: '#f5f3ff',
                 color: '#7c3aed', padding: '4px 12px', borderRadius: 100, fontWeight: 700 }}>
-                Wanaorudia: {repeatRate}%
+                {t('seller_analytics.repeat_pill', { rate: repeatRate })}
               </div>
             </div>
 
             {/* Repeat rate visual */}
             <div style={{ backgroundColor: '#f5f3ff', borderRadius: 12, padding: 14, marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 12, color: '#64748b' }}>Wateja Wanaorudia</span>
+                <span style={{ fontSize: 12, color: '#64748b' }}>{t('seller_analytics.repeat_customers_label')}</span>
                 <span style={{ fontSize: 13, fontWeight: 900, color: '#7c3aed' }}>
                   {repeatCount} / {totalCustomers}
                 </span>
@@ -264,15 +266,15 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   transition: 'width 0.5s' }} />
               </div>
               <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
-                {repeatRate >= 30 ? '🔥 Vizuri sana! Wateja wako wanarudi.' :
-                 repeatRate >= 15 ? '👍 Wastani mzuri. Jaribu kuboresha huduma.' :
-                 '⚠️ Wateja wachache wanaorudia. Fikiria promosheni.'}
+                {repeatRate >= 30 ? t('seller_analytics.repeat_msg_high') :
+                 repeatRate >= 15 ? t('seller_analytics.repeat_msg_mid') :
+                 t('seller_analytics.repeat_msg_low')}
               </div>
             </div>
 
             {topCustomers.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 30, color: '#94a3b8' }}>
-                Bado hakuna data ya wateja
+                {t('seller_analytics.no_customer_data')}
               </div>
             ) : topCustomers.map((c, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12,
@@ -292,7 +294,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     {c.name}
                   </div>
                   <div style={{ fontSize: 11, color: '#64748b' }}>
-                    {c.orders} maagizo · {c.phone}
+                    {t('seller_analytics.orders_suffix', { count: c.orders })} · {c.phone}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -300,7 +302,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     TZS {fmtM(c.spent)}
                   </div>
                   {c.orders > 1 && (
-                    <div style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>🔁 Anarudi</div>
+                    <div style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>{t('seller_analytics.returning_badge')}</div>
                   )}
                 </div>
               </div>
@@ -311,7 +313,7 @@ const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               <div style={{ marginTop: 16, padding: 14, backgroundColor: '#f0fdf4',
                 borderRadius: 12, border: '1px solid #86efac' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 8 }}>
-                  📲 Wasiliana na Wateja Bora
+                  {t('seller_analytics.contact_top_customers')}
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                   {topCustomers.filter(c => c.phone).map((c, i) => {

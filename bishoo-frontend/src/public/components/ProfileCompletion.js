@@ -6,42 +6,43 @@
  * when user has incomplete profile fields
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const B = '#2563EB';
 
-const getSteps = (user, role) => {
+const getSteps = (user, role, t) => {
   const steps = [
     {
       key: 'phone',
-      label: 'Thibitisha simu',
+      label: t('profile_completion.step_phone'),
       icon: '📱',
       done: !!user?.isVerified,
       page: null, // happens via OTP at registration
     },
     {
       key: 'name',
-      label: 'Weka jina lako kamili',
+      label: t('profile_completion.step_name'),
       icon: '👤',
       done: !!(user?.name && user.name.trim().length > 2),
       page: 'CustomerProfile',
     },
     {
       key: 'photo',
-      label: 'Weka picha ya wasifu',
+      label: t('profile_completion.step_photo'),
       icon: '📸',
       done: !!(user?.logo || user?.avatar),
       page: 'CustomerProfile',
     },
     {
       key: 'location',
-      label: 'Weka mji wako',
+      label: t('profile_completion.step_location'),
       icon: '📍',
       done: !!(user?.businessLocation || user?.city),
       page: 'CustomerProfile',
     },
     {
       key: 'bio',
-      label: 'Andika maelezo mafupi',
+      label: t('profile_completion.step_bio'),
       icon: '✏️',
       done: !!(user?.storeDescription || user?.bio),
       page: 'CustomerProfile',
@@ -52,7 +53,7 @@ const getSteps = (user, role) => {
   if (['seller', 'admin', 'manager'].includes(role)) {
     steps.push({
       key: 'store',
-      label: 'Kamilisha wasifu wa duka',
+      label: t('profile_completion.step_store'),
       icon: '🏪',
       done: !!(user?.storeName && user?.storeDescription),
       page: 'StoreSettings',
@@ -63,11 +64,12 @@ const getSteps = (user, role) => {
 };
 
 const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false }) => {
+  const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed || !currentUser) return null;
 
-  const steps  = getSteps(currentUser, userRole);
+  const steps  = getSteps(currentUser, userRole, t);
   const done   = steps.filter(s => s.done).length;
   const total  = steps.length;
   const pct    = Math.round((done / total) * 100);
@@ -83,7 +85,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false 
         <div style={{ display:'flex', justifyContent:'space-between',
           alignItems:'center', marginBottom:8 }}>
           <span style={{ fontSize:13, fontWeight:800, color:'#1e293b' }}>
-            Wasifu wako: {pct}% kamili
+            {t('profile_completion.compact_title', { percent: pct })}
           </span>
           <span style={{ fontSize:12, color:'#64748b' }}>{done}/{total}</span>
         </div>
@@ -117,10 +119,10 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false 
         <div style={{ fontSize:20 }}>👤</div>
         <div>
           <div style={{ fontSize:14, fontWeight:900, color:'#1e293b' }}>
-            Kamilisha Wasifu Wako — {pct}%
+            {t('profile_completion.full_title', { percent: pct })}
           </div>
           <div style={{ fontSize:12, color:'#64748b' }}>
-            Wasifu kamili unaongeza imani kwa wateja
+            {t('profile_completion.full_desc')}
           </div>
         </div>
       </div>
@@ -152,7 +154,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false 
             </span>
             {!s.done && s.page && (
               <span style={{ fontSize:10, color:B, fontWeight:700, marginLeft:'auto' }}>
-                Fanya →
+                {t('profile_completion.do_it_button')}
               </span>
             )}
           </div>

@@ -6,21 +6,24 @@
  * Place at: src/public/pages/BecomeSellerInfo.js
  */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 
-const BENEFITS = [
-  { icon: '📦', title: 'Tuma Bidhaa Popote Tanzania',   desc: 'Unafilisi bidhaa kwa usalama — kutoka Dar hadi Mwanza, Songea, Tunduma.' },
-  { icon: '📍', title: 'Ufuatiliaji wa Wakati Halisi',  desc: 'Mnunuzi anajua kifurushi kiko wapi wakati wote. Kupunguza maswali na wasiwasi.' },
-  { icon: '💬', title: 'WhatsApp Otomatiki',            desc: 'KenteXa inatuma SMS na WhatsApp kwa mnunuzi bila kufanya chochote wewe.' },
-  { icon: '💰', title: 'Malipo Salama',                 desc: 'Pesa zinashikiliwa salama hadi mnunuzi athibitishe kupokea bidhaa.' },
-  { icon: '🤝', title: 'Wakala wa KenteXa Karibu Nawe', desc: 'Super Agents wako katika miji mingi — wanaomba malipo na kupeleka bidhaa.' },
-  { icon: '📊', title: 'Dashboard ya Mauzo',            desc: 'Ona mapato, maagizo, na hali ya vifurushi vyote mahali pamoja.' },
+const getBenefits = (t) => [
+  { icon: '📦', title: t('become_seller_info.benefit1_title'), desc: t('become_seller_info.benefit1_desc') },
+  { icon: '📍', title: t('become_seller_info.benefit2_title'), desc: t('become_seller_info.benefit2_desc') },
+  { icon: '💬', title: t('become_seller_info.benefit3_title'), desc: t('become_seller_info.benefit3_desc') },
+  { icon: '💰', title: t('become_seller_info.benefit4_title'), desc: t('become_seller_info.benefit4_desc') },
+  { icon: '🤝', title: t('become_seller_info.benefit5_title'), desc: t('become_seller_info.benefit5_desc') },
+  { icon: '📊', title: t('become_seller_info.benefit6_title'), desc: t('become_seller_info.benefit6_desc') },
 ];
 
 const BecomeSellerInfo = ({ onNavigate }) => {
+  const { t } = useTranslation();
+  const BENEFITS = getBenefits(t);
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <BackBar title="Kuwa Muuzaji" onBack={() => onNavigate('back')} />
+      <BackBar title={t('become_seller_info.page_title')} onBack={() => onNavigate('back')} />
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 16px 40px' }}>
 
@@ -29,17 +32,17 @@ const BecomeSellerInfo = ({ onNavigate }) => {
           borderRadius: 20, padding: 28, marginBottom: 24, textAlign: 'center' }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🏪</div>
           <div style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 8 }}>
-            Tuma Bidhaa kwa KenteXa
+            {t('become_seller_info.hero_title')}
           </div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', lineHeight: 1.6 }}>
-            Jiunge na wauzaji wanaotumia KenteXa kupeleka bidhaa kwa usalama katika Tanzania nzima
+            {t('become_seller_info.hero_desc')}
           </div>
         </div>
 
         {/* Benefits */}
         <div style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 16, fontWeight: 900, color: '#0f172a', marginBottom: 16 }}>
-            Kwa nini KenteXa? ✨
+            {t('become_seller_info.benefits_title')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {BENEFITS.map((b, i) => (
@@ -61,24 +64,22 @@ const BecomeSellerInfo = ({ onNavigate }) => {
         {/* Fee info */}
         <div style={{ backgroundColor: '#eff6ff', borderRadius: 14, padding: 16, marginBottom: 24 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 6 }}>
-            💡 Ada ya Kufuatilia
+            {t('become_seller_info.fee_title')}
           </div>
           <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
-            <span style={{ fontWeight: 700 }}>TZS 1,000</span> kwa kila kifurushi unachotuma — 
-            namba ya kufuatilia, SMS kwa mnunuzi, na usalama wote umejumuishwa.
-            Hakuna ada nyingine za siri.
+            <span style={{ fontWeight: 700 }}>{t('become_seller_info.fee_amount')}</span>{t('become_seller_info.fee_desc')}
           </div>
         </div>
 
         {/* Steps */}
         <div style={{ marginBottom: 28 }}>
           <div style={{ fontSize: 14, fontWeight: 900, color: '#0f172a', marginBottom: 14 }}>
-            Jinsi ya Kuanza 🚀
+            {t('become_seller_info.steps_title')}
           </div>
           {[
-            { step: '1', text: 'Omba kuwa Muuzaji — chapisha fomu rahisi' },
-            { step: '2', text: 'Tunathibitisha akaunti yako (kawaida saa 24)' },
-            { step: '3', text: 'Anza kutuma bidhaa na kufuatilia wakati halisi' },
+            { step: '1', text: t('become_seller_info.step1') },
+            { step: '2', text: t('become_seller_info.step2') },
+            { step: '3', text: t('become_seller_info.step3') },
           ].map(s => (
             <div key={s.step} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
               <div style={{ width: 28, height: 28, borderRadius: '50%',
@@ -99,25 +100,25 @@ const BecomeSellerInfo = ({ onNavigate }) => {
           style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
             color: '#fff', border: 'none', padding: '16px 20px', borderRadius: 14,
             fontSize: 16, fontWeight: 900, cursor: 'pointer', marginBottom: 12 }}>
-          🏪 Omba Kuwa Muuzaji
+          {t('become_seller_info.apply_button')}
         </button>
 
         <button onClick={() => onNavigate('back')}
           style={{ width: '100%', backgroundColor: '#f1f5f9', color: '#64748b',
             border: 'none', padding: '12px 20px', borderRadius: 14,
             fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
-          Rudi Nyuma
+          {t('become_seller_info.back_button')}
         </button>
 
         {/* Already seller */}
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
-            Tayari una akaunti ya muuzaji?
+            {t('become_seller_info.already_seller_label')}
           </div>
           <button onClick={() => onNavigate('StoreSettings')}
             style={{ background: 'none', border: 'none', color: '#1d4ed8',
               fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-            Nenda Mipangilio ya Duka →
+            {t('become_seller_info.go_to_store_settings')}
           </button>
         </div>
 

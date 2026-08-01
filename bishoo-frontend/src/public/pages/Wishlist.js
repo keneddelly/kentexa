@@ -8,6 +8,7 @@
  * all show up here together, filterable by type.
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
 const B  = '#2563EB';
@@ -16,24 +17,27 @@ const GR = '#64748B';
 const WH = '#FFFFFF';
 const fmt = n => Number(n||0).toLocaleString();
 
-const TYPE_META = {
-  product:    { label: 'Products',    icon: '📦', detailPage: 'ProductDetail' },
-  classified: { label: 'Listings',    icon: '🏷️', detailPage: 'ClassifiedDetail' },
-  service:    { label: 'Services',    icon: '🔧', detailPage: 'ServiceDetail' },
-  route:      { label: 'Routes',      icon: '🚌', detailPage: 'SellerShipment' },
-  moment:     { label: 'Moments',     icon: '📸', detailPage: null },
-};
+const getTypeMeta = (t) => ({
+  product:    { label: t('wishlist.type_products'),    icon: '📦', detailPage: 'ProductDetail' },
+  classified: { label: t('wishlist.type_listings'),    icon: '🏷️', detailPage: 'ClassifiedDetail' },
+  service:    { label: t('wishlist.type_services'),    icon: '🔧', detailPage: 'ServiceDetail' },
+  route:      { label: t('wishlist.type_routes'),      icon: '🚌', detailPage: 'SellerShipment' },
+  moment:     { label: t('wishlist.type_moments'),     icon: '📸', detailPage: null },
+});
 
-const FILTERS = [
-  { key: 'all',        label: 'All' },
-  { key: 'product',     label: '📦 Products' },
-  { key: 'classified',  label: '🏷️ Listings' },
-  { key: 'service',     label: '🔧 Services' },
-  { key: 'moment',      label: '📸 Moments' },
-  { key: 'route',       label: '🚌 Routes' },
+const getFilters = (t) => [
+  { key: 'all',        label: t('wishlist.filter_all') },
+  { key: 'product',     label: `📦 ${t('wishlist.type_products')}` },
+  { key: 'classified',  label: `🏷️ ${t('wishlist.type_listings')}` },
+  { key: 'service',     label: `🔧 ${t('wishlist.type_services')}` },
+  { key: 'moment',      label: `📸 ${t('wishlist.type_moments')}` },
+  { key: 'route',       label: `🚌 ${t('wishlist.type_routes')}` },
 ];
 
 const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
+  const { t } = useTranslation();
+  const TYPE_META = getTypeMeta(t);
+  const FILTERS = getFilters(t);
   const [items,   setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter,  setFilter]  = useState('all');
@@ -64,7 +68,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
       }
       setItems(prev => prev.filter(i => !(i.type === item.type && i.id === item.id)));
     } catch {
-      alert('Could not remove — try again.');
+      alert(t('wishlist.remove_failed'));
     } finally {
       setRemoving(null);
     }
@@ -98,7 +102,7 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
         <button onClick={() => onNavigate('back')} style={{ background:'none', border:'none', cursor:'pointer',
           display:'flex', alignItems:'center', gap:10 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={DK} strokeWidth="2.5"><polyline points="15,18 9,12 15,6"/></svg>
-          <span style={{ fontSize:15, fontWeight:800, color:DK }}>❤️ Saved</span>
+          <span style={{ fontSize:15, fontWeight:800, color:DK }}>{t('wishlist.saved_title')}</span>
         </button>
       </div>
 
@@ -124,23 +128,23 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
         {loading ? (
           <div style={{ textAlign:'center', padding:60, color:GR }}>
             <div style={{ fontSize:40, marginBottom:12 }}>❤️</div>
-            <div>Loading...</div>
+            <div>{t('wishlist.loading')}</div>
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign:'center', padding:80, backgroundColor:WH,
             borderRadius:20, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize:64, marginBottom:16 }}>🤍</div>
             <div style={{ fontSize:18, fontWeight:900, color:DK, marginBottom:8 }}>
-              {items.length === 0 ? 'Nothing saved yet' : `No saved ${TYPE_META[filter]?.label.toLowerCase() || ''}`}
+              {items.length === 0 ? t('wishlist.nothing_saved') : t('wishlist.no_saved_type', { type: TYPE_META[filter]?.label.toLowerCase() || '' })}
             </div>
             <div style={{ fontSize:13, color:GR, marginBottom:24 }}>
-              Tap ❤️ on any product, listing, service, Moment, or route to save it here
+              {t('wishlist.save_hint')}
             </div>
             <button onClick={() => onNavigate('Stores')}
               style={{ backgroundColor:B, color:WH, border:'none',
                 borderRadius:12, padding:'12px 28px', cursor:'pointer',
                 fontSize:14, fontWeight:700 }}>
-              🏪 Discover Businesses
+              {t('wishlist.discover_button')}
             </button>
           </div>
         ) : (

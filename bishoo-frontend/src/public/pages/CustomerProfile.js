@@ -207,7 +207,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         )}
 
         {/* Phone nudge */}
-        {profile && !profile.phone && <PhoneNudgeBanner onSaved={fetchData} />}
+        {profile && !profile.phone && <PhoneNudgeBanner userId={currentUser?.id} onSaved={fetchData} />}
 
         {/* Stats — Instagram-style stat row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>

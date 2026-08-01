@@ -33,8 +33,12 @@ export class BusinessCustomerService {
     phone?: string | null;
     email?: string | null;
     address?: string | null;
-    district?: string | null;
+    regionId?: number | null;
     region?: string | null;
+    districtId?: number | null;
+    district?: string | null;
+    wardId?: number | null;
+    ward?: string | null;
     orderAmount: number;
     channel?: string;
     orderId?: number | null; // track which orders already counted
@@ -64,6 +68,18 @@ export class BusinessCustomerService {
       if (!customer.email && params.email) customer.email = params.email;
       if (!customer.address && params.address)
         customer.address = params.address;
+      if (!customer.regionId && params.regionId) {
+        customer.regionId = params.regionId;
+        customer.region = params.region || customer.region;
+      }
+      if (!customer.districtId && params.districtId) {
+        customer.districtId = params.districtId;
+        customer.district = params.district || customer.district;
+      }
+      if (!customer.wardId && params.wardId) {
+        customer.wardId = params.wardId;
+        customer.ward = params.ward || customer.ward;
+      }
       if (!customer.userId && params.userId) customer.userId = params.userId;
       // Update segment based on spending
       customer.segment = this.calculateSegment(customer);
@@ -76,8 +92,12 @@ export class BusinessCustomerService {
         phone: params.phone || null,
         email: params.email || null,
         address: params.address || null,
-        district: params.district || null,
+        regionId: params.regionId || null,
         region: params.region || null,
+        districtId: params.districtId || null,
+        district: params.district || null,
+        wardId: params.wardId || null,
+        ward: params.ward || null,
         totalOrders: 1,
         totalSpent: params.orderAmount,
         averageOrderValue: params.orderAmount,
@@ -214,8 +234,12 @@ export class BusinessCustomerService {
       phone?: string;
       email?: string;
       address?: string;
-      district?: string;
+      regionId?: number;
       region?: string;
+      districtId?: number;
+      district?: string;
+      wardId?: number;
+      ward?: string;
       tags?: string[];
       notes?: string;
     },
@@ -245,6 +269,12 @@ export class BusinessCustomerService {
       phone?: string;
       email?: string;
       address?: string;
+      regionId?: number;
+      region?: string;
+      districtId?: number;
+      district?: string;
+      wardId?: number;
+      ward?: string;
       segment?: string;
       tags?: string[];
       notes?: string;

@@ -143,7 +143,7 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', b
 
 const EMPTY_FORM = {
   name: '', description: '', basePrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
-  displayPrice: 0, stock: '', category: 'electronics', subcategory: '',
+  displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '',
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
 };
 
@@ -253,7 +253,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    if (form.images.length + files.length > 5) { setError('Maximum 5 images allowed'); return; }
+    if (form.images.length + files.length > 5) { setError(t('seller_products.max_images')); return; }
     files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => setImagePreviews(prev => [...prev, reader.result]);
@@ -265,7 +265,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
       files.forEach(file => formData.append('files', file));
       const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setForm(prev => ({ ...prev, images: [...prev.images, ...res.data.urls] }));
-    } catch { setError('Image upload failed'); }
+    } catch { setError(t('seller_products.image_upload_failed')); }
     finally { setUploading(false); }
   };
 
@@ -290,6 +290,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
         description:  form.description,
         category:     form.category,
         subcategory:  form.subcategory,
+        model:        form.model,
         isAvailable:  form.isZipo,
         shippingMethod: form.shippingMethod,
         estimatedDelivery: form.estimatedDelivery,
@@ -332,6 +333,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
       stock:        String(product.stock),
       category:     product.category || 'electronics',
       subcategory:  product.subcategory || '',
+      model:        product.model || '',
       specs:        product.specs || {},
       features:     product.features || [],
       images:       product.images || [],
@@ -351,9 +353,9 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
   const handleToggleZipo = async (product) => {
     try {
       await api.patch(`/products/${product.id}`, { isZipo: !product.isZipo });
-      setMessage(`Product marked as ${!product.isZipo ? 'available' : 'unavailable'}`);
+      setMessage(!product.isZipo ? t('seller_products.marked_available') : t('seller_products.marked_unavailable'));
       fetchMyProducts();
-    } catch { setError('Failed to update product'); }
+    } catch { setError(t('seller_products.update_failed')); }
   };
 
   const updatePrices = (field, value) => {
@@ -366,16 +368,16 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
       <Navbar currentPage="SellerProducts" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
 
-      <BackBar onBack={() => onNavigate('back')} title="📦 Bidhaa Zangu" />
+      <BackBar onBack={() => onNavigate('back')} title={`📦 ${t('seller_products.title')}`} />
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '20px 16px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
             <button onClick={() => onNavigate('SellerDashboard')} style={{ backgroundColor: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, marginBottom: 10 }}>{t('seller_products.back')}</button>
             <h1 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('seller_products.title')}</h1>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>Bidhaa {products.length} {t('seller_products.in_store')}</p>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('seller_products.products_in_store', { count: products.length })}</p>
           </div>
           <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: '#fff', color: '#1d4ed8', border: 'none', padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-            + Ongeza
+            {`+ ${t('seller_products.add')}`}
           </button>
         </div>
       </div>
@@ -405,7 +407,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
           <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>📦</div>
             <h3 style={{ color: '#1e293b', marginBottom: 8 }}>{t('seller_products.no_products')}</h3>
-            <p style={{ color: '#64748b', marginBottom: 24 }}>Ongeza bidhaa yako ya kwanza kuanza kuuza</p>
+            <p style={{ color: '#64748b', marginBottom: 24 }}>{t('seller_products.no_products_desc')}</p>
             <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>{`+ ${t('seller_products.add_first')}`}</button>
           </div>
         ) : (
@@ -415,7 +417,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                 <div style={{ height: 160, backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
                   {product.images?.[0] ? <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 48 }}>📦</span>}
                   <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, backgroundColor: product.isZipo ? '#dcfce7' : '#fee2e2', color: product.isZipo ? '#16a34a' : '#dc2626' }}>
-                    {product.isZipo ? '✅ On Sale' : '❌ Zimefichwa'}
+                    {product.isZipo ? `✅ ${t('seller_products.on_sale')}` : t('seller_products.hidden_badge')}
                   </span>
                 </div>
                 <div style={{ padding: 14 }}>
@@ -430,6 +432,11 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                     )}
                   </div>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 4px' }}>{product.name}</h3>
+                  {product.model && (
+                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>
+                      {t('seller_products.model_label')}: {product.model}
+                    </div>
+                  )}
                   <div style={{ fontSize: 16, fontWeight: 900, color: '#1d4ed8', marginBottom: 4 }}>
                     TZS {Number(product.displayPrice || product.price || 0).toLocaleString()}
                   </div>
@@ -438,11 +445,11 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                       {Object.entries(product.specs).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(' · ')}
                     </div>
                   )}
-                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>Stock: {product.stock}</div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>{t('seller_products.stock_label', { count: product.stock })}</div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => handleEdit(product)} style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>✏️ Edit</button>
+                    <button onClick={() => handleEdit(product)} style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>{`✏️ ${t('seller_products.edit')}`}</button>
                     <button onClick={() => handleToggleZipo(product)} style={{ flex: 1, backgroundColor: product.isZipo ? '#fee2e2' : '#dcfce7', color: product.isZipo ? '#dc2626' : '#16a34a', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                      {product.isZipo ? '🚫 Hide' : '✅ Show'}
+                      {product.isZipo ? `🚫 ${t('seller_products.hide')}` : `✅ ${t('seller_products.show')}`}
                     </button>
                     <button onClick={() => handleDelete(product.id)} style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>🗑</button>
                   </div>
@@ -480,7 +487,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                 <div style={{ border: '2px dashed #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', backgroundColor: '#f8fafc' }}>
                   <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} id="productImages" />
                   <label htmlFor="productImages" style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                    {uploading ? '⏳ Uploading...' : '📷 Choose Images'}
+                    {uploading ? `⏳ ${t('seller_products.uploading')}` : `📷 ${t('seller_products.choose_images')}`}
                   </label>
                   <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>{imagePreviews.length}/5 · {t('seller_products.first_image')}</p>
                 </div>
@@ -490,14 +497,14 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
             {/* Name */}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>{t('seller_products.product_name')} *</label>
-              <input type="text" placeholder="e.g. A9 Mini Zimefichwa Camera 1080P" value={form.name}
+              <input type="text" placeholder={t('seller_products.name_placeholder')} value={form.name}
                 onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} />
             </div>
 
             {/* Category + Subcategory */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
               <div>
-                <label style={labelStyle}>Category</label>
+                <label style={labelStyle}>{t('seller_products.category')}</label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                   {Object.entries(CATEGORIES).map(([key, cat]) => (
                     <option key={key} value={key}>{cat.icon} {cat.label}</option>
@@ -505,7 +512,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Subcategory</label>
+                <label style={labelStyle}>{t('seller_products.subcategory')}</label>
                 <select value={form.subcategory} onChange={e => handleSubcategoryChange(e.target.value)} style={inputStyle}>
                   <option value="">{t('seller_products.select_subcategory')}</option>
                   {subOptions.map(([key, sub]) => (
@@ -515,10 +522,17 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
               </div>
             </div>
 
+            {/* Model */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>{t('seller_products.model_label')}</label>
+              <input type="text" placeholder={t('seller_products.model_placeholder')} value={form.model}
+                onChange={e => setForm({ ...form, model: e.target.value })} style={inputStyle} />
+            </div>
+
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Description</label>
-              <textarea placeholder="Describe your product in detail — include what it does, who it's for, and why it's worth buying..." value={form.description}
+              <label style={labelStyle}>{t('seller_products.description')}</label>
+              <textarea placeholder={t('seller_products.description_placeholder')} value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
                 style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
             </div>
@@ -527,8 +541,8 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
             {specFields.length > 0 && (
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-                  📋 Product Specifications
-                  <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>Shown in the Specs tab on product page</span>
+                  {`📋 ${t('seller_products.specs')}`}
+                  <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.specs_hint')}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {specFields.map(spec => (
@@ -555,8 +569,8 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
             {/* ── FEATURES (bullet points) ── */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
-                ✨ Key Features
-                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>Shown as feature cards on product page</span>
+                {`✨ ${t('seller_products.features')}`}
+                <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.features_hint')}</span>
               </div>
               {(form.features || []).map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e2e8f0' }}>
@@ -565,13 +579,13 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                 </div>
               ))}
               <div style={{ display: 'flex', gap: 8 }}>
-                <input type="text" placeholder="e.g. WiFi Live View · Night Vision · Motion Detection"
+                <input type="text" placeholder={t('seller_products.feature_placeholder')}
                   value={featureInput} onChange={e => setFeatureInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addFeature()}
                   style={{ ...inputStyle, flex: 1, padding: '8px 10px', fontSize: 12 }} />
-                <button onClick={addFeature} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>+ Add</button>
+                <button onClick={addFeature} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{`+ ${t('seller_products.add_feature')}`}</button>
               </div>
-              <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>Press Enter or click Add after each feature</p>
+              <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.feature_hint')}</p>
             </div>
 
             {/* Price fields */}
@@ -590,74 +604,74 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
 
             {/* Shipping calculator */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>📦 Shipping Fee Calculator</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`📦 ${t('seller_products.shipping_calc')}`}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 10 }}>
                 <div>
-                  <label style={labelStyle}>Your City (ships from)</label>
+                  <label style={labelStyle}>{t('seller_products.your_city')}</label>
                   <select value={originCity} onChange={e => handleOriginCityChange(e.target.value)} style={inputStyle}>
                     {/* */}<option value="">{t('seller_products.select_city')}</option>
                     {TZ_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Product Weight (kg)</label>
+                  <label style={labelStyle}>{t('seller_products.weight')}</label>
                   <input type="number" placeholder="e.g. 0.5" value={form.weightKg}
                     onChange={e => { setForm({ ...form, weightKg: e.target.value }); fetchShippingEstimate(e.target.value); }}
                     style={inputStyle} />
                 </div>
               </div>
 
-              {estimateLoading && <div style={{ fontSize: 11, color: '#94a3b8' }}>⏳ Estimating...</div>}
+              {estimateLoading && <div style={{ fontSize: 11, color: '#94a3b8' }}>{`⏳ ${t('seller_products.estimating')}`}</div>}
               {shippingEstimate && !shippingEstimate.available && <div style={{ fontSize: 11, color: '#94a3b8' }}>{shippingEstimate.message}</div>}
               {shippingEstimate?.available && (
                 <div style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
                   <div style={{ fontSize: 12, color: '#1d4ed8' }}>
-                    Suggested: <strong>TZS {shippingEstimate.min.toLocaleString()} – {shippingEstimate.max.toLocaleString()}</strong>
-                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{shippingEstimate.routeCount} active routes from {shippingEstimate.originCity}</div>
+                    {t('seller_products.suggested_label')} <strong>TZS {shippingEstimate.min.toLocaleString()} – {shippingEstimate.max.toLocaleString()}</strong>
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{shippingEstimate.routeCount} {t('seller_products.routes_from')} {shippingEstimate.originCity}</div>
                   </div>
                   <button onClick={() => updatePrices('deliveryFee', String(shippingEstimate.suggested))}
                     style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                    Use TZS {shippingEstimate.suggested.toLocaleString()}
+                    {t('seller_products.use_suggested')} TZS {shippingEstimate.suggested.toLocaleString()}
                   </button>
                 </div>
               )}
 
               <div>
-                <label style={labelStyle}>Intercity Delivery Fee (TZS) <span style={{fontSize:10,fontWeight:400,color:'#94a3b8'}}>(Bus, Agent — kwa wanunuzi wa nje ya Dar)</span></label>
+                <label style={labelStyle}>{t('seller_products.intercity_fee_label')} <span style={{fontSize:10,fontWeight:400,color:'#94a3b8'}}>{t('seller_products.intercity_fee_note')}</span></label>
                 <input type="number" placeholder="e.g. 10000" value={form.deliveryFee}
                   onChange={e => updatePrices('deliveryFee', e.target.value)} style={inputStyle} />
-                <p style={{ fontSize: 10, color: '#94a3b8', margin: '3px 0 0' }}>Kwa wanunuzi wa mkoa — imejumuishwa katika bei inayoonyeshwa.</p>
+                <p style={{ fontSize: 10, color: '#94a3b8', margin: '3px 0 0' }}>{t('seller_products.intercity_fee_hint')}</p>
 
               </div>
 
               {/* Boda Fee — KenteXa suggestions for Dar es Salaam buyers */}
               <div style={{ marginTop: 14 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label style={labelStyle}>🛵 Boda Fee (TZS) <span style={{fontSize:10,fontWeight:400,color:'#94a3b8'}}>(Dar es Salaam — inaongezwa juu ya bei)</span></label>
+                  <label style={labelStyle}>{`🛵 ${t('seller_products.boda_fee')}`} <span style={{fontSize:10,fontWeight:400,color:'#94a3b8'}}>{t('seller_products.boda_fee_note')}</span></label>
                   <button type="button" onClick={fetchBodaSuggestions}
                     style={{ fontSize: 10, fontWeight: 700, color: '#7c3aed', background: 'none', border: '1px solid #c4b5fd', borderRadius: 6, padding: '2px 8px', cursor: 'pointer' }}>
-                    {loadingSuggestions ? '⏳' : '💡 Angalia Makadirio'}
+                    {loadingSuggestions ? '⏳' : t('seller_products.boda_fee_check_button')}
                   </button>
                 </div>
                 <input type="number" placeholder="e.g. 5000" value={form.bodaFee}
                   onChange={e => setForm({...form, bodaFee: e.target.value})} style={inputStyle} />
                 <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>
-                  Mnunuzi wa Dar atalipa: <strong>Bei ya bidhaa + Boda Fee</strong>. Wanunuzi wa mkoa hawataona hii.
+                  {t('seller_products.boda_fee_formula_note', { formula: t('seller_products.boda_fee_formula') })}
                 </p>
 
                 {/* KenteXa suggestions — shown when button clicked */}
                 {bodaSuggestions?.suggestions?.length > 0 && (
                   <div style={{ marginTop: 10, backgroundColor: '#faf5ff', borderRadius: 12, padding: 12, border: '1px solid #e9d5ff' }}>
                     <div style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', marginBottom: 4 }}>
-                      📋 Makadirio ya KenteXa — kutoka eneo lako
+                      {t('seller_products.kentexa_suggestions_title')}
                     </div>
                     {bodaSuggestions.sellerZone && (
                       <div style={{ fontSize: 10, color: '#7c3aed', marginBottom: 6, fontWeight: 600 }}>
-                        📍 Unatuma kutoka: {bodaSuggestions.sellerZone}
+                        {t('seller_products.sending_from_label')} {bodaSuggestions.sellerZone}
                       </div>
                     )}
                     <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 8 }}>
-                      Gusa eneo la mnunuzi hapa chini — mfumo utatumia bei halisi kwa kila mnunuzi
+                      {t('seller_products.tap_buyer_area_hint')}
                     </div>
                     {(bodaSuggestions?.suggestions || []).map((s, i) => (
                       <button key={i} type="button"
@@ -678,13 +692,13 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                             TZS {s.minFee.toLocaleString()} – {s.maxFee.toLocaleString()}
                           </div>
                           {String(form.bodaFee) === String(s.maxFee) && (
-                            <div style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>✅ Imechaguliwa</div>
+                            <div style={{ fontSize: 10, color: '#7c3aed', fontWeight: 700 }}>{t('seller_products.selected_label')}</div>
                           )}
                         </div>
                       </button>
                     ))}
                     <p style={{ fontSize: 10, color: '#94a3b8', margin: '6px 0 0' }}>
-                      💡 Chagua bei ya eneo la mbali zaidi la mnunuzi wako wa kawaida — boda itategemea anwani halisi.
+                      {t('seller_products.choose_furthest_hint')}
                     </p>
                   </div>
                 )}
@@ -694,7 +708,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
 
 
               <div style={{ marginTop: 12 }}>
-                <label style={labelStyle}>📍 Unatuma kutoka mji gani?</label>
+                <label style={labelStyle}>{t('seller_products.ship_from_city_label')}</label>
                 <select value={form.sellerCity} onChange={e => setForm({...form, sellerCity: e.target.value})} style={inputStyle}>
                   <option value="Dar es Salaam">Dar es Salaam</option>
                   <option value="Mwanza">Mwanza</option>
@@ -704,7 +718,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                   <option value="Tanga">Tanga</option>
                   <option value="Zanzibar">Zanzibar</option>
                   <option value="Morogoro">Morogoro</option>
-                  <option value="Other">Nyingine</option>
+                  <option value="Other">{t('seller_products.other_city')}</option>
                 </select>
               </div>
             </div>
@@ -712,12 +726,12 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
             {/* Buyer price preview */}
             {(Number(form.basePrice) > 0 || Number(form.deliveryFee) > 0) && (
               <div style={{ backgroundColor: '#0f172a', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>BUYER SEES:</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>{t('seller_products.buyer_sees')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 18, fontWeight: 900, color: '#ffd200' }}>
                     TZS {(Number(form.basePrice || 0) + Number(form.deliveryFee || 0)).toLocaleString()}
                   </span>
-                  <span style={{ backgroundColor: '#16a34a', color: '#fff', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>🚚 FREE DELIVERY</span>
+                  <span style={{ backgroundColor: '#16a34a', color: '#fff', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{t('seller_products.free_delivery_badge')}</span>
                 </div>
               </div>
             )}
@@ -739,7 +753,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
               <button onClick={resetForm} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t('seller_products.cancel')}</button>
               <button onClick={handleSubmit} disabled={uploading}
                 style={{ flex: 2, background: uploading ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: uploading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
-                {uploading ? t('seller_products.please_wait') : editProduct ? '✅ Update Product' : '+ Add Product'}
+                {uploading ? t('seller_products.please_wait') : editProduct ? `✅ ${t('seller_products.update')}` : `+ ${t('seller_products.add_product')}`}
               </button>
           </div>
         </div>

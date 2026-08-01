@@ -5,9 +5,9 @@ import en from './locales/en.json';
 import sw from './locales/sw.json';
 import fr from './locales/fr.json';
 
-// ✅ Default to Swahili for Tanzania — respect saved preference
+// Default language priority: English → Swahili → French — respect saved preference
 const savedLang = localStorage.getItem('kentexa_lang');
-const defaultLang = savedLang || 'sw';
+const defaultLang = savedLang || 'en';
 
 i18n
   .use(initReactI18next)
@@ -18,7 +18,7 @@ i18n
       fr: { translation: fr },
     },
     lng:          defaultLang,
-    fallbackLng:  'sw',
+    fallbackLng:  ['en', 'sw', 'fr'],
     interpolation: { escapeValue: false },
   });
 

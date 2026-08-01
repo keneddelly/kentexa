@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Seller profile completion progress nudge.
@@ -11,14 +12,15 @@ import React from 'react';
  *   <ProfileCompletionBanner profile={profile} onNavigate={onNavigate} />
  */
 const ProfileCompletionBanner = ({ profile, onNavigate }) => {
+  const { t } = useTranslation();
   if (!profile) return null;
 
   const checks = [
-    { key: 'storeName',        label: 'Jina la Duka',     done: !!profile.storeName },
-    { key: 'logo',             label: 'Nembo ya Duka',    done: !!profile.logo },
-    { key: 'storeDescription', label: 'Maelezo ya Duka',  done: !!(profile.storeDescription || profile.businessDescription) },
-    { key: 'phone',            label: 'Nambari ya Simu',  done: !!profile.phone },
-    { key: 'address',          label: 'Anwani',           done: !!(profile.businessLocation || profile.address) },
+    { key: 'storeName',        label: t('profile_completion_banner.check_store_name'),     done: !!profile.storeName },
+    { key: 'logo',             label: t('profile_completion_banner.check_logo'),    done: !!profile.logo },
+    { key: 'storeDescription', label: t('profile_completion_banner.check_description'),  done: !!(profile.storeDescription || profile.businessDescription) },
+    { key: 'phone',            label: t('profile_completion_banner.check_phone'),  done: !!profile.phone },
+    { key: 'address',          label: t('profile_completion_banner.check_address'),           done: !!(profile.businessLocation || profile.address) },
   ];
 
   const completedCount = checks.filter(c => c.done).length;
@@ -33,7 +35,7 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
     <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', border: '1.5px solid #e0e7ff' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-          🏪 Duka lako limekamilika {percent}%
+          {t('profile_completion_banner.title', { percent })}
         </div>
         <div style={{ fontSize: 12, fontWeight: 900, color: percent >= 75 ? '#16a34a' : percent >= 40 ? '#f59e0b' : '#ef4444' }}>
           {percent}%
@@ -62,7 +64,7 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
       {nextStep && (
         <button onClick={() => onNavigate('StoreSettings')}
           style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-          Ongeza {nextStep.label} →
+          {t('profile_completion_banner.add_next_step', { label: nextStep.label })}
         </button>
       )}
     </div>

@@ -13,6 +13,7 @@
  *   - Products tab | Classifieds tab | Services tab | All
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import WishlistHeart from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
 import api           from '../../api/api';
@@ -23,100 +24,107 @@ const GR = '#64748B';
 const WH = '#FFFFFF';
 const fmt = n => Number(n||0).toLocaleString();
 
-const CATEGORIES = [
-  { icon:'📱', label:'Simu',      q:'simu'       },
-  { icon:'👗', label:'Nguo',      q:'nguo'       },
-  { icon:'🏠', label:'Nyumba',    q:'nyumba'     },
-  { icon:'🚗', label:'Magari',    q:'gari'       },
-  { icon:'🍔', label:'Chakula',   q:'chakula'    },
-  { icon:'🔨', label:'Vifaa',     q:'vifaa'      },
-  { icon:'🛋️', label:'Samani',   q:'samani'     },
-  { icon:'💄', label:'Urembo',    q:'urembo'     },
-  { icon:'💊', label:'Afya',      q:'dawa'       },
-  { icon:'📚', label:'Elimu',     q:'vitabu'     },
-  { icon:'🌾', label:'Kilimo',    q:'kilimo'     },
-  { icon:'🔧', label:'Services',    q:'fundi'      },
+const getCategories = t => [
+  { icon:'📱', label:t('search.cat_phones'),      q:'simu'       },
+  { icon:'👗', label:t('search.cat_clothes'),     q:'nguo'       },
+  { icon:'🏠', label:t('search.cat_house'),       q:'nyumba'     },
+  { icon:'🚗', label:t('search.cat_cars'),        q:'gari'       },
+  { icon:'🍔', label:t('search.cat_food'),        q:'chakula'    },
+  { icon:'🔨', label:t('search.cat_tools'),       q:'vifaa'      },
+  { icon:'🛋️', label:t('search.cat_furniture'),  q:'samani'     },
+  { icon:'💄', label:t('search.cat_beauty'),      q:'urembo'     },
+  { icon:'💊', label:t('search.cat_health'),      q:'dawa'       },
+  { icon:'📚', label:t('search.cat_education'),   q:'vitabu'     },
+  { icon:'🌾', label:t('search.cat_agriculture'), q:'kilimo'     },
+  { icon:'🔧', label:t('search.cat_services'),    q:'fundi'      },
 ];
 
-const TABS = [
-  { key:'all',        label:'All'        },
-  { key:'classifieds',label:'🏷️ Products'  },
-  { key:'products',   label:'🛍️ Store'   },
-  { key:'services',   label:'🔧 Services'  },
+const getTabs = t => [
+  { key:'all',        label:t('search.tab_all')         },
+  { key:'classifieds',label:t('search.tab_classifieds')  },
+  { key:'products',   label:t('search.tab_products')    },
+  { key:'services',   label:t('search.tab_services')     },
 ];
 
 // ── Classified card ───────────────────────────────────────────────────────────
-const ClassifiedCard = ({ item, onNavigate, isLoggedIn }) => (
-  <div onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)}
-    style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden',
-      boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer', position:'relative' }}>
-    <div style={{ position:'absolute', top:6, right:6, zIndex:10 }}>
-      <WishlistHeart classifiedId={item.id} isLoggedIn={isLoggedIn}
-        onNavigate={onNavigate} size={20} />
+const ClassifiedCard = ({ item, onNavigate, isLoggedIn }) => {
+  const { t } = useTranslation();
+  return (
+    <div onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)}
+      style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden',
+        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer', position:'relative' }}>
+      <div style={{ position:'absolute', top:6, right:6, zIndex:10 }}>
+        <WishlistHeart classifiedId={item.id} isLoggedIn={isLoggedIn}
+          onNavigate={onNavigate} size={20} />
+      </div>
+      {item.isFlashSale && (
+        <div style={{ position:'absolute', top:6, left:6, zIndex:10,
+          backgroundColor:'#DC2626', color:WH, fontSize:10, fontWeight:800,
+          padding:'2px 8px', borderRadius:100 }}>🔥 Flash</div>
+      )}
+      <div style={{ height:120, backgroundColor:'#F8FAFC',
+        display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
+        {item.images?.[0]
+          ? <img src={item.images[0]} alt={item.title}
+              style={{ width:'100%', height:'100%', objectFit:'cover' }}
+              onError={e => e.target.style.display='none'} />
+          : <span style={{ fontSize:32 }}>🏷️</span>}
+      </div>
+      <div style={{ padding:'8px 10px 12px' }}>
+        <div style={{ fontSize:12, fontWeight:700, color:DK, marginBottom:3,
+          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {item.title}
+        </div>
+        <div style={{ fontSize:14, fontWeight:900,
+          color: item.isFlashSale ? '#DC2626' : B }}>
+          TZS {fmt(item.flashSalePrice || item.price)}
+        </div>
+        <div style={{ fontSize:10, color:GR, marginTop:2 }}>
+          📍 {item.location || t('search.location_fallback')}
+        </div>
+      </div>
     </div>
-    {item.isFlashSale && (
-      <div style={{ position:'absolute', top:6, left:6, zIndex:10,
-        backgroundColor:'#DC2626', color:WH, fontSize:10, fontWeight:800,
-        padding:'2px 8px', borderRadius:100 }}>🔥 Flash</div>
-    )}
-    <div style={{ height:120, backgroundColor:'#F8FAFC',
-      display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden' }}>
-      {item.images?.[0]
-        ? <img src={item.images[0]} alt={item.title}
-            style={{ width:'100%', height:'100%', objectFit:'cover' }}
-            onError={e => e.target.style.display='none'} />
-        : <span style={{ fontSize:32 }}>🏷️</span>}
-    </div>
-    <div style={{ padding:'8px 10px 12px' }}>
-      <div style={{ fontSize:12, fontWeight:700, color:DK, marginBottom:3,
+  );
+};
+
+// ── Service card ──────────────────────────────────────────────────────────────
+const ServiceCard = ({ item, onNavigate }) => {
+  const { t } = useTranslation();
+  return (
+    <div onClick={() => onNavigate(`ServiceDetail-${item.id}`)}
+      style={{ backgroundColor:WH, borderRadius:14, padding:14,
+        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
+      <div style={{ fontSize:10, fontWeight:700, backgroundColor:'#F0FDF4',
+        color:'#16A34A', padding:'3px 8px', borderRadius:100,
+        display:'inline-block', marginBottom:8 }}>🔧 {item.category}</div>
+      <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:4,
         overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
         {item.title}
       </div>
-      <div style={{ fontSize:14, fontWeight:900,
-        color: item.isFlashSale ? '#DC2626' : B }}>
-        TZS {fmt(item.flashSalePrice || item.price)}
+      <div style={{ fontSize:13, fontWeight:900, color:B }}>
+        {item.priceType==='negotiate' ? t('search.negotiate_price')
+         : item.priceType==='free_quote' ? t('search.request_quote')
+         : `TZS ${fmt(item.price)}`}
       </div>
-      <div style={{ fontSize:10, color:GR, marginTop:2 }}>
-        📍 {item.location || 'Tanzania'}
-      </div>
-    </div>
-  </div>
-);
-
-// ── Service card ──────────────────────────────────────────────────────────────
-const ServiceCard = ({ item, onNavigate }) => (
-  <div onClick={() => onNavigate(`ServiceDetail-${item.id}`)}
-    style={{ backgroundColor:WH, borderRadius:14, padding:14,
-      boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
-    <div style={{ fontSize:10, fontWeight:700, backgroundColor:'#F0FDF4',
-      color:'#16A34A', padding:'3px 8px', borderRadius:100,
-      display:'inline-block', marginBottom:8 }}>🔧 {item.category}</div>
-    <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:4,
-      overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-      {item.title}
-    </div>
-    <div style={{ fontSize:13, fontWeight:900, color:B }}>
-      {item.priceType==='negotiate' ? 'Bei kwa mazungumzo'
-       : item.priceType==='free_quote' ? 'Omba bei'
-       : `TZS ${fmt(item.price)}`}
-    </div>
-    {item.provider && (
-      <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
-        <div style={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#F1F5F9',
-          display:'flex', alignItems:'center', justifyContent:'center', fontSize:9 }}>
-          {(item.provider.name||'P').charAt(0)}
+      {item.provider && (
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
+          <div style={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#F1F5F9',
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:9 }}>
+            {(item.provider.name||'P').charAt(0)}
+          </div>
+          <span style={{ fontSize:10, color:GR }}>{item.provider.name}</span>
+          {(item.provider.reputationScore||0) > 0 && (
+            <ReputationBadge score={item.provider.reputationScore} size="xs" />
+          )}
         </div>
-        <span style={{ fontSize:10, color:GR }}>{item.provider.name}</span>
-        {(item.provider.reputationScore||0) > 0 && (
-          <ReputationBadge score={item.provider.reputationScore} size="xs" />
-        )}
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
+};
 
 // ── Seller card ───────────────────────────────────────────────────────────────
 const SellerCard = ({ seller, onNavigate, isLoggedIn }) => {
+  const { t } = useTranslation();
   const [following, setFollowing] = useState(!!seller.isFollowing);
   const id = seller.userId || seller.id;
 
@@ -154,14 +162,14 @@ const SellerCard = ({ seller, onNavigate, isLoggedIn }) => {
           {seller.storeName || seller.name}
         </div>
         <div style={{ fontSize:10, color:GR, marginBottom:8 }}>
-          📍 {seller.businessLocation || 'Tanzania'}
+          📍 {seller.businessLocation || t('search.location_fallback')}
         </div>
         <button onClick={handleFollow}
           style={{ width:'100%', padding:'6px 0', border:'none',
             borderRadius:8, cursor:'pointer', fontSize:11, fontWeight:800,
             backgroundColor: following ? '#F1F5F9' : B,
             color: following ? GR : WH }}>
-          {following ? '✓ Unafuata' : '+ Fuata'}
+          {following ? t('search.unfollow_button') : t('search.follow_button')}
         </button>
       </div>
     </div>
@@ -197,6 +205,9 @@ const Section = ({ title, sub, action, onAction, children, hscroll }) => (
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) => {
+  const { t } = useTranslation();
+  const CATEGORIES = getCategories(t);
+  const TABS = getTabs(t);
   const [query,     setQuery]     = useState(initialQuery || '');
   const [tab,       setTab]       = useState('all');
   const [searched,  setSearched]  = useState(false);
@@ -286,7 +297,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch(query)}
-              placeholder="Search products, services, businesses..."
+              placeholder={t('search.search_placeholder')}
               style={{ flex:1, border:'none', background:'none', outline:'none',
                 fontSize:14, color:DK, fontFamily:'inherit' }} />
             {query && (
@@ -299,7 +310,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
             style={{ backgroundColor:B, color:WH, border:'none',
               borderRadius:12, padding:'10px 16px', cursor:'pointer',
               fontSize:13, fontWeight:700 }}>
-            Search
+            {t('search.search_button')}
           </button>
         </div>
       </div>
@@ -313,16 +324,16 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
             <div style={{ backgroundColor:WH, display:'flex',
               borderBottom:'1px solid #F1F5F9', overflowX:'auto',
               scrollbarWidth:'none', padding:'0 8px' }}>
-              {TABS.map(t => (
-                <button key={t.key} onClick={() => setTab(t.key)}
+              {TABS.map(tabItem => (
+                <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
                   style={{ padding:'10px 14px', border:'none', background:'none',
                     cursor:'pointer', fontSize:12, fontWeight:700, whiteSpace:'nowrap',
-                    color: tab===t.key ? B : GR,
-                    borderBottom:`2px solid ${tab===t.key ? B : 'transparent'}` }}>
-                  {t.label}
-                  {t.key !== 'all' && tabItems[t.key]?.length > 0 && (
+                    color: tab===tabItem.key ? B : GR,
+                    borderBottom:`2px solid ${tab===tabItem.key ? B : 'transparent'}` }}>
+                  {tabItem.label}
+                  {tabItem.key !== 'all' && tabItems[tabItem.key]?.length > 0 && (
                     <span style={{ marginLeft:4, fontSize:10, color:GR }}>
-                      ({tabItems[t.key].length})
+                      ({tabItems[tabItem.key].length})
                     </span>
                   )}
                 </button>
@@ -333,28 +344,28 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
               {loading ? (
                 <div style={{ textAlign:'center', padding:'60px 0', color:GR }}>
                   <div style={{ fontSize:32, marginBottom:8 }}>🔍</div>
-                  <div style={{ fontSize:13 }}>Inatafuta "{query}"...</div>
+                  <div style={{ fontSize:13 }}>{t('search.searching', { query })}</div>
                 </div>
               ) : total === 0 ? (
                 <div style={{ textAlign:'center', padding:'60px 0' }}>
                   <div style={{ fontSize:48, marginBottom:12 }}>🔍</div>
                   <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
-                    No results found kwa "{query}"
+                    {t('search.no_results_title', { query })}
                   </div>
                   <div style={{ fontSize:13, color:GR, marginBottom:20 }}>
-                    Jaribu maneno mengine au angalia bidhaa zetu
+                    {t('search.no_results_desc')}
                   </div>
                   <button onClick={() => { setSearched(false); setQuery(''); }}
                     style={{ backgroundColor:B, color:WH, border:'none',
                       borderRadius:12, padding:'11px 24px', cursor:'pointer',
                       fontSize:13, fontWeight:700 }}>
-                    Back Discover
+                    {t('search.back_discover_button')}
                   </button>
                 </div>
               ) : (
                 <>
                   <div style={{ fontSize:12, color:GR, marginBottom:12, fontWeight:600 }}>
-                    Matokeo {total} kwa "{query}"
+                    {t('search.results_count', { count: total, query })}
                   </div>
                   <div style={{ display:'grid',
                     gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:12 }}>
@@ -406,7 +417,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
             <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9',
               padding:'14px 16px 16px' }}>
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:12 }}>
-                🗂️ Search kwa Aina
+                {t('search.search_by_type')}
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
                 {CATEGORIES.map(c => (
@@ -428,9 +439,9 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
                 display:'flex', alignItems:'center', justifyContent:'space-between',
                 color:WH }}>
               <div>
-                <div style={{ fontSize:14, fontWeight:900 }}>🔥 Flash Sales</div>
+                <div style={{ fontSize:14, fontWeight:900 }}>{t('search.flash_sales_title')}</div>
                 <div style={{ fontSize:11, color:'rgba(255,255,255,0.8)' }}>
-                  Discount kubwa · Muda mfupi
+                  {t('search.flash_sales_sub')}
                 </div>
               </div>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -444,7 +455,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
               <div style={{ backgroundColor:WH, borderTop:'1px solid #F1F5F9',
                 padding:'20px 16px', marginBottom:4 }}>
                 <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:12 }}>
-                  🏷️ Products New
+                  {t('search.new_products_title')}
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:12 }}>
                   {[1,2,3,4].map(i => (
@@ -454,9 +465,9 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
                 </div>
               </div>
             ) : featured.length > 0 ? (
-              <Section title="🏷️ Products New"
-                sub="Zilizoongezwa hivi karibuni"
-                action="See All" onAction={() => onNavigate('Classifieds')}>
+              <Section title={t('search.new_products_title')}
+                sub={t('search.new_products_sub')}
+                action={t('search.see_all')} onAction={() => onNavigate('Classifieds')}>
                 <div style={{ display:'grid',
                   gridTemplateColumns:'repeat(auto-fill,minmax(155px,1fr))', gap:12 }}>
                   {featured.slice(0,6).map(c => (
@@ -469,9 +480,9 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
 
             {/* Suggested sellers */}
             {sellers.length > 0 && (
-              <Section title="🏪 Businesses za Kufuata"
-                sub="Wauzaji waliohakikiwa Tanzania nzima"
-                action="See All" onAction={() => onNavigate('Stores')}
+              <Section title={t('search.businesses_title')}
+                sub={t('search.businesses_sub')}
+                action={t('search.see_all')} onAction={() => onNavigate('Stores')}
                 hscroll>
                 {sellers.map(s => (
                   <SellerCard key={s.id||s.userId} seller={s}
@@ -482,9 +493,9 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
 
             {/* Featured services */}
             {featSvc.length > 0 && (
-              <Section title="🔧 Services Zinazopatikana"
-                sub="Mafundi, wasafi, walimu na zaidi"
-                action="See All" onAction={() => onNavigate('Services')}>
+              <Section title={t('search.services_title')}
+                sub={t('search.services_sub')}
+                action={t('search.see_all')} onAction={() => onNavigate('Services')}>
                 <div style={{ display:'grid',
                   gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))', gap:12 }}>
                   {featSvc.slice(0,4).map(s => (
@@ -499,10 +510,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
               <div style={{ textAlign:'center', padding:'60px 24px' }}>
                 <div style={{ fontSize:48, marginBottom:12 }}>🔍</div>
                 <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
-                  Discover bidhaa na biashara
+                  {t('search.discover_empty_title')}
                 </div>
                 <div style={{ fontSize:13, color:GR, marginBottom:20 }}>
-                  Andika kitu unachotafuta kwenye kisanduku hapo juu
+                  {t('search.discover_empty_desc')}
                 </div>
               </div>
             )}

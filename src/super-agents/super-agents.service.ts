@@ -1584,6 +1584,12 @@ export class SuperAgentsService {
       recipientPhone: string;
       destinationCity: string;
       deliveryAddress: string;
+      regionId?: number;
+      regionName?: string;
+      districtId?: number;
+      districtName?: string;
+      wardId?: number;
+      wardName?: string;
       originCity: string;
       transportMethod: string;
       busCompany?: string;
@@ -1659,9 +1665,20 @@ export class SuperAgentsService {
           dto.totalValue ||
           dto.items?.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0) ||
           0,
-        platformFeeAmount: 1000,
-        sellerAmount: Math.max(0, (dto.totalValue || 0) - 1000),
-        paymentStatus: 'pending' as any,
+        // ── ZERO FEE RULE FOR MANUAL SHIPMENTS ─────────────────────────────
+        // Same rule as createOnBehalf: the buyer already paid the seller
+        // directly (offline sale) — KenteXa never holds this money, so
+        // there's no platform commission and no payout owed. The TZS 1,000
+        // tracking fee is a separate, already-paid charge (see
+        // /payments/invoice/pay, purpose: 'platform_tracking_fee') — it is
+        // not deducted from a payout here.
+        platformFeeAmount: 0,
+        sellerAmount: 0,
+        // Buyer already paid the seller directly (offline sale) — same
+        // model as createOnBehalf, so this is "paid" from creation, not
+        // pending. Otherwise it silently never counts toward the seller's
+        // dashboard revenue total, which only sums paymentStatus === 'paid'.
+        paymentStatus: 'paid' as any,
         status: 'preparing' as any,
         shippingMethod: dto.transportMethod || 'super_agent',
         notes: dto.notes || null,
@@ -1692,8 +1709,12 @@ export class SuperAgentsService {
         name: dto.recipientName || 'Mteja',
         phone: dto.recipientPhone || null,
         address: dto.deliveryAddress || null,
-        district: (dto as any).districtName || null,
-        region: (dto as any).regionName || null,
+        regionId: dto.regionId || null,
+        region: dto.regionName || null,
+        districtId: dto.districtId || null,
+        district: dto.districtName || null,
+        wardId: dto.wardId || null,
+        ward: dto.wardName || null,
         orderAmount: 1000, // platform fee for manual shipment
         channel: 'manual',
       });

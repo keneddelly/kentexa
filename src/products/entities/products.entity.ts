@@ -58,6 +58,11 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   subcategory: string | null;
 
+  // Model number/name e.g. "Samsung A15 128GB" — lets wholesale buyers reference
+  // an exact product over WhatsApp when a seller lists many similar items.
+  @Column({ type: 'text', nullable: true })
+  model: string | null;
+
   // ── Product Specs (JSON: { "Resolution": "1080P", "Battery": "2hrs" }) ──
   @Column({ type: 'json', nullable: true })
   specs: Record<string, string> | null;

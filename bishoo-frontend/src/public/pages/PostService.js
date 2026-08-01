@@ -3,39 +3,40 @@
  * Place at: src/public/pages/PostService.js
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
 import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
-const CATEGORIES = [
-  { value: 'ufundi',       icon: '🔧', label: 'Ufundi (Umeme, Mabomba, Seremala)' },
-  { value: 'usafi',        icon: '🧹', label: 'Usafi (Nyumba, Ofisi, Nguo)'       },
-  { value: 'elimu',        icon: '📚', label: 'Elimu (Masomo, Mafunzo)'            },
-  { value: 'upishi',       icon: '👨‍🍳', label: 'Upishi (Catering, Mikate, Mapishi)'},
-  { value: 'usafirishaji', icon: '🚗', label: 'Usafirishaji (Dereva, Hamahama)'    },
-  { value: 'afya',         icon: '🏥', label: 'Afya (Uuguzi, Fizikia, Dalili)'    },
-  { value: 'ubunifu',      icon: '🎨', label: 'Ubunifu (Picha, Video, Muziki, Usanifu)'},
-  { value: 'matengenezo',  icon: '🔨', label: 'Matengenezo (Simu, Vifaa, Magari)' },
-  { value: 'biashara',     icon: '💼', label: 'Biashara (Uhasibu, Kisheria, Ushauri)'},
-  { value: 'kilimo',       icon: '🌱', label: 'Kilimo (Bustani, Unyunyiziaji)'     },
-  { value: 'nyumbani',     icon: '🏠', label: 'Nyumbani (Mtoto, Wazee, Usafi)'     },
-  { value: 'mengineyo',    icon: '📋', label: 'Mengineyo'                           },
+const getCategories = (t) => [
+  { value: 'ufundi',       icon: '🔧', label: t('post_service.cat_ufundi') },
+  { value: 'usafi',        icon: '🧹', label: t('post_service.cat_usafi')       },
+  { value: 'elimu',        icon: '📚', label: t('post_service.cat_elimu')            },
+  { value: 'upishi',       icon: '👨‍🍳', label: t('post_service.cat_upishi')},
+  { value: 'usafirishaji', icon: '🚗', label: t('post_service.cat_usafirishaji')    },
+  { value: 'afya',         icon: '🏥', label: t('post_service.cat_afya')    },
+  { value: 'ubunifu',      icon: '🎨', label: t('post_service.cat_ubunifu')},
+  { value: 'matengenezo',  icon: '🔨', label: t('post_service.cat_matengenezo') },
+  { value: 'biashara',     icon: '💼', label: t('post_service.cat_biashara')},
+  { value: 'kilimo',       icon: '🌱', label: t('post_service.cat_kilimo')     },
+  { value: 'nyumbani',     icon: '🏠', label: t('post_service.cat_nyumbani')     },
+  { value: 'mengineyo',    icon: '📋', label: t('post_service.cat_mengineyo')                           },
 ];
 
-const PRICE_TYPES = [
-  { value: 'per_hour',  label: 'Kwa Saa'           },
-  { value: 'per_job',   label: 'Kwa Kazi'           },
-  { value: 'per_day',   label: 'Kwa Siku'           },
-  { value: 'negotiate', label: 'Kwa Mazungumzo'     },
-  { value: 'free_quote',label: 'Omba Bei (Bure)'    },
+const getPriceTypes = (t) => [
+  { value: 'per_hour',  label: t('post_service.price_per_hour')           },
+  { value: 'per_job',   label: t('post_service.price_per_job')           },
+  { value: 'per_day',   label: t('post_service.price_per_day')           },
+  { value: 'negotiate', label: t('post_service.price_negotiate')     },
+  { value: 'free_quote',label: t('post_service.price_free_quote')    },
 ];
 
-const DAYS = [
-  { v: 'Mon', l: 'Jumatatu' }, { v: 'Tue', l: 'Jumanne' },
-  { v: 'Wed', l: 'Jumatano' }, { v: 'Thu', l: 'Alhamisi' },
-  { v: 'Fri', l: 'Ijumaa'   }, { v: 'Sat', l: 'Jumamosi' },
-  { v: 'Sun', l: 'Jumapili'  },
+const getDays = (t) => [
+  { v: 'Mon', l: t('post_service.day_mon') }, { v: 'Tue', l: t('post_service.day_tue') },
+  { v: 'Wed', l: t('post_service.day_wed') }, { v: 'Thu', l: t('post_service.day_thu') },
+  { v: 'Fri', l: t('post_service.day_fri')   }, { v: 'Sat', l: t('post_service.day_sat') },
+  { v: 'Sun', l: t('post_service.day_sun')  },
 ];
 
 const inp = {
@@ -45,6 +46,10 @@ const inp = {
 };
 
 const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
+  const CATEGORIES = getCategories(t);
+  const PRICE_TYPES = getPriceTypes(t);
+  const DAYS = getDays(t);
   const [step,  setStep]  = useState(1);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -68,10 +73,10 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   };
 
   const handleSubmit = async () => {
-    if (!form.title.trim())       return setError('Weka kichwa cha tangazo');
-    if (!form.description.trim()) return setError('Eleza huduma yako');
-    if (!form.category)           return setError('Chagua aina ya huduma');
-    if (!form.coverageCity.trim()) return setError('Weka mji unaohudumia');
+    if (!form.title.trim())       return setError(t('post_service.title_required'));
+    if (!form.description.trim()) return setError(t('post_service.description_required'));
+    if (!form.category)           return setError(t('post_service.category_required'));
+    if (!form.coverageCity.trim()) return setError(t('post_service.city_required'));
     try {
       setSaving(true); setError('');
       const payload = {
@@ -85,15 +90,15 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       const res = await api.post('/services', payload);
       onNavigate(`ServiceDetail-${res.data.id}`);
     } catch (e) {
-      setError(e.response?.data?.message || 'Imeshindwa. Jaribu tena.');
+      setError(e.response?.data?.message || t('post_service.submit_failed'));
     } finally { setSaving(false); }
   };
 
   const progress = [
-    { n: 1, label: 'Aina'     },
-    { n: 2, label: 'Maelezo'  },
-    { n: 3, label: 'Bei'      },
-    { n: 4, label: 'Eneo'     },
+    { n: 1, label: t('post_service.progress_type')     },
+    { n: 2, label: t('post_service.progress_details')  },
+    { n: 3, label: t('post_service.progress_price')      },
+    { n: 4, label: t('post_service.progress_location')     },
   ];
 
   return (
@@ -103,7 +108,7 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       <Navbar currentPage="PostService" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <BackBar onBack={() => step > 1 ? setStep(s => s - 1) : onNavigate('Services')}
-        title="➕ Tangaza Huduma Yako" />
+        title={t('post_service.page_title')} />
 
       <div style={{ flex: 1, padding: '16px 16px 48px', maxWidth: 600,
         margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -133,10 +138,10 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {step === 1 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', marginBottom: 6 }}>
-              Ni huduma gani unatoa?
+              {t('post_service.step1_title')}
             </h2>
             <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-              Chagua aina inayoelezea huduma yako vizuri
+              {t('post_service.step1_desc')}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {CATEGORIES.map(c => (
@@ -160,40 +165,40 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {step === 2 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', marginBottom: 20 }}>
-              Eleza huduma yako
+              {t('post_service.step2_title')}
             </h2>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 6 }}>
-                Kichwa cha Tangazo *
+                {t('post_service.field_title_label')}
               </label>
               <input style={inp} value={form.title}
-                placeholder="e.g. Fundi wa Umeme — Dar es Salaam"
+                placeholder={t('post_service.field_title_placeholder')}
                 onChange={e => set('title', e.target.value)} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 6 }}>
-                Maelezo *
+                {t('post_service.field_description_label')}
               </label>
               <textarea rows={5} style={{ ...inp, resize: 'vertical' }}
                 value={form.description}
-                placeholder="Eleza kwa undani zaidi huduma unayotoa, uzoefu wako, na unavyoweza kusaidia wateja wako..."
+                placeholder={t('post_service.field_description_placeholder')}
                 onChange={e => set('description', e.target.value)} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 6 }}>
-                Utaalamu Mahususi (hiari)
+                {t('post_service.field_subcategory_label')}
               </label>
               <input style={inp} value={form.subcategory}
-                placeholder="e.g. Umeme, Mabomba, AC"
+                placeholder={t('post_service.field_subcategory_placeholder')}
                 onChange={e => set('subcategory', e.target.value)} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 6 }}>
-                WhatsApp (hiari — ili wateja wakuwasiliane haraka)
+                {t('post_service.field_whatsapp_label')}
               </label>
               <input type="tel" style={inp} value={form.whatsappPhone}
                 placeholder="0788 000 000"
@@ -203,7 +208,7 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 8 }}>
-                Siku za Kazi
+                {t('post_service.working_days_label')}
               </label>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {DAYS.map(d => (
@@ -219,16 +224,16 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             </div>
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
-                color: '#64748b', marginBottom: 6 }}>Masaa ya Kazi</label>
+                color: '#64748b', marginBottom: 6 }}>{t('post_service.working_hours_label')}</label>
               <input style={inp} value={form.workingHours}
                 placeholder="08:00 - 18:00"
                 onChange={e => set('workingHours', e.target.value)} />
             </div>
-            <button onClick={() => { if (!form.title.trim() || !form.description.trim()) return setError('Jaza sehemu zote zinazohitajika'); setError(''); setStep(3); }}
+            <button onClick={() => { if (!form.title.trim() || !form.description.trim()) return setError(t('post_service.fill_required_fields')); setError(''); setStep(3); }}
               style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff',
                 border: 'none', borderRadius: 12, padding: '14px 0',
                 cursor: 'pointer', fontSize: 15, fontWeight: 800 }}>
-              Endelea →
+              {t('post_service.continue_button')}
             </button>
           </div>
         )}
@@ -237,12 +242,12 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {step === 3 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', marginBottom: 20 }}>
-              Bei ya Huduma
+              {t('post_service.step3_title')}
             </h2>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 8 }}>
-                Aina ya Bei
+                {t('post_service.price_type_label')}
               </label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {PRICE_TYPES.map(pt => (
@@ -265,14 +270,14 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
-                    color: '#64748b', marginBottom: 6 }}>Bei (TZS)</label>
+                    color: '#64748b', marginBottom: 6 }}>{t('post_service.price_label')}</label>
                   <input type="number" style={inp} value={form.price}
                     placeholder="5000"
                     onChange={e => set('price', e.target.value)} />
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
-                    color: '#64748b', marginBottom: 6 }}>Bei ya Juu (hiari)</label>
+                    color: '#64748b', marginBottom: 6 }}>{t('post_service.price_max_label')}</label>
                   <input type="number" style={inp} value={form.priceMax}
                     placeholder="15000"
                     onChange={e => set('priceMax', e.target.value)} />
@@ -283,7 +288,7 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff',
                 border: 'none', borderRadius: 12, padding: '14px 0',
                 cursor: 'pointer', fontSize: 15, fontWeight: 800 }}>
-              Endelea →
+              {t('post_service.continue_button')}
             </button>
           </div>
         )}
@@ -292,12 +297,12 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {step === 4 && (
           <div>
             <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', marginBottom: 20 }}>
-              Unafanya kazi wapi?
+              {t('post_service.step4_title')}
             </h2>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 6 }}>
-                Mji Mkuu *
+                {t('post_service.main_city_label')}
               </label>
               <input style={inp} value={form.coverageCity}
                 placeholder="e.g. Dar es Salaam"
@@ -306,23 +311,23 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 6 }}>
-                Maeneo Mahususi (tenganisha kwa koma)
+                {t('post_service.specific_areas_label')}
               </label>
               <input style={inp} value={form.coverageWards}
-                placeholder="e.g. Kariakoo, Kinondoni, Mbezi, Tegeta"
+                placeholder={t('post_service.specific_areas_placeholder')}
                 onChange={e => set('coverageWards', e.target.value)} />
             </div>
             {/* Preview */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12,
               padding: 16, marginBottom: 24, border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
-                📋 Muhtasari wa Tangazo
+                {t('post_service.preview_title')}
               </div>
               {[
-                ['Huduma', form.title],
-                ['Aina', CATEGORIES.find(c => c.value === form.category)?.label || '—'],
-                ['Bei', form.priceType === 'negotiate' ? 'Mazungumzo' : form.priceType === 'free_quote' ? 'Omba Bei' : `TZS ${Number(form.price||0).toLocaleString()}`],
-                ['Mji', form.coverageCity || '—'],
+                [t('post_service.preview_service'), form.title],
+                [t('post_service.preview_type'), CATEGORIES.find(c => c.value === form.category)?.label || '—'],
+                [t('post_service.preview_price'), form.priceType === 'negotiate' ? t('post_service.price_negotiate_label') : form.priceType === 'free_quote' ? t('post_service.price_free_quote_label') : `TZS ${Number(form.price||0).toLocaleString()}`],
+                [t('post_service.preview_city'), form.coverageCity || '—'],
               ].map(([k,v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between',
                   padding: '5px 0', borderBottom: '1px solid #f1f5f9', fontSize: 12 }}>
@@ -336,7 +341,7 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0',
                 cursor: saving ? 'not-allowed' : 'pointer',
                 fontSize: 15, fontWeight: 800 }}>
-              {saving ? '⏳ Inatuma...' : '🚀 Chapisha Tangazo'}
+              {saving ? t('post_service.submitting_button') : t('post_service.submit_button')}
             </button>
           </div>
         )}

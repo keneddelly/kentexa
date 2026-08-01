@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
@@ -16,6 +17,8 @@ import api from '../../api/api';
  */
 
 const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
   const [trackingInput, setTrackingInput] = useState('');
   const [parcel, setParcel]               = useState(null);
   const [searching, setSearching]         = useState(false);
@@ -40,7 +43,7 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   const handleSearch = async () => {
     const val = trackingInput.trim().toUpperCase();
-    if (!val) { setError('Weka nambari ya ufuatiliaji'); return; }
+    if (!val) { setError(t('hub_receive.tracking_required')); return; }
 
     try {
       setSearching(true); setError(''); setParcel(null);
@@ -59,13 +62,13 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           const found2 = allParcels.find(p => String(p.orderId) === val);
           if (found2) { setParcel(found2); return; }
         }
-        setError(`Nambari "${val}" haikupatikana kwenye batch ya leo. Hakikisha muuzaji amepanga kwanza.`);
+        setError(t('hub_receive.not_found', { val }));
         return;
       }
 
       setParcel(found);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kutafuta');
+      setError(err?.response?.data?.message || t('hub_receive.search_failed'));
     } finally {
       setSearching(false);
     }
@@ -83,10 +86,10 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         recipientName:  parcel.recipientName,
         productName:    parcel.productName,
         zone:           parcel.zone || '—',
-        time:           new Date().toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' }),
+        time:           new Date().toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }),
       }, ...prev].slice(0, 10));
 
-      setSuccess(`✅ Kifurushi cha ${parcel.recipientName} kimekabiliwa hubuni!`);
+      setSuccess(t('hub_receive.received_success', { name: parcel.recipientName }));
       setParcel(null);
       setTrackingInput('');
       fetchTodaySummary();
@@ -95,7 +98,7 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         inputRef.current?.focus();
       }, 3000);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kukabidhi');
+      setError(err?.response?.data?.message || t('hub_receive.receive_failed'));
     } finally {
       setReceiving(false);
     }
@@ -112,23 +115,23 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
       <Navbar currentPage="HubReceive" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('DispatcherManifest')} title="Pokea Vifurushi — Kariakoo Hub" />
+      <BackBar onBack={() => onNavigate('DispatcherManifest')} title={t('hub_receive.page_title')} />
 
       {/* Status banner */}
       {todaySummary?.batch && (
         <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '12px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: 640, margin: '0 auto' }}>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
-              Batch ya Leo · {todaySummary.totalParcels} vifurushi
+              {t('hub_receive.batch_today_label', { count: todaySummary.totalParcels })}
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 18, fontWeight: 900, color: '#fbbf24' }}>{awaitingCount}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>VINAVYOSUBIRI</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>{t('hub_receive.awaiting_label')}</div>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 18, fontWeight: 900, color: '#4ade80' }}>{atHubCount}</div>
-                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>HUBUNI</div>
+                <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)' }}>{t('hub_receive.at_hub_label')}</div>
               </div>
             </div>
           </div>
@@ -140,13 +143,13 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {/* Search box */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-            📦 Weka Nambari ya Ufuatiliaji
+            {t('hub_receive.search_box_title')}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               ref={inputRef}
               type="text"
-              placeholder="KTX-BATCH-1-47 au nambari ya agizo"
+              placeholder={t('hub_receive.search_placeholder')}
               value={trackingInput}
               onChange={e => setTrackingInput(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
@@ -176,17 +179,17 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {parcel && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16, border: '2px solid #1d4ed8' }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 14 }}>
-              📦 Kifurushi Kimepatikana
+              {t('hub_receive.parcel_found_title')}
             </div>
 
             {[
-              { label: 'Tracking Number', value: parcel.trackingNumber, mono: true },
-              { label: 'Mpokeaji', value: parcel.recipientName },
-              { label: 'Simu', value: parcel.recipientPhone || '—' },
-              { label: 'Bidhaa', value: parcel.productName },
-              { label: 'Anwani ya Utoaji', value: parcel.deliveryAddress },
-              { label: 'Eneo la Van', value: parcel.zoneName || '—' },
-              { label: 'Hali ya Sasa', value: parcel.status?.replace(/_/g, ' ') },
+              { label: t('hub_receive.label_tracking_number'), value: parcel.trackingNumber, mono: true },
+              { label: t('hub_receive.label_recipient'), value: parcel.recipientName },
+              { label: t('hub_receive.label_phone'), value: parcel.recipientPhone || '—' },
+              { label: t('hub_receive.label_product'), value: parcel.productName },
+              { label: t('hub_receive.label_delivery_address'), value: parcel.deliveryAddress },
+              { label: t('hub_receive.label_van_zone'), value: parcel.zoneName || '—' },
+              { label: t('hub_receive.label_current_status'), value: parcel.status?.replace(/_/g, ' ') },
             ].map(item => (
               <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
                 <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{item.label}</span>
@@ -198,22 +201,22 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
             {parcel.status === 'at_hub' ? (
               <div style={{ backgroundColor: '#dcfce7', borderRadius: 10, padding: 12, marginTop: 14, textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#16a34a' }}>
-                ✅ Kifurushi hiki kimeshasajiliwa hubuni
+                {t('hub_receive.already_at_hub')}
               </div>
             ) : parcel.status === 'on_van' ? (
               <div style={{ backgroundColor: '#dbeafe', borderRadius: 10, padding: 12, marginTop: 14, textAlign: 'center', fontSize: 13, fontWeight: 700, color: '#2563eb' }}>
-                🚐 Kifurushi hiki kipo vanini tayari
+                {t('hub_receive.already_on_van')}
               </div>
             ) : (
               <button onClick={handleReceive} disabled={receiving}
                 style={{ width: '100%', background: receiving ? '#93c5fd' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: receiving ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginTop: 16, boxShadow: '0 4px 14px rgba(22,163,74,0.3)' }}>
-                {receiving ? '⏳ Inasajili...' : '✅ Pokea Kifurushi Hubuni'}
+                {receiving ? t('hub_receive.receiving_button') : t('hub_receive.receive_button')}
               </button>
             )}
 
             <button onClick={() => { setParcel(null); setTrackingInput(''); inputRef.current?.focus(); }}
               style={{ width: '100%', backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 600, marginTop: 8 }}>
-              ← Tafuta Nyingine
+              {t('hub_receive.search_another')}
             </button>
           </div>
         )}
@@ -222,7 +225,7 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {todaySummary?.zones && awaitingCount > 0 && !parcel && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-              ⏳ Vifurushi Vinavyosubiri Kukabiliwa ({awaitingCount})
+              {t('hub_receive.awaiting_parcels_title', { count: awaitingCount })}
             </div>
             {todaySummary.zones.flatMap(z =>
               z.parcels
@@ -238,7 +241,7 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 </div>
                 <button onClick={e => { e.stopPropagation(); setTrackingInput(p.trackingNumber); setParcel(p); }}
                   style={{ backgroundColor: '#f59e0b', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                  Pokea
+                  {t('hub_receive.receive_short_button')}
                 </button>
               </div>
             ))}
@@ -249,7 +252,7 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {recentlyReceived.length > 0 && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
-              ✅ Vimekabiliwa Leo ({recentlyReceived.length})
+              {t('hub_receive.recently_received_title', { count: recentlyReceived.length })}
             </div>
             {recentlyReceived.map((p, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
@@ -267,11 +270,11 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {!todaySummary?.batch && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>📭</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>Hakuna batch ya leo bado</div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>Wauzaji wanahitaji kupanga maagizo kwanza</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{t('hub_receive.no_batch_title')}</div>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{t('hub_receive.no_batch_desc')}</div>
             <button onClick={() => onNavigate('DispatcherManifest')}
               style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '10px 24px', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-              Angalia Manifest
+              {t('hub_receive.view_manifest_button')}
             </button>
           </div>
         )}

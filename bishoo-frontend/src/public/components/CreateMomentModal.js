@@ -9,6 +9,7 @@
  * just from HomeFeed's story ring.
  */
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
 const B  = '#2563EB';
@@ -16,12 +17,15 @@ const DK = '#0F172A';
 const GR = '#64748B';
 const WH = '#FFFFFF';
 
-const LOOKING_FOR_CATEGORIES = [
-  'Electronics', 'Fashion', 'Food', 'Hardware', 'Furniture',
-  'Beauty', 'Agriculture', 'Automotive', 'Services', 'Other',
+const getLookingForCategories = (t) => [
+  t('create_moment_modal.category_electronics'), t('create_moment_modal.category_fashion'),
+  t('create_moment_modal.category_food'), t('create_moment_modal.category_hardware'),
+  t('create_moment_modal.category_furniture'), t('create_moment_modal.category_beauty'),
+  t('create_moment_modal.category_agriculture'), t('create_moment_modal.category_automotive'),
+  t('create_moment_modal.category_services'), t('create_moment_modal.category_other'),
 ];
 
-const routeTitle = (r) => {
+const routeTitle = (r, t) => {
   if (r.routeType === 'intercity' && r.originCity && r.destinationCity) {
     return `${r.originCity} → ${r.destinationCity}`;
   }
@@ -31,10 +35,12 @@ const routeTitle = (r) => {
   if (r.routeType === 'last_mile' && r.coverageWards?.length) {
     return `${r.coverageCity || ''} — ${r.coverageWards.slice(0, 3).join(', ')}`.trim();
   }
-  return 'My Route';
+  return t('create_moment_modal.my_route_fallback');
 };
 
 const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
+  const { t } = useTranslation();
+  const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
   const [mode,      setMode]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'selling');
   const [file,      setFile]      = useState(null);
   const [preview,   setPreview]   = useState(null);
@@ -74,12 +80,12 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
       }
       if (rt.status === 'fulfilled') {
         (rt.value.data || []).forEach(r => items.push({
-          type: 'route', id: r.id, title: routeTitle(r), image: null,
+          type: 'route', id: r.id, title: routeTitle(r, t), image: null,
         }));
       }
       setMyItems(items);
     }).finally(() => setLoadingItems(false));
-  }, [currentUser?.id]);
+  }, [currentUser?.id, t]);
 
   const handlePickFile = (e) => {
     const f = e.target.files?.[0];
@@ -91,11 +97,11 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
 
   const handlePost = async () => {
     if (mode === 'selling') {
-      if (!file)   { setError('Add a photo first'); return; }
-      if (!tagged) { setError('Tag a product, listing, or service'); return; }
+      if (!file)   { setError(t('create_moment_modal.validate_add_photo')); return; }
+      if (!tagged) { setError(t('create_moment_modal.validate_tag_item')); return; }
     } else {
-      if (!caption.trim()) { setError('Describe what you\u2019re looking for'); return; }
-      if (!category)        { setError('Pick a category'); return; }
+      if (!caption.trim()) { setError(t('create_moment_modal.validate_describe')); return; }
+      if (!category)        { setError(t('create_moment_modal.validate_pick_category')); return; }
     }
     try {
       setPosting(true);
@@ -109,7 +115,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         imageUrl = up.data?.urls?.[0] || null;
-        if (mode === 'selling' && !imageUrl) throw new Error('Upload failed');
+        if (mode === 'selling' && !imageUrl) throw new Error(t('create_moment_modal.upload_failed'));
       }
 
       if (mode === 'selling') {
@@ -134,7 +140,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
       onPosted?.();
       onClose();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Could not post — try again');
+      setError(err?.response?.data?.message || t('create_moment_modal.post_failed'));
     } finally {
       setPosting(false);
     }
@@ -152,7 +158,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
           <button onClick={onClose} style={{ background:'none', border:'none',
             cursor:'pointer', fontSize:20, color:GR, padding:4 }}>×</button>
           <div style={{ fontSize:15, fontWeight:900, color:DK }}>
-            {mode === 'selling' ? '📸 Share a Moment' : '🙋 Looking For Something'}
+            {mode === 'selling' ? t('create_moment_modal.title_selling') : t('create_moment_modal.title_looking_for')}
           </div>
           <div style={{ width:28 }} />
         </div>
@@ -164,14 +170,14 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
               border: mode==='selling' ? `2px solid ${B}` : '1.5px solid #E2E8F0',
               backgroundColor: mode==='selling' ? '#EFF6FF' : WH,
               color: mode==='selling' ? B : GR, fontSize:13, fontWeight:800 }}>
-            🛍️ I'm Selling
+            {t('create_moment_modal.toggle_selling')}
           </button>
           <button onClick={() => { setMode('looking_for'); setError(''); }}
             style={{ flex:1, padding:'10px 0', borderRadius:10, cursor:'pointer',
               border: mode==='looking_for' ? '2px solid #7C3AED' : '1.5px solid #E2E8F0',
               backgroundColor: mode==='looking_for' ? '#F5F3FF' : WH,
               color: mode==='looking_for' ? '#7C3AED' : GR, fontSize:13, fontWeight:800 }}>
-            🙋 Looking For
+            {t('create_moment_modal.toggle_looking_for')}
           </button>
         </div>
 
@@ -185,7 +191,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
               <img src={preview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
               <div style={{ position:'absolute', bottom:8, right:8, backgroundColor:'rgba(0,0,0,0.6)',
                 color:WH, fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:100 }}>
-                Change photo
+                {t('create_moment_modal.change_photo')}
               </div>
             </div>
           ) : (
@@ -198,7 +204,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
                 padding: mode==='looking_for' ? '16px 0' : 0 }}>
               <span style={{ fontSize: mode==='selling' ? 36 : 24 }}>📷</span>
               <span style={{ fontSize:13, fontWeight:700, color:GR }}>
-                {mode==='selling' ? 'Tap to add a photo' : 'Add a photo (optional)'}
+                {mode==='selling' ? t('create_moment_modal.tap_add_photo') : t('create_moment_modal.add_photo_optional')}
               </span>
             </button>
           )}
@@ -206,8 +212,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
           {/* Caption / description */}
           <textarea value={caption} onChange={e => setCaption(e.target.value)}
             placeholder={mode==='selling'
-              ? 'Say something about it (optional)...'
-              : "What are you looking for? e.g. \u201cNeed a used fridge, working condition, Kariakoo area\u201d"}
+              ? t('create_moment_modal.placeholder_selling')
+              : t('create_moment_modal.placeholder_looking_for')}
             maxLength={140}
             style={{ width:'100%', minHeight:60, padding:'10px 12px', borderRadius:10,
               border:'1px solid #E2E8F0', fontSize:13, resize:'vertical',
@@ -217,15 +223,14 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
             <>
               {/* Tag picker */}
               <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:8 }}>
-                Tag what this Moment is about
+                {t('create_moment_modal.tag_moment_label')}
               </div>
               {loadingItems ? (
-                <div style={{ fontSize:12, color:GR, padding:'12px 0' }}>Loading your items...</div>
+                <div style={{ fontSize:12, color:GR, padding:'12px 0' }}>{t('create_moment_modal.loading_items')}</div>
               ) : myItems.length === 0 ? (
                 <div style={{ fontSize:12, color:GR, backgroundColor:'#F8FAFC',
                   borderRadius:10, padding:14 }}>
-                  You don't have any products, listings, services, or routes yet — add one first,
-                  then come back to share a Moment about it.
+                  {t('create_moment_modal.no_items_msg')}
                 </div>
               ) : (
                 <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:220,
@@ -234,8 +239,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
                     const prevType = myItems[i - 1]?.type;
                     const showHeader = item.type !== prevType;
                     const typeLabel = {
-                      product: '🛍️ Shop Products', classified: '🏷️ Listings',
-                      service: '🔧 Services', route: '🚌 My Routes',
+                      product: t('create_moment_modal.type_label_product'), classified: t('create_moment_modal.type_label_classified'),
+                      service: t('create_moment_modal.type_label_service'), route: t('create_moment_modal.type_label_route'),
                     }[item.type];
                     return (
                       <React.Fragment key={`${item.type}-${item.id}`}>
@@ -278,7 +283,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
             <>
               {/* Category picker for Looking For */}
               <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:8 }}>
-                Category
+                {t('create_moment_modal.category_label')}
               </div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                 {LOOKING_FOR_CATEGORIES.map(cat => (
@@ -294,8 +299,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
               </div>
               <div style={{ fontSize:11, color:GR, marginTop:12, lineHeight:1.5,
                 backgroundColor:'#F5F3FF', borderRadius:10, padding:12 }}>
-                🙋 Sellers who have what you need can reply with "I Have This" —
-                you'll see their actual product right in the comments.
+                {t('create_moment_modal.looking_for_hint')}
               </div>
             </>
           )}
@@ -316,7 +320,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
                 : 'linear-gradient(135deg,#7C3AED,#EC4899)',
               color:WH, border:'none', borderRadius:12, padding:'13px 0',
               cursor: posting ? 'not-allowed' : 'pointer', fontSize:14, fontWeight:800 }}>
-            {posting ? 'Posting...' : mode==='selling' ? '📸 Share Moment' : '🙋 Post Request'}
+            {posting ? t('create_moment_modal.posting') : mode==='selling' ? t('create_moment_modal.share_moment_button') : t('create_moment_modal.post_request_button')}
           </button>
         </div>
       </div>

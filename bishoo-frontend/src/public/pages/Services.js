@@ -5,31 +5,32 @@
  * Primary discovery page — search, filter by category, browse providers
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import api     from '../../api/api';
 
-const CATEGORIES = [
-  { value: '',              icon: '🔍', label: 'Zote'         },
-  { value: 'ufundi',        icon: '🔧', label: 'Ufundi'       },
-  { value: 'usafi',         icon: '🧹', label: 'Usafi'        },
-  { value: 'elimu',         icon: '📚', label: 'Elimu'        },
-  { value: 'upishi',        icon: '👨‍🍳', label: 'Upishi'      },
-  { value: 'usafirishaji',  icon: '🚗', label: 'Usafirishaji' },
-  { value: 'afya',          icon: '🏥', label: 'Afya'         },
-  { value: 'ubunifu',       icon: '🎨', label: 'Ubunifu'      },
-  { value: 'matengenezo',   icon: '🔨', label: 'Matengenezo'  },
-  { value: 'biashara',      icon: '💼', label: 'Biashara'     },
-  { value: 'kilimo',        icon: '🌱', label: 'Kilimo'       },
-  { value: 'nyumbani',      icon: '🏠', label: 'Nyumbani'     },
-  { value: 'mengineyo',     icon: '📋', label: 'Mengineyo'    },
+const getCategories = (t) => [
+  { value: '',              icon: '🔍', label: t('services_page.cat_all')         },
+  { value: 'ufundi',        icon: '🔧', label: t('services_page.cat_ufundi_short')       },
+  { value: 'usafi',         icon: '🧹', label: t('services_page.cat_usafi_short')        },
+  { value: 'elimu',         icon: '📚', label: t('services_page.cat_elimu_short')        },
+  { value: 'upishi',        icon: '👨‍🍳', label: t('services_page.cat_upishi_short')      },
+  { value: 'usafirishaji',  icon: '🚗', label: t('services_page.cat_usafirishaji_short') },
+  { value: 'afya',          icon: '🏥', label: t('services_page.cat_afya_short')         },
+  { value: 'ubunifu',       icon: '🎨', label: t('services_page.cat_ubunifu_short')      },
+  { value: 'matengenezo',   icon: '🔨', label: t('services_page.cat_matengenezo_short')  },
+  { value: 'biashara',      icon: '💼', label: t('services_page.cat_biashara_short')     },
+  { value: 'kilimo',        icon: '🌱', label: t('services_page.cat_kilimo_short')       },
+  { value: 'nyumbani',      icon: '🏠', label: t('services_page.cat_nyumbani_short')     },
+  { value: 'mengineyo',     icon: '📋', label: t('services_page.cat_mengineyo')    },
 ];
 
-const PRICE_LABELS = {
-  per_hour:   '/saa',
-  per_job:    '/kazi',
-  per_day:    '/siku',
-  negotiate:  '(Mazungumzo)',
-  free_quote: 'Omba Bei',
-};
+const getPriceLabels = (t) => ({
+  per_hour:   t('services_page.price_per_hour_suffix'),
+  per_job:    t('services_page.price_per_job_suffix'),
+  per_day:    t('services_page.price_per_day_suffix'),
+  negotiate:  t('services_page.price_negotiate_suffix'),
+  free_quote: t('services_page.price_free_quote_suffix'),
+});
 
 const fmt = n => Number(n||0).toLocaleString();
 
@@ -40,7 +41,11 @@ const StarRating = ({ rating, size = 13 }) => (
   </span>
 );
 
-const ServiceCard = ({ ad, onClick }) => (
+const ServiceCard = ({ ad, onClick }) => {
+  const { t } = useTranslation();
+  const CATEGORIES = getCategories(t);
+  const PRICE_LABELS = getPriceLabels(t);
+  return (
   <div onClick={onClick}
     style={{ backgroundColor: '#fff', borderRadius: 16, overflow: 'hidden',
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)', cursor: 'pointer',
@@ -64,7 +69,7 @@ const ServiceCard = ({ ad, onClick }) => (
         <span style={{ position: 'absolute', top: 8, left: 8,
           backgroundColor: '#16a34a', color: '#fff', fontSize: 10,
           fontWeight: 700, padding: '3px 8px', borderRadius: 100 }}>
-          🟢 Yuko Tayari
+          {t('services_page.available_now_badge')}
         </span>
       )}
       {/* Verified badge */}
@@ -72,7 +77,7 @@ const ServiceCard = ({ ad, onClick }) => (
         <span style={{ position: 'absolute', top: 8, right: 8,
           backgroundColor: '#1d4ed8', color: '#fff', fontSize: 10,
           fontWeight: 700, padding: '3px 8px', borderRadius: 100 }}>
-          ✓ Imethibitishwa
+          {t('services_page.verified_badge')}
         </span>
       )}
     </div>
@@ -103,7 +108,7 @@ const ServiceCard = ({ ad, onClick }) => (
           {ad.provider?.name?.charAt(0)?.toUpperCase() || 'P'}
         </div>
         <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>
-          {ad.provider?.name || 'Mtoa Huduma'}
+          {ad.provider?.name || t('services_page.default_provider_name')}
         </span>
       </div>
 
@@ -112,7 +117,7 @@ const ServiceCard = ({ ad, onClick }) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <StarRating rating={ad.rating} />
           <span style={{ fontSize: 11, color: '#94a3b8' }}>
-            ({ad.totalJobs} kazi)
+            {t('services_page.jobs_count', { count: ad.totalJobs })}
           </span>
         </div>
       )}
@@ -123,7 +128,7 @@ const ServiceCard = ({ ad, onClick }) => (
         <div style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '6px 10px',
           marginBottom: 8, fontSize: 11, fontWeight: 700, color: '#1d4ed8',
           display: 'flex', alignItems: 'center', gap: 4 }}>
-          🚌 Msafirishaji Aliyehakikiwa · Angalia safari za leo
+          {t('services_page.transport_verified_note')}
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -137,9 +142,12 @@ const ServiceCard = ({ ad, onClick }) => (
       </div>
     </div>
   </div>
-);
+  );
+};
 
 const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
+  const CATEGORIES = getCategories(t);
   const [ads,       setAds]       = useState([]);
   const [total,     setTotal]     = useState(0);
   const [loading,   setLoading]   = useState(true);
@@ -180,7 +188,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <polyline points="15,18 9,12 15,6"/>
           </svg>
         </button>
-        <div style={{ fontSize: 15, fontWeight: 900, color: '#0F172A' }}>🔧 Huduma</div>
+        <div style={{ fontSize: 15, fontWeight: 900, color: '#0F172A' }}>{t('services_page.page_title')}</div>
       </div>
 
       {/* Hero */}
@@ -189,11 +197,11 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ maxWidth: 700, margin: '0 auto', textAlign: 'center' }}>
           <h1 style={{ fontSize: 'clamp(24px,5vw,42px)', fontWeight: 900, color: '#fff',
             margin: '0 0 12px', letterSpacing: -0.5 }}>
-            Pata Huduma Yoyote<br/>Tanzania Nzima
+            {t('services_page.hero_title_line1')}<br/>{t('services_page.hero_title_line2')}
           </h1>
           <p style={{ fontSize: 'clamp(13px,2vw,16px)', color: 'rgba(255,255,255,0.75)',
             margin: '0 0 28px' }}>
-            Mafundi, Wapishi, Wasomi, Wasafi, Madereva — wote wako hapa
+            {t('services_page.hero_desc')}
           </p>
 
           {/* Search bar */}
@@ -202,11 +210,11 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <span style={{ padding: '14px 16px', fontSize: 20 }}>🔍</span>
             <input value={query} onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && fetchAds()}
-              placeholder="Tafuta huduma — fundi wa umeme, mpishi wa harusi..."
+              placeholder={t('services_page.search_placeholder')}
               style={{ flex: 1, border: 'none', outline: 'none', fontSize: 14,
                 padding: '14px 0', fontFamily: 'inherit' }} />
             <input value={city} onChange={e => setCity(e.target.value)}
-              placeholder="Mji"
+              placeholder={t('services_page.city_placeholder')}
               style={{ width: 120, border: 'none', outline: 'none', fontSize: 14,
                 padding: '14px 12px', borderLeft: '1px solid #f1f5f9',
                 fontFamily: 'inherit' }} />
@@ -214,7 +222,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
                 padding: '14px 20px', cursor: 'pointer', fontSize: 14,
                 fontWeight: 700, whiteSpace: 'nowrap' }}>
-              Tafuta
+              {t('services_page.search_button')}
             </button>
           </div>
 
@@ -228,7 +236,7 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               <input type="checkbox" checked={available}
                 onChange={e => setAvailable(e.target.checked)}
                 style={{ accentColor: '#60a5fa' }} />
-              Wanapatikana Sasa
+              {t('services_page.available_now_filter')}
             </label>
           </div>
         </div>
@@ -261,14 +269,14 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ display: 'flex', justifyContent: 'space-between',
           alignItems: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 14, color: '#64748b' }}>
-            {loading ? 'Inatafuta...' : `Huduma ${total} zimepatikana`}
+            {loading ? t('services_page.searching') : t('services_page.services_found', { count: total })}
           </div>
           {isLoggedIn && (
             <button onClick={() => onNavigate('PostService')}
               style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
                 borderRadius: 10, padding: '10px 20px', cursor: 'pointer',
                 fontSize: 13, fontWeight: 700 }}>
-              + Tangaza Huduma Yako
+              {t('services_page.post_service_button')}
             </button>
           )}
         </div>
@@ -278,13 +286,13 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             marginBottom: 16, display: 'flex', justifyContent: 'space-between',
             alignItems: 'center', border: '1px solid #bfdbfe' }}>
             <span style={{ fontSize: 13, color: '#1d4ed8', fontWeight: 600 }}>
-              🚌 Wasafirishaji hawa wamehakikiwa na KenteXa. Unaweza pia kuangalia safari za leo.
+              {t('services_page.transport_verified_banner')}
             </span>
             <button onClick={() => onNavigate('TransportProviderDashboard')}
               style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
                 borderRadius: 8, padding: '7px 14px', cursor: 'pointer',
                 fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', marginLeft: 12 }}>
-              Safari za Leo →
+              {t('services_page.today_trips_button')}
             </button>
           </div>
         )}
@@ -309,17 +317,17 @@ const Services = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           <div style={{ textAlign: 'center', padding: '80px 20px' }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>🔍</div>
             <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
-              Hakuna huduma zilizopatikana
+              {t('services_page.no_services_title')}
             </div>
             <div style={{ fontSize: 14, color: '#64748b', marginBottom: 24 }}>
-              Jaribu maneno mengine au kategoria nyingine
+              {t('services_page.no_services_desc')}
             </div>
             {isLoggedIn && (
               <button onClick={() => onNavigate('PostService')}
                 style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
                   borderRadius: 12, padding: '12px 28px', cursor: 'pointer',
                   fontSize: 14, fontWeight: 700 }}>
-                Kuwa wa Kwanza Kutangaza
+                {t('services_page.be_first_button')}
               </button>
             )}
           </div>

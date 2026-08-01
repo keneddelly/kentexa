@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
@@ -17,14 +18,14 @@ import api from '../../api/api';
  * - View all parcels per zone
  */
 
-const STATUS_COLOR = {
-  open:        { bg: '#dcfce7', color: '#16a34a', label: 'Wazi — Inapokea Vifurushi' },
-  cutoff:      { bg: '#fef9c3', color: '#ca8a04', label: 'Muda Umekwisha — Inaandaliwa' },
-  departed:    { bg: '#dbeafe', color: '#2563eb', label: 'Van Imeondoka' },
-  in_progress: { bg: '#e0f2fe', color: '#0284c7', label: 'Inasambaza' },
-  completed:   { bg: '#f0fdf4', color: '#15803d', label: 'Imekamilika ✅' },
-  cancelled:   { bg: '#fee2e2', color: '#dc2626', label: 'Imefutwa' },
-};
+const getStatusColor = (t) => ({
+  open:        { bg: '#dcfce7', color: '#16a34a', label: t('dispatcher_manifest.status_open') },
+  cutoff:      { bg: '#fef9c3', color: '#ca8a04', label: t('dispatcher_manifest.status_cutoff') },
+  departed:    { bg: '#dbeafe', color: '#2563eb', label: t('dispatcher_manifest.status_departed') },
+  in_progress: { bg: '#e0f2fe', color: '#0284c7', label: t('dispatcher_manifest.status_in_progress') },
+  completed:   { bg: '#f0fdf4', color: '#15803d', label: t('dispatcher_manifest.status_completed') },
+  cancelled:   { bg: '#fee2e2', color: '#dc2626', label: t('dispatcher_manifest.status_cancelled') },
+});
 
 const PARCEL_STATUS_COLOR = {
   awaiting_handover: { bg: '#fef9c3', color: '#ca8a04' },
@@ -36,17 +37,21 @@ const PARCEL_STATUS_COLOR = {
   returned:          { bg: '#fee2e2', color: '#dc2626' },
 };
 
-const PARCEL_STATUS_LABEL = {
-  awaiting_handover: 'Inasubiri Kukabidhiwa',
-  at_hub:            'Ipo Hubuni',
-  on_van:            'Ipo Vanini 🚐',
-  at_zone:           'Imefika Eneo',
-  out_for_delivery:  'Inasambazwa 🛵',
-  delivered:         'Imetolewa ✅',
-  returned:          'Imerudishwa',
-};
+const getParcelStatusLabel = (t) => ({
+  awaiting_handover: t('dispatcher_manifest.parcel_status_awaiting_handover'),
+  at_hub:            t('dispatcher_manifest.parcel_status_at_hub'),
+  on_van:            t('dispatcher_manifest.parcel_status_on_van'),
+  at_zone:           t('dispatcher_manifest.parcel_status_at_zone'),
+  out_for_delivery:  t('dispatcher_manifest.parcel_status_out_for_delivery'),
+  delivered:         t('dispatcher_manifest.parcel_status_delivered'),
+  returned:          t('dispatcher_manifest.parcel_status_returned'),
+});
 
 const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
+  const STATUS_COLOR = getStatusColor(t);
+  const PARCEL_STATUS_LABEL = getParcelStatusLabel(t);
   const [manifest, setManifest]       = useState(null);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState('');
@@ -62,7 +67,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     // Refresh every 2 minutes
     const interval = setInterval(fetchManifest, 120000);
     return () => clearInterval(interval);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchManifest = async () => {
     try {
@@ -74,7 +79,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         setExpandedZone(res.data.zones[0].zoneId);
       }
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kupakia manifest');
+      setError(err?.response?.data?.message || t('dispatcher_manifest.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -88,25 +93,25 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const handleMarkReceived = async (parcelId) => {
     try {
       await api.patch(`/daily-batches/parcels/${parcelId}/received`);
-      showMsg('✅ Kifurushi kimekabiliwa hubuni');
+      showMsg(t('dispatcher_manifest.received_at_hub_success'));
       fetchManifest();
     } catch (err) {
-      showMsg('❌ ' + (err?.response?.data?.message || 'Imeshindwa'));
+      showMsg('❌ ' + (err?.response?.data?.message || t('dispatcher_manifest.action_failed')));
     }
   };
 
   const handleDepart = async () => {
     if (!departForm.driverName.trim()) {
-      showMsg('❌ Weka jina la dereva'); return;
+      showMsg('❌ ' + t('dispatcher_manifest.driver_name_required')); return;
     }
     try {
       setDeparting(true);
       await api.patch(`/daily-batches/${manifest.batch.id}/depart`, departForm);
       setShowDepartModal(false);
-      showMsg('🚐 Van imeondoka! Wanunuzi wamearifu.');
+      showMsg(t('dispatcher_manifest.departed_success'));
       fetchManifest();
     } catch (err) {
-      showMsg('❌ ' + (err?.response?.data?.message || 'Imeshindwa'));
+      showMsg('❌ ' + (err?.response?.data?.message || t('dispatcher_manifest.action_failed')));
     } finally {
       setDeparting(false);
     }
@@ -115,10 +120,10 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const handleZoneArrival = async (zoneId) => {
     try {
       await api.patch(`/daily-batches/${manifest.batch.id}/zones/${zoneId}/arrived`);
-      showMsg('✅ Eneo limewekwa — vifurushi vinasubiri utoaji wa mwisho');
+      showMsg(t('dispatcher_manifest.zone_arrived_success'));
       fetchManifest();
     } catch (err) {
-      showMsg('❌ ' + (err?.response?.data?.message || 'Imeshindwa'));
+      showMsg('❌ ' + (err?.response?.data?.message || t('dispatcher_manifest.action_failed')));
     }
   };
 
@@ -126,10 +131,10 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     try {
       await api.patch(`/daily-batches/parcels/${parcelId}/delivered`);
       setConfirmParcel(null);
-      showMsg('✅ Kifurushi kimetolewa! Mnunuzi amearifu.');
+      showMsg(t('dispatcher_manifest.delivered_success'));
       fetchManifest();
     } catch (err) {
-      showMsg('❌ ' + (err?.response?.data?.message || 'Imeshindwa'));
+      showMsg('❌ ' + (err?.response?.data?.message || t('dispatcher_manifest.action_failed')));
     }
   };
 
@@ -145,7 +150,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       <Navbar currentPage="Dispatcher" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <div style={{ textAlign: 'center', padding: '60px 16px', color: '#64748b' }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
-        <div>Inapakia manifest ya leo...</div>
+        <div>{t('dispatcher_manifest.loading')}</div>
       </div>
     </div>
   );
@@ -153,8 +158,8 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
       <Navbar currentPage="Dispatcher" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('SuperAgentDashboard')} title="Manifest ya Leo"
-        right={<button onClick={() => onNavigate('HubReceive')} style={{ background:'none', border:'none', color:'#f59e0b', fontWeight:800, fontSize:13, cursor:'pointer' }}>📥 Pokea</button>}
+      <BackBar onBack={() => onNavigate('SuperAgentDashboard')} title={t('dispatcher_manifest.page_title')}
+        right={<button onClick={() => onNavigate('HubReceive')} style={{ background:'none', border:'none', color:'#f59e0b', fontWeight:800, fontSize:13, cursor:'pointer' }}>{t('dispatcher_manifest.receive_button')}</button>}
       />
 
       {/* Flash message */}
@@ -174,7 +179,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: 14, borderRadius: 12, marginBottom: 14, fontSize: 13 }}>
             ❌ {error}
-            <button onClick={fetchManifest} style={{ marginLeft: 12, background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 700 }}>Jaribu tena</button>
+            <button onClick={fetchManifest} style={{ marginLeft: 12, background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontWeight: 700 }}>{t('dispatcher_manifest.try_again')}</button>
           </div>
         )}
 
@@ -182,22 +187,21 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         {!batch && !error && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>Hakuna Batch Leo</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 6 }}>{t('dispatcher_manifest.no_batch_title')}</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20, lineHeight: 1.6 }}>
-              Batch inaundwa automatiki pale ambapo agizo la kwanza linaainishwa kwenye van ya leo.
-              Ongeza agizo la mkono ili kuanza batch ya leo.
+              {t('dispatcher_manifest.no_batch_desc')}
             </div>
 
             {/* How to start batch — clear step by step */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16, textAlign: 'left' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
-                📋 Jinsi ya kuanza manifest ya leo:
+                {t('dispatcher_manifest.how_to_start_title')}
               </div>
               {[
-                { num: '1', text: 'Bonyeza "➕ Agizo la Mkono" hapa chini' },
-                { num: '2', text: 'Jaza maelezo ya bidhaa, mnunuzi, na anwani ya utoaji (Mbagala/Mbezi/Bunju)' },
-                { num: '3', text: 'Bonyeza "Unda na Ainisha kwenye Van"' },
-                { num: '4', text: 'Rudi hapa — utaona manifest ikionyesha agizo lako' },
+                { num: '1', text: t('dispatcher_manifest.step1') },
+                { num: '2', text: t('dispatcher_manifest.step2') },
+                { num: '3', text: t('dispatcher_manifest.step3') },
+                { num: '4', text: t('dispatcher_manifest.step4') },
               ].map(s => (
                 <div key={s.num} style={{ display: 'flex', gap: 10, marginBottom: 8, alignItems: 'flex-start' }}>
                   <span style={{ width: 24, height: 24, borderRadius: '50%', backgroundColor: '#1d4ed8', color: '#fff', fontSize: 12, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.num}</span>
@@ -209,11 +213,11 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => onNavigate('BatchHandoff')}
                 style={{ flex: 2, background: 'linear-gradient(135deg,#16a34a,#22c55e)', color: '#fff', border: 'none', padding: '13px', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
-                ➕ Agizo la Mkono
+                {t('dispatcher_manifest.manual_order_button')}
               </button>
               <button onClick={fetchManifest}
                 style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '13px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
-                🔄 Refresh
+                {t('dispatcher_manifest.refresh_button')}
               </button>
             </div>
           </div>
@@ -225,9 +229,9 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>BATCH YA LEO</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('dispatcher_manifest.batch_today_label')}</div>
                   <div style={{ fontSize: 20, fontWeight: 900, color: '#1e293b' }}>
-                    {new Date(batch.runDate).toLocaleDateString('sw-TZ', { weekday: 'long', day: 'numeric', month: 'long' })}
+                    {new Date(batch.runDate).toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' })}
                   </div>
                 </div>
                 <span style={{
@@ -242,9 +246,9 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               {/* Stats row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
                 {[
-                  { label: 'Vifurushi', value: totalParcels, icon: '📦' },
-                  { label: 'Maeneo', value: zones.length, icon: '📍' },
-                  { label: 'Muda wa Kuondoka', value: new Date(batch.plannedDepartureTime).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' }), icon: '🕗' },
+                  { label: t('dispatcher_manifest.stat_parcels'), value: totalParcels, icon: '📦' },
+                  { label: t('dispatcher_manifest.stat_zones'), value: zones.length, icon: '📍' },
+                  { label: t('dispatcher_manifest.stat_departure_time'), value: new Date(batch.plannedDepartureTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }), icon: '🕗' },
                 ].map(s => (
                   <div key={s.label} style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
                     <div style={{ fontSize: 20 }}>{s.icon}</div>
@@ -256,22 +260,22 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
               {/* Cutoff info */}
               <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
-                <span style={{ fontWeight: 700, color: '#92400e' }}>⏰ Muda wa Mwisho wa Kupokea Vifurushi: </span>
+                <span style={{ fontWeight: 700, color: '#92400e' }}>{t('dispatcher_manifest.cutoff_label')}</span>
                 <span style={{ color: '#92400e' }}>
-                  {new Date(batch.cutoffTime).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(batch.cutoffTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
 
               {/* Driver info if departed */}
               {hasLeft && batch.driverName && (
                 <div style={{ backgroundColor: '#dbeafe', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12 }}>
-                  <div style={{ fontWeight: 700, color: '#1d4ed8', marginBottom: 2 }}>🚐 Dereva wa Leo</div>
+                  <div style={{ fontWeight: 700, color: '#1d4ed8', marginBottom: 2 }}>{t('dispatcher_manifest.driver_today_title')}</div>
                   <div style={{ color: '#1e293b' }}>{batch.driverName}</div>
                   {batch.driverPhone && <div style={{ color: '#64748b' }}>📞 {batch.driverPhone}</div>}
                   {batch.vehicleInfo && <div style={{ color: '#64748b' }}>🚗 {batch.vehicleInfo}</div>}
                   {batch.actualDepartureTime && (
                     <div style={{ color: '#64748b' }}>
-                      Aliondoka: {new Date(batch.actualDepartureTime).toLocaleTimeString('sw-TZ', { hour: '2-digit', minute: '2-digit' })}
+                      {t('dispatcher_manifest.departed_at_label', { time: new Date(batch.actualDepartureTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }) })}
                     </div>
                   )}
                 </div>
@@ -280,7 +284,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               {/* Route preview */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', padding: '4px 10px', backgroundColor: '#eff6ff', borderRadius: 20 }}>
-                  🏢 Kariakoo
+                  {t('dispatcher_manifest.hub_badge')}
                 </span>
                 {zones.sort((a,b) => a.routeOrder - b.routeOrder).map(zone => (
                   <React.Fragment key={zone.zoneId}>
@@ -296,21 +300,21 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               {canDepart && totalParcels > 0 && (
                 <button onClick={() => setShowDepartModal(true)}
                   style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: 'pointer', fontSize: 15, fontWeight: 800, boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
-                  🚐 Ondoka na Van — Vifurushi {totalParcels}
+                  {t('dispatcher_manifest.depart_button', { count: totalParcels })}
                 </button>
               )}
 
               {canDepart && totalParcels === 0 && (
                 <div style={{ textAlign: 'center', padding: 12, fontSize: 13, color: '#94a3b8' }}>
-                  Hakuna vifurushi bado. Subiri wauzaji walete vifurushi.
+                  {t('dispatcher_manifest.no_parcels_yet')}
                 </div>
               )}
 
               {batch.status === 'completed' && (
                 <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, textAlign: 'center' }}>
                   <div style={{ fontSize: 32, marginBottom: 6 }}>🎉</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#15803d' }}>Batch Imekamilika!</div>
-                  <div style={{ fontSize: 12, color: '#16a34a' }}>Vifurushi vyote {totalParcels} vimetolewa leo.</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: '#15803d' }}>{t('dispatcher_manifest.batch_completed_title')}</div>
+                  <div style={{ fontSize: 12, color: '#16a34a' }}>{t('dispatcher_manifest.batch_completed_desc', { count: totalParcels })}</div>
                 </div>
               )}
             </div>
@@ -335,14 +339,14 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>
                         📍 {zone.zoneName}
-                        {allDelivered && <span style={{ marginLeft: 8, fontSize: 12, color: '#16a34a' }}>✅ Imekamilika</span>}
+                        {allDelivered && <span style={{ marginLeft: 8, fontSize: 12, color: '#16a34a' }}>{t('dispatcher_manifest.zone_completed_badge')}</span>}
                       </div>
                       <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                        {zone.zoneAgent} · {zone.parcels.length} vifurushi · ETA +{zone.etaMinutes} dakika
+                        {t('dispatcher_manifest.zone_meta', { agent: zone.zoneAgent, count: zone.parcels.length, eta: zone.etaMinutes })}
                       </div>
                       <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20, backgroundColor: '#dcfce7', color: '#16a34a' }}>
-                          {deliveredCount}/{zone.parcels.length} vimetolewa
+                          {t('dispatcher_manifest.zone_delivered_ratio', { delivered: deliveredCount, total: zone.parcels.length })}
                         </span>
                       </div>
                     </div>
@@ -354,7 +358,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     <div style={{ padding: '0 16px 14px' }}>
                       <button onClick={() => handleZoneArrival(zone.zoneId)}
                         style={{ width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: '10px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                        📍 Van Imefika {zone.zoneName}
+                        {t('dispatcher_manifest.zone_arrived_button', { zone: zone.zoneName })}
                       </button>
                     </div>
                   )}
@@ -398,18 +402,18 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                             {parcel.status === 'awaiting_handover' && (
                               <button onClick={() => handleMarkReceived(parcel.parcelId)}
                                 style={{ flex: 1, backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                📥 Pokea Hubuni
+                                {t('dispatcher_manifest.receive_at_hub_button')}
                               </button>
                             )}
                             {['at_zone','out_for_delivery'].includes(parcel.status) && (
                               <button onClick={() => setConfirmParcel(parcel)}
                                 style={{ flex: 1, background: 'linear-gradient(135deg,#16a34a,#22c55e)', color: '#fff', border: 'none', padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                ✅ Thibitisha Utoaji
+                                {t('dispatcher_manifest.confirm_delivery_button')}
                               </button>
                             )}
                             {parcel.status === 'delivered' && (
                               <div style={{ flex: 1, textAlign: 'center', fontSize: 12, color: '#16a34a', fontWeight: 700, padding: '8px' }}>
-                                ✅ Kimetolewa
+                                {t('dispatcher_manifest.delivered_label')}
                               </div>
                             )}
                           </div>
@@ -424,7 +428,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             {/* Refresh button */}
             <button onClick={fetchManifest}
               style={{ width: '100%', backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700, marginTop: 4 }}>
-              🔄 Onyesha Upya
+              {t('dispatcher_manifest.refresh_manifest_button')}
             </button>
           </>
         )}
@@ -435,13 +439,13 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9998, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 20px' }} />
-            <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>🚐 Thibitisha Kuondoka kwa Van</h2>
-            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>Weka maelezo ya dereva na gari kabla van haijawasha.</p>
+            <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>{t('dispatcher_manifest.depart_modal_title')}</h2>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>{t('dispatcher_manifest.depart_modal_desc')}</p>
 
             {[
-              { key: 'driverName', label: 'Jina la Dereva *', placeholder: 'e.g. Hassan Juma' },
-              { key: 'driverPhone', label: 'Nambari ya Simu', placeholder: 'e.g. 0712345678' },
-              { key: 'vehicleInfo', label: 'Gari (Aina / Nambari)', placeholder: 'e.g. Bajaji — T234ABC' },
+              { key: 'driverName', label: t('dispatcher_manifest.field_driver_name'), placeholder: t('dispatcher_manifest.field_driver_name_placeholder') },
+              { key: 'driverPhone', label: t('dispatcher_manifest.field_driver_phone'), placeholder: t('dispatcher_manifest.field_driver_phone_placeholder') },
+              { key: 'vehicleInfo', label: t('dispatcher_manifest.field_vehicle_info'), placeholder: t('dispatcher_manifest.field_vehicle_info_placeholder') },
             ].map(field => (
               <div key={field.key} style={{ marginBottom: 12 }}>
                 <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>{field.label}</label>
@@ -455,17 +459,17 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             ))}
 
             <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: '#92400e', fontWeight: 600 }}>
-              ⚠️ Baada ya kubonyeza "Ondoka", wanunuzi wote {totalParcels} wataarifiwa kwamba vifurushi vyao vipo njiani.
+              {t('dispatcher_manifest.depart_warning', { count: totalParcels })}
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setShowDepartModal(false)}
                 style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                Ghairi
+                {t('dispatcher_manifest.cancel_button')}
               </button>
               <button onClick={handleDepart} disabled={departing}
                 style={{ flex: 2, background: departing ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: departing ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 14 }}>
-                {departing ? '⏳ Inatuma...' : `🚐 Ondoka na Vifurushi ${totalParcels}`}
+                {departing ? t('dispatcher_manifest.sending_button') : t('dispatcher_manifest.depart_with_parcels_button', { count: totalParcels })}
               </button>
             </div>
           </div>
@@ -477,10 +481,10 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9998, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
             <div style={{ width: 40, height: 4, backgroundColor: '#e2e8f0', borderRadius: 2, margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 14px' }}>✅ Thibitisha Utoaji</h2>
+            <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 14px' }}>{t('dispatcher_manifest.confirm_delivery_modal_title')}</h2>
 
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 16 }}>
-              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>KIFURUSHI</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 4 }}>{t('dispatcher_manifest.parcel_label')}</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 2 }}>{confirmParcel.recipientName}</div>
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 2 }}>📦 {confirmParcel.productName}</div>
               <div style={{ fontSize: 12, color: '#64748b' }}>📍 {confirmParcel.deliveryAddress}</div>
@@ -488,17 +492,17 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             </div>
 
             <div style={{ backgroundColor: '#dcfce7', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: '#166534', fontWeight: 600 }}>
-              ✅ Mnunuzi atapata SMS ya uthibitisho mara tu unapobonyeza "Imetolewa".
+              {t('dispatcher_manifest.sms_notice')}
             </div>
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setConfirmParcel(null)}
                 style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
-                Ghairi
+                {t('dispatcher_manifest.cancel_button')}
               </button>
               <button onClick={() => handleParcelDelivered(confirmParcel.parcelId)}
                 style={{ flex: 2, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 14 }}>
-                ✅ Imetolewa
+                {t('dispatcher_manifest.delivered_button')}
               </button>
             </div>
           </div>

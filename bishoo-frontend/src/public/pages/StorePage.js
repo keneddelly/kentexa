@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../../api/api';
@@ -6,6 +7,7 @@ import BackBar          from '../components/BackBar';
 import ReputationBadge from '../components/ReputationBadge';
 
 const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => {
+  const { t } = useTranslation();
   const [seller, setSeller]     = useState(null);
   const [products, setProducts] = useState([]);
   const [storeClassifieds, setStoreClassifieds] = useState([]);
@@ -27,7 +29,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       setStoreClassifieds(res.data.classifieds || []);
       setFollowing(res.data.isFollowing || false);
     } catch (err) {
-      setError('Failed to load store');
+      setError(t('store_page.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -36,10 +38,10 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
   const handleShare = () => {
     const url = window.location.origin + `/Store-${sellerId}`;
     if (navigator.share) {
-      navigator.share({ title: seller?.name || 'KenteXa Store', url });
+      navigator.share({ title: seller?.name || t('store_page.default_share_title'), url });
     } else {
       navigator.clipboard.writeText(url);
-      alert('Store link copied to clipboard!');
+      alert(t('store_page.link_copied'));
     }
   };
 
@@ -84,7 +86,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <Navbar currentPage="Store" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>⏳ Loading store...</div>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>⏳ {t('store_page.loading')}</div>
     </div>
   );
 
@@ -92,7 +94,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
       <Navbar currentPage="Store" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
 
-      <BackBar onBack={() => onNavigate('Stores')} title={seller?.storeName || seller?.name || 'Store'} />
+      <BackBar onBack={() => onNavigate('Stores')} title={seller?.storeName || seller?.name || t('store_page.default_store_name')} />
 
       {/* ===================== COVER BANNER ===================== */}
       <div style={{
@@ -109,7 +111,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       }}>
         {isOfficial && (
           <div style={{ position: 'absolute', top: 12, right: 12, backgroundColor: '#f59e0b', color: '#fff', padding: '5px 14px', borderRadius: 20, fontSize: 11, fontWeight: 900, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-            🏆 OFFICIAL KENTEXA STORE
+            {t('store_page.official_badge')}
           </div>
         )}
       </div>
@@ -134,15 +136,15 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
           <div style={{ flex: 1, paddingTop: 40, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: 19, fontWeight: 900, color: '#0f172a', margin: 0, fontFamily: 'Manrope,sans-serif' }}>
-                {seller?.storeName || seller?.name || 'Store'}
+                {seller?.storeName || seller?.name || t('store_page.default_store_name')}
               </h1>
-              {isVerified && <span title="Verified Seller" style={{ fontSize: 16 }}>✅</span>}
+              {isVerified && <span title={t('store_page.verified_seller_title')} style={{ fontSize: 16 }}>✅</span>}
               {seller?.reputationScore > 0 && (
                 <ReputationBadge score={seller.reputationScore} size="sm" />
               )}
             </div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-              {seller?.storeTagline || (isOfficial ? 'Official KenteXa Store' : 'KenteXa Marketplace Seller')}
+              {seller?.storeTagline || (isOfficial ? t('store_page.official_tagline') : t('store_page.marketplace_tagline'))}
             </div>
           </div>
         </div>
@@ -151,11 +153,11 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
         <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
           <button onClick={handleFollow}
             style={{ flex: 1, padding: '10px 16px', borderRadius: 10, border: following ? '2px solid #1d4ed8' : 'none', cursor: 'pointer', fontSize: 13, fontWeight: 800, backgroundColor: following ? '#fff' : '#1d4ed8', color: following ? '#1d4ed8' : '#fff' }}>
-            {following ? '✓ Unafuata' : '+ Fuata Duka'}
+            {following ? t('store_page.following_button') : t('store_page.follow_button')}
           </button>
           <button onClick={handleShare}
             style={{ padding: '10px 16px', borderRadius: 10, border: '2px solid #e2e8f0', cursor: 'pointer', fontSize: 13, fontWeight: 700, backgroundColor: '#fff', color: '#64748b' }}>
-            🔗 Share
+            {t('store_page.share_button')}
           </button>
           {isLoggedIn && (
             <button onClick={() => {
@@ -166,13 +168,13 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
               style={{ padding: '10px 16px', borderRadius: 10, border: 'none',
                 cursor: 'pointer', fontSize: 13, fontWeight: 800,
                 backgroundColor: '#1d4ed8', color: '#fff' }}>
-              💬 Wasiliana
+              {t('store_page.message_button')}
             </button>
           )}
           {seller?.phone && (
             <a href={`https://wa.me/${seller.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer"
               style={{ padding: '10px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 800, backgroundColor: '#16a34a', color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-              💬 WhatsApp
+              {t('store_page.whatsapp_button')}
             </a>
           )}
         </div>
@@ -188,39 +190,39 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== TRUST BADGES ===================== */}
       <div style={{ padding: '14px 16px 0' }}>
         <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 8 }}>
-          {isVerified && <Badge icon="✅" label="Verified Seller" color="#16a34a" />}
-          {isOfficial && <Badge icon="🏆" label="Official Store" color="#f59e0b" />}
-          {stats.ordersCompleted > 100 && <Badge icon="⭐" label="Top Seller" color="#7c3aed" />}
-          {seller?.fastShipping && <Badge icon="🚀" label="Fast Shipping" color="#0284c7" />}
-          <Badge icon="🛡️" label="KenteXa Protected" color="#1d4ed8" />
+          {isVerified && <Badge icon="✅" label={t('store_page.badge_verified')} color="#16a34a" />}
+          {isOfficial && <Badge icon="🏆" label={t('store_page.badge_official')} color="#f59e0b" />}
+          {stats.ordersCompleted > 100 && <Badge icon="⭐" label={t('store_page.badge_top_seller')} color="#7c3aed" />}
+          {seller?.fastShipping && <Badge icon="🚀" label={t('store_page.badge_fast_shipping')} color="#0284c7" />}
+          <Badge icon="🛡️" label={t('store_page.badge_protected')} color="#1d4ed8" />
         </div>
       </div>
 
       {/* ===================== STATS ROW ===================== */}
       <div style={{ padding: '4px 16px 14px' }}>
         <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 4, textAlign: 'center' }}>
-          <Stat value={stats.totalProducts} label="Products" />
-          <Stat value={stats.followers} label="Followers" />
-          <Stat value={stats.ordersCompleted} label="Orders" />
-          <Stat value={stats.reviewsCount} label="Reviews" />
-          <Stat value={stats.rating ? `${stats.rating}★` : '—'} label="Rating" />
+          <Stat value={stats.totalProducts} label={t('store_page.stat_products')} />
+          <Stat value={stats.followers} label={t('store_page.stat_followers')} />
+          <Stat value={stats.ordersCompleted} label={t('store_page.stat_orders')} />
+          <Stat value={stats.reviewsCount} label={t('store_page.stat_reviews')} />
+          <Stat value={stats.rating ? `${stats.rating}★` : '—'} label={t('store_page.stat_rating')} />
         </div>
       </div>
 
       {/* ===================== STORE INFO ===================== */}
       <div style={{ padding: '0 16px 14px' }}>
         <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-          <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>📍 Store Information</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('store_page.store_info_title')}</h3>
           {seller?.storeDescription && (
             <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: '0 0 12px' }}>{seller.storeDescription}</p>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13, color: '#475569' }}>
             {seller?.businessLocation && <InfoRow icon="📍" text={seller.businessLocation} />}
-            {seller?.businessHours    && <InfoRow icon="🕐" text={`Open: ${seller.businessHours}`} />}
-            <InfoRow icon="🚚" text="Ships Nationwide" />
-            {seller?.pickupAvailable && <InfoRow icon="🏬" text="Pickup Available" />}
-            <InfoRow icon="📅" text={`Member since ${stats.memberSince}`} />
-            <InfoRow icon="💬" text={`${stats.responseRate}% response rate`} />
+            {seller?.businessHours    && <InfoRow icon="🕐" text={t('store_page.open_prefix', { hours: seller.businessHours })} />}
+            <InfoRow icon="🚚" text={t('store_page.ships_nationwide')} />
+            {seller?.pickupAvailable && <InfoRow icon="🏬" text={t('store_page.pickup_available')} />}
+            <InfoRow icon="📅" text={t('store_page.member_since', { year: stats.memberSince })} />
+            <InfoRow icon="💬" text={t('store_page.response_rate', { rate: stats.responseRate })} />
           </div>
         </div>
       </div>
@@ -228,12 +230,12 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== DELIVERY ===================== */}
       <div style={{ padding: '0 16px 14px' }}>
         <div style={{ backgroundColor: '#eff6ff', borderRadius: 14, padding: 16, border: '1px solid #bfdbfe' }}>
-          <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>🚚 Delivery & Protection</h3>
+          <h3 style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('store_page.delivery_title')}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: '#1e40af' }}>
-            <div>✓ Ships Nationwide</div>
-            <div>✓ KenteXa Buyer Protection</div>
-            {seller?.freeDelivery     && <div>✓ Free Delivery</div>}
-            {seller?.pickupAvailable  && <div>✓ Pickup Available</div>}
+            <div>{t('store_page.ships_nationwide_check')}</div>
+            <div>{t('store_page.buyer_protection_check')}</div>
+            {seller?.freeDelivery     && <div>{t('store_page.free_delivery_check')}</div>}
+            {seller?.pickupAvailable  && <div>{t('store_page.pickup_available_check')}</div>}
           </div>
         </div>
       </div>
@@ -241,7 +243,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== FEATURED PRODUCTS ===================== */}
       {featuredProducts.length > 0 && (
         <div style={{ padding: '0 16px 14px' }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>⭐ Featured Products</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('store_page.featured_title')}</h3>
           <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 6 }}>
             {featuredProducts.map(p => (
               <ProductCard key={p.id} product={p} onNavigate={onNavigate} featured />
@@ -263,7 +265,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== PRODUCT FILTERS ===================== */}
       <div style={{ padding: '0 16px 10px' }}>
         <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>
-          🛍️ All Products ({visibleProducts.length})
+          {t('store_page.all_products_title', { count: visibleProducts.length })}
         </h3>
 
         {/* Category chips */}
@@ -272,7 +274,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
             {categories.map(c => (
               <button key={c} onClick={() => setCategory(c)}
                 style={{ padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap', backgroundColor: category === c ? '#1d4ed8' : '#fff', color: category === c ? '#fff' : '#64748b', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
-                {c === 'all' ? 'All' : c.replace(/_/g,' ')}
+                {c === 'all' ? t('store_page.category_all') : c.replace(/_/g,' ')}
               </button>
             ))}
           </div>
@@ -282,10 +284,10 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)}
             style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 12, color: '#475569', backgroundColor: '#fff' }}>
-            <option value="newest">Newest</option>
-            <option value="price_low">Price: Low to High</option>
-            <option value="price_high">Price: High to Low</option>
-            <option value="popular">Most Popular</option>
+            <option value="newest">{t('store_page.sort_newest')}</option>
+            <option value="price_low">{t('store_page.sort_price_low')}</option>
+            <option value="price_high">{t('store_page.sort_price_high')}</option>
+            <option value="popular">{t('store_page.sort_popular')}</option>
           </select>
         </div>
       </div>
@@ -294,7 +296,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       <div style={{ padding: '0 16px 20px' }}>
         {visibleProducts.length === 0 ? (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 40, textAlign: 'center', color: '#94a3b8' }}>
-            No products in this category yet.
+            {t('store_page.no_products')}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
@@ -306,7 +308,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
       {/* ===================== GALLERY ===================== */}
       {seller?.galleryImages?.length > 0 && (
         <div style={{ padding: '0 16px 14px' }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>📸 Store Gallery</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('store_page.gallery_title')}</h3>
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 6 }}>
             {seller.galleryImages.map((img, i) => (
               <img key={i} src={img} alt={`gallery-${i}`} style={{ width: 120, height: 90, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }} />
@@ -321,7 +323,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
         <div style={{ margin: '0 16px 16px', backgroundColor: '#fff',
           borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 14 }}>
-            📋 Matangazo ya Duka
+            {t('store_page.classifieds_title')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {storeClassifieds.map(c => (
@@ -354,11 +356,11 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
 {/* ===================== REVIEWS ===================== */}
       <div style={{ padding: '0 16px 24px' }}>
         <h3 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>
-          ⭐ Customer Reviews {stats.reviewsCount > 0 && `(${stats.reviewsCount})`}
+          {t('store_page.reviews_title')}{stats.reviewsCount > 0 && t('store_page.reviews_count', { count: stats.reviewsCount })}
         </h3>
         {(!seller?.reviews || seller.reviews.length === 0) ? (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 24, textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>
-            No reviews yet. Be the first to review this store after your purchase!
+            {t('store_page.no_reviews')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -369,7 +371,7 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
                   <span style={{ fontSize: 11, color: '#94a3b8' }}>{new Date(r.date).toLocaleDateString()}</span>
                 </div>
                 <p style={{ fontSize: 13, color: '#475569', margin: '0 0 6px' }}>{r.comment}</p>
-                {r.verified && <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>✅ Verified Purchase</span>}
+                {r.verified && <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>{t('store_page.verified_purchase')}</span>}
               </div>
             ))}
           </div>
@@ -403,12 +405,13 @@ const InfoRow = ({ icon, text }) => (
 );
 
 const ProductCard = ({ product, onNavigate, featured }) => {
+  const { t } = useTranslation();
   const price = Number(product.displayPrice || product.basePrice || 0);
   const badge =
-    product.isBestSeller ? { label: '🔥 Best Seller', color: '#dc2626' } :
-    product.isNewArrival ? { label: '✨ New', color: '#16a34a' } :
-    product.isRecommended ? { label: '👍 Recommended', color: '#1d4ed8' } :
-    product.isFeatured ? { label: '⭐ Featured', color: '#f59e0b' } : null;
+    product.isBestSeller ? { label: t('store_page.badge_best_seller'), color: '#dc2626' } :
+    product.isNewArrival ? { label: t('store_page.badge_new'), color: '#16a34a' } :
+    product.isRecommended ? { label: t('store_page.badge_recommended'), color: '#1d4ed8' } :
+    product.isFeatured ? { label: t('store_page.badge_featured'), color: '#f59e0b' } : null;
 
   return (
     <div onClick={() => onNavigate(`ProductDetail-${product.id}`)}
@@ -427,7 +430,7 @@ const ProductCard = ({ product, onNavigate, featured }) => {
       <div style={{ padding: 8 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{product.name}</div>
         <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginTop: 2 }}>TZS {price.toLocaleString()}</div>
-        {Number(product.deliveryFee) === 0 && <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 700, marginTop: 2 }}>FREE DELIVERY</div>}
+        {Number(product.deliveryFee) === 0 && <div style={{ fontSize: 10, color: '#16a34a', fontWeight: 700, marginTop: 2 }}>{t('store_page.free_delivery_label')}</div>}
       </div>
     </div>
   );

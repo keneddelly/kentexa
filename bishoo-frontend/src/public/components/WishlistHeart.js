@@ -15,6 +15,7 @@
  * never fed into the unified saved-items list.
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
 const WishlistHeart = ({
@@ -26,6 +27,7 @@ const WishlistHeart = ({
   size = 28,
   style = {},
 }) => {
+  const { t } = useTranslation();
   const type = entityType || (classifiedId != null ? 'classified' : null);
   const id   = entityId ?? classifiedId;
 
@@ -71,7 +73,7 @@ const WishlistHeart = ({
     <button
       onClick={handleToggle}
       disabled={loading}
-      title={saved ? 'Remove from saved' : 'Save'}
+      title={saved ? t('wishlist_heart.remove_saved') : t('wishlist_heart.save')}
       style={{
         background: 'none',
         border: 'none',

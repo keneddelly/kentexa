@@ -18,6 +18,7 @@
  * catch below now surfaces the real error message.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
 const B  = '#2563EB';
@@ -27,27 +28,27 @@ const WH = '#FFFFFF';
 const AMBER = '#D97706';
 const RED = '#DC2626';
 
-const ago = d => {
+const ago = (d, t) => {
   if (!d) return '';
   const s = Math.floor((Date.now() - new Date(d)) / 1000);
-  if (s < 60)    return 'Just now';
-  if (s < 3600)  return `${Math.floor(s/60)}m ago`;
-  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
-  return `${Math.floor(s/86400)}d ago`;
+  if (s < 60)    return t('comment_section.just_now');
+  if (s < 3600)  return t('comment_section.minutes_ago', { count: Math.floor(s/60) });
+  if (s < 86400) return t('comment_section.hours_ago', { count: Math.floor(s/3600) });
+  return t('comment_section.days_ago', { count: Math.floor(s/86400) });
 };
 
-const FILTERS = [
-  { key: 'all',       label: 'All'      },
-  { key: 'reviews',   label: '⭐ Reviews'  },
-  { key: 'questions', label: '💬 Questions' },
-  { key: 'media',     label: '📷 Media'    },
+const getFilters = (t) => [
+  { key: 'all',       label: t('comment_section.filter_all')      },
+  { key: 'reviews',   label: t('comment_section.filter_reviews')  },
+  { key: 'questions', label: t('comment_section.filter_questions') },
+  { key: 'media',     label: t('comment_section.filter_media')    },
 ];
 
-const PURCHASE_BADGE = {
-  kentexa_purchase: { label: '✓ Kentexa Purchase', bg: '#DCFCE7', color: '#16A34A' },
-  offline_purchase: { label: '✓ Verified Buyer',   bg: '#FEF3C7', color: AMBER    },
-  community:        { label: 'Community Review',   bg: '#F1F5F9', color: GR      },
-};
+const getPurchaseBadge = (t) => ({
+  kentexa_purchase: { label: t('comment_section.badge_kentexa_purchase'), bg: '#DCFCE7', color: '#16A34A' },
+  offline_purchase: { label: t('comment_section.badge_offline_purchase'),   bg: '#FEF3C7', color: AMBER    },
+  community:        { label: t('comment_section.badge_community'),   bg: '#F1F5F9', color: GR      },
+});
 
 // ── Star rating (display or input) ─────────────────────────────────────────
 const Stars = ({ value, onChange, size = 16 }) => {
@@ -72,6 +73,7 @@ const Stars = ({ value, onChange, size = 16 }) => {
 
 // ── Rating summary header — average, count, star breakdown bars ───────────
 const RatingSummary = ({ summary }) => {
+  const { t } = useTranslation();
   if (!summary || summary.total === 0) return null;
   const max = Math.max(1, ...Object.values(summary.breakdown));
   return (
@@ -83,11 +85,11 @@ const RatingSummary = ({ summary }) => {
         </div>
         <Stars value={Math.round(summary.average)} size={14} />
         <div style={{ fontSize: 11, color: GR, marginTop: 4 }}>
-          {summary.total} review{summary.total !== 1 ? 's' : ''}
+          {t('comment_section.reviews_count', { count: summary.total })}
         </div>
         {summary.verifiedPurchaseCount > 0 && (
           <div style={{ fontSize: 10, color: '#16A34A', fontWeight: 700, marginTop: 2 }}>
-            {summary.verifiedPurchaseCount} verified
+            {t('comment_section.verified_count', { count: summary.verifiedPurchaseCount })}
           </div>
         )}
       </div>
@@ -110,6 +112,7 @@ const RatingSummary = ({ summary }) => {
 
 // ── Pinned AI summary card ─────────────────────────────────────────────────
 const AiSummaryCard = ({ pinned }) => {
+  const { t } = useTranslation();
   if (!pinned) return null;
   return (
     <div style={{ margin: '12px 14px', padding: '14px 16px', borderRadius: 14,
@@ -117,7 +120,7 @@ const AiSummaryCard = ({ pinned }) => {
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         <span style={{ fontSize: 14 }}>✨</span>
         <span style={{ fontSize: 11, fontWeight: 800, color: B, textTransform: 'uppercase',
-          letterSpacing: 0.4 }}>AI Summary of Customer Feedback</span>
+          letterSpacing: 0.4 }}>{t('comment_section.ai_summary_label')}</span>
       </div>
       <div style={{ fontSize: 13, color: DK, lineHeight: 1.5 }}>{pinned.body}</div>
     </div>
@@ -147,11 +150,13 @@ const MediaGrid = ({ media }) => {
 const CommentRow = ({
   c, isSeller, isLoggedIn, onNavigate, onHelpful, onReplySubmit,
 }) => {
+  const { t } = useTranslation();
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyBody, setReplyBody] = useState('');
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState('');
   const isReview = c.type === 'review';
+  const PURCHASE_BADGE = getPurchaseBadge(t);
   const badge = PURCHASE_BADGE[c.purchaseVerification];
 
   const submitReply = async () => {
@@ -163,7 +168,7 @@ const CommentRow = ({
       setReplyBody('');
       setShowReplyBox(false);
     } catch (err) {
-      setReplyError(err?.response?.data?.message || 'Could not send your reply — try again.');
+      setReplyError(err?.response?.data?.message || t('comment_section.reply_error'));
     } finally {
       setSending(false);
     }
@@ -186,13 +191,13 @@ const CommentRow = ({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>
-              {c.author?.storeName || c.author?.name || 'User'}
+              {c.author?.storeName || c.author?.name || t('comment_section.user_fallback')}
             </span>
             {c.type === 'question' && (
               <span style={{ fontSize: 9, fontWeight: 700, color: '#7C3AED', backgroundColor: '#F5F3FF',
-                padding: '2px 8px', borderRadius: 100 }}>❓ Question</span>
+                padding: '2px 8px', borderRadius: 100 }}>{t('comment_section.question_badge')}</span>
             )}
-            <span style={{ fontSize: 10, color: GR }}>{ago(c.createdAt)}</span>
+            <span style={{ fontSize: 10, color: GR }}>{ago(c.createdAt, t)}</span>
           </div>
 
           {isReview && (
@@ -216,14 +221,14 @@ const CommentRow = ({
                 style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex',
                   alignItems: 'center', gap: 4, color: c.helpfulByMe ? B : GR,
                   fontSize: 11, fontWeight: 700, padding: 0 }}>
-                👍 Helpful{c.helpfulCount > 0 ? ` (${c.helpfulCount})` : ''}
+                {t('comment_section.helpful_button')}{c.helpfulCount > 0 ? t('comment_section.helpful_count_suffix', { count: c.helpfulCount }) : ''}
               </button>
             )}
             {isSeller && !c.replies?.length && c.type !== 'seller_reply' && (
               <button onClick={() => { if (!isLoggedIn) { onNavigate('PublicLogin'); return; } setShowReplyBox(s => !s); }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: B,
                   fontSize: 11, fontWeight: 700, padding: 0 }}>
-                Reply as seller
+                {t('comment_section.reply_as_seller')}
               </button>
             )}
           </div>
@@ -232,13 +237,13 @@ const CommentRow = ({
             <div>
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                 <input value={replyBody} onChange={e => setReplyBody(e.target.value)}
-                  placeholder="Write your reply..."
+                  placeholder={t('comment_section.reply_placeholder')}
                   style={{ flex: 1, padding: '8px 12px', borderRadius: 10, border: '1px solid #E2E8F0',
                     fontSize: 12, outline: 'none', fontFamily: 'inherit' }} />
                 <button onClick={submitReply} disabled={sending || !replyBody.trim()}
                   style={{ backgroundColor: B, color: WH, border: 'none', borderRadius: 10,
                     padding: '0 14px', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                  {sending ? '...' : 'Send'}
+                  {sending ? '...' : t('comment_section.send_button')}
                 </button>
               </div>
               {replyError && (
@@ -256,11 +261,11 @@ const CommentRow = ({
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                   <span style={{ fontSize: 12, fontWeight: 800, color: B }}>
-                    {r.author?.storeName || r.author?.name || 'Seller'}
+                    {r.author?.storeName || r.author?.name || t('comment_section.seller_fallback')}
                   </span>
                   <span style={{ fontSize: 9, fontWeight: 700, color: WH, backgroundColor: B,
-                    padding: '1px 7px', borderRadius: 100 }}>Seller</span>
-                  <span style={{ fontSize: 10, color: GR }}>{ago(r.createdAt)}</span>
+                    padding: '1px 7px', borderRadius: 100 }}>{t('comment_section.seller_badge')}</span>
+                  <span style={{ fontSize: 10, color: GR }}>{ago(r.createdAt, t)}</span>
                 </div>
                 <div style={{ fontSize: 12, color: DK, lineHeight: 1.5 }}>{r.body}</div>
               </div>
@@ -274,6 +279,7 @@ const CommentRow = ({
 
 // ── Composer — Comment / Question / Review toggle ──────────────────────────
 const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, onPosted }) => {
+  const { t } = useTranslation();
   const [mode, setMode] = useState('comment'); // 'comment' | 'question' | 'review'
   const [body, setBody] = useState('');
   const [rating, setRating] = useState(0);
@@ -303,7 +309,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
         }
       }
     } catch (err) {
-      setError(err?.response?.data?.message || 'Could not upload that file — try again.');
+      setError(err?.response?.data?.message || t('comment_section.upload_failed'));
     }
     finally { setUploading(false); }
   };
@@ -332,7 +338,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
       // error, a bad query, anything) failed completely silently, which is
       // very likely why a submitted review "didn't display": it may never
       // have saved, with zero feedback that anything went wrong.
-      setError(err?.response?.data?.message || 'Could not post — please try again.');
+      setError(err?.response?.data?.message || t('comment_section.post_failed'));
     }
     finally { setSending(false); }
   };
@@ -341,9 +347,9 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
     <div style={{ backgroundColor: WH, borderTop: '1px solid #F1F5F9', padding: '12px 14px' }}>
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         {[
-          { key: 'comment',  label: '💬 Comment' },
-          { key: 'question', label: '❓ Ask'      },
-          { key: 'review',   label: '⭐ Review'    },
+          { key: 'comment',  label: t('comment_section.mode_comment') },
+          { key: 'question', label: t('comment_section.mode_question')      },
+          { key: 'review',   label: t('comment_section.mode_review')    },
         ].map(m => (
           <button key={m.key} onClick={() => { setMode(m.key); setError(''); }}
             style={{ flex: 1, padding: '7px 0', borderRadius: 10, cursor: 'pointer',
@@ -362,15 +368,15 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
             fontSize: 11, color: GR, cursor: 'pointer' }}>
             <input type="checkbox" checked={offlineClaim}
               onChange={e => setOfflineClaim(e.target.checked)} />
-            I bought this outside Kentexa
+            {t('comment_section.offline_claim_label')}
           </label>
         </div>
       )}
 
       <textarea value={body} onChange={e => setBody(e.target.value)}
-        placeholder={mode === 'review' ? 'Share your experience...'
-          : mode === 'question' ? 'Ask the seller a question...'
-          : 'Write a comment...'}
+        placeholder={mode === 'review' ? t('comment_section.placeholder_review')
+          : mode === 'question' ? t('comment_section.placeholder_question')
+          : t('comment_section.placeholder_comment')}
         style={{ width: '100%', minHeight: 60, padding: '10px 12px', borderRadius: 10,
           border: '1px solid #E2E8F0', fontSize: 13, outline: 'none', resize: 'vertical',
           fontFamily: 'inherit', boxSizing: 'border-box' }} />
@@ -411,7 +417,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
           style={{ backgroundColor: canSubmit ? B : '#E2E8F0', color: canSubmit ? WH : GR,
             border: 'none', borderRadius: 10, padding: '9px 22px', cursor: canSubmit ? 'pointer' : 'default',
             fontSize: 12, fontWeight: 800 }}>
-          {sending ? 'Posting...' : mode === 'review' ? 'Post Review' : mode === 'question' ? 'Ask' : 'Post'}
+          {sending ? t('comment_section.posting') : mode === 'review' ? t('comment_section.post_review_button') : mode === 'question' ? t('comment_section.ask_button') : t('comment_section.post_button')}
         </button>
       </div>
     </div>
@@ -423,6 +429,8 @@ const CommerceCommentSection = ({
   entityType, entityId, entityTitle = 'this listing', sellerId,
   isLoggedIn, currentUser, onNavigate,
 }) => {
+  const { t } = useTranslation();
+  const FILTERS = getFilters(t);
   const [filter,  setFilter]  = useState('all');
   const [pinned,  setPinned]  = useState(null);
   const [items,   setItems]   = useState([]);
@@ -444,10 +452,10 @@ const CommerceCommentSection = ({
       setItems(listRes.data?.items || []);
       setSummary(summaryRes.data || null);
     } catch (err) {
-      setLoadError(err?.response?.data?.message || 'Could not load comments — try again.');
+      setLoadError(err?.response?.data?.message || t('comment_section.load_failed'));
     }
     finally { setLoading(false); }
-  }, [entityType, entityId, filter]);
+  }, [entityType, entityId, filter, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -503,17 +511,17 @@ const CommerceCommentSection = ({
       {/* List */}
       <div>
         {loading ? (
-          <div style={{ padding: 30, textAlign: 'center', color: GR, fontSize: 12 }}>Loading...</div>
+          <div style={{ padding: 30, textAlign: 'center', color: GR, fontSize: 12 }}>{t('comment_section.loading')}</div>
         ) : loadError ? (
           <div style={{ padding: '30px 20px', textAlign: 'center', color: RED, fontSize: 12 }}>
             ⚠️ {loadError}
           </div>
         ) : items.length === 0 ? (
           <div style={{ padding: '30px 20px', textAlign: 'center', color: GR, fontSize: 12 }}>
-            {filter === 'reviews' ? 'No reviews yet — be the first to share your experience.'
-              : filter === 'questions' ? 'No questions yet — ask the seller anything.'
-              : filter === 'media' ? 'No photos or videos yet.'
-              : 'No comments yet. Start the conversation.'}
+            {filter === 'reviews' ? t('comment_section.no_reviews')
+              : filter === 'questions' ? t('comment_section.no_questions')
+              : filter === 'media' ? t('comment_section.no_media')
+              : t('comment_section.no_comments')}
           </div>
         ) : (
           items.map(c => (

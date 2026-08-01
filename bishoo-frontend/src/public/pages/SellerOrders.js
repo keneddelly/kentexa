@@ -1,87 +1,92 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 // eslint-disable-next-line no-unused-vars
 import { buildCreationMessage, buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whatsapp-link';
 
+const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
+
 // Shipping methods with their requirements
-const SHIPPING_METHODS = [
+const getShippingMethods = (t) => [
   {
     key:      'agent',
     icon:     '🤝',
-    label:    'KenteXa Super Agent',
-    desc:     'Peleka dukani kwa Super Agent — itafuatiliwa kiotomatiki',
+    label:    t('seller_orders.method_agent'),
+    desc:     t('seller_orders.method_agent_desc'),
     needsTracking: false,
     needsReceipt:  true,
     trackingLabel: null,
     trackingPlaceholder: null,
     courierLabel: null,
-    proofNote: 'Piga picha ya risiti utakayopewa na Super Agent',
+    proofNote: t('seller_orders.method_agent_proof'),
   },
   {
     key:      'bus',
     icon:     '🚌',
-    label:    'Basi (Kilimanjaro, Scandinavian...)',
-    desc:     'Tuma kwa kampuni ya basi',
+    label:    t('seller_orders.method_bus'),
+    desc:     t('seller_orders.method_bus_desc'),
     needsTracking: true,
     needsReceipt:  true,
-    trackingLabel: 'Namba ya Tiketi ya Basi (Optional)',
+    trackingLabel: t('seller_orders.method_bus_tracking_label'),
     trackingPlaceholder: 'e.g. KIL-001234',
-    courierLabel: 'Jina la Kampuni ya Basi *',
-    proofNote: 'Piga picha ya tiketi ya basi',
+    courierLabel: t('seller_orders.method_bus_courier_label'),
+    proofNote: t('seller_orders.method_bus_proof'),
   },
   {
     key:      'courier',
     icon:     '📦',
-    label:    'Courier (DHL, EMS etc)',
-    desc:     'Send via professional courier service',
+    label:    t('seller_orders.method_courier'),
+    desc:     t('seller_orders.method_courier_desc'),
     needsTracking: true,
     needsReceipt:  true,
-    trackingLabel: 'Tracking Number *',
+    trackingLabel: t('seller_orders.method_courier_tracking_label'),
     trackingPlaceholder: 'e.g. DHL1234567890',
-    courierLabel: 'Courier Name *',
-    proofNote: 'Upload receipt from courier',
+    courierLabel: t('seller_orders.method_courier_courier_label'),
+    proofNote: t('seller_orders.method_courier_proof'),
   },
   {
     key:      'boda',
     icon:     '🏍️',
-    label:    'Boda Boda',
-    desc:     'Local motorcycle delivery — no tracking needed',
+    label:    t('seller_orders.method_boda'),
+    desc:     t('seller_orders.method_boda_desc'),
     needsTracking: false,
     needsReceipt:  false,
     trackingLabel: null,
     trackingPlaceholder: null,
-    courierLabel: "Rider's Name & Phone (optional)",
-    proofNote: 'Buyer will confirm receipt when delivered',
+    courierLabel: t('seller_orders.method_boda_courier_label'),
+    proofNote: t('seller_orders.method_boda_proof'),
   },
   {
     key:      'personal',
     icon:     '🚶',
-    label:    'Personal Delivery',
-    desc:     'You deliver it yourself',
+    label:    t('seller_orders.method_personal'),
+    desc:     t('seller_orders.method_personal_desc'),
     needsTracking: false,
     needsReceipt:  false,
     trackingLabel: null,
     trackingPlaceholder: null,
     courierLabel: null,
-    proofNote: 'Buyer will confirm receipt when you deliver',
+    proofNote: t('seller_orders.method_personal_proof'),
   },
   {
     key:      'kentexa_delivery',
     icon:     '🚐',
-    label:    'KenteXa Van Delivery',
-    desc:     'Dar es Salaam batch delivery — Mbagala, Mbezi, Bunju',
+    label:    t('seller_orders.method_van'),
+    desc:     t('seller_orders.method_van_desc'),
     needsTracking: false,
     needsReceipt:  false,
     trackingLabel: null,
     trackingPlaceholder: null,
     courierLabel: null,
-    proofNote: "Assign to today's van batch — buyer selected this at checkout",
+    proofNote: t('seller_orders.method_van_proof'),
     isBatch: true,
   },
 ];
 
 const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'en-GB';
   const highlightRef = React.useRef(null);
   const [orders, setOrders]               = useState([]);
   const [loading, setLoading]             = useState(true);
@@ -122,7 +127,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       setLoading(true);
       const res = await api.get('/seller/dashboard');
       setOrders(res.data.recentOrders || []);
-    } catch { setError('Failed to load orders'); }
+    } catch { setError(t('seller_orders.load_failed')); }
     finally { setLoading(false); }
   };
 
@@ -130,7 +135,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
     if (!transportModal) return;
     // Validate required fields
     if (!transportForm.busTicketNumber?.trim() && !transportForm.courierName?.trim()) {
-      setError('Weka namba ya tiketi ya basi AU jina la courier'); return;
+      setError(t('seller_orders.transport_validation_error')); return;
     }
     setSavingTransport(true);
     try {
@@ -145,7 +150,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       ));
       fetchOrders();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kuhifadhi');
+      setError(err?.response?.data?.message || t('seller_orders.save_failed'));
     } finally { setSavingTransport(false); }
   };
 
@@ -154,9 +159,9 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
     try {
       const res = await api.post(`/orders/${orderId}/send-confirmation`);
       const url = res.data?.confirmationUrl;
-      setMessage(`✅ Link imetumwa kwa mnunuzi!${url ? ' ' + url : ''}`);
+      setMessage(`${t('seller_orders.link_sent')}${url ? ' ' + url : ''}`);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kutuma link');
+      setError(err?.response?.data?.message || t('seller_orders.link_send_failed'));
     } finally {
       setConfirmLoading(p => ({ ...p, [orderId]: false }));
     }
@@ -192,10 +197,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
         ...prev,
         [field === 'product' ? 'shippingProductImage' : 'shippingReceiptImage']: url,
       }));
-    } catch { setError('Image upload failed. Try again.'); }
+    } catch { setError(t('seller_orders.image_upload_failed')); }
     finally { setUploading(prev => ({ ...prev, [field]: false })); }
   };
 
+  const SHIPPING_METHODS = getShippingMethods(t);
   const selectedMethod = SHIPPING_METHODS.find(m => m.key === shippingMethodKey) || SHIPPING_METHODS[0];
 
   const handleChooseMethod = async () => {
@@ -225,10 +231,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
     // Validate based on method
     // trackingNumber is KTX-ORD-{id} — already set. External ref (bus ticket etc) is optional
     if (selectedMethod.courierLabel && selectedMethod.needsTracking && !shipForm.courierName.trim()) {
-      setError(selectedMethod.courierLabel?.replace(' *', '') + ' is required'); return;
+      setError(selectedMethod.courierLabel?.replace(' *', '') + ' ' + t('seller_orders.field_required_suffix')); return;
     }
     if (selectedMethod.needsReceipt && !shipForm.shippingProductImage) {
-      setError('Product photo is required'); return;
+      setError(t('seller_orders.product_photo_required')); return;
     }
 
     try {
@@ -258,14 +264,14 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       // (status is now 'preparing' after step 1, so ship endpoint accepts it)
       if (!selectedMethod.needsTracking) {
         await api.patch(`/orders/${selectedOrder.id}/ship`);
-        setMessage(`✅ Order #${selectedOrder.id} shipped via ${selectedMethod.label}. Buyer notified — awaiting their confirmation.`);
+        setMessage(t('seller_orders.shipped_via_msg', { id: selectedOrder.id, method: selectedMethod.label }));
       } else {
-        setMessage(`✅ Proof saved for Order #${selectedOrder.id}. Now click "Mark as Shipped" to notify the buyer.`);
+        setMessage(t('seller_orders.proof_saved_msg', { id: selectedOrder.id }));
       }
       setShowModal(false);
       fetchOrders();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to save. Make sure the order is paid.');
+      setError(err?.response?.data?.message || t('seller_orders.save_failed_paid_hint'));
     } finally { setActionLoading(false); }
   };
 
@@ -273,10 +279,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
     try {
       setActionLoading(true);
       await api.patch(`/orders/${orderId}/ship`);
-      setMessage(`✅ Order #${orderId} marked as shipped! Buyer notified.`);
+      setMessage(t('seller_orders.marked_shipped_msg', { id: orderId }));
       fetchOrders();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to mark shipped');
+      setError(err?.response?.data?.message || t('seller_orders.mark_shipped_failed'));
     } finally { setActionLoading(false); }
   };
 
@@ -306,11 +312,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <BackBar onBack={() => onNavigate('back')} title="My Orders"
+      <BackBar onBack={() => onNavigate('back')} title={t('seller_orders.title')}
         right={
           <button onClick={fetchOrders}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: '#1d4ed8', fontWeight: 700 }}>
-            🔄 Refresh
+            {t('seller_orders.refresh')}
           </button>
         }
       />
@@ -318,7 +324,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       <div style={{ padding: '8px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
         <button onClick={() => onNavigate('OfflineIntercityOrder')}
           style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-          ➕ Unda Agizo kwa Mteja
+          {t('seller_orders.create_manual_order')}
         </button>
       </div>
 
@@ -342,8 +348,8 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           <div style={{ backgroundColor: '#fef9c3', border: '2px solid #fcd34d', borderRadius: 12, padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 24 }}>📦</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#92400e' }}>{needsShipping} order{needsShipping > 1 ? 's' : ''} waiting to be shipped!</div>
-              <div style={{ fontSize: 12, color: '#92400e' }}>Tap "Start Shipping" to begin</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#92400e' }}>{t('seller_orders.needs_shipping_alert', { count: needsShipping })}</div>
+              <div style={{ fontSize: 12, color: '#92400e' }}>{t('seller_orders.needs_shipping_hint')}</div>
             </div>
           </div>
         )}
@@ -351,10 +357,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
         {/* Stats — 2 cols on mobile */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
           {[
-            { label: 'Total Orders',   value: orders.length,                                        icon: '🛒', bg: '#ede9fe', color: '#7c3aed' },
-            { label: 'Need Shipping',  value: needsShipping,                                         icon: '📦', bg: '#fef9c3', color: '#ca8a04' },
-            { label: 'Completed',      value: orders.filter(o => o.status === 'completed').length,   icon: '✅', bg: '#dcfce7', color: '#16a34a' },
-            { label: 'Released',       value: `TZS ${totalEarnings.toLocaleString()}`,               icon: '💰', bg: '#dbeafe', color: '#2563eb' },
+            { label: t('seller_orders.stat_total_orders'),   value: orders.length,                                        icon: '🛒', bg: '#ede9fe', color: '#7c3aed' },
+            { label: t('seller_orders.stat_need_shipping'),  value: needsShipping,                                         icon: '📦', bg: '#fef9c3', color: '#ca8a04' },
+            { label: t('seller_orders.stat_completed'),      value: orders.filter(o => o.status === 'completed').length,   icon: '✅', bg: '#dcfce7', color: '#16a34a' },
+            { label: t('seller_orders.stat_released'),       value: `TZS ${totalEarnings.toLocaleString()}`,               icon: '💰', bg: '#dbeafe', color: '#2563eb' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12, padding: '14px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 22 }}>{s.icon}</div>
@@ -369,18 +375,18 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           {['all','paid','preparing','in_transit','completed','disputed'].map(s => (
             <button key={s} onClick={() => setFilter(s)}
               style={{ padding: '7px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, flexShrink: 0, backgroundColor: filter === s ? '#1d4ed8' : '#fff', color: filter === s ? '#fff' : '#64748b', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-              {s === 'all' ? 'All' : s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              {t(`seller_orders.${s === 'all' ? 'filter_all' : 'status_' + s}`)}
             </button>
           ))}
         </div>
 
         {/* Orders list */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>⏳ Loading...</div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>{t('seller_orders.loading')}</div>
         ) : filteredOrders.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🛒</div>
-            <p style={{ color: '#64748b' }}>No orders found</p>
+            <p style={{ color: '#64748b' }}>{t('seller_orders.no_orders_found')}</p>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -398,17 +404,17 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 }}>
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>
-                        {order.source === 'seller_shipment' ? '📦 Shipment' :
-                         order.source === 'offline' ? '🤝 Mkono' :
-                         order.source === 'offline_intercity' ? '🚌 Mkoa' : 'Order'} #{order.id}
+                        {order.source === 'seller_shipment' ? t('seller_orders.order_type_shipment') :
+                         order.source === 'offline' ? t('seller_orders.order_type_offline') :
+                         order.source === 'offline_intercity' ? t('seller_orders.order_type_intercity') : t('seller_orders.order_type_default')} #{order.id}
                         {order.trackingNumber && (
                           <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#1d4ed8', marginTop: 2 }}>
                             🔗 {order.trackingNumber}
                           </div>
                         )}
-                        {isPaid && <span style={{ marginLeft: 6, fontSize: 10, backgroundColor: '#fef9c3', color: '#ca8a04', padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>⚡ SHIP NOW</span>}
+                        {isPaid && <span style={{ marginLeft: 6, fontSize: 10, backgroundColor: '#fef9c3', color: '#ca8a04', padding: '2px 7px', borderRadius: 10, fontWeight: 700 }}>{t('seller_orders.ship_now_badge')}</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{new Date(order.createdAt).toLocaleDateString()}</div>
+                      <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{new Date(order.createdAt).toLocaleDateString(dateLocale)}</div>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, flexShrink: 0, backgroundColor: sc.backgroundColor, color: sc.color }}>
                       {order.status?.replace(/_/g, ' ').toUpperCase()}
@@ -418,13 +424,13 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   {/* Product + Buyer */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                     <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10 }}>
-                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>PRODUCT</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.product_label')}</div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.product?.name || '—'}</div>
-                      <div style={{ fontSize: 11, color: '#64748b' }}>Qty: {order.quantity}</div>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>{t('seller_orders.qty_label', { qty: order.quantity })}</div>
                       <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginTop: 2 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>
                     </div>
                     <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10 }}>
-                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>DELIVER TO</div>
+                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.deliver_to_label')}</div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.recipientName || order.buyer?.name || '—'}</div>
                       <div style={{ fontSize: 11, color: '#64748b' }}>📞 {order.phone || '—'}</div>
                       <div style={{ fontSize: 11, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {order.deliveryAddress || '—'}</div>
@@ -434,30 +440,30 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   {/* Fee breakdown — seller sees exactly what buyer paid and what they receive */}
                   <div style={{ backgroundColor: '#f0fdf4', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ color: '#64748b' }}>Bidhaa ({order.quantity}x)</span>
+                      <span style={{ color: '#64748b' }}>{t('seller_orders.fee_product', { qty: order.quantity })}</span>
                       <span style={{ color: '#1e293b', fontWeight: 700 }}>TZS {Number(order.baseAmount || (Number(order.totalAmount) - Number(order.deliveryFeeAmount || 0))).toLocaleString()}</span>
                     </div>
                     {Number(order.deliveryFeeAmount || 0) > 0 && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
                         <span style={{ color: '#64748b' }}>
-                          {order.shippingMethod === 'boda' ? '🛵 Ada ya Boda' :
-                           order.shippingMethod === 'kentexa_delivery' ? '🚐 Ada ya Van' :
-                           order.shippingMethod === 'agent' ? '🏢 Ada ya Agent' :
-                           '🚚 Ada ya Usafirishaji'}
+                          {order.shippingMethod === 'boda' ? t('seller_orders.fee_delivery_boda') :
+                           order.shippingMethod === 'kentexa_delivery' ? t('seller_orders.fee_delivery_van') :
+                           order.shippingMethod === 'agent' ? t('seller_orders.fee_delivery_agent') :
+                           t('seller_orders.fee_delivery_generic')}
                         </span>
                         <span style={{ color: '#475569' }}>TZS {Number(order.deliveryFeeAmount).toLocaleString()}</span>
                       </div>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-                      <span style={{ color: '#64748b' }}>Jumla Iliyolipwa</span>
+                      <span style={{ color: '#64748b' }}>{t('seller_orders.fee_total_paid')}</span>
                       <span style={{ color: '#1e293b', fontWeight: 800 }}>TZS {Number(order.totalAmount).toLocaleString()}</span>
                     </div>
                     <div style={{ borderTop: '1px solid #bbf7d0', paddingTop: 6, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: '#dc2626' }}>Ada ya KenteXa</span>
+                      <span style={{ color: '#dc2626' }}>{t('seller_orders.fee_kentexa')}</span>
                       <span style={{ color: '#dc2626' }}>-TZS {Number(order.platformFeeAmount || 0).toLocaleString()}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                      <span style={{ color: '#16a34a', fontWeight: 800 }}>Utapata</span>
+                      <span style={{ color: '#16a34a', fontWeight: 800 }}>{t('seller_orders.fee_you_receive')}</span>
                       <span style={{ color: '#16a34a', fontWeight: 900, fontSize: 13 }}>TZS {Number(order.sellerAmount || 0).toLocaleString()}</span>
                     </div>
                   </div>
@@ -466,7 +472,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   {order.trackingNumber && (
                     <div style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 12 }}>
                       <div style={{ fontWeight: 700, color: '#1d4ed8', marginBottom: 3 }}>
-                        📦 {order.courierName || 'Shipping'}: {order.trackingNumber}
+                        📦 {order.courierName || t('seller_orders.shipping_fallback')}: {order.trackingNumber}
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
                         {order.shippingProductImage && <img src={order.shippingProductImage} alt="item" style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover' }} />}
@@ -478,7 +484,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   {/* Dispute */}
                   {order.status === 'disputed' && (
                     <div style={{ backgroundColor: '#fef2f2', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#dc2626', fontWeight: 600 }}>
-                      ⚠️ Dispute raised: {order.disputeReason}
+                      {t('seller_orders.dispute_raised', { reason: order.disputeReason })}
                     </div>
                   )}
 
@@ -487,25 +493,25 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                     {isPaid && order.source !== 'seller_shipment' && (
                       <button onClick={() => openShipModal(order)}
                         style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#1e293b', border: 'none', padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 900, boxShadow: '0 4px 12px rgba(247,151,30,0.4)' }}>
-                        🚀 Start Shipping
+                        {t('seller_orders.start_shipping_button')}
                       </button>
                     )}
                     {/* KenteXa Van delivery — show assign button when paid/preparing and not yet in batch */}
                     {order.shippingMethod === 'kentexa_delivery' && ['paid','preparing'].includes(order.status) && !order.trackingNumber && (
                       <div style={{ marginBottom: 6 }}>
                         <div style={{ backgroundColor: '#ede9fe', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>
-                          🚐 Mnunuzi alichagua KenteXa Van — pangilia kwenye van ya leo
+                          {t('seller_orders.van_chosen_note')}
                         </div>
                         <button onClick={() => onNavigate(`BatchHandoff-${order.id}`)}
                           style={{ width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                          🚐 Pangilia kwenye Van ya Leo
+                          {t('seller_orders.assign_van_button')}
                         </button>
                       </div>
                     )}
                     {/* KenteXa Van — already assigned to batch */}
                     {order.shippingMethod === 'kentexa_delivery' && order.trackingNumber && (
                       <div style={{ backgroundColor: '#dcfce7', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 11, color: '#16a34a', fontWeight: 700 }}>
-                        ✅ Imepangiliwa kwenye Van — {order.trackingNumber}
+                        {t('seller_orders.van_assigned_note', { tracking: order.trackingNumber })}
                       </div>
                     )}
                     {/* Notify buyer via WhatsApp — appears as soon as shipping has started (tracking number exists) */}
@@ -531,7 +537,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         })}
                         target="_blank" rel="noreferrer"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#25D366', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800, textDecoration: 'none' }}>
-                        💬 Mjulishe Mteja
+                        {t('seller_orders.notify_buyer_whatsapp')}
                       </a>
                     )}
                     {/* Transport details message — only when ticket/ref available */}
@@ -551,7 +557,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                           backgroundColor: '#1d4ed8', color: '#fff', borderRadius: 7,
                           textDecoration: 'none', fontSize: 11, fontWeight: 700,
                           marginTop: 6 }}>
-                        🚌 Tuma Maelezo ya Basi
+                        {t('seller_orders.send_transport_details')}
                       </a>
                     )}
 
@@ -564,14 +570,14 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                           backgroundColor: confirmLoading[order.id] ? '#f1f5f9' : '#f0fdf4',
                           color: '#16a34a', border: '2px solid #86efac',
                           borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                        {confirmLoading[order.id] ? '⏳ Inatuma...' : '📲 Tuma Link ya Kuthibitisha'}
+                        {confirmLoading[order.id] ? t('seller_orders.sending') : t('seller_orders.send_confirm_link_button')}
                       </button>
                     )}
 
                     {isPreparing && !order.trackingNumber && order.source !== 'seller_shipment' && order.shippingMethod !== 'kentexa_delivery' && (
                       <button onClick={() => openShipModal(order)}
                         style={{ background: 'linear-gradient(135deg,#f7971e,#ffd200)', color: '#1e293b', border: 'none', padding: '10px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                        📸 Upload Proof
+                        {t('seller_orders.upload_proof_button')}
                       </button>
                     )}
                     {order.source === 'seller_shipment' && order.trackingNumber && !['in_transit','shipped','delivered','completed'].includes(order.status) && (
@@ -580,18 +586,18 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         setTransportForm({ busCompany: order.busCompany || '', busTicketNumber: '', busDeparture: '', courierName: order.courierName || '', courierTrackingRef: '' });
                       }}
                         style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                        📋 Weka Maelezo ya Usafiri
+                        {t('seller_orders.transport_details_button')}
                       </button>
                     )}
                     {isPreparing && order.trackingNumber && (
                       <button onClick={() => handleMarkShipped(order.id)} disabled={actionLoading}
                         style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                        {actionLoading ? '⏳' : '🚚 Mark as Shipped'}
+                        {actionLoading ? '⏳' : t('seller_orders.mark_shipped_button')}
                       </button>
                     )}
                     <button onClick={() => onNavigate(`TrackParcel-KTX-ORD-order.id`)}
                       style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                      👁 Track
+                      {t('seller_orders.track_button')}
                     </button>
                   </div>
                 </div>
@@ -610,29 +616,28 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
             {/* ── STEP 1: Choose Method ── */}
             {modalStep === 'method' && (
               <>
-                <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 4px' }}>🚀 Tuma Agizo</h2>
+                <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 4px' }}>{t('seller_orders.ship_order_title')}</h2>
                 <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>
-                  Agizo #{selectedOrder.id} · Peleka: <strong>{selectedOrder.deliveryAddress || '—'}</strong>
+                  {t('seller_orders.order_hash_deliver_to', { id: selectedOrder.id, address: selectedOrder.deliveryAddress || '—' })}
                 </p>
 
                 {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 12px', borderRadius: 8, marginBottom: 12, fontSize: 12 }}>❌ {error}</div>}
 
                 {/* Show buyer's chosen method prominently — seller doesn't re-choose */}
                 <div style={{ backgroundColor: '#dbeafe', border: '2px solid #93c5fd', borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>📦 NJIA ALIYOCHAGUA MNUNUZI</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 4 }}>{t('seller_orders.buyer_chosen_method_label')}</div>
                   <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
-                    {selectedOrder.shippingMethod === 'boda' ? '🛵 Boda Boda' :
-                     selectedOrder.shippingMethod === 'kentexa_delivery' ? '🚐 Van ya KenteXa (Dar)' :
-                     selectedOrder.shippingMethod === 'agent' ? '🏢 KenteXa Super Agent (Intercity)' :
-                     selectedOrder.shippingMethod === 'bus' ? '🚌 Basi la Abiria' :
-                     selectedOrder.shippingMethod === 'courier' ? '📦 Courier' :
-                     selectedOrder.shippingMethod === 'personal' ? '🚶 Personal Delivery' :
+                    {selectedOrder.shippingMethod === 'boda' ? t('seller_orders.method_name_boda') :
+                     selectedOrder.shippingMethod === 'kentexa_delivery' ? t('seller_orders.method_name_van_dar') :
+                     selectedOrder.shippingMethod === 'agent' ? t('seller_orders.method_name_agent_intercity') :
+                     selectedOrder.shippingMethod === 'bus' ? t('seller_orders.method_name_bus') :
+                     selectedOrder.shippingMethod === 'courier' ? t('seller_orders.method_name_courier') :
+                     selectedOrder.shippingMethod === 'personal' ? t('seller_orders.method_name_personal') :
                      selectedOrder.shippingMethod || '—'}
                   </div>
                   {Number(selectedOrder.deliveryFeeAmount || 0) > 0 && (
                     <div style={{ fontSize: 12, color: '#1d4ed8', marginTop: 4 }}>
-                      Ada ya usafirishaji: <strong>TZS {Number(selectedOrder.deliveryFeeAmount).toLocaleString()}</strong>
-                      {' '}(mnunuzi alikwishalipa)
+                      {t('seller_orders.delivery_fee_paid_note', { amount: `TZS ${Number(selectedOrder.deliveryFeeAmount).toLocaleString()}` })}
                     </div>
                   )}
                 </div>
@@ -660,7 +665,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
                 {/* Show delivery address for context */}
                 <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12 }}>
-                  <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>📍 Delivering to:</div>
+                  <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>{t('seller_orders.delivering_to_label')}</div>
                   <div style={{ color: '#475569' }}>{selectedOrder.recipientName || selectedOrder.buyer?.name || '—'}</div>
                   <div style={{ color: '#475569' }}>📞 {selectedOrder.phone || '—'}</div>
                   <div style={{ color: '#475569' }}>{selectedOrder.deliveryAddress || '—'}</div>
@@ -668,10 +673,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setShowModal(false)}
-                    style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Cancel</button>
+                    style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('seller_orders.cancel_button')}</button>
                   <button onClick={handleChooseMethod}
                     style={{ flex: 2, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 13 }}>
-                    Continue →
+                    {t('seller_orders.continue_button')}
                   </button>
                 </div>
               </>
@@ -682,23 +687,23 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                   <button onClick={() => setModalStep('method')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 20 }}>←</button>
-                  <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: 0 }}>🤝 Drop Off at Super Agent</h2>
+                  <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: 0 }}>{t('seller_orders.dropoff_title')}</h2>
                 </div>
 
                 {/* Order number to give agent */}
                 <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: 12, padding: '14px 16px', marginBottom: 14, textAlign: 'center' }}>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 4 }}>SHOW THIS TO THE SUPER AGENT</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.show_to_agent')}</div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', fontFamily: 'monospace' }}>#{selectedOrder.id}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>Agent will scan and generate tracking number</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 4 }}>{t('seller_orders.agent_scan_note')}</div>
                 </div>
 
                 {/* ✅ Hub selection list — seller picks before continuing */}
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>Select a hub near you:</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>{t('seller_orders.select_hub_label')}</div>
                 {loadingHubs ? (
-                  <div style={{ textAlign: 'center', padding: 20, color: '#64748b', fontSize: 13 }}>⏳ Loading hubs...</div>
+                  <div style={{ textAlign: 'center', padding: 20, color: '#64748b', fontSize: 13 }}>{t('seller_orders.loading_hubs')}</div>
                 ) : superAgentHubs.length === 0 ? (
                   <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 14, fontSize: 13, color: '#92400e', marginBottom: 14 }}>
-                    ⚠️ No Super Agent hubs available right now. Contact KenteXa support at support@kentexa.com or choose a different shipping method.
+                    {t('seller_orders.no_hubs_msg')}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14, maxHeight: 260, overflowY: 'auto' }}>
@@ -719,15 +724,15 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 )}
 
                 <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#92400e' }}>
-                  📦 After dropping off, upload the receipt given by the agent as proof.
+                  {t('seller_orders.after_dropoff_note')}
                 </div>
 
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setModalStep('method')}
-                    style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>← Back</button>
+                    style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('seller_orders.back_button')}</button>
                   <button onClick={() => { setModalStep('proof'); setError(''); }} disabled={!selectedHub}
                     style={{ flex: 2, background: !selectedHub ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: !selectedHub ? '#94a3b8' : '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: !selectedHub ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
-                    {selectedHub ? "✅ Drop at this hub → Upload Proof" : "Select a hub first"}
+                    {selectedHub ? t('seller_orders.drop_at_hub_button') : t('seller_orders.select_hub_first')}
                   </button>
                 </div>
               </>
@@ -743,7 +748,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                     <h2 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: 0 }}>
                       {selectedMethod.icon} {selectedMethod.label}
                     </h2>
-                    <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>Order #{selectedOrder.id}</p>
+                    <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>{t('seller_orders.order_hash', { id: selectedOrder.id })}</p>
                   </div>
                 </div>
 
@@ -757,11 +762,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 {/* Tracking number — only if needed */}
                 {/* Permanent tracking number — always show, never editable */}
                 <div style={{ backgroundColor: '#0f172a', borderRadius: 12, padding: '12px 16px', marginBottom: 14 }}>
-                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>NAMBARI YA UFUATILIAJI (HAIBADILIKI)</div>
+                  <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, letterSpacing: 2, marginBottom: 4 }}>{t('seller_orders.tracking_number_permanent_label')}</div>
                   <div style={{ fontSize: 18, fontWeight: 900, color: '#f7c948', fontFamily: 'monospace' }}>
                     {selectedOrder?.trackingNumber || `KTX-ORD-${selectedOrder?.id}`}
                   </div>
-                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>Nambari hii itatumwa kwa mnunuzi na itaonekana kwenye ukurasa wa ufuatiliaji</div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{t('seller_orders.tracking_number_note')}</div>
                 </div>
 
                 {/* External ref — only for bus/courier */}
@@ -779,7 +784,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{selectedMethod.courierLabel}</label>
                     <input type="text"
-                      placeholder={selectedMethod.key === 'bus' ? "e.g. Kilimanjaro, Scandinavian, Fresh Ya Bus, au nyingine..." : selectedMethod.key === 'boda' ? "e.g. Juma Rider 0712345678" : selectedMethod.key === 'bus' ? "e.g. Kilimanjaro Express" : "e.g. DHL Tanzania"}
+                      placeholder={selectedMethod.key === 'bus' ? t('seller_orders.courier_placeholder_bus') : selectedMethod.key === 'boda' ? t('seller_orders.courier_placeholder_boda') : t('seller_orders.courier_placeholder_generic')}
                       value={shipForm.courierName} onChange={e => setShipForm({ ...shipForm, courierName: e.target.value })}
                       style={inputStyle} />
                   </div>
@@ -788,7 +793,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 {/* Product photo — always show */}
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
-                    📸 Photo of packed item {selectedMethod.needsReceipt ? '*' : '(optional)'}
+                    {t('seller_orders.photo_packed_item_label')} {selectedMethod.needsReceipt ? '*' : t('seller_orders.optional')}
                   </label>
                   <div style={{ border: '2px dashed #e2e8f0', borderRadius: 10, padding: 12, backgroundColor: '#f8fafc', textAlign: 'center' }}>
                     {shipForm.shippingProductImage ? (
@@ -803,9 +808,9 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                           onChange={e => handleImageUpload('product', e.target.files[0])} />
                         <label htmlFor="upload-product"
                           style={{ display: 'inline-block', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                          {uploading.product ? '⏳ Uploading...' : '📷 Choose Photo'}
+                          {uploading.product ? t('seller_orders.uploading') : t('seller_orders.choose_photo')}
                         </label>
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>From your phone gallery</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>{t('seller_orders.from_gallery')}</div>
                       </>
                     )}
                   </div>
@@ -815,7 +820,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 {selectedMethod.needsReceipt && (
                   <div style={{ marginBottom: 12 }}>
                     <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
-                      🧾 {shippingMethodKey === 'agent' ? 'Agent receipt photo *' : shippingMethodKey === 'bus' ? 'Bus ticket photo *' : 'Courier receipt photo *'}
+                      {shippingMethodKey === 'agent' ? t('seller_orders.receipt_photo_label_agent') : shippingMethodKey === 'bus' ? t('seller_orders.receipt_photo_label_bus') : t('seller_orders.receipt_photo_label_courier')}
                     </label>
                     <div style={{ border: '2px dashed #e2e8f0', borderRadius: 10, padding: 12, backgroundColor: '#f8fafc', textAlign: 'center' }}>
                       {shipForm.shippingReceiptImage ? (
@@ -830,9 +835,9 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                             onChange={e => handleImageUpload('receipt', e.target.files[0])} />
                           <label htmlFor="upload-receipt"
                             style={{ display: 'inline-block', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                            {uploading.receipt ? '⏳ Uploading...' : '📷 Choose Photo'}
+                            {uploading.receipt ? t('seller_orders.uploading') : t('seller_orders.choose_photo')}
                           </label>
-                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>From your phone gallery</div>
+                          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>{t('seller_orders.from_gallery')}</div>
                         </>
                       )}
                     </div>
@@ -841,8 +846,8 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
                 {/* Note */}
                 <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>📝 Note for buyer (optional)</label>
-                  <input type="text" placeholder="e.g. Will arrive tomorrow morning"
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{t('seller_orders.note_for_buyer_label')}</label>
+                  <input type="text" placeholder={t('seller_orders.note_for_buyer_placeholder')}
                     value={shipForm.shippingNote} onChange={e => setShipForm({ ...shipForm, shippingNote: e.target.value })}
                     style={inputStyle} />
                 </div>
@@ -850,16 +855,16 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 {/* Boda/Personal — no upload needed note */}
                 {!selectedMethod.needsTracking && (
                   <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
-                    ✅ After confirming, the order will be marked as "In Transit" and the buyer will be notified to confirm when received.
+                    {t('seller_orders.no_upload_needed_note')}
                   </div>
                 )}
 
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button onClick={() => setShowModal(false)}
-                    style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Cancel</button>
+                    style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('seller_orders.cancel_button')}</button>
                   <button onClick={handleUploadProof} disabled={actionLoading || uploading.product || uploading.receipt}
                     style={{ flex: 2, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
-                    {actionLoading ? '⏳ Saving...' : selectedMethod.needsTracking ? '✅ Save & Continue' : '✅ Confirm Shipped'}
+                    {actionLoading ? t('seller_orders.saving') : selectedMethod.needsTracking ? t('seller_orders.save_continue_button') : t('seller_orders.confirm_shipped_button')}
                   </button>
                 </div>
               </>
@@ -873,36 +878,36 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       {transportModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0', padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
-            <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 6 }}>📋 Maelezo ya Usafiri</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 6 }}>{t('seller_orders.transport_modal_title')}</div>
             <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-              Weka maelezo baada ya kufika ofisi ya basi au kukabidhi kwa courier.
+              {t('seller_orders.transport_modal_desc')}
             </div>
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '8px 12px', marginBottom: 16, fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8' }}>
               {transportModal.trackingNumber}
             </div>
 
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>🚌 Via Basi</div>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>Picha ya risiti ni ya hiari — tiketi ya basi inahitajika</div>
-              <input type="text" placeholder="Jina la Basi (e.g. Abood, Kilimanjaro, Tahmeed...)"
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>{t('seller_orders.via_bus_label')}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>{t('seller_orders.via_bus_hint')}</div>
+              <input type="text" placeholder={t('seller_orders.bus_company_placeholder')}
                 value={transportForm.busCompany} onChange={e => setTransportForm(f => ({ ...f, busCompany: e.target.value }))}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
-              <input type="text" placeholder="Namba ya Tiketi * (LAZIMA — e.g. KE-12345)"
+              <input type="text" placeholder={t('seller_orders.ticket_number_placeholder')}
                 value={transportForm.busTicketNumber} onChange={e => setTransportForm(f => ({ ...f, busTicketNumber: e.target.value }))}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
-              <input type="text" placeholder="Saa ya Kuondoka (e.g. Jumanne 6am)"
+              <input type="text" placeholder={t('seller_orders.departure_time_placeholder')}
                 value={transportForm.busDeparture} onChange={e => setTransportForm(f => ({ ...f, busDeparture: e.target.value }))}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
             </div>
 
-            <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, margin: '8px 0' }}>— au —</div>
+            <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, margin: '8px 0' }}>{t('seller_orders.or_divider')}</div>
 
             <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>📦 Via Courier</div>
-              <input type="text" placeholder="Jina la Courier * (LAZIMA — e.g. DHL, EMS, G4S)"
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>{t('seller_orders.via_courier_label')}</div>
+              <input type="text" placeholder={t('seller_orders.courier_name_placeholder')}
                 value={transportForm.courierName} onChange={e => setTransportForm(f => ({ ...f, courierName: e.target.value }))}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, marginBottom: 8, boxSizing: 'border-box' }} />
-              <input type="text" placeholder="Namba ya Kufuatilia ya Courier"
+              <input type="text" placeholder={t('seller_orders.courier_tracking_placeholder')}
                 value={transportForm.courierTrackingRef} onChange={e => setTransportForm(f => ({ ...f, courierTrackingRef: e.target.value }))}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' }} />
             </div>
@@ -912,11 +917,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                 disabled={savingTransport || (!transportForm.busTicketNumber && !transportForm.courierName)}
                 style={{ flex: 2, background: (!transportForm.busTicketNumber && !transportForm.courierTrackingRef) ? '#94a3b8' : 'linear-gradient(135deg,#16a34a,#15803d)',
                   color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 900 }}>
-                {savingTransport ? '⏳ Inahifadhi...' : '🚀 Hifadhi na Arisha Mpokeaji'}
+                {savingTransport ? t('seller_orders.saving') : t('seller_orders.save_notify_button')}
               </button>
               <button onClick={() => setTransportModal(null)}
                 style={{ flex: 1, background: '#fff', color: '#64748b', border: '2px solid #e2e8f0', padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                Ghairi
+                {t('seller_orders.cancel_ghairi')}
               </button>
             </div>
           </div>

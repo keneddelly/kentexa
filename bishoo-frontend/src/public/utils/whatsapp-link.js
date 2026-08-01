@@ -175,6 +175,7 @@ export const buildBuyerInquiryMessage = (sellerPhone, order) => {
     `Habari! Nina swali kuhusu kifurushi changu.`,
     ``,
     order.productName ? `📦 Bidhaa: ${order.productName}` : null,
+    order.model ? `🏷️ Model: ${order.model}` : null,
     `🔖 Namba: ${order.trackingNumber}`,
     trackUrl(order.trackingNumber),
   ].filter(Boolean);

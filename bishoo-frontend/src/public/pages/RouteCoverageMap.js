@@ -6,6 +6,7 @@
  * and active routes between them.
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import Footer  from '../components/Footer';
@@ -50,6 +51,7 @@ const ROUTES = [
 ];
 
 const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const [providers,  setProviders]  = useState([]);
   const [selected,   setSelected]   = useState(null);
   const [loading,    setLoading]    = useState(true);
@@ -93,13 +95,13 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       fontFamily:'Manrope,Inter,-apple-system,sans-serif', display:'flex', flexDirection:'column' }}>
       <Navbar currentPage="RouteCoverageMap" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title="🗺️ Ramani ya Usafiri" />
+      <BackBar onBack={() => onNavigate('back')} title={t('route_coverage_map.page_title')} />
 
       <div style={{ flex:1, maxWidth:900, margin:'0 auto', width:'100%',
         padding:'16px 16px 80px', boxSizing:'border-box' }}>
 
         {loading && (
-          <div style={{ textAlign:'center', padding:20, color:'#94a3b8' }}>⏳ Inapakia...</div>
+          <div style={{ textAlign:'center', padding:20, color:'#94a3b8' }}>{t('route_coverage_map.loading')}</div>
         )}
 
         {/* Legend */}
@@ -107,10 +109,10 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           backgroundColor:'#fff', borderRadius:14, padding:'12px 16px',
           marginBottom:16, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
           {[
-            { color:'#16a34a', label:'Wasafirishaji 5+' },
-            { color:'#1d4ed8', label:'Wasafirishaji 2-4' },
-            { color:'#d97706', label:'Msafirishaji 1'   },
-            { color:'#cbd5e1', label:'Hakuna bado'       },
+            { color:'#16a34a', label:t('route_coverage_map.legend_5plus') },
+            { color:'#1d4ed8', label:t('route_coverage_map.legend_2to4') },
+            { color:'#d97706', label:t('route_coverage_map.legend_1')   },
+            { color:'#cbd5e1', label:t('route_coverage_map.legend_none')       },
           ].map(l => (
             <div key={l.label} style={{ display:'flex', alignItems:'center', gap:6 }}>
               <div style={{ width:12, height:12, borderRadius:'50%',
@@ -138,7 +140,7 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               <ellipse cx="170" cy="135" rx="40" ry="30"
                 fill="#bfdbfe" stroke="#93c5fd" strokeWidth="1" opacity="0.7"/>
               <text x="150" y="135" fontSize="8" fill="#1d4ed8" fontWeight="600">
-                Ziwa Victoria
+                {t('route_coverage_map.lake_victoria')}
               </text>
 
               {/* Lake Tanganyika */}
@@ -204,7 +206,7 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                     📍 {selected}
                   </div>
                   <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>
-                    {cityStatus[selected] || 0} wasafirishaji wanapatikana
+                    {t('route_coverage_map.providers_available', { count: cityStatus[selected] || 0 })}
                   </div>
                 </div>
                 {cityProviders.length > 0 ? (
@@ -215,14 +217,14 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                         display:'flex', justifyContent:'space-between' }}>
                         <div>
                           <div style={{ fontSize:12, fontWeight:700, color:'#1e293b' }}>
-                            {p.provider?.name || 'Msafirishaji'}
+                            {p.provider?.name || t('route_coverage_map.default_provider_name')}
                           </div>
                           <div style={{ fontSize:10, color:'#64748b' }}>
                             {p.fromCity} → {p.toCity}
                           </div>
                         </div>
                         <span style={{ fontSize:10, color:'#16a34a', fontWeight:700 }}>
-                          {(p.totalSlots||0)-(p.usedSlots||0)} nafasi
+                          {t('route_coverage_map.slots_available', { count: (p.totalSlots||0)-(p.usedSlots||0) })}
                         </span>
                       </div>
                     ))}
@@ -231,21 +233,21 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                         color:'#fff', border:'none', borderRadius:10,
                         padding:'10px 0', cursor:'pointer',
                         fontSize:13, fontWeight:700 }}>
-                      Tuma Mzigo →
+                      {t('route_coverage_map.send_shipment_button')}
                     </button>
                   </div>
                 ) : (
                   <div style={{ padding:20, textAlign:'center', color:'#94a3b8' }}>
                     <div style={{ fontSize:24, marginBottom:8 }}>🚌</div>
                     <div style={{ fontSize:12 }}>
-                      Hakuna wasafirishaji bado
+                      {t('route_coverage_map.no_providers')}
                     </div>
                     <button onClick={() => onNavigate('BecomeTransportProvider')}
                       style={{ marginTop:10, backgroundColor:'#f1f5f9',
                         color:'#64748b', border:'none', borderRadius:8,
                         padding:'8px 14px', cursor:'pointer',
                         fontSize:12, fontWeight:700 }}>
-                      Kuwa Msafirishaji
+                      {t('route_coverage_map.become_provider_button')}
                     </button>
                   </div>
                 )}
@@ -255,10 +257,10 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 boxShadow:'0 2px 8px rgba(0,0,0,0.06)', textAlign:'center' }}>
                 <div style={{ fontSize:32, marginBottom:8 }}>👆</div>
                 <div style={{ fontSize:13, fontWeight:700, color:'#1e293b', marginBottom:4 }}>
-                  Bonyeza mji
+                  {t('route_coverage_map.tap_city_title')}
                 </div>
                 <div style={{ fontSize:12, color:'#64748b' }}>
-                  Angalia wasafirishaji wanapatikana katika mji huo
+                  {t('route_coverage_map.tap_city_desc')}
                 </div>
               </div>
             )}
@@ -267,12 +269,12 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
             <div style={{ backgroundColor:'#fff', borderRadius:16, padding:16,
               marginTop:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ fontSize:12, fontWeight:800, color:'#1e293b', marginBottom:10 }}>
-                📊 Muhtasari
+                {t('route_coverage_map.stats_title')}
               </div>
               {[
-                { label:'Miji yenye huduma', value: Object.keys(cityStatus).length },
-                { label:'Wasafirishaji wote', value: providers.length },
-                { label:'Miji kwenye ramani', value: CITIES.length },
+                { label:t('route_coverage_map.stat_cities_covered'), value: Object.keys(cityStatus).length },
+                { label:t('route_coverage_map.stat_total_providers'), value: providers.length },
+                { label:t('route_coverage_map.stat_cities_on_map'), value: CITIES.length },
               ].map(s => (
                 <div key={s.label} style={{ display:'flex', justifyContent:'space-between',
                   padding:'6px 0', borderBottom:'1px solid #f8fafc' }}>
@@ -285,7 +287,7 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                   backgroundColor:'#f0fdf4', color:'#16a34a',
                   border:'1px solid #bbf7d0', borderRadius:10,
                   padding:'10px 0', cursor:'pointer', fontSize:12, fontWeight:700 }}>
-                + Ongeza Njia Yako
+                {t('route_coverage_map.add_route_button')}
               </button>
             </div>
           </div>

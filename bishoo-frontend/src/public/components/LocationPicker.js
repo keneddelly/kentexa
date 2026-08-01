@@ -13,6 +13,7 @@
  * No more free-text city names that can be typed differently by different sellers.
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
 const sel = {
@@ -35,6 +36,7 @@ const LocationPicker = ({
   placeholder = 'Chagua...',
   style = {},
 }) => {
+  const { t } = useTranslation();
   const [regions,   setRegions]   = useState([]);
   const [districts, setDistricts] = useState([]);
   const [wards,     setWards]     = useState([]);
@@ -108,7 +110,7 @@ const LocationPicker = ({
       <select value={value.regionId || ''} onChange={handleRegion}
         style={{ ...sel, marginBottom: 8,
           borderColor: required && !value.regionId ? '#fca5a5' : '#e2e8f0' }}>
-        <option value="">🌍 Chagua Mkoa...</option>
+        <option value="">{t('location_picker.select_region')}</option>
         {regions.map(r => (
           <option key={r.id} value={r.id}>{r.name}</option>
         ))}
@@ -121,7 +123,7 @@ const LocationPicker = ({
             borderColor: required && !value.districtId ? '#fca5a5' : '#e2e8f0',
             opacity: loadingDistricts ? 0.6 : 1 }}>
           <option value="">
-            {loadingDistricts ? '⏳ Inapakia...' : '🏘️ Chagua Wilaya...'}
+            {loadingDistricts ? t('location_picker.loading') : t('location_picker.select_district')}
           </option>
           {districts.map(d => (
             <option key={d.id} value={d.id}>{d.name}</option>
@@ -135,7 +137,7 @@ const LocationPicker = ({
           style={{ ...sel,
             opacity: loadingWards ? 0.6 : 1 }}>
           <option value="">
-            {loadingWards ? '⏳ Inapakia...' : '📍 Chagua Kata...'}
+            {loadingWards ? t('location_picker.loading') : t('location_picker.select_ward')}
           </option>
           {wards.map(w => (
             <option key={w.id} value={w.id}>{w.name}</option>

@@ -10,21 +10,21 @@
  * - Start conversation directly
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
-const SEGMENTS = {
-  all:      { label: 'Wote',      color: '#64748b', bg: '#f1f5f9' },
-  vip:      { label: '👑 VIP',    color: '#d97706', bg: '#fef3c7' },
-  regular:  { label: '⭐ Kawaida',color: '#1d4ed8', bg: '#dbeafe' },
-  new:      { label: '🆕 Wapya',  color: '#16a34a', bg: '#dcfce7' },
-  inactive: { label: '😴 Kimya',  color: '#dc2626', bg: '#fee2e2' },
-};
-
 const fmt = (n) => Number(n || 0).toLocaleString();
 
-const CustomerCard = ({ customer, onOpen, onMessage }) => {
+const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
+  const SEGMENTS = {
+    all:      { label: t('seller_customers.seg_all'),      color: '#64748b', bg: '#f1f5f9' },
+    vip:      { label: t('seller_customers.seg_vip'),      color: '#d97706', bg: '#fef3c7' },
+    regular:  { label: t('seller_customers.seg_regular'),  color: '#1d4ed8', bg: '#dbeafe' },
+    new:      { label: t('seller_customers.seg_new'),      color: '#16a34a', bg: '#dcfce7' },
+    inactive: { label: t('seller_customers.seg_inactive'), color: '#dc2626', bg: '#fee2e2' },
+  };
   const seg = SEGMENTS[customer.segment] || SEGMENTS.regular;
   const initial = (customer.name || '?')[0].toUpperCase();
 
@@ -62,7 +62,7 @@ const CustomerCard = ({ customer, onOpen, onMessage }) => {
         </div>
         <div style={{ display: 'flex', gap: 12, marginTop: 6 }}>
           <div style={{ fontSize: 11, color: '#94a3b8' }}>
-            📦 <strong style={{ color: '#1e293b' }}>{customer.totalOrders}</strong> maagizo
+            📦 <strong style={{ color: '#1e293b' }}>{customer.totalOrders}</strong> {t('seller_customers.orders_unit')}
           </div>
           <div style={{ fontSize: 11, color: '#94a3b8' }}>
             💰 <strong style={{ color: '#16a34a' }}>TZS {fmt(customer.totalSpent)}</strong>
@@ -81,7 +81,18 @@ const CustomerCard = ({ customer, onOpen, onMessage }) => {
   );
 };
 
+const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
+
 const SellerCustomers = ({ onNavigate }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
+  const SEGMENTS = {
+    all:      { label: t('seller_customers.seg_all'),      color: '#64748b', bg: '#f1f5f9' },
+    vip:      { label: t('seller_customers.seg_vip'),      color: '#d97706', bg: '#fef3c7' },
+    regular:  { label: t('seller_customers.seg_regular'),  color: '#1d4ed8', bg: '#dbeafe' },
+    new:      { label: t('seller_customers.seg_new'),      color: '#16a34a', bg: '#dcfce7' },
+    inactive: { label: t('seller_customers.seg_inactive'), color: '#dc2626', bg: '#fee2e2' },
+  };
   const [data,     setData]     = useState({ customers: [], total: 0, segments: {} });
   const [loading,  setLoading]  = useState(true);
   const [stats,    setStats]    = useState(null);
@@ -104,9 +115,9 @@ const SellerCustomers = ({ onNavigate }) => {
       if (segment !== 'all')    params.set('segment', segment);
       const res = await api.get(`/business/customers?${params}`);
       setData(res.data);
-    } catch { setError('Imeshindwa kupakia wateja'); }
+    } catch { setError(t('seller_customers.load_failed')); }
     finally { setLoading(false); }
-  }, [search, segment]);
+  }, [search, segment, t]);
 
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
 
@@ -130,7 +141,7 @@ const SellerCustomers = ({ onNavigate }) => {
   }, []);
 
   const handleAddCustomer = async () => {
-    if (!addForm.name.trim()) { setError('Jina linahitajika'); return; }
+    if (!addForm.name.trim()) { setError(t('seller_customers.name_required')); return; }
     setSaving(true);
     try {
       await api.post('/business/customers', addForm);
@@ -138,7 +149,7 @@ const SellerCustomers = ({ onNavigate }) => {
       setAddForm({ name: '', phone: '', email: '', notes: '' });
       fetchCustomers();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kuongeza mteja');
+      setError(err?.response?.data?.message || t('seller_customers.add_customer_failed'));
     } finally { setSaving(false); }
   };
 
@@ -148,7 +159,7 @@ const SellerCustomers = ({ onNavigate }) => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <BackBar title="Wateja Wangu" onBack={() => onNavigate('back')} />
+      <BackBar title={t('seller_customers.title')} onBack={() => onNavigate('back')} />
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 16px 80px' }}>
 
@@ -157,9 +168,9 @@ const SellerCustomers = ({ onNavigate }) => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)',
             gap: 10, marginBottom: 20 }}>
             {[
-              { label: 'Wateja Wote',  value: stats.totalCustomers,  color: '#1d4ed8', bg: '#eff6ff' },
-              { label: 'Wapya Mwezi',  value: stats.newThisMonth,    color: '#16a34a', bg: '#f0fdf4' },
-              { label: 'Mapato Yote',  value: `TZS ${fmt(stats.totalRevenue)}`, color: '#7c3aed', bg: '#f5f3ff' },
+              { label: t('seller_customers.stat_total_customers'),  value: stats.totalCustomers,  color: '#1d4ed8', bg: '#eff6ff' },
+              { label: t('seller_customers.stat_new_this_month'),  value: stats.newThisMonth,    color: '#16a34a', bg: '#f0fdf4' },
+              { label: t('seller_customers.stat_total_revenue'),  value: `TZS ${fmt(stats.totalRevenue)}`, color: '#7c3aed', bg: '#f5f3ff' },
             ].map(s => (
               <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 12,
                 padding: '12px 10px', textAlign: 'center' }}>
@@ -177,7 +188,7 @@ const SellerCustomers = ({ onNavigate }) => {
         {/* Search */}
         <div style={{ position: 'relative', marginBottom: 12 }}>
           <span style={{ position: 'absolute', left: 12, top: 11, fontSize: 16 }}>🔍</span>
-          <input type="text" placeholder="Tafuta jina, simu, barua pepe..."
+          <input type="text" placeholder={t('seller_customers.search_placeholder')}
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ ...inp, paddingLeft: 36, marginBottom: 0 }} />
         </div>
@@ -205,31 +216,33 @@ const SellerCustomers = ({ onNavigate }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between',
               alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 900, color: '#16a34a' }}>
-                📣 Kampeni ya WhatsApp
+                {t('seller_customers.whatsapp_campaign')}
               </div>
               <span style={{ fontSize: 11, backgroundColor: '#dcfce7', color: '#16a34a',
                 padding: '3px 10px', borderRadius: 100, fontWeight: 700 }}>
-                {data.customers.filter(c => c.phone).length} na simu
+                {data.customers.filter(c => c.phone).length} {t('seller_customers.with_phone')}
               </span>
             </div>
 
-            {/* Message templates */}
+            {/* Message templates — kept in Swahili regardless of seller UI
+                language: these are sent verbatim to Tanzanian customers, not
+                shown to the seller as interface text. */}
             <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
-              Templeti za Haraka:
+              {t('seller_customers.quick_templates')}
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
               {[
-                { label: '🎉 Bidhaa Mpya', msg: 'Habari! 🎉 Tuna bidhaa mpya zinazokungoja! Tembelea dukani letu na uone bei nzuri. Asante kwa kutuamini! 🙏' },
-                { label: '💰 Punguzo', msg: 'Habari! 💰 PUNGUZO KUBWA leo tu! Bidhaa zetu zimepunguzwa bei. Haraka uagize kabla hazijaikwa! Piga simu au ujumbe.' },
-                { label: '🙏 Asante', msg: 'Habari! Tunakushukuru kwa ununuzi wako wa hivi karibuni. 🙏 Tunatumai utarudi tena. Una swali lolote, tuko hapa!' },
-                { label: '📦 Imetolewa', msg: 'Habari! 📦 Bidhaa yako imetolewa! Tafadhali thibitisha kupokea. Asante kwa kutumia huduma zetu.' },
-              ].map(t => (
-                <button key={t.label}
-                  onClick={() => { bulkMsgRef.current && (bulkMsgRef.current.value = t.msg); setBulkMsg(t.msg); }}
+                { label: t('seller_customers.template_new_products'), msg: 'Habari! 🎉 Tuna bidhaa mpya zinazokungoja! Tembelea dukani letu na uone bei nzuri. Asante kwa kutuamini! 🙏' },
+                { label: t('seller_customers.template_discount'), msg: 'Habari! 💰 PUNGUZO KUBWA leo tu! Bidhaa zetu zimepunguzwa bei. Haraka uagize kabla hazijaikwa! Piga simu au ujumbe.' },
+                { label: t('seller_customers.template_thanks'), msg: 'Habari! Tunakushukuru kwa ununuzi wako wa hivi karibuni. 🙏 Tunatumai utarudi tena. Una swali lolote, tuko hapa!' },
+                { label: t('seller_customers.template_delivered'), msg: 'Habari! 📦 Bidhaa yako imetolewa! Tafadhali thibitisha kupokea. Asante kwa kutumia huduma zetu.' },
+              ].map(tmpl => (
+                <button key={tmpl.label}
+                  onClick={() => { bulkMsgRef.current && (bulkMsgRef.current.value = tmpl.msg); setBulkMsg(tmpl.msg); }}
                   style={{ fontSize: 10, padding: '5px 10px', borderRadius: 8,
                     border: '1px solid #86efac', backgroundColor: '#fff',
                     cursor: 'pointer', fontWeight: 700, color: '#16a34a' }}>
-                  {t.label}
+                  {tmpl.label}
                 </button>
               ))}
             </div>
@@ -239,7 +252,7 @@ const SellerCustomers = ({ onNavigate }) => {
               ref={bulkMsgRef}
               value={bulkMsg}
               onChange={e => setBulkMsg(e.target.value)}
-              placeholder="Andika ujumbe wako hapa au chagua templeti hapo juu..."
+              placeholder={t('seller_customers.bulk_message_placeholder')}
               rows={3}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8,
                 border: '1px solid #86efac', fontSize: 12, resize: 'none',
@@ -247,7 +260,7 @@ const SellerCustomers = ({ onNavigate }) => {
                 fontFamily: 'inherit' }} />
 
             <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
-              💡 Bonyeza jina la mteja hapa chini — WhatsApp itafunguka na ujumbe tayari
+              {t('seller_customers.tap_customer_hint')}
             </div>
 
             {/* Customer buttons */}
@@ -277,7 +290,7 @@ const SellerCustomers = ({ onNavigate }) => {
             border: '2px dashed #1d4ed8', backgroundColor: '#eff6ff',
             color: '#1d4ed8', fontSize: 13, fontWeight: 800, cursor: 'pointer',
             marginBottom: 16 }}>
-          {adding ? '✕ Funga' : '+ Ongeza Mteja Mpya'}
+          {adding ? t('seller_customers.close') : t('seller_customers.add_new_customer')}
         </button>
 
         {/* Add form */}
@@ -285,20 +298,20 @@ const SellerCustomers = ({ onNavigate }) => {
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
             marginBottom: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>
-              Mteja Mpya
+              {t('seller_customers.new_customer_title')}
             </div>
-            <input placeholder="Jina *" value={addForm.name}
+            <input placeholder={t('seller_customers.name_field')} value={addForm.name}
               onChange={e => setAddForm(p => ({...p, name: e.target.value}))}
               style={inp} />
-            <input placeholder="Simu (e.g. 0712345678)" value={addForm.phone}
+            <input placeholder={t('seller_customers.phone_field')} value={addForm.phone}
               onChange={e => setAddForm(p => ({...p, phone: e.target.value}))}
               style={inp} />
-            <input placeholder="Barua pepe (hiari)" value={addForm.email}
+            <input placeholder={t('seller_customers.email_field')} value={addForm.email}
               onChange={e => setAddForm(p => ({...p, email: e.target.value}))}
               style={inp} />
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>
-                📍 Eneo la Mteja (hiari)
+                {t('seller_customers.customer_location_optional')}
               </div>
               <LocationPicker
                 value={addLocation}
@@ -306,14 +319,18 @@ const SellerCustomers = ({ onNavigate }) => {
                   setAddLocation(loc);
                   setAddForm(p => ({
                     ...p,
-                    address:  [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', '),
-                    district: loc.districtName || '',
-                    region:   loc.regionName   || '',
+                    address:    [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', '),
+                    regionId:   loc.regionId   || null,
+                    region:     loc.regionName || '',
+                    districtId: loc.districtId || null,
+                    district:   loc.districtName || '',
+                    wardId:     loc.wardId     || null,
+                    ward:       loc.wardName   || '',
                   }));
                 }}
               />
             </div>
-            <textarea placeholder="Maelezo (hiari)" value={addForm.notes}
+            <textarea placeholder={t('seller_customers.notes_field')} value={addForm.notes}
               onChange={e => setAddForm(p => ({...p, notes: e.target.value}))}
               rows={2} style={{ ...inp, resize: 'none' }} />
             {error && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 8 }}>{error}</div>}
@@ -321,7 +338,7 @@ const SellerCustomers = ({ onNavigate }) => {
               style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff',
                 border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer',
                 fontSize: 13, fontWeight: 800 }}>
-              {saving ? '⏳ Inaongeza...' : '✅ Ongeza Mteja'}
+              {saving ? t('seller_customers.adding') : t('seller_customers.add_customer_button')}
             </button>
           </div>
         )}
@@ -332,24 +349,24 @@ const SellerCustomers = ({ onNavigate }) => {
 
         {/* Customer list */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳ Inapakia...</div>
+          <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>{t('seller_customers.loading')}</div>
         ) : data.customers.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 40 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>👥</div>
             <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
-              Hakuna Wateja Bado
+              {t('seller_customers.no_customers_yet')}
             </div>
             <div style={{ fontSize: 13, color: '#64748b' }}>
-              Wateja wataongezwa otomatiki unapopokea maagizo.
+              {t('seller_customers.no_customers_desc')}
             </div>
           </div>
         ) : (
           <>
             <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 10 }}>
-              {data.total} wateja
+              {t('seller_customers.customers_count', { count: data.total })}
             </div>
             {data.customers.map(c => (
-              <CustomerCard key={c.id} customer={c}
+              <CustomerCard key={c.id} customer={c} t={t}
                 onOpen={setSelected}
                 onMessage={c => onNavigate(`SellerInbox-${c.id}`)} />
             ))}
@@ -377,13 +394,13 @@ const SellerCustomers = ({ onNavigate }) => {
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 14,
                 padding: 16, marginBottom: 16 }}>
                 {[
-                  ['📞 Simu',    selected.phone   || '—'],
-                  ['✉️ Barua',   selected.email   || '—'],
-                  ['📍 Anwani',  selected.address || [selected.ward, selected.district, selected.region].filter(Boolean).join(', ') || '—'],
-                  ['📦 Maagizo', selected.totalOrders],
-                  ['💰 Matumizi', `TZS ${fmt(selected.totalSpent)}`],
-                  ['📊 Wastani', `TZS ${fmt(selected.averageOrderValue)}`],
-                  ['🕐 Agizo la Mwisho', selected.lastOrderAt ? new Date(selected.lastOrderAt).toLocaleDateString('sw-TZ') : '—'],
+                  [t('seller_customers.phone_label'),    selected.phone   || '—'],
+                  [t('seller_customers.email_label'),   selected.email   || '—'],
+                  [t('seller_customers.address_label'),  selected.address || [selected.ward, selected.district, selected.region].filter(Boolean).join(', ') || '—'],
+                  [t('seller_customers.orders_label'), selected.totalOrders],
+                  [t('seller_customers.spent_label'), `TZS ${fmt(selected.totalSpent)}`],
+                  [t('seller_customers.avg_label'), `TZS ${fmt(selected.averageOrderValue)}`],
+                  [t('seller_customers.last_order_label'), selected.lastOrderAt ? new Date(selected.lastOrderAt).toLocaleDateString(dateLocale) : '—'],
                 ].map(([l, v]) => (
                   <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
                     padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
@@ -408,7 +425,7 @@ const SellerCustomers = ({ onNavigate }) => {
                 }} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
                   padding: 14, borderRadius: 12, cursor: 'pointer',
                   fontSize: 14, fontWeight: 800 }}>
-                  💬 Anza Mazungumzo
+                  {t('seller_customers.start_conversation')}
                 </button>
                 {selected.phone && (
                   <a href={`https://wa.me/${String(selected.phone).replace(/[^\d]/g,'').replace(/^0/,'255')}`}
@@ -416,23 +433,27 @@ const SellerCustomers = ({ onNavigate }) => {
                     style={{ backgroundColor: '#25D366', color: '#fff',
                       padding: 14, borderRadius: 12, textDecoration: 'none',
                       fontSize: 14, fontWeight: 800, textAlign: 'center', display: 'block' }}>
-                    📲 WhatsApp
+                    {t('seller_customers.whatsapp')}
                   </a>
                 )}
                 <button onClick={() => {
                   setSelected(null);
                   onNavigate('SellerShipment', {
-                    name:     selected.name    || '',
-                    phone:    selected.phone   || '',
-                    address:  selected.address || '',
-                    district: selected.district || '',
-                    region:   selected.region   || '',
+                    name:       selected.name       || '',
+                    phone:      selected.phone      || '',
+                    address:    selected.address    || '',
+                    regionId:   selected.regionId   || null,
+                    region:     selected.region     || '',
+                    districtId: selected.districtId || null,
+                    district:   selected.district   || '',
+                    wardId:     selected.wardId      || null,
+                    ward:       selected.ward        || '',
                   });
                 }}
                   style={{ backgroundColor: '#f0fdf4', color: '#16a34a',
                     border: '1px solid #86efac', padding: 14, borderRadius: 12,
                     cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
-                  📦 Tuma Bidhaa
+                  {t('seller_customers.ship_item')}
                 </button>
               </div>
             </div>

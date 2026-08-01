@@ -43,6 +43,12 @@ export class CreateProductDto {
   @IsString()
   subcategory?: string;
 
+  // Model number/name e.g. "Samsung A15 128GB" — lets wholesale buyers reference
+  // an exact product over WhatsApp when a seller lists many similar items.
+  @IsOptional()
+  @IsString()
+  model?: string;
+
   // Key-value spec pairs e.g. { "Resolution": "1080P", "Battery": "2 hrs" }
   @IsOptional()
   @IsObject()

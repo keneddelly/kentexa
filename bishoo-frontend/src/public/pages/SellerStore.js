@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
 
 const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => {
+  const { t } = useTranslation();
   const [seller, setSeller] = useState(null);
   const [products, setProducts] = useState([]);
   const [classifieds, setClassifieds] = useState([]);
@@ -49,7 +51,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
         <Navbar currentPage="Stores" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
         <div style={{ textAlign: 'center', padding: '80px', color: '#64748b' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-          <p>Loading store...</p>
+          <p>{t('seller_store.loading_store')}</p>
         </div>
       </div>
     );
@@ -61,9 +63,9 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
         <Navbar currentPage="Stores" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
         <div style={{ textAlign: 'center', padding: '80px' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>😕</div>
-          <p style={{ color: '#64748b' }}>Store not found</p>
+          <p style={{ color: '#64748b' }}>{t('seller_store.store_not_found')}</p>
           <button onClick={() => onNavigate('Stores')} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '10px', cursor: 'pointer', marginTop: '16px', fontWeight: '700' }}>
-            ← Browse Stores
+            {t('seller_store.browse_stores')}
           </button>
         </div>
       </div>
@@ -84,7 +86,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
             onClick={() => onNavigate('Stores')}
             style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#94a3b8', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', marginBottom: '20px' }}
           >
-            ← All Stores
+            {t('seller_store.all_stores')}
           </button>
           <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             {/* Store Logo */}
@@ -108,7 +110,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
                   {seller.businessName}
                 </h1>
                 <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', fontSize: '12px', fontWeight: '700', padding: '4px 10px', borderRadius: '10px' }}>
-                  ✅ Verified Seller
+                  {t('seller_store.verified_seller')}
                 </span>
               </div>
               {seller.businessDescription && (
@@ -129,8 +131,8 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
             {/* Store Stats */}
             <div style={{ display: 'flex', gap: '16px' }}>
               {[
-                { label: 'Products', value: products.length, icon: '📦' },
-                { label: 'Listings', value: classifieds.length, icon: '📋' },
+                { label: t('seller_store.stat_products'), value: products.length, icon: '📦' },
+                { label: t('seller_store.stat_listings'), value: classifieds.length, icon: '📋' },
               ].map(stat => (
                 <div key={stat.label} style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px 20px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
                   <div style={{ fontSize: '22px', marginBottom: '4px' }}>{stat.icon}</div>
@@ -148,7 +150,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
         {/* Search */}
         <input
           type="text"
-          placeholder={`🔍 Search in ${seller.businessName}...`}
+          placeholder={t('seller_store.search_placeholder', { name: seller.businessName })}
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ width: '100%', padding: '14px 16px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '14px', marginBottom: '20px', boxSizing: 'border-box', backgroundColor: '#fff', outline: 'none' }}
@@ -157,8 +159,8 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
         {/* Tabs */}
         <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '2px solid #e2e8f0' }}>
           {[
-            { key: 'products', label: `📦 Products (${products.length})` },
-            { key: 'classifieds', label: `📋 Classifieds (${classifieds.length})` },
+            { key: 'products', label: t('seller_store.tab_products', { count: products.length }) },
+            { key: 'classifieds', label: t('seller_store.tab_classifieds', { count: classifieds.length }) },
           ].map(tab => (
             <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
               backgroundColor: 'transparent',
@@ -180,7 +182,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
             {filteredProducts.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '16px' }}>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
-                <p style={{ color: '#64748b' }}>No products found</p>
+                <p style={{ color: '#64748b' }}>{t('seller_store.no_products_found')}</p>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
@@ -213,7 +215,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
                           TZS {Number(product.price).toLocaleString()}
                         </span>
                         <span style={{ fontSize: '11px', fontWeight: '700', padding: '2px 8px', borderRadius: '6px', backgroundColor: product.isAvailable ? '#dcfce7' : '#fee2e2', color: product.isAvailable ? '#16a34a' : '#dc2626' }}>
-                          {product.isAvailable ? 'In Stock' : 'Out'}
+                          {product.isAvailable ? t('seller_store.in_stock') : t('seller_store.out_of_stock')}
                         </span>
                       </div>
                       <div style={{ display: 'flex', gap: '8px' }}>
@@ -221,14 +223,14 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
                           onClick={() => onNavigate(`ProductDetail-${product.id}`)}
                           style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' }}
                         >
-                          👁 View
+                          {t('seller_store.view_button')}
                         </button>
                         <button
                           onClick={() => { if (product.isAvailable) addToCart(product); }}
                           disabled={!product.isAvailable}
                           style={{ flex: 1, background: product.isAvailable ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#e2e8f0', color: product.isAvailable ? '#fff' : '#94a3b8', border: 'none', padding: '8px', borderRadius: '8px', cursor: product.isAvailable ? 'pointer' : 'not-allowed', fontSize: '12px', fontWeight: '700' }}
                         >
-                          🛒 Add
+                          {t('seller_store.add_button')}
                         </button>
                       </div>
                     </div>
@@ -245,7 +247,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
             {filteredClassifieds.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '60px', backgroundColor: '#fff', borderRadius: '16px' }}>
                 <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
-                <p style={{ color: '#64748b' }}>No classifieds found</p>
+                <p style={{ color: '#64748b' }}>{t('seller_store.no_classifieds_found')}</p>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
@@ -270,7 +272,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
                       <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#1e293b', margin: '8px 0 4px' }}>{item.title}</h3>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ fontSize: '16px', fontWeight: '800', color: '#7c3aed' }}>TZS {Number(item.price).toLocaleString()}</span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>📍 {item.location || 'Tanzania'}</span>
+                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>📍 {item.location || t('seller_store.default_location')}</span>
                       </div>
                     </div>
                   </div>

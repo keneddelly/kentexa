@@ -26,6 +26,7 @@
  *   Daily batch for same-city deliveries
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../../api/api';
@@ -143,6 +144,7 @@ const PCard = ({ p, actions = [] }) => (
 // ── Main component ─────────────────────────────────────────────────────────
 
 const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
 
   // ── Core state ────────────────────────────────────────────────────────────
   const [profile, setProfile]           = useState(null);
@@ -244,9 +246,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
       }
     } catch (err) {
       if (err?.response?.status === 404) setProfileStatus('not_applied');
-      else setError('Imeshindwa kupakia dashibodi');
+      else setError(t('super_agent_dashboard.load_failed'));
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -472,7 +474,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
       await api.post('/super-agents/apply', applyForm);
       setProfileStatus('pending');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kuwasilisha');
+      setError(err?.response?.data?.message || t('super_agent_dashboard.submit_failed'));
     } finally { setApplying(false); }
   };
 
@@ -487,17 +489,17 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: 16 }}>
           <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>🏢</div>
           <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 900,
-            color: '#1e293b', margin: '0 0 6px' }}>Kuwa Super Agent</h2>
+            color: '#1e293b', margin: '0 0 6px' }}>{t('super_agent_dashboard.apply_title')}</h2>
           <p style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-            Fungua hub yako — pata vifurushi kupitia KenteXa network
+            {t('super_agent_dashboard.apply_desc')}
           </p>
           {[
-            { k: 'businessName', l: 'Jina la Biashara *', ph: 'e.g. Geita Express Hub' },
-            { k: 'phone',        l: 'Simu *',             ph: '0712345678' },
-            { k: 'city',         l: 'Mji *',              ph: 'e.g. Geita' },
-            { k: 'address',      l: 'Anwani ya Hub *',    ph: 'Mtaa, alama muhimu' },
-            { k: 'region',       l: 'Mkoa',               ph: 'e.g. Geita' },
-            { k: 'description',  l: 'Maelezo ya Huduma',  ph: 'Mzigo, vifurushi...' },
+            { k: 'businessName', l: t('super_agent_dashboard.field_business_name_label'), ph: 'e.g. Geita Express Hub' },
+            { k: 'phone',        l: t('super_agent_dashboard.field_phone_label'),             ph: '0712345678' },
+            { k: 'city',         l: t('super_agent_dashboard.field_city_label'),              ph: 'e.g. Geita' },
+            { k: 'address',      l: t('super_agent_dashboard.field_address_label'),    ph: 'Mtaa, alama muhimu' },
+            { k: 'region',       l: t('super_agent_dashboard.field_region_label'),               ph: 'e.g. Geita' },
+            { k: 'description',  l: t('super_agent_dashboard.field_description_label'),  ph: 'Mzigo, vifurushi...' },
           ].map(f => (
             <div key={f.k} style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
@@ -511,7 +513,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
           <button onClick={handleApply} disabled={applying}
             style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
               padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 15, fontWeight: 900 }}>
-            {applying ? '⏳ Inawasilisha...' : '🏢 Wasilisha Ombi'}
+            {applying ? t('super_agent_dashboard.submitting') : t('super_agent_dashboard.submit_application_button')}
           </button>
         </div>
       </div>
@@ -525,8 +527,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <div style={{ padding: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-        <h3 style={{ color: '#1e293b' }}>Ombi Lako Lipo Chini ya Mapitio</h3>
-        <p style={{ color: '#64748b', fontSize: 14 }}>Tutawasiliana nawe ndani ya masaa 24.</p>
+        <h3 style={{ color: '#1e293b' }}>{t('super_agent_dashboard.pending_title')}</h3>
+        <p style={{ color: '#64748b', fontSize: 14 }}>{t('super_agent_dashboard.pending_desc')}</p>
       </div>
       <Footer onNavigate={onNavigate} />
     </div>
@@ -546,17 +548,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
       <div style={{ padding: '40px 20px', textAlign: 'center', maxWidth: 420, margin: '0 auto', flex: 1 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🏢</div>
         <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 8px' }}>
-          {profile?.businessName || 'Your Hub'} is Registered ✅
+          {t('super_agent_dashboard.registered_title', { name: profile?.businessName || t('super_agent_dashboard.your_hub_fallback') })}
         </h2>
         <p style={{ fontSize: 14, color: '#64748b', margin: '0 0 24px', lineHeight: 1.6 }}>
-          Full hub management — receiving, dispatching, pricing — is launching soon.
-          For now, you can still create shipments directly.
+          {t('super_agent_dashboard.registered_desc')}
         </p>
         <button onClick={() => onNavigate('SellerShipment')}
           style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff',
             border: 'none', padding: '14px 28px', borderRadius: 12, cursor: 'pointer',
             fontSize: 14, fontWeight: 800 }}>
-          📦 Create Shipment
+          {t('super_agent_dashboard.create_shipment_button')}
         </button>
       </div>
       <Footer onNavigate={onNavigate} />
@@ -567,7 +568,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       <Navbar currentPage="SuperAgentDashboard" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <div style={{ textAlign: 'center', padding: 80, color: '#94a3b8' }}>⏳ Inapakia...</div>
+      <div style={{ textAlign: 'center', padding: 80, color: '#94a3b8' }}>{t('super_agent_dashboard.loading')}</div>
     </div>
   );
 

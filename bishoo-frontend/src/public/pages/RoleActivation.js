@@ -6,71 +6,74 @@
  * Seller, Agent, Super Agent, or Transport Provider.
  */
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
 import Footer   from '../components/Footer';
 
 const B = '#2563EB';
 
-const ROLES = [
+const getRoles = (t) => [
   {
     key:      'seller',
     icon:     '🏪',
-    title:    'Muuzaji',
-    tagline:  'Uza bidhaa au huduma',
-    desc:     'Fungua duka lako, uze bidhaa, simamia maagizo, na kupata malipo kupitia KenteXa.',
-    perks:    ['Duka lako la mtandaoni', 'Maagizo na malipo', 'Uchambuzi wa mauzo', 'Timu ya wafanyakazi'],
-    needs:    ['Simu iliyothibitishwa', 'Jina la biashara', 'Aina ya bidhaa'],
+    title:    t('role_activation.seller_title'),
+    tagline:  t('role_activation.seller_tagline'),
+    desc:     t('role_activation.seller_desc'),
+    perks:    [t('role_activation.seller_perk1'), t('role_activation.seller_perk2'), t('role_activation.seller_perk3'), t('role_activation.seller_perk4')],
+    needs:    [t('role_activation.seller_need1'), t('role_activation.seller_need2'), t('role_activation.seller_need3')],
     page:     'BecomeSellerInfo',
     color:    '#EFF6FF', accent: B,
   },
   {
     key:      'agent',
     icon:     '🏍️',
-    title:    'Agent wa Utoaji',
-    tagline:  'Toa vifurushi na pata pesa',
-    desc:     'Kuwa sehemu ya mtandao wa mawakala wa KenteXa. Kazi zinakuletea moja kwa moja.',
-    perks:    ['Kazi karibu nawe', 'Pata malipo haraka', 'Kadi ya ufanikishaji', 'Ukanda unaokua'],
-    needs:    ['Simu iliyothibitishwa', 'Nambari ya usajili', 'Aina ya usafiri (boda/gari)'],
+    title:    t('role_activation.agent_title'),
+    tagline:  t('role_activation.agent_tagline'),
+    desc:     t('role_activation.agent_desc'),
+    perks:    [t('role_activation.agent_perk1'), t('role_activation.agent_perk2'), t('role_activation.agent_perk3'), t('role_activation.agent_perk4')],
+    needs:    [t('role_activation.agent_need1'), t('role_activation.agent_need2'), t('role_activation.agent_need3')],
     page:     'BecomeAgent',
     color:    '#FDF2F8', accent: '#A21CAF',
   },
   {
     key:      'super_agent',
     icon:     '🏢',
-    title:    'Super Agent (Hub)',
-    tagline:  'Simamia kituo cha mji wako',
-    desc:     'Dhibiti vifurushi, wasimamia mawakala wa ndani, na panga usafiri baina ya miji.',
-    perks:    ['Kituo chako cha biashara', 'Tuma mara nyingi', 'Mapato makubwa', 'Msimamizi wa eneo'],
-    needs:    ['Uzoefu wa logistics', 'Eneo la kituo', 'Uwezo wa kuendesha timu'],
+    title:    t('role_activation.super_agent_title'),
+    tagline:  t('role_activation.super_agent_tagline'),
+    desc:     t('role_activation.super_agent_desc'),
+    perks:    [t('role_activation.super_agent_perk1'), t('role_activation.super_agent_perk2'), t('role_activation.super_agent_perk3'), t('role_activation.super_agent_perk4')],
+    needs:    [t('role_activation.super_agent_need1'), t('role_activation.super_agent_need2'), t('role_activation.super_agent_need3')],
     page:     'BecomeSuperAgent',
     color:    '#F5F3FF', accent: '#7C3AED',
   },
   {
     key:      'transport_provider',
     icon:     '🚌',
-    title:    'Msafirishaji',
-    tagline:  'Chapisha safari zako, pata mizigo',
-    desc:     'Una basi, van, au gari? Jiunge na mtandao wa wasafirishaji wa KenteXa Tanzania nzima.',
-    perks:    ['Nafasi zilizobaki zinauzwa', 'Malipo kabla ya safari', 'Uwazi kamili', 'Dashboard ya safari'],
-    needs:    ['Leseni ya usafirishaji', 'Aina ya gari', 'Njia za kawaida'],
+    title:    t('role_activation.transport_provider_title'),
+    tagline:  t('role_activation.transport_provider_tagline'),
+    desc:     t('role_activation.transport_provider_desc'),
+    perks:    [t('role_activation.transport_provider_perk1'), t('role_activation.transport_provider_perk2'), t('role_activation.transport_provider_perk3'), t('role_activation.transport_provider_perk4')],
+    needs:    [t('role_activation.transport_provider_need1'), t('role_activation.transport_provider_need2'), t('role_activation.transport_provider_need3')],
     page:     'BecomeTransportProvider',
     color:    '#FEF3C7', accent: '#D97706',
   },
   {
     key:      'service_provider',
     icon:     '🔧',
-    title:    'Mtoa Huduma',
-    tagline:  'Toa ujuzi wako, pata wateja',
-    desc:     'Fundi, msafi, mwalimu, mpishi — weka tangazo lako na wateja wakupate.',
-    perks:    ['Tangazo la bure', 'Wateja wa karibu nawe', 'Ukadiriaji unaokua', 'Akaunti ya malipo'],
-    needs:    ['Aina ya huduma', 'Eneo unalofanya kazi', 'Bei au aina ya bei'],
+    title:    t('role_activation.service_provider_title'),
+    tagline:  t('role_activation.service_provider_tagline'),
+    desc:     t('role_activation.service_provider_desc'),
+    perks:    [t('role_activation.service_provider_perk1'), t('role_activation.service_provider_perk2'), t('role_activation.service_provider_perk3'), t('role_activation.service_provider_perk4')],
+    needs:    [t('role_activation.service_provider_need1'), t('role_activation.service_provider_need2'), t('role_activation.service_provider_need3')],
     page:     'PostService',
     color:    '#F0FDF4', accent: '#16A34A',
   },
 ];
 
 const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
+  const { t } = useTranslation();
+  const ROLES = getRoles(t);
   const [selected, setSelected] = useState(null);
 
   const role  = selected ? ROLES.find(r => r.key === selected) : null;
@@ -81,7 +84,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
       fontFamily:'Manrope,Inter,-apple-system,sans-serif', display:'flex', flexDirection:'column' }}>
       <Navbar currentPage="RoleActivation" onNavigate={onNavigate}
         isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('CommerceProfile')} title="Ongeza Jukumu" />
+      <BackBar onBack={() => onNavigate('CommerceProfile')} title={t('role_activation.page_title')} />
 
       <div style={{ flex:1, maxWidth:760, margin:'0 auto', width:'100%',
         padding:'20px 16px 80px', boxSizing:'border-box' }}>
@@ -91,14 +94,13 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
           borderRadius:20, padding:'24px 28px', marginBottom:24, color:'#fff' }}>
           <div style={{ fontSize:13, color:'rgba(255,255,255,0.7)',
             marginBottom:6, fontWeight:700 }}>
-            AKAUNTI MOJA • MAJUKUMU MENGI
+            {t('role_activation.eyebrow')}
           </div>
           <div style={{ fontSize:20, fontWeight:900, marginBottom:8 }}>
-            Ongeza Jukumu Jipya
+            {t('role_activation.hero_title')}
           </div>
           <div style={{ fontSize:13, color:'rgba(255,255,255,0.75)', lineHeight:1.6 }}>
-            Akaunti yako inaweza kufanya zaidi. Ongeza jukumu jipya 
-            bila kuunda akaunti nyingine.
+            {t('role_activation.hero_desc')}
           </div>
 
           {/* Active roles */}
@@ -107,9 +109,9 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
               <span key={r} style={{ fontSize:11, fontWeight:800,
                 backgroundColor:'rgba(255,255,255,0.2)',
                 color:'#fff', padding:'3px 10px', borderRadius:100 }}>
-                ✓ {r === 'user' ? 'Mnunuzi' : r === 'seller' ? 'Muuzaji' :
-                   r === 'agent' ? 'Agent' : r === 'super_agent' ? 'Super Agent' :
-                   r === 'transport_provider' ? 'Msafirishaji' : r}
+                ✓ {r === 'user' ? t('role_activation.role_user') : r === 'seller' ? t('role_activation.role_seller') :
+                   r === 'agent' ? t('role_activation.role_agent') : r === 'super_agent' ? t('role_activation.role_super_agent') :
+                   r === 'transport_provider' ? t('role_activation.role_transport_provider') : r}
               </span>
             ))}
           </div>
@@ -119,7 +121,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
         {!selected ? (
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             <div style={{ fontSize:14, fontWeight:800, color:'#1e293b', marginBottom:4 }}>
-              Chagua jukumu unalotaka kuongeza:
+              {t('role_activation.choose_role')}
             </div>
             {ROLES.map(r => {
               const isActive = activeRoles.includes(r.key);
@@ -141,7 +143,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
                       {isActive && (
                         <span style={{ fontSize:10, backgroundColor:'#dcfce7',
                           color:'#16a34a', padding:'2px 8px', borderRadius:100, fontWeight:700 }}>
-                          ✓ Tayari una jukumu hili
+                          {t('role_activation.already_have_role')}
                         </span>
                       )}
                     </div>
@@ -164,7 +166,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
               style={{ background:'none', border:'none', cursor:'pointer',
                 color:'#64748b', fontSize:13, fontWeight:700,
                 marginBottom:16, display:'flex', alignItems:'center', gap:4 }}>
-              ← Rudi
+              {t('role_activation.back')}
             </button>
 
             <div style={{ backgroundColor:role.color, borderRadius:20,
@@ -183,7 +185,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
             <div style={{ backgroundColor:'#fff', borderRadius:16, padding:20,
               marginBottom:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ fontSize:13, fontWeight:800, color:'#1e293b', marginBottom:12 }}>
-                ✨ Utakachopata
+                {t('role_activation.perks_title')}
               </div>
               {role.perks.map(p => (
                 <div key={p} style={{ display:'flex', gap:10, padding:'8px 0',
@@ -201,7 +203,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
             <div style={{ backgroundColor:'#fff', borderRadius:16, padding:20,
               marginBottom:24, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
               <div style={{ fontSize:13, fontWeight:800, color:'#1e293b', marginBottom:12 }}>
-                📋 Utakachohitaji
+                {t('role_activation.needs_title')}
               </div>
               {role.needs.map(n => (
                 <div key={n} style={{ display:'flex', gap:10, padding:'8px 0',
@@ -222,7 +224,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
                 padding:'16px 0', cursor:'pointer',
                 fontSize:16, fontWeight:900,
                 boxShadow:`0 4px 16px ${role.accent}40` }}>
-              {role.icon} Anza Usajili wa {role.title}
+              {t('role_activation.activate_button', { icon: role.icon, title: role.title })}
             </button>
           </div>
         )}

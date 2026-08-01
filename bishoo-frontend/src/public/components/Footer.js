@@ -1,6 +1,8 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 
 const Footer = ({ onNavigate }) => {
+  const { t } = useTranslation();
   return (
     <footer style={{ backgroundColor: '#0f172a', color: '#94a3b8', marginTop: 'auto' }}>
 
@@ -14,20 +16,20 @@ const Footer = ({ onNavigate }) => {
             <span style={{ fontSize: 22, fontWeight: 900, color: '#3b82f6', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
           </div>
           <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7, margin: '0 0 12px' }}>
-            Tanzania's #1 trusted marketplace. Buy, sell and pay securely anywhere.
+            {t('footer.tagline')}
           </p>
-          <div style={{ fontSize: 11, color: '#475569' }}>🇹🇿 Made in Tanzania</div>
+          <div style={{ fontSize: 11, color: '#475569' }}>{t('footer.made_in_tanzania')}</div>
         </div>
 
         {/* Marketplace */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Marketplace</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{t('footer.marketplace_title')}</div>
           {[
-            { label: 'Browse Stores', page: 'Stores' },
-            { label: 'Classifieds', page: 'ClassifiedsPublic' },
-            { label: 'All Listings', page: 'Listings' },
-            { label: 'Pay Invoice', page: 'PayInvoice' },
-            { label: 'Track Parcel', page: 'TrackParcel' },
+            { label: t('footer.link_browse_stores'), page: 'Stores' },
+            { label: t('footer.link_classifieds'), page: 'ClassifiedsPublic' },
+            { label: t('footer.link_all_listings'), page: 'Listings' },
+            { label: t('footer.link_pay_invoice'), page: 'PayInvoice' },
+            { label: t('footer.link_track_parcel'), page: 'TrackParcel' },
           ].map(l => (
             <div key={l.page} onClick={() => onNavigate(l.page)}
               style={{ fontSize: 13, color: '#64748b', marginBottom: 8, cursor: 'pointer', transition: 'color 0.2s' }}
@@ -40,13 +42,13 @@ const Footer = ({ onNavigate }) => {
 
         {/* Sellers & Agents */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Sell & Earn</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{t('footer.sell_earn_title')}</div>
           {[
-            { label: 'Become a Seller', page: 'BecomeSeller' },
-            { label: 'Become an Agent', page: 'BecomeAgent' },
-            { label: 'Become Super Agent', page: 'BecomeSuperAgentInfo' },
-            { label: 'Seller Dashboard', page: 'SellerDashboard' },
-            { label: 'Agent Dashboard', page: 'AgentDashboard' },
+            { label: t('footer.link_become_seller'), page: 'BecomeSeller' },
+            { label: t('footer.link_become_agent'), page: 'BecomeAgent' },
+            { label: t('footer.link_become_super_agent'), page: 'BecomeSuperAgentInfo' },
+            { label: t('footer.link_seller_dashboard'), page: 'SellerDashboard' },
+            { label: t('footer.link_agent_dashboard'), page: 'AgentDashboard' },
           ].map(l => (
             <div key={l.page} onClick={() => onNavigate(l.page)}
               style={{ fontSize: 13, color: '#64748b', marginBottom: 8, cursor: 'pointer' }}
@@ -59,13 +61,13 @@ const Footer = ({ onNavigate }) => {
 
         {/* Company */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Company</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{t('footer.company_title')}</div>
           {[
-            { label: 'About Us', page: 'AboutUs' },
-            { label: 'How It Works', page: 'HowItWorks' },
-            { label: 'Terms & Conditions', page: 'Terms' },
-            { label: 'Privacy Policy', page: 'Privacy' },
-            { label: 'Contact Us', page: 'ContactUs' },
+            { label: t('footer.link_about_us'), page: 'AboutUs' },
+            { label: t('footer.link_how_it_works'), page: 'HowItWorks' },
+            { label: t('footer.link_terms'), page: 'Terms' },
+            { label: t('footer.link_privacy'), page: 'Privacy' },
+            { label: t('footer.link_contact_us'), page: 'ContactUs' },
           ].map(l => (
             <div key={l.page} onClick={() => onNavigate(l.page)}
               style={{ fontSize: 13, color: '#64748b', marginBottom: 8, cursor: 'pointer' }}
@@ -78,10 +80,10 @@ const Footer = ({ onNavigate }) => {
 
         {/* Contact */}
         <div>
-          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Contact</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#fff', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>{t('footer.contact_title')}</div>
           <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>📧 support@kentexa.com</div>
           <div style={{ fontSize: 13, color: '#64748b', marginBottom: 8 }}>🌐 kentexa.com</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>🏢 Bishoo Intelligence Systems</div>
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{t('footer.contact_company')}</div>
           {/* Social */}
           <div style={{ display: 'flex', gap: 10 }}>
             <a href="https://wa.me/255788075633" target="_blank" rel="noreferrer"
@@ -94,7 +96,7 @@ const Footer = ({ onNavigate }) => {
 
       {/* Payment badges */}
       <div style={{ borderTop: '1px solid #1e293b', padding: '16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 11, color: '#475569', marginBottom: 10 }}>Accepted Payments</div>
+        <div style={{ fontSize: 11, color: '#475569', marginBottom: 10 }}>{t('footer.accepted_payments')}</div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
           {['📱 M-Pesa', '📱 Airtel', '📱 Tigo', '📱 HaloPesa', '🤝 Agent'].map(p => (
             <span key={p} style={{ fontSize: 11, backgroundColor: '#1e293b', color: '#94a3b8', padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}>{p}</span>
@@ -105,12 +107,12 @@ const Footer = ({ onNavigate }) => {
       {/* Bottom bar */}
       <div style={{ borderTop: '1px solid #1e293b', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ fontSize: 12, color: '#475569' }}>
-          © 2026 KenteXa · Bishoo Intelligence Systems (BiS) · All rights reserved
+          {t('footer.copyright')}
         </div>
         <div style={{ display: 'flex', gap: 16 }}>
-          <span onClick={() => onNavigate('Terms')} style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>Terms</span>
-          <span onClick={() => onNavigate('Privacy')} style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>Privacy</span>
-          <span onClick={() => onNavigate('AboutUs')} style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>About</span>
+          <span onClick={() => onNavigate('Terms')} style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>{t('footer.bottom_terms')}</span>
+          <span onClick={() => onNavigate('Privacy')} style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>{t('footer.bottom_privacy')}</span>
+          <span onClick={() => onNavigate('AboutUs')} style={{ fontSize: 12, color: '#475569', cursor: 'pointer' }}>{t('footer.bottom_about')}</span>
         </div>
       </div>
     </footer>

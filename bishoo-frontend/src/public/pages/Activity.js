@@ -6,17 +6,18 @@
  * notifications, business updates — all in one place
  */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
-const ago  = d => {
+const ago  = (d, t) => {
   const diff = Date.now() - new Date(d).getTime();
   const m = Math.floor(diff / 60000);
-  if (m < 1)  return 'Just now';
-  if (m < 60) return `Dakika ${m}`;
+  if (m < 1)  return t('comment_section.just_now');
+  if (m < 60) return t('comment_section.minutes_ago', { count: m });
   const h = Math.floor(m / 60);
-  if (h < 24) return `Saa ${h}`;
+  if (h < 24) return t('comment_section.hours_ago', { count: h });
   const day = Math.floor(h / 24);
-  return `Siku ${day}`;
+  return t('comment_section.days_ago', { count: day });
 };
 
 const B = '#2563EB';
@@ -32,6 +33,7 @@ const NOTIF_ICON = {
 };
 
 const Activity = ({ onNavigate, isLoggedIn, currentUser }) => {
+  const { t } = useTranslation();
   const [notifs,  setNotifs]  = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('all');
@@ -73,7 +75,7 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser }) => {
         borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <h1 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: 0 }}>
-            Activity {unreadCount > 0 && (
+            {t('activity.page_title')} {unreadCount > 0 && (
               <span style={{ fontSize: 14, backgroundColor: '#ef4444', color: '#fff',
                 borderRadius: 100, padding: '2px 8px', marginLeft: 8 }}>
                 {unreadCount}
@@ -84,7 +86,7 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser }) => {
             <button onClick={markAllRead}
               style={{ background: 'none', border: 'none', cursor: 'pointer',
                 color: B, fontSize: 13, fontWeight: 700 }}>
-              Mark All Read
+              {t('activity.mark_all_read')}
             </button>
           )}
         </div>
@@ -92,15 +94,15 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser }) => {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 0 }}>
           {[
-            { key: 'all',    label: `All (${notifs.length})`       },
-            { key: 'unread', label: `New (${unreadCount})`         },
-          ].map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            { key: 'all',    label: t('activity.tab_all', { count: notifs.length })       },
+            { key: 'unread', label: t('activity.tab_new', { count: unreadCount })         },
+          ].map(tabItem => (
+            <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
               style={{ flex: 1, padding: '10px 0', border: 'none', background: 'none',
                 cursor: 'pointer', fontSize: 13, fontWeight: 700,
-                color: tab === t.key ? B : '#64748b',
-                borderBottom: `2px solid ${tab === t.key ? B : 'transparent'}` }}>
-              {t.label}
+                color: tab === tabItem.key ? B : '#64748b',
+                borderBottom: `2px solid ${tab === tabItem.key ? B : 'transparent'}` }}>
+              {tabItem.label}
             </button>
           ))}
         </div>
@@ -111,22 +113,22 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser }) => {
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
-            <div>Inapakia shughuli...</div>
+            <div>{t('activity.loading')}</div>
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 80, color: '#94a3b8' }}>
             <div style={{ fontSize: 64, marginBottom: 16 }}>🔔</div>
             <div style={{ fontSize: 16, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
-              No activity yet
+              {t('activity.no_activity_title')}
             </div>
             <div style={{ fontSize: 13 }}>
-              Ufuataji wa bidhaa, maagizo na wateja utaonekana hapa
+              {t('activity.no_activity_desc')}
             </div>
             <button onClick={() => onNavigate('Home')}
               style={{ marginTop: 24, backgroundColor: B, color: '#fff', border: 'none',
                 borderRadius: 12, padding: '12px 28px', cursor: 'pointer',
                 fontSize: 14, fontWeight: 700 }}>
-              Discover Products
+              {t('activity.discover_products_button')}
             </button>
           </div>
         ) : filtered.map(n => {
@@ -166,7 +168,7 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser }) => {
                   {n.body}
                 </div>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
-                  {ago(n.createdAt)}
+                  {ago(n.createdAt, t)}
                 </div>
               </div>
 

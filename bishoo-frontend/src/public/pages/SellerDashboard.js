@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
 import ProfileCompletionBanner from '../components/ProfileCompletionBanner';
@@ -13,13 +14,17 @@ const PU = '#7C3AED';
 const fmt = n => Number(n||0).toLocaleString();
 
 // ── Revenue Chart — last 7 days ────────────────────────────────────────────
+const LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
+
 const RevenueChart = ({ orders }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = LOCALE_MAP[i18n.language] || 'en-GB';
   const days = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     return {
       date:  d,
-      label: d.toLocaleDateString('en-GB', { weekday: 'short' }),
+      label: d.toLocaleDateString(dateLocale, { weekday: 'short' }),
       key:   d.toISOString().slice(0, 10),
       revenue: 0,
       orders:  0,
@@ -46,7 +51,7 @@ const RevenueChart = ({ orders }) => {
       <div style={{ display: 'flex', justifyContent: 'space-between',
         alignItems: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: 14, fontWeight: 900, color: DK }}>
-          📊 Revenue — This Week
+          📊 {t('seller_dashboard.revenue_this_week')}
         </div>
         <div style={{ fontSize: 13, fontWeight: 800, color: GN }}>
           TZS {fmt(days.reduce((s, d) => s + d.revenue, 0))}
@@ -102,15 +107,15 @@ const RevenueChart = ({ orders }) => {
       <div style={{ display: 'flex', gap: 16, marginTop: 4, justifyContent: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: GR }}>
           <div style={{ width: 10, height: 10, borderRadius: 3, backgroundColor: '#E2E8F0' }} />
-          Past days
+          {t('seller_dashboard.past_days')}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: GR }}>
           <div style={{ width: 10, height: 10, borderRadius: 3, background: `linear-gradient(135deg,${B},${PU})` }} />
-          Today
+          {t('seller_dashboard.today')}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: GR }}>
           <div style={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: '#A5B4FC' }} />
-          Order count
+          {t('seller_dashboard.order_count')}
         </div>
       </div>
     </div>
@@ -136,6 +141,8 @@ const MenuRow = ({ icon, label, value, onClick, last }) => (
 );
 
 const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment, currentUser }) => {
+  const { t, i18n } = useTranslation();
+  const dateLocale = LOCALE_MAP[i18n.language] || 'en-GB';
   const [data, setData]                       = useState(null);
   const [loading, setLoading]                 = useState(true);
   const [error, setError]                     = useState('');
@@ -173,13 +180,13 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
       }
     } catch (err) {
       if (err?.response?.status === 404) setProfileStatus('not_applied');
-      else setError('Could not load the dashboard');
+      else setError(t('seller_dashboard.could_not_load'));
     } finally { setLoading(false); }
   };
 
   const handleCreateInvoice = async (requestId) => {
     if (!invoiceForm.amount || !invoiceForm.invoiceDescription) {
-      setError('Amount and description are required'); return;
+      setError(t('seller_dashboard.amount_desc_required')); return;
     }
     try {
       setCreatingInvoice(true);
@@ -189,37 +196,37 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
         sellerNotes: invoiceForm.sellerNotes,
         dueDays: Number(invoiceForm.dueDays),
       });
-      setInvoiceMessage(`✅ Invoice ${res.data.invoiceNumber} sent to the buyer!`);
+      setInvoiceMessage(`✅ ${t('seller_dashboard.invoice_sent', { number: res.data.invoiceNumber })}`);
       setShowCreateInvoice(null);
       setInvoiceForm({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3 });
       fetchData();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Could not create the invoice');
+      setError(err?.response?.data?.message || t('seller_dashboard.could_not_create_invoice'));
     } finally { setCreatingInvoice(false); }
   };
 
   const statusConfig = {
-    pending:     { icon: '⏳', title: 'Application Under Review', desc: 'Your seller application is being reviewed. We\u2019ll let you know within 24 hours.', color: '#D97706', bg: '#FEF9C3' },
-    approved:    { icon: '✅', title: 'Seller Account Active',    desc: 'Your account is approved and active.',                                              color: GN,        bg: '#DCFCE7' },
-    rejected:    { icon: '❌', title: 'Application Declined',     desc: `Reason: ${profile?.rejectionReason || 'Not specified'}`,                            color: '#DC2626',  bg: '#FEE2E2' },
-    suspended:   { icon: '🚫', title: 'Account Suspended',        desc: `Reason: ${profile?.rejectionReason || 'Contact support'}`,                          color: '#DC2626',  bg: '#FEE2E2' },
-    not_applied: { icon: '🏪', title: 'Not Applied Yet',          desc: 'You haven\u2019t applied to become a seller yet.',                                  color: PU,         bg: '#EDE9FE' },
+    pending:     { icon: '⏳', title: t('seller_dashboard.status_pending_title'), desc: t('seller_dashboard.status_pending_desc'), color: '#D97706', bg: '#FEF9C3' },
+    approved:    { icon: '✅', title: t('seller_dashboard.status_approved_title'), desc: t('seller_dashboard.status_approved_desc'),                                              color: GN,        bg: '#DCFCE7' },
+    rejected:    { icon: '❌', title: t('seller_dashboard.status_rejected_title'), desc: t('seller_dashboard.status_rejected_reason', { reason: profile?.rejectionReason || t('seller_dashboard.not_specified') }),                            color: '#DC2626',  bg: '#FEE2E2' },
+    suspended:   { icon: '🚫', title: t('seller_dashboard.status_suspended_title'), desc: t('seller_dashboard.status_suspended_reason', { reason: profile?.rejectionReason || t('seller_dashboard.contact_support') }),                          color: '#DC2626',  bg: '#FEE2E2' },
+    not_applied: { icon: '🏪', title: t('seller_dashboard.status_not_applied_title'), desc: t('seller_dashboard.status_not_applied_desc'),                                  color: PU,         bg: '#EDE9FE' },
   };
 
   const statusInfo  = statusConfig[profileStatus] || statusConfig['not_applied'];
-  const displayName = profile?.storeName || profile?.businessName || 'Your Business';
+  const displayName = profile?.storeName || profile?.businessName || t('seller_dashboard.your_business');
   const inputStyle  = { width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 14, boxSizing: 'border-box' };
 
   const vanBatch     = vanStatus?.batch;
   const vanParcels   = vanStatus?.totalParcels || 0;
-  const vanCutoff    = vanBatch ? new Date(vanBatch.cutoffTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
-  const vanDeparts   = vanBatch ? new Date(vanBatch.plannedDepartureTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+  const vanCutoff    = vanBatch ? new Date(vanBatch.cutoffTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }) : null;
+  const vanDeparts   = vanBatch ? new Date(vanBatch.plannedDepartureTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }) : null;
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
       <Navbar currentPage="SellerDashboard" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <div style={{ textAlign: 'center', padding: 80, color: GR }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>Loading...
+        <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>{t('seller_dashboard.loading')}
       </div>
     </div>
   );
@@ -236,7 +243,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
           justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: GR, marginBottom: 2 }}>
-              🏪 SELLER DASHBOARD
+              🏪 {t('seller_dashboard.badge')}
             </div>
             <h1 style={{ fontSize: 19, fontWeight: 900, color: DK, margin: 0 }}>{displayName}</h1>
           </div>
@@ -244,13 +251,13 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <span style={{ backgroundColor: '#DCFCE7', color: GN, padding: '5px 12px',
                 borderRadius: 20, fontSize: 11, fontWeight: 700 }}>
-                ✅ Approved
+                ✅ {t('seller_dashboard.approved')}
               </span>
               <button onClick={() => onNavigate('StoreSettings')}
                 style={{ backgroundColor: '#F1F5F9', color: DK, border: 'none',
                   padding: '7px 14px', borderRadius: 20, cursor: 'pointer',
                   fontSize: 11, fontWeight: 800 }}>
-                ✏️ Edit Store
+                ✏️ {t('seller_dashboard.edit_store')}
               </button>
             </div>
           )}
@@ -277,7 +284,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
               <button onClick={() => onNavigate('BecomeSeller')}
                 style={{ background: `linear-gradient(135deg,${B},${PU})`, color: WH, border: 'none',
                   padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                🚀 Apply Now
+                🚀 {t('seller_dashboard.apply_now')}
               </button>
             )}
           </div>
@@ -285,7 +292,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
 
         {profileStatus === 'approved' && data && (
           <>
-            {profile && !profile.phone && <PhoneNudgeBanner onSaved={fetchData} />}
+            {profile && !profile.phone && <PhoneNudgeBanner userId={currentUser?.id} onSaved={fetchData} />}
             <ProfileCompletionBanner profile={profile} onNavigate={onNavigate} />
 
             {/* ── Van Today banner ── */}
@@ -296,18 +303,18 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                   justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 800, color: '#A5B4FC', marginBottom: 4 }}>
-                    🚐 KenteXa Van — Today
+                    🚐 {t('seller_dashboard.van_today')}
                   </div>
                   <div style={{ fontSize: 18, fontWeight: 900, color: WH }}>
-                    {vanParcels} parcels
+                    {vanParcels} {t('seller_dashboard.parcels')}
                     <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 400, marginLeft: 8 }}>
-                      Cutoff: {vanCutoff} · Departs: {vanDeparts}
+                      {t('seller_dashboard.cutoff')}: {vanCutoff} · {t('seller_dashboard.departs')}: {vanDeparts}
                     </span>
                   </div>
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
                   backgroundColor: PU, color: WH }}>
-                  View →
+                  {t('seller_dashboard.view')} →
                 </div>
               </div>
             )}
@@ -315,10 +322,10 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
             {/* ── Quick Actions — 4 live numbers, not decoration ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
               {[
-                { label: 'Products', value: fmt(data.stats.totalProducts),  icon: '📦', color: B,  bg: '#EFF6FF', page: 'SellerProducts' },
-                { label: 'Listings', value: fmt(data.stats.totalClassifieds), icon: '🏷️', color: '#EA580C', bg: '#FFF7ED', page: 'SellerClassifieds' },
-                { label: 'Orders',   value: fmt(data.stats.totalOrders),    icon: '🛒', color: PU, bg: '#F5F3FF', page: 'SellerOrders' },
-                { label: 'Revenue',  value: `${fmt(data.stats.totalRevenue)}`, icon: '💰', color: GN, bg: '#F0FDF4', page: 'SellerAnalytics' },
+                { label: t('seller_dashboard.products'), value: fmt(data.stats.totalProducts),  icon: '📦', color: B,  bg: '#EFF6FF', page: 'SellerProducts' },
+                { label: t('seller_dashboard.listings'), value: fmt(data.stats.totalClassifieds), icon: '🏷️', color: '#EA580C', bg: '#FFF7ED', page: 'SellerClassifieds' },
+                { label: t('seller_dashboard.orders'),   value: fmt(data.stats.totalOrders),    icon: '🛒', color: PU, bg: '#F5F3FF', page: 'SellerOrders' },
+                { label: t('seller_dashboard.revenue'),  value: `${fmt(data.stats.totalRevenue)}`, icon: '💰', color: GN, bg: '#F0FDF4', page: 'SellerAnalytics' },
               ].map(s => (
                 <button key={s.label} onClick={() => onNavigate(s.page)}
                   style={{ backgroundColor: s.bg, border: 'none', borderRadius: 14,
@@ -333,30 +340,30 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
             {/* ── Menu — vertical list, Instagram-Settings style ── */}
             <div style={{ backgroundColor: WH, borderRadius: 16,
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden', marginBottom: 16 }}>
-              <MenuRow icon="📸" label="Share a Moment" onClick={() => onOpenMoment?.('selling')} />
-              <MenuRow icon="📦" label="My Products" onClick={() => onNavigate('SellerProducts')} />
-              <MenuRow icon="🏷️" label="My Listings" onClick={() => onNavigate('SellerClassifieds')} />
-              <MenuRow icon="🛒" label="Orders" onClick={() => onNavigate('SellerOrders')} />
-              <MenuRow icon="👥" label="Customers" onClick={() => onNavigate('SellerCustomers')} />
-              <MenuRow icon="💬" label="Inbox" onClick={() => onNavigate('SellerInbox')} />
-              <MenuRow icon="📦" label="Ship an Item" onClick={() => onNavigate('SellerShipment')} />
-              <MenuRow icon="🚐" label="Van Today" value={vanParcels > 0 ? `${vanParcels} parcels` : null} onClick={() => onNavigate('VanToday')} />
-              <MenuRow icon="🧾" label="Invoices" value={invoiceRequests.filter(r=>r.status==='pending').length > 0 ? `${invoiceRequests.filter(r=>r.status==='pending').length} pending` : null} onClick={() => onNavigate('SellerInvoices')} />
-              <MenuRow icon="💸" label="Payouts" onClick={() => onNavigate('SellerPayouts')} />
-              <MenuRow icon="📊" label="Analytics" onClick={() => onNavigate('SellerAnalytics')} />
-              <MenuRow icon="👥" label="My Team" onClick={() => onNavigate('SellerTeam')} />
-              <MenuRow icon="🌐" label="Public Business Profile" onClick={() => onNavigate('CommerceProfile')} />
-              <MenuRow icon="🏪" label="Store Settings" onClick={() => onNavigate('StoreSettings')} last />
+              <MenuRow icon="📸" label={t('seller_dashboard.share_moment')} onClick={() => onOpenMoment?.('selling')} />
+              <MenuRow icon="📦" label={t('seller_dashboard.my_products')} onClick={() => onNavigate('SellerProducts')} />
+              <MenuRow icon="🏷️" label={t('seller_dashboard.my_listings')} onClick={() => onNavigate('SellerClassifieds')} />
+              <MenuRow icon="🛒" label={t('seller_dashboard.orders')} onClick={() => onNavigate('SellerOrders')} />
+              <MenuRow icon="👥" label={t('seller_dashboard.customers')} onClick={() => onNavigate('SellerCustomers')} />
+              <MenuRow icon="💬" label={t('seller_dashboard.inbox')} onClick={() => onNavigate('SellerInbox')} />
+              <MenuRow icon="📦" label={t('seller_dashboard.ship_item')} onClick={() => onNavigate('SellerShipment')} />
+              <MenuRow icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')} />
+              <MenuRow icon="🧾" label={t('seller_dashboard.invoices')} value={invoiceRequests.filter(r=>r.status==='pending').length > 0 ? t('seller_dashboard.pending_count', { count: invoiceRequests.filter(r=>r.status==='pending').length }) : null} onClick={() => onNavigate('SellerInvoices')} />
+              <MenuRow icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')} />
+              <MenuRow icon="📊" label={t('seller_dashboard.analytics')} onClick={() => onNavigate('SellerAnalytics')} />
+              <MenuRow icon="👥" label={t('seller_dashboard.my_team')} onClick={() => onNavigate('SellerTeam')} />
+              <MenuRow icon="🌐" label={t('seller_dashboard.public_profile')} onClick={() => onNavigate('CommerceProfile')} />
+              <MenuRow icon="🏪" label={t('seller_dashboard.store_settings')} onClick={() => onNavigate('StoreSettings')} last />
             </div>
 
             {/* Recent Orders */}
             <div style={{ backgroundColor: WH, borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>🛒 Recent Orders</h2>
+                <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>🛒 {t('seller_dashboard.recent_orders')}</h2>
                 <button onClick={() => onNavigate('SellerOrders')}
                   style={{ backgroundColor: '#EDE9FE', color: PU, border: 'none', padding: '6px 12px',
                     borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                  View All →
+                  {t('seller_dashboard.view_all')} →
                 </button>
               </div>
 
@@ -365,7 +372,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
               {data.recentOrders.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 28, color: '#94A3B8' }}>
                   <div style={{ fontSize: 36, marginBottom: 10 }}>🛒</div>
-                  <p style={{ fontSize: 13 }}>No orders yet</p>
+                  <p style={{ fontSize: 13 }}>{t('seller_dashboard.no_orders_yet')}</p>
                 </div>
               ) : (
                 data.recentOrders.map(order => (
@@ -378,19 +385,27 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                         #{order.id} — {order.product?.name || order.manualProductName || '—'}
                       </div>
                       <div style={{ fontSize: 11, color: GR }}>
-                        {order.recipientName || order.buyer?.name || order.manualBuyerName || '—'} · {new Date(order.createdAt).toLocaleDateString('en-GB')}
+                        {order.recipientName || order.buyer?.name || order.manualBuyerName || '—'} · {new Date(order.createdAt).toLocaleDateString(dateLocale)}
                       </div>
                       {order.shippingMethod === 'kentexa_delivery' && (
-                        <span style={{ fontSize: 10, fontWeight: 700, color: PU }}>🚐 KenteXa Van</span>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: PU }}>🚐 {t('seller_dashboard.kentexa_van')}</span>
                       )}
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 800, color: PU }}>TZS {fmt(order.totalAmount)}</div>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
-                        backgroundColor: order.status === 'delivered' ? '#DCFCE7' : order.status === 'paid' ? '#DBEAFE' : '#FEF9C3',
-                        color: order.status === 'delivered' ? GN : order.status === 'paid' ? B : '#CA8A04' }}>
-                        {order.status}
-                      </span>
+                      {(() => {
+                        const badge =
+                          ['delivered', 'completed'].includes(order.status)  ? { bg: '#DCFCE7', fg: GN } :
+                          order.status === 'paid'                            ? { bg: '#DBEAFE', fg: B } :
+                          ['disputed', 'cancelled'].includes(order.status)   ? { bg: '#FEE2E2', fg: '#DC2626' } :
+                          { bg: '#FEF9C3', fg: '#CA8A04' };
+                        return (
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6,
+                            backgroundColor: badge.bg, color: badge.fg }}>
+                            {order.status}
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))
@@ -399,8 +414,8 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
 
             {/* Invoice Requests */}
             <div style={{ backgroundColor: WH, borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: '0 0 4px' }}>🧾 Invoice Requests</h2>
-              <p style={{ fontSize: 12, color: GR, margin: '0 0 14px' }}>Buyers requesting an invoice from your listings</p>
+              <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: '0 0 4px' }}>🧾 {t('seller_dashboard.invoice_requests_title')}</h2>
+              <p style={{ fontSize: 12, color: GR, margin: '0 0 14px' }}>{t('seller_dashboard.invoice_requests_subtitle')}</p>
 
               {invoiceMessage && (
                 <div style={{ backgroundColor: '#DCFCE7', color: GN, padding: '10px 14px', borderRadius: 8,
@@ -413,7 +428,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
               {invoiceRequests.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 28, color: '#94A3B8' }}>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>🧾</div>
-                  <p style={{ fontSize: 13 }}>No invoice requests yet</p>
+                  <p style={{ fontSize: 13 }}>{t('seller_dashboard.no_invoice_requests')}</p>
                 </div>
               ) : (
                 invoiceRequests.map(req => (
@@ -422,10 +437,10 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 8 }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: DK, marginBottom: 2 }}>{req.classifiedTitle}</div>
-                        <div style={{ fontSize: 11, color: GR }}>From: <strong>{req.buyerName}</strong></div>
+                        <div style={{ fontSize: 11, color: GR }}>{t('seller_dashboard.from')}: <strong>{req.buyerName}</strong></div>
                         {req.buyerPhone && <div style={{ fontSize: 11, color: GR }}>📞 {req.buyerPhone}</div>}
                         <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
-                          Listing price: TZS {fmt(req.listingPrice)}
+                          {t('seller_dashboard.listing_price')}: TZS {fmt(req.listingPrice)}
                         </div>
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, flexShrink: 0,
@@ -437,34 +452,34 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
 
                     {req.status === 'sent' && req.invoiceNumber && (
                       <div style={{ backgroundColor: '#DBEAFE', borderRadius: 8, padding: 10, marginBottom: 10, fontSize: 12 }}>
-                        <strong>Invoice:</strong> {req.invoiceNumber} · TZS {fmt(req.amount)}
+                        <strong>{t('seller_dashboard.invoice_label')}:</strong> {req.invoiceNumber} · TZS {fmt(req.amount)}
                       </div>
                     )}
                     {req.status === 'paid' && (
                       <div style={{ backgroundColor: '#DCFCE7', borderRadius: 8, padding: 10, fontSize: 12, color: GN, fontWeight: 600 }}>
-                        ✅ Paid — TZS {fmt(req.amount)}
+                        ✅ {t('seller_dashboard.paid_label')} — TZS {fmt(req.amount)}
                       </div>
                     )}
 
                     {req.status === 'pending' && showCreateInvoice === req.id && (
                       <div style={{ backgroundColor: WH, borderRadius: 10, padding: 14, marginTop: 10, border: `2px solid ${B}` }}>
-                        <h4 style={{ fontSize: 13, fontWeight: 800, color: DK, margin: '0 0 12px' }}>Create Invoice for {req.buyerName}</h4>
+                        <h4 style={{ fontSize: 13, fontWeight: 800, color: DK, margin: '0 0 12px' }}>{t('seller_dashboard.create_invoice_for', { name: req.buyerName })}</h4>
                         <div style={{ marginBottom: 10 }}>
-                          <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>Amount (TZS) *</label>
+                          <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('seller_dashboard.amount_tzs')}</label>
                           <input type="number" placeholder={String(req.listingPrice)} value={invoiceForm.amount}
                             onChange={e => setInvoiceForm({ ...invoiceForm, amount: e.target.value })} style={inputStyle} />
                         </div>
                         <div style={{ marginBottom: 10 }}>
-                          <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>Invoice Description *</label>
-                          <input placeholder="e.g. Toyota Corolla 2018" value={invoiceForm.invoiceDescription}
+                          <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('seller_dashboard.invoice_description')}</label>
+                          <input placeholder={t('seller_dashboard.invoice_description_placeholder')} value={invoiceForm.invoiceDescription}
                             onChange={e => setInvoiceForm({ ...invoiceForm, invoiceDescription: e.target.value })} style={inputStyle} />
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button onClick={() => { setShowCreateInvoice(null); setInvoiceForm({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3 }); }}
-                            style={{ flex: 1, backgroundColor: '#F1F5F9', color: GR, border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>Cancel</button>
+                            style={{ flex: 1, backgroundColor: '#F1F5F9', color: GR, border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 12 }}>{t('seller_dashboard.cancel')}</button>
                           <button onClick={() => handleCreateInvoice(req.id)} disabled={creatingInvoice}
                             style={{ flex: 2, background: creatingInvoice ? '#A5B4FC' : `linear-gradient(135deg,${B},${PU})`, color: WH, border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 800, fontSize: 12 }}>
-                            {creatingInvoice ? '⏳' : '📤 Send Invoice'}
+                            {creatingInvoice ? '⏳' : `📤 ${t('seller_dashboard.send_invoice')}`}
                           </button>
                         </div>
                       </div>
@@ -473,7 +488,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                     {req.status === 'pending' && showCreateInvoice !== req.id && (
                       <button onClick={() => { setShowCreateInvoice(req.id); setInvoiceForm({ amount: String(req.listingPrice || ''), invoiceDescription: req.classifiedTitle, sellerNotes: '', dueDays: 3 }); }}
                         style={{ backgroundColor: B, color: WH, border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, marginTop: 4 }}>
-                        🧾 Create Invoice
+                        🧾 {t('seller_dashboard.create_invoice')}
                       </button>
                     )}
                   </div>
@@ -484,19 +499,19 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
             {/* Business Profile summary */}
             <div style={{ backgroundColor: WH, borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>🏪 Business Profile</h2>
+                <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>🏪 {t('seller_dashboard.business_profile_title')}</h2>
                 <button onClick={() => onNavigate('StoreSettings')}
                   style={{ backgroundColor: '#EDE9FE', color: PU, border: 'none', padding: '6px 12px',
                     borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                  ✏️ Edit
+                  ✏️ {t('seller_dashboard.edit')}
                 </button>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {[
-                  { label: 'Store Name',    value: profile?.storeName || '— Not set —' },
-                  { label: 'Business Name', value: profile?.businessName || '—' },
-                  { label: 'Phone',         value: profile?.phone || '—' },
-                  { label: 'Address',       value: profile?.businessLocation || profile?.address || '—' },
+                  { label: t('seller_dashboard.store_name'),    value: profile?.storeName || t('seller_dashboard.not_set') },
+                  { label: t('seller_dashboard.business_name'), value: profile?.businessName || t('seller_dashboard.not_available') },
+                  { label: t('seller_dashboard.phone'),         value: profile?.phone || t('seller_dashboard.not_available') },
+                  { label: t('seller_dashboard.address'),       value: profile?.businessLocation || profile?.address || t('seller_dashboard.not_available') },
                 ].map(item => (
                   <div key={item.label} style={{ padding: 10, backgroundColor: '#F8FAFC', borderRadius: 8 }}>
                     <div style={{ fontSize: 11, color: GR, marginBottom: 4 }}>{item.label}</div>

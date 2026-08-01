@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState('incoming');
   const [incoming, setIncoming] = useState([]);
   const [inStorage, setInStorage] = useState([]);
@@ -45,7 +47,7 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
       setReadyForPickup(ready.data);
       setCompleted(comp.data);
     } catch (err) {
-      setError('Failed to load orders');
+      setError(t('agent_order_dashboard.load_failed'));
     } finally {
       setLoading(false);
     }
@@ -53,18 +55,18 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
 
   const handleConfirmReceipt = async () => {
     if (!receiptForm.handoverCode) {
-      setError('Handover code is required');
+      setError(t('agent_order_dashboard.handover_code_required'));
       return;
     }
     try {
       setProcessing(true);
       await api.post('/agent-orders/confirm-receipt', receiptForm);
-      setMessage('Product receipt confirmed. Customer has been notified!');
+      setMessage(t('agent_order_dashboard.receipt_confirmed_success'));
       setShowReceiptForm(false);
       setReceiptForm({ handoverCode: '', condition: 'good', notes: '' });
       fetchAllData();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to confirm receipt');
+      setError(err?.response?.data?.message || t('agent_order_dashboard.confirm_receipt_failed'));
     } finally {
       setProcessing(false);
     }
@@ -72,7 +74,7 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
 
   const handleVerifyPickup = async () => {
     if (!pickupForm.orderId || !pickupForm.otpCode) {
-      setError('Order ID and OTP are required');
+      setError(t('agent_order_dashboard.order_otp_required'));
       return;
     }
     try {
@@ -81,22 +83,22 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
         orderId: Number(pickupForm.orderId),
         otpCode: pickupForm.otpCode,
       });
-      setMessage('Pickup verified! Order completed and commission released.');
+      setMessage(t('agent_order_dashboard.pickup_verified_success'));
       setShowPickupForm(false);
       setPickupForm({ orderId: '', otpCode: '' });
       fetchAllData();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Invalid OTP');
+      setError(err?.response?.data?.message || t('agent_order_dashboard.invalid_otp'));
     } finally {
       setProcessing(false);
     }
   };
 
   const tabs = [
-    { key: 'incoming', label: '📦 Incoming', count: incoming.length, color: '#667eea' },
-    { key: 'storage', label: '🏪 In Storage', count: inStorage.length, color: '#f7971e' },
-    { key: 'pickup', label: '🔔 Ready', count: readyForPickup.length, color: '#10b981' },
-    { key: 'completed', label: '✅ Completed', count: completed.length, color: '#6366f1' },
+    { key: 'incoming', label: t('agent_order_dashboard.tab_incoming'), count: incoming.length, color: '#667eea' },
+    { key: 'storage', label: t('agent_order_dashboard.tab_storage'), count: inStorage.length, color: '#f7971e' },
+    { key: 'pickup', label: t('agent_order_dashboard.tab_pickup'), count: readyForPickup.length, color: '#10b981' },
+    { key: 'completed', label: t('agent_order_dashboard.tab_completed'), count: completed.length, color: '#6366f1' },
   ];
 
   return (
@@ -108,10 +110,10 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#1e293b', margin: '0 0 4px' }}>
-              📦 Order Management
+              {t('agent_order_dashboard.page_title')}
             </h1>
             <p style={{ fontSize: '14px', color: 'rgba(30,41,59,0.7)', margin: 0 }}>
-              Receive, store, and hand over products
+              {t('agent_order_dashboard.page_subtitle')}
             </p>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
@@ -119,13 +121,13 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
               onClick={() => setShowReceiptForm(true)}
               style={{ background: '#fff', color: '#f59e0b', border: 'none', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}
             >
-              📦 Confirm Receipt
+              {t('agent_order_dashboard.confirm_receipt_button')}
             </button>
             <button
               onClick={() => setShowPickupForm(true)}
               style={{ background: 'rgba(255,255,255,0.2)', color: '#1e293b', border: '2px solid rgba(255,255,255,0.5)', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontWeight: '800' }}
             >
-              ✅ Verify Pickup
+              {t('agent_order_dashboard.verify_pickup_button')}
             </button>
           </div>
         </div>
@@ -164,18 +166,18 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
 
         {/* Tab Content */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>Loading orders...</div>
+          <div style={{ textAlign: 'center', padding: '60px', color: '#64748b' }}>{t('agent_order_dashboard.loading')}</div>
         ) : (
           <>
             {/* Incoming Products */}
             {activeTab === 'incoming' && (
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>📦 Incoming Products</h2>
+                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>{t('agent_order_dashboard.incoming_title')}</h2>
                 {incoming.length === 0 ? (
-                  <EmptyState icon="📦" text="No incoming products" />
+                  <EmptyState icon="📦" text={t('agent_order_dashboard.no_incoming')} />
                 ) : (
                   incoming.map(item => (
-                    <OrderCard key={item.id} item={item} type="handover" onAction={() => { setReceiptForm({ ...receiptForm, handoverCode: item.handoverCode }); setShowReceiptForm(true); }} actionLabel="Confirm Receipt" actionColor="#f7971e" />
+                    <OrderCard key={item.id} item={item} type="handover" onAction={() => { setReceiptForm({ ...receiptForm, handoverCode: item.handoverCode }); setShowReceiptForm(true); }} actionLabel={t('agent_order_dashboard.confirm_receipt_action')} actionColor="#f7971e" />
                   ))
                 )}
               </div>
@@ -184,9 +186,9 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
             {/* In Storage */}
             {activeTab === 'storage' && (
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>🏪 Products in Storage</h2>
+                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>{t('agent_order_dashboard.storage_title')}</h2>
                 {inStorage.length === 0 ? (
-                  <EmptyState icon="🏪" text="No products in storage" />
+                  <EmptyState icon="🏪" text={t('agent_order_dashboard.no_storage')} />
                 ) : (
                   inStorage.map(item => (
                     <StorageCard key={item.id} item={item} />
@@ -198,12 +200,12 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
             {/* Ready for Pickup */}
             {activeTab === 'pickup' && (
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>🔔 Ready for Customer Pickup</h2>
+                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>{t('agent_order_dashboard.pickup_title')}</h2>
                 {readyForPickup.length === 0 ? (
-                  <EmptyState icon="🔔" text="No products waiting for pickup" />
+                  <EmptyState icon="🔔" text={t('agent_order_dashboard.no_pickup')} />
                 ) : (
                   readyForPickup.map(item => (
-                    <OrderCard key={item.id} item={item} type="pickup" onAction={() => { setPickupForm({ ...pickupForm, orderId: item.order?.id }); setShowPickupForm(true); }} actionLabel="Verify Pickup" actionColor="#10b981" />
+                    <OrderCard key={item.id} item={item} type="pickup" onAction={() => { setPickupForm({ ...pickupForm, orderId: item.order?.id }); setShowPickupForm(true); }} actionLabel={t('agent_order_dashboard.verify_pickup_action')} actionColor="#10b981" />
                   ))
                 )}
               </div>
@@ -212,9 +214,9 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
             {/* Completed */}
             {activeTab === 'completed' && (
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>✅ Completed Pickups</h2>
+                <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', marginBottom: '16px' }}>{t('agent_order_dashboard.completed_title')}</h2>
                 {completed.length === 0 ? (
-                  <EmptyState icon="✅" text="No completed pickups yet" />
+                  <EmptyState icon="✅" text={t('agent_order_dashboard.no_completed')} />
                 ) : (
                   completed.map(item => (
                     <StorageCard key={item.id} item={item} completed />
@@ -228,9 +230,9 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
 
       {/* Confirm Receipt Modal */}
       {showReceiptForm && (
-        <Modal title="📦 Confirm Product Receipt" onClose={() => setShowReceiptForm(false)}>
+        <Modal title={t('agent_order_dashboard.modal_confirm_receipt_title')} onClose={() => setShowReceiptForm(false)}>
           <div style={{ marginBottom: '16px' }}>
-            <label style={labelStyle}>Handover Code *</label>
+            <label style={labelStyle}>{t('agent_order_dashboard.handover_code_label')}</label>
             <input
               placeholder="KNT-HND-00001"
               value={receiptForm.handoverCode}
@@ -239,21 +241,21 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
             />
           </div>
           <div style={{ marginBottom: '16px' }}>
-            <label style={labelStyle}>Product Condition *</label>
+            <label style={labelStyle}>{t('agent_order_dashboard.product_condition_label')}</label>
             <select
               value={receiptForm.condition}
               onChange={e => setReceiptForm({ ...receiptForm, condition: e.target.value })}
               style={inputStyle}
             >
-              <option value="good">✅ Good Condition</option>
-              <option value="damaged">❌ Damaged</option>
-              <option value="incomplete">⚠️ Incomplete</option>
+              <option value="good">{t('agent_order_dashboard.condition_good')}</option>
+              <option value="damaged">{t('agent_order_dashboard.condition_damaged')}</option>
+              <option value="incomplete">{t('agent_order_dashboard.condition_incomplete')}</option>
             </select>
           </div>
           <div style={{ marginBottom: '24px' }}>
-            <label style={labelStyle}>Notes</label>
+            <label style={labelStyle}>{t('agent_order_dashboard.notes_label')}</label>
             <textarea
-              placeholder="Any notes about the product..."
+              placeholder={t('agent_order_dashboard.notes_placeholder')}
               value={receiptForm.notes}
               onChange={e => setReceiptForm({ ...receiptForm, notes: e.target.value })}
               rows={3}
@@ -261,13 +263,13 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
             />
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={() => setShowReceiptForm(false)} style={cancelBtnStyle}>Cancel</button>
+            <button onClick={() => setShowReceiptForm(false)} style={cancelBtnStyle}>{t('agent_order_dashboard.cancel_button')}</button>
             <button
               onClick={handleConfirmReceipt}
               disabled={processing}
               style={{ ...actionBtnStyle, background: 'linear-gradient(135deg, #f7971e 0%, #ffd200 100%)', color: '#1e293b' }}
             >
-              {processing ? 'Processing...' : '✅ Confirm Receipt'}
+              {processing ? t('agent_order_dashboard.processing_button') : t('agent_order_dashboard.confirm_receipt_button')}
             </button>
           </div>
         </Modal>
@@ -275,12 +277,12 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
 
       {/* Verify Pickup Modal */}
       {showPickupForm && (
-        <Modal title="✅ Verify Customer Pickup" onClose={() => setShowPickupForm(false)}>
+        <Modal title={t('agent_order_dashboard.modal_verify_pickup_title')} onClose={() => setShowPickupForm(false)}>
           <div style={{ backgroundColor: '#fef9c3', borderRadius: '10px', padding: '14px', marginBottom: '20px', fontSize: '13px', color: '#92400e' }}>
-            ⚠️ Ask the customer for their OTP. Verify their identity before releasing the product.
+            {t('agent_order_dashboard.otp_warning')}
           </div>
           <div style={{ marginBottom: '16px' }}>
-            <label style={labelStyle}>Order ID *</label>
+            <label style={labelStyle}>{t('agent_order_dashboard.order_id_label')}</label>
             <input
               placeholder="e.g. 42"
               value={pickupForm.orderId}
@@ -289,9 +291,9 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
             />
           </div>
           <div style={{ marginBottom: '24px' }}>
-            <label style={labelStyle}>Customer OTP *</label>
+            <label style={labelStyle}>{t('agent_order_dashboard.customer_otp_label')}</label>
             <input
-              placeholder="6-digit OTP from customer"
+              placeholder={t('agent_order_dashboard.otp_placeholder')}
               value={pickupForm.otpCode}
               onChange={e => setPickupForm({ ...pickupForm, otpCode: e.target.value })}
               maxLength={6}
@@ -299,13 +301,13 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
             />
           </div>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button onClick={() => setShowPickupForm(false)} style={cancelBtnStyle}>Cancel</button>
+            <button onClick={() => setShowPickupForm(false)} style={cancelBtnStyle}>{t('agent_order_dashboard.cancel_button')}</button>
             <button
               onClick={handleVerifyPickup}
               disabled={processing}
               style={{ ...actionBtnStyle, background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: '#1e293b' }}
             >
-              {processing ? 'Verifying...' : '✅ Verify & Complete'}
+              {processing ? t('agent_order_dashboard.verifying_button') : t('agent_order_dashboard.verify_complete_button')}
             </button>
           </div>
         </Modal>
@@ -324,16 +326,18 @@ const EmptyState = ({ icon, text }) => (
   </div>
 );
 
-const OrderCard = ({ item, type, onAction, actionLabel, actionColor }) => (
+const OrderCard = ({ item, type, onAction, actionLabel, actionColor }) => {
+  const { t } = useTranslation();
+  return (
   <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '20px', marginBottom: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
     <div>
       <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '4px' }}>
-        {type === 'handover' ? `Handover: ${item.handoverCode}` : `Order #${item.order?.id}`}
+        {type === 'handover' ? t('agent_order_dashboard.handover_label', { code: item.handoverCode }) : t('agent_order_dashboard.order_number_label', { id: item.order?.id })}
       </div>
       <div style={{ fontSize: '13px', color: '#64748b' }}>
         {type === 'handover'
-          ? `From: ${item.seller?.email} • ${new Date(item.createdAt).toLocaleDateString()}`
-          : `Expires: ${new Date(item.expiresAt).toLocaleDateString()} • Received: ${new Date(item.receivedAt).toLocaleDateString()}`
+          ? t('agent_order_dashboard.from_seller', { email: item.seller?.email, date: new Date(item.createdAt).toLocaleDateString() })
+          : t('agent_order_dashboard.expires_received', { expires: new Date(item.expiresAt).toLocaleDateString(), received: new Date(item.receivedAt).toLocaleDateString() })
         }
       </div>
       {item.order?.product?.name && (
@@ -349,22 +353,25 @@ const OrderCard = ({ item, type, onAction, actionLabel, actionColor }) => (
       {actionLabel}
     </button>
   </div>
-);
+  );
+};
 
-const StorageCard = ({ item, completed }) => (
+const StorageCard = ({ item, completed }) => {
+  const { t } = useTranslation();
+  return (
   <div style={{ backgroundColor: '#fff', borderRadius: '14px', padding: '20px', marginBottom: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
       <div>
         <div style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', marginBottom: '4px' }}>
-          Order #{item.order?.id}
+          {t('agent_order_dashboard.order_number_label', { id: item.order?.id })}
         </div>
         <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
           {item.order?.product?.name}
         </div>
         <div style={{ fontSize: '13px', color: '#64748b' }}>
-          Received: {item.receivedAt ? new Date(item.receivedAt).toLocaleDateString() : '—'}
-          {!completed && ` • Expires: ${item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : '—'}`}
-          {completed && ` • Completed`}
+          {t('agent_order_dashboard.received_label', { date: item.receivedAt ? new Date(item.receivedAt).toLocaleDateString() : '—' })}
+          {!completed && t('agent_order_dashboard.expires_suffix', { date: item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : '—' })}
+          {completed && t('agent_order_dashboard.completed_suffix')}
         </div>
       </div>
       <span style={{
@@ -372,11 +379,12 @@ const StorageCard = ({ item, completed }) => (
         backgroundColor: completed ? '#dcfce7' : '#fef9c3',
         color: completed ? '#16a34a' : '#ca8a04',
       }}>
-        {completed ? '✅ Completed' : '⏳ Waiting'}
+        {completed ? t('agent_order_dashboard.status_completed') : t('agent_order_dashboard.status_waiting')}
       </span>
     </div>
   </div>
-);
+  );
+};
 
 const Modal = ({ title, onClose, children }) => (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
