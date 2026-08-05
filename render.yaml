@@ -1,16 +1,64 @@
-# Render Blueprint for the Kentexa Early Access Portal only.
+# Render Blueprint for Kentexa: the main backend + the Early Access Portal,
+# plus a managed Postgres database for the backend.
 #
-# This intentionally does NOT define the main bishoo-backend service —
-# that deploy is being held back separately until SMS/payment providers
-# are configured, and this file must not change that. If a bishoo-backend
-# service already exists on Render (connected via the dashboard rather
-# than a Blueprint), this file has no effect on it.
+# Payment providers (ClickPesa, Selcom) are intentionally left unconfigured —
+# their services fall back to placeholder values and never crash the app,
+# they just fail if a payment is actually attempted. SMS (Africa's Talking)
+# is required: the backend crashes on boot if AT_API_KEY is empty.
 #
-# To deploy: in the Render dashboard, "New" -> "Blueprint", point it at
-# this repo/branch. Render will read this file and provision the service
-# below. After it's created, set NEXT_PUBLIC_API_URL (see envVars below)
-# to the URL of whichever backend this portal should talk to.
+# To deploy: in the Render dashboard, "New" -> "Blueprint", point it at this
+# repo/branch. Render provisions the database and both services below. Then
+# fill in every envVar marked `sync: false` (real secrets — never commit
+# these) in each service's Environment tab.
+databases:
+  - name: kentexa-db
+    plan: free # Render free Postgres is deleted after 90 days of inactivity-free lifetime unless upgraded — fine for a time-boxed early-access period, revisit before then
+    databaseName: kentexa
+    user: kentexa
+
 services:
+  - type: web
+    name: bishoo-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false # required — the app refuses to start without this
+      - key: AT_API_KEY
+        sync: false # required — Africa's Talking API key, or boot crashes
+      - key: AT_USERNAME
+        sync: false # Africa's Talking account username (not "sandbox" once using a real key)
+      - key: AT_SHORTCODE
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false # optional — only the Kentexa AI workflows need this; safe to leave unset for now
+      - key: DB_HOST
+        fromDatabase:
+          name: kentexa-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: kentexa-db
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: kentexa-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: kentexa-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: kentexa-db
+          property: database
+
   - type: web
     name: kentexa-early-access
     runtime: node
@@ -22,4 +70,4 @@ services:
       - key: NODE_VERSION
         value: 20.18.0
       - key: NEXT_PUBLIC_API_URL
-        sync: false # set manually in the Render dashboard once the backend URL is known
+        sync: false # set to the bishoo-backend service's URL once it's deployed (see above)
