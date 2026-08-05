@@ -11,6 +11,7 @@ import { Follow } from './follow.entity';
 import { Review } from './review.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
+import { ProfileService } from '../profile/profile.service';
 
 @Injectable()
 export class StoreService {
@@ -20,48 +21,23 @@ export class StoreService {
     @InjectRepository(Review) private reviewRepo: Repository<Review>,
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
+    private profileService: ProfileService,
   ) {}
 
   // ── Get full store page data ──────────────────────────────────────────────
   async getStore(sellerId: number, viewerId?: number) {
-    const seller = await this.userRepo.findOne({ where: { id: sellerId } });
-    if (!seller) throw new NotFoundException('Store not found');
-
-    const products = await this.productRepo.find({
-      where: { seller: { id: sellerId } },
-      order: { createdAt: 'DESC' },
-    });
-
-    const reviews = await this.reviewRepo.find({
-      where: { seller: { id: sellerId } },
-      relations: { buyer: true },
-      order: { createdAt: 'DESC' },
-      take: 20,
-    });
-
-    let isFollowing = false;
-    if (viewerId) {
-      const f = await this.followRepo.findOne({
-        where: { follower: { id: viewerId }, seller: { id: sellerId } },
-      });
-      isFollowing = !!f;
-    }
-
-    const { password, otp, otpExpiry, otpAttempts, ...safeSeller } =
-      seller as any;
+    const full = await this.profileService.buildPublicProfile(
+      sellerId,
+      viewerId,
+    );
+    if (!full) throw new NotFoundException('Store not found');
 
     return {
-      seller: safeSeller,
-      products,
-      reviews: reviews.map((r) => ({
-        id: r.id,
-        rating: r.rating,
-        comment: r.comment,
-        verified: r.verified,
-        date: r.createdAt,
-        buyerName: r.buyer?.name || 'Anonymous',
-      })),
-      isFollowing,
+      seller: full.user,
+      products: full.products,
+      reviews: full.reviews,
+      isFollowing: full.isFollowing,
+      serviceProvider: full.roleEntities.serviceProvider || null,
     };
   }
 

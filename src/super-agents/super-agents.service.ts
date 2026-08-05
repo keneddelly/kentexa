@@ -28,6 +28,7 @@ import {
 import { BatchParcel } from '../daily-batches/entities/batch-parcel.entity';
 import { SmsService } from '../sms/sms.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
+import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 
 @Injectable()
@@ -48,6 +49,7 @@ export class SuperAgentsService {
     private agentTransactionRepo: Repository<AgentTransaction>,
     @InjectRepository(BatchParcel)
     private batchParcelRepo: Repository<BatchParcel>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private smsService: SmsService,
     private dataSource: DataSource,
     private businessCustomerService: BusinessCustomerService,
@@ -682,7 +684,13 @@ export class SuperAgentsService {
     const agent = await this.superAgentRepo.findOne({ where: { id } });
     if (!agent) throw new NotFoundException('Super agent not found');
     agent.status = SuperAgentStatus.ACTIVE;
-    return this.superAgentRepo.save(agent);
+    const saved = await this.superAgentRepo.save(agent);
+    if (agent.user) {
+      await this.userRepo.update(agent.user.id, {
+        activeRoles: mergeActiveRole(agent.user.activeRoles, 'super_agent'),
+      });
+    }
+    return saved;
   }
 
   async suspend(id: number, reason: string) {

@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { Agent, AgentStatus } from './entities/agent.entity';
 import { User } from '../users/entities/user.entity';
 import { SmsService } from '../sms/sms.service';
+import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 
 @Injectable()
 export class AgentsService {
@@ -204,7 +205,10 @@ export class AgentsService {
       rejectionReason: null,
     });
     if (agent.user)
-      await this.userRepo.update(agent.user.id, { role: 'agent' as any });
+      await this.userRepo.update(agent.user.id, {
+        role: 'agent' as any,
+        activeRoles: mergeActiveRole(agent.user.activeRoles, 'agent'),
+      });
     const phone = agent.phone || agent.user?.phone;
     if (phone) {
       await this.smsService

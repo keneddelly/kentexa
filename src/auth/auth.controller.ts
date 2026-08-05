@@ -8,10 +8,14 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { ProfileService } from '../profile/profile.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private profileService: ProfileService,
+  ) {}
 
   // Register with phone
   @Post('register/phone')
@@ -79,8 +83,9 @@ export class AuthController {
   // Get current user profile
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Request() req) {
+  async getProfile(@Request() req) {
     const user = req.user;
+    const roleEntities = await this.profileService.getRoleEntities(user.id);
     return {
       id: user.id,
       phone: user.phone,
@@ -106,6 +111,7 @@ export class AuthController {
       completedOrders: user.completedOrders || 0,
       reputationScore: user.reputationScore || 0,
       activeRoles: user.activeRoles || [],
+      serviceProvider: roleEntities.serviceProvider || null,
     };
   }
 

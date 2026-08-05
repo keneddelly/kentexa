@@ -13,6 +13,7 @@ import { Order } from '../orders/entities/order.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { BusinessTeamMember } from '../business/entities/business-team-member.entity';
+import { ProfileModule } from '../profile/profile.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { BusinessTeamMember } from '../business/entities/business-team-member.en
       Product,
       BusinessTeamMember, // ← added for team management
     ]),
+    ProfileModule,
   ],
   controllers: [SellerController],
   providers: [SellerService],

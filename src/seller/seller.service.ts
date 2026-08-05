@@ -18,6 +18,8 @@ import {
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { BusinessTeamMember } from '../business/entities/business-team-member.entity';
+import { mergeActiveRole } from '../users/utils/merge-active-role.util';
+import { ProfileService } from '../profile/profile.service';
 
 @Injectable()
 export class SellerService {
@@ -34,6 +36,7 @@ export class SellerService {
     private productRepo: Repository<Product>,
     @InjectRepository(BusinessTeamMember)
     private teamRepo: Repository<BusinessTeamMember>,
+    private profileService: ProfileService,
   ) {}
 
   // ── Public: all approved sellers (raw profiles) ──────────────────────────
@@ -138,11 +141,14 @@ export class SellerService {
 
     // Seller enrichment is optional — most fields below already live on
     // User directly, this just adds a couple of seller-only extras.
-    const sellerProfile = await this.profileRepo
-      .findOne({
-        where: { user: { id: userId }, status: SellerStatus.APPROVED },
-      })
-      .catch(() => null);
+    const [sellerProfile, roleEntities] = await Promise.all([
+      this.profileRepo
+        .findOne({
+          where: { user: { id: userId }, status: SellerStatus.APPROVED },
+        })
+        .catch(() => null),
+      this.profileService.getRoleEntities(userId),
+    ]);
 
     return {
       id: u.id, // ✅ USER id — matches CommerceProfile-{id} route
@@ -170,6 +176,7 @@ export class SellerService {
       completedOrders: u.completedOrders || 0,
       reputationScore: (u as any).reputationScore || 0,
       createdAt: u.createdAt,
+      serviceProvider: roleEntities.serviceProvider || null,
     };
   }
 
@@ -480,7 +487,10 @@ export class SellerService {
     });
     if (!profile) throw new NotFoundException('Seller profile not found');
     profile.status = SellerStatus.APPROVED;
-    await this.userRepo.update(profile.user.id, { role: UserRole.SELLER });
+    await this.userRepo.update(profile.user.id, {
+      role: UserRole.SELLER,
+      activeRoles: mergeActiveRole(profile.user.activeRoles, 'seller'),
+    });
     return this.profileRepo.save(profile);
   }
 

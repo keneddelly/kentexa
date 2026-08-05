@@ -33,6 +33,7 @@ import {
   ServiceStatus,
   PriceType,
 } from '../services/entities/service-ad.entity';
+import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 
 @Injectable()
 export class TransportService {
@@ -46,6 +47,7 @@ export class TransportService {
     @InjectRepository(TransportAssignment)
     private assignmentRepo: Repository<TransportAssignment>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private readonly reputationService: ReputationService,
   ) {}
 
@@ -651,6 +653,14 @@ export class TransportService {
     const saved = await this.providerRepo.save(p);
     // Sync to service marketplace
     await this.syncServiceAd(saved, approve);
+    if (approve && p.userId) {
+      const user = await this.userRepo.findOne({ where: { id: p.userId } });
+      if (user) {
+        await this.userRepo.update(p.userId, {
+          activeRoles: mergeActiveRole(user.activeRoles, 'transport_provider'),
+        });
+      }
+    }
     return saved;
   }
 

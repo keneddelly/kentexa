@@ -10,6 +10,7 @@ import { TransportRoute } from './entities/transport-route.entity';
 import { ProviderAvailability } from './entities/provider-availability.entity';
 import { TransportAssignment } from './entities/transport-assignment.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import { User } from '../users/entities/user.entity';
 import { TransportService } from './transport.service';
 import { TransportController } from './transport.controller';
 import { ReputationModule } from '../reputation/reputation.module';
@@ -23,6 +24,7 @@ import { ReputationModule } from '../reputation/reputation.module';
       ProviderAvailability,
       TransportAssignment,
       ServiceAd, // for auto-linking transport providers to service marketplace
+      User,
     ]),
   ],
   controllers: [TransportController],

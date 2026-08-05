@@ -13,6 +13,7 @@ import { DailyBatch } from '../daily-batches/entities/daily-batch.entity';
 import { DeliveryZone } from '../daily-batches/entities/delivery-zone.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
+import { User } from '../users/entities/user.entity';
 import { AgentsModule } from '../agents/agents.module';
 import { SmsModule } from '../sms/sms.module';
 import { BusinessModule } from '../business/business.module';
@@ -33,6 +34,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       DailyBatch,
       DeliveryZone, // all three needed — BatchParcel has relations to both
       IntercityRoute,
+      User,
     ]),
     AgentsModule,
     SmsModule,
