@@ -47,8 +47,15 @@ export class ProductsService {
     return query.orderBy('p.createdAt', 'DESC').getMany();
   }
 
-  async search(query: string) {
-    return this.repo
+  async search(
+    query: string,
+    filters?: {
+      category?: string | null;
+      minPrice?: number | null;
+      maxPrice?: number | null;
+    },
+  ) {
+    const qb = this.repo
       .createQueryBuilder('p')
       .leftJoin('p.seller', 'seller')
       .addSelect([
@@ -69,9 +76,22 @@ export class ProductsService {
       .andWhere(
         '(LOWER(p.name) LIKE :query OR LOWER(p.description) LIKE :query OR LOWER(p.category) LIKE :query)',
         { query: `%${query.toLowerCase()}%` },
-      )
-      .orderBy('p.createdAt', 'DESC')
-      .getMany();
+      );
+
+    // NEW — Kentexa AI search-query parsing (opt-in, ?ai=true)
+    if (filters?.category) {
+      qb.andWhere('LOWER(p.category) = :aiCategory', {
+        aiCategory: filters.category.toLowerCase(),
+      });
+    }
+    if (filters?.minPrice != null) {
+      qb.andWhere('p.basePrice >= :minPrice', { minPrice: filters.minPrice });
+    }
+    if (filters?.maxPrice != null) {
+      qb.andWhere('p.basePrice <= :maxPrice', { maxPrice: filters.maxPrice });
+    }
+
+    return qb.orderBy('p.createdAt', 'DESC').getMany();
   }
 
   async findOne(id: number) {

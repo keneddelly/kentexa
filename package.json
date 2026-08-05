@@ -21,6 +21,7 @@
     "seed:locations": "ts-node src/tz-location/run-location-seed.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -78,11 +79,19 @@
     "ua-parser-js": "^2.0.10"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
-    "transform": { "^.+\\.(t|j)s$": "ts-jest" },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }

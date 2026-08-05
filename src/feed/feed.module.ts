@@ -27,6 +27,7 @@ import {
   AiSummaryProvider,
 } from './comment-support.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       Order,
     ]),
     NotificationsModule,
+    AiModule,
   ],
   controllers: [FeedController, EngagementsController, CommentsController],
   providers: [

@@ -131,6 +131,14 @@ export class PostComment {
   // AI_SUMMARY rows render pinned above the filter tabs.
   @Column({ default: false })
   isPinned: boolean;
+
+  // Kentexa AI moderation verdict — set on create by the Comment Workflow.
+  // null means never checked (e.g. AI failure, fail-open).
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  moderationFlag: 'clean' | 'flagged' | 'blocked' | null;
+
+  @Column({ type: 'text', nullable: true })
+  moderationReason: string | null;
   // ── end NEW ─────────────────────────────────────────────────────────────
 
   @CreateDateColumn() createdAt: Date;

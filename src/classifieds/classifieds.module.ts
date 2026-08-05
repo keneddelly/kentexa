@@ -10,6 +10,7 @@ import { Order } from '../orders/entities/order.entity';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { OrdersModule } from '../orders/orders.module';
 import { FeedModule } from '../feed/feed.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { FeedModule } from '../feed/feed.module';
     InvoicesModule,
     OrdersModule,
     FeedModule,
+    AiModule,
   ],
   controllers: [ClassifiedsController],
   providers: [ClassifiedsService, PriceSuggestionService],

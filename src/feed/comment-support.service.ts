@@ -11,6 +11,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { PurchaseVerification } from './entities/post-comment.entity';
+import { AiCoreService } from '../ai/ai-core.service';
+import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
 
 // ─────────────────────────────────────────────────────────────────────────
 // TODO / INTEGRATION POINT: Order only has a `product` relation (see
@@ -47,25 +49,32 @@ export class PurchaseVerificationService {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// AI summary generation — stubbed. Wire generateSummaryText() to whatever
-// LLM call the rest of the backend already makes.
+// AI summary generation — wired to AiCoreService (Kentexa AI).
 // ─────────────────────────────────────────────────────────────────────────
 @Injectable()
 export class AiSummaryProvider {
+  constructor(
+    private aiCore: AiCoreService,
+    private prompts: AiPromptTemplateService,
+  ) {}
+
   async generateSummaryText(
     reviewBodies: string[],
     title: string,
   ): Promise<string> {
-    // TODO: replace with a real LLM call. Feed it reviewBodies (most recent
-    // ~30 review texts) and have it return 2-4 sentences: overall
-    // sentiment, most-praised aspect, most common complaint if any.
     if (reviewBodies.length === 0) {
       return `No reviews yet for ${title}. Be the first to share your experience.`;
     }
-    return (
-      `Based on ${reviewBodies.length} review${reviewBodies.length === 1 ? '' : 's'}, ` +
-      `customers are generally positive about ${title}. ` +
-      `(Placeholder summary — wire AiSummaryProvider.generateSummaryText to a real LLM call.)`
-    );
+    const template = this.prompts.reviewSummaryPrompt();
+    const user = `Product/listing: ${title}\n\nReviews:\n${reviewBodies
+      .map((b, i) => `${i + 1}. ${b}`)
+      .join('\n')}`;
+    const result = await this.aiCore.complete<{ summary: string }>({
+      workflow: 'summary',
+      template,
+      user,
+      effort: 'low',
+    });
+    return result.summary;
   }
 }

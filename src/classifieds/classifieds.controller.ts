@@ -19,31 +19,49 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { AiSearchParserService } from '../ai/ai-search-parser.service';
 
 @Controller('classifieds')
 export class ClassifiedsController {
   constructor(
     private readonly service: ClassifiedsService,
     private readonly priceSvc: PriceSuggestionService,
+    private readonly aiSearchParser: AiSearchParserService,
   ) {}
 
   // ─── Static GET routes — MUST be before :id ──────────────────────────────
 
   @Get('search')
-  search(
+  async search(
     @Query('q') q: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
     @Query('location') location?: string,
     @Query('sort') sort?: string,
+    @Query('ai') ai?: string,
   ) {
     if (!q) return [];
-    return this.service.search(q, {
+    const opts = {
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       location,
       sort,
-    });
+    };
+    // NEW — Kentexa AI: opt-in query understanding, backward-compatible.
+    if (ai === 'true') {
+      try {
+        const parsed = await this.aiSearchParser.parse(q);
+        return this.service.search(parsed.keywords || q, {
+          ...opts,
+          minPrice: opts.minPrice ?? parsed.minPrice ?? undefined,
+          maxPrice: opts.maxPrice ?? parsed.maxPrice ?? undefined,
+          category: parsed.category,
+        });
+      } catch {
+        // AI parsing failed — fall through to the plain keyword search.
+      }
+    }
+    return this.service.search(q, opts);
   }
 
   @Get('seller/:sellerId')

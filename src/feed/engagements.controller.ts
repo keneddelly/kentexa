@@ -56,6 +56,8 @@ import {
   PurchaseVerificationService,
   AiSummaryProvider,
 } from './comment-support.service';
+import { AiCoreService } from '../ai/ai-core.service';
+import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
@@ -430,6 +432,8 @@ export class CommentsController {
     private readonly notifService: InAppNotificationService,
     private readonly purchaseVerification: PurchaseVerificationService, // NEW
     private readonly aiSummaryProvider: AiSummaryProvider, // NEW
+    private readonly aiCore: AiCoreService, // NEW — Kentexa AI
+    private readonly aiPrompts: AiPromptTemplateService, // NEW — Kentexa AI
   ) {}
 
   // ── Get comments for a virtual entity ─────────────────────────────────────
@@ -633,6 +637,37 @@ export class CommentsController {
           )
         : PurchaseVerification.NONE;
 
+    // NEW — Kentexa AI moderation. Fails open: comment creation must never
+    // hard-depend on Anthropic's uptime.
+    let moderationFlag: 'clean' | 'flagged' | 'blocked' | null = null;
+    let moderationReason: string | null = null;
+    if (dto.body?.trim()) {
+      try {
+        const verdict = await this.aiCore.complete<{
+          verdict: 'clean' | 'flagged' | 'blocked';
+          reason: string;
+        }>({
+          workflow: 'moderation',
+          template: this.aiPrompts.moderationPrompt(),
+          user: dto.body.trim(),
+          effort: 'low',
+          thinking: false,
+        });
+        moderationFlag = verdict.verdict;
+        moderationReason = verdict.verdict === 'clean' ? null : verdict.reason;
+        if (verdict.verdict === 'blocked') {
+          throw new BadRequestException(
+            'This comment could not be posted: ' + verdict.reason,
+          );
+        }
+      } catch (err) {
+        if (err instanceof BadRequestException) throw err;
+        // AI unavailable/errored — fail open, don't block the comment.
+        moderationFlag = null;
+        moderationReason = null;
+      }
+    }
+
     const comment = await this.commentRepo.save(
       this.commentRepo.create({
         entityType: dto.entityType,
@@ -646,6 +681,8 @@ export class CommentsController {
         purchaseVerification, // NEW
         offerEntityType: dto.offer?.entityType || null,
         offerEntityId: dto.offer?.entityId || null,
+        moderationFlag, // NEW — Kentexa AI
+        moderationReason, // NEW — Kentexa AI
       }),
     );
 
@@ -725,6 +762,42 @@ export class CommentsController {
       where: { id: reply.id },
       relations: { author: true },
     });
+  }
+
+  // ── AI-drafted reply — NEW — Kentexa AI ───────────────────────────────────
+  // POST /comments/:id/draft-reply — suggests reply text only. Never saves
+  // a comment; the seller reviews/edits and sends via POST /comments/:id/reply.
+  @Post(':id/draft-reply')
+  @UseGuards(JwtAuthGuard)
+  async draftReply(@Request() req, @Param('id') id: string) {
+    const parent = await this.commentRepo.findOne({
+      where: { id: Number(id), isDeleted: false },
+    });
+    if (!parent) throw new NotFoundException('Comment not found');
+    if (!parent.entityType || !parent.entityId) {
+      throw new BadRequestException(
+        'AI reply drafts are only supported on entity-based comments right now.',
+      );
+    }
+
+    const owner = await this.owners.resolve(parent.entityType, parent.entityId);
+    if (!owner || owner.ownerId !== req.user.id) {
+      throw new ForbiddenException(
+        'Only the business/seller behind this listing can draft a reply.',
+      );
+    }
+    if (!parent.body?.trim()) {
+      throw new BadRequestException('Comment has no text to reply to.');
+    }
+
+    const result = await this.aiCore.complete<{ draftText: string }>({
+      workflow: 'reply-draft',
+      template: this.aiPrompts.replyDraftPrompt(),
+      user: parent.body.trim(),
+      userId: req.user.id,
+      effort: 'medium',
+    });
+    return { draftText: result.draftText };
   }
 
   // ── Helpful toggle — NEW ──────────────────────────────────────────────────

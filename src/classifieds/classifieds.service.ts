@@ -133,6 +133,7 @@ export class ClassifiedsService {
       maxPrice?: number;
       location?: string;
       sort?: string;
+      category?: string | null; // NEW — Kentexa AI search-query parsing
     },
   ) {
     const qb = this.repo
@@ -166,6 +167,10 @@ export class ClassifiedsService {
     if (opts?.location)
       qb.andWhere('LOWER(c.location) LIKE :loc', {
         loc: `%${opts.location.toLowerCase()}%`,
+      });
+    if (opts?.category)
+      qb.andWhere('LOWER(c.category::text) = :aiCategory', {
+        aiCategory: opts.category.toLowerCase(),
       });
 
     // Ranking: verified sellers first, then by reputation score, then by recency

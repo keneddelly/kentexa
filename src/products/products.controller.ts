@@ -18,16 +18,32 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { AiListingService } from './ai-listing.service';
+import { GenerateListingDto } from './dto/generate-listing.dto';
+import { AiSearchParserService } from '../ai/ai-search-parser.service';
 
 @Controller('products')
 export class ProductsController {
-  constructor(private service: ProductsService) {}
+  constructor(
+    private service: ProductsService,
+    private aiListing: AiListingService,
+    private aiSearchParser: AiSearchParserService,
+  ) {}
 
   // ── Public ─────────────────────────────────────────────────────────────
 
   @Get('search')
-  search(@Query('q') q: string) {
+  async search(@Query('q') q: string, @Query('ai') ai?: string) {
     if (!q) return [];
+    // NEW — Kentexa AI: opt-in query understanding, backward-compatible.
+    if (ai === 'true') {
+      try {
+        const parsed = await this.aiSearchParser.parse(q);
+        return this.service.search(parsed.keywords || q, parsed);
+      } catch {
+        // AI parsing failed — fall through to the plain keyword search.
+      }
+    }
     return this.service.search(q);
   }
 
@@ -42,6 +58,14 @@ export class ProductsController {
   @Get('my/products')
   getMyProducts(@Request() req) {
     return this.service.findMyProducts(req.user);
+  }
+
+  // ── Kentexa AI: suggestion-only listing generation ───────────────────────
+  // Never creates a product — the seller reviews/edits, then calls POST /products.
+  @UseGuards(JwtAuthGuard)
+  @Post('ai/generate-listing')
+  generateListing(@Body() dto: GenerateListingDto, @Request() req) {
+    return this.aiListing.generateListing(dto, req.user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
