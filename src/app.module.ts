@@ -37,6 +37,7 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { BodaRatesModule } from './boda-rates/boda-rates.module';
 import { ContactModule } from './contact/contact.module';
 import { ServiceProvidersModule } from './service-providers/service-providers.module';
+import { EarlyAccessModule } from './early-access/early-access.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { ServiceProvidersModule } from './service-providers/service-providers.mo
     BodaRatesModule,
     ContactModule,
     ServiceProvidersModule,
+    EarlyAccessModule,
   ],
 })
 export class AppModule {}
