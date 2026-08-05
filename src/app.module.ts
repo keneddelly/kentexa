@@ -36,6 +36,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { BodaRatesModule } from './boda-rates/boda-rates.module';
 import { ContactModule } from './contact/contact.module';
+import { AiCoreModule } from './ai-core/ai-core.module';
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { ContactModule } from './contact/contact.module';
     AnnouncementsModule,
     BodaRatesModule,
     ContactModule,
+    AiCoreModule,
   ],
 })
 export class AppModule {}

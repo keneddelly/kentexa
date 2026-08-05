@@ -52,10 +52,8 @@ import {
   PurchaseVerification,
 } from './entities/post-comment.entity';
 import { PostCommentHelpfulVote } from './entities/post-comment-helpful-vote.entity';
-import {
-  PurchaseVerificationService,
-  AiSummaryProvider,
-} from './comment-support.service';
+import { PurchaseVerificationService } from './comment-support.service';
+import { AiOrchestratorService } from '../ai-core/orchestrator/ai-orchestrator.service';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
@@ -429,7 +427,7 @@ export class CommentsController {
     private readonly owners: EntityOwnerResolver,
     private readonly notifService: InAppNotificationService,
     private readonly purchaseVerification: PurchaseVerificationService, // NEW
-    private readonly aiSummaryProvider: AiSummaryProvider, // NEW
+    private readonly aiOrchestrator: AiOrchestratorService,
   ) {}
 
   // ── Get comments for a virtual entity ─────────────────────────────────────
@@ -788,7 +786,7 @@ export class CommentsController {
     const bodies = reviews
       .map((r) => r.body)
       .filter((b): b is string => !!b?.trim());
-    const summaryText = await this.aiSummaryProvider.generateSummaryText(
+    const summaryText = await this.aiOrchestrator.summarizeReviews(
       bodies,
       title,
     );

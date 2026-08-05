@@ -22,11 +22,9 @@ import {
   CommentsController,
   EntityOwnerResolver,
 } from './engagements.controller';
-import {
-  PurchaseVerificationService,
-  AiSummaryProvider,
-} from './comment-support.service';
+import { PurchaseVerificationService } from './comment-support.service';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AiCoreModule } from '../ai-core/ai-core.module';
 
 @Module({
   imports: [
@@ -43,6 +41,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       Order,
     ]),
     NotificationsModule,
+    AiCoreModule,
   ],
   controllers: [FeedController, EngagementsController, CommentsController],
   providers: [
@@ -50,7 +49,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
     CvsService,
     EntityOwnerResolver,
     PurchaseVerificationService,
-    AiSummaryProvider,
   ],
   exports: [FeedService, CvsService],
 })
