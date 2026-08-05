@@ -1,0 +1,25 @@
+# Render Blueprint for the Kentexa Early Access Portal only.
+#
+# This intentionally does NOT define the main bishoo-backend service —
+# that deploy is being held back separately until SMS/payment providers
+# are configured, and this file must not change that. If a bishoo-backend
+# service already exists on Render (connected via the dashboard rather
+# than a Blueprint), this file has no effect on it.
+#
+# To deploy: in the Render dashboard, "New" -> "Blueprint", point it at
+# this repo/branch. Render will read this file and provision the service
+# below. After it's created, set NEXT_PUBLIC_API_URL (see envVars below)
+# to the URL of whichever backend this portal should talk to.
+services:
+  - type: web
+    name: kentexa-early-access
+    runtime: node
+    plan: starter
+    rootDir: kentexa-early-access
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # set manually in the Render dashboard once the backend URL is known
