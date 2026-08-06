@@ -108,9 +108,16 @@ const RoleActions = ({ role, onNavigate }) => {
 // ─── Tab content sections ─────────────────────────────────────────────────────
 const tabs = (role, isOwn, t) => {
   const base = [{ key:'posts',      label:t('commerce_profile.tab_products')   }];
+  // Feed/Moments — public for any viewer, on any profile that can post
+  // (not just sellers). Without this, a follower opening an agent's (or
+  // any non-seller's) profile from a "new post" notification had no way
+  // to reach the post at all: the default "posts" tab only shows
+  // products/classifieds, which is empty for roles that don't sell those.
+  if (['seller','admin','manager','agent','super_agent','transport_provider'].includes(role)) {
+    base.push({ key:'feed', label:t('commerce_profile.tab_posts') });
+  }
   if (isOwn && ['seller','admin','manager'].includes(role)) {
     base.push(
-      { key:'feed',       label:t('commerce_profile.tab_posts') },
       { key:'orders',     label:t('commerce_profile.tab_orders')   },
       { key:'analytics',  label:t('commerce_profile.tab_analytics') },
     );
@@ -174,8 +181,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   const [publishing, setPublishing] = useState(false);
   const [showPost,   setShowPost]   = useState(false);
   const [postForm,   setPostForm]   = useState({
-    type:'new_product', title:'', body:'', ctaLabel:''
+    type:'new_product', title:'', body:'', ctaLabel:'',
+    imageUrl:'', linkedEntityType:'', linkedEntityId:null,
   });
+  const [pickedPostItem, setPickedPostItem] = useState(null);
 
   useEffect(() => {
     setLoading(true);
@@ -248,9 +257,21 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
       const res = await api.post('/feed/publish', postForm);
       setFeed(prev => [res.data, ...prev]);
       setShowPost(false);
-      setPostForm({ type:'new_product', title:'', body:'', ctaLabel:'' });
+      setPostForm({ type:'new_product', title:'', body:'', ctaLabel:'', imageUrl:'', linkedEntityType:'', linkedEntityId:null });
+      setPickedPostItem(null);
     } catch {}
     finally { setPublishing(false); }
+  };
+
+  const handlePickPostItem = (item, kind) => {
+    setPickedPostItem({ ...item, kind });
+    setPostForm(f => ({
+      ...f,
+      title: kind === 'product' ? item.name : item.title,
+      imageUrl: item.images?.[0] || '',
+      linkedEntityType: kind,
+      linkedEntityId: item.id,
+    }));
   };
 
   if (loading) return (
@@ -509,26 +530,28 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                     <div key={`${item.kind}-${item.id}`}
                       onClick={() => onNavigate(item.kind==='product'
                         ? `ProductDetail-${item.id}` : `ClassifiedDetail-${item.id}`)}
-                      style={{ position:'relative', aspectRatio:'1', backgroundColor:'#F8FAFC',
+                      style={{ position:'relative', width:'100%', paddingTop:'100%', backgroundColor:'#F8FAFC',
                         cursor:'pointer', overflow:'hidden' }}>
-                      {item.image
-                        ? <img src={item.image} alt=""
-                            style={{ width:'100%', height:'100%', objectFit:'cover' }}
-                            onError={e => e.target.style.display='none'} />
-                        : <div style={{ width:'100%', height:'100%', display:'flex',
-                            alignItems:'center', justifyContent:'center', fontSize:28 }}>
-                            {item.icon}
-                          </div>}
-                      <span style={{ position:'absolute', top:4, right:4, fontSize:11 }}>
-                        {item.icon}
-                      </span>
-                      {item.kind==='product' && item.available===false && (
-                        <div style={{ position:'absolute', inset:0, backgroundColor:'rgba(15,23,42,0.55)',
-                          display:'flex', alignItems:'center', justifyContent:'center',
-                          fontSize:10, fontWeight:800, color:WH }}>
-                          {t('commerce_profile.out_of_stock')}
-                        </div>
-                      )}
+                      <div style={{ position:'absolute', inset:0 }}>
+                        {item.image
+                          ? <img src={item.image} alt=""
+                              style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                              onError={e => e.target.style.display='none'} />
+                          : <div style={{ width:'100%', height:'100%', display:'flex',
+                              alignItems:'center', justifyContent:'center', fontSize:28 }}>
+                              {item.icon}
+                            </div>}
+                        <span style={{ position:'absolute', top:4, right:4, fontSize:11 }}>
+                          {item.icon}
+                        </span>
+                        {item.kind==='product' && item.available===false && (
+                          <div style={{ position:'absolute', inset:0, backgroundColor:'rgba(15,23,42,0.55)',
+                            display:'flex', alignItems:'center', justifyContent:'center',
+                            fontSize:10, fontWeight:800, color:WH }}>
+                            {t('commerce_profile.out_of_stock')}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
@@ -576,6 +599,40 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                         </label>
                       ))}
                     </div>
+                    {/* Pick an existing product/classified — prefills title & image
+                        instead of asking the seller to retype what's already listed */}
+                    {(products.length > 0 || classifieds.length > 0) && (
+                      <div style={{ marginBottom:12 }}>
+                        <div style={{ fontSize:11, color:GR, marginBottom:6, fontWeight:600 }}>
+                          {t('commerce_profile.pick_listing_label')}
+                        </div>
+                        <div style={{ display:'flex', gap:8, overflowX:'auto', paddingBottom:4 }}>
+                          {[
+                            ...products.map(p => ({ ...p, kind:'product' })),
+                            ...classifieds.map(c => ({ ...c, kind:'classified' })),
+                          ].slice(0, 20).map(item => {
+                            const isPicked = pickedPostItem?.kind===item.kind && pickedPostItem?.id===item.id;
+                            return (
+                              <div key={`${item.kind}-${item.id}`}
+                                onClick={() => handlePickPostItem(item, item.kind)}
+                                style={{ flexShrink:0, width:64, cursor:'pointer', textAlign:'center' }}>
+                                <div style={{ width:64, height:64, borderRadius:10, overflow:'hidden',
+                                  backgroundColor:'#F8FAFC', border:isPicked?`2px solid ${B}`:'1px solid #e2e8f0',
+                                  display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                  {item.images?.[0]
+                                    ? <img src={item.images[0]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                                    : <span style={{ fontSize:20 }}>{item.kind==='product'?'🛍️':'🏷️'}</span>}
+                                </div>
+                                <div style={{ fontSize:9, color:isPicked?B:GR, fontWeight:isPicked?800:600,
+                                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:2 }}>
+                                  {item.kind==='product' ? item.name : item.title}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     <input style={inputSt} placeholder={t('commerce_profile.title_placeholder')}
                       value={postForm.title}
                       onChange={e=>setPostForm(f=>({...f,title:e.target.value}))} />

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const CITIES = [
@@ -241,7 +240,6 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
           </div>
         ) : null}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

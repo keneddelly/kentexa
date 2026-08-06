@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import BackBar          from '../components/BackBar';
 import ReputationBadge from '../components/ReputationBadge';
@@ -378,7 +377,6 @@ const StorePage = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => 
         )}
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };
@@ -421,10 +419,10 @@ const ProductCard = ({ product, onNavigate, featured }) => {
           {badge.label}
         </div>
       )}
-      <div style={{ width: '100%', aspectRatio: featured ? '4/3' : '1/1', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
+      <div style={{ width: '100%', paddingTop: featured ? '75%' : '100%', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
         {product.images?.[0]
-          ? <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }} />
-          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>
+          ? <img src={product.images[0]} alt={product.name} onError={e => { e.target.style.display = 'none'; }} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }} />
+          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, position: 'absolute', top: 0, left: 0 }}>📦</div>
         }
       </div>
       <div style={{ padding: 8 }}>

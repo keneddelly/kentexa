@@ -278,29 +278,32 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
 
           <div className="pd-left">
             <div style={{ position: 'relative', backgroundColor: '#fff' }}>
-              <div style={{ width: '100%', aspectRatio: '1/1', overflow: 'hidden', position: 'relative' }}>
-                {product.images?.[selectedImage] ? (
-                  <img src={product.images[selectedImage]} alt={product.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                ) : (
-                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', fontSize: 80 }}>📦</div>
-                )}
-                {discount > 0 && (
-                  <div style={{ position: 'absolute', top: 12, left: 12, backgroundColor: '#ef4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20 }}>
-                    -{discount}% {t('product_detail.off')}
+              <div style={{ width: '100%', paddingTop: '100%', overflow: 'hidden', position: 'relative' }}>
+                <div style={{ position: 'absolute', inset: 0 }}>
+                  {product.images?.[selectedImage] ? (
+                    <img src={product.images[selectedImage]} alt={product.name}
+                      onError={e => { e.target.style.display = 'none'; }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', fontSize: 80 }}>📦</div>
+                  )}
+                  {discount > 0 && (
+                    <div style={{ position: 'absolute', top: 12, left: 12, backgroundColor: '#ef4444', color: '#fff', fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20 }}>
+                      -{discount}% {t('product_detail.off')}
+                    </div>
+                  )}
+                  <div style={{ position: 'absolute', top: 10, right: 12, width: 36, height: 36, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <WishlistHeart entityType="product" entityId={product.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} size={20} />
                   </div>
-                )}
-                <div style={{ position: 'absolute', top: 10, right: 12, width: 36, height: 36, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.9)', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <WishlistHeart entityType="product" entityId={product.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} size={20} />
+                  {product.images?.length > 1 && (
+                    <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
+                      {product.images.map((_, i) => (
+                        <div key={i} onClick={() => setSelectedImage(i)}
+                          style={{ width: i === selectedImage ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === selectedImage ? '#1d4ed8' : 'rgba(255,255,255,0.7)', cursor: 'pointer', transition: 'all 0.2s' }} />
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {product.images?.length > 1 && (
-                  <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
-                    {product.images.map((_, i) => (
-                      <div key={i} onClick={() => setSelectedImage(i)}
-                        style={{ width: i === selectedImage ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === selectedImage ? '#1d4ed8' : 'rgba(255,255,255,0.7)', cursor: 'pointer', transition: 'all 0.2s' }} />
-                    ))}
-                  </div>
-                )}
               </div>
               {product.images?.length > 1 && (
                 <div style={{ padding: '8px 12px', display: 'flex', gap: 8, overflowX: 'auto', borderBottom: '1px solid #f1f5f9' }}>

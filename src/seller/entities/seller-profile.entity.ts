@@ -46,6 +46,19 @@ export class SellerProfile {
   @Column({ type: 'text', nullable: true })
   rejectionReason: string | null;
 
+  // ── Identity (KYC) — reviewed by admin before approval ────────────────────
+  @Column({ type: 'varchar', nullable: true })
+  idType: string | null; // 'national_id' | 'voters_id' | 'passport' | 'driving_license'
+
+  @Column({ type: 'varchar', nullable: true })
+  idNumber: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  idPhotoUrl: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  registrationNumber: string | null; // business registration cert, optional
+
   @CreateDateColumn()
   createdAt: Date;
 

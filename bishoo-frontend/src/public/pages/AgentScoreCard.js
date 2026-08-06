@@ -9,7 +9,6 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
 const fmt  = n => Number(n||0).toLocaleString();
@@ -73,7 +72,6 @@ const AgentScorecard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -317,7 +315,6 @@ const AgentScorecard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

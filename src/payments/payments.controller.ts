@@ -7,6 +7,7 @@ import {
   Request,
   Param,
   ParseIntPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
@@ -110,9 +111,14 @@ export class PaymentsController {
     return this.paymentsService.agentPaymentCallback(body, provider);
   }
 
-  // DEV ONLY — remove in production when real API is ready
+  // DEV ONLY — instantly confirms a pending agent payment with no real
+  // provider involved. Disabled outside development so it can't be used
+  // to fake a payment once real money is flowing.
   @Post('agent/mock-confirm/:providerRequestId')
   mockAgentConfirm(@Param('providerRequestId') providerRequestId: string) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new NotFoundException();
+    }
     return this.paymentsService.mockAgentCallback(providerRequestId);
   }
 

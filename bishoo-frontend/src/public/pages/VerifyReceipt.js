@@ -1,20 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 
-const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole, initialReceipt }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-GB';
-  const [receiptNumber, setReceiptNumber] = useState('');
+  const [receiptNumber, setReceiptNumber] = useState(initialReceipt || '');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
 
-  const handleVerify = async () => {
-    if (!receiptNumber.trim()) {
+  const handleVerify = useCallback(async (number) => {
+    const target = (number ?? receiptNumber).trim();
+    if (!target) {
       setError(t('verify_receipt.receipt_number_required'));
       return;
     }
@@ -23,14 +23,21 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       setError('');
       setResult(null);
       setSearched(true);
-      const res = await api.get(`/invoices/verify/${receiptNumber.trim()}`);
+      const res = await api.get(`/invoices/verify/${target}`);
       setResult(res.data);
     } catch (err) {
       setError(t('verify_receipt.verify_failed'));
     } finally {
       setLoading(false);
     }
-  };
+  }, [receiptNumber, t]);
+
+  // Deep-linked from an SMS/WhatsApp receipt link (?verify=RECEIPT_NUMBER)
+  // — verify it immediately instead of making the buyer retype it.
+  useEffect(() => {
+    if (initialReceipt) handleVerify(initialReceipt);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialReceipt]);
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') handleVerify();
@@ -92,7 +99,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               }}
             />
             <button
-              onClick={handleVerify}
+              onClick={() => handleVerify()}
               disabled={loading}
               style={{
                 backgroundColor: '#fff',
@@ -228,7 +235,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
             <div style={{ textAlign: 'center', marginTop: '20px' }}>
               <a
-                href={`${process.env.REACT_APP_API_URL || 'http://localhost:3001'}/invoices/receipt/${result.receiptNumber}/pdf`}
+                href={`${process.env.REACT_APP_API_URL || 'https://api.kentexa.com'}/invoices/receipt/${result.receiptNumber}/pdf`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -343,7 +350,6 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

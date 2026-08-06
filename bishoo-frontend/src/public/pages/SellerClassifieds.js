@@ -282,6 +282,13 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         specs:      Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         subcategory: form.subcategory || null,
         condition:  form.condition || null,
+        originalPrice: form.isFlashSale ? Number(form.price) : undefined,
+        flashSalePrice: form.isFlashSale && form.flashSalePrice
+          ? Number(form.flashSalePrice) : undefined,
+        flashSaleEndsAt: form.isFlashSale && form.flashSaleEndsAt
+          ? new Date(form.flashSaleEndsAt).toISOString() : undefined,
+        flashSaleQuantity: form.isFlashSale && form.flashSaleQuantity
+          ? Number(form.flashSaleQuantity) : undefined,
       };
       if (editItem) {
         await api.patch(`/classifieds/${editItem.id}`, payload);
@@ -307,6 +314,10 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       specs:        item.specs || {},
       condition:    item.condition || '',
       isNegotiable: item.isNegotiable || false,
+      isFlashSale:  item.isFlashSale || false,
+      flashSalePrice: item.flashSalePrice ? String(item.flashSalePrice) : '',
+      flashSaleEndsAt: item.flashSaleEndsAt ? item.flashSaleEndsAt.slice(0, 16) : '',
+      flashSaleQuantity: item.flashSaleQuantity ? String(item.flashSaleQuantity) : '',
     });
     setImagePreviews(item.images || []);
     setShowForm(true);

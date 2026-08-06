@@ -26,9 +26,17 @@ export class ProductsController {
   // ── Public ─────────────────────────────────────────────────────────────
 
   @Get('search')
-  search(@Query('q') q: string) {
-    if (!q) return [];
-    return this.service.search(q);
+  search(
+    @Query('q') q?: string,
+    @Query('flashSale') flashSale?: string,
+    @Query('category') category?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.service.search(q || '', {
+      flashSale: flashSale === 'true',
+      category,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   @Get()

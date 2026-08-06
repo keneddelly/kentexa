@@ -154,6 +154,21 @@ export class BusinessController {
     );
   }
 
+  @Post('inbox/:id/share-service')
+  shareService(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body()
+    service: { id: number; title: string; price?: number; image?: string },
+  ) {
+    return this.conversationService.shareService(
+      req.user.id,
+      id,
+      service,
+      req.user,
+    );
+  }
+
   @Patch('inbox/:id/status')
   updateConversationStatus(
     @Request() req,
@@ -174,6 +189,33 @@ export class BusinessController {
       id,
       body.assignedToId,
     );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WHATSAPP CONNECTION — each seller connects their own WhatsApp Business
+  // number so inbox messages there flow into KenteXa too.
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  @Get('whatsapp-connection')
+  getWhatsappConnection(@Request() req) {
+    return this.conversationService.getWhatsappConnectionStatus(req.user.id);
+  }
+
+  @Patch('whatsapp-connection')
+  setWhatsappConnection(
+    @Request() req,
+    @Body() body: { phoneNumberId: string; accessToken: string },
+  ) {
+    return this.conversationService.setWhatsappConnection(
+      req.user.id,
+      body.phoneNumberId,
+      body.accessToken,
+    );
+  }
+
+  @Post('whatsapp-connection/disconnect')
+  disconnectWhatsapp(@Request() req) {
+    return this.conversationService.disconnectWhatsapp(req.user.id);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

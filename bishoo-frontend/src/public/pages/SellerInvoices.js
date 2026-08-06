@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
@@ -22,6 +21,8 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRol
   const [selectedClassified, setSelectedClassified] = useState(null);
   const [manualForm, setManualForm]       = useState({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3 });
   const [creatingManual, setCreatingManual] = useState(false);
+  const [myCustomers, setMyCustomers]     = useState([]);
+  const [pickedCustomerId, setPickedCustomerId] = useState(null);
   const [manualResult, setManualResult]   = useState(null);
   const [classifiedSearch, setClassifiedSearch] = useState('');
 
@@ -45,6 +46,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRol
       setSelectedClassified(preSelected);
       setManualForm(prev => ({ ...prev, amount: String(preSelected.price) }));
       fetchMyClassifieds();
+      fetchMyCustomers();
     }
   }, [preSelected]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -66,11 +68,29 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRol
     finally { setLoadingClassifieds(false); }
   };
 
+  const fetchMyCustomers = async () => {
+    try {
+      const res = await api.get('/business/customers?limit=50');
+      setMyCustomers(res.data?.customers || []);
+    } catch { setMyCustomers([]); }
+  };
+
   const openManualModal = () => {
     setShowManual(true); setManualResult(null); setSelectedClassified(null);
-    setClassifiedSearch('');
+    setClassifiedSearch(''); setPickedCustomerId(null);
     setManualForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3 });
     fetchMyClassifieds();
+    fetchMyCustomers();
+  };
+
+  const handlePickCustomer = (c) => {
+    setPickedCustomerId(c.id);
+    setManualForm(prev => ({
+      ...prev,
+      buyerName: c.name || '',
+      buyerPhone: c.phone || '',
+      deliveryAddress: c.address || prev.deliveryAddress,
+    }));
   };
 
   const handleSelectClassified = (c) => {
@@ -591,6 +611,28 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRol
             {/* Step 2 — Buyer details */}
             <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 16, marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, color: '#1e293b', marginBottom: 12, fontWeight: 700 }}>{t('seller_invoices.step2_label')}</label>
+
+              {/* Quick-pick an existing customer instead of retyping their details */}
+              {myCustomers.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>
+                    {t('seller_invoices.pick_existing_customer')}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+                    {myCustomers.map(c => (
+                      <button key={c.id} onClick={() => handlePickCustomer(c)}
+                        style={{ flexShrink: 0, padding: '6px 12px', borderRadius: 100,
+                          border: pickedCustomerId === c.id ? '2px solid #7c3aed' : '1px solid #e2e8f0',
+                          backgroundColor: pickedCustomerId === c.id ? '#f5f3ff' : '#fff',
+                          color: pickedCustomerId === c.id ? '#7c3aed' : '#1e293b',
+                          cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {[
                 { label: t('seller_invoices.buyer_full_name_label'), key: 'buyerName',       placeholder: t('seller_invoices.buyer_name_placeholder'),                type: 'text' },
                 { label: t('seller_invoices.buyer_phone_label'),        key: 'buyerPhone',      placeholder: '255712345678',                   type: 'tel' },
@@ -636,7 +678,6 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRol
         </div>
       )}
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

@@ -22,6 +22,7 @@ import { DisputesModule } from './disputes/disputes.module';
 import { ParcelCollectionsModule } from './parcel-collections/parcel-collections.module';
 import { TzPricingModule } from './tz-location/tz-pricing.module';
 import { BusinessModule } from './business/business.module';
+import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TransportModule } from './transport/transport.module';
 import { WishlistModule } from './wishlist/wishlist.module';
@@ -73,6 +74,7 @@ import { ContactModule } from './contact/contact.module';
     SuperAgentsModule,
     TzLocationModule,
     BusinessModule,
+    WhatsappModule,
     NotificationsModule,
     TransportModule,
     WishlistModule,

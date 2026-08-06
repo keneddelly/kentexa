@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { SellerProfile, SellerStatus } from './entities/seller-profile.entity';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -241,69 +241,49 @@ export class SellerService {
     const [myProducts, myClassifieds, myOrders] = await Promise.all([
       this.productRepo.find({ where: { seller: { id: user.id } } }),
       this.classifiedRepo.find({ where: { seller: { id: user.id } } }),
-      // Fetch both online orders (via product) and manual shipments (direct seller)
-      Promise.all([
-        this.orderRepo
-          .createQueryBuilder('o')
-          .leftJoinAndSelect('o.product', 'p')
-          .leftJoin('o.seller', 's')
-          .addSelect(['s.id', 's.name', 's.storeName'])
-          .leftJoin('o.buyer', 'b')
-          .addSelect(['b.id', 'b.name', 'b.phone'])
-          .where('p.seller = :sid', { sid: user.id })
-          .orderBy('o.createdAt', 'DESC')
-          .take(30)
-          .getMany(),
-        this.orderRepo
-          .createQueryBuilder('o')
-          .leftJoinAndSelect('o.product', 'p')
-          .leftJoin('o.seller', 's')
-          .addSelect(['s.id', 's.name', 's.storeName'])
-          .leftJoin('o.buyer', 'b')
-          .addSelect(['b.id', 'b.name', 'b.phone'])
-          .where('o.seller = :sid', { sid: user.id })
-          .andWhere(
-            "o.source IN ('seller_shipment', 'offline', 'offline_intercity')",
-          )
-          .orderBy('o.createdAt', 'DESC')
-          .take(30)
-          .getMany(),
-      ]).then(([onlineOrders, manualOrders]) => {
-        // Merge and deduplicate by id
-        const seen = new Set<number>();
-        return [...onlineOrders, ...manualOrders]
-          .filter((o) => {
-            if (seen.has(o.id)) return false;
-            seen.add(o.id);
-            return true;
-          })
-          .sort(
-            (a, b) =>
-              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-          );
-      }),
+      // Recent orders for the activity feed / top-products / top-customers
+      // breakdown below. `o.seller` is set directly on every order-creation
+      // path (online checkout, manual/offline shipment, classified-invoice
+      // payouts) — no need to join through product or filter by source.
+      this.orderRepo
+        .createQueryBuilder('o')
+        .leftJoinAndSelect('o.product', 'p')
+        .leftJoin('o.buyer', 'b')
+        .addSelect(['b.id', 'b.name', 'b.phone'])
+        .where('o.seller = :sid', { sid: user.id })
+        .orderBy('o.createdAt', 'DESC')
+        .take(50)
+        .getMany(),
     ]);
 
-    const totalRevenue = myOrders
-      .filter((o) => o.paymentStatus === PaymentStatus.PAID)
-      .reduce((sum, o) => sum + Number(o.totalAmount), 0);
-
-    // ✅ Use correct OrderStatus enum values
-    const pendingOrders = myOrders.filter(
-      (o) =>
-        o.status === OrderStatus.PENDING_PAYMENT ||
-        o.status === OrderStatus.PAID,
-    ).length;
-
-    const completedOrders = myOrders.filter(
-      (o) =>
-        o.status === OrderStatus.COMPLETED ||
-        o.status === OrderStatus.DELIVERED,
-    ).length;
-
-    const needsShipping = myOrders.filter(
-      (o) => o.status === OrderStatus.PAID,
-    ).length;
+    // Definitive totals — unbounded, so they never silently drop older
+    // orders the way summing over the capped `myOrders` list above would.
+    const [revenueRow, totalOrders, pendingOrders, completedOrders, needsShipping] =
+      await Promise.all([
+        this.orderRepo
+          .createQueryBuilder('o')
+          .select('SUM(o.totalAmount)', 'total')
+          .where('o.seller = :sid', { sid: user.id })
+          .andWhere('o.paymentStatus = :paid', { paid: PaymentStatus.PAID })
+          .getRawOne(),
+        this.orderRepo.count({ where: { seller: { id: user.id } } }),
+        this.orderRepo.count({
+          where: {
+            seller: { id: user.id },
+            status: In([OrderStatus.PENDING_PAYMENT, OrderStatus.PAID]),
+          },
+        }),
+        this.orderRepo.count({
+          where: {
+            seller: { id: user.id },
+            status: In([OrderStatus.COMPLETED, OrderStatus.DELIVERED]),
+          },
+        }),
+        this.orderRepo.count({
+          where: { seller: { id: user.id }, status: OrderStatus.PAID },
+        }),
+      ]);
+    const totalRevenue = Number(revenueRow?.total || 0);
 
     // ── Analytics ────────────────────────────────────────────────────────────
     // Per-product revenue
@@ -385,7 +365,7 @@ export class SellerService {
         totalProducts: myProducts.length,
         activeProducts: myProducts.filter((p) => p.isAvailable).length,
         totalClassifieds: myClassifieds.length,
-        totalOrders: myOrders.length,
+        totalOrders,
         pendingOrders,
         completedOrders,
         needsShipping,

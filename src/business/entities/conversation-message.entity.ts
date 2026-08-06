@@ -23,6 +23,8 @@ export enum MessageType {
   ORDER = 'order', // order created from chat
   INVOICE = 'invoice', // invoice sent
   NOTE = 'note', // internal seller note (not visible to customer)
+  SERVICE = 'service', // service listing shared in chat
+  JOB = 'job', // service job request / accept / decline
 }
 
 @Entity('conversation_message')

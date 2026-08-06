@@ -5,6 +5,8 @@ import {
   IsString,
   Min,
   IsArray,
+  IsBoolean,
+  IsDateString,
 } from 'class-validator';
 import { ClassifiedCategory } from '../entities/classified.entity';
 
@@ -29,4 +31,28 @@ export class updateClassifiedDto {
   @IsOptional()
   @IsArray()
   images?: string[];
+
+  // ── Flash Sale ───────────────────────────────────────────────────────────
+  @IsOptional()
+  @IsBoolean()
+  isFlashSale?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  flashSalePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  originalPrice?: number;
+
+  @IsOptional()
+  @IsDateString()
+  flashSaleEndsAt?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  flashSaleQuantity?: number;
 }

@@ -29,6 +29,7 @@ import { BatchParcel } from '../daily-batches/entities/batch-parcel.entity';
 import { SmsService } from '../sms/sms.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { InvoicesService } from '../invoices/invoices.service';
 
 @Injectable()
 export class SuperAgentsService {
@@ -52,6 +53,7 @@ export class SuperAgentsService {
     private dataSource: DataSource,
     private businessCustomerService: BusinessCustomerService,
     private inAppNotif: InAppNotificationService,
+    private invoicesService: InvoicesService,
   ) {}
 
   // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
@@ -374,6 +376,23 @@ export class SuperAgentsService {
     const trackingNumber = `KTX-ORD-${savedOrder.id}`;
     await this.orderRepo.update(savedOrder.id, { trackingNumber });
 
+    // Receipt — the shipping fee was collected as cash/mobile money at the
+    // counter, not through KenteXa's payment system, so the invoice is
+    // created straight into PAID status (no gateway confirmation to wait on).
+    let receiptNumber: string | null = null;
+    try {
+      const invoice = await this.invoicesService.createPaidForOrder(
+        savedOrder,
+        dto.paymentMethod || 'cash',
+      );
+      receiptNumber = invoice.receiptNumber;
+    } catch (err) {
+      console.error(
+        `Receipt creation failed for offline intercity order #${savedOrder.id}:`,
+        err.message,
+      );
+    }
+
     // 2. Super agent earnings = commission % of fee collected
     const commissionRate = Number(superAgent.commissionRate || 10);
     const agentEarnings = parseFloat(
@@ -451,10 +470,22 @@ export class SuperAgentsService {
       )
       .catch((e) => console.warn('SMS to recipient failed:', e.message));
 
+    // 8. SMS to sender — their receipt for the shipping fee paid at the counter
+    if (receiptNumber) {
+      await this.smsService
+        .sendSms(
+          dto.senderPhone,
+          `KenteXa: Asante ${dto.senderName}! Malipo ya TZS ${dto.shippingFeeCollected} yamepokelewa.\n` +
+            `Risiti: kentexa.com/?verify=${receiptNumber}`,
+        )
+        .catch((e) => console.warn('Receipt SMS to sender failed:', e.message));
+    }
+
     return {
       success: true,
       orderId: savedOrder.id,
       trackingNumber,
+      receiptNumber,
       originCity,
       destinationCity,
       destinationAgent: destAgent?.businessName || null,

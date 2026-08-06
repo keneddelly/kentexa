@@ -425,13 +425,13 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                     <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10 }}>
                       <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.product_label')}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.product?.name || '—'}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.product?.name || order.manualProductName || '—'}</div>
                       <div style={{ fontSize: 11, color: '#64748b' }}>{t('seller_orders.qty_label', { qty: order.quantity })}</div>
                       <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginTop: 2 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>
                     </div>
                     <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10 }}>
                       <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.deliver_to_label')}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.recipientName || order.buyer?.name || '—'}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.recipientName || order.buyer?.name || order.manualBuyerName || '—'}</div>
                       <div style={{ fontSize: 11, color: '#64748b' }}>📞 {order.phone || '—'}</div>
                       <div style={{ fontSize: 11, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {order.deliveryAddress || '—'}</div>
                     </div>

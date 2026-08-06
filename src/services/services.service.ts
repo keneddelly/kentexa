@@ -13,6 +13,9 @@ import { ServiceAd, ServiceStatus } from './entities/service-ad.entity';
 import { JobRequest, JobStatus } from './entities/job-request.entity';
 import { User } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { ConversationService } from '../business/conversation.service';
+import { MessageType } from '../business/entities/conversation-message.entity';
 
 @Injectable()
 export class ServicesService {
@@ -20,6 +23,8 @@ export class ServicesService {
     @InjectRepository(ServiceAd) private adRepo: Repository<ServiceAd>,
     @InjectRepository(JobRequest) private jobRepo: Repository<JobRequest>,
     private readonly feedService: FeedService,
+    private readonly notifService: InAppNotificationService,
+    private readonly conversationService: ConversationService,
   ) {}
 
   // ── Create / Edit Service Ad ──────────────────────────────────────────────
@@ -218,7 +223,7 @@ export class ServicesService {
         'Tayari una ombi linalosubiri kwa huduma hii',
       );
 
-    return this.jobRepo.save(
+    const job = await this.jobRepo.save(
       this.jobRepo.create({
         buyerId: buyer.id,
         serviceAdId: dto.serviceAdId,
@@ -231,11 +236,58 @@ export class ServicesService {
         status: JobStatus.PENDING,
       }),
     );
+
+    // Notify the provider — this was completely missing before, so
+    // service requests silently sat in "My Requests" with no alert at all.
+    this.notifService
+      .notify({
+        userId: ad.providerId,
+        type: 'service_request',
+        title: '🔧 Ombi Jipya la Huduma',
+        body: `${buyer.name || buyer.storeName || 'Mteja'}: ${dto.description?.slice(0, 80) || ad.title}`,
+        icon: '🔧',
+        actionPage: 'MyServices',
+      })
+      .catch(() => {});
+
+    // Link this request to the buyer↔provider conversation so the whole
+    // negotiation (request → accept/decline → follow-up) lives in the
+    // unified inbox instead of being a disconnected system. Non-fatal —
+    // the job request itself must never be blocked by this.
+    try {
+      const convo = await this.conversationService.getOrCreateConversationAsBuyer(
+        buyer,
+        ad.providerId,
+      );
+      await this.jobRepo.update(job.id, { conversationId: convo.id });
+      await this.conversationService.linkJobRequest(convo.id, job.id);
+      await this.conversationService.sendMessageAsBuyer(
+        buyer.id,
+        convo.id,
+        {
+          type: MessageType.JOB,
+          content: `Ombi la huduma: ${ad.title}`,
+          metadata: {
+            jobRequestId: job.id,
+            serviceTitle: ad.title,
+            status: 'pending',
+            description: dto.description,
+            jobLocation: dto.jobLocation,
+            preferredDate: dto.preferredDate || null,
+          },
+        },
+        buyer,
+      );
+    } catch (e) {
+      console.error('Failed to link job request to conversation:', e.message);
+    }
+
+    return job;
   }
 
   // Provider responds
   async respondToJob(
-    providerId: number,
+    provider: User,
     jobId: number,
     dto: {
       accept: boolean;
@@ -244,7 +296,7 @@ export class ServicesService {
     },
   ): Promise<JobRequest> {
     const job = await this.jobRepo.findOne({
-      where: { id: jobId, providerId, status: JobStatus.PENDING },
+      where: { id: jobId, providerId: provider.id, status: JobStatus.PENDING },
     });
     if (!job) throw new NotFoundException('Ombi halijapatikana');
 
@@ -252,7 +304,52 @@ export class ServicesService {
     job.agreedPrice = dto.agreedPrice || null;
     job.providerNote = dto.providerNote || null;
     job.acceptedAt = dto.accept ? new Date() : null;
-    return this.jobRepo.save(job);
+    const saved = await this.jobRepo.save(job);
+
+    // Notify the buyer of the provider's response — same gap as the
+    // buyer→provider direction above. Deep-links to the listing as a
+    // fallback; the chat message below (when a linked conversation exists)
+    // is the more immediate, visible channel.
+    const ad = await this.adRepo.findOne({ where: { id: job.serviceAdId } });
+    this.notifService
+      .notify({
+        userId: job.buyerId,
+        type: 'service_request',
+        title: dto.accept ? '✅ Ombi Limekubaliwa' : '❌ Ombi Limekataliwa',
+        body: ad?.title || 'Ombi lako la huduma',
+        icon: dto.accept ? '✅' : '❌',
+        actionPage: 'ServiceDetail',
+        actionParam: String(job.serviceAdId),
+      })
+      .catch(() => {});
+
+    // Post the outcome back into the linked conversation, if one exists.
+    if (job.conversationId) {
+      try {
+        await this.conversationService.sendMessage(
+          provider.id,
+          job.conversationId,
+          {
+            type: MessageType.JOB,
+            content: dto.accept
+              ? `Ombi limekubaliwa${dto.agreedPrice ? ` — TZS ${dto.agreedPrice.toLocaleString()}` : ''}`
+              : 'Ombi limekataliwa',
+            metadata: {
+              jobRequestId: job.id,
+              serviceTitle: ad?.title,
+              status: saved.status,
+              agreedPrice: saved.agreedPrice,
+              providerNote: saved.providerNote,
+            },
+          },
+          provider,
+        );
+      } catch (e) {
+        console.error('Failed to post job response to conversation:', e.message);
+      }
+    }
+
+    return saved;
   }
 
   // Update job status

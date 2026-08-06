@@ -232,29 +232,32 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
         <div className="cd-left">
 
         <div style={{ position: 'relative', backgroundColor: '#fff' }}>
-          <div style={{ width: '100%', aspectRatio: '4/3', overflow: 'hidden', position: 'relative', maxHeight: 500 }}>
-            {classified.images?.[selectedImage] ? (
-              <img src={classified.images[selectedImage]} alt={classified.title}
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-            ) : (
-              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', fontSize: 80 }}>📋</div>
-            )}
-            <span style={{ position: 'absolute', top: 12, left: 12, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-              backgroundColor: classified.status === 'active' ? '#dcfce7' : classified.status === 'sold' ? '#fee2e2' : '#fef9c3',
-              color: classified.status === 'active' ? '#16a34a' : classified.status === 'sold' ? '#dc2626' : '#ca8a04',
-            }}>{classified.status?.toUpperCase()}</span>
-            <button onClick={() => setWishlist(w => !w)}
-              style={{ position: 'absolute', top: 10, right: 12, width: 36, height: 36, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.9)', border: 'none', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
-              {wishlist ? '❤️' : '🤍'}
-            </button>
-            {classified.images?.length > 1 && (
-              <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
-                {classified.images.map((_, i) => (
-                  <div key={i} onClick={() => setSelectedImage(i)}
-                    style={{ width: i === selectedImage ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === selectedImage ? '#7c3aed' : 'rgba(255,255,255,0.7)', cursor: 'pointer', transition: 'all 0.2s' }} />
-                ))}
-              </div>
-            )}
+          <div style={{ width: '100%', paddingTop: '75%', overflow: 'hidden', position: 'relative', maxHeight: 500 }}>
+            <div style={{ position: 'absolute', inset: 0 }}>
+              {classified.images?.[selectedImage] ? (
+                <img src={classified.images[selectedImage]} alt={classified.title}
+                  onError={e => { e.target.style.display = 'none'; }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', fontSize: 80 }}>📋</div>
+              )}
+              <span style={{ position: 'absolute', top: 12, left: 12, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                backgroundColor: classified.status === 'active' ? '#dcfce7' : classified.status === 'sold' ? '#fee2e2' : '#fef9c3',
+                color: classified.status === 'active' ? '#16a34a' : classified.status === 'sold' ? '#dc2626' : '#ca8a04',
+              }}>{classified.status?.toUpperCase()}</span>
+              <button onClick={() => setWishlist(w => !w)}
+                style={{ position: 'absolute', top: 10, right: 12, width: 36, height: 36, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.9)', border: 'none', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.12)' }}>
+                {wishlist ? '❤️' : '🤍'}
+              </button>
+              {classified.images?.length > 1 && (
+                <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
+                  {classified.images.map((_, i) => (
+                    <div key={i} onClick={() => setSelectedImage(i)}
+                      style={{ width: i === selectedImage ? 18 : 6, height: 6, borderRadius: 3, backgroundColor: i === selectedImage ? '#7c3aed' : 'rgba(255,255,255,0.7)', cursor: 'pointer', transition: 'all 0.2s' }} />
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           {classified.images?.length > 1 && (
             <div style={{ padding: '8px 12px', display: 'flex', gap: 8, overflowX: 'auto', borderBottom: '1px solid #f1f5f9' }}>
@@ -421,7 +424,15 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                       </div>
                     </div>
                     {!showInvoiceForm ? (
-                      <button onClick={() => { if (!isLoggedIn) { onNavigate('PublicLogin'); return; } setShowInvoiceForm(true); }}
+                      <button onClick={() => {
+                          if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+                          setInvoiceForm(f => ({
+                            ...f,
+                            buyerName:  f.buyerName  || currentUser?.name  || '',
+                            buyerPhone: f.buyerPhone || currentUser?.phone || '',
+                          }));
+                          setShowInvoiceForm(true);
+                        }}
                         style={{ width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800, boxShadow: '0 4px 14px rgba(124,58,237,0.35)' }}>
                         📄 {t('classified_detail.request_invoice')}
                       </button>
@@ -468,6 +479,15 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                   ℹ️ {t('classified_detail.individual_seller_note')}
                 </div>
               </div>
+            )}
+
+            {classified?.seller?.id && (
+              <button onClick={() => onNavigate(isLoggedIn ? `MessageSeller-${classified.seller.id}` : 'PublicLogin')}
+                style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                  color: '#fff', border: 'none', padding: 13, borderRadius: 12, cursor: 'pointer',
+                  fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
+                {t('classified_detail.message_seller_button')}
+              </button>
             )}
 
             {!showContact ? (

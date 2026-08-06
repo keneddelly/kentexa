@@ -155,8 +155,10 @@ function App() {
       const track   = params.get('track');
       const confirm = params.get('confirm');
       const token   = params.get('token');
+      const verify  = params.get('verify');
       if (confirm && token) return `ConfirmDelivery-${token}`;
       if (track) return `TrackParcel-${track}`;
+      if (verify) return `VerifyReceipt-${verify}`;
     } catch { /* SSR or no window — fall through */ }
     return 'Home';
   });
@@ -361,6 +363,10 @@ function App() {
     // these, Activity.js builds "MyOrders-42" and the switch below has no
     // case for that literal string, so it silently fell through to Home
     // instead of even the plain list.
+    if (page.startsWith('MyOrders-pay-')) {
+      const payOrderId = Number(page.split('MyOrders-pay-')[1]);
+      return requireLogin(<MyOrders {...publicProps} highlightOrderId={payOrderId} openPayOrderId={payOrderId} />);
+    }
     if (page.startsWith('MyOrders-'))
       return requireLogin(<MyOrders {...publicProps} highlightOrderId={Number(page.split('MyOrders-')[1])} />);
     if (page.startsWith('SellerOrders-'))
@@ -381,6 +387,8 @@ function App() {
       return requireLogin(<BuyerParcelAction {...publicProps} trackingNumber={page.split('BuyerParcelAction-')[1]} />);
     if (page.startsWith('BatchHandoff-'))
       return requireLogin(<BatchHandoff {...publicProps} orderId={page.split('BatchHandoff-')[1]} />);
+    if (page.startsWith('PayInvoice-inv-'))
+      return <PayInvoice {...publicProps} prefilledInvoiceNumber={page.split('PayInvoice-inv-')[1]} />;
     if (page.startsWith('PayInvoice-'))
       return <PayInvoice {...publicProps} prefilledOrderId={page.split('PayInvoice-')[1]} />;
     if (page.startsWith('VerifyReceipt-'))

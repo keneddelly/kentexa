@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
@@ -11,14 +10,44 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     businessDescription: '',
     address: '',
     phone: '',
+    idType: 'national_id',
+    idNumber: '',
+    idPhotoUrl: '',
+    registrationNumber: '',
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [uploadingId, setUploadingId] = useState(false);
+  const [idPreview, setIdPreview] = useState('');
+
+  const handleIdPhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setIdPreview(reader.result);
+    reader.readAsDataURL(file);
+    try {
+      setUploadingId(true);
+      const formData = new FormData();
+      formData.append('files', file);
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setForm(f => ({ ...f, idPhotoUrl: res.data.urls[0] }));
+    } catch {
+      setError(t('become_seller.id_upload_failed'));
+      setIdPreview('');
+    } finally {
+      setUploadingId(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!form.businessName) {
       setError(t('become_seller.business_name_required'));
+      return;
+    }
+    if (!form.idNumber.trim() || !form.idPhotoUrl) {
+      setError(t('become_seller.id_required'));
       return;
     }
     if (!isLoggedIn) {
@@ -148,6 +177,94 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
               />
             </div>
 
+            {/* ── Identity verification (KYC) — required before approval ───── */}
+            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '20px', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: '0 0 4px' }}>
+                🪪 {t('become_seller.id_section_title')}
+              </h3>
+              <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 16px' }}>
+                {t('become_seller.id_section_desc')}
+              </p>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>
+                  {t('become_seller.field_id_type_label')}
+                </label>
+                <select
+                  value={form.idType}
+                  onChange={e => setForm({ ...form, idType: e.target.value })}
+                  style={{
+                    width: '100%', padding: '12px',
+                    borderRadius: '8px', border: '2px solid #e2e8f0',
+                    fontSize: '14px', boxSizing: 'border-box',
+                    outline: 'none', backgroundColor: '#fff',
+                  }}>
+                  <option value="national_id">{t('become_seller.id_type_national_id')}</option>
+                  <option value="voters_id">{t('become_seller.id_type_voters_id')}</option>
+                  <option value="passport">{t('become_seller.id_type_passport')}</option>
+                  <option value="driving_license">{t('become_seller.id_type_driving_license')}</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>
+                  {t('become_seller.field_id_number_label')}
+                </label>
+                <input
+                  type="text"
+                  placeholder={t('become_seller.field_id_number_placeholder')}
+                  value={form.idNumber}
+                  onChange={e => setForm({ ...form, idNumber: e.target.value })}
+                  style={{
+                    width: '100%', padding: '12px',
+                    borderRadius: '8px', border: '2px solid #e2e8f0',
+                    fontSize: '14px', boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                  onFocus={e => e.target.style.border = '2px solid #a78bfa'}
+                  onBlur={e => e.target.style.border = '2px solid #e2e8f0'}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>
+                  {t('become_seller.field_id_photo_label')}
+                </label>
+                {idPreview && (
+                  <img src={idPreview} alt="ID" style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: '10px', marginBottom: '10px', border: '2px solid #e2e8f0' }} />
+                )}
+                <label style={{
+                  display: 'block', textAlign: 'center', padding: '12px',
+                  borderRadius: '8px', border: '2px dashed #cbd5e1',
+                  fontSize: '13px', fontWeight: '700', color: '#64748b',
+                  cursor: uploadingId ? 'wait' : 'pointer', backgroundColor: '#f8fafc',
+                }}>
+                  <input type="file" accept="image/*" onChange={handleIdPhotoUpload} disabled={uploadingId} style={{ display: 'none' }} />
+                  {uploadingId ? `⏳ ${t('become_seller.uploading')}` : form.idPhotoUrl ? `✅ ${t('become_seller.id_photo_uploaded')}` : `📷 ${t('become_seller.id_photo_choose')}`}
+                </label>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>
+                  {t('become_seller.field_registration_number_label')}
+                </label>
+                <input
+                  type="text"
+                  placeholder={t('become_seller.field_registration_number_placeholder')}
+                  value={form.registrationNumber}
+                  onChange={e => setForm({ ...form, registrationNumber: e.target.value })}
+                  style={{
+                    width: '100%', padding: '12px',
+                    borderRadius: '8px', border: '2px solid #e2e8f0',
+                    fontSize: '14px', boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                  onFocus={e => e.target.style.border = '2px solid #a78bfa'}
+                  onBlur={e => e.target.style.border = '2px solid #e2e8f0'}
+                />
+              </div>
+            </div>
+
             <button
               onClick={handleSubmit}
               disabled={loading}
@@ -234,7 +351,6 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

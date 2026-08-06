@@ -47,8 +47,11 @@ export class ProductsService {
     return query.orderBy('p.createdAt', 'DESC').getMany();
   }
 
-  async search(query: string) {
-    return this.repo
+  async search(
+    query: string,
+    opts?: { flashSale?: boolean; category?: string; limit?: number },
+  ) {
+    const qb = this.repo
       .createQueryBuilder('p')
       .leftJoin('p.seller', 'seller')
       .addSelect([
@@ -65,12 +68,22 @@ export class ProductsService {
         'seller.phone',
         'seller.role',
       ])
-      .where('p.isAvailable = :isAvailable', { isAvailable: true })
-      .andWhere(
+      .where('p.isAvailable = :isAvailable', { isAvailable: true });
+
+    if (query) {
+      qb.andWhere(
         '(LOWER(p.name) LIKE :query OR LOWER(p.description) LIKE :query OR LOWER(p.category) LIKE :query)',
         { query: `%${query.toLowerCase()}%` },
-      )
+      );
+    }
+    if (opts?.category)
+      qb.andWhere('p.category = :category', { category: opts.category });
+    if (opts?.flashSale)
+      qb.andWhere('p.isFlashSale = true AND p.flashSaleEndsAt > NOW()');
+
+    return qb
       .orderBy('p.createdAt', 'DESC')
+      .take(opts?.limit || 50)
       .getMany();
   }
 
@@ -130,6 +143,11 @@ export class ProductsService {
       weightKg: (dto as any).weightKg || null,
       bodaFee: Number((dto as any).bodaFee || 0),
       sellerCity: (dto as any).sellerCity || 'Dar es Salaam',
+      isFlashSale: dto.isFlashSale || false,
+      flashSalePrice: dto.flashSalePrice ?? null,
+      originalPrice: dto.originalPrice ?? null,
+      flashSaleEndsAt: dto.flashSaleEndsAt ? new Date(dto.flashSaleEndsAt) : null,
+      flashSaleQuantity: dto.flashSaleQuantity ?? null,
       seller: seller || null,
     } as any);
 
@@ -230,6 +248,28 @@ export class ProductsService {
     } catch {
       // Non-critical — never block order completion over this
     }
+  }
+
+  // ── Flash sale: track units sold against the limited quantity ────────────
+  async incrementFlashSaleSold(productId: number, quantity: number): Promise<void> {
+    try {
+      await this.repo.increment({ id: productId }, 'flashSaleSold', quantity);
+    } catch {
+      // Non-critical — never block order creation over this
+    }
+  }
+
+  // ── Flash sale: true only while active, not expired, and not sold out ────
+  isFlashSaleActive(product: Product): boolean {
+    if (!product.isFlashSale || product.flashSalePrice == null) return false;
+    if (product.flashSaleEndsAt && new Date(product.flashSaleEndsAt) <= new Date())
+      return false;
+    if (
+      product.flashSaleQuantity != null &&
+      (product.flashSaleSold || 0) >= product.flashSaleQuantity
+    )
+      return false;
+    return true;
   }
 
   // ── Reviews ────────────────────────────────────────────────────────────

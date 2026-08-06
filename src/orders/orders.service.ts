@@ -101,6 +101,22 @@ export class OrdersService {
     private inAppNotif: InAppNotificationService,
   ) {}
 
+  // ── Seller creates a real online order on a registered buyer's behalf ─────
+  // Reuses create() exactly — same escrow/commission/flash-sale pricing as
+  // a normal checkout — the buyer still owes payment, this just saves them
+  // re-selecting the product the seller already discussed in chat.
+  async createForBuyer(seller: User, buyerId: number, dto: CreateOrderDto) {
+    const product = await this.productsService.findOne(dto.productId);
+    if (product.seller?.id !== seller.id) {
+      throw new ForbiddenException(
+        'You can only create orders for your own products',
+      );
+    }
+    const buyer = await this.userRepo.findOne({ where: { id: buyerId } });
+    if (!buyer) throw new NotFoundException('Buyer not found');
+    return this.create(dto, buyer);
+  }
+
   // ── Create Order ──────────────────────────────────────────────────────────
   async create(dto: CreateOrderDto, user: User) {
     const product = await this.productsService.findOne(dto.productId);
@@ -109,7 +125,10 @@ export class OrdersService {
     if (product.stock < dto.quantity)
       throw new BadRequestException('Insufficient stock');
 
-    const basePrice = Number(product.basePrice || 0);
+    const flashSaleActive = this.productsService.isFlashSaleActive(product);
+    const basePrice = flashSaleActive
+      ? Number(product.flashSalePrice)
+      : Number(product.basePrice || 0);
     const chosenMethod =
       (dto as any).shippingMethod || product.shippingMethod || 'agent';
 
@@ -183,6 +202,9 @@ export class OrdersService {
       trackingNumber: `KTX-ORD-${saved.id}`,
     });
     await this.productsService.decreaseStock(product.id, dto.quantity);
+    if (flashSaleActive) {
+      await this.productsService.incrementFlashSaleSold(product.id, dto.quantity);
+    }
 
     let invoiceNumber: string | null = null;
     try {
@@ -1420,7 +1442,10 @@ export class OrdersService {
 
   // ── Get All Orders (Admin) ────────────────────────────────────────────────
   async findAll(): Promise<Order[]> {
-    return this.repo.find({ order: { createdAt: 'DESC' } });
+    return this.repo.find({
+      relations: { buyer: true, product: true, seller: true },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   // ── Financial Reconciliation — operator's money dashboard ─────────────────
@@ -1723,7 +1748,9 @@ export class OrdersService {
 
     const bodaFee = Number((product as any).bodaFee || 0);
     const deliveryFee = Number(product.deliveryFee || 0);
-    const basePrice = Number(product.basePrice || 0);
+    const basePrice = this.productsService.isFlashSaleActive(product)
+      ? Number(product.flashSalePrice)
+      : Number(product.basePrice || 0);
     const BATCH_FEE = 3000;
 
     if (!isSameCity) {
@@ -1787,6 +1814,7 @@ export class OrdersService {
       paymentRef?: string;
       busCompany?: string;
       busTicketNumber?: string;
+      courierName?: string;
       externalTrackingRef?: string;
     },
   ) {
@@ -1799,7 +1827,10 @@ export class OrdersService {
     if (product.stock < dto.quantity)
       throw new BadRequestException('Insufficient stock');
 
-    const basePrice = Number(product.basePrice || 0);
+    const flashSaleActive = this.productsService.isFlashSaleActive(product);
+    const basePrice = flashSaleActive
+      ? Number(product.flashSalePrice)
+      : Number(product.basePrice || 0);
     const deliveryFee = Number(product.deliveryFee || 0);
     const totalAmount = (basePrice + deliveryFee) * dto.quantity;
     const baseAmount = basePrice * dto.quantity;
@@ -1841,6 +1872,7 @@ export class OrdersService {
       notes: dto.notes || null,
       busCompany: dto.busCompany || null,
       busTicketNumber: dto.busTicketNumber || null,
+      courierName: dto.courierName || null,
       externalTrackingRef: dto.externalTrackingRef || null,
     } as any);
 
@@ -1848,22 +1880,48 @@ export class OrdersService {
 
     // Reduce stock
     await this.productsService.decreaseStock(product.id, dto.quantity);
+    if (flashSaleActive) {
+      await this.productsService.incrementFlashSaleSold(product.id, dto.quantity);
+    }
 
     // Generate tracking number
     const trackingNumber = `KTX-ORD-${saved.id}`;
     await this.repo.update(saved.id, { trackingNumber });
 
+    // ── Receipt — payment was already collected outside KenteXa, so the
+    // invoice is created straight into PAID status (no "awaiting payment"
+    // step exists for an offline sale). This is what makes the receipt
+    // download button appear on the buyer's order tracking page.
+    let receiptNumber: string | null = null;
+    try {
+      const invoice = await this.invoicesService.createPaidForOrder(
+        saved,
+        dto.paymentMethod || 'cash',
+        dto.paymentRef,
+      );
+      receiptNumber = invoice.receiptNumber;
+    } catch (err) {
+      console.error(
+        `Receipt creation failed for offline order #${saved.id}:`,
+        err.message,
+      );
+    }
+
     // Send SMS to customer with tracking — this is a manual/offline order
     // (no buyer account), so the buyer isn't reachable via the in-app
     // notification system at all; a direct SMS is the only way they learn
-    // their tracking number.
+    // their tracking number and receipt.
     try {
+      const receiptLine = receiptNumber
+        ? `
+Risiti: kentexa.com/?verify=${receiptNumber}`
+        : '';
       const msg =
         `KenteXa: Habari ${dto.buyerName}! Agizo lako la "${product.name}" limepokelewa.
 ` +
         `Nambari ya ufuatiliaji: ${trackingNumber}
 ` +
-        `Fuatilia: kentexa.com`;
+        `Fuatilia: kentexa.com${receiptLine}`;
       await this.smsService.sendSms(dto.buyerPhone, msg);
     } catch (e) {
       // Non-fatal — order already created, tracking number still in the response
@@ -1874,6 +1932,7 @@ export class OrdersService {
       success: true,
       orderId: saved.id,
       trackingNumber,
+      receiptNumber,
       buyerName: dto.buyerName,
       productName: product.name,
       sellerStoreName: (seller as any).storeName || seller.name || null,

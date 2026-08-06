@@ -17,7 +17,11 @@ import {
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
-import { TransportRoute } from '../transport/entities/transport-route.entity';
+import {
+  TransportRoute,
+  RouteType,
+} from '../transport/entities/transport-route.entity';
+import { ProviderStatus } from '../transport/entities/transport-provider.entity';
 import {
   PostComment,
   PostCommentType,
@@ -1118,7 +1122,7 @@ export class CvsService {
       });
 
       // 1. Classifieds (ads — contact only, no buy now)
-      if (filter !== 'services') {
+      if (filter !== 'services' && filter !== 'transport') {
         const clsQb = this.classifiedRepo
           .createQueryBuilder('c')
           .leftJoinAndSelect('c.seller', 's')
@@ -1246,6 +1250,64 @@ export class CvsService {
             data: s,
           }),
         );
+      }
+
+      // 4. Transport routes (real routes from verified providers) — 'transport' tab
+      if (filter === 'transport') {
+        const routes = await this.routeRepo
+          .createQueryBuilder('r')
+          .leftJoinAndSelect('r.provider', 'p')
+          .where('r.isActive = true')
+          .andWhere("p.status IN ('verified','active')")
+          .orderBy('r.createdAt', 'DESC')
+          .take(15)
+          .getMany();
+
+        routes.forEach((r) => {
+          const provider = r.provider;
+          const title =
+            r.routeType === RouteType.INTERCITY &&
+            r.originCity &&
+            r.destinationCity
+              ? `${r.originCity} → ${r.destinationCity}`
+              : r.routeType === RouteType.LOCAL_LOOP && r.loopStops?.length
+                ? r.loopStops.join(' → ')
+                : r.coverageWards?.length
+                  ? `${r.coverageCity || ''} — ${r.coverageWards.slice(0, 3).join(', ')}`
+                  : 'Route';
+
+          virtualPosts.push({
+            id: `route-${r.id}`,
+            entityType: 'route',
+            entityId: r.id,
+            feedType: 'route',
+            type: 'delivery_info',
+            title,
+            body: provider ? `${provider.name} — ${r.routeType}` : r.notes,
+            imageUrl: provider?.logoUrl || null,
+            linkedEntityId: r.id,
+            linkedEntityType: 'route',
+            price: Number(r.pricePerKg) || Number(r.fixedFee) || 0,
+            createdAt: r.createdAt,
+            cvsScore: 0,
+            saveCount: 0,
+            commentCount: 0,
+            shareCount: 0,
+            purchaseCount: 0,
+            isSaved: savedIds.includes(`route-${r.id}`),
+            business: {
+              id: provider?.userId,
+              name: provider?.name,
+              storeName: provider?.name,
+              logo: provider?.logoUrl,
+              phone: provider?.contactPhone,
+              storeWhatsApp: provider?.whatsappPhone,
+              isVerified: provider?.status === ProviderStatus.VERIFIED,
+              isFollowing: false,
+            },
+            data: r,
+          });
+        });
       }
 
       // Shuffle mix: alternate classifieds, products, services

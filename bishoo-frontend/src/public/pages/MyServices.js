@@ -6,7 +6,6 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
 const getJobStatus = (t) => ({
@@ -315,7 +314,6 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           )}
         </>)}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

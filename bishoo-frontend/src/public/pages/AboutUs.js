@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 
 const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const { t } = useTranslation();
@@ -37,7 +36,8 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         <div style={{ position: 'relative' }}>
           <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: 0, marginBottom: 16 }}>
             <span style={{ fontSize: 48, fontWeight: 900, color: '#fff', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-            <span style={{ fontSize: 48, fontWeight: 900, color: '#60a5fa', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+            <span style={{ fontSize: 48, fontWeight: 900, fontFamily: 'Manrope,sans-serif',
+              background: 'linear-gradient(135deg,#60a5fa,#c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Xa</span>
           </div>
           <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 20 }}>{t('about_us.hero_tagline')}</p>
           <h1 style={{ fontSize: 28, fontWeight: 900, color: '#fff', margin: '0 0 16px', fontFamily: 'Manrope,sans-serif', lineHeight: 1.3 }}>
@@ -163,7 +163,6 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

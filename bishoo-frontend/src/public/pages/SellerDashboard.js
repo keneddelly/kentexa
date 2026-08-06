@@ -148,6 +148,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
   const [error, setError]                     = useState('');
   const [profile, setProfile]                 = useState(null);
   const [profileStatus, setProfileStatus]     = useState(null);
+  const [storeInfo, setStoreInfo]             = useState(null);
   const [invoiceRequests, setInvoiceRequests] = useState([]);
   const [showCreateInvoice, setShowCreateInvoice] = useState(null);
   const [invoiceForm, setInvoiceForm]         = useState({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3 });
@@ -166,6 +167,13 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
       const profileRes = await api.get('/seller/my-profile');
       setProfile(profileRes.data);
       setProfileStatus(profileRes.data.status);
+      // Live store branding (storeName/logo/description/location) lives on the
+      // User record, edited via StoreSettings.js — separate from the seller
+      // application snapshot above, which never gets updated after approval.
+      try {
+        const storeRes = await api.get('/auth/profile');
+        setStoreInfo(storeRes.data);
+      } catch { setStoreInfo(null); }
       if (profileRes.data.status === 'approved') {
         const dashRes = await api.get('/seller/dashboard');
         setData(dashRes.data);
@@ -292,8 +300,8 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
 
         {profileStatus === 'approved' && data && (
           <>
-            {profile && !profile.phone && <PhoneNudgeBanner userId={currentUser?.id} onSaved={fetchData} />}
-            <ProfileCompletionBanner profile={profile} onNavigate={onNavigate} />
+            {storeInfo && !storeInfo.phone && <PhoneNudgeBanner userId={currentUser?.id} onSaved={fetchData} />}
+            <ProfileCompletionBanner profile={storeInfo} onNavigate={onNavigate} />
 
             {/* ── Van Today banner ── */}
             {vanBatch && (

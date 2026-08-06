@@ -5,7 +5,7 @@ import api from '../../api/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
-const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
+const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId, openPayOrderId }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const highlightRef = React.useRef(null);
@@ -83,6 +83,21 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
     setNearbyAgents([]);
     setCopied(false);
   };
+
+  // Deep-linked straight into "resume payment" (from the seller-inbox order
+  // card, or an order-lifecycle notification) — open the pay modal itself
+  // instead of just scrolling to the order. Guarded so it only auto-opens
+  // once per deep link, not every time `orders` refreshes.
+  const autoOpenedPayRef = React.useRef(null);
+  useEffect(() => {
+    if (!openPayOrderId || !orders.length) return;
+    if (autoOpenedPayRef.current === openPayOrderId) return;
+    const order = orders.find(o => o.id === Number(openPayOrderId));
+    if (order && order.paymentStatus !== 'paid' && order.status !== 'cancelled') {
+      autoOpenedPayRef.current = openPayOrderId;
+      openPayModal(order);
+    }
+  }, [orders, openPayOrderId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closePayModal = () => {
     setPayModalOrder(null);
@@ -422,7 +437,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       </div>
                       <div style={{ flex: 1 }}>
                         <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#0f172a', margin: '0 0 4px' }}>
-                          {order.product?.name || t('my_orders.product_fallback')}
+                          {order.product?.name || order.manualProductName || t('my_orders.product_fallback')}
                         </h4>
                         <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 4px' }}>
                           {t('my_orders.qty_price_label', { qty: order.quantity, price: Number(order.product?.price || 0).toLocaleString() })}

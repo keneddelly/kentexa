@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
@@ -67,9 +66,12 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
   const counts   = { all: agents.length, pending: agents.filter(a => a.status === 'pending').length, active: agents.filter(a => a.status === 'active').length, suspended: agents.filter(a => a.status === 'suspended').length };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
-      <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={() => onNavigate('Dashboard')} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}>←</button>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Super Agents</div>
+      </div>
+      <main style={{ flex: 1, padding: 32 }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>

@@ -50,13 +50,15 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
   const [followed,    setFollowed]    = useState(new Set());
   const [saving,      setSaving]      = useState(false);
   const [loadingSellers, setLoadingSellers] = useState(false);
+  const [logo,        setLogo]        = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  const TOTAL_STEPS = 3;
+  const TOTAL_STEPS = 4;
   const progress = (step / TOTAL_STEPS) * 100;
 
-  // Load suggested sellers when reaching step 4
+  // Load suggested sellers when reaching step 3 (Follow businesses)
   useEffect(() => {
-    if (step !== 4) return;
+    if (step !== 3) return;
     setLoadingSellers(true);
     api.get('/seller/public/all')
       .then(r => setSellers((r.data?.sellers || r.data || []).slice(0, 8)))
@@ -75,6 +77,24 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
       await api.post(`/stores/${sellerId}/follow`);
       setFollowed(prev => new Set([...prev, sellerId]));
     } catch {}
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingPhoto(true);
+      const formData = new FormData();
+      formData.append('files', file);
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = res.data.urls[0];
+      await saveStep({ logo: url });
+      setLogo(url);
+    } catch {}
+    finally {
+      setUploadingPhoto(false);
+      e.target.value = '';
+    }
   };
 
   const handleFinish = async () => {
@@ -98,13 +118,14 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
     if (step === 1) return city.length > 0;
     if (step === 2) return interests.length >= 1;
     if (step === 3) return true; // can skip following
+    if (step === 4) return true; // can skip photo
     return true;
   };
 
   const nextStep = async () => {
     if (step === 1) await saveStep({ city });
     if (step === 2) await saveStep({ interests });
-    if (step === 3) { handleFinish(); return; }
+    if (step === 4) { handleFinish(); return; }
     setStep(s => s + 1);
   };
 
@@ -277,6 +298,41 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             )}
           </div>
         )}
+
+        {/* ── STEP 4: Profile picture ── */}
+        {step === 4 && (
+          <div style={{ animation: 'fadeIn 0.3s ease', textAlign: 'center' }}>
+            <div style={{ fontSize: 32, marginBottom: 16 }}>🙂</div>
+            <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
+              margin: '0 0 8px', lineHeight: 1.2 }}>
+              {t('onboarding.step4_title')}
+            </h1>
+            <p style={{ fontSize: 15, color: GR, margin: '0 0 24px', lineHeight: 1.6 }}>
+              {t('onboarding.step4_desc')}
+            </p>
+
+            <div style={{ position: 'relative', width: 120, margin: '0 auto 20px' }}>
+              <div style={{ width: 120, height: 120, borderRadius: 32, overflow: 'hidden',
+                backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 44, fontWeight: 900, color: B, border: '3px solid #E2E8F0' }}>
+                {logo
+                  ? <img src={logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : (currentUser?.name || '?').charAt(0).toUpperCase()}
+              </div>
+              <input type="file" accept="image/*" onChange={handlePhotoUpload}
+                style={{ display: 'none' }} id="onboardingPhoto" disabled={uploadingPhoto} />
+              <label htmlFor="onboardingPhoto" style={{ position: 'absolute', bottom: -4, right: -4,
+                width: 36, height: 36, borderRadius: '50%', backgroundColor: B,
+                border: '3px solid #FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: uploadingPhoto ? 'wait' : 'pointer', fontSize: 16 }}>
+                {uploadingPhoto ? '⏳' : '📷'}
+              </label>
+            </div>
+            <div style={{ fontSize: 13, color: B, fontWeight: 700 }}>
+              {logo ? t('onboarding.photo_added') : t('onboarding.choose_photo_button')}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Bottom CTA */}
@@ -295,16 +351,16 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
             boxShadow: canNext() ? '0 4px 16px rgba(37,99,235,0.3)' : 'none',
             transition: 'all 0.2s' }}>
           {saving ? t('onboarding.saving_button') :
-           step === 3 ? (followed.size >= 3 ? t('onboarding.finish_button') : t('onboarding.continue_button')) :
+           step === 4 ? t('onboarding.finish_button') :
            t('onboarding.continue_button')}
         </button>
 
-        {step === 3 && followed.size < 3 && (
+        {step === 4 && !logo && (
           <button onClick={handleFinish}
             style={{ width: '100%', marginTop: 10, padding: '12px 0',
               background: 'none', border: 'none', cursor: 'pointer',
               color: GR, fontSize: 13, fontWeight: 700 }}>
-            {t('onboarding.skip_for_now')}
+            {t('onboarding.skip_photo_button')}
           </button>
         )}
       </div>

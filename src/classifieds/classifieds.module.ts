@@ -7,6 +7,7 @@ import { Classified } from './entities/classified.entity';
 import { ClassifiedInvoiceRequest } from './entities/classified-invoice-request.entity';
 import { Invoice } from '../invoices/entities/invoice.entity';
 import { Order } from '../orders/entities/order.entity';
+import { User } from '../users/entities/user.entity';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { OrdersModule } from '../orders/orders.module';
 import { FeedModule } from '../feed/feed.module';
@@ -18,6 +19,7 @@ import { FeedModule } from '../feed/feed.module';
       ClassifiedInvoiceRequest,
       Invoice,
       Order,
+      User,
     ]),
     InvoicesModule,
     OrdersModule,

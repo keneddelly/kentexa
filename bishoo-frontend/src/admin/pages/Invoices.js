@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const WA = (phone) => {
@@ -58,8 +57,8 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
       inv.invoiceNumber?.toLowerCase().includes(q) ||
       inv.order?.buyer?.name?.toLowerCase().includes(q) ||
       inv.order?.buyer?.phone?.includes(q) ||
-      inv.order?.seller?.user?.name?.toLowerCase().includes(q) ||
-      inv.order?.seller?.businessName?.toLowerCase().includes(q) ||
+      inv.order?.seller?.name?.toLowerCase().includes(q) ||
+      inv.order?.seller?.storeName?.toLowerCase().includes(q) ||
       inv.order?.product?.name?.toLowerCase().includes(q) ||
       inv.order?.manualProductName?.toLowerCase().includes(q);
     const matchFilter = filter === 'all' || inv.status === filter;
@@ -70,9 +69,12 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
   const totalPending = invoices.filter(i => i.status === 'awaiting_payment').reduce((s, i) => s + Number(i.amount || 0), 0);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
-      <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={() => onNavigate('Dashboard')} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}>←</button>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Invoices</div>
+      </div>
+      <main style={{ flex: 1, padding: 32 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -183,9 +185,9 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
-                          {seller?.businessName || seller?.user?.name || '—'}
+                          {seller?.storeName || seller?.name || '—'}
                         </div>
-                        <PhoneCell phone={seller?.user?.phone || seller?.phone} />
+                        <PhoneCell phone={seller?.phone} />
                       </td>
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
@@ -267,12 +269,12 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
                   marginBottom: 8, letterSpacing: 0.5 }}>🏪 MUUZAJI</div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
-                  {selected.order?.seller?.businessName || selected.order?.seller?.user?.name || '—'}
+                  {selected.order?.seller?.storeName || selected.order?.seller?.name || '—'}
                 </div>
-                <PhoneCell phone={selected.order?.seller?.user?.phone || selected.order?.seller?.phone} />
-                {selected.order?.seller?.user?.email && (
+                <PhoneCell phone={selected.order?.seller?.phone} />
+                {selected.order?.seller?.email && (
                   <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                    ✉️ {selected.order.seller.user.email}
+                    ✉️ {selected.order.seller.email}
                   </div>
                 )}
               </div>

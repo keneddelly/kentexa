@@ -26,6 +26,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
   const [error, setError]       = useState('');
   const [form, setForm]         = useState({ name: '', phone: '', email: '' });
   const [saving, setSaving]     = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Pre-fill immediately from cached currentUser before API loads
   React.useEffect(() => {
@@ -95,6 +96,25 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
       } else {
         setError('Imeshindwa kubadilisha. Jaribu tena.');
       }
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploadingAvatar(true);
+      const formData = new FormData();
+      formData.append('files', file);
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.patch(`/users/${profile.id}`, { logo: res.data.urls[0] });
+      setMessage('✅ Picha ya wasifu imebadilishwa!');
+      fetchData();
+    } catch {
+      setError('Imeshindwa kupakia picha. Jaribu tena.');
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = '';
     }
   };
 
@@ -169,13 +189,23 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
 
       {/* ── Gradient identity header ── */}
       <div style={{ background: `linear-gradient(135deg,#1E1B4B,${B})`, padding: '28px 16px', textAlign: 'center' }}>
-        <div style={{ width: 80, height: 80, borderRadius: 22, overflow: 'hidden',
-          background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 30, fontWeight: 900, color: WH, margin: '0 auto 12px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.25)', border: '3px solid rgba(255,255,255,0.35)' }}>
-          {profile?.logo
-            ? <img src={profile.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : (profile?.name || profile?.email || 'U').charAt(0).toUpperCase()}
+        <div style={{ position: 'relative', width: 80, margin: '0 auto 12px' }}>
+          <div style={{ width: 80, height: 80, borderRadius: 22, overflow: 'hidden',
+            background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 30, fontWeight: 900, color: WH,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)', border: '3px solid rgba(255,255,255,0.35)' }}>
+            {profile?.logo
+              ? <img src={profile.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : (profile?.name || profile?.email || 'U').charAt(0).toUpperCase()}
+          </div>
+          <input type="file" accept="image/*" onChange={handleAvatarUpload}
+            style={{ display: 'none' }} id="avatarUpload" disabled={uploadingAvatar} />
+          <label htmlFor="avatarUpload" style={{ position: 'absolute', bottom: -4, right: -4,
+            width: 28, height: 28, borderRadius: '50%', backgroundColor: B,
+            border: `2px solid ${WH}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: uploadingAvatar ? 'wait' : 'pointer', fontSize: 13 }}>
+            {uploadingAvatar ? '⏳' : '📷'}
+          </label>
         </div>
         <h1 style={{ fontSize: 20, fontWeight: 900, color: WH, margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>
           {profile?.name || profile?.email?.split('@')[0] || profile?.phone}

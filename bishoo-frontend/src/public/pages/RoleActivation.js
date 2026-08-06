@@ -9,7 +9,6 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 
 const B = '#2563EB';
 
@@ -229,7 +228,6 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

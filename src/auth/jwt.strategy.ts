@@ -11,13 +11,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
-    private config: ConfigService,
+    config: ConfigService,
   ) {
+    const secret = config.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET environment variable is required — refusing to start with a default secret',
+      );
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       // ✅ Must match JwtModule secret exactly
-      secretOrKey: config.get<string>('JWT_SECRET') || 'kentexa_secret_key',
+      secretOrKey: secret,
     });
   }
 

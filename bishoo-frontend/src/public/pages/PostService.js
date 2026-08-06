@@ -6,7 +6,6 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
 const getCategories = (t) => [
@@ -53,6 +52,8 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [step,  setStep]  = useState(1);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [form,  setForm]  = useState({
     title: '', description: '', category: '', subcategory: '',
     priceType: 'per_job', price: '', priceMax: '',
@@ -61,9 +62,34 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     workingHours: '08:00 - 18:00',
     isAvailableNow: true,
     whatsappPhone: '',
+    images: [],
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    if (form.images.length + files.length > 5) { setError(t('post_service.max_images')); return; }
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreviews(prev => [...prev, reader.result]);
+      reader.readAsDataURL(file);
+    });
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      set('images', [...form.images, ...res.data.urls]);
+    } catch { setError(t('post_service.image_upload_failed')); }
+    finally { setUploading(false); }
+  };
+
+  const removeImage = (i) => {
+    setImagePreviews(prev => prev.filter((_, idx) => idx !== i));
+    set('images', form.images.filter((_, idx) => idx !== i));
+  };
 
   const toggleDay = (day) => {
     set('workingDays', form.workingDays.includes(day)
@@ -185,6 +211,41 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 value={form.description}
                 placeholder={t('post_service.field_description_placeholder')}
                 onChange={e => set('description', e.target.value)} />
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
+                color: '#64748b', marginBottom: 6 }}>
+                {t('post_service.field_images_label')}
+              </label>
+              {imagePreviews.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                  {imagePreviews.map((preview, i) => (
+                    <div key={i} style={{ position: 'relative' }}>
+                      <img src={preview} alt="" style={{ width: 64, height: 64, borderRadius: 10,
+                        objectFit: 'cover', border: '1.5px solid #e2e8f0' }} />
+                      <button onClick={() => removeImage(i)}
+                        style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20,
+                          borderRadius: '50%', backgroundColor: '#dc2626', color: '#fff', border: 'none',
+                          cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {form.images.length < 5 && (
+                <>
+                  <input type="file" accept="image/*" multiple onChange={handleImageUpload}
+                    style={{ display: 'none' }} id="serviceImages" />
+                  <label htmlFor="serviceImages" style={{ display: 'inline-block',
+                    background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff',
+                    padding: '9px 16px', borderRadius: 8, cursor: 'pointer',
+                    fontSize: 13, fontWeight: 700 }}>
+                    {uploading ? `⏳ ${t('post_service.uploading')}` : `📷 ${t('post_service.choose_images')}`}
+                  </label>
+                  <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>
+                    {t('post_service.images_hint')}
+                  </p>
+                </>
+              )}
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
@@ -346,7 +407,6 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

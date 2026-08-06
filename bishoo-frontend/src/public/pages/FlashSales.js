@@ -6,7 +6,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar        from '../components/Navbar';
 import BackBar       from '../components/BackBar';
-import Footer        from '../components/Footer';
 import WishlistHeart from '../components/WishlistHeart';
 import api           from '../../api/api';
 
@@ -79,6 +78,7 @@ const Countdown = ({ endsAt, size = 'md' }) => {
 // ── Flash sale card ───────────────────────────────────────────────────────────
 const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
+  const detailPage = item.itemType === 'product' ? 'ProductDetail' : 'ClassifiedDetail';
   const discount = item.originalPrice && item.flashSalePrice
     ? Math.round((1 - item.flashSalePrice / item.originalPrice) * 100)
     : 0;
@@ -102,13 +102,13 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
 
       {/* Wishlist */}
       <div style={{ position: 'absolute', top: 8, right: 8, zIndex: 10 }}>
-        <WishlistHeart classifiedId={item.id} isLoggedIn={isLoggedIn}
+        <WishlistHeart entityType={item.itemType} entityId={item.id} isLoggedIn={isLoggedIn}
           onNavigate={onNavigate} size={24}
           style={{ backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: '50%' }} />
       </div>
 
       {/* Image */}
-      <div onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)}
+      <div onClick={() => onNavigate(`${detailPage}-${item.id}`)}
         style={{ height: 160, backgroundColor: '#F8FAFC', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           overflow: 'hidden' }}>
@@ -166,7 +166,7 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
         )}
 
         {/* Buy button */}
-        <button onClick={() => onNavigate(`ClassifiedDetail-${item.id}`)}
+        <button onClick={() => onNavigate(`${detailPage}-${item.id}`)}
           style={{ width: '100%', backgroundColor: '#DC2626', color: WH,
             border: 'none', borderRadius: 10, padding: '10px 0',
             cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
@@ -198,14 +198,22 @@ const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     try {
       const params = new URLSearchParams({ flashSale: 'true' });
       if (filter !== 'all') params.set('category', filter);
-      const res = await api.get(`/classifieds/search?${params}`);
-      const all = res.data || [];
+      const [classifiedsRes, productsRes] = await Promise.all([
+        api.get(`/classifieds/search?${params}`).catch(() => ({ data: [] })),
+        api.get(`/products/search?${params}`).catch(() => ({ data: [] })),
+      ]);
+      const all = [
+        ...(classifiedsRes.data || []).map(c => ({ ...c, itemType: 'classified' })),
+        ...(productsRes.data || []).map(p => ({ ...p, itemType: 'product', title: p.name })),
+      ];
       // Filter to only active flash sales with future end time
       const active = all.filter(c =>
         c.isFlashSale &&
         c.flashSaleEndsAt &&
         new Date(c.flashSaleEndsAt) > new Date()
       );
+      // Soonest-ending first — creates urgency
+      active.sort((a, b) => new Date(a.flashSaleEndsAt) - new Date(b.flashSaleEndsAt));
       setItems(active);
     } catch {
       setItems([]);
@@ -309,7 +317,6 @@ const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
       `}</style>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

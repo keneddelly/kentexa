@@ -16,4 +16,20 @@ export class CreateSellerProfileDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  idType?: string;
+
+  @IsOptional()
+  @IsString()
+  idNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  idPhotoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  registrationNumber?: string;
 }

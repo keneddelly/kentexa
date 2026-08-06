@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
 
@@ -283,7 +282,6 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
         )}
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

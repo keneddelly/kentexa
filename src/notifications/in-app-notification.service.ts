@@ -259,6 +259,7 @@ export class InAppNotificationService {
     businessName: string,
     postTitle: string,
     sellerId: number,
+    postId?: number,
   ) {
     await this.notify({
       userId: followerUserId,
@@ -266,7 +267,11 @@ export class InAppNotificationService {
       title: `📢 ${businessName}`,
       body: postTitle,
       actionPage: 'CommerceProfile',
-      actionParam: String(sellerId),
+      // -feed-{postId} deep-links straight into the Feed tab and highlights
+      // the specific post — without it, the profile opens on the default
+      // "posts" (products/classifieds) tab, which is empty for roles that
+      // don't sell products (agents, etc.), making the new post invisible.
+      actionParam: postId ? `${sellerId}-feed-${postId}` : String(sellerId),
       icon: '📢',
     });
   }

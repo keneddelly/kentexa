@@ -952,6 +952,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 {t('my_profile.about_kentexa_title')}
               </div>
               <Row icon="🌐" label={t('my_profile.version_label')} value={t('my_profile.version_value')} />
+              <Row icon="🏢" label={t('my_profile.about_us_label')}
+                onAction={() => onNavigate('AboutUs')} />
               <Row icon="📞" label={t('my_profile.contact_us_label')}
                 onAction={() => onNavigate('ContactUs')} />
               <Row icon="❓" label={t('my_profile.how_it_works_label')}

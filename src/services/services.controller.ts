@@ -123,7 +123,7 @@ export class ServicesController {
     @Body()
     dto: { accept: boolean; agreedPrice?: number; providerNote?: string },
   ) {
-    return this.svc.respondToJob(req.user.id, id, dto);
+    return this.svc.respondToJob(req.user, id, dto);
   }
 
   @Patch('jobs/:id/status')

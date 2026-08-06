@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import { useTranslation } from 'react-i18next';
 
@@ -144,7 +143,8 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', b
 const EMPTY_FORM = {
   name: '', description: '', basePrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
   displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '',
-  specs: {}, features: [], images: [], isZipo: true, weightKg: '',
+  specs: {}, features: [], images: [], isAvailable: true, weightKg: '',
+  isFlashSale: false, flashSalePrice: '', flashSaleEndsAt: '', flashSaleQuantity: '',
 };
 
 const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProductId }) => {
@@ -291,7 +291,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
         category:     form.category,
         subcategory:  form.subcategory,
         model:        form.model,
-        isAvailable:  form.isZipo,
+        isAvailable:  form.isAvailable,
         shippingMethod: form.shippingMethod,
         estimatedDelivery: form.estimatedDelivery,
         shippingNotes: form.shippingNotes,
@@ -306,6 +306,14 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
         weightKg:     form.weightKg ? Number(form.weightKg) : null,
         specs:        Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         features:     form.features?.length > 0 ? form.features : null,
+        isFlashSale:  form.isFlashSale,
+        originalPrice: form.isFlashSale ? base + delivery : undefined,
+        flashSalePrice: form.isFlashSale && form.flashSalePrice
+          ? Number(form.flashSalePrice) : undefined,
+        flashSaleEndsAt: form.isFlashSale && form.flashSaleEndsAt
+          ? new Date(form.flashSaleEndsAt).toISOString() : undefined,
+        flashSaleQuantity: form.isFlashSale && form.flashSaleQuantity
+          ? Number(form.flashSaleQuantity) : undefined,
       };
       if (editProduct) {
         await api.patch(`/products/${editProduct.id}`, payload);
@@ -337,8 +345,12 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
       specs:        product.specs || {},
       features:     product.features || [],
       images:       product.images || [],
-      isZipo:  product.isZipo,
+      isAvailable:  product.isAvailable,
       weightKg:     product.weightKg ? String(product.weightKg) : '',
+      isFlashSale:  product.isFlashSale || false,
+      flashSalePrice: product.flashSalePrice ? String(product.flashSalePrice) : '',
+      flashSaleEndsAt: product.flashSaleEndsAt ? product.flashSaleEndsAt.slice(0, 16) : '',
+      flashSaleQuantity: product.flashSaleQuantity ? String(product.flashSaleQuantity) : '',
     });
     setImagePreviews(product.images || []);
     setShowForm(true);
@@ -352,8 +364,8 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
 
   const handleToggleZipo = async (product) => {
     try {
-      await api.patch(`/products/${product.id}`, { isZipo: !product.isZipo });
-      setMessage(!product.isZipo ? t('seller_products.marked_available') : t('seller_products.marked_unavailable'));
+      await api.patch(`/products/${product.id}`, { isAvailable: !product.isAvailable });
+      setMessage(!product.isAvailable ? t('seller_products.marked_available') : t('seller_products.marked_unavailable'));
       fetchMyProducts();
     } catch { setError(t('seller_products.update_failed')); }
   };
@@ -390,8 +402,8 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
           {[
             { label: t('seller_products.total'), value: products.length, bg: '#ede9fe', color: '#7c3aed', icon: '📦' },
-            { label: t('seller_products.available'), value: products.filter(p => p.isZipo).length, bg: '#dcfce7', color: '#16a34a', icon: '✅' },
-            { label: t('seller_products.hidden'), value: products.filter(p => !p.isZipo).length, bg: '#fee2e2', color: '#dc2626', icon: '❌' },
+            { label: t('seller_products.available'), value: products.filter(p => p.isAvailable).length, bg: '#dcfce7', color: '#16a34a', icon: '✅' },
+            { label: t('seller_products.hidden'), value: products.filter(p => !p.isAvailable).length, bg: '#fee2e2', color: '#dc2626', icon: '❌' },
           ].map(s => (
             <div key={s.label} style={{ backgroundColor: s.bg, borderRadius: 14, padding: '16px 12px', textAlign: 'center' }}>
               <div style={{ fontSize: 24 }}>{s.icon}</div>
@@ -416,9 +428,14 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
               <div key={product.id} style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9' }}>
                 <div style={{ height: 160, backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
                   {product.images?.[0] ? <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 48 }}>📦</span>}
-                  <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, backgroundColor: product.isZipo ? '#dcfce7' : '#fee2e2', color: product.isZipo ? '#16a34a' : '#dc2626' }}>
-                    {product.isZipo ? `✅ ${t('seller_products.on_sale')}` : t('seller_products.hidden_badge')}
+                  <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, backgroundColor: product.isAvailable ? '#dcfce7' : '#fee2e2', color: product.isAvailable ? '#16a34a' : '#dc2626' }}>
+                    {product.isAvailable ? `✅ ${t('seller_products.on_sale')}` : t('seller_products.hidden_badge')}
                   </span>
+                  {product.isFlashSale && (
+                    <span style={{ position: 'absolute', top: 8, left: 8, fontSize: 10, fontWeight: 900, padding: '2px 8px', borderRadius: 10, backgroundColor: '#DC2626', color: '#fff' }}>
+                      🔥 {t('seller_products.flash_sale_badge')}
+                    </span>
+                  )}
                 </div>
                 <div style={{ padding: 14 }}>
                   <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
@@ -437,9 +454,20 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                       {t('seller_products.model_label')}: {product.model}
                     </div>
                   )}
-                  <div style={{ fontSize: 16, fontWeight: 900, color: '#1d4ed8', marginBottom: 4 }}>
-                    TZS {Number(product.displayPrice || product.price || 0).toLocaleString()}
-                  </div>
+                  {product.isFlashSale && product.flashSalePrice ? (
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontSize: 16, fontWeight: 900, color: '#DC2626' }}>
+                        TZS {Number(product.flashSalePrice).toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: 12, color: '#94a3b8', textDecoration: 'line-through' }}>
+                        TZS {Number(product.originalPrice || product.displayPrice || product.price || 0).toLocaleString()}
+                      </span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 16, fontWeight: 900, color: '#1d4ed8', marginBottom: 4 }}>
+                      TZS {Number(product.displayPrice || product.price || 0).toLocaleString()}
+                    </div>
+                  )}
                   {product.specs && Object.keys(product.specs).length > 0 && (
                     <div style={{ fontSize: 10, color: '#64748b', marginBottom: 6 }}>
                       {Object.entries(product.specs).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(' · ')}
@@ -448,8 +476,8 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                   <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>{t('seller_products.stock_label', { count: product.stock })}</div>
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => handleEdit(product)} style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>{`✏️ ${t('seller_products.edit')}`}</button>
-                    <button onClick={() => handleToggleZipo(product)} style={{ flex: 1, backgroundColor: product.isZipo ? '#fee2e2' : '#dcfce7', color: product.isZipo ? '#dc2626' : '#16a34a', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                      {product.isZipo ? `🚫 ${t('seller_products.hide')}` : `✅ ${t('seller_products.show')}`}
+                    <button onClick={() => handleToggleZipo(product)} style={{ flex: 1, backgroundColor: product.isAvailable ? '#fee2e2' : '#dcfce7', color: product.isAvailable ? '#dc2626' : '#16a34a', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                      {product.isAvailable ? `🚫 ${t('seller_products.hide')}` : `✅ ${t('seller_products.show')}`}
                     </button>
                     <button onClick={() => handleDelete(product.id)} style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>🗑</button>
                   </div>
@@ -602,6 +630,55 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
               </div>
             </div>
 
+            {/* Flash Sale toggle */}
+            <div style={{ backgroundColor:'#FFF5F5', border:'1.5px solid #FCA5A5', borderRadius:12, padding:14, marginBottom:14 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <input type="checkbox" id="prodIsFlash"
+                  checked={form.isFlashSale}
+                  onChange={e => setForm({ ...form, isFlashSale: e.target.checked })}
+                  style={{ width:16, height:16, cursor:'pointer' }} />
+                <label htmlFor="prodIsFlash" style={{ fontSize:13, fontWeight:800,
+                  color:'#DC2626', cursor:'pointer' }}>{t('seller_classifieds.flash_sale_label')}</label>
+              </div>
+              {form.isFlashSale && (
+                <div style={{ marginTop:12, display:'flex', flexDirection:'column', gap:10 }}>
+                  <div>
+                    <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:4 }}>
+                      {t('seller_classifieds.flash_sale_price_label')}
+                    </label>
+                    <input type="number"
+                      style={{ width:'100%', padding:'10px 12px', borderRadius:10,
+                        border:'1.5px solid #FCA5A5', fontSize:15, fontWeight:900,
+                        color:'#DC2626', outline:'none', boxSizing:'border-box' }}
+                      placeholder={t('seller_classifieds.flash_sale_price_placeholder')}
+                      value={form.flashSalePrice}
+                      onChange={e => setForm({ ...form, flashSalePrice: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:4 }}>
+                      {t('seller_classifieds.flash_sale_ends_label')}
+                    </label>
+                    <input type="datetime-local"
+                      style={{ width:'100%', padding:'10px 12px', borderRadius:10,
+                        border:'1.5px solid #FCA5A5', fontSize:13, outline:'none', boxSizing:'border-box' }}
+                      value={form.flashSaleEndsAt}
+                      onChange={e => setForm({ ...form, flashSaleEndsAt: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize:12, fontWeight:700, color:'#64748B', display:'block', marginBottom:4 }}>
+                      {t('seller_classifieds.flash_sale_qty_label')}
+                    </label>
+                    <input type="number"
+                      style={{ width:'100%', padding:'10px 12px', borderRadius:10,
+                        border:'1.5px solid #FCA5A5', fontSize:13, outline:'none', boxSizing:'border-box' }}
+                      placeholder={t('seller_classifieds.flash_sale_qty_placeholder')}
+                      value={form.flashSaleQuantity}
+                      onChange={e => setForm({ ...form, flashSaleQuantity: e.target.value })} />
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Shipping calculator */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`📦 ${t('seller_products.shipping_calc')}`}</div>
@@ -738,9 +815,9 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
 
             {/* Zipo toggle */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, padding: '10px 12px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
-              <input type="checkbox" id="isZipo" checked={form.isZipo}
-                onChange={e => setForm({ ...form, isZipo: e.target.checked })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
-              <label htmlFor="isZipo" style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', cursor: 'pointer' }}>{t('seller_products.is_available')}</label>
+              <input type="checkbox" id="isAvailable" checked={form.isAvailable}
+                onChange={e => setForm({ ...form, isAvailable: e.target.checked })} style={{ width: 16, height: 16, cursor: 'pointer' }} />
+              <label htmlFor="isAvailable" style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', cursor: 'pointer' }}>{t('seller_products.is_available')}</label>
             </div>
             <div style={{ height: 16 }} />
           </div>
@@ -760,7 +837,6 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
         </div>
       )}
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 
 const TermsAndConditions = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const { t } = useTranslation();
   const [openSection, setOpenSection] = useState(null);
 
-  const sections = Array.from({ length: 15 }, (_, i) => ({
+  const sections = Array.from({ length: 16 }, (_, i) => ({
     title: t(`terms_and_conditions.section${i + 1}_title`),
     content: t(`terms_and_conditions.section${i + 1}_content`),
   }));
@@ -46,7 +45,6 @@ const TermsAndConditions = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
@@ -313,7 +312,6 @@ const AgentOrderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
         </Modal>
       )}
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

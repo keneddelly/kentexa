@@ -120,6 +120,25 @@ export class Product {
   @Column({ type: 'date', nullable: true })
   viewsResetDate: Date | null;
 
+  // ── Flash Sale ───────────────────────────────────────────────────────────
+  @Column({ type: 'boolean', default: false })
+  isFlashSale: boolean;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  flashSalePrice: number | null; // discounted price
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  originalPrice: number | null; // original price (shown crossed out)
+
+  @Column({ type: 'timestamp', nullable: true })
+  flashSaleEndsAt: Date | null; // countdown target
+
+  @Column({ type: 'int', nullable: true })
+  flashSaleQuantity: number | null; // limited units
+
+  @Column({ type: 'int', default: 0 })
+  flashSaleSold: number; // units sold so far
+
   @CreateDateColumn()
   createdAt: Date;
 

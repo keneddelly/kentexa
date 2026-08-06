@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import api from '../../api/api';
 import { useTranslation } from 'react-i18next';
 
-const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrderId }) => {
+const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrderId, prefilledInvoiceNumber }) => {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoice, setInvoice] = useState(null);
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -30,6 +30,20 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
       })();
     }
   }, [prefilledOrderId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-lookup when arriving from a classified-invoice chat message —
+  // these carry a real invoiceNumber directly, no orderId translation needed.
+  React.useEffect(() => {
+    if (prefilledInvoiceNumber) {
+      setInvoiceNumber(prefilledInvoiceNumber);
+      (async () => {
+        try {
+          const res = await api.get(`/payments/lookup/${prefilledInvoiceNumber}`);
+          setInvoice(res.data);
+        } catch {}
+      })();
+    }
+  }, [prefilledInvoiceNumber]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleLookup = async () => {
     if (!invoiceNumber.trim()) { setError(t('pay_invoice.find_invoice')); return; }

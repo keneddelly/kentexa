@@ -47,6 +47,12 @@ export class JobRequest {
   @Column({ type: 'int' })
   providerId: number;
 
+  // Linked inbox conversation — so the whole negotiation (request, accept/
+  // decline, follow-up) lives in one chat thread instead of being a
+  // separate, invisible system from the unified inbox.
+  @Column({ type: 'int', nullable: true })
+  conversationId: number | null;
+
   // Job details
   @Column({ type: 'text' })
   description: string; // what exactly the buyer needs

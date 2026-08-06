@@ -1,8 +1,46 @@
 import React, { useEffect, useState } from 'react';
-import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
-const Profile = ({ activePage, onNavigate, onLogout }) => {
+const ADMIN_SECTIONS = [
+  { category: 'Muhtasari', items: [
+    { icon: '📊', label: 'Dashboard',          page: 'Dashboard' },
+    { icon: '📈', label: 'Analytics',          page: 'Analytics' },
+    { icon: '📈', label: 'Reports',            page: 'Reports' },
+    { icon: '📈', label: 'Fedha (Finance)',    page: 'FinancialDashboard' },
+  ]},
+  { category: 'Biashara', items: [
+    { icon: '📦', label: 'Products',           page: 'Products' },
+    { icon: '📋', label: 'Classifieds',        page: 'Classifieds' },
+    { icon: '🛒', label: 'Orders',             page: 'Orders' },
+    { icon: '🧾', label: 'Invoices',           page: 'Invoices' },
+  ]},
+  { category: 'Watu', items: [
+    { icon: '👥', label: 'Users',              page: 'Users' },
+    { icon: '🏪', label: 'Sellers',            page: 'Sellers' },
+    { icon: '🤝', label: 'Agents',             page: 'Agents' },
+    { icon: '🏢', label: 'Super Agents',       page: 'SuperAgents' },
+    { icon: '📊', label: 'Agent Performance',  page: 'AgentPerformance' },
+  ]},
+  { category: 'Malipo', items: [
+    { icon: '💳', label: 'Payments',           page: 'Payments' },
+    { icon: '💰', label: 'Payouts',            page: 'Payouts' },
+  ]},
+  { category: 'Usafirishaji', items: [
+    { icon: '🗺️', label: 'Njia za Intercity',  page: 'RouteManagement' },
+    { icon: '🚴', label: 'Ada za Kukusanya',   page: 'CollectionFees' },
+    { icon: '🗺️', label: 'Zones (Dar)',        page: 'ZoneManagement' },
+    { icon: '🛵', label: 'Bei za Boda',        page: 'BodaRates' },
+    { icon: '🚌', label: 'Wasafirishaji',      page: 'TransportAdmin' },
+    { icon: '🏢', label: 'Vituo / Hubs',       page: 'HubAdmin' },
+  ]},
+  { category: 'Msaada', items: [
+    { icon: '⚠️', label: 'Disputes',           page: 'Disputes' },
+    { icon: '📢', label: 'Matangazo',          page: 'Announcements' },
+    { icon: '📬', label: 'Ujumbe',             page: 'ContactMessages' },
+  ]},
+];
+
+const Profile = ({ onNavigate, onLogout }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -88,47 +126,54 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
-      <main style={{ marginLeft: '250px', flex: 1, padding: '32px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={() => onNavigate('Dashboard')} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}>←</button>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Profile & Settings</div>
+      </div>
+      <main style={{ padding: '32px', maxWidth: 900, margin: '0 auto' }}>
 
-        {/* Header */}
-        <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#0f172a', margin: 0 }}>
-            Profile & Settings
-          </h1>
-          <p style={{ color: '#64748b', marginTop: '4px', fontSize: '14px' }}>
-            Manage your account details
-          </p>
-        </div>
-
-        {/* Success Message */}
+        {/* Success / Error */}
         {message && (
-          <div style={{
-            backgroundColor: '#dcfce7',
-            color: '#16a34a',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            marginBottom: '20px',
-            fontSize: '14px',
-          }}>
+          <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>
             ✅ {message}
           </div>
         )}
-
-        {/* Error Message */}
         {error && (
-          <div style={{
-            backgroundColor: '#fee2e2',
-            color: '#dc2626',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            marginBottom: '20px',
-            fontSize: '14px',
-          }}>
+          <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '14px' }}>
             ❌ {error}
           </div>
         )}
+
+        {/* Admin sections hub — replaces the old sidebar */}
+        <div style={{ marginBottom: '28px' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', margin: '0 0 4px' }}>⚙️ Sehemu za Admin</h2>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 16px' }}>Chagua sehemu unayotaka kusimamia</p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+            {ADMIN_SECTIONS.map(group => (
+              <div key={group.category} style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: '10px' }}>
+                  {group.category}
+                </div>
+                {group.items.map(item => (
+                  <button key={item.page} onClick={() => onNavigate(item.page)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '9px 8px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                      backgroundColor: 'transparent', textAlign: 'left', fontSize: 13, fontWeight: 600, color: '#334155',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}>
+                    <span style={{ fontSize: 15 }}>{item.icon}</span>
+                    <span style={{ flex: 1 }}>{item.label}</span>
+                    <span style={{ color: '#cbd5e1' }}>›</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {loading ? (
           <p style={{ color: '#64748b' }}>Loading profile...</p>
@@ -326,6 +371,24 @@ const Profile = ({ activePage, onNavigate, onLogout }) => {
                   <div>📅 Joined: <strong>{new Date(profile?.createdAt).toLocaleDateString()}</strong></div>
                 </div>
               </div>
+
+              {/* Logout */}
+              <button onClick={onLogout}
+                style={{
+                  width: '100%',
+                  marginTop: '12px',
+                  backgroundColor: 'rgba(239,68,68,0.1)',
+                  color: '#ef4444',
+                  border: 'none',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                }}
+              >
+                🚪 Logout
+              </button>
             </div>
 
           </div>

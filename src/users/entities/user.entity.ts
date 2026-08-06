@@ -62,6 +62,17 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   storeWhatsApp: string | null; // e.g. 255788075633 — used for wa.me tracking links
 
+  // ── WhatsApp Business API connection — lets this seller receive/send
+  // real two-way WhatsApp messages through their own KenteXa inbox, instead
+  // of just the one-way wa.me deep link above. Each seller connects their
+  // own WhatsApp Business phone number (see WhatsappModule).
+  @Column({ type: 'varchar', nullable: true })
+  whatsappPhoneNumberId: string | null;
+
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true })
+  whatsappAccessToken: string | null;
+
   // ── Seller payout details — how KenteXa sends the seller their money ─────
   // Shown in the admin Payouts page so admin knows exactly where to send
   // funds, and required before a seller's first payout can be released.

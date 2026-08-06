@@ -25,6 +25,8 @@ import { BusinessCustomer } from './entities/business-customer.entity';
 import { BusinessCustomerService } from './business-customer.service';
 import { User } from '../users/entities/user.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { ConversationGateway } from './conversation.gateway';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class ConversationService {
@@ -35,8 +37,12 @@ export class ConversationService {
     private msgRepo: Repository<ConversationMessage>,
     @InjectRepository(BusinessCustomer)
     private customerRepo: Repository<BusinessCustomer>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
     private customerService: BusinessCustomerService,
     private notifService: InAppNotificationService,
+    private gateway: ConversationGateway,
+    private whatsappService: WhatsappService,
   ) {}
 
   // ── Get all conversations for seller ─────────────────────────────────────
@@ -128,12 +134,14 @@ export class ConversationService {
     sellerId: number,
     customerId: number,
   ): Promise<Conversation> {
+    // Look up by seller+customer only — NOT status. Filtering on
+    // status:OPEN here meant that once a conversation was resolved or
+    // closed, the buyer's very next message would silently create a
+    // brand new conversation instead of reopening the old one, leaving
+    // the seller with duplicate threads for the same customer.
     let convo = await this.convoRepo.findOne({
-      where: {
-        sellerId,
-        customerId,
-        status: ConversationStatus.OPEN,
-      },
+      where: { sellerId, customerId },
+      order: { createdAt: 'DESC' },
       // "seller" is needed so the buyer-side chat header can show the real
       // business name instead of a generic placeholder on first load.
       relations: { customer: true, seller: true },
@@ -156,6 +164,13 @@ export class ConversationService {
       convo = await this.convoRepo.save(convo);
       convo.customer = customer;
       convo.seller = customer.seller;
+    } else if (
+      convo.status === ConversationStatus.RESOLVED ||
+      convo.status === ConversationStatus.CLOSED
+    ) {
+      // Reopen rather than duplicate.
+      convo.status = ConversationStatus.OPEN;
+      convo = await this.convoRepo.save(convo);
     }
 
     return convo;
@@ -181,6 +196,16 @@ export class ConversationService {
     });
 
     return this.getOrCreateConversation(sellerId, customer.id);
+  }
+
+  // ── Link a service booking to its conversation ────────────────────────────
+  async linkJobRequest(
+    conversationId: number,
+    jobRequestId: number,
+  ): Promise<void> {
+    await this.convoRepo.update(conversationId, {
+      linkedJobRequestId: jobRequestId,
+    });
   }
 
   // ── Get messages in a conversation ───────────────────────────────────────
@@ -292,6 +317,103 @@ export class ConversationService {
         .catch(() => {});
     }
 
+    if (!dto.isNote) {
+      this.gateway.emitNewMessage(
+        conversationId,
+        sellerId,
+        convo.customer?.userId ?? null,
+        msg,
+      );
+    }
+
+    // ── Relay out to WhatsApp — this conversation IS the customer's real
+    // WhatsApp thread, so a reply here must actually reach their phone,
+    // not just live in KenteXa's database.
+    // TODO: outside the 24h customer-service window WhatsApp rejects
+    // free-form text and requires a pre-approved template message instead —
+    // not yet implemented, so late replies will silently fail to deliver
+    // (the message still saves locally either way).
+    if (
+      !dto.isNote &&
+      dto.content &&
+      convo.channel === 'whatsapp' &&
+      sender.whatsappPhoneNumberId &&
+      sender.whatsappAccessToken
+    ) {
+      const toWaId = convo.externalId || convo.customer?.phone;
+      if (toWaId) {
+        this.whatsappService
+          .sendTextMessage(
+            sender.whatsappPhoneNumberId,
+            sender.whatsappAccessToken,
+            toWaId,
+            dto.content,
+          )
+          .catch(() => {});
+      }
+    }
+
+    return msg;
+  }
+
+  // ── Receive a message from an external channel (WhatsApp etc) ────────────
+  // No KenteXa User account exists for the customer here — they're
+  // identified purely by phone number / the channel's own contact id.
+
+  async receiveExternalMessage(
+    sellerId: number,
+    contact: {
+      phone: string;
+      name?: string | null;
+      channel: string;
+      externalId: string;
+    },
+    dto: { content?: string; imageUrl?: string; type?: string },
+  ): Promise<ConversationMessage> {
+    const customer = await this.customerService.findOrCreateForExternalChat(
+      sellerId,
+      { phone: contact.phone, name: contact.name, channel: contact.channel },
+    );
+
+    const convo = await this.getOrCreateConversation(sellerId, customer.id);
+    if (convo.externalId !== contact.externalId) {
+      await this.convoRepo.update(convo.id, {
+        externalId: contact.externalId,
+      });
+    }
+
+    const msg = this.msgRepo.create({
+      conversationId: convo.id,
+      senderType: MessageSenderType.CUSTOMER,
+      senderId: null,
+      type: (dto.type as any) || MessageType.TEXT,
+      content: dto.content || null,
+      imageUrl: dto.imageUrl || null,
+    });
+    await this.msgRepo.save(msg);
+
+    await this.convoRepo.update(convo.id, {
+      lastMessageAt: new Date(),
+      lastMessagePreview: dto.content?.slice(0, 100) || '[Picha]',
+      status: ConversationStatus.OPEN, // seller needs to respond
+      messageCount: () => '"messageCount" + 1',
+      unreadCount: () => '"unreadCount" + 1',
+    });
+
+    this.notifService
+      .notify({
+        userId: sellerId,
+        type: 'message',
+        title: `💬 ${contact.name || contact.phone} (WhatsApp)`,
+        body: dto.content?.slice(0, 80) || '📷 Picha',
+        icon: '💬',
+        actionPage: 'SellerInbox',
+        actionParam: String(customer.id),
+      })
+      .catch(() => {});
+
+    this.gateway.emitNewMessage(convo.id, sellerId, null, msg);
+
     return msg;
   }
 
@@ -303,6 +425,8 @@ export class ConversationService {
     dto: {
       content?: string;
       imageUrl?: string;
+      type?: string;
+      metadata?: any;
     },
     sender: User,
   ): Promise<ConversationMessage> {
@@ -318,9 +442,10 @@ export class ConversationService {
       conversationId,
       senderType: MessageSenderType.CUSTOMER,
       senderId: sender.id,
-      type: MessageType.TEXT,
+      type: (dto.type as any) || MessageType.TEXT,
       content: dto.content || null,
       imageUrl: dto.imageUrl || null,
+      metadata: dto.metadata || null,
     });
     await this.msgRepo.save(msg);
 
@@ -345,6 +470,8 @@ export class ConversationService {
         actionParam: String(convo.customer.id),
       })
       .catch(() => {});
+
+    this.gateway.emitNewMessage(conversationId, convo.sellerId, userId, msg);
 
     return msg;
   }
@@ -373,6 +500,36 @@ export class ConversationService {
           productName: product.name,
           productPrice: product.price,
           productImage: product.image,
+        },
+      },
+      sender,
+    );
+  }
+
+  // ── Share a service listing in chat ───────────────────────────────────────
+
+  async shareService(
+    sellerId: number,
+    conversationId: number,
+    service: {
+      id: number;
+      title: string;
+      price?: number;
+      image?: string;
+    },
+    sender: User,
+  ): Promise<ConversationMessage> {
+    return this.sendMessage(
+      sellerId,
+      conversationId,
+      {
+        type: MessageType.SERVICE,
+        content: `Huduma: ${service.title}`,
+        metadata: {
+          serviceId: service.id,
+          serviceTitle: service.title,
+          servicePrice: service.price,
+          serviceImage: service.image,
         },
       },
       sender,
@@ -452,5 +609,42 @@ export class ConversationService {
     );
 
     return this.convoRepo.save(convo);
+  }
+
+  // ── WhatsApp connection settings (per-seller number) ──────────────────────
+
+  async getWhatsappConnectionStatus(sellerId: number): Promise<{
+    connected: boolean;
+    phoneNumberId: string | null;
+  }> {
+    const user = await this.userRepo.findOne({ where: { id: sellerId } });
+    if (!user) throw new NotFoundException('User not found');
+    return {
+      connected: !!(user.whatsappPhoneNumberId && user.whatsappAccessToken),
+      phoneNumberId: user.whatsappPhoneNumberId,
+    };
+  }
+
+  async setWhatsappConnection(
+    sellerId: number,
+    phoneNumberId: string,
+    accessToken: string,
+  ): Promise<{ connected: boolean }> {
+    if (!phoneNumberId?.trim() || !accessToken?.trim()) {
+      throw new BadRequestException('Phone number ID and access token are required');
+    }
+    await this.userRepo.update(sellerId, {
+      whatsappPhoneNumberId: phoneNumberId.trim(),
+      whatsappAccessToken: accessToken.trim(),
+    });
+    return { connected: true };
+  }
+
+  async disconnectWhatsapp(sellerId: number): Promise<{ connected: boolean }> {
+    await this.userRepo.update(sellerId, {
+      whatsappPhoneNumberId: null,
+      whatsappAccessToken: null,
+    });
+    return { connected: false };
   }
 }

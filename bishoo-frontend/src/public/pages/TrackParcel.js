@@ -501,26 +501,33 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7, marginBottom: 14 }}>
                 {t('track_parcel.protected_desc')}
               </div>
-              <div style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 14 }} />
-              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>
-                {t('track_parcel.seller_not_using_prompt')}
-              </div>
-              <div style={{ fontSize: 12, color: '#93c5fd', marginBottom: 16, lineHeight: 1.6 }}>
-                {t('track_parcel.seller_not_using_desc')}
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <a href="https://kentexa.com/for-sellers" target="_blank" rel="noreferrer"
-                  style={{ flex: 1, backgroundColor: '#1d4ed8', color: '#fff', padding: '10px 8px',
-                    borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
-                  {t('track_parcel.register_seller_button')}
-                </a>
-                <a href={'https://wa.me/255788075633?text=' + encodeURIComponent('Habari! Nataka kujua zaidi kuhusu KenteXa kwa wauzaji')}
-                  target="_blank" rel="noreferrer"
-                  style={{ flex: 1, backgroundColor: '#25D366', color: '#fff', padding: '10px 8px',
-                    borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
-                  {t('track_parcel.ask_whatsapp_button')}
-                </a>
-              </div>
+              {/* Only pitch "get your seller onto KenteXa" when we don't already
+                  know who the seller is — showing it next to a Sender card with
+                  their real name is a contradiction, not a nudge. */}
+              {!(result.senderName || result.sellerStoreName) && (
+                <>
+                  <div style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 14 }} />
+                  <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 6 }}>
+                    {t('track_parcel.seller_not_using_prompt')}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#93c5fd', marginBottom: 16, lineHeight: 1.6 }}>
+                    {t('track_parcel.seller_not_using_desc')}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <a href="https://kentexa.com/for-sellers" target="_blank" rel="noreferrer"
+                      style={{ flex: 1, backgroundColor: '#1d4ed8', color: '#fff', padding: '10px 8px',
+                        borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
+                      {t('track_parcel.register_seller_button')}
+                    </a>
+                    <a href={'https://wa.me/255788075633?text=' + encodeURIComponent('Habari! Nataka kujua zaidi kuhusu KenteXa kwa wauzaji')}
+                      target="_blank" rel="noreferrer"
+                      style={{ flex: 1, backgroundColor: '#25D366', color: '#fff', padding: '10px 8px',
+                        borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
+                      {t('track_parcel.ask_whatsapp_button')}
+                    </a>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Local agent card */}

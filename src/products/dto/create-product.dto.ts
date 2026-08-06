@@ -7,6 +7,7 @@ import {
   IsString,
   Min,
   IsObject,
+  IsDateString,
 } from 'class-validator';
 
 export enum ShippingMethod {
@@ -83,4 +84,28 @@ export class CreateProductDto {
   @IsNumber()
   @Min(0)
   weightKg?: number;
+
+  // ── Flash Sale ───────────────────────────────────────────────────────────
+  @IsOptional()
+  @IsBoolean()
+  isFlashSale?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  flashSalePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  originalPrice?: number;
+
+  @IsOptional()
+  @IsDateString()
+  flashSaleEndsAt?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  flashSaleQuantity?: number;
 }

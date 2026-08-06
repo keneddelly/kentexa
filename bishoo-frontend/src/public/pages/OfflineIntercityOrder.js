@@ -58,6 +58,8 @@ const Field = ({ label, required, children, hint }) => (
   </div>
 );
 
+const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
+
 const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'en-GB';
@@ -146,7 +148,7 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
     if (err) { setError(err); return; }
     try {
       setLoading(true); setError('');
-      const res = await api.post('/super-agents/offline-intercity', {
+      const res = await api.post('/orders/on-behalf', {
         // Product / seller side
         productId:           form.productId,
         quantity:            Number(form.quantity) || 1,
@@ -209,6 +211,20 @@ const OfflineIntercityOrder = ({ onNavigate, isLoggedIn, onLogout, userRole }) =
             {t('offline_intercity_order.track_link', { number: result.trackingNumber })}
           </div>
         </div>
+
+        {/* Receipt */}
+        {result.receiptNumber && (
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>{t('offline_intercity_order.receipt_number_label')}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#16a34a', fontFamily: 'monospace', letterSpacing: 2, marginBottom: 10 }}>
+              {result.receiptNumber}
+            </div>
+            <a href={`${API_URL}/invoices/receipt/${result.receiptNumber}/pdf`} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-block', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', textDecoration: 'none', padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700 }}>
+              {t('offline_intercity_order.download_receipt_button')}
+            </a>
+          </div>
+        )}
 
         {/* Route + ETA summary */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>

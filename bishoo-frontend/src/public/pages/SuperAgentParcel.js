@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
@@ -35,6 +34,8 @@ const Field = ({ label, required, children, hint }) => (
     {hint && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{hint}</div>}
   </div>
 );
+
+const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
 const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
   const { t } = useTranslation();
@@ -233,6 +234,22 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
           </div>
         </div>
 
+        {/* Receipt for the shipping fee collected */}
+        {result.receiptNumber && (
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>
+              {t('super_agent_parcel.receipt_number_label')}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#16a34a', fontFamily: 'monospace', letterSpacing: 2, marginBottom: 10 }}>
+              {result.receiptNumber}
+            </div>
+            <a href={`${API_URL}/invoices/receipt/${result.receiptNumber}/pdf`} target="_blank" rel="noopener noreferrer"
+              style={{ display: 'inline-block', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', textDecoration: 'none', padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700 }}>
+              {t('super_agent_parcel.download_receipt_button')}
+            </a>
+          </div>
+        )}
+
         {/* Summary */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
           <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>{t('super_agent_parcel.summary_title')}</div>
@@ -266,7 +283,6 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
           </>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -432,7 +448,6 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

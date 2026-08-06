@@ -69,6 +69,22 @@ export class ClassifiedInvoiceRequest {
   @Column({ type: 'text', nullable: true })
   transactionReference: string | null;
 
+  // ── Shipping — set by the seller once the invoice is paid, so a real
+  // trackable Order can be created and the buyer/seller both see it ──────────
+  @Column({ type: 'varchar', nullable: true })
+  shippingMethod: string | null;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  platformFee: number | null;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  sellerAmount: number | null;
+
+  // The real Order created once shipping is set — lets the UI show the
+  // resulting tracking number (KTX-ORD-{linkedOrderId}) without a join.
+  @Column({ type: 'int', nullable: true })
+  linkedOrderId: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

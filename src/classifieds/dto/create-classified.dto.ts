@@ -7,6 +7,7 @@ import {
   IsArray,
   IsBoolean,
   IsObject,
+  IsDateString,
 } from 'class-validator';
 import { ClassifiedCategory } from '../entities/classified.entity';
 
@@ -48,4 +49,28 @@ export class CreateClassifiedDto {
   @IsOptional()
   @IsBoolean()
   isNegotiable?: boolean;
+
+  // ── Flash Sale ───────────────────────────────────────────────────────────
+  @IsOptional()
+  @IsBoolean()
+  isFlashSale?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  flashSalePrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  originalPrice?: number;
+
+  @IsOptional()
+  @IsDateString()
+  flashSaleEndsAt?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  flashSaleQuantity?: number;
 }

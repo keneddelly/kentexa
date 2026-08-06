@@ -28,7 +28,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
@@ -517,7 +516,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -530,7 +528,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
         <h3 style={{ color: '#1e293b' }}>{t('super_agent_dashboard.pending_title')}</h3>
         <p style={{ color: '#64748b', fontSize: 14 }}>{t('super_agent_dashboard.pending_desc')}</p>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -560,7 +557,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
           {t('super_agent_dashboard.create_shipment_button')}
         </button>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -1722,7 +1718,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
         </div>
       )}
 
-      <Footer onNavigate={onNavigate} />
       {transferModal && (
         <div style={{ position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',zIndex:3000,display:'flex',alignItems:'flex-end' }}>
           <div style={{ width:'100%',backgroundColor:'#fff',borderRadius:'20px 20px 0 0',padding:'24px 20px 40px' }}>

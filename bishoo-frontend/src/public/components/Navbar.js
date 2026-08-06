@@ -202,7 +202,8 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 0, lineHeight: 1 }}>
               <span style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', fontFamily: 'Manrope,sans-serif' }}>Kente</span>
-              <span style={{ fontSize: 18, fontWeight: 900, color: '#3b82f6', letterSpacing: '-0.5px', fontFamily: 'Manrope,sans-serif' }}>Xa</span>
+              <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.5px', fontFamily: 'Manrope,sans-serif',
+                background: 'linear-gradient(135deg,#60a5fa,#c084fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Xa</span>
             </div>
           </div>
 

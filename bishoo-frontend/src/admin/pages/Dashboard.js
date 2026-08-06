@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const Dashboard = ({ activePage, onNavigate, onLogout }) => {
@@ -65,9 +64,8 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
-      <main style={{ marginLeft: '250px', flex: 1, padding: '32px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <main style={{ padding: '32px' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', backgroundColor: '#0f172a', padding: '24px 28px', borderRadius: '16px', color: '#fff' }}>

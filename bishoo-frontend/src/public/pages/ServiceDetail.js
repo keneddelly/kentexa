@@ -63,8 +63,15 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
         preferredTime: form.preferredTime || undefined,
         buyerPhone:    form.buyerPhone    || undefined,
       });
-      setSent(true);
-      setShowForm(false);
+      // Land the buyer directly in the (now-linked) conversation with the
+      // provider — their request shows up there as a message, instead of
+      // just a static "sent" screen disconnected from the inbox.
+      if (ad?.provider?.id) {
+        onNavigate(`MessageSeller-${ad.provider.id}`);
+      } else {
+        setSent(true);
+        setShowForm(false);
+      }
     } catch (e) {
       setError(e.response?.data?.message || t('service_detail.request_failed'));
     } finally { setSending(false); }
@@ -393,6 +400,14 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                           cursor: 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10 }}>
                         {t('service_detail.request_service_button')}
                       </button>
+                      {ad.provider?.id && (
+                        <button onClick={() => onNavigate(isLoggedIn ? `MessageSeller-${ad.provider.id}` : 'PublicLogin')}
+                          style={{ width: '100%', backgroundColor: '#eff6ff', color: '#1d4ed8',
+                            border: '2px solid #bfdbfe', borderRadius: 12, padding: '12px 0',
+                            cursor: 'pointer', fontSize: 14, fontWeight: 800, marginBottom: 10 }}>
+                          {t('service_detail.message_provider_button')}
+                        </button>
+                      )}
                       {waPhone && (
                         <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`}
                           target="_blank" rel="noreferrer"

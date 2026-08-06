@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
@@ -243,7 +242,6 @@ const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

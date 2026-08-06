@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 
 const PrivacyPolicy = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const { t } = useTranslation();
@@ -46,7 +45,6 @@ const PrivacyPolicy = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

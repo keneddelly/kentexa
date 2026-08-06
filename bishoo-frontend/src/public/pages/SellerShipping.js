@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
@@ -351,7 +350,6 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         </div>
       )}
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

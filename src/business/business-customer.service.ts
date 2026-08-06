@@ -12,7 +12,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BusinessCustomer } from './entities/business-customer.entity';
-import { Order } from '../orders/entities/order.entity';
+import { Order, PaymentStatus } from '../orders/entities/order.entity';
 
 @Injectable()
 export class BusinessCustomerService {
@@ -137,6 +137,32 @@ export class BusinessCustomerService {
       email: buyer.email || null,
       segment: 'new',
       channel: 'kentexa',
+    });
+    return this.repo.save(customer);
+  }
+
+  // ── Find or create a customer from an external channel (WhatsApp etc) ─────
+  // No KenteXa User account exists for these — matched by phone number only.
+
+  async findOrCreateForExternalChat(
+    sellerId: number,
+    contact: { phone: string; name?: string | null; channel: string },
+  ): Promise<BusinessCustomer> {
+    let customer = await this.repo.findOne({
+      where: { sellerId, phone: contact.phone },
+    });
+    if (customer) {
+      if (!customer.name && contact.name) customer.name = contact.name;
+      return this.repo.save(customer);
+    }
+
+    customer = this.repo.create({
+      sellerId,
+      userId: null,
+      name: contact.name || contact.phone,
+      phone: contact.phone,
+      segment: 'new',
+      channel: contact.channel,
     });
     return this.repo.save(customer);
   }
@@ -415,18 +441,29 @@ export class BusinessCustomerService {
       take: 5,
     });
 
-    const result = await this.repo
+    const avgResult = await this.repo
       .createQueryBuilder('c')
-      .select('SUM(c.totalSpent)', 'totalRevenue')
-      .addSelect('AVG(c.averageOrderValue)', 'avgOrder')
+      .select('AVG(c.averageOrderValue)', 'avgOrder')
       .where('c.seller_id = :sellerId', { sellerId })
+      .getRawOne();
+
+    // Same definitive, all-sources revenue figure as the seller
+    // dashboard (src/seller/seller.service.ts) — SUM(c.totalSpent) here
+    // used to overcount unpaid orders (incremented at order-creation time,
+    // not on payment) while also missing classified-invoice-paid orders
+    // entirely, so it never matched Profile/Analytics.
+    const revenueResult = await this.orderRepo
+      .createQueryBuilder('o')
+      .select('SUM(o.totalAmount)', 'total')
+      .where('o.seller = :sellerId', { sellerId })
+      .andWhere('o.paymentStatus = :paid', { paid: PaymentStatus.PAID })
       .getRawOne();
 
     return {
       totalCustomers: total,
       newThisMonth,
-      totalRevenue: Number(result?.totalRevenue || 0),
-      avgOrderValue: Number(result?.avgOrder || 0),
+      totalRevenue: Number(revenueResult?.total || 0),
+      avgOrderValue: Number(avgResult?.avgOrder || 0),
       topCustomers,
     };
   }

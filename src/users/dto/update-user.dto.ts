@@ -41,7 +41,7 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  profilePhoto?: string;
+  logo?: string;
 
   // ── Onboarding fields — were missing here entirely, so the global
   // ValidationPipe's whitelist silently stripped them from every request,

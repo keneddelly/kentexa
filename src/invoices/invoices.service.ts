@@ -67,6 +67,32 @@ export class InvoicesService {
     return this.invoiceRepo.save(invoice) as unknown as Promise<Invoice>;
   }
 
+  // ── Create an already-paid invoice for an offline sale ────────────────────
+  // Used when payment was collected outside KenteXa (cash/M-Pesa direct to the
+  // seller or agent) at the moment the order itself is created — there is no
+  // separate "awaiting payment" step to transition through, so this skips
+  // straight to PAID and mints a receipt number immediately.
+  async createPaidForOrder(
+    order: Order,
+    paymentMethod: string,
+    transactionReference?: string | null,
+  ): Promise<Invoice> {
+    const invoiceNumber = await this.generateInvoiceNumber();
+    const receiptNumber = await this.generateReceiptNumber();
+    const invoice = this.invoiceRepo.create({
+      invoiceNumber,
+      order,
+      buyer: order.buyer || null,
+      amount: order.totalAmount,
+      status: InvoiceStatus.PAID,
+      paymentMethod,
+      transactionReference: transactionReference || null,
+      receiptNumber,
+      paidAt: new Date(),
+    } as any);
+    return this.invoiceRepo.save(invoice) as unknown as Promise<Invoice>;
+  }
+
   async findByOrderId(orderId: number): Promise<Invoice> {
     const invoice = await this.invoiceRepo.findOne({
       where: { order: { id: orderId } },

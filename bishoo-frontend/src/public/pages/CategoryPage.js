@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useCart } from '../../context/CartContext';
@@ -151,18 +150,20 @@ const CategoryPage = ({ onNavigate, isLoggedIn, onLogout, userRole, category }) 
                 <div className="cp-grid">
                   {filteredProducts.map(p => (
                     <div key={p.id} className="cp-card" onClick={() => onNavigate(`ProductDetail-${p.id}`)}>
-                      <div style={{ width: '100%', aspectRatio: '1/1', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
-                        {p.images?.[0]
-                          ? <img src={p.images[0]} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>
-                        }
-                        {/* Product badge */}
-                        <span style={{ position: 'absolute', top: 7, left: 7, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#1d4ed8', color: '#fff' }}>{t('category_page.store_badge')}</span>
-                        {!p.isAvailable && (
-                          <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <span style={{ color: '#fff', fontSize: 11, fontWeight: 800 }}>{t('category_page.out_of_stock')}</span>
-                          </div>
-                        )}
+                      <div style={{ width: '100%', paddingTop: '100%', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
+                        <div style={{ position: 'absolute', inset: 0 }}>
+                          {p.images?.[0]
+                            ? <img src={p.images[0]} alt={p.name} onError={e => { e.target.style.display = 'none'; }} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>
+                          }
+                          {/* Product badge */}
+                          <span style={{ position: 'absolute', top: 7, left: 7, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#1d4ed8', color: '#fff' }}>{t('category_page.store_badge')}</span>
+                          {!p.isAvailable && (
+                            <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <span style={{ color: '#fff', fontSize: 11, fontWeight: 800 }}>{t('category_page.out_of_stock')}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div style={{ padding: '8px 10px' }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 3 }}>{p.name}</div>
@@ -226,7 +227,6 @@ const CategoryPage = ({ onNavigate, isLoggedIn, onLogout, userRole, category }) 
         )}
       </div>
 
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

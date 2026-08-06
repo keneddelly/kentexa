@@ -24,3 +24,8 @@ export class CreateOrderDto {
   @IsString()
   deliveryMethod?: string; // 'direct' | 'agent'
 }
+
+export class CreateOrderForBuyerDto extends CreateOrderDto {
+  @IsNumber()
+  buyerId: number;
+}

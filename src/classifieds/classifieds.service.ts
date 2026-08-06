@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -38,6 +39,9 @@ export class ClassifiedsService {
 
     @InjectRepository(Order)
     private orderRepo: Repository<Order>,
+
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
 
     private invoicesService: InvoicesService,
     private dataSource: DataSource,
@@ -133,6 +137,9 @@ export class ClassifiedsService {
       maxPrice?: number;
       location?: string;
       sort?: string;
+      flashSale?: boolean;
+      category?: string;
+      limit?: number;
     },
   ) {
     const qb = this.repo
@@ -152,14 +159,17 @@ export class ClassifiedsService {
         's.phone',
         's.role',
       ])
-      .where('c.status = :status', { status: 'active' })
-      .andWhere(
+      .where('c.status = :status', { status: 'active' });
+
+    if (query) {
+      qb.andWhere(
         `(LOWER(c.title) LIKE :query
           OR LOWER(c.description) LIKE :query
           OR LOWER(c.category::text) LIKE :query
           OR LOWER(c.location) LIKE :query)`,
         { query: `%${query.toLowerCase()}%` },
       );
+    }
 
     if (opts?.minPrice) qb.andWhere('c.price >= :min', { min: opts.minPrice });
     if (opts?.maxPrice) qb.andWhere('c.price <= :max', { max: opts.maxPrice });
@@ -167,6 +177,10 @@ export class ClassifiedsService {
       qb.andWhere('LOWER(c.location) LIKE :loc', {
         loc: `%${opts.location.toLowerCase()}%`,
       });
+    if (opts?.category)
+      qb.andWhere('c.category = :category', { category: opts.category });
+    if (opts?.flashSale)
+      qb.andWhere('c.isFlashSale = true AND c.flashSaleEndsAt > NOW()');
 
     // Ranking: verified sellers first, then by reputation score, then by recency
     const sort = opts?.sort;
@@ -176,12 +190,15 @@ export class ClassifiedsService {
       qb.orderBy('s.rating', 'DESC').addOrderBy('c.createdAt', 'DESC');
     else {
       // Default: reputation-ranked
-      qb.orderBy('CASE WHEN s."isVerified" = true THEN 1 ELSE 2 END', 'ASC')
-        .addOrderBy('COALESCE(CAST(s."reputationScore" AS int), 0)', 'DESC')
+      // Raw expressions need to go through addSelect()+alias — TypeORM's
+      // order-by/select alias resolution chokes on inline raw SQL otherwise.
+      qb.addSelect('COALESCE(CAST(s."reputationScore" AS int), 0)', 'reputation_rank')
+        .orderBy('s.isVerified', 'DESC')
+        .addOrderBy('reputation_rank', 'DESC')
         .addOrderBy('c.createdAt', 'DESC');
     }
 
-    return qb.take(50).getMany();
+    return qb.take(opts?.limit || 50).getMany();
   }
 
   // ─── Update ───────────────────────────────────────────────────────────────
@@ -280,12 +297,23 @@ export class ClassifiedsService {
     };
   }
 
+  // ─── Only verified sellers (or admins) may issue invoices ─────────────────
+  private assertVerifiedSeller(user: User) {
+    if ([UserRole.ADMIN, UserRole.MANAGER].includes(user.role)) return;
+    if (user.role !== UserRole.SELLER || !user.isVerified) {
+      throw new ForbiddenException(
+        'Only verified sellers can create invoices',
+      );
+    }
+  }
+
   // ─── Seller: Create manual invoice ────────────────────────────────────────
   async createManualInvoice(
     seller: User,
     data: {
       buyerName: string;
       buyerPhone: string;
+      buyerId?: number;
       deliveryAddress?: string;
       productName: string;
       classifiedId?: number;
@@ -294,6 +322,7 @@ export class ClassifiedsService {
       dueDays?: number;
     },
   ) {
+    this.assertVerifiedSeller(seller);
     const invoiceNumber = await this.invoicesService.generateInvoiceNumber();
     const dueDate = new Date();
     dueDate.setHours(dueDate.getHours() + (data.dueDays || 3) * 24);
@@ -304,6 +333,13 @@ export class ClassifiedsService {
         where: { id: data.classifiedId, seller: { id: seller.id } },
       });
     }
+
+    // A registered buyer (invoice created from an inbox chat) gets linked
+    // so it shows up under their My Orders — anonymous/WhatsApp contacts
+    // have no account, so buyer stays null for those.
+    const buyer = data.buyerId
+      ? await this.userRepo.findOne({ where: { id: data.buyerId } })
+      : null;
 
     const request = this.invoiceRequestRepo.create({
       seller,
@@ -316,7 +352,7 @@ export class ClassifiedsService {
       status: ClassifiedInvoiceStatus.SENT,
     });
 
-    request.buyer = null as any;
+    request.buyer = buyer as any;
     request.classified = classified as any;
 
     await this.invoiceRequestRepo.save(request);
@@ -353,6 +389,9 @@ export class ClassifiedsService {
       sellerNotes: r.sellerNotes,
       paidAt: r.paidAt,
       paymentMethod: r.paymentMethod,
+      shippingMethod: r.shippingMethod,
+      linkedOrderId: r.linkedOrderId,
+      trackingNumber: r.linkedOrderId ? `KTX-ORD-${r.linkedOrderId}` : null,
       createdAt: r.createdAt,
     }));
   }
@@ -392,6 +431,7 @@ export class ClassifiedsService {
       dueDays?: number;
     },
   ) {
+    this.assertVerifiedSeller(seller);
     const request = await this.invoiceRequestRepo.findOne({
       where: { id: requestId },
       relations: { seller: true, buyer: true, classified: true },
@@ -545,14 +585,24 @@ export class ClassifiedsService {
       msgParts.find((p) => p.startsWith('Phone:'))?.replace('Phone: ', '') ||
       request.buyer?.phone ||
       '';
-    const buyerAddr =
+    const parsedAddr =
       msgParts
         .find((p) => p.startsWith('Address:'))
-        ?.replace('Address: ', '') || '';
+        ?.replace('Address: ', '')
+        .trim() || '';
+    // "—" is the literal placeholder createManualInvoice writes when no
+    // address was given — treat it as empty, not a real delivery address.
+    const buyerAddr = parsedAddr && parsedAddr !== '—' ? parsedAddr : '';
+
+    const itemName =
+      request.classified?.title || request.invoiceDescription || 'Item';
 
     // ✅ Create a real Order so the full KenteXa tracking flow kicks in
     // This links classified invoice payment → normal order → tracking → payout
-    let orderId: number | null = null;
+    // NOTE: this must not fail silently — the whole point of this endpoint
+    // is to produce a trackable order, so if that fails the seller needs a
+    // real error to retry, not a fake "success" with no tracking number.
+    let orderId: number;
     try {
       const order = this.orderRepo.create({
         buyer: request.buyer || null,
@@ -568,6 +618,12 @@ export class ClassifiedsService {
         deliveryAddress: buyerAddr || 'As agreed with seller',
         phone: buyerPhone,
         recipientName: buyerName,
+        // No `product` relation exists for classified-derived orders — these
+        // manual fields are what SellerOrders/MyOrders fall back to for the
+        // item name and buyer identity when `product`/`buyer` are null.
+        manualProductName: itemName,
+        manualBuyerName: request.buyer ? null : buyerName,
+        manualBuyerPhone: request.buyer ? null : buyerPhone,
         shippingMethod: data.shippingMethod,
         shippingNote: data.notes || null,
         status: OrderStatus.PAID, // Already paid
@@ -602,30 +658,28 @@ export class ClassifiedsService {
         /* non-fatal */
       }
 
-      // Generate invoice for the order
+      // Generate invoice for the order — non-fatal, order/tracking already exist
       try {
         await this.invoicesService.createForOrder(savedOrder);
       } catch (e) {
         console.error('Order invoice creation failed:', e.message);
       }
-
-      // Return tracking number so seller can share it with buyer
-      orderId = savedOrder.id;
-
-      // Still proceed — just won't have order tracking
     } catch (e) {
       console.error(
         'Order creation from classified invoice failed:',
         e.message,
       );
+      throw new InternalServerErrorException(
+        'Failed to create the order for this invoice. Please try again — no shipping method was saved.',
+      );
     }
 
     // Update the invoice request
-    (request as any).shippingMethod = data.shippingMethod;
+    request.shippingMethod = data.shippingMethod;
     if (data.notes) request.sellerNotes = data.notes;
-    (request as any).platformFee = platformFee;
-    (request as any).sellerAmount = sellerAmt;
-    (request as any).linkedOrderId = orderId;
+    request.platformFee = platformFee;
+    request.sellerAmount = sellerAmt;
+    request.linkedOrderId = orderId;
     await this.invoiceRequestRepo.save(request);
 
     return {

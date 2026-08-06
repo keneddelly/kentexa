@@ -3,7 +3,6 @@
  * Place at: src/admin/pages/HubAdmin.js
  */
 import React, { useState, useEffect } from 'react';
-import Sidebar from '../components/Sidebar';
 import api     from '../../api/api';
 
 const STATUS = {
@@ -84,9 +83,12 @@ const HubAdmin = ({ onNavigate, activePage }) => {
   };
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', backgroundColor:'#f1f5f9' }}>
-      <Sidebar activePage={activePage} onNavigate={onNavigate} />
-      <div style={{ flex:1, padding:24, overflow:'auto' }}>
+    <div style={{ minHeight:'100vh', backgroundColor:'#f1f5f9' }}>
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={() => onNavigate('Dashboard')} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}>←</button>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Hub Admin</div>
+      </div>
+      <div style={{ padding:24, overflow:'auto' }}>
 
         {/* Header */}
         <div style={{ display:'flex', justifyContent:'space-between',

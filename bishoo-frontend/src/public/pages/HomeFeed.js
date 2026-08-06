@@ -465,7 +465,8 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const entityId   = post.entityId   || post.linkedEntityId;
   const isProduct  = entityType === 'product';
   const isService  = entityType === 'service' || entityType === 'new_service';
-  const isClassified = entityType === 'classified' || (!isProduct && !isService);
+  const isStore    = entityType === 'store';
+  const isClassified = entityType === 'classified' || (!isProduct && !isService && !isStore);
 
   const biz     = post.business || {};
   const bizId   = biz.id;
@@ -528,6 +529,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
     if (isProduct)    onNavigate(`ProductDetail-${entityId}`);
     else if (isService) onNavigate(`ServiceDetail-${entityId}`);
     else if (entityType === 'route') onNavigate('SellerShipment');
+    else if (isStore) onNavigate(`CommerceProfile-${entityId}`);
     else if (entityId) onNavigate(`ClassifiedDetail-${entityId}`);
     else if (bizId)   onNavigate(`CommerceProfile-${bizId}`);
   };
@@ -760,6 +762,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
                 color:B, fontSize:12, fontWeight:700, padding:0 }}>
               {isProduct ? t('home_feed.view_product')
                : isService ? t('home_feed.view_service')
+               : isStore ? t('home_feed.view_store')
                : t('home_feed.view_listing')}
             </button>
           </div>
@@ -801,7 +804,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 };
 
 // ── Trending card (with inline Follow) ────────────────────────────────────────
-const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
+const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn, onViewMoment }) => {
   const { t } = useTranslation();
   const bizId = p.businessId || p.business?.id;
   const [followed, setFollowed] = useState(!!p.business?.isFollowing);
@@ -821,8 +824,42 @@ const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
     finally { setBusy(false); }
   };
 
+  const handleClick = () => {
+    if (p.feedType === 'business') {
+      if (bizId) onNavigate(`CommerceProfile-${bizId}`);
+      return;
+    }
+    if (p.feedType === 'service') {
+      const sid = p.data?.id;
+      if (sid) onNavigate(`ServiceDetail-${sid}`);
+      return;
+    }
+    // feedType === 'trending' — an actual post/moment, route to what it's tagging
+    const d = p.data || {};
+    if (d.linkedEntityType === 'product' && d.linkedEntityId) { onNavigate(`ProductDetail-${d.linkedEntityId}`); return; }
+    if (d.linkedEntityType === 'service' && d.linkedEntityId) { onNavigate(`ServiceDetail-${d.linkedEntityId}`); return; }
+    if (d.linkedEntityType === 'route') { onNavigate('SellerShipment'); return; }
+    if (d.linkedEntityType === 'store' && d.linkedEntityId) { onNavigate(`CommerceProfile-${d.linkedEntityId}`); return; }
+    if (d.linkedEntityId) { onNavigate(`ClassifiedDetail-${d.linkedEntityId}`); return; }
+    if (onViewMoment && d.id) {
+      onViewMoment({
+        momentId: d.id,
+        postType: d.type,
+        imageUrl: d.imageUrl,
+        caption: d.body,
+        category: d.category,
+        createdAt: d.createdAt,
+        linkedEntityType: d.linkedEntityType,
+        linkedEntityId: d.linkedEntityId,
+        business: p.business || d.business,
+      });
+      return;
+    }
+    if (bizId) onNavigate(`CommerceProfile-${bizId}`);
+  };
+
   return (
-    <div onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`)}
+    <div onClick={handleClick}
       style={{ backgroundColor:'#F8FAFC', borderRadius:12, padding:'10px 14px',
         flexShrink:0, cursor:'pointer', border:'1px solid #F1F5F9', minWidth:160 }}>
       <div style={{ fontSize:16, marginBottom:4 }}>{icon}</div>
@@ -919,12 +956,70 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
   );
 };
 
+// ── Flash sale rail — horizontal scroll, same shell as DiscoveryRail ──────────
+const FlashSaleRail = ({ items, onNavigate }) => {
+  const { t } = useTranslation();
+  if (!items?.length) return null;
+
+  return (
+    <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9', padding:'12px 0 10px' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding:'0 14px 10px' }}>
+        <div style={{ fontSize:13, fontWeight:800, color:'#DC2626' }}>
+          🔥 {t('home_feed.flash_sales_rail_title')}
+        </div>
+        <span onClick={() => onNavigate('FlashSales')}
+          style={{ fontSize:11, fontWeight:700, color:B, cursor:'pointer' }}>
+          {t('home_feed.flash_sales_rail_see_all')}
+        </span>
+      </div>
+      <div style={{ display:'flex', gap:10, overflowX:'auto', padding:'0 14px', scrollbarWidth:'none' }}>
+        {items.slice(0, 10).map(item => {
+          const detailPage = item.itemType === 'product' ? 'ProductDetail' : 'ClassifiedDetail';
+          const discount = item.originalPrice && item.flashSalePrice
+            ? Math.round((1 - item.flashSalePrice / item.originalPrice) * 100)
+            : 0;
+          return (
+            <div key={`${item.itemType}-${item.id}`}
+              onClick={() => onNavigate(`${detailPage}-${item.id}`)}
+              style={{ flexShrink:0, width:120, cursor:'pointer', position:'relative' }}>
+              <div style={{ width:120, height:120, borderRadius:12, backgroundColor:'#FFF5F5',
+                overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center',
+                marginBottom:6, position:'relative' }}>
+                {item.images?.[0]
+                  ? <img src={item.images[0]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : <span style={{ fontSize:28 }}>🔥</span>}
+                {discount > 0 && (
+                  <div style={{ position:'absolute', top:6, left:6,
+                    backgroundColor:'#DC2626', color:WH, fontSize:10, fontWeight:900,
+                    padding:'2px 6px', borderRadius:100 }}>
+                    -{discount}%
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize:11, fontWeight:700, color:DK, marginBottom:2,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {item.title}
+              </div>
+              <div style={{ display:'flex', alignItems:'baseline', gap:4 }}>
+                <span style={{ fontSize:12, fontWeight:900, color:'#DC2626' }}>
+                  TZS {Number(item.flashSalePrice || item.price).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ── Trending bar ──────────────────────────────────────────────────────────────
-const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
+const TrendingBar = ({ trending, onNavigate, isLoggedIn, onViewMoment }) => {
   const { t } = useTranslation();
   if (!trending) return null;
   const items = [
-    { icon:'🔥', label:t('home_feed.most_purchased_today'), posts: trending.topPurchased   },
+    { icon:'🔥', label:t('home_feed.most_purchased_today'), posts: trending.topProducts   },
     { icon:'📈', label:t('home_feed.growing_fast'),      posts: trending.fastestGrowing },
     { icon:'🏪', label:t('home_feed.businesses_trending'),     posts: trending.topBusinesses  },
     { icon:'🔧', label:t('home_feed.services_trending'),       posts: trending.topServices    },
@@ -941,7 +1036,7 @@ const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
         padding:'0 14px', scrollbarWidth:'none' }}>
         {items.map((item, i) => item.posts.slice(0,1).map(p => (
           <TrendingCard key={i} icon={item.icon} label={item.label} p={p}
-            onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
+            onNavigate={onNavigate} isLoggedIn={isLoggedIn} onViewMoment={onViewMoment} />
         )))}
       </div>
     </div>
@@ -959,7 +1054,8 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
   const isLookingFor = moment.postType === 'looking_for';
   const typeLabel = moment.linkedEntityType === 'product' ? t('home_feed.view_product_short')
     : moment.linkedEntityType === 'service' ? t('home_feed.view_service_short')
-    : moment.linkedEntityType === 'route' ? t('home_feed.ship_this_route') : t('home_feed.view_listing_short');
+    : moment.linkedEntityType === 'route' ? t('home_feed.ship_this_route')
+    : moment.linkedEntityType === 'store' ? t('home_feed.view_store_short') : t('home_feed.view_listing_short');
 
   const [showReply,   setShowReply]   = useState(false);
   const [myItems,     setMyItems]     = useState([]);
@@ -979,6 +1075,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
     if (moment.linkedEntityType === 'product') onNavigate(`ProductDetail-${moment.linkedEntityId}`);
     else if (moment.linkedEntityType === 'service') onNavigate(`ServiceDetail-${moment.linkedEntityId}`);
     else if (moment.linkedEntityType === 'route') onNavigate('SellerShipment');
+    else if (moment.linkedEntityType === 'store') onNavigate(`CommerceProfile-${moment.linkedEntityId}`);
     else onNavigate(`ClassifiedDetail-${moment.linkedEntityId}`);
   };
 
@@ -1289,9 +1386,16 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
 };
 
 // ── Main HomeFeed ─────────────────────────────────────────────────────────────
+const LANGUAGES = [
+  { code: 'en', label: 'EN', flag: '🇬🇧' },
+  { code: 'sw', label: 'SW', flag: '🇹🇿' },
+  { code: 'fr', label: 'FR', flag: '🇫🇷' },
+];
+
 const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRefreshKey }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const FILTERS = getFilters(t);
+  const [langOpen,    setLangOpen]     = useState(false);
   const [filter,      setFilter]      = useState('for_you');
   const [posts,       setPosts]       = useState([]);
   const [loading,     setLoading]     = useState(true);
@@ -1300,6 +1404,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const [hasMore,     setHasMore]     = useState(true);
   const [discover,    setDiscover]    = useState(null);
   const [trending,    setTrending]    = useState(null);
+  const [flashItems,  setFlashItems]  = useState([]);
   const [savedIds,    setSavedIds]    = useState([]);
   const [unread,      setUnread]      = useState(0);
   const [moments,     setMoments]     = useState([]);
@@ -1346,6 +1451,22 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       if (s.status==='fulfilled') setSavedIds(s.value.data || []);
     });
     loadMoments();
+
+    // Flash sales rail — same merge-and-sort as FlashSales.js
+    Promise.allSettled([
+      api.get('/classifieds/search?flashSale=true'),
+      api.get('/products/search?flashSale=true'),
+    ]).then(([c, p]) => {
+      const all = [
+        ...(c.status==='fulfilled' ? (c.value.data||[]).map(x => ({ ...x, itemType:'classified' })) : []),
+        ...(p.status==='fulfilled' ? (p.value.data||[]).map(x => ({ ...x, itemType:'product', title:x.name })) : []),
+      ];
+      const active = all.filter(x =>
+        x.isFlashSale && x.flashSaleEndsAt && new Date(x.flashSaleEndsAt) > new Date()
+      );
+      active.sort((a, b) => new Date(a.flashSaleEndsAt) - new Date(b.flashSaleEndsAt));
+      setFlashItems(active);
+    });
   }, [isLoggedIn, loadMoments]);
 
   // Refresh stories + feed after a Moment is posted from anywhere in the app
@@ -1368,22 +1489,71 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         ::-webkit-scrollbar { display:none }
       `}</style>
 
+      {/* Centered "card" column — full-bleed on mobile (viewport < maxWidth),
+          centered with a subtle edge on desktop so the mobile-first feed
+          doesn't stretch edge-to-edge on large screens. */}
+      <div style={{ maxWidth:630, margin:'0 auto', width:'100%',
+        boxShadow:'0 0 0 1px rgba(15,23,42,0.06)' }}>
+
       {/* ── Top bar ── */}
       <div style={{ position:'sticky', top:0, zIndex:200, backgroundColor:WH,
         borderBottom:'1px solid #F1F5F9' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'0 14px', height:50 }}>
           <button onClick={() => onNavigate('Home')}
-            style={{ display:'flex', alignItems:'center', gap:6, background:'none',
+            style={{ display:'flex', alignItems:'baseline', gap:0, background:'none',
               border:'none', cursor:'pointer', padding:0 }}>
-            <div style={{ width:26, height:26, borderRadius:7,
-              background:'linear-gradient(135deg,#2563EB,#7C3AED)',
-              display:'flex', alignItems:'center', justifyContent:'center',
-              fontSize:13, color:WH, fontWeight:900 }}>K</div>
-            <span style={{ fontSize:18, fontWeight:900, color:DK,
-              letterSpacing:-0.8, fontStyle:'italic' }}>KenteXa</span>
+            <span style={{ fontSize:20, fontWeight:900, fontFamily:'Manrope,sans-serif',
+              background:'linear-gradient(135deg,#1e40af,#2563eb)',
+              WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>K</span>
+            <span style={{ fontSize:20, fontWeight:900, fontFamily:'Manrope,sans-serif',
+              color:DK }}>ente</span>
+            <span style={{ fontSize:20, fontWeight:900, fontFamily:'Manrope,sans-serif',
+              background:'linear-gradient(135deg,#1e40af,#2563eb)',
+              WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>X</span>
+            <span style={{ fontSize:20, fontWeight:900, fontFamily:'Manrope,sans-serif',
+              color:DK }}>a</span>
           </button>
-          <div style={{ display:'flex', gap:2 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:2 }}>
+            {/* Language switcher */}
+            <div style={{ position:'relative' }}>
+              <button onClick={() => setLangOpen(o => !o)}
+                style={{ background:'none', border:'none', cursor:'pointer',
+                  padding:'6px 8px', fontSize:12, fontWeight:800, color:DK,
+                  display:'flex', alignItems:'center', gap:3 }}>
+                {(LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0]).flag}{' '}
+                {(LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0]).label}
+                <span style={{ fontSize:9 }}>▾</span>
+              </button>
+              {langOpen && (
+                <>
+                  <div style={{ position:'fixed', inset:0, zIndex:299 }}
+                    onClick={() => setLangOpen(false)} />
+                  <div style={{ position:'absolute', top:'100%', right:0, zIndex:300,
+                    marginTop:4, backgroundColor:WH, borderRadius:12,
+                    boxShadow:'0 8px 24px rgba(0,0,0,0.15)', border:'1px solid #F1F5F9',
+                    overflow:'hidden', minWidth:110 }}>
+                    {LANGUAGES.map(lang => (
+                      <button key={lang.code}
+                        onClick={() => {
+                          i18n.changeLanguage(lang.code);
+                          localStorage.setItem('kentexa_lang', lang.code);
+                          setLangOpen(false);
+                        }}
+                        style={{ width:'100%', display:'flex', alignItems:'center',
+                          gap:8, padding:'10px 14px', border:'none',
+                          background: i18n.language === lang.code ? '#EFF6FF' : 'none',
+                          cursor:'pointer', fontSize:13, fontWeight:700,
+                          color: i18n.language === lang.code ? B : DK }}>
+                        {lang.flag} {lang.label}
+                        {i18n.language === lang.code &&
+                          <span style={{ marginLeft:'auto', fontSize:11 }}>✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             <button onClick={() => onNavigate('Search')}
               style={{ background:'none', border:'none', cursor:'pointer', padding:8 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -1508,9 +1678,14 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         />
       )}
 
+      {/* ── Flash sales rail ── */}
+      {(filter === 'for_you' || filter === 'trending') && (
+        <FlashSaleRail items={flashItems} onNavigate={onNavigate} />
+      )}
+
       {/* ── Trending bar ── */}
       {(filter === 'for_you' || filter === 'trending') && (
-        <TrendingBar trending={trending} onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
+        <TrendingBar trending={trending} onNavigate={onNavigate} isLoggedIn={isLoggedIn} onViewMoment={setViewingMoment} />
       )}
 
       {/* ── Not logged in hero ── */}
@@ -1656,6 +1831,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

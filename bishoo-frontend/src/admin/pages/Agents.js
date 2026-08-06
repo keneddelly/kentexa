@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const STATUS_STYLE = {
@@ -149,9 +148,12 @@ const Agents = ({ onNavigate }) => {
   });
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <Sidebar onNavigate={onNavigate} activeItem="Agents" />
-      <div style={{ flex: 1, padding: 24 }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+      <div style={{ backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={() => onNavigate('Dashboard')} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#64748b' }}>←</button>
+        <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>Agents</div>
+      </div>
+      <div style={{ padding: 24 }}>
 
         {/* Header */}
         <div style={{ marginBottom: 20 }}>

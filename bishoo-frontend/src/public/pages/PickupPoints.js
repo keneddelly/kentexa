@@ -6,7 +6,6 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer  from '../components/Footer';
 import api     from '../../api/api';
 
 const B  = '#2563EB';
@@ -394,7 +393,6 @@ const PickupPoints = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser 
           </>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

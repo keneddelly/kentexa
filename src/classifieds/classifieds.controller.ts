@@ -31,18 +31,23 @@ export class ClassifiedsController {
 
   @Get('search')
   search(
-    @Query('q') q: string,
+    @Query('q') q?: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
     @Query('location') location?: string,
     @Query('sort') sort?: string,
+    @Query('flashSale') flashSale?: string,
+    @Query('category') category?: string,
+    @Query('limit') limit?: string,
   ) {
-    if (!q) return [];
-    return this.service.search(q, {
+    return this.service.search(q || '', {
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       location,
       sort,
+      flashSale: flashSale === 'true',
+      category,
+      limit: limit ? Number(limit) : undefined,
     });
   }
 
@@ -115,6 +120,7 @@ export class ClassifiedsController {
     body: {
       buyerName: string;
       buyerPhone: string;
+      buyerId?: number;
       deliveryAddress?: string;
       productName: string;
       classifiedId?: number;

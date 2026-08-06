@@ -48,6 +48,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
   const [category,  setCategory]  = useState('');
   const [myItems,   setMyItems]   = useState([]);
   const [loadingItems, setLoadingItems] = useState(true);
+  const [allStores, setAllStores] = useState([]);
+  const [storeQuery, setStoreQuery] = useState('');
   const [tagged,    setTagged]    = useState(null); // { type, id, title }
   const [posting,   setPosting]   = useState(false);
   const [error,     setError]     = useState('');
@@ -61,7 +63,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
       api.get(`/products/seller/${uid}`),
       api.get('/services/my'),
       api.get('/transport/routes'),
-    ]).then(([cl, pr, sv, rt]) => {
+      api.get('/seller/public/all'),
+    ]).then(([cl, pr, sv, rt, st]) => {
       const items = [];
       if (cl.status === 'fulfilled') {
         (cl.value.data || []).forEach(c => items.push({
@@ -84,8 +87,19 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
         }));
       }
       setMyItems(items);
+      // Stores you can tag — any other seller's store, not your own (that's
+      // already implicit in every Moment you post from your account).
+      if (st.status === 'fulfilled') {
+        setAllStores((st.value.data || []).filter(s => s.id !== uid));
+      }
     }).finally(() => setLoadingItems(false));
   }, [currentUser?.id, t]);
+
+  const storeResults = storeQuery.trim()
+    ? allStores.filter(s =>
+        (s.storeName || s.name || '').toLowerCase().includes(storeQuery.trim().toLowerCase()))
+      .slice(0, 8)
+    : [];
 
   const handlePickFile = (e) => {
     const f = e.target.files?.[0];
@@ -186,9 +200,9 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePickFile} />
           {preview ? (
             <div onClick={() => fileRef.current?.click()}
-              style={{ width:'100%', aspectRatio:'1/1', borderRadius:14, overflow:'hidden',
+              style={{ width:'100%', paddingTop:'100%', borderRadius:14, overflow:'hidden',
                 cursor:'pointer', marginBottom:16, position:'relative' }}>
-              <img src={preview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              <img src={preview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', position:'absolute', top:0, left:0 }} />
               <div style={{ position:'absolute', bottom:8, right:8, backgroundColor:'rgba(0,0,0,0.6)',
                 color:WH, fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:100 }}>
                 {t('create_moment_modal.change_photo')}
@@ -277,6 +291,53 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
                     );
                   })}
                 </div>
+              )}
+
+              {/* Tag a store — recommend/mention another seller, not your own */}
+              <div style={{ fontSize:10, fontWeight:800, color:GR,
+                textTransform:'uppercase', letterSpacing:0.4, marginTop:14, marginBottom:6 }}>
+                {t('create_moment_modal.type_label_store')}
+              </div>
+              <input value={storeQuery} onChange={e => setStoreQuery(e.target.value)}
+                placeholder={t('create_moment_modal.search_store_placeholder')}
+                style={{ width:'100%', padding:'9px 12px', borderRadius:10,
+                  border:'1px solid #E2E8F0', fontSize:12, boxSizing:'border-box',
+                  outline:'none', marginBottom: storeQuery.trim() ? 8 : 0 }} />
+              {storeQuery.trim() && (
+                storeResults.length === 0 ? (
+                  <div style={{ fontSize:11, color:GR, padding:'8px 0' }}>
+                    {t('create_moment_modal.no_stores_found')}
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:160,
+                    overflowY:'auto' }}>
+                    {storeResults.map(s => {
+                      const title = s.storeName || s.name;
+                      const isTagged = tagged?.type === 'store' && tagged?.id === s.id;
+                      return (
+                        <button key={s.id}
+                          onClick={() => setTagged({ type:'store', id:s.id, title })}
+                          style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px',
+                            borderRadius:10, border: isTagged ? `2px solid ${B}` : '1px solid #E2E8F0',
+                            backgroundColor: isTagged ? '#EFF6FF' : WH,
+                            cursor:'pointer', textAlign:'left' }}>
+                          <div style={{ width:32, height:32, borderRadius:8, backgroundColor:'#F1F5F9',
+                            flexShrink:0, overflow:'hidden', display:'flex', alignItems:'center',
+                            justifyContent:'center', fontSize:14 }}>
+                            {s.logo
+                              ? <img src={s.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+                              : '🏪'}
+                          </div>
+                          <div style={{ fontSize:12, fontWeight:700, color:DK, flex:1,
+                            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {title}
+                          </div>
+                          {isTagged && <span style={{ color:B, fontWeight:900 }}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )
               )}
             </>
           ) : (

@@ -12,7 +12,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto } from './dto/create-order.dto';
+import {
+  CreateOrderDto,
+  CreateOrderForBuyerDto,
+} from './dto/create-order.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -28,6 +31,13 @@ export class OrdersController {
   @Post()
   create(@Body() dto: CreateOrderDto, @Request() req) {
     return this.ordersService.create(dto, req.user);
+  }
+
+  // ── Seller: create a real online order for a registered buyer from chat ──
+  @UseGuards(JwtAuthGuard)
+  @Post('create-for-buyer')
+  createForBuyer(@Body() dto: CreateOrderForBuyerDto, @Request() req) {
+    return this.ordersService.createForBuyer(req.user, dto.buyerId, dto);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -17,6 +17,7 @@ import { AgentsModule } from '../agents/agents.module';
 import { SmsModule } from '../sms/sms.module';
 import { BusinessModule } from '../business/business.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { InvoicesModule } from '../invoices/invoices.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     SmsModule,
     BusinessModule,
     NotificationsModule,
+    InvoicesModule,
   ],
   controllers: [SuperAgentsController],
   providers: [SuperAgentsService],

@@ -88,6 +88,9 @@ export class Conversation {
   @Column({ type: 'int', nullable: true })
   linkedInvoiceId: number | null;
 
+  @Column({ type: 'int', nullable: true })
+  linkedJobRequestId: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
