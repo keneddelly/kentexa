@@ -134,6 +134,18 @@ export class TransportProvider {
   @Column({ type: 'simple-array', nullable: true })
   cities: string[] | null;
 
+  // ── Home base — structured location engine (region/district/ward), same
+  // as Seller and Agent signup. Distinct from `cities` above (which is the
+  // coverage area this provider serves, not where they're based).
+  @Column({ type: 'varchar', nullable: true })
+  region: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  district: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  ward: string | null;
+
   // ── API Integration (Phase 2, preserved) ────────────────────────────────
   @Column({ type: 'varchar', unique: true, nullable: true })
   apiKey: string | null;

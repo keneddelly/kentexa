@@ -14,9 +14,9 @@ import { v2 as cloudinary } from 'cloudinary';
 
 // ✅ Cloudinary configuration
 cloudinary.config({
-  cloud_name: 'djuvxyklu',
-  api_key: '587314271732793',
-  api_secret: 'mTTXKpBy5KPoEiC_Ar7qQhikFVM',
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 @Controller('upload')

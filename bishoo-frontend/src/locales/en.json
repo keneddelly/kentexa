@@ -2340,6 +2340,8 @@
     "type_boat_desc": "Lake Victoria, Tanganyika, Zanzibar and the coast",
     "name_required": "Company name is required",
     "phone_required": "Phone number is required",
+    "location_required": "Please select your home base location",
+    "location_picker_label": "Home Base Location (Region / District / Ward)",
     "submit_failed": "Failed. Please try again.",
     "page_title": "🚌 Join as a Transport Provider",
     "step1_title": "What type of transport do you provide?",
@@ -4365,6 +4367,7 @@
 
     "apply_title": "📝 Apply Now",
     "business_name_required": "Business name is required",
+    "category_required": "Please select a business category",
     "apply_success": "Application submitted! We will review and approve your account.",
     "apply_failed": "Failed to submit application",
 
@@ -4376,6 +4379,9 @@
     "field_address_placeholder": "e.g. Dar es Salaam, Kariakoo",
     "field_description_label": "Business Description",
     "field_description_placeholder": "Tell us about your business...",
+    "field_category_label": "Business Category *",
+    "field_category_placeholder": "Select your business category",
+    "location_picker_label": "Business Location (Region / District / Ward)",
 
     "id_section_title": "Identity Verification",
     "id_section_desc": "Required so we can confirm you're a real person before approving your store.",

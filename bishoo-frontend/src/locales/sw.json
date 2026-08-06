@@ -2173,6 +2173,8 @@
     "type_boat_desc": "Ziwa Victoria, Tanganyika, Zanzibar na pwani",
     "name_required": "Jina la kampuni linahitajika",
     "phone_required": "Nambari ya simu inahitajika",
+    "location_required": "Tafadhali chagua eneo lako la msingi",
+    "location_picker_label": "Eneo la Msingi (Mkoa / Wilaya / Kata)",
     "submit_failed": "Imeshindwa. Jaribu tena.",
     "page_title": "🚌 Jiunge kama Msafirishaji",
     "step1_title": "Una aina gani ya usafirishaji?",
@@ -4243,6 +4245,7 @@
 
     "apply_title": "📝 Omba Sasa",
     "business_name_required": "Jina la biashara linahitajika",
+    "category_required": "Tafadhali chagua aina ya biashara",
     "apply_success": "Ombi limewasilishwa! Tutapitia na kuidhinisha akaunti yako.",
     "apply_failed": "Imeshindwa kuwasilisha ombi",
 
@@ -4254,6 +4257,9 @@
     "field_address_placeholder": "mf. Dar es Salaam, Kariakoo",
     "field_description_label": "Maelezo ya Biashara",
     "field_description_placeholder": "Tuambie kuhusu biashara yako...",
+    "field_category_label": "Aina ya Biashara *",
+    "field_category_placeholder": "Chagua aina ya biashara yako",
+    "location_picker_label": "Mahali pa Biashara (Mkoa / Wilaya / Kata)",
 
     "id_section_title": "Uthibitisho wa Utambulisho",
     "id_section_desc": "Inahitajika ili tuweze kuthibitisha wewe ni mtu halisi kabla ya kuidhinisha duka lako.",

@@ -4,13 +4,6 @@ import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
-const CITIES = [
-  'Dar es Salaam','Mwanza','Arusha','Moshi','Dodoma','Mbeya','Tanga','Morogoro',
-  'Kigoma','Tabora','Songea','Iringa','Zanzibar','Lindi','Mtwara','Shinyanga',
-  'Singida','Musoma','Bukoba','Sumbawanga','Babati','Kibaha','Njombe','Kasulu',
-  'Mpanda','Masasi','Korogwe','Geita','Bariadi','Chato','Sengerema',
-];
-
 const inputStyle = {
   width: '100%', padding: '12px 14px', borderRadius: 10,
   border: '2px solid #e2e8f0', fontSize: 14,
@@ -24,10 +17,20 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
+  const [cities, setCities]               = useState([]);
   const [form, setForm] = useState({
     businessName: '', city: '', address: '',
     phone: '', governmentId: '', governmentIdImage: '',
   });
+
+  useEffect(() => {
+    // Fetch the authoritative city list from the backend instead of keeping
+    // a second hardcoded copy here — a frontend/backend list mismatch used
+    // to make `apply()` reject cities the dropdown happily offered.
+    api.get('/super-agents/cities')
+      .then(res => setCities(res.data?.cities || []))
+      .catch(() => setCities([]));
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) { setCheckingStatus(false); return; }
@@ -193,7 +196,7 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
                 <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.city_label')}</label>
                 <select value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inputStyle}>
                   <option value="">{t('become_super_agent_info.select_city_placeholder')}</option>
-                  {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
                   {t('become_super_agent_info.city_hint')}

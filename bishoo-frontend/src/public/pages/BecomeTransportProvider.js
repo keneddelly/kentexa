@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
+import LocationPicker from '../components/LocationPicker';
 import api     from '../../api/api';
 
 const getProviderTypes = (t) => [
@@ -28,10 +29,12 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, onLogout, userRole })
   const { t } = useTranslation();
   const PROVIDER_TYPES = getProviderTypes(t);
   const [step,   setStep]   = useState(1); // 1=type, 2=details, 3=success
+  const [location, setLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [form,   setForm]   = useState({
     type: '', name: '', contactPhone: '', whatsappPhone: '',
     contactEmail: '', registrationNumber: '', description: '',
     defaultParcelCapacity: '20', defaultMaxWeightKg: '200',
+    region: '', district: '', ward: '',
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -41,6 +44,7 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, onLogout, userRole })
   const handleSubmit = async () => {
     if (!form.name.trim())         return setError(t('become_transport_provider.name_required'));
     if (!form.contactPhone.trim()) return setError(t('become_transport_provider.phone_required'));
+    if (!form.region.trim())       return setError(t('become_transport_provider.location_required'));
     try {
       setSaving(true); setError('');
       await api.post('/transport/register', {
@@ -150,6 +154,24 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, onLogout, userRole })
                   placeholder="0788 000 000"
                   onChange={e => set('whatsappPhone', e.target.value)} />
               </div>
+            </div>
+
+            {/* Home base location */}
+            <div style={{ marginBottom: 14 }}>
+              <LocationPicker
+                label={t('become_transport_provider.location_picker_label')}
+                required
+                value={location}
+                onChange={loc => {
+                  setLocation(loc);
+                  setForm(f => ({
+                    ...f,
+                    region: loc.regionName || '',
+                    district: loc.districtName || '',
+                    ward: loc.wardName || '',
+                  }));
+                }}
+              />
             </div>
 
             {/* Registration number */}

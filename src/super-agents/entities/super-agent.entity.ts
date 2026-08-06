@@ -45,6 +45,10 @@ export const TANZANIA_CITIES = [
   'Masasi',
   'Korogwe',
   'Moshi',
+  'Geita',
+  'Bariadi',
+  'Chato',
+  'Sengerema',
 ];
 
 export const CITY_CODES: Record<string, string> = {
@@ -76,6 +80,10 @@ export const CITY_CODES: Record<string, string> = {
   Masasi: 'MSS',
   Korogwe: 'KRG',
   Moshi: 'MSH',
+  Geita: 'GEI',
+  Bariadi: 'BRD',
+  Chato: 'CHT',
+  Sengerema: 'SGR',
 };
 
 @Entity('super_agent')

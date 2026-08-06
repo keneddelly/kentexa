@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { ClassifiedCategory } from '../../classifieds/entities/classified.entity';
 
 export enum SellerStatus {
   PENDING = 'pending',
@@ -33,6 +34,22 @@ export class SellerProfile {
 
   @Column({ type: 'text', nullable: true })
   address: string | null;
+
+  // ── Structured location — same region/district/ward the location engine
+  // and Agent signup already use, so seller data can be trusted/queried the
+  // same way (nearby search, coverage maps) instead of relying on free-text
+  // `address` alone.
+  @Column({ type: 'varchar', nullable: true })
+  region: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  district: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  ward: string | null;
+
+  @Column({ type: 'enum', enum: ClassifiedCategory, nullable: true })
+  businessCategory: ClassifiedCategory | null;
 
   @Column({ type: 'text', nullable: true })
   phone: string | null;

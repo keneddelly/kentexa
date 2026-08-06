@@ -1,14 +1,26 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar from '../components/Navbar';
+import LocationPicker from '../components/LocationPicker';
 import api from '../../api/api';
+
+const BUSINESS_CATEGORIES = [
+  'electronics', 'fashion', 'vehicles', 'food', 'home_garden',
+  'health_beauty', 'baby_kids', 'sports', 'agriculture', 'security',
+  'books', 'arts', 'property', 'services', 'general',
+];
 
 const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const { t } = useTranslation();
+  const [location, setLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [form, setForm] = useState({
     businessName: '',
+    businessCategory: '',
     businessDescription: '',
     address: '',
+    region: '',
+    district: '',
+    ward: '',
     phone: '',
     idType: 'national_id',
     idNumber: '',
@@ -44,6 +56,10 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const handleSubmit = async () => {
     if (!form.businessName) {
       setError(t('become_seller.business_name_required'));
+      return;
+    }
+    if (!form.businessCategory) {
+      setError(t('become_seller.category_required'));
       return;
     }
     if (!form.idNumber.trim() || !form.idPhotoUrl) {
@@ -174,6 +190,46 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 }}
                 onFocus={e => e.target.style.border = '2px solid #a78bfa'}
                 onBlur={e => e.target.style.border = '2px solid #e2e8f0'}
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>
+                {t('become_seller.field_category_label')}
+              </label>
+              <select
+                value={form.businessCategory}
+                onChange={e => setForm({ ...form, businessCategory: e.target.value })}
+                style={{
+                  width: '100%', padding: '12px',
+                  borderRadius: '8px', border: '2px solid #e2e8f0',
+                  fontSize: '14px', boxSizing: 'border-box',
+                  outline: 'none', backgroundColor: '#fff',
+                }}>
+                <option value="">{t('become_seller.field_category_placeholder')}</option>
+                {BUSINESS_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>
+                    {t(`classifieds.${cat === 'general' ? 'other' : cat}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#64748b', marginBottom: '6px', fontWeight: '600' }}>
+                {t('become_seller.location_picker_label')}
+              </label>
+              <LocationPicker
+                value={location}
+                onChange={loc => {
+                  setLocation(loc);
+                  setForm(f => ({
+                    ...f,
+                    region: loc.regionName || '',
+                    district: loc.districtName || '',
+                    ward: loc.wardName || '',
+                  }));
+                }}
               />
             </div>
 

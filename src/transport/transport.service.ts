@@ -63,6 +63,9 @@ export class TransportService {
       description?: string;
       defaultParcelCapacity?: number;
       defaultMaxWeightKg?: number;
+      region?: string;
+      district?: string;
+      ward?: string;
     },
   ): Promise<TransportProvider> {
     // One provider per user
@@ -83,6 +86,9 @@ export class TransportService {
       description: dto.description || null,
       defaultParcelCapacity: dto.defaultParcelCapacity || 10,
       defaultMaxWeightKg: dto.defaultMaxWeightKg || 100,
+      region: dto.region || null,
+      district: dto.district || null,
+      ward: dto.ward || null,
       status: ProviderStatus.PENDING,
       confirmMode: ['bus', 'courier'].includes(dto.type)
         ? ConfirmMode.AUTO

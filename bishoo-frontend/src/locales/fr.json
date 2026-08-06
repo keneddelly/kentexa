@@ -2336,6 +2336,8 @@
     "type_boat_desc": "Lac Victoria, Tanganyika, Zanzibar et la côte",
     "name_required": "Le nom de l'entreprise est requis",
     "phone_required": "Le numéro de téléphone est requis",
+    "location_required": "Veuillez sélectionner votre emplacement de base",
+    "location_picker_label": "Emplacement de base (Région / District / Quartier)",
     "submit_failed": "Échec. Veuillez réessayer.",
     "page_title": "🚌 Rejoindre en tant que transporteur",
     "step1_title": "Quel type de transport proposez-vous ?",
@@ -4361,6 +4363,7 @@
 
     "apply_title": "📝 Postuler maintenant",
     "business_name_required": "Le nom de l'entreprise est requis",
+    "category_required": "Veuillez sélectionner une catégorie d'entreprise",
     "apply_success": "Demande soumise ! Nous allons examiner et approuver votre compte.",
     "apply_failed": "Échec de l'envoi de la demande",
 
@@ -4372,6 +4375,9 @@
     "field_address_placeholder": "ex. Dar es Salaam, Kariakoo",
     "field_description_label": "Description de l'entreprise",
     "field_description_placeholder": "Parlez-nous de votre entreprise...",
+    "field_category_label": "Catégorie d'entreprise *",
+    "field_category_placeholder": "Sélectionnez votre catégorie d'entreprise",
+    "location_picker_label": "Emplacement de l'entreprise (Région / District / Quartier)",
 
     "id_section_title": "Vérification d'identité",
     "id_section_desc": "Requis pour confirmer que vous êtes une personne réelle avant d'approuver votre boutique.",

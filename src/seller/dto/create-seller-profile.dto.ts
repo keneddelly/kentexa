@@ -1,9 +1,14 @@
-import { IsOptional, IsString, MinLength } from 'class-validator';
+import { IsOptional, IsString, IsEnum, MinLength } from 'class-validator';
+import { ClassifiedCategory } from '../../classifieds/entities/classified.entity';
 
 export class CreateSellerProfileDto {
   @IsString()
   @MinLength(3)
   businessName: string;
+
+  @IsOptional()
+  @IsEnum(ClassifiedCategory)
+  businessCategory?: ClassifiedCategory;
 
   @IsOptional()
   @IsString()
@@ -12,6 +17,18 @@ export class CreateSellerProfileDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @IsOptional()
+  @IsString()
+  region?: string;
+
+  @IsOptional()
+  @IsString()
+  district?: string;
+
+  @IsOptional()
+  @IsString()
+  ward?: string;
 
   @IsOptional()
   @IsString()

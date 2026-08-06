@@ -100,11 +100,10 @@ export class SelcomService implements IPaymentProvider {
       };
     } catch (err) {
       this.logger.error('Selcom initiatePayment error', err);
-      // DEV fallback — remove when real credentials are configured
       return {
-        success: true,
-        message: '[DEV] Selcom mock payment initiated',
-        providerRequestId: `SELCOM-${Date.now()}`,
+        success: false,
+        message: 'Payment initiation failed. Please try again.',
+        providerRequestId: request.reference,
       };
     }
   }
