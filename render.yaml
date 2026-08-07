@@ -21,7 +21,10 @@ services:
     name: bishoo-backend
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    # --include=dev is required: NODE_ENV=production below makes npm skip
+    # devDependencies by default, but @nestjs/cli (the `nest` build command)
+    # lives there and is only needed at build time, not at runtime.
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm run start:prod
     envVars:
       - key: NODE_VERSION
