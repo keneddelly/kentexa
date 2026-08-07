@@ -22,7 +22,8 @@ async function bootstrap() {
       'https://kentexa.com',
       'https://www.kentexa.com',
       'https://staging.kentexa.com',
-      'https://earlyaccess.kentexa.com', // Kentexa Early Access Portal (prod)
+      'https://earlyaccess.kentexa.com', // Kentexa Early Access Portal (prod custom domain — not yet set up)
+      'https://kentexa-early-access.onrender.com', // Kentexa Early Access Portal (actual Render URL)
     ],
     credentials: true,
   });
