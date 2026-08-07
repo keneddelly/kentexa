@@ -20,7 +20,7 @@ services:
   - type: web
     name: bishoo-backend
     runtime: node
-    plan: free
+    plan: starter # paid — always-on, no free-tier spin-down/cold-start on the OTP + registration API
     # --include=dev is required: NODE_ENV=production below makes npm skip
     # devDependencies by default, but @nestjs/cli (the `nest` build command)
     # lives there and is only needed at build time, not at runtime.
