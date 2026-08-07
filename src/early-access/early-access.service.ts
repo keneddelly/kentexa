@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as ExcelJS from 'exceljs';
@@ -10,6 +10,7 @@ import {
 import { CreateRegistrationDto } from './dto/create-registration.dto';
 import { QueryRegistrationsDto } from './dto/query-registrations.dto';
 import { RejectRegistrationDto } from './dto/reject-registration.dto';
+import { EarlyAccessOtpService } from './early-access-otp.service';
 
 const EXPORT_COLUMNS: { key: keyof EarlyAccessRegistration; header: string }[] = [
   { key: 'id', header: 'ID' },
@@ -24,6 +25,16 @@ const EXPORT_COLUMNS: { key: keyof EarlyAccessRegistration; header: string }[] =
   { key: 'ward', header: 'Ward' },
   { key: 'businessCategory', header: 'Category' },
   { key: 'yearsInBusiness', header: 'Years In Business' },
+  { key: 'vehicleType', header: 'Vehicle Type' },
+  { key: 'hasLicense', header: 'Has License' },
+  { key: 'coverageAreas', header: 'Coverage Areas' },
+  { key: 'currentSellingChannels', header: 'Current Selling Channels' },
+  { key: 'readyProductCount', header: 'Ready Product Count' },
+  { key: 'travelsToCustomer', header: 'Travels To Customer' },
+  { key: 'currentBookingMethod', header: 'Current Booking Method' },
+  { key: 'hasPhysicalLocation', header: 'Has Physical Location' },
+  { key: 'operatingHours', header: 'Operating Hours' },
+  { key: 'canHandleCashCollection', header: 'Can Handle Cash Collection' },
   { key: 'status', header: 'Status' },
   { key: 'createdAt', header: 'Registered At' },
 ];
@@ -33,9 +44,14 @@ export class EarlyAccessService {
   constructor(
     @InjectRepository(EarlyAccessRegistration)
     private repo: Repository<EarlyAccessRegistration>,
+    private otpService: EarlyAccessOtpService,
   ) {}
 
   async create(dto: CreateRegistrationDto) {
+    const phoneVerified = await this.otpService.isVerified(dto.phone);
+    if (!phoneVerified) {
+      throw new BadRequestException('Phone number not verified. Please verify your phone first.');
+    }
     const registration = await this.repo.save(this.repo.create(dto));
     return {
       ...registration,

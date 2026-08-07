@@ -23,9 +23,12 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { EarlyAccessService } from './early-access.service';
 import { EarlyAccessUploadService } from './early-access-upload.service';
+import { EarlyAccessOtpService } from './early-access-otp.service';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
 import { QueryRegistrationsDto } from './dto/query-registrations.dto';
 import { RejectRegistrationDto } from './dto/reject-registration.dto';
+import { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
+import { VerifyPhoneOtpDto } from './dto/verify-phone-otp.dto';
 import {
   AccountType,
   BusinessCategory,
@@ -41,9 +44,26 @@ export class EarlyAccessController {
   constructor(
     private service: EarlyAccessService,
     private uploadService: EarlyAccessUploadService,
+    private otpService: EarlyAccessOtpService,
   ) {}
 
   // ── Public ─────────────────────────────────────────────────────────────
+
+  @ApiOperation({ summary: 'Send an SMS verification code to a phone number' })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 3600000 } })
+  @Post('phone/send-otp')
+  sendPhoneOtp(@Body() dto: SendPhoneOtpDto) {
+    return this.otpService.sendOtp(dto.phone);
+  }
+
+  @ApiOperation({ summary: 'Verify a phone number with its SMS code' })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @Post('phone/verify-otp')
+  verifyPhoneOtp(@Body() dto: VerifyPhoneOtpDto) {
+    return this.otpService.verifyOtp(dto.phone, dto.otp);
+  }
 
   @ApiOperation({ summary: 'Submit an early-access registration' })
   @UseGuards(ThrottlerGuard)

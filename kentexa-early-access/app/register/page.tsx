@@ -46,13 +46,19 @@ function toPayload(values: RegistrationFormValues): RegistrationPayload {
     longitude: values.longitude,
     consentToContact: values.consentToContact,
     biggestChallenge: emptyToUndefined(values.biggestChallenge),
-    howCustomersFindYou: emptyToUndefined(values.howCustomersFindYou),
-    onlinePlatformsUsed:
-      values.onlinePlatformsUsed && values.onlinePlatformsUsed.length > 0
-        ? values.onlinePlatformsUsed
+    vehicleType: emptyToUndefined(values.vehicleType),
+    hasLicense: values.hasLicense,
+    coverageAreas: emptyToUndefined(values.coverageAreas),
+    currentSellingChannels:
+      values.currentSellingChannels && values.currentSellingChannels.length > 0
+        ? values.currentSellingChannels
         : undefined,
-    desiredKentexaFeature: emptyToUndefined(values.desiredKentexaFeature),
-    wouldUseAi: values.wouldUseAi,
+    readyProductCount: values.readyProductCount,
+    travelsToCustomer: values.travelsToCustomer,
+    currentBookingMethod: emptyToUndefined(values.currentBookingMethod),
+    hasPhysicalLocation: values.hasPhysicalLocation,
+    operatingHours: emptyToUndefined(values.operatingHours),
+    canHandleCashCollection: values.canHandleCashCollection,
   };
 }
 

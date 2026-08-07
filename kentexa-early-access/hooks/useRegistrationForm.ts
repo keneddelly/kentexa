@@ -15,7 +15,7 @@ export const STEP_LABELS = [
   'Location',
   'Online Presence',
   'Media',
-  'Quick Questions',
+  'Tell us more',
   'Review & Submit',
 ] as const;
 
@@ -38,7 +38,19 @@ const STEP_FIELDS: (keyof RegistrationFormValues)[][] = [
   ['region', 'district', 'ward', 'latitude', 'longitude'],
   ['website', 'facebook', 'instagram', 'tiktok'],
   ['logoUrl', 'coverImageUrl', 'photoUrls'],
-  ['biggestChallenge', 'howCustomersFindYou', 'onlinePlatformsUsed', 'desiredKentexaFeature', 'wouldUseAi'],
+  [
+    'biggestChallenge',
+    'vehicleType',
+    'hasLicense',
+    'coverageAreas',
+    'currentSellingChannels',
+    'readyProductCount',
+    'travelsToCustomer',
+    'currentBookingMethod',
+    'hasPhysicalLocation',
+    'operatingHours',
+    'canHandleCashCollection',
+  ],
   ['consentToContact'],
 ];
 

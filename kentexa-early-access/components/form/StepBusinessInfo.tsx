@@ -3,6 +3,7 @@
 import type { UseFormReturn } from 'react-hook-form';
 import Input, { TextArea } from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
+import PhoneOtpVerification from './PhoneOtpVerification';
 import type { RegistrationFormValues } from '@/lib/formSchema';
 import { BusinessCategory, formatEnumLabel } from '@/lib/types';
 
@@ -44,13 +45,16 @@ export default function StepBusinessInfo({ form, businessCategoryOptions }: Step
           error={errors.businessName?.message}
           {...register('businessName')}
         />
-        <Input
-          label="Phone Number"
-          required
-          placeholder="e.g. 0712 345 678"
-          error={errors.phone?.message}
-          {...register('phone')}
-        />
+        <div className="flex flex-col gap-2">
+          <Input
+            label="Phone Number"
+            required
+            placeholder="e.g. 0712 345 678"
+            error={errors.phone?.message}
+            {...register('phone')}
+          />
+          <PhoneOtpVerification form={form} />
+        </div>
         <Input
           label="WhatsApp Number"
           placeholder="If different from phone"

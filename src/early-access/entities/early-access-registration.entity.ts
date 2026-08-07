@@ -135,6 +135,41 @@ export class EarlyAccessRegistration {
   @Column({ type: 'boolean', nullable: true })
   wouldUseAi: boolean | null;
 
+  // ── Category-specific ─────────────────────────────────────────────────
+  // transporter
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  vehicleType: string | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  hasLicense: boolean | null;
+
+  @Column({ type: 'text', nullable: true })
+  coverageAreas: string | null;
+
+  // seller
+  @Column({ type: 'simple-array', nullable: true })
+  currentSellingChannels: string[] | null;
+
+  @Column({ type: 'int', nullable: true })
+  readyProductCount: number | null;
+
+  // service_provider
+  @Column({ type: 'boolean', nullable: true })
+  travelsToCustomer: boolean | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  currentBookingMethod: string | null;
+
+  // agent
+  @Column({ type: 'boolean', nullable: true })
+  hasPhysicalLocation: boolean | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  operatingHours: string | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  canHandleCashCollection: boolean | null;
+
   // ── Admin workflow ────────────────────────────────────────────────────
   @Index()
   @Column({

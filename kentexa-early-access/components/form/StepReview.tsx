@@ -41,7 +41,10 @@ export default function StepReview({ form, onSubmit, isSubmitting }: StepProps) 
         <ReviewRow label="Account Type" value={values.accountType && formatEnumLabel(values.accountType)} />
         <ReviewRow label="Owner Name" value={values.ownerName} />
         <ReviewRow label="Business Name" value={values.businessName} />
-        <ReviewRow label="Phone" value={values.phone} />
+        <ReviewRow
+          label="Phone"
+          value={values.phone ? `${values.phone} ${values.phoneVerified ? '✅ Verified' : '⚠️ Not verified yet'}` : undefined}
+        />
         <ReviewRow label="WhatsApp" value={values.whatsapp} />
         <ReviewRow label="Email" value={values.email} />
         <ReviewRow
@@ -66,12 +69,33 @@ export default function StepReview({ form, onSubmit, isSubmitting }: StepProps) 
           value={values.photoUrls?.length ? `${values.photoUrls.length} uploaded` : undefined}
         />
         <ReviewRow label="Biggest Challenge" value={values.biggestChallenge} />
-        <ReviewRow label="How Customers Find You" value={values.howCustomersFindYou} />
-        <ReviewRow label="Platforms Used" value={values.onlinePlatformsUsed?.join(', ')} />
-        <ReviewRow label="Desired Feature" value={values.desiredKentexaFeature} />
+        <ReviewRow label="Vehicle Type" value={values.vehicleType} />
         <ReviewRow
-          label="Would Use AI"
-          value={values.wouldUseAi === true ? 'Yes' : values.wouldUseAi === false ? 'No' : undefined}
+          label="Has License"
+          value={values.hasLicense === true ? 'Yes' : values.hasLicense === false ? 'No' : undefined}
+        />
+        <ReviewRow label="Coverage Areas" value={values.coverageAreas} />
+        <ReviewRow label="Selling Channels" value={values.currentSellingChannels?.join(', ')} />
+        <ReviewRow label="Ready Product Count" value={values.readyProductCount} />
+        <ReviewRow
+          label="Travels To Customer"
+          value={values.travelsToCustomer === true ? 'Yes' : values.travelsToCustomer === false ? 'No' : undefined}
+        />
+        <ReviewRow label="Booking Method" value={values.currentBookingMethod} />
+        <ReviewRow
+          label="Has Physical Location"
+          value={values.hasPhysicalLocation === true ? 'Yes' : values.hasPhysicalLocation === false ? 'No' : undefined}
+        />
+        <ReviewRow label="Operating Hours" value={values.operatingHours} />
+        <ReviewRow
+          label="Can Handle Cash Collection"
+          value={
+            values.canHandleCashCollection === true
+              ? 'Yes'
+              : values.canHandleCashCollection === false
+                ? 'No'
+                : undefined
+          }
         />
       </div>
 

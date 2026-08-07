@@ -11,6 +11,7 @@ import {
   IsUrl,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { AccountType, BusinessCategory } from '../entities/early-access-registration.entity';
 
@@ -125,4 +126,62 @@ export class CreateRegistrationDto {
   @IsOptional()
   @IsBoolean()
   wouldUseAi?: boolean;
+
+  // ── Category-specific (soft-required — shown per accountType, not hard-blocking) ──
+
+  // transporter
+  @ValidateIf((o) => o.accountType === AccountType.TRANSPORTER)
+  @IsOptional()
+  @IsString()
+  vehicleType?: string;
+
+  @ValidateIf((o) => o.accountType === AccountType.TRANSPORTER)
+  @IsOptional()
+  @IsBoolean()
+  hasLicense?: boolean;
+
+  @ValidateIf((o) => o.accountType === AccountType.TRANSPORTER)
+  @IsOptional()
+  @IsString()
+  coverageAreas?: string;
+
+  // seller
+  @ValidateIf((o) => o.accountType === AccountType.SELLER)
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  currentSellingChannels?: string[];
+
+  @ValidateIf((o) => o.accountType === AccountType.SELLER)
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  readyProductCount?: number;
+
+  // service_provider
+  @ValidateIf((o) => o.accountType === AccountType.SERVICE_PROVIDER)
+  @IsOptional()
+  @IsBoolean()
+  travelsToCustomer?: boolean;
+
+  @ValidateIf((o) => o.accountType === AccountType.SERVICE_PROVIDER)
+  @IsOptional()
+  @IsString()
+  currentBookingMethod?: string;
+
+  // agent
+  @ValidateIf((o) => o.accountType === AccountType.AGENT)
+  @IsOptional()
+  @IsBoolean()
+  hasPhysicalLocation?: boolean;
+
+  @ValidateIf((o) => o.accountType === AccountType.AGENT)
+  @IsOptional()
+  @IsString()
+  operatingHours?: string;
+
+  @ValidateIf((o) => o.accountType === AccountType.AGENT)
+  @IsOptional()
+  @IsBoolean()
+  canHandleCashCollection?: boolean;
 }

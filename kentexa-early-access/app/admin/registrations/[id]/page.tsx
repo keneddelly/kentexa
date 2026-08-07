@@ -224,22 +224,59 @@ export default function AdminRegistrationDetailPage() {
           </Card>
 
           <Card>
-            <h2 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Quick Questions</h2>
+            <h2 className="mb-4 text-sm font-semibold text-gray-700 dark:text-gray-200">Tell Us More</h2>
             <dl className="grid grid-cols-1 gap-4">
               <Field label="Biggest Challenge" value={registration.biggestChallenge} />
-              <Field label="How Customers Find You" value={registration.howCustomersFindYou} />
-              <Field label="Platforms Used" value={registration.onlinePlatformsUsed?.join(', ')} />
-              <Field label="Desired Feature" value={registration.desiredKentexaFeature} />
+              <Field label="Vehicle Type" value={registration.vehicleType} />
               <Field
-                label="Would Use AI"
+                label="Has License"
+                value={registration.hasLicense === true ? 'Yes' : registration.hasLicense === false ? 'No' : undefined}
+              />
+              <Field label="Coverage Areas" value={registration.coverageAreas} />
+              <Field label="Selling Channels" value={registration.currentSellingChannels?.join(', ')} />
+              <Field label="Ready Product Count" value={registration.readyProductCount} />
+              <Field
+                label="Travels To Customer"
                 value={
-                  registration.wouldUseAi === true
+                  registration.travelsToCustomer === true
                     ? 'Yes'
-                    : registration.wouldUseAi === false
+                    : registration.travelsToCustomer === false
                       ? 'No'
-                      : 'Not sure'
+                      : undefined
                 }
               />
+              <Field label="Booking Method" value={registration.currentBookingMethod} />
+              <Field
+                label="Has Physical Location"
+                value={
+                  registration.hasPhysicalLocation === true
+                    ? 'Yes'
+                    : registration.hasPhysicalLocation === false
+                      ? 'No'
+                      : undefined
+                }
+              />
+              <Field label="Operating Hours" value={registration.operatingHours} />
+              <Field
+                label="Can Handle Cash Collection"
+                value={
+                  registration.canHandleCashCollection === true
+                    ? 'Yes'
+                    : registration.canHandleCashCollection === false
+                      ? 'No'
+                      : undefined
+                }
+              />
+              {/* Legacy fields from the old generic questions step, shown only for older rows */}
+              {registration.howCustomersFindYou && (
+                <Field label="How Customers Find You (legacy)" value={registration.howCustomersFindYou} />
+              )}
+              {registration.onlinePlatformsUsed && registration.onlinePlatformsUsed.length > 0 && (
+                <Field label="Platforms Used (legacy)" value={registration.onlinePlatformsUsed.join(', ')} />
+              )}
+              {registration.desiredKentexaFeature && (
+                <Field label="Desired Feature (legacy)" value={registration.desiredKentexaFeature} />
+              )}
             </dl>
           </Card>
         </div>

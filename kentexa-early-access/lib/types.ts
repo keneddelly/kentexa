@@ -53,6 +53,8 @@ export const ONLINE_PLATFORM_OPTIONS = [
   'None',
 ] as const;
 
+export const VEHICLE_TYPE_OPTIONS = ['Boda (motorcycle)', 'Bajaji', 'Car', 'Van / Pickup', 'Truck'] as const;
+
 export interface RegistrationPayload {
   accountType: AccountType;
   ownerName: string;
@@ -78,14 +80,45 @@ export interface RegistrationPayload {
   longitude?: number;
   consentToContact: boolean;
   biggestChallenge?: string;
-  howCustomersFindYou?: string;
-  onlinePlatformsUsed?: string[];
-  desiredKentexaFeature?: string;
-  wouldUseAi?: boolean;
+  // transporter
+  vehicleType?: string;
+  hasLicense?: boolean;
+  coverageAreas?: string;
+  // seller
+  currentSellingChannels?: string[];
+  readyProductCount?: number;
+  // service_provider
+  travelsToCustomer?: boolean;
+  currentBookingMethod?: string;
+  // agent
+  hasPhysicalLocation?: boolean;
+  operatingHours?: string;
+  canHandleCashCollection?: boolean;
+}
+
+/** A single result from GET /locations/search — ward, district, or region level. */
+export interface LocationSearchResult {
+  type: 'ward' | 'district' | 'region';
+  regionId?: number;
+  region?: string;
+  districtId?: number;
+  district?: string;
+  wardId?: number;
+  ward?: string;
+  // Backend decimal columns can serialize as numeric strings — accept both.
+  lat: number | string | null;
+  lng: number | string | null;
+  fullAddress: string;
 }
 
 export interface Registration extends RegistrationPayload {
   id: number;
+  // Legacy fields from the old generic "Quick Questions" step — no longer
+  // collected by the current form, but may still be present on older rows.
+  howCustomersFindYou?: string;
+  onlinePlatformsUsed?: string[];
+  desiredKentexaFeature?: string;
+  wouldUseAi?: boolean;
   earlyAccessId: string;
   status: RegistrationStatus;
   rejectionReason: string | null;

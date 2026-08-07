@@ -21,7 +21,7 @@ export class SmsService {
   }
 
   // ── Format phone to +255XXXXXXXXX ────────────────────────────────────
-  private formatPhone(phone: string): string {
+  formatPhone(phone: string): string {
     const cleaned = phone.replace(/\s+/g, '').replace(/[^0-9+]/g, '');
     if (cleaned.startsWith('+')) return cleaned;
     if (cleaned.startsWith('255')) return `+${cleaned}`;

@@ -1,6 +1,7 @@
 import type {
   AdminStats,
   CategoriesResponse,
+  LocationSearchResult,
   LoginResponse,
   NestErrorBody,
   PaginatedRegistrations,
@@ -174,6 +175,24 @@ export async function uploadFiles(files: File[]): Promise<UploadResponse> {
 
 export function getCategories(): Promise<CategoriesResponse> {
   return request('/early-access/categories');
+}
+
+export function searchLocations(q: string): Promise<LocationSearchResult[]> {
+  return request(`/locations/search?q=${encodeURIComponent(q)}`);
+}
+
+export function sendPhoneOtp(phone: string): Promise<{ message: string; otpSent: boolean; devOtp?: string }> {
+  return request('/early-access/phone/send-otp', {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export function verifyPhoneOtp(phone: string, otp: string): Promise<{ message: string; verified: boolean }> {
+  return request('/early-access/phone/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify({ phone, otp }),
+  });
 }
 
 export function getPublicStats(): Promise<PublicStats> {
