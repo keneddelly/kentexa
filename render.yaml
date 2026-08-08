@@ -65,7 +65,7 @@ services:
   - type: web
     name: kentexa-early-access
     runtime: node
-    plan: free
+    plan: starter # paid — always-on, no free-tier spin-down/cold-start on the landing page itself
     rootDir: kentexa-early-access
     buildCommand: npm install && npm run build
     startCommand: npm run start
