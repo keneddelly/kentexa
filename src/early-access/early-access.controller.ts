@@ -112,8 +112,7 @@ export class EarlyAccessController {
   // ── Admin ──────────────────────────────────────────────────────────────
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'List registrations (admin)' })
   @Get('admin')
@@ -122,8 +121,7 @@ export class EarlyAccessController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Registration analytics/stats (admin)' })
   @Get('admin/stats')
@@ -132,8 +130,7 @@ export class EarlyAccessController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Export registrations as CSV (admin)' })
   @Header('Content-Type', 'text/csv')
@@ -145,8 +142,7 @@ export class EarlyAccessController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Export registrations as Excel (admin)' })
   @Header(
@@ -161,8 +157,7 @@ export class EarlyAccessController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Get one registration (admin)' })
   @Get('admin/:id')
@@ -171,8 +166,7 @@ export class EarlyAccessController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Approve a registration (admin)' })
   @Patch('admin/:id/approve')
@@ -181,8 +175,7 @@ export class EarlyAccessController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Reject a registration (admin)' })
   @Patch('admin/:id/reject')
@@ -191,8 +184,7 @@ export class EarlyAccessController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @UseGuards(RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @ApiOperation({ summary: 'Soft-delete a registration (admin)' })
   @Delete('admin/:id')
