@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { use, useState } from 'react';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 
@@ -11,9 +11,10 @@ function formatEarlyAccessId(id: string): string {
   return `KTX-EA-${numeric.padStart(6, '0')}`;
 }
 
-export default function SuccessPage({ params }: { params: { id: string } }) {
+export default function SuccessPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
   const [copied, setCopied] = useState(false);
-  const earlyAccessId = formatEarlyAccessId(params.id);
+  const earlyAccessId = formatEarlyAccessId(id);
 
   const handleCopy = async () => {
     try {
