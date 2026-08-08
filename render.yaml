@@ -74,3 +74,5 @@ services:
         value: 20.18.0
       - key: NEXT_PUBLIC_API_URL
         sync: false # set to the bishoo-backend service's URL once it's deployed (see above)
+      - key: NEXT_PUBLIC_META_PIXEL_ID
+        sync: false # optional — your Meta (Facebook/Instagram) Pixel ID from Events Manager; leave unset to disable Pixel tracking entirely

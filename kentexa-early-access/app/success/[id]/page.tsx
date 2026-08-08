@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { use, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
+import { trackMetaEvent } from '@/components/MetaPixel';
 
 function formatEarlyAccessId(id: string): string {
   const numeric = id.replace(/\D/g, '');
@@ -15,6 +16,12 @@ export default function SuccessPage({ params }: { params: Promise<{ id: string }
   const { id } = use(params);
   const [copied, setCopied] = useState(false);
   const earlyAccessId = formatEarlyAccessId(id);
+
+  useEffect(() => {
+    trackMetaEvent('CompleteRegistration', { content_name: earlyAccessId });
+    // Only fire once per page load, not on every re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCopy = async () => {
     try {
