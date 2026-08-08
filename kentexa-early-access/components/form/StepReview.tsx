@@ -41,10 +41,7 @@ export default function StepReview({ form, onSubmit, isSubmitting }: StepProps) 
         <ReviewRow label="Account Type" value={values.accountType && formatEnumLabel(values.accountType)} />
         <ReviewRow label="Owner Name" value={values.ownerName} />
         <ReviewRow label="Business Name" value={values.businessName} />
-        <ReviewRow
-          label="Phone"
-          value={values.phone ? `${values.phone} ${values.phoneVerified ? '✅ Verified' : '⚠️ Not verified yet'}` : undefined}
-        />
+        <ReviewRow label="Phone" value={values.phone} />
         <ReviewRow label="WhatsApp" value={values.whatsapp} />
         <ReviewRow label="Email" value={values.email} />
         <ReviewRow

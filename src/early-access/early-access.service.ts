@@ -48,9 +48,15 @@ export class EarlyAccessService {
   ) {}
 
   async create(dto: CreateRegistrationDto) {
-    const phoneVerified = await this.otpService.isVerified(dto.phone);
-    if (!phoneVerified) {
-      throw new BadRequestException('Phone number not verified. Please verify your phone first.');
+    // Gated behind REQUIRE_PHONE_VERIFICATION so it can be re-enabled on
+    // Render with just an env var flip once SMS delivery is reliable again
+    // (currently blocked pending Tanzania Sender ID / TCRA registration —
+    // Africa's Talking accepts sends but the carrier drops them silently).
+    if (process.env.REQUIRE_PHONE_VERIFICATION === 'true') {
+      const phoneVerified = await this.otpService.isVerified(dto.phone);
+      if (!phoneVerified) {
+        throw new BadRequestException('Phone number not verified. Please verify your phone first.');
+      }
     }
     const registration = await this.repo.save(this.repo.create(dto));
     return {

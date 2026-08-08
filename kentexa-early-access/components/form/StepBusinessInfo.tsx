@@ -4,7 +4,7 @@ import type { UseFormReturn } from 'react-hook-form';
 import Input, { TextArea } from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import PhoneOtpVerification from './PhoneOtpVerification';
-import type { RegistrationFormValues } from '@/lib/formSchema';
+import { REQUIRE_PHONE_VERIFICATION, type RegistrationFormValues } from '@/lib/formSchema';
 import { BusinessCategory, formatEnumLabel } from '@/lib/types';
 
 interface StepProps {
@@ -53,7 +53,7 @@ export default function StepBusinessInfo({ form, businessCategoryOptions }: Step
             error={errors.phone?.message}
             {...register('phone')}
           />
-          <PhoneOtpVerification form={form} />
+          {REQUIRE_PHONE_VERIFICATION && <PhoneOtpVerification form={form} />}
         </div>
         <Input
           label="WhatsApp Number"

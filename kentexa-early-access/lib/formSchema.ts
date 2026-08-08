@@ -3,6 +3,12 @@ import { AccountType, BusinessCategory } from './types';
 
 // Mirrors CreateRegistrationDto's validation rules on the backend exactly.
 
+// Flip to true once SMS delivery is reliable again (currently blocked pending
+// Tanzania Sender ID / TCRA registration — Africa's Talking accepts sends but
+// the carrier drops them silently). Must match REQUIRE_PHONE_VERIFICATION on
+// the backend (src/early-access/early-access.service.ts).
+export const REQUIRE_PHONE_VERIFICATION = false;
+
 const optionalEmail = z
   .string()
   .trim()
@@ -23,9 +29,9 @@ export const registrationFormSchema = z
     ownerName: z.string().trim().min(2, 'Owner name must be at least 2 characters'),
     businessName: z.string().trim().min(2, 'Business name must be at least 2 characters'),
     phone: z.string().trim().min(7, 'Phone number must be at least 7 characters'),
-    phoneVerified: z.boolean().refine((v) => v === true, {
-      message: 'Please verify your phone number',
-    }),
+    phoneVerified: REQUIRE_PHONE_VERIFICATION
+      ? z.boolean().refine((v) => v === true, { message: 'Please verify your phone number' })
+      : z.boolean().optional(),
     whatsapp: z.string().trim().optional().or(z.literal('')),
     email: optionalEmail,
     region: z.string().trim().min(1, 'Region is required'),
