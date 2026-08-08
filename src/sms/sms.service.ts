@@ -7,13 +7,17 @@ const AfricasTalking = require('africastalking');
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
   private readonly sms: any;
-  private readonly shortCode: string;
+  // Undefined unless AT_SHORTCODE is explicitly set to a Sender ID actually
+  // registered/approved on the Africa's Talking account — an unapproved
+  // sender ID makes AT silently reject every message ("InvalidSenderId"),
+  // so we only pass `from` when we have a real, configured value.
+  private readonly shortCode: string | undefined;
   private readonly isDev: boolean;
 
   constructor(private config: ConfigService) {
     const apiKey = config.get<string>('AT_API_KEY') || '';
     const username = config.get<string>('AT_USERNAME') || 'sandbox';
-    this.shortCode = config.get<string>('AT_SHORTCODE') || 'KenteXa';
+    this.shortCode = config.get<string>('AT_SHORTCODE') || undefined;
     this.isDev = config.get<string>('NODE_ENV') !== 'production';
 
     const at = AfricasTalking({ apiKey, username });
@@ -45,7 +49,7 @@ export class SmsService {
       const result = await this.sms.send({
         to: [formatted],
         message,
-        from: this.shortCode,
+        ...(this.shortCode ? { from: this.shortCode } : {}),
       });
 
       const recipient = result?.SMSMessageData?.Recipients?.[0];
