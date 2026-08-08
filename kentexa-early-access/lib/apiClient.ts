@@ -9,6 +9,7 @@ import type {
   Registration,
   RegistrationListFilters,
   RegistrationPayload,
+  RegionOption,
   UploadResponse,
 } from './types';
 
@@ -179,6 +180,10 @@ export function getCategories(): Promise<CategoriesResponse> {
 
 export function searchLocations(q: string): Promise<LocationSearchResult[]> {
   return request(`/locations/search?q=${encodeURIComponent(q)}`);
+}
+
+export function getRegions(): Promise<RegionOption[]> {
+  return request('/locations/regions');
 }
 
 export function sendPhoneOtp(phone: string): Promise<{ message: string; otpSent: boolean; devOtp?: string }> {

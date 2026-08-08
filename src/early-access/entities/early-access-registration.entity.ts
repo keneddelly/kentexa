@@ -136,7 +136,10 @@ export class EarlyAccessRegistration {
   wouldUseAi: boolean | null;
 
   // ── Category-specific ─────────────────────────────────────────────────
-  // transporter
+  // transporter — cargo capacity and route type are what actually
+  // differentiate a boda from a truck from a boat, not the vehicle label
+  // alone; coverageRegions ties into the same tz-location region list used
+  // elsewhere in the app instead of a free-text description.
   @Column({ type: 'varchar', length: 50, nullable: true })
   vehicleType: string | null;
 
@@ -146,6 +149,12 @@ export class EarlyAccessRegistration {
   @Column({ type: 'text', nullable: true })
   coverageAreas: string | null;
 
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  cargoCapacity: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  routeType: string | null;
+
   // seller
   @Column({ type: 'simple-array', nullable: true })
   currentSellingChannels: string[] | null;
@@ -153,12 +162,18 @@ export class EarlyAccessRegistration {
   @Column({ type: 'int', nullable: true })
   readyProductCount: number | null;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  priceRange: string | null;
+
   // service_provider
   @Column({ type: 'boolean', nullable: true })
   travelsToCustomer: boolean | null;
 
   @Column({ type: 'varchar', length: 100, nullable: true })
   currentBookingMethod: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  pricingModel: string | null;
 
   // agent
   @Column({ type: 'boolean', nullable: true })
@@ -169,6 +184,23 @@ export class EarlyAccessRegistration {
 
   @Column({ type: 'boolean', nullable: true })
   canHandleCashCollection: boolean | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  agentType: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  dailyCapacity: string | null;
+
+  // shared across transporter / service_provider / agent
+  @Column({ type: 'simple-array', nullable: true })
+  coverageRegions: string[] | null;
+
+  // shared across business / seller
+  @Column({ type: 'boolean', nullable: true })
+  needsDeliverySupport: boolean | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  employeeCount: string | null;
 
   // ── Admin workflow ────────────────────────────────────────────────────
   @Index()

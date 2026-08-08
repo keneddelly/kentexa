@@ -214,6 +214,86 @@ const dict = {
   vehicle_car: { en: 'Car', sw: 'Gari' },
   vehicle_van_pickup: { en: 'Van / Pickup', sw: 'Van / Pikapu' },
   vehicle_truck: { en: 'Truck', sw: 'Lori' },
+  vehicle_boat_ferry: { en: 'Boat / Ferry', sw: 'Mashua / Kivuko' },
+
+  cargo_capacity_label: {
+    en: 'How much cargo can you carry?',
+    sw: 'Unaweza kubeba mzigo kiasi gani?',
+  },
+  cargo_capacity_placeholder: { en: 'Select capacity', sw: 'Chagua uwezo' },
+  cargo_capacity_up_to_50kg: { en: 'Up to 50kg', sw: 'Hadi kilo 50' },
+  cargo_capacity_50_500kg: { en: '50kg – 500kg', sw: 'Kilo 50 – 500' },
+  cargo_capacity_500kg_2t: { en: '500kg – 2 tons', sw: 'Kilo 500 – tani 2' },
+  cargo_capacity_2t_10t: { en: '2 – 10 tons', sw: 'Tani 2 – 10' },
+  cargo_capacity_10t_plus: { en: '10+ tons', sw: 'Zaidi ya tani 10' },
+
+  route_type_label: {
+    en: 'Do you operate within one city, between cities, or both?',
+    sw: 'Unafanya kazi ndani ya jiji moja, kati ya miji, au vyote?',
+  },
+  route_type_placeholder: { en: 'Select route type', sw: 'Chagua aina ya njia' },
+  route_type_intra_city: { en: 'Within one city/town only', sw: 'Ndani ya jiji/mji mmoja tu' },
+  route_type_intercity: { en: 'Between cities/regions only', sw: 'Kati ya miji/mikoa tu' },
+  route_type_both: { en: 'Both', sw: 'Vyote viwili' },
+
+  coverage_regions_label: {
+    en: 'Which regions do you cover?',
+    sw: 'Unahudumia mikoa gani?',
+  },
+
+  price_range_label: { en: 'What price range are your products?', sw: 'Bidhaa zako ziko katika bei gani?' },
+  price_range_placeholder: { en: 'Select price range', sw: 'Chagua kiwango cha bei' },
+  price_range_budget: { en: 'Budget', sw: 'Bei nafuu' },
+  price_range_mid_range: { en: 'Mid-range', sw: 'Bei ya kati' },
+  price_range_premium: { en: 'Premium', sw: 'Bei ya juu' },
+
+  needs_delivery_support_label: {
+    en: 'Do you need help with delivery to customers?',
+    sw: 'Unahitaji msaada wa kusafirisha bidhaa kwa wateja?',
+  },
+
+  employee_count_label: { en: 'How many people work in your business?', sw: 'Watu wangapi wanafanya kazi katika biashara yako?' },
+  employee_count_placeholder: { en: 'Select team size', sw: 'Chagua ukubwa wa timu' },
+  employee_count_just_me: { en: 'Just me', sw: 'Mimi tu' },
+  employee_count_2_5: { en: '2 – 5 people', sw: 'Watu 2 – 5' },
+  employee_count_6_20: { en: '6 – 20 people', sw: 'Watu 6 – 20' },
+  employee_count_20_plus: { en: '20+ people', sw: 'Zaidi ya watu 20' },
+
+  booking_method_multi_label: {
+    en: 'How do customers currently book you? (select all that apply)',
+    sw: 'Kwa sasa wateja hukupangiaje huduma? (chagua zote zinazohusika)',
+  },
+  booking_method_phone_call: { en: 'Phone call', sw: 'Simu' },
+  booking_method_whatsapp: { en: 'WhatsApp', sw: 'WhatsApp' },
+  booking_method_walk_in: { en: 'Walk-in', sw: 'Kuja moja kwa moja' },
+  booking_method_social_media: { en: 'Social media', sw: 'Mitandao ya kijamii' },
+  booking_method_booking_app: { en: 'Booking app', sw: 'Programu ya kupanga huduma' },
+  booking_method_select_placeholder: { en: 'Select booking method', sw: 'Chagua njia ya kupanga' },
+
+  pricing_model_label: { en: 'How do you price your services?', sw: 'Unawekaje bei za huduma zako?' },
+  pricing_model_placeholder: { en: 'Select pricing model', sw: 'Chagua mfumo wa bei' },
+  pricing_model_fixed: { en: 'Fixed price', sw: 'Bei maalum' },
+  pricing_model_hourly: { en: 'Hourly rate', sw: 'Kwa saa' },
+  pricing_model_quote: { en: 'Quote-based (depends on job)', sw: 'Kwa makadirio (kutegemea kazi)' },
+
+  agent_type_label: {
+    en: 'What type of agent are you?',
+    sw: 'Wewe ni wakala wa aina gani?',
+  },
+  agent_type_placeholder: { en: 'Select agent type', sw: 'Chagua aina ya wakala' },
+  agent_type_pickup_point: { en: 'Pickup point (customers collect here)', sw: 'Kituo cha kuchukulia (wateja huchukua hapa)' },
+  agent_type_dropoff_hub: { en: 'Drop-off hub (customers drop off here)', sw: 'Kituo cha kuachia (wateja huachia hapa)' },
+  agent_type_both: { en: 'Both', sw: 'Vyote viwili' },
+
+  daily_capacity_label: {
+    en: 'How many parcels could you handle per day?',
+    sw: 'Unaweza kushughulikia vifurushi vingapi kwa siku?',
+  },
+  daily_capacity_placeholder: { en: 'Select daily capacity', sw: 'Chagua uwezo wa kila siku' },
+  daily_capacity_up_to_10: { en: 'Up to 10', sw: 'Hadi 10' },
+  daily_capacity_10_50: { en: '10 – 50', sw: '10 – 50' },
+  daily_capacity_50_200: { en: '50 – 200', sw: '50 – 200' },
+  daily_capacity_200_plus: { en: '200+', sw: 'Zaidi ya 200' },
   has_license_label: { en: 'Do you have a valid driving license?', sw: 'Una leseni halali ya udereva?' },
   coverage_areas_label: {
     en: 'Which routes or areas do you currently cover?',
@@ -303,6 +383,15 @@ const dict = {
   review_has_physical_location: { en: 'Has Physical Location', sw: 'Ana Eneo Halisi' },
   review_operating_hours: { en: 'Operating Hours', sw: 'Muda wa Kufanya Kazi' },
   review_cash_collection: { en: 'Can Handle Cash Collection', sw: 'Anaweza Kukusanya Fedha' },
+  review_cargo_capacity: { en: 'Cargo Capacity', sw: 'Uwezo wa Mzigo' },
+  review_route_type: { en: 'Route Type', sw: 'Aina ya Njia' },
+  review_price_range: { en: 'Price Range', sw: 'Kiwango cha Bei' },
+  review_needs_delivery_support: { en: 'Needs Delivery Support', sw: 'Anahitaji Msaada wa Usafirishaji' },
+  review_employee_count: { en: 'Team Size', sw: 'Ukubwa wa Timu' },
+  review_pricing_model: { en: 'Pricing Model', sw: 'Mfumo wa Bei' },
+  review_agent_type: { en: 'Agent Type', sw: 'Aina ya Wakala' },
+  review_daily_capacity: { en: 'Daily Capacity', sw: 'Uwezo wa Kila Siku' },
+  review_coverage_regions: { en: 'Coverage Regions', sw: 'Mikoa Inayohudumiwa' },
   consent_label: {
     en: 'I agree to be contacted before my profile is published.',
     sw: 'Nakubali kuwasiliana nami kabla ya wasifu wangu kuchapishwa.',
@@ -345,6 +434,14 @@ const dict = {
     sw: 'Tafadhali weka kiungo sahihi (jumuisha https://)',
   },
   err_vehicle_type: { en: 'Please select your vehicle type', sw: 'Tafadhali chagua aina ya gari lako' },
+  err_cargo_capacity: {
+    en: 'Please select how much cargo you can carry',
+    sw: 'Tafadhali chagua kiasi cha mzigo unachoweza kubeba',
+  },
+  err_route_type: {
+    en: 'Please select your route type',
+    sw: 'Tafadhali chagua aina ya njia unayotumia',
+  },
   err_booking_method: {
     en: 'Please tell us how customers currently book you',
     sw: 'Tafadhali tuambie jinsi wateja wanavyokupangia huduma kwa sasa',

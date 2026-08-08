@@ -232,9 +232,13 @@ export default function AdminRegistrationDetailPage() {
                 label="Has License"
                 value={registration.hasLicense === true ? 'Yes' : registration.hasLicense === false ? 'No' : undefined}
               />
-              <Field label="Coverage Areas" value={registration.coverageAreas} />
+              <Field label="Cargo Capacity" value={registration.cargoCapacity} />
+              <Field label="Route Type" value={registration.routeType} />
+              <Field label="Coverage Regions" value={registration.coverageRegions?.join(', ')} />
+              <Field label="Coverage Areas (notes)" value={registration.coverageAreas} />
               <Field label="Selling Channels" value={registration.currentSellingChannels?.join(', ')} />
               <Field label="Ready Product Count" value={registration.readyProductCount} />
+              <Field label="Price Range" value={registration.priceRange} />
               <Field
                 label="Travels To Customer"
                 value={
@@ -246,6 +250,7 @@ export default function AdminRegistrationDetailPage() {
                 }
               />
               <Field label="Booking Method" value={registration.currentBookingMethod} />
+              <Field label="Pricing Model" value={registration.pricingModel} />
               <Field
                 label="Has Physical Location"
                 value={
@@ -257,12 +262,25 @@ export default function AdminRegistrationDetailPage() {
                 }
               />
               <Field label="Operating Hours" value={registration.operatingHours} />
+              <Field label="Agent Type" value={registration.agentType} />
+              <Field label="Daily Capacity" value={registration.dailyCapacity} />
               <Field
                 label="Can Handle Cash Collection"
                 value={
                   registration.canHandleCashCollection === true
                     ? 'Yes'
                     : registration.canHandleCashCollection === false
+                      ? 'No'
+                      : undefined
+                }
+              />
+              <Field label="Employee Count" value={registration.employeeCount} />
+              <Field
+                label="Needs Delivery Support"
+                value={
+                  registration.needsDeliverySupport === true
+                    ? 'Yes'
+                    : registration.needsDeliverySupport === false
                       ? 'No'
                       : undefined
                 }

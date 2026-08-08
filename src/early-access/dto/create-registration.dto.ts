@@ -145,6 +145,16 @@ export class CreateRegistrationDto {
   @IsString()
   coverageAreas?: string;
 
+  @ValidateIf((o) => o.accountType === AccountType.TRANSPORTER)
+  @IsOptional()
+  @IsString()
+  cargoCapacity?: string;
+
+  @ValidateIf((o) => o.accountType === AccountType.TRANSPORTER)
+  @IsOptional()
+  @IsString()
+  routeType?: string;
+
   // seller
   @ValidateIf((o) => o.accountType === AccountType.SELLER)
   @IsOptional()
@@ -158,6 +168,11 @@ export class CreateRegistrationDto {
   @Min(0)
   readyProductCount?: number;
 
+  @ValidateIf((o) => o.accountType === AccountType.SELLER)
+  @IsOptional()
+  @IsString()
+  priceRange?: string;
+
   // service_provider
   @ValidateIf((o) => o.accountType === AccountType.SERVICE_PROVIDER)
   @IsOptional()
@@ -168,6 +183,11 @@ export class CreateRegistrationDto {
   @IsOptional()
   @IsString()
   currentBookingMethod?: string;
+
+  @ValidateIf((o) => o.accountType === AccountType.SERVICE_PROVIDER)
+  @IsOptional()
+  @IsString()
+  pricingModel?: string;
 
   // agent
   @ValidateIf((o) => o.accountType === AccountType.AGENT)
@@ -184,4 +204,41 @@ export class CreateRegistrationDto {
   @IsOptional()
   @IsBoolean()
   canHandleCashCollection?: boolean;
+
+  @ValidateIf((o) => o.accountType === AccountType.AGENT)
+  @IsOptional()
+  @IsString()
+  agentType?: string;
+
+  @ValidateIf((o) => o.accountType === AccountType.AGENT)
+  @IsOptional()
+  @IsString()
+  dailyCapacity?: string;
+
+  // shared across transporter / service_provider / agent
+  @ValidateIf(
+    (o) =>
+      o.accountType === AccountType.TRANSPORTER ||
+      o.accountType === AccountType.SERVICE_PROVIDER ||
+      o.accountType === AccountType.AGENT,
+  )
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  coverageRegions?: string[];
+
+  // shared across business / seller
+  @ValidateIf(
+    (o) => o.accountType === AccountType.BUSINESS || o.accountType === AccountType.SELLER,
+  )
+  @IsOptional()
+  @IsBoolean()
+  needsDeliverySupport?: boolean;
+
+  @ValidateIf(
+    (o) => o.accountType === AccountType.BUSINESS || o.accountType === AccountType.SELLER,
+  )
+  @IsOptional()
+  @IsString()
+  employeeCount?: string;
 }

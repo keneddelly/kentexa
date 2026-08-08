@@ -76,20 +76,53 @@ export default function StepReview({ form, onSubmit, isSubmitting }: StepProps) 
         />
         <ReviewRow label={t('review_biggest_challenge')} value={values.biggestChallenge} />
         <ReviewRow label={t('review_vehicle_type')} value={values.vehicleType} />
+        <ReviewRow
+          label={t('review_cargo_capacity')}
+          value={values.cargoCapacity ? t(`cargo_capacity_${values.cargoCapacity}`) : undefined}
+        />
+        <ReviewRow
+          label={t('review_route_type')}
+          value={values.routeType ? t(`route_type_${values.routeType}`) : undefined}
+        />
         <ReviewRow label={t('review_has_license')} value={yesNo(values.hasLicense)} />
+        <ReviewRow label={t('review_coverage_regions')} value={values.coverageRegions?.join(', ')} />
         <ReviewRow label={t('review_coverage_areas')} value={values.coverageAreas} />
         <ReviewRow label={t('review_selling_channels')} value={values.currentSellingChannels?.join(', ')} />
         <ReviewRow label={t('review_ready_product_count')} value={values.readyProductCount} />
+        <ReviewRow
+          label={t('review_price_range')}
+          value={values.priceRange ? t(`price_range_${values.priceRange}`) : undefined}
+        />
         <ReviewRow label={t('review_travels_to_customer')} value={yesNo(values.travelsToCustomer)} />
         <ReviewRow label={t('review_booking_method')} value={values.currentBookingMethod} />
+        <ReviewRow
+          label={t('review_pricing_model')}
+          value={values.pricingModel ? t(`pricing_model_${values.pricingModel}`) : undefined}
+        />
         <ReviewRow
           label={t('review_has_physical_location')}
           value={yesNo(values.hasPhysicalLocation)}
         />
         <ReviewRow label={t('review_operating_hours')} value={values.operatingHours} />
         <ReviewRow
+          label={t('review_agent_type')}
+          value={values.agentType ? t(`agent_type_${values.agentType}`) : undefined}
+        />
+        <ReviewRow
+          label={t('review_daily_capacity')}
+          value={values.dailyCapacity ? t(`daily_capacity_${values.dailyCapacity}`) : undefined}
+        />
+        <ReviewRow
           label={t('review_cash_collection')}
           value={yesNo(values.canHandleCashCollection)}
+        />
+        <ReviewRow
+          label={t('review_employee_count')}
+          value={values.employeeCount ? t(`employee_count_${values.employeeCount}`) : undefined}
+        />
+        <ReviewRow
+          label={t('review_needs_delivery_support')}
+          value={yesNo(values.needsDeliverySupport)}
         />
       </div>
 

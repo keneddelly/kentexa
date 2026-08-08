@@ -51,16 +51,26 @@ function toPayload(values: RegistrationFormValues): RegistrationPayload {
     vehicleType: emptyToUndefined(values.vehicleType),
     hasLicense: values.hasLicense,
     coverageAreas: emptyToUndefined(values.coverageAreas),
+    cargoCapacity: emptyToUndefined(values.cargoCapacity),
+    routeType: emptyToUndefined(values.routeType),
     currentSellingChannels:
       values.currentSellingChannels && values.currentSellingChannels.length > 0
         ? values.currentSellingChannels
         : undefined,
     readyProductCount: values.readyProductCount,
+    priceRange: emptyToUndefined(values.priceRange),
     travelsToCustomer: values.travelsToCustomer,
     currentBookingMethod: emptyToUndefined(values.currentBookingMethod),
+    pricingModel: emptyToUndefined(values.pricingModel),
     hasPhysicalLocation: values.hasPhysicalLocation,
     operatingHours: emptyToUndefined(values.operatingHours),
     canHandleCashCollection: values.canHandleCashCollection,
+    agentType: emptyToUndefined(values.agentType),
+    dailyCapacity: emptyToUndefined(values.dailyCapacity),
+    coverageRegions:
+      values.coverageRegions && values.coverageRegions.length > 0 ? values.coverageRegions : undefined,
+    needsDeliverySupport: values.needsDeliverySupport,
+    employeeCount: emptyToUndefined(values.employeeCount),
   };
 }
 

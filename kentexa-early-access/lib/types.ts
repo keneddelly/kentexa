@@ -53,7 +53,48 @@ export const ONLINE_PLATFORM_OPTIONS = [
   'None',
 ] as const;
 
-export const VEHICLE_TYPE_OPTIONS = ['Boda (motorcycle)', 'Bajaji', 'Car', 'Van / Pickup', 'Truck'] as const;
+export const VEHICLE_TYPE_OPTIONS = [
+  'Boda (motorcycle)',
+  'Bajaji',
+  'Car',
+  'Van / Pickup',
+  'Truck',
+  'Boat / Ferry',
+] as const;
+
+export const CARGO_CAPACITY_OPTIONS = [
+  'up_to_50kg',
+  '50_500kg',
+  '500kg_2t',
+  '2t_10t',
+  '10t_plus',
+] as const;
+
+export const ROUTE_TYPE_OPTIONS = ['intra_city', 'intercity', 'both'] as const;
+
+export const PRICE_RANGE_OPTIONS = ['budget', 'mid_range', 'premium'] as const;
+
+export const PRICING_MODEL_OPTIONS = ['fixed', 'hourly', 'quote'] as const;
+
+export const AGENT_TYPE_OPTIONS = ['pickup_point', 'dropoff_hub', 'both'] as const;
+
+export const DAILY_CAPACITY_OPTIONS = ['up_to_10', '10_50', '50_200', '200_plus'] as const;
+
+export const EMPLOYEE_COUNT_OPTIONS = ['just_me', '2_5', '6_20', '20_plus'] as const;
+
+export const BOOKING_METHOD_OPTIONS = [
+  'Phone call',
+  'WhatsApp',
+  'Walk-in',
+  'Social media',
+  'Booking app',
+] as const;
+
+export interface RegionOption {
+  id: number;
+  name: string;
+  nameSw: string;
+}
 
 export interface RegistrationPayload {
   accountType: AccountType;
@@ -84,16 +125,27 @@ export interface RegistrationPayload {
   vehicleType?: string;
   hasLicense?: boolean;
   coverageAreas?: string;
+  cargoCapacity?: string;
+  routeType?: string;
   // seller
   currentSellingChannels?: string[];
   readyProductCount?: number;
+  priceRange?: string;
   // service_provider
   travelsToCustomer?: boolean;
   currentBookingMethod?: string;
+  pricingModel?: string;
   // agent
   hasPhysicalLocation?: boolean;
   operatingHours?: string;
   canHandleCashCollection?: boolean;
+  agentType?: string;
+  dailyCapacity?: string;
+  // shared: transporter / service_provider / agent
+  coverageRegions?: string[];
+  // shared: business / seller
+  needsDeliverySupport?: boolean;
+  employeeCount?: string;
 }
 
 /** A single result from GET /locations/search — ward, district, or region level. */
