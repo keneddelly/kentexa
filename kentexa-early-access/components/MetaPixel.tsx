@@ -2,10 +2,10 @@
 
 import Script from 'next/script';
 
-// Set NEXT_PUBLIC_META_PIXEL_ID on Render (kentexa-early-access service,
-// Environment tab) to your real Pixel ID from Meta Events Manager. Renders
-// nothing when unset, so it's safe to leave out entirely in dev/staging.
-const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+// Pixel IDs aren't secrets — they're meant to sit in public page source, so
+// baking in the real default here is fine (unlike an API key). Overridable
+// via NEXT_PUBLIC_META_PIXEL_ID on Render if the Pixel ever changes.
+const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID || '2121808898594408';
 
 export default function MetaPixel() {
   if (!PIXEL_ID) return null;
