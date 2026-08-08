@@ -4,7 +4,7 @@ import { Controller, type UseFormReturn } from 'react-hook-form';
 import Checkbox from '@/components/ui/Checkbox';
 import Button from '@/components/ui/Button';
 import type { RegistrationFormValues } from '@/lib/formSchema';
-import { formatEnumLabel } from '@/lib/types';
+import { useLanguage } from '@/lib/i18n';
 
 interface StepProps {
   form: UseFormReturn<RegistrationFormValues>;
@@ -23,6 +23,7 @@ function ReviewRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export default function StepReview({ form, onSubmit, isSubmitting }: StepProps) {
+  const { t } = useLanguage();
   const {
     watch,
     control,
@@ -30,69 +31,65 @@ export default function StepReview({ form, onSubmit, isSubmitting }: StepProps) 
   } = form;
   const values = watch();
 
+  const yesNo = (v: boolean | undefined) => (v === true ? t('yes') : v === false ? t('no') : undefined);
+
   return (
     <div>
-      <h2 className="mb-1 text-xl font-semibold text-gray-900 dark:text-white">Review your details</h2>
-      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        Please check everything looks right before submitting.
-      </p>
+      <h2 className="mb-1 text-xl font-semibold text-gray-900 dark:text-white">{t('review_heading')}</h2>
+      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">{t('review_subtitle')}</p>
 
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-        <ReviewRow label="Account Type" value={values.accountType && formatEnumLabel(values.accountType)} />
-        <ReviewRow label="Owner Name" value={values.ownerName} />
-        <ReviewRow label="Business Name" value={values.businessName} />
-        <ReviewRow label="Phone" value={values.phone} />
-        <ReviewRow label="WhatsApp" value={values.whatsapp} />
-        <ReviewRow label="Email" value={values.email} />
         <ReviewRow
-          label="Category"
-          value={values.businessCategory && formatEnumLabel(values.businessCategory)}
+          label={t('review_account_type')}
+          value={values.accountType && t(`account_type_${values.accountType}`)}
         />
-        <ReviewRow label="Description" value={values.businessDescription} />
-        <ReviewRow label="Products / Services" value={values.productsOrServices} />
-        <ReviewRow label="Years in Business" value={values.yearsInBusiness} />
+        <ReviewRow label={t('review_owner_name')} value={values.ownerName} />
+        <ReviewRow label={t('review_business_name')} value={values.businessName} />
+        <ReviewRow label={t('review_phone')} value={values.phone} />
+        <ReviewRow label={t('review_whatsapp')} value={values.whatsapp} />
+        <ReviewRow label={t('review_email')} value={values.email} />
         <ReviewRow
-          label="Location"
+          label={t('review_category')}
+          value={values.businessCategory && t(`business_category_${values.businessCategory}`)}
+        />
+        <ReviewRow label={t('review_description')} value={values.businessDescription} />
+        <ReviewRow label={t('review_products_services')} value={values.productsOrServices} />
+        <ReviewRow label={t('review_years_in_business')} value={values.yearsInBusiness} />
+        <ReviewRow
+          label={t('review_location')}
           value={[values.ward, values.district, values.region].filter(Boolean).join(', ')}
         />
-        <ReviewRow label="Website" value={values.website} />
-        <ReviewRow label="Facebook" value={values.facebook} />
-        <ReviewRow label="Instagram" value={values.instagram} />
-        <ReviewRow label="TikTok" value={values.tiktok} />
-        <ReviewRow label="Logo" value={values.logoUrl ? 'Uploaded' : undefined} />
-        <ReviewRow label="Cover Image" value={values.coverImageUrl ? 'Uploaded' : undefined} />
+        <ReviewRow label={t('review_website')} value={values.website} />
+        <ReviewRow label={t('review_facebook')} value={values.facebook} />
+        <ReviewRow label={t('review_instagram')} value={values.instagram} />
+        <ReviewRow label={t('review_tiktok')} value={values.tiktok} />
+        <ReviewRow label={t('review_logo')} value={values.logoUrl ? t('review_uploaded') : undefined} />
         <ReviewRow
-          label="Photos"
-          value={values.photoUrls?.length ? `${values.photoUrls.length} uploaded` : undefined}
+          label={t('review_cover_image')}
+          value={values.coverImageUrl ? t('review_uploaded') : undefined}
         />
-        <ReviewRow label="Biggest Challenge" value={values.biggestChallenge} />
-        <ReviewRow label="Vehicle Type" value={values.vehicleType} />
         <ReviewRow
-          label="Has License"
-          value={values.hasLicense === true ? 'Yes' : values.hasLicense === false ? 'No' : undefined}
-        />
-        <ReviewRow label="Coverage Areas" value={values.coverageAreas} />
-        <ReviewRow label="Selling Channels" value={values.currentSellingChannels?.join(', ')} />
-        <ReviewRow label="Ready Product Count" value={values.readyProductCount} />
-        <ReviewRow
-          label="Travels To Customer"
-          value={values.travelsToCustomer === true ? 'Yes' : values.travelsToCustomer === false ? 'No' : undefined}
-        />
-        <ReviewRow label="Booking Method" value={values.currentBookingMethod} />
-        <ReviewRow
-          label="Has Physical Location"
-          value={values.hasPhysicalLocation === true ? 'Yes' : values.hasPhysicalLocation === false ? 'No' : undefined}
-        />
-        <ReviewRow label="Operating Hours" value={values.operatingHours} />
-        <ReviewRow
-          label="Can Handle Cash Collection"
+          label={t('review_photos')}
           value={
-            values.canHandleCashCollection === true
-              ? 'Yes'
-              : values.canHandleCashCollection === false
-                ? 'No'
-                : undefined
+            values.photoUrls?.length ? t('review_n_uploaded', { n: values.photoUrls.length }) : undefined
           }
+        />
+        <ReviewRow label={t('review_biggest_challenge')} value={values.biggestChallenge} />
+        <ReviewRow label={t('review_vehicle_type')} value={values.vehicleType} />
+        <ReviewRow label={t('review_has_license')} value={yesNo(values.hasLicense)} />
+        <ReviewRow label={t('review_coverage_areas')} value={values.coverageAreas} />
+        <ReviewRow label={t('review_selling_channels')} value={values.currentSellingChannels?.join(', ')} />
+        <ReviewRow label={t('review_ready_product_count')} value={values.readyProductCount} />
+        <ReviewRow label={t('review_travels_to_customer')} value={yesNo(values.travelsToCustomer)} />
+        <ReviewRow label={t('review_booking_method')} value={values.currentBookingMethod} />
+        <ReviewRow
+          label={t('review_has_physical_location')}
+          value={yesNo(values.hasPhysicalLocation)}
+        />
+        <ReviewRow label={t('review_operating_hours')} value={values.operatingHours} />
+        <ReviewRow
+          label={t('review_cash_collection')}
+          value={yesNo(values.canHandleCashCollection)}
         />
       </div>
 
@@ -102,10 +99,10 @@ export default function StepReview({ form, onSubmit, isSubmitting }: StepProps) 
           control={control}
           render={({ field }) => (
             <Checkbox
-              label="I agree to be contacted before my profile is published."
+              label={t('consent_label')}
               checked={field.value === true}
               onChange={(e) => field.onChange(e.target.checked)}
-              error={errors.consentToContact?.message as string | undefined}
+              error={errors.consentToContact?.message ? t(errors.consentToContact.message as string) : undefined}
               required
             />
           )}
@@ -120,7 +117,7 @@ export default function StepReview({ form, onSubmit, isSubmitting }: StepProps) 
         onClick={onSubmit}
         isLoading={isSubmitting}
       >
-        Submit Registration
+        {t('submit_registration')}
       </Button>
     </div>
   );

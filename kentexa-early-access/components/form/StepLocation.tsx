@@ -4,12 +4,14 @@ import type { UseFormReturn } from 'react-hook-form';
 import Input from '@/components/ui/Input';
 import LocationCombobox from './LocationCombobox';
 import type { RegistrationFormValues } from '@/lib/formSchema';
+import { useLanguage } from '@/lib/i18n';
 
 interface StepProps {
   form: UseFormReturn<RegistrationFormValues>;
 }
 
 export default function StepLocation({ form }: StepProps) {
+  const { t } = useLanguage();
   const {
     register,
     formState: { errors },
@@ -17,28 +19,24 @@ export default function StepLocation({ form }: StepProps) {
 
   return (
     <div>
-      <h2 className="mb-1 text-xl font-semibold text-gray-900 dark:text-white">Where are you located?</h2>
-      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        We use this to connect you with nearby customers.
-      </p>
+      <h2 className="mb-1 text-xl font-semibold text-gray-900 dark:text-white">{t('location_heading')}</h2>
+      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">{t('location_subtitle')}</p>
 
       <LocationCombobox form={form} />
       {(errors.region || errors.district) && (
         <p className="mt-2 text-xs text-red-500">
-          {errors.region?.message || errors.district?.message}
+          {t((errors.region?.message || errors.district?.message) as string)}
         </p>
       )}
 
       <div className="mt-6 rounded-lg border border-dashed border-gray-300 p-4 dark:border-gray-600">
         <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-200">
-          Pinpoint coordinates (optional)
+          {t('coordinates_heading')}
         </p>
-        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-          Filled in automatically once you pick an area above. Only edit these if you need to correct them.
-        </p>
+        <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">{t('coordinates_subtitle')}</p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
-            label="Latitude"
+            label={t('latitude_label')}
             type="number"
             step="any"
             placeholder="e.g. -6.7924"
@@ -46,7 +44,7 @@ export default function StepLocation({ form }: StepProps) {
             {...register('latitude', { valueAsNumber: true })}
           />
           <Input
-            label="Longitude"
+            label={t('longitude_label')}
             type="number"
             step="any"
             placeholder="e.g. 39.2083"

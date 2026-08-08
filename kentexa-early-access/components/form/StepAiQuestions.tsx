@@ -6,12 +6,31 @@ import Input, { TextArea } from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import type { RegistrationFormValues } from '@/lib/formSchema';
 import { AccountType, ONLINE_PLATFORM_OPTIONS, VEHICLE_TYPE_OPTIONS } from '@/lib/types';
+import { useLanguage } from '@/lib/i18n';
 
 interface StepProps {
   form: UseFormReturn<RegistrationFormValues>;
 }
 
 const OTHER_PREFIX = 'Other: ';
+
+const PLATFORM_KEYS: Record<(typeof ONLINE_PLATFORM_OPTIONS)[number], string> = {
+  Facebook: 'platform_facebook',
+  Instagram: 'platform_instagram',
+  WhatsApp: 'platform_whatsapp',
+  Google: 'platform_google',
+  'Word of mouth': 'platform_word_of_mouth',
+  TikTok: 'platform_tiktok',
+  None: 'platform_none',
+};
+
+const VEHICLE_KEYS: Record<(typeof VEHICLE_TYPE_OPTIONS)[number], string> = {
+  'Boda (motorcycle)': 'vehicle_boda',
+  Bajaji: 'vehicle_bajaji',
+  Car: 'vehicle_car',
+  'Van / Pickup': 'vehicle_van_pickup',
+  Truck: 'vehicle_truck',
+};
 
 function YesNoToggle({
   value,
@@ -20,11 +39,12 @@ function YesNoToggle({
   value: boolean | undefined;
   onChange: (v: boolean) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div className="flex gap-2">
       {[
-        { key: true, label: 'Yes' },
-        { key: false, label: 'No' },
+        { key: true, label: t('yes') },
+        { key: false, label: t('no') },
       ].map((opt) => (
         <button
           key={String(opt.key)}
@@ -45,36 +65,33 @@ function YesNoToggle({
 }
 
 export default function StepAiQuestions({ form }: StepProps) {
+  const { t } = useLanguage();
   const { register, control, watch, formState: { errors } } = form;
   const [otherText, setOtherText] = useState('');
   const accountType = watch('accountType');
 
   return (
     <div>
-      <h2 className="mb-1 text-xl font-semibold text-gray-900 dark:text-white">Tell us more</h2>
-      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">
-        A couple of quick questions specific to how you'll use Kentexa.
-      </p>
+      <h2 className="mb-1 text-xl font-semibold text-gray-900 dark:text-white">
+        {t('tell_us_more_heading')}
+      </h2>
+      <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">{t('tell_us_more_subtitle')}</p>
 
       <div className="flex flex-col gap-6">
-        <TextArea
-          label="What is the biggest challenge you face in your business?"
-          rows={3}
-          {...register('biggestChallenge')}
-        />
+        <TextArea label={t('biggest_challenge_label')} rows={3} {...register('biggestChallenge')} />
 
         {accountType === AccountType.TRANSPORTER && (
           <>
             <Select
-              label="What vehicle do you use?"
-              placeholder="Select a vehicle type"
-              options={VEHICLE_TYPE_OPTIONS.map((v) => ({ value: v, label: v }))}
-              error={errors.vehicleType?.message}
+              label={t('vehicle_type_label')}
+              placeholder={t('vehicle_type_placeholder')}
+              options={VEHICLE_TYPE_OPTIONS.map((v) => ({ value: v, label: t(VEHICLE_KEYS[v]) }))}
+              error={errors.vehicleType?.message ? t(errors.vehicleType.message) : undefined}
               {...register('vehicleType')}
             />
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Do you have a valid driving license?
+                {t('has_license_label')}
               </label>
               <Controller
                 name="hasLicense"
@@ -85,8 +102,8 @@ export default function StepAiQuestions({ form }: StepProps) {
               />
             </div>
             <TextArea
-              label="Which routes or areas do you currently cover?"
-              placeholder="e.g. Kinondoni to Ilala, city-wide, or specific routes"
+              label={t('coverage_areas_label')}
+              placeholder={t('coverage_areas_placeholder')}
               rows={2}
               {...register('coverageAreas')}
             />
@@ -97,7 +114,7 @@ export default function StepAiQuestions({ form }: StepProps) {
           <>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Where do you currently sell?
+                {t('selling_channels_label')}
               </label>
               <Controller
                 name="currentSellingChannels"
@@ -126,13 +143,13 @@ export default function StepAiQuestions({ form }: StepProps) {
                               onChange={() => toggle(option)}
                               className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary-light dark:border-gray-600"
                             />
-                            {option}
+                            {t(PLATFORM_KEYS[option])}
                           </label>
                         ))}
                       </div>
                       <Input
-                        label="Other (optional)"
-                        placeholder="Any other channel you sell through"
+                        label={t('other_optional_label')}
+                        placeholder={t('other_channel_placeholder')}
                         value={otherText}
                         onChange={(e) => {
                           const text = e.target.value;
@@ -147,11 +164,11 @@ export default function StepAiQuestions({ form }: StepProps) {
               />
             </div>
             <Input
-              label="How many products do you have ready to list?"
+              label={t('ready_product_count_label')}
               type="number"
               min={0}
-              placeholder="e.g. 12"
-              error={errors.readyProductCount?.message}
+              placeholder={t('ready_product_count_placeholder')}
+              error={errors.readyProductCount?.message ? t(errors.readyProductCount.message) : undefined}
               {...register('readyProductCount', { valueAsNumber: true })}
             />
           </>
@@ -161,7 +178,7 @@ export default function StepAiQuestions({ form }: StepProps) {
           <>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Do you travel to customers, or do they come to you?
+                {t('travels_to_customer_label')}
               </label>
               <Controller
                 name="travelsToCustomer"
@@ -172,9 +189,9 @@ export default function StepAiQuestions({ form }: StepProps) {
               />
             </div>
             <Input
-              label="How do customers currently book you?"
-              placeholder="e.g. Phone call, WhatsApp, walk-in"
-              error={errors.currentBookingMethod?.message}
+              label={t('booking_method_label')}
+              placeholder={t('booking_method_placeholder')}
+              error={errors.currentBookingMethod?.message ? t(errors.currentBookingMethod.message) : undefined}
               {...register('currentBookingMethod')}
             />
           </>
@@ -184,7 +201,7 @@ export default function StepAiQuestions({ form }: StepProps) {
           <>
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Do you have a physical shop or location customers can visit?
+                {t('has_physical_location_label')}
               </label>
               <Controller
                 name="hasPhysicalLocation"
@@ -195,13 +212,13 @@ export default function StepAiQuestions({ form }: StepProps) {
               />
             </div>
             <Input
-              label="What are your operating hours?"
-              placeholder="e.g. Mon–Sat, 8am–7pm"
+              label={t('operating_hours_label')}
+              placeholder={t('operating_hours_placeholder')}
               {...register('operatingHours')}
             />
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-200">
-                Would you be able to handle cash collection on behalf of Kentexa?
+                {t('cash_collection_label')}
               </label>
               <Controller
                 name="canHandleCashCollection"

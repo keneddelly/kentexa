@@ -9,39 +9,43 @@ import { AccountType, BusinessCategory } from './types';
 // the backend (src/early-access/early-access.service.ts).
 export const REQUIRE_PHONE_VERIFICATION = false;
 
+// Values here are translation KEYS (see lib/i18n.ts), not display text — each
+// component resolves the actual message via t(errors.field?.message) at
+// render time, so validation text follows the current language.
+
 const optionalEmail = z
   .string()
   .trim()
-  .email('Please enter a valid email address')
+  .email('err_email')
   .optional()
   .or(z.literal(''));
 
 const optionalUrl = z
   .string()
   .trim()
-  .url('Please enter a valid URL (include https://)')
+  .url('err_url')
   .optional()
   .or(z.literal(''));
 
 export const registrationFormSchema = z
   .object({
-    accountType: z.nativeEnum(AccountType, { required_error: 'Please select an account type' }),
-    ownerName: z.string().trim().min(2, 'Owner name must be at least 2 characters'),
-    businessName: z.string().trim().min(2, 'Business name must be at least 2 characters'),
-    phone: z.string().trim().min(7, 'Phone number must be at least 7 characters'),
+    accountType: z.nativeEnum(AccountType, { required_error: 'err_account_type' }),
+    ownerName: z.string().trim().min(2, 'err_owner_name'),
+    businessName: z.string().trim().min(2, 'err_business_name'),
+    phone: z.string().trim().min(7, 'err_phone'),
     phoneVerified: REQUIRE_PHONE_VERIFICATION
-      ? z.boolean().refine((v) => v === true, { message: 'Please verify your phone number' })
+      ? z.boolean().refine((v) => v === true, { message: 'err_phone_verify' })
       : z.boolean().optional(),
     whatsapp: z.string().trim().optional().or(z.literal('')),
     email: optionalEmail,
-    region: z.string().trim().min(1, 'Region is required'),
-    district: z.string().trim().min(1, 'District is required'),
+    region: z.string().trim().min(1, 'err_region'),
+    district: z.string().trim().min(1, 'err_district'),
     ward: z.string().trim().optional().or(z.literal('')),
-    businessCategory: z.nativeEnum(BusinessCategory, { required_error: 'Please select a business category' }),
-    businessDescription: z.string().trim().min(10, 'Please describe your business in at least 10 characters'),
-    productsOrServices: z.string().trim().min(3, 'Please list your products or services (min 3 characters)'),
+    businessCategory: z.nativeEnum(BusinessCategory, { required_error: 'err_business_category' }),
+    businessDescription: z.string().trim().min(10, 'err_business_description'),
+    productsOrServices: z.string().trim().min(3, 'err_products_services'),
     yearsInBusiness: z
-      .union([z.number().int().min(0, 'Must be 0 or more'), z.nan()])
+      .union([z.number().int().min(0, 'err_must_be_zero_or_more'), z.nan()])
       .optional()
       .transform((v) => (v === undefined || Number.isNaN(v) ? undefined : v)),
     website: optionalUrl,
@@ -67,7 +71,7 @@ export const registrationFormSchema = z
     // seller
     currentSellingChannels: z.array(z.string()).optional(),
     readyProductCount: z
-      .union([z.number().int().min(0, 'Must be 0 or more'), z.nan()])
+      .union([z.number().int().min(0, 'err_must_be_zero_or_more'), z.nan()])
       .optional()
       .transform((v) => (v === undefined || Number.isNaN(v) ? undefined : v)),
     // service_provider
@@ -78,7 +82,7 @@ export const registrationFormSchema = z
     operatingHours: z.string().trim().optional().or(z.literal('')),
     canHandleCashCollection: z.boolean().optional(),
     consentToContact: z.literal(true, {
-      errorMap: () => ({ message: 'You must agree to be contacted before your profile is published' }),
+      errorMap: () => ({ message: 'err_consent' }),
     }),
   })
   // Soft-required category-specific nudges — mirrors the backend's @ValidateIf,
@@ -89,14 +93,14 @@ export const registrationFormSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['vehicleType'],
-        message: 'Please select your vehicle type',
+        message: 'err_vehicle_type',
       });
     }
     if (data.accountType === AccountType.SERVICE_PROVIDER && !data.currentBookingMethod) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['currentBookingMethod'],
-        message: 'Please tell us how customers currently book you',
+        message: 'err_booking_method',
       });
     }
   });

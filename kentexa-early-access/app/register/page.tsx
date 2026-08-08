@@ -17,6 +17,8 @@ import StepOnlinePresence from '@/components/form/StepOnlinePresence';
 import StepMedia from '@/components/form/StepMedia';
 import StepAiQuestions from '@/components/form/StepAiQuestions';
 import StepReview from '@/components/form/StepReview';
+import LanguageToggle from '@/components/LanguageToggle';
+import { useLanguage } from '@/lib/i18n';
 
 function toPayload(values: RegistrationFormValues): RegistrationPayload {
   const emptyToUndefined = (v?: string) => (v && v.trim() !== '' ? v : undefined);
@@ -64,6 +66,7 @@ function toPayload(values: RegistrationFormValues): RegistrationPayload {
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const { form, step, goNext, goBack, goToStep, isFirstStep, isLastStep } = useRegistrationForm();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [accountTypeOptions, setAccountTypeOptions] = useState<string[]>([]);
@@ -83,7 +86,7 @@ export default function RegisterPage() {
   const handleSubmit = async () => {
     const valid = await form.trigger();
     if (!valid) {
-      toast.error('Please review the highlighted fields before submitting.');
+      toast.error(t('toast_review_fields'));
       return;
     }
     setIsSubmitting(true);
@@ -94,12 +97,12 @@ export default function RegisterPage() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.statusCode === 429) {
-          toast.error('Too many registration attempts. Please try again later.');
+          toast.error(t('toast_too_many_attempts'));
         } else {
           err.messages.forEach((m) => toast.error(m));
         }
       } else {
-        toast.error('Something went wrong. Please try again.');
+        toast.error(t('toast_generic_error'));
       }
     } finally {
       setIsSubmitting(false);
@@ -109,12 +112,15 @@ export default function RegisterPage() {
   return (
     <main className="min-h-screen bg-gray-50 py-10 dark:bg-gray-900">
       <div className="mx-auto max-w-2xl px-4">
-        <Link
-          href="/"
-          className="mb-6 inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary-light"
-        >
-          ← Back to home
-        </Link>
+        <div className="mb-6 flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary-light"
+          >
+            {t('back_to_home')}
+          </Link>
+          <LanguageToggle />
+        </div>
 
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-8">
           <FormProgressBar step={step} onStepClick={goToStep} />
@@ -132,23 +138,23 @@ export default function RegisterPage() {
           {!isLastStep && (
             <div className="mt-8 flex justify-between">
               <Button type="button" variant="outline" onClick={goBack} disabled={isFirstStep}>
-                Back
+                {t('back')}
               </Button>
               <Button type="button" onClick={goNext}>
-                Next
+                {t('next')}
               </Button>
             </div>
           )}
           {isLastStep && (
             <div className="mt-4 flex justify-start">
               <Button type="button" variant="outline" onClick={goBack} disabled={isSubmitting}>
-                Back
+                {t('back')}
               </Button>
             </div>
           )}
         </div>
         <p className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
-          {step + 1} of {TOTAL_STEPS} steps
+          {t('step_x_of_y', { step: step + 1, total: TOTAL_STEPS })}
         </p>
       </div>
     </main>

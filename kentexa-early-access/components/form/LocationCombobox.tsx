@@ -7,18 +7,20 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { searchLocations } from '@/lib/apiClient';
 import type { RegistrationFormValues } from '@/lib/formSchema';
 import type { LocationSearchResult } from '@/lib/types';
+import { useLanguage } from '@/lib/i18n';
 
 interface Props {
   form: UseFormReturn<RegistrationFormValues>;
 }
 
-const TYPE_LABEL: Record<LocationSearchResult['type'], string> = {
-  ward: 'Ward',
-  district: 'District',
-  region: 'Region',
+const TYPE_LABEL_KEY: Record<LocationSearchResult['type'], string> = {
+  ward: 'location_type_ward',
+  district: 'location_type_district',
+  region: 'location_type_region',
 };
 
 export default function LocationCombobox({ form }: Props) {
+  const { t } = useLanguage();
   const { setValue, watch } = form;
   const region = watch('region');
   const district = watch('district');
@@ -109,9 +111,9 @@ export default function LocationCombobox({ form }: Props) {
   return (
     <div ref={containerRef} className="relative">
       <Input
-        label="Area"
+        label={t('location_area_label')}
         required
-        placeholder="Start typing your area, e.g. Bunju, Kinondoni, or Dar es Salaam"
+        placeholder={t('location_area_placeholder')}
         value={query}
         readOnly={hasSelection}
         onChange={(e) => {
@@ -121,11 +123,7 @@ export default function LocationCombobox({ form }: Props) {
         }}
         onFocus={() => !hasSelection && setIsOpen(true)}
         onKeyDown={onKeyDown}
-        hint={
-          hasSelection
-            ? undefined
-            : 'Try a smaller area first — if nothing matches, search the region name instead'
-        }
+        hint={hasSelection ? undefined : t('location_area_hint')}
       />
 
       {hasSelection && (
@@ -134,14 +132,16 @@ export default function LocationCombobox({ form }: Props) {
           onClick={clearSelection}
           className="absolute right-3 top-9 text-xs font-medium text-primary hover:underline dark:text-primary-light"
         >
-          Change
+          {t('location_change')}
         </button>
       )}
 
       {isOpen && !hasSelection && (isLoading || results.length > 0) && (
         <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
           {isLoading && (
-            <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">Searching…</div>
+            <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
+              {t('location_searching')}
+            </div>
           )}
           {!isLoading &&
             results.map((result, i) => (
@@ -159,7 +159,7 @@ export default function LocationCombobox({ form }: Props) {
               >
                 <span className="text-gray-800 dark:text-gray-100">{result.fullAddress}</span>
                 <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-400">
-                  {TYPE_LABEL[result.type]}
+                  {t(TYPE_LABEL_KEY[result.type])}
                 </span>
               </button>
             ))}

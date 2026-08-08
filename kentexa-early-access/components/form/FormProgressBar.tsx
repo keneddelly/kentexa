@@ -1,6 +1,7 @@
 'use client';
 
 import { STEP_LABELS, TOTAL_STEPS } from '@/hooks/useRegistrationForm';
+import { useLanguage } from '@/lib/i18n';
 
 interface FormProgressBarProps {
   step: number;
@@ -8,13 +9,12 @@ interface FormProgressBarProps {
 }
 
 export default function FormProgressBar({ step, onStepClick }: FormProgressBarProps) {
+  const { t } = useLanguage();
   return (
     <div className="mb-8">
       <div className="mb-2 flex items-center justify-between text-sm font-medium text-gray-500 dark:text-gray-400">
-        <span>
-          Step {step + 1} of {TOTAL_STEPS}
-        </span>
-        <span className="hidden sm:inline">{STEP_LABELS[step]}</span>
+        <span>{t('step_x_of_y', { step: step + 1, total: TOTAL_STEPS })}</span>
+        <span className="hidden sm:inline">{t(STEP_LABELS[step])}</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
         <div
@@ -38,7 +38,7 @@ export default function FormProgressBar({ step, onStepClick }: FormProgressBarPr
                   : 'cursor-not-allowed text-gray-300 dark:text-gray-600',
             ].join(' ')}
           >
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>

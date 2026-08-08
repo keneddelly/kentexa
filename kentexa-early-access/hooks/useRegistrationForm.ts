@@ -9,14 +9,16 @@ import {
   type RegistrationFormValues,
 } from '@/lib/formSchema';
 
+// Translation keys (see lib/i18n.ts), not display text — FormProgressBar
+// resolves the actual label via t(key) so it follows the current language.
 export const STEP_LABELS = [
-  'Account Type',
-  'Business Info',
-  'Location',
-  'Online Presence',
-  'Media',
-  'Tell us more',
-  'Review & Submit',
+  'step_label_account_type',
+  'step_label_business_info',
+  'step_label_location',
+  'step_label_online_presence',
+  'step_label_media',
+  'step_label_tell_us_more',
+  'step_label_review',
 ] as const;
 
 export const TOTAL_STEPS = STEP_LABELS.length;
