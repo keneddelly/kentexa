@@ -1,7 +1,13 @@
+'use client';
+
 import Link from 'next/link';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import LanguageToggle from '@/components/LanguageToggle';
+import { useLanguage } from '@/lib/i18n';
 
 export default function HeroSection() {
+  const { t } = useLanguage();
+
   return (
     <header className="relative overflow-hidden bg-gradient-to-b from-primary/5 via-white to-white dark:from-primary/10 dark:via-gray-900 dark:to-gray-900">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
@@ -11,28 +17,26 @@ export default function HeroSection() {
             href="/admin/login"
             className="text-sm font-medium text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary-light"
           >
-            Admin
+            {t('nav_admin')}
           </Link>
+          <LanguageToggle />
           <ThemeToggle />
         </div>
       </nav>
 
       <div className="mx-auto flex max-w-4xl flex-col items-center px-6 py-16 text-center sm:py-24">
         <span className="mb-4 inline-block rounded-full bg-accent/10 px-4 py-1 text-sm font-semibold text-accent">
-          Early Access — Tanzania
+          {t('hero_badge')}
         </span>
         <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl md:text-6xl">
-          Join Kentexa Before Launch
+          {t('hero_headline')}
         </h1>
-        <p className="mt-6 max-w-2xl text-lg text-gray-600 dark:text-gray-300">
-          Become one of the first businesses, service providers, transporters, and agents on
-          Tanzania&apos;s next AI-powered marketplace.
-        </p>
+        <p className="mt-6 max-w-2xl text-lg text-gray-600 dark:text-gray-300">{t('hero_sub')}</p>
         <Link
           href="/register"
           className="mt-8 inline-flex items-center justify-center rounded-lg bg-accent px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-accent/30 transition-transform hover:-translate-y-0.5 hover:bg-accent-dark"
         >
-          Register Free
+          {t('hero_cta')}
         </Link>
       </div>
     </header>

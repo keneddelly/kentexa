@@ -1,22 +1,28 @@
-const BENEFITS = [
-  'Free business profile',
-  'Early access to Kentexa',
-  'AI tools for your business',
-  'Reach more customers',
-  'Verified business badge',
-  'Future marketing opportunities',
-];
+'use client';
+
+import { useLanguage } from '@/lib/i18n';
+
+const BENEFIT_KEYS = [
+  'benefit_free_profile',
+  'benefit_early_access',
+  'benefit_ai_tools',
+  'benefit_reach',
+  'benefit_verified',
+  'benefit_marketing',
+] as const;
 
 export default function BenefitsGrid() {
+  const { t } = useLanguage();
+
   return (
     <section className="mx-auto max-w-6xl px-6 py-16">
       <h2 className="mb-10 text-center text-3xl font-bold text-gray-900 dark:text-white">
-        Why register early?
+        {t('benefits_heading')}
       </h2>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {BENEFITS.map((benefit) => (
+        {BENEFIT_KEYS.map((key) => (
           <div
-            key={benefit}
+            key={key}
             className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary dark:bg-primary-light/20 dark:text-primary-light">
@@ -28,7 +34,7 @@ export default function BenefitsGrid() {
                 />
               </svg>
             </span>
-            <span className="mt-1 font-medium text-gray-800 dark:text-gray-100">{benefit}</span>
+            <span className="mt-1 font-medium text-gray-800 dark:text-gray-100">{t(key)}</span>
           </div>
         ))}
       </div>

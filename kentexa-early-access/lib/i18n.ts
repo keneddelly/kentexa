@@ -7,6 +7,48 @@ export type Lang = 'en' | 'sw';
 const STORAGE_KEY = 'kentexa_ea_lang';
 
 const dict = {
+  // ── Landing page ──────────────────────────────────────────────────────
+  nav_admin: { en: 'Admin', sw: 'Msimamizi' },
+  hero_badge: { en: 'First Ever in Tanzania', sw: 'Kwa Mara ya Kwanza Tanzania' },
+  hero_headline: {
+    en: "Not a Marketplace. Your Business's Intelligence.",
+    sw: 'Sio Soko la Mtandaoni. Ni Akili ya Biashara Yako.',
+  },
+  hero_sub: {
+    en: 'Kentexa is an AI-powered business identity connecting sellers, transporters, service providers and agents — all of Tanzania.',
+    sw: 'Kentexa ni utambulisho wa kibiashara unaotumia AI, unaounganisha wauzaji, wasafirishaji, watoa huduma na wakala — Tanzania nzima.',
+  },
+  hero_cta: { en: 'Build Your Identity — Free', sw: 'Jenga Utambulisho Wako — Bure' },
+
+  benefits_heading: { en: 'Why register early?', sw: 'Kwa nini ujisajili mapema?' },
+  benefit_free_profile: { en: 'Free business profile', sw: 'Wasifu wa biashara bure' },
+  benefit_early_access: { en: 'Early access to Kentexa', sw: 'Ufikiaji wa mapema wa Kentexa' },
+  benefit_ai_tools: { en: 'AI tools for your business', sw: 'Zana za AI kwa biashara yako' },
+  benefit_reach: { en: 'Reach more customers', sw: 'Fikia wateja wengi zaidi' },
+  benefit_verified: { en: 'Verified business badge', sw: 'Alama ya biashara iliyothibitishwa' },
+  benefit_marketing: {
+    en: 'Future marketing opportunities',
+    sw: 'Fursa za uuzaji za baadaye',
+  },
+
+  stats_businesses: { en: 'Businesses Registered', sw: 'Biashara Zilizosajiliwa' },
+  stats_service_providers: { en: 'Service Providers', sw: 'Watoa Huduma' },
+  stats_transporters: { en: 'Transporters', sw: 'Wasafirishaji' },
+  stats_regions: { en: 'Regions Covered', sw: 'Mikoa Inayohudumiwa' },
+
+  cta_heading: { en: 'Ready to be first in line?', sw: 'Uko Tayari Kuwa wa Kwanza?' },
+  cta_sub: {
+    en: "Registration takes less than 5 minutes. Secure your spot in Kentexa's early access program today — completely free.",
+    sw: 'Usajili unachukua chini ya dakika 5. Hakikisha nafasi yako katika mpango wa Kentexa wa mapema leo — bure kabisa.',
+  },
+  cta_button: { en: 'Register Free', sw: 'Jisajili Bure' },
+
+  footer_rights: { en: 'All rights reserved.', sw: 'Haki zote zimehifadhiwa.' },
+  footer_tagline: {
+    en: "Made for Tanzania's businesses, service providers, transporters & agents.",
+    sw: 'Imetengenezwa kwa biashara, watoa huduma, wasafirishaji na mawakala wa Tanzania.',
+  },
+
   // ── Register page shell ──────────────────────────────────────────────
   back_to_home: { en: '← Back to home', sw: '← Rudi mwanzo' },
   step_x_of_y: { en: 'Step {step} of {total}', sw: 'Hatua ya {step} kati ya {total}' },
@@ -474,7 +516,7 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 export function useLanguageProviderValue(): LanguageContextValue {
-  const [lang, setLangState] = useState<Lang>('en');
+  const [lang, setLangState] = useState<Lang>('sw');
 
   useEffect(() => {
     try {
