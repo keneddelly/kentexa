@@ -38,6 +38,7 @@ import { BodaRatesModule } from './boda-rates/boda-rates.module';
 import { ContactModule } from './contact/contact.module';
 import { ServiceProvidersModule } from './service-providers/service-providers.module';
 import { EarlyAccessModule } from './early-access/early-access.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { EarlyAccessModule } from './early-access/early-access.module';
     ContactModule,
     ServiceProvidersModule,
     EarlyAccessModule,
+    SearchModule,
   ],
 })
 export class AppModule {}

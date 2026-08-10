@@ -44,6 +44,7 @@ const getTabs = t => [
   { key:'classifieds',label:t('search.tab_classifieds')  },
   { key:'products',   label:t('search.tab_products')    },
   { key:'services',   label:t('search.tab_services')     },
+  { key:'transport',  label:t('search.tab_transport')    },
 ];
 
 // ── Classified card ───────────────────────────────────────────────────────────
@@ -116,6 +117,53 @@ const ServiceCard = ({ item, onNavigate }) => {
           {(item.provider.reputationScore||0) > 0 && (
             <ReputationBadge score={item.provider.reputationScore} size="xs" />
           )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Transport provider card ─────────────────────────────────────────────────
+const TRANSPORT_ICONS = {
+  bus:'🚌', courier:'📦', van:'🚐', truck:'🚚', boda:'🏍️', rail:'🚆', air:'✈️', boat:'🛥️',
+};
+const TransportCard = ({ item, isLoggedIn, onNavigate }) => {
+  const { t } = useTranslation();
+  const contactHref = item.whatsappPhone
+    ? `https://wa.me/${item.whatsappPhone.replace(/[^0-9]/g,'')}`
+    : item.contactPhone ? `tel:${item.contactPhone}` : null;
+  return (
+    <div style={{ backgroundColor:WH, borderRadius:14, padding:14,
+      boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+        <div style={{ width:34, height:34, borderRadius:10, backgroundColor:'#EFF6FF',
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize:16,
+          overflow:'hidden', flexShrink:0 }}>
+          {item.logoUrl
+            ? <img src={item.logoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                onError={e => e.target.style.display='none'} />
+            : (TRANSPORT_ICONS[item.type] || '🚚')}
+        </div>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:13, fontWeight:800, color:DK,
+            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {item.name}
+          </div>
+          <div style={{ fontSize:10, color:GR, textTransform:'capitalize' }}>
+            {item.type}{item.rating > 0 ? ` · ⭐ ${item.rating.toFixed(1)}` : ''}
+          </div>
+        </div>
+      </div>
+      {contactHref ? (
+        <a href={contactHref} target="_blank" rel="noopener noreferrer"
+          onClick={e => { if (!isLoggedIn) { e.preventDefault(); onNavigate('PublicLogin'); } }}
+          style={{ display:'block', textAlign:'center', padding:'7px 0', borderRadius:8,
+            backgroundColor:B, color:WH, fontSize:11, fontWeight:800, textDecoration:'none' }}>
+          {t('search.transport_contact_button')}
+        </a>
+      ) : (
+        <div style={{ fontSize:10, color:GR, textAlign:'center' }}>
+          {t('search.transport_no_contact')}
         </div>
       )}
     </div>
@@ -204,7 +252,9 @@ const Section = ({ title, sub, action, onAction, children, hscroll }) => (
 );
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) => {
+const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', all: 'all' };
+
+const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIntent }) => {
   const { t } = useTranslation();
   const CATEGORIES = getCategories(t);
   const TABS = getTabs(t);
@@ -217,6 +267,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
   const [classifieds, setClassifieds] = useState([]);
   const [products,    setProducts]    = useState([]);
   const [services,    setServices]    = useState([]);
+  const [transports,  setTransports]  = useState([]);
+  const [transportNeedsCities, setTransportNeedsCities] = useState(false);
 
   // Featured / discover content (auto-loaded)
   const [featured,    setFeatured]    = useState([]);    // recent classifieds
@@ -242,8 +294,13 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
   }, []);
 
   // ── Auto-search if initialQuery provided ─────────────────────────────────
+  // aiIntent (from the homepage AI front door) skips the blind 3x-parallel
+  // search below and fetches only the classified domain, pre-filtered.
   useEffect(() => {
-    if (initialQuery) handleSearch(initialQuery);
+    if (initialQuery) {
+      if (aiIntent) handleAiSearch(initialQuery, aiIntent);
+      else handleSearch(initialQuery);
+    }
     inputRef.current?.focus();
   }, [initialQuery]); // eslint-disable-line
 
@@ -267,14 +324,81 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
     finally { setLoading(false); }
   }, [query]);
 
-  const total = classifieds.length + products.length + services.length;
+  // ── AI-routed search — one domain (or all, filtered) instead of three
+  // blind unfiltered calls. `intent` comes from GET /search/intent. ────────
+  const handleAiSearch = useCallback(async (q, intent) => {
+    const trimmed = (intent?.keywords || q || query).trim();
+    const tabForDomain = AI_DOMAIN_TO_TAB[intent?.domain] || 'all';
+    setLoading(true);
+    setSearched(true);
+    setTab(tabForDomain);
+    setClassifieds([]);
+    setProducts([]);
+    setServices([]);
+    setTransports([]);
+    setTransportNeedsCities(false);
 
+    // Transport is structured (from/to city), not a free-text match, so it
+    // never joins the "all" fan-out below — it only fires when the AI is
+    // confident enough to classify the query as transport specifically.
+    if (tabForDomain === 'transport') {
+      if (!intent?.fromCity || !intent?.toCity) {
+        setTransportNeedsCities(true);
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await api.get('/transport/search-public', {
+          params: { from: intent.fromCity, to: intent.toCity },
+        });
+        setTransports(res.data || []);
+      } catch {}
+      finally { setLoading(false); }
+      return;
+    }
+
+    if (!trimmed) { setLoading(false); return; }
+    const params = new URLSearchParams({ q: trimmed, limit: '20' });
+    if (intent?.category) params.set('category', intent.category);
+    if (intent?.minPrice != null) params.set('minPrice', String(intent.minPrice));
+    if (intent?.maxPrice != null) params.set('maxPrice', String(intent.maxPrice));
+
+    const domains = tabForDomain === 'all' ? ['classifieds', 'products', 'services'] : [tabForDomain];
+    try {
+      const results = await Promise.allSettled(
+        domains.map((d) => {
+          if (d === 'classifieds') return api.get(`/classifieds/search?${params}`);
+          if (d === 'products') return api.get(`/products/search?${params}`);
+          return api.get(`/services?${params}`); // filterable browse endpoint — supports q + category
+        }),
+      );
+      domains.forEach((d, i) => {
+        const res = results[i];
+        if (res.status !== 'fulfilled') return;
+        if (d === 'classifieds') setClassifieds(res.value.data?.classifieds || res.value.data || []);
+        else if (d === 'products') setProducts(res.value.data?.products || res.value.data || []);
+        else setServices(res.value.data?.ads || res.value.data || []);
+      });
+    } catch {}
+    finally { setLoading(false); }
+  }, [query]);
+
+  const total = classifieds.length + products.length + services.length + transports.length;
+
+  // Every item is tagged with _type so the render loop below picks the
+  // right card regardless of whether it came via a single-domain tab or
+  // the merged "all" list (previously only "all" items were tagged, which
+  // meant viewing the Products/Services tab directly rendered them as
+  // classified cards — fixed here since the AI front door routes straight
+  // into a single-domain tab).
   const tabItems = {
-    all:        [...classifieds, ...products.map(p => ({...p, _type:'product'})),
+    all:        [...classifieds.map(c => ({...c, _type:'classified'})),
+                 ...products.map(p => ({...p, _type:'product'})),
                  ...services.map(s => ({...s, _type:'service'}))],
-    classifieds: classifieds,
-    products:    products,
-    services:    services,
+    classifieds: classifieds.map(c => ({...c, _type:'classified'})),
+    products:    products.map(p => ({...p, _type:'product'})),
+    services:    services.map(s => ({...s, _type:'service'})),
+    transport:   transports.map(tr => ({...tr, _type:'transport'})),
   };
 
   return (
@@ -346,6 +470,16 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
                   <div style={{ fontSize:32, marginBottom:8 }}>🔍</div>
                   <div style={{ fontSize:13 }}>{t('search.searching', { query })}</div>
                 </div>
+              ) : transportNeedsCities ? (
+                <div style={{ textAlign:'center', padding:'60px 0' }}>
+                  <div style={{ fontSize:48, marginBottom:12 }}>🚚</div>
+                  <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
+                    {t('search.transport_needs_cities_title')}
+                  </div>
+                  <div style={{ fontSize:13, color:GR }}>
+                    {t('search.transport_needs_cities_desc')}
+                  </div>
+                </div>
               ) : total === 0 ? (
                 <div style={{ textAlign:'center', padding:'60px 0' }}>
                   <div style={{ fontSize:48, marginBottom:12 }}>🔍</div>
@@ -372,6 +506,12 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery }) =>
                     {(tab === 'all' ? tabItems.all : tabItems[tab]).map((item, i) => {
                       if (item._type === 'service') {
                         return <ServiceCard key={`s-${item.id}`} item={item} onNavigate={onNavigate} />;
+                      }
+                      if (item._type === 'transport') {
+                        return (
+                          <TransportCard key={`t-${item.id}`} item={item}
+                            isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
+                        );
                       }
                       if (item._type === 'product') {
                         return (

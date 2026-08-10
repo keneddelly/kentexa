@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AiCoreService } from '../ai/ai-core.service';
+import { AiService } from '../ai/ai.service';
 import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
 import { GenerateListingDto } from './dto/generate-listing.dto';
 
@@ -14,7 +14,7 @@ export interface GeneratedListing {
 @Injectable()
 export class AiListingService {
   constructor(
-    private aiCore: AiCoreService,
+    private aiService: AiService,
     private prompts: AiPromptTemplateService,
   ) {}
 
@@ -40,12 +40,15 @@ export class AiListingService {
         ? parts.join('\n')
         : 'No details provided — the seller has not entered anything yet.';
 
-    return this.aiCore.complete<GeneratedListing>({
-      workflow: 'product-listing',
-      template: this.prompts.productListingPrompt(),
-      user,
+    const template = this.prompts.productListingPrompt();
+    const result = await this.aiService.generate<GeneratedListing>({
+      task: 'product-listing',
+      prompt: user,
+      system: template.system,
+      schema: template.schema,
+      schemaName: template.schemaName,
       userId,
-      effort: 'medium',
     });
+    return result.data;
   }
 }

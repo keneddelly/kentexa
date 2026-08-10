@@ -5,6 +5,7 @@
  */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TransportProvider } from './entities/transport-provider.entity';
 import { TransportRoute } from './entities/transport-route.entity';
 import { ProviderAvailability } from './entities/provider-availability.entity';
@@ -18,6 +19,7 @@ import { ReputationModule } from '../reputation/reputation.module';
 @Module({
   imports: [
     ReputationModule,
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
     TypeOrmModule.forFeature([
       TransportProvider,
       TransportRoute,

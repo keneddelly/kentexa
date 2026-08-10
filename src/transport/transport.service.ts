@@ -16,6 +16,7 @@ import {
   TransportProvider,
   ProviderStatus,
   ConfirmMode,
+  ProviderType,
 } from './entities/transport-provider.entity';
 import { TransportRoute, RouteType } from './entities/transport-route.entity';
 import {
@@ -383,6 +384,39 @@ export class TransportService {
       .getMany();
 
     return { published, providers };
+  }
+
+  // ── PUBLIC CONSUMER SEARCH ───────────────────────────────────────────────
+  // Unlike findAvailableForRoute (super-agent dispatch — internal slot/
+  // capacity data), this returns a lean, consumer-safe card shape for the
+  // AI front door's "transport" domain. Reuses the same verified-providers
+  // query rather than duplicating it.
+  async findPublicProvidersForRoute(
+    fromCity: string,
+    toCity: string,
+  ): Promise<
+    {
+      id: number;
+      name: string;
+      type: ProviderType;
+      logoUrl: string | null;
+      rating: number;
+      contactPhone: string | null;
+      whatsappPhone: string | null;
+      cities: string[] | null;
+    }[]
+  > {
+    const { providers } = await this.findAvailableForRoute(fromCity, toCity);
+    return providers.map((p) => ({
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      logoUrl: p.logoUrl,
+      rating: Number(p.rating) || 0,
+      contactPhone: p.contactPhone,
+      whatsappPhone: p.whatsappPhone,
+      cities: p.cities,
+    }));
   }
 
   // ── TRANSPORT ASSIGNMENT ──────────────────────────────────────────────────

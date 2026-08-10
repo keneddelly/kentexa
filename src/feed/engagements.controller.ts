@@ -56,7 +56,7 @@ import {
   PurchaseVerificationService,
   AiSummaryProvider,
 } from './comment-support.service';
-import { AiCoreService } from '../ai/ai-core.service';
+import { AiService } from '../ai/ai.service';
 import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
@@ -432,7 +432,7 @@ export class CommentsController {
     private readonly notifService: InAppNotificationService,
     private readonly purchaseVerification: PurchaseVerificationService, // NEW
     private readonly aiSummaryProvider: AiSummaryProvider, // NEW
-    private readonly aiCore: AiCoreService, // NEW — Kentexa AI
+    private readonly aiService: AiService, // NEW — Kentexa AI
     private readonly aiPrompts: AiPromptTemplateService, // NEW — Kentexa AI
   ) {}
 
@@ -643,16 +643,18 @@ export class CommentsController {
     let moderationReason: string | null = null;
     if (dto.body?.trim()) {
       try {
-        const verdict = await this.aiCore.complete<{
+        const template = this.aiPrompts.moderationPrompt();
+        const result = await this.aiService.generate<{
           verdict: 'clean' | 'flagged' | 'blocked';
           reason: string;
         }>({
-          workflow: 'moderation',
-          template: this.aiPrompts.moderationPrompt(),
-          user: dto.body.trim(),
-          effort: 'low',
-          thinking: false,
+          task: 'moderation',
+          prompt: dto.body.trim(),
+          system: template.system,
+          schema: template.schema,
+          schemaName: template.schemaName,
         });
+        const verdict = result.data;
         moderationFlag = verdict.verdict;
         moderationReason = verdict.verdict === 'clean' ? null : verdict.reason;
         if (verdict.verdict === 'blocked') {
@@ -790,14 +792,16 @@ export class CommentsController {
       throw new BadRequestException('Comment has no text to reply to.');
     }
 
-    const result = await this.aiCore.complete<{ draftText: string }>({
-      workflow: 'reply-draft',
-      template: this.aiPrompts.replyDraftPrompt(),
-      user: parent.body.trim(),
+    const template = this.aiPrompts.replyDraftPrompt();
+    const result = await this.aiService.generate<{ draftText: string }>({
+      task: 'reply-draft',
+      prompt: parent.body.trim(),
+      system: template.system,
+      schema: template.schema,
+      schemaName: template.schemaName,
       userId: req.user.id,
-      effort: 'medium',
     });
-    return { draftText: result.draftText };
+    return { draftText: result.data.draftText };
   }
 
   // ── Helpful toggle — NEW ──────────────────────────────────────────────────

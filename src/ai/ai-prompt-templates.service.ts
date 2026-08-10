@@ -93,20 +93,33 @@ export class AiPromptTemplateService {
   searchParsePrompt(): PromptTemplate {
     return {
       system:
-        'You parse a natural-language shopping search query for the KenteXa marketplace ' +
-        '(Tanzania) into structured filters. Extract the core keywords to search for, and, only ' +
-        'if clearly stated or strongly implied, a category, minimum price, and maximum price ' +
-        '(in Tanzanian Shillings). Omit fields that are not present in the query rather than ' +
+        'You parse a natural-language search query for the KenteXa marketplace (Tanzania) ' +
+        'into structured filters. Classify which part of the marketplace it belongs to — ' +
+        '"product" (a physical item sold by a business/shop), "classified" (a secondhand/' +
+        'peer-to-peer item listing), "service" (a bookable service from a provider, e.g. a ' +
+        'plumber, tutor, or repair technician), "transport" (moving people or cargo between ' +
+        'two cities — a transporter, courier, bus, or truck), or "all" if it is ambiguous or ' +
+        'could span multiple. Then extract the core keywords to search for, and, only if ' +
+        'clearly stated or strongly implied: a category, minimum price, and maximum price ' +
+        '(in Tanzanian Shillings) for product/classified/service queries; or fromCity and ' +
+        'toCity for transport queries — expand common shorthand to the full city name (e.g. ' +
+        '"Dar" → "Dar es Salaam"). Omit fields that are not present in the query rather than ' +
         'guessing.',
       schema: {
         type: 'object',
         properties: {
+          domain: {
+            type: 'string',
+            enum: ['product', 'classified', 'service', 'transport', 'all'],
+          },
           keywords: { type: 'string' },
           category: { type: ['string', 'null'] },
           minPrice: { type: ['number', 'null'] },
           maxPrice: { type: ['number', 'null'] },
+          fromCity: { type: ['string', 'null'] },
+          toCity: { type: ['string', 'null'] },
         },
-        required: ['keywords'],
+        required: ['domain', 'keywords'],
         additionalProperties: false,
       },
       schemaName: 'search_query_parse',

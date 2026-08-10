@@ -394,7 +394,7 @@ function App() {
       return requireLogin(<SellerInbox {...publicProps} initialCustomerId={null} sellerId={sellerId} />);
     }
     if (page.startsWith('Search-'))
-      return <Search {...publicProps} initialQuery={page.split('Search-')[1]} />;
+      return <Search {...publicProps} initialQuery={page.split('Search-')[1]} aiIntent={navParams?.aiIntent} />;
     if (page.startsWith('Category-'))
       return <CategoryPage {...publicProps} category={page.split('Category-')[1]} />;
     if (page === 'Listings')
@@ -428,7 +428,7 @@ function App() {
       case 'ClassifiedsPublic': return <ClassifiedsPublic {...publicProps} />;
       case 'PublicLogin':       return loginPage;
       case 'Register':          return <Register onNavigate={handleNavigate} onLoginSuccess={handleLoginSuccess} />;
-      case 'Search':            return <Search {...publicProps} />;
+      case 'Search':            return <Search {...publicProps} aiIntent={navParams?.aiIntent} />;
       case 'Cart':              return <Cart {...publicProps} />;
       case 'BecomeSeller':      return <BecomeSeller {...publicProps} />;
       case 'BecomeSellerInfo':  return <BecomeSellerInfo {...publicProps} />;

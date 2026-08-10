@@ -15,6 +15,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
+import AiSearchBar from '../components/AiSearchBar';
 import api             from '../../api/api';
 
 const B   = '#2563EB';
@@ -1417,6 +1418,11 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               </svg>
             </button>
           </div>
+        </div>
+
+        {/* AI front door — the primary way to find anything on Kentexa */}
+        <div style={{ padding:'8px 14px' }}>
+          <AiSearchBar onNavigate={onNavigate} />
         </div>
 
         {/* Feed filters */}

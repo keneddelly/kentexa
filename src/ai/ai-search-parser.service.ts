@@ -1,12 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { AiCoreService } from './ai-core.service';
+import { AiService } from './ai.service';
 import { AiPromptTemplateService } from './ai-prompt-templates.service';
 
+export type SearchDomain =
+  | 'product'
+  | 'classified'
+  | 'service'
+  | 'transport'
+  | 'all';
+
 export interface ParsedSearchQuery {
+  domain: SearchDomain;
   keywords: string;
   category?: string | null;
   minPrice?: number | null;
   maxPrice?: number | null;
+  fromCity?: string | null;
+  toCity?: string | null;
 }
 
 // Shared by ProductsModule and ClassifiedsModule — has no feature-specific
@@ -14,19 +24,20 @@ export interface ParsedSearchQuery {
 @Injectable()
 export class AiSearchParserService {
   constructor(
-    private aiCore: AiCoreService,
+    private aiService: AiService,
     private prompts: AiPromptTemplateService,
   ) {}
 
   async parse(query: string): Promise<ParsedSearchQuery> {
     const template = this.prompts.searchParsePrompt();
-    return this.aiCore.complete<ParsedSearchQuery>({
-      workflow: 'search-parse',
-      template,
-      user: query,
+    const result = await this.aiService.generate<ParsedSearchQuery>({
+      task: 'search-parse',
+      prompt: query,
+      system: template.system,
+      schema: template.schema,
+      schemaName: template.schemaName,
       cacheKey: `search-parse:${query.trim().toLowerCase()}`,
-      effort: 'low',
-      thinking: false,
     });
+    return result.data;
   }
 }

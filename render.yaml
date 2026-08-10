@@ -40,7 +40,29 @@ services:
       - key: AT_SHORTCODE
         sync: false
       - key: ANTHROPIC_API_KEY
-        sync: false # optional — only the Kentexa AI workflows need this; safe to leave unset for now
+        sync: false # optional — Kentexa AI "coding" tier + fallback-of-last-resort; safe to leave unset for now
+      - key: OPENAI_API_KEY
+        sync: false # optional — Kentexa AI "reasoning" tier. Unset means that tier falls back to whichever provider IS configured.
+      - key: DEEPSEEK_API_KEY
+        sync: false # optional — Kentexa AI "simple" tier (moderation, search, drafts, listings) — cheapest, recommended default
+      - key: QWEN_API_KEY
+        sync: false # optional — additional cheap-tier provider / fallback
+      - key: AI_SIMPLE_PROVIDER
+        value: deepseek # which provider handles simple tasks (moderation/search-parse/reply-draft/product-listing/summary)
+      - key: AI_SIMPLE_MODEL
+        value: deepseek-chat
+      - key: AI_REASONING_PROVIDER
+        value: openai
+      - key: AI_REASONING_MODEL
+        value: gpt-4o
+      - key: AI_CODING_PROVIDER
+        value: anthropic
+      - key: AI_CODING_MODEL
+        value: claude-opus-5
+      - key: AI_SIMPLE_FALLBACK_PROVIDER
+        value: qwen # optional per-tier fallback; falls back to any configured provider if unset
+      - key: AI_REQUEST_TIMEOUT_MS
+        value: "15000"
       - key: DB_HOST
         fromDatabase:
           name: kentexa-db

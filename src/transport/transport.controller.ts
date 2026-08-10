@@ -13,7 +13,9 @@ import {
   Request,
   UseGuards,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { TransportService } from './transport.service';
 import { AssignmentStatus } from './entities/transport-assignment.entity';
@@ -98,6 +100,19 @@ export class TransportController {
   @Get('available') // Public — used on homepage
   findAvailable(@Query('from') from: string, @Query('to') to: string) {
     return this.svc.findAvailableForRoute(from, to);
+  }
+
+  // ── PUBLIC: CONSUMER SEARCH (AI front door) ───────────────────────────────
+  // Lean, consumer-safe provider cards — not the dispatch-internal shape
+  // returned by /available above.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get('search-public')
+  findPublic(@Query('from') from: string, @Query('to') to: string) {
+    if (!from?.trim() || !to?.trim()) {
+      throw new BadRequestException('Both "from" and "to" city are required.');
+    }
+    return this.svc.findPublicProvidersForRoute(from.trim(), to.trim());
   }
 
   // ── ASSIGNMENTS ───────────────────────────────────────────────────────────

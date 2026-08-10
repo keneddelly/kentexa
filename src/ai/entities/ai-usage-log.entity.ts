@@ -5,16 +5,21 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 
-@Entity('ai_cost_log')
-export class AiCostLog {
+export type AiUsageStatus = 'success' | 'error' | 'fallback';
+
+@Entity('ai_usage_log')
+export class AiUsageLog {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ type: 'varchar', length: 40 })
-  workflow: string;
+  task: string;
 
   @Column({ type: 'int', nullable: true })
   userId: number | null;
+
+  @Column({ type: 'varchar', length: 20 })
+  provider: string;
 
   @Column({ type: 'varchar', length: 60 })
   model: string;
@@ -27,6 +32,15 @@ export class AiCostLog {
 
   @Column({ type: 'int', default: 0 })
   cacheReadTokens: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 6, default: 0 })
+  estimatedCost: number;
+
+  @Column({ type: 'int', default: 0 })
+  latencyMs: number;
+
+  @Column({ type: 'varchar', length: 10, default: 'success' })
+  status: AiUsageStatus;
 
   @CreateDateColumn()
   createdAt: Date;

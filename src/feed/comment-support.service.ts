@@ -11,7 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { PurchaseVerification } from './entities/post-comment.entity';
-import { AiCoreService } from '../ai/ai-core.service';
+import { AiService } from '../ai/ai.service';
 import { AiPromptTemplateService } from '../ai/ai-prompt-templates.service';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -49,12 +49,12 @@ export class PurchaseVerificationService {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// AI summary generation — wired to AiCoreService (Kentexa AI).
+// AI summary generation — wired to AiService (Kentexa AI).
 // ─────────────────────────────────────────────────────────────────────────
 @Injectable()
 export class AiSummaryProvider {
   constructor(
-    private aiCore: AiCoreService,
+    private aiService: AiService,
     private prompts: AiPromptTemplateService,
   ) {}
 
@@ -69,12 +69,13 @@ export class AiSummaryProvider {
     const user = `Product/listing: ${title}\n\nReviews:\n${reviewBodies
       .map((b, i) => `${i + 1}. ${b}`)
       .join('\n')}`;
-    const result = await this.aiCore.complete<{ summary: string }>({
-      workflow: 'summary',
-      template,
-      user,
-      effort: 'low',
+    const result = await this.aiService.generate<{ summary: string }>({
+      task: 'summary',
+      prompt: user,
+      system: template.system,
+      schema: template.schema,
+      schemaName: template.schemaName,
     });
-    return result.summary;
+    return result.data.summary;
   }
 }
