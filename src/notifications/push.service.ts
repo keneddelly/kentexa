@@ -81,8 +81,10 @@ export class PushService {
     );
   }
 
-  async unsubscribe(endpoint: string): Promise<void> {
-    await this.subRepo.delete({ endpoint });
+  // Scoped to the caller's own subscription — previously any authenticated
+  // user could unsubscribe *any* endpoint string, not just their own.
+  async unsubscribe(endpoint: string, userId: number): Promise<void> {
+    await this.subRepo.delete({ endpoint, userId });
   }
 
   // ── Send push to a specific user (all their devices) ──────────────────────

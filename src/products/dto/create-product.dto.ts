@@ -83,4 +83,17 @@ export class CreateProductDto {
   @IsNumber()
   @Min(0)
   weightKg?: number;
+
+  // Previously missing from this DTO — the global ValidationPipe's
+  // whitelist:true silently stripped both before the service ever saw
+  // them, so sellers could never actually set a custom boda fee or city
+  // even though bodaFee directly drives delivery-fee math in orders.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  bodaFee?: number;
+
+  @IsOptional()
+  @IsString()
+  sellerCity?: string;
 }

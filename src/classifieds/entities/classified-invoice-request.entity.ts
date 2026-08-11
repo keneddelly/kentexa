@@ -69,6 +69,22 @@ export class ClassifiedInvoiceRequest {
   @Column({ type: 'text', nullable: true })
   transactionReference: string | null;
 
+  // ── Set by setShippingMethod() once the seller picks a shipping method
+  // and the resulting Order is created — these previously had no matching
+  // column, so TypeORM silently dropped every write and the values only
+  // ever existed in that one API response.
+  @Column({ type: 'varchar', nullable: true })
+  shippingMethod: string | null;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  platformFee: number | null;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  sellerAmount: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  linkedOrderId: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { Product } from './entities/products.entity';
 import { ProductReview } from './entities/product-review.entity';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
@@ -137,19 +138,19 @@ export class ProductsService {
       displayPrice,
       stock: dto.stock || 0,
       category: dto.category || 'general',
-      subcategory: (dto as any).subcategory || null,
+      subcategory: dto.subcategory || null,
       model: dto.model || null,
-      specs: (dto as any).specs || null,
-      features: (dto as any).features || null,
+      specs: dto.specs || null,
+      features: dto.features || null,
       images: dto.images || [],
       isAvailable: dto.isAvailable ?? true,
       isActive: true,
       shippingMethod: dto.shippingMethod,
       estimatedDelivery: dto.estimatedDelivery || null,
       shippingNotes: dto.shippingNotes || null,
-      weightKg: (dto as any).weightKg || null,
-      bodaFee: Number((dto as any).bodaFee || 0),
-      sellerCity: (dto as any).sellerCity || 'Dar es Salaam',
+      weightKg: dto.weightKg || null,
+      bodaFee: Number(dto.bodaFee || 0),
+      sellerCity: dto.sellerCity || 'Dar es Salaam',
       seller: seller || null,
     } as any);
 
@@ -173,7 +174,7 @@ export class ProductsService {
 
   async update(
     id: number,
-    dto: Partial<CreateProductDto>,
+    dto: UpdateProductDto,
     user: User,
   ): Promise<Product> {
     const product = await this.findOne(id);
@@ -185,18 +186,15 @@ export class ProductsService {
     }
 
     // Recalculate displayPrice if pricing changed
-    const newBasePrice = Number((dto as any).basePrice ?? product.basePrice);
-    const newDeliveryFee = Number(
-      (dto as any).deliveryFee ?? product.deliveryFee,
-    );
-    if (
-      (dto as any).basePrice !== undefined ||
-      (dto as any).deliveryFee !== undefined
-    ) {
-      (dto as any).displayPrice = newBasePrice + newDeliveryFee;
-    }
+    const newBasePrice = Number(dto.basePrice ?? product.basePrice);
+    const newDeliveryFee = Number(dto.deliveryFee ?? product.deliveryFee);
+    const displayPriceChanged =
+      dto.basePrice !== undefined || dto.deliveryFee !== undefined;
 
     Object.assign(product, dto);
+    if (displayPriceChanged) {
+      product.displayPrice = newBasePrice + newDeliveryFee;
+    }
     return this.repo.save(product);
   }
 

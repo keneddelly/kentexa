@@ -63,11 +63,20 @@ export class ClickPesaService implements IPaymentProvider {
       };
     } catch (err) {
       this.logger.error('ClickPesa initiatePayment error', err);
-      // Fallback for dev/testing when API not yet configured
+      // Dev-only fallback so local/staging testing works without real
+      // credentials. In production an outage must surface as a failure, not
+      // a false "payment initiated" success.
+      if (process.env.NODE_ENV !== 'production') {
+        return {
+          success: true,
+          message: '[DEV] ClickPesa mock payment initiated',
+          providerRequestId: `CPESA-${Date.now()}`,
+        };
+      }
       return {
-        success: true,
-        message: '[DEV] ClickPesa mock payment initiated',
-        providerRequestId: `CPESA-${Date.now()}`,
+        success: false,
+        message: 'ClickPesa is temporarily unavailable. Please try again.',
+        providerRequestId: request.reference,
       };
     }
   }

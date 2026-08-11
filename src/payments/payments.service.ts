@@ -307,6 +307,28 @@ export class PaymentsService {
       throw new BadRequestException('This invoice has expired');
   }
 
+  // Invoice-based payments (customer/agent) don't have a single order row
+  // to check like initiatePayment() does, so this looks for a PENDING
+  // payment already carrying this invoice number in its metadata instead —
+  // without it, a double-tap fires two independent STK pushes for the same
+  // invoice.
+  private async assertNoPendingPaymentForInvoice(
+    invoiceNumber: string,
+  ): Promise<void> {
+    const existingPending = await this.paymentRepo
+      .createQueryBuilder('p')
+      .where('p.status = :status', { status: PaymentStatus.PENDING })
+      .andWhere('p.metadata LIKE :needle', {
+        needle: `%"invoiceNumber":"${invoiceNumber}"%`,
+      })
+      .getOne();
+    if (existingPending) {
+      throw new BadRequestException(
+        'A payment is already in progress for this invoice. Check your phone, or wait a moment before retrying.',
+      );
+    }
+  }
+
   private async recordAgentCommission(
     agentId: number,
     amount: number,
@@ -372,6 +394,18 @@ export class PaymentsService {
     if (!order) throw new NotFoundException('Order not found');
     if (order.paymentStatus === OrderPaymentStatus.PAID)
       throw new BadRequestException('Order already paid');
+
+    // A double-tap on "pay" (or a slow first STK push) previously fired a
+    // second, fully independent payment request for the same order — no
+    // check stopped it. This blocks a new one while one is still pending.
+    const existingPending = await this.paymentRepo.findOne({
+      where: { order: { id: order.id }, status: PaymentStatus.PENDING },
+    });
+    if (existingPending) {
+      throw new BadRequestException(
+        'A payment is already in progress for this order. Check your phone, or wait a moment before retrying.',
+      );
+    }
 
     const provider = this.getProvider(dto.provider);
     const reference = `KNT-ORD-${order.id}-${Date.now()}`;
@@ -503,6 +537,7 @@ export class PaymentsService {
       throw new BadRequestException('Phone number is required');
     const found = await this.lookupAnyInvoice(invoiceNumber);
     this.validatePayable(found);
+    await this.assertNoPendingPaymentForInvoice(invoiceNumber);
 
     const reference = `KNT-CUST-${found.invoiceId}-${Date.now()}`;
     const providerService = this.getProvider(provider);
@@ -586,6 +621,7 @@ export class PaymentsService {
 
     const found = await this.lookupAnyInvoice(invoiceNumber);
     this.validatePayable(found);
+    await this.assertNoPendingPaymentForInvoice(invoiceNumber);
     const reference = `KNT-AGT-${found.invoiceId}-${Date.now()}`;
     const providerService = this.getProvider(provider);
     const response = await providerService.initiatePayment({

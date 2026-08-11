@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
@@ -26,6 +27,7 @@ import { ProfileModule } from '../profile/profile.module';
     }),
     SmsModule,
     MailModule,
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 3600000, limit: 100 }]),
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],

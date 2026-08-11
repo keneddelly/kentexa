@@ -64,7 +64,7 @@ export class NotificationController {
   }
 
   @Delete('push/unsubscribe')
-  unsubscribe(@Body('endpoint') endpoint: string) {
-    return this.pushService.unsubscribe(endpoint);
+  unsubscribe(@Body('endpoint') endpoint: string, @Request() req) {
+    return this.pushService.unsubscribe(endpoint, req.user.id);
   }
 }

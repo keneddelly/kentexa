@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -120,7 +121,7 @@ export class ProductsController {
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: Partial<CreateProductDto>,
+    @Body() dto: UpdateProductDto,
     @Request() req,
   ) {
     return this.service.update(id, dto, req.user);

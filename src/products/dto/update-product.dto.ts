@@ -1,40 +1,9 @@
-import {
-  IsArray,
-  IsBoolean,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Min,
-} from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
+import { CreateProductDto } from './create-product.dto';
 
-export class UpdateProductDto {
-  @IsOptional()
-  @IsString()
-  name?: string;
-
-  @IsOptional()
-  @IsString()
-  description?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  price?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  stock?: number;
-
-  @IsOptional()
-  @IsString()
-  category?: string;
-
-  @IsOptional()
-  @IsArray()
-  images?: string[];
-
-  @IsOptional()
-  @IsBoolean()
-  isAvailable?: boolean;
-}
+// Every field from CreateProductDto, made optional, with the same
+// validation decorators preserved — derived automatically so this can't
+// drift out of sync the way the old hand-written version did (it was
+// missing basePrice, deliveryFee, subcategory, model, specs, features,
+// shippingMethod, estimatedDelivery, shippingNotes, and weightKg).
+export class UpdateProductDto extends PartialType(CreateProductDto) {}

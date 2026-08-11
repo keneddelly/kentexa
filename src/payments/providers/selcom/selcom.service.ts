@@ -100,11 +100,22 @@ export class SelcomService implements IPaymentProvider {
       };
     } catch (err) {
       this.logger.error('Selcom initiatePayment error', err);
-      // DEV fallback — remove when real credentials are configured
+      // Dev-only fallback so local/staging testing works without real
+      // credentials. In production a failed API call must surface as a
+      // failure — silently reporting success:true here previously meant a
+      // Selcom outage told every buyer their payment worked while nothing
+      // was ever charged.
+      if (process.env.NODE_ENV !== 'production') {
+        return {
+          success: true,
+          message: '[DEV] Selcom mock payment initiated',
+          providerRequestId: `SELCOM-${Date.now()}`,
+        };
+      }
       return {
-        success: true,
-        message: '[DEV] Selcom mock payment initiated',
-        providerRequestId: `SELCOM-${Date.now()}`,
+        success: false,
+        message: 'Selcom is temporarily unavailable. Please try again.',
+        providerRequestId: request.reference,
       };
     }
   }

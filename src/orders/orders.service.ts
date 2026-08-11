@@ -1579,7 +1579,7 @@ export class OrdersService {
     });
 
     // Mark order as rated so buyer can't double-rate
-    await this.repo.update(orderId, { sellerRated: true } as any);
+    await this.repo.update(orderId, { sellerRated: true });
 
     return {
       success: true,

@@ -18,6 +18,7 @@ import {
   EscrowStatus,
 } from '../orders/entities/order.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { SmsService } from '../sms/sms.service';
 
 @Injectable()
@@ -177,13 +178,20 @@ export class DisputesService {
     if (!dispute) throw new NotFoundException('Dispute not found');
     if (!arbitrator) throw new NotFoundException('User not found');
 
-    // Promote user to arbitrator role if not already
+    // Grant arbitrator as an additional role rather than overwriting the
+    // user's primary role — the previous version clobbered `role` directly,
+    // so assigning a seller as arbitrator silently stripped their seller
+    // access. Matches the pattern used by service-providers/transport for
+    // exactly this situation.
     if (
       arbitrator.role !== UserRole.ARBITRATOR &&
       arbitrator.role !== UserRole.ADMIN
     ) {
       await this.userRepo.update(arbitratorId, {
-        role: UserRole.ARBITRATOR,
+        activeRoles: mergeActiveRole(
+          arbitrator.activeRoles,
+          UserRole.ARBITRATOR,
+        ),
       });
     }
 

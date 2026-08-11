@@ -22,6 +22,7 @@ import {
   MessageType,
 } from './entities/conversation-message.entity';
 import { BusinessCustomer } from './entities/business-customer.entity';
+import { BusinessTeamMember } from './entities/business-team-member.entity';
 import { BusinessCustomerService } from './business-customer.service';
 import { User } from '../users/entities/user.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
@@ -35,6 +36,8 @@ export class ConversationService {
     private msgRepo: Repository<ConversationMessage>,
     @InjectRepository(BusinessCustomer)
     private customerRepo: Repository<BusinessCustomer>,
+    @InjectRepository(BusinessTeamMember)
+    private teamMemberRepo: Repository<BusinessTeamMember>,
     private customerService: BusinessCustomerService,
     private notifService: InAppNotificationService,
   ) {}
@@ -439,6 +442,18 @@ export class ConversationService {
       where: { id: conversationId, sellerId },
     });
     if (!convo) throw new NotFoundException('Conversation not found');
+
+    // Previously accepted any user ID with no check it was actually part
+    // of this seller's team.
+    const isTeamMember = await this.teamMemberRepo.findOne({
+      where: { sellerId, userId: assignedToId, isActive: true },
+    });
+    if (!isTeamMember) {
+      throw new BadRequestException(
+        'That user is not an active member of your team',
+      );
+    }
+
     convo.assignedToId = assignedToId;
 
     // System message

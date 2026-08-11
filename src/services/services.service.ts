@@ -255,6 +255,39 @@ export class ServicesService {
     return this.jobRepo.save(job);
   }
 
+  // Legal status transitions + which side of the job may make them. Without
+  // this, either party could set a job to any status — including a buyer
+  // marking COMPLETED without the provider ever starting the work, which
+  // inflated that provider's totalJobs stat for free.
+  private static readonly JOB_TRANSITIONS: Record<JobStatus, JobStatus[]> = {
+    [JobStatus.PENDING]: [
+      JobStatus.ACCEPTED,
+      JobStatus.DECLINED,
+      JobStatus.CANCELLED,
+    ],
+    [JobStatus.ACCEPTED]: [
+      JobStatus.IN_PROGRESS,
+      JobStatus.CANCELLED,
+      JobStatus.DISPUTED,
+    ],
+    [JobStatus.IN_PROGRESS]: [JobStatus.COMPLETED, JobStatus.DISPUTED],
+    [JobStatus.COMPLETED]: [JobStatus.DISPUTED],
+    [JobStatus.DECLINED]: [],
+    [JobStatus.CANCELLED]: [],
+    [JobStatus.DISPUTED]: [],
+  };
+
+  private static readonly PROVIDER_ONLY_STATUSES = new Set<JobStatus>([
+    JobStatus.ACCEPTED,
+    JobStatus.DECLINED,
+    JobStatus.IN_PROGRESS,
+    JobStatus.COMPLETED,
+  ]);
+
+  private static readonly BUYER_ONLY_STATUSES = new Set<JobStatus>([
+    JobStatus.CANCELLED,
+  ]);
+
   // Update job status
   async updateJobStatus(
     userId: number,
@@ -269,6 +302,25 @@ export class ServicesService {
       ],
     });
     if (!job) throw new NotFoundException('Kazi haijapatikana');
+
+    const isProvider = job.providerId === userId;
+    if (
+      ServicesService.PROVIDER_ONLY_STATUSES.has(status) &&
+      !isProvider
+    ) {
+      throw new BadRequestException(
+        'Only the provider can set this status',
+      );
+    }
+    if (ServicesService.BUYER_ONLY_STATUSES.has(status) && isProvider) {
+      throw new BadRequestException('Only the buyer can set this status');
+    }
+    const allowedNext = ServicesService.JOB_TRANSITIONS[job.status] || [];
+    if (!allowedNext.includes(status)) {
+      throw new BadRequestException(
+        `Cannot move job from ${job.status} to ${status}`,
+      );
+    }
 
     job.status = status;
     if (note) job.providerNote = note;

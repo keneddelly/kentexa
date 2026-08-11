@@ -168,6 +168,19 @@ export class Order {
   @Column({ type: 'text', nullable: true })
   trackingNumber: string | null;
 
+  // Set when this order was created from a paid classified invoice request
+  // (classifieds.service.ts setShippingMethod()) — lets you trace back to
+  // the originating ClassifiedInvoiceRequest row.
+  @Column({ type: 'int', nullable: true })
+  classifiedInvoiceId: number | null;
+
+  // Set once the buyer has left a seller review for this order (from either
+  // orders.service.ts rateSellerForOrder() or store.service.ts
+  // submitReview()) — previously written via an `as any` cast with no
+  // matching column on either side, so it silently never persisted at all.
+  @Column({ type: 'boolean', default: false })
+  sellerRated: boolean;
+
   @Column({ type: 'text', nullable: true })
   courierName: string | null;
 

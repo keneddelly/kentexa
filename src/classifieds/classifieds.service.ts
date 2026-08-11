@@ -581,7 +581,7 @@ export class ClassifiedsService {
         payoutStatus: 'pending',
         // Link back to the classified invoice
         classifiedInvoiceId: requestId,
-      } as any);
+      });
 
       const savedOrder = (await this.orderRepo.save(order)) as unknown as Order;
       orderId = savedOrder.id;
@@ -626,11 +626,11 @@ export class ClassifiedsService {
     }
 
     // Update the invoice request
-    (request as any).shippingMethod = data.shippingMethod;
+    request.shippingMethod = data.shippingMethod;
     if (data.notes) request.sellerNotes = data.notes;
-    (request as any).platformFee = platformFee;
-    (request as any).sellerAmount = sellerAmt;
-    (request as any).linkedOrderId = orderId;
+    request.platformFee = platformFee;
+    request.sellerAmount = sellerAmt;
+    request.linkedOrderId = orderId;
     await this.invoiceRequestRepo.save(request);
 
     return {

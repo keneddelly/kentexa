@@ -4,21 +4,49 @@
  */
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { Offer, OfferStatus } from './entities/offer.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 
 @Injectable()
 export class OffersService {
+  private readonly logger = new Logger(OffersService.name);
+
   constructor(
     @InjectRepository(Offer) private offerRepo: Repository<Offer>,
     @InjectRepository(Classified)
     private classifiedRepo: Repository<Classified>,
   ) {}
+
+  // OfferStatus.EXPIRED was declared and every offer got a 48h expiresAt,
+  // but nothing ever transitioned a stale offer to it — a buyer's first
+  // unanswered offer stayed PENDING forever, permanently blocking them from
+  // making a new one (see makeOffer()'s duplicate-pending check below).
+  // Mirrors invoices.service.ts's expireInvoices() cron.
+  @Cron(CronExpression.EVERY_HOUR)
+  async expireOffers() {
+    try {
+      const now = new Date();
+      const result = await this.offerRepo
+        .createQueryBuilder()
+        .update(Offer)
+        .set({ status: OfferStatus.EXPIRED })
+        .where('status = :status', { status: OfferStatus.PENDING })
+        .andWhere('"expiresAt" < :now', { now })
+        .execute();
+      if (result.affected && result.affected > 0) {
+        this.logger.log(`Auto-expired ${result.affected} offers`);
+      }
+    } catch (err) {
+      this.logger.error(`expireOffers failed: ${err.message}`);
+    }
+  }
 
   async makeOffer(
     buyerId: number,

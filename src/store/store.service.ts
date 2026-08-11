@@ -145,6 +145,14 @@ export class StoreService {
       reviewsCount: allReviews.length,
     });
 
+    // orders.service.ts's rateSellerForOrder() sets this same flag when a
+    // review comes through that path — without setting it here too, a
+    // review submitted via this endpoint left order.sellerRated false,
+    // so any "have you reviewed this order?" check keyed on it was wrong.
+    await this.orderRepo.update(dto.orderId, {
+      sellerRated: true,
+    });
+
     return { message: 'Review submitted successfully', review };
   }
 

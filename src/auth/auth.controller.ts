@@ -6,6 +6,7 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { ProfileService } from '../profile/profile.service';
@@ -18,6 +19,8 @@ export class AuthController {
   ) {}
 
   // Register with phone
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('register/phone')
   registerPhone(
     @Body() body: { phone: string; password: string; name: string },
@@ -26,6 +29,8 @@ export class AuthController {
   }
 
   // Register with email
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('register/email')
   registerEmail(
     @Body() body: { email: string; password: string; name: string },
@@ -34,6 +39,8 @@ export class AuthController {
   }
 
   // Legacy register (supports both)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('register')
   register(
     @Body()
@@ -48,18 +55,26 @@ export class AuthController {
   }
 
   // Verify OTP (phone or email)
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 15, ttl: 3600000 } })
   @Post('verify-otp')
   verifyOtp(@Body() body: { identifier: string; otp: string }) {
     return this.authService.verifyOtp(body.identifier, body.otp);
   }
 
-  // Resend OTP
+  // Resend OTP — throttled tighter since it costs a real SMS/email send
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('resend-otp')
   resendOtp(@Body() body: { identifier: string }) {
     return this.authService.resendOtp(body.identifier);
   }
 
-  // Login (phone or email)
+  // Login (phone or email) — the 5-attempts-per-account lockout inside
+  // AuthService is the real anti-brute-force control; this is defense in
+  // depth against spraying attempts across many different accounts.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 3600000 } })
   @Post('login')
   login(
     @Body()
@@ -74,7 +89,9 @@ export class AuthController {
     return this.authService.login(id, body.password);
   }
 
-  // Forgot password
+  // Forgot password — costs a real SMS/email send
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('forgot-password')
   forgotPassword(@Body() body: { identifier: string }) {
     return this.authService.forgotPassword(body.identifier);
@@ -116,6 +133,8 @@ export class AuthController {
   }
 
   // Reset password
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('reset-password')
   resetPassword(
     @Body() body: { identifier: string; otp: string; newPassword: string },
