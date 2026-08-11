@@ -64,7 +64,7 @@ export class ShippingController {
     @Body('reason') reason: string,
     @Request() req,
   ) {
-    return this.shippingService.openDispute(id, req.user.id, reason);
+    return this.shippingService.openDispute(id, req.user, reason);
   }
 
   // Buyer/seller on the order, or admin — not any logged-in user.
@@ -88,7 +88,8 @@ export class ShippingController {
   resolveDispute(
     @Param('id', ParseIntPipe) id: number,
     @Body('resolution') resolution: 'release_to_seller' | 'refund_buyer',
+    @Request() req,
   ) {
-    return this.shippingService.resolveDispute(id, resolution);
+    return this.shippingService.resolveDispute(id, req.user, resolution);
   }
 }

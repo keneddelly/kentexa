@@ -292,6 +292,28 @@ export class DisputesService {
     return { message: 'Tatizo limetatuliwa', resolution: dto.resolution };
   }
 
+  // Order-keyed entry point for callers (shipping.service.ts) that only
+  // know the order, not the dispute ID — resolves via the same resolve()
+  // above so there's exactly one resolution code path.
+  async resolveByOrder(
+    user: User,
+    orderId: number,
+    resolution: DisputeResolution,
+    resolutionNote: string,
+  ) {
+    const dispute = await this.disputeRepo.findOne({
+      where: { order: { id: orderId } },
+      order: { createdAt: 'DESC' },
+    });
+    if (
+      !dispute ||
+      ![DisputeStatus.OPEN, DisputeStatus.REVIEWING].includes(dispute.status)
+    ) {
+      throw new NotFoundException('No open dispute found for this order');
+    }
+    return this.resolve(user, dispute.id, { resolution, resolutionNote });
+  }
+
   // ── Admin: get full dispute detail with custody chain ───────────────────
 
   async getDetail(disputeId: number) {

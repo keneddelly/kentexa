@@ -14,6 +14,11 @@ import {
 } from '../orders/entities/order.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { DisputesService } from '../disputes/disputes.service';
+import {
+  DisputeReason,
+  DisputeResolution,
+} from '../disputes/entities/dispute.entity';
 
 @Injectable()
 export class ShippingService {
@@ -22,6 +27,7 @@ export class ShippingService {
   constructor(
     @InjectRepository(Order)
     private orderRepo: Repository<Order>,
+    private disputesService: DisputesService,
   ) {}
 
   // ── Seller: Mark order as preparing ──
@@ -120,57 +126,38 @@ export class ShippingService {
   }
 
   // ── Buyer: Open dispute ──
+  // Delegates to DisputesService.raise() rather than mutating the order
+  // directly — this used to be a second, disconnected dispute mechanism
+  // with no Dispute row at all, so a dispute opened here never showed up
+  // in the real disputes admin dashboard. Now there's exactly one path.
   async openDispute(
     orderId: number,
-    buyerId: number,
+    buyer: User,
     reason: string,
-  ): Promise<Order> {
-    const order = await this.orderRepo.findOne({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('Order not found');
-
-    // ✅ Null-safe — offline orders may have no buyer User account
-    if (!order.buyer || order.buyer.id !== buyerId) {
-      throw new ForbiddenException('Access denied');
-    }
-
-    if (!['delivered', 'in_transit', 'completed'].includes(order.status)) {
-      throw new BadRequestException('Cannot dispute at this stage');
-    }
-
-    order.status = OrderStatus.DISPUTED;
-    order.disputeReason = reason;
-    order.disputeOpenedAt = new Date();
-    order.escrowStatus = EscrowStatus.DISPUTED;
-
-    this.logger.log(`Order ${orderId} disputed by buyer ${buyerId}: ${reason}`);
-    return this.orderRepo.save(order);
+  ): Promise<{ disputeId: number; message: string }> {
+    return this.disputesService.raise(buyer, {
+      orderId,
+      reason: DisputeReason.OTHER,
+      description: reason,
+    });
   }
 
   // ── Admin: Resolve dispute ──
   async resolveDispute(
     orderId: number,
+    admin: User,
     resolution: 'release_to_seller' | 'refund_buyer',
-  ): Promise<Order> {
-    const order = await this.orderRepo.findOne({ where: { id: orderId } });
-    if (!order) throw new NotFoundException('Order not found');
-
-    if (order.status !== OrderStatus.DISPUTED) {
-      throw new BadRequestException('Order is not disputed');
-    }
-
-    if (resolution === 'release_to_seller') {
-      order.status = OrderStatus.COMPLETED;
-      order.escrowStatus = EscrowStatus.RELEASED;
-      order.fundsReleasedAt = new Date();
-      order.paymentStatus = 'released' as any;
-    } else {
-      order.status = OrderStatus.CANCELLED;
-      order.escrowStatus = EscrowStatus.REFUNDED;
-      order.paymentStatus = 'refunded' as any;
-    }
-
-    this.logger.log(`Dispute resolved for order ${orderId}: ${resolution}`);
-    return this.orderRepo.save(order);
+  ): Promise<{ message: string; resolution: DisputeResolution }> {
+    const mapped =
+      resolution === 'release_to_seller'
+        ? DisputeResolution.FAVOUR_SELLER
+        : DisputeResolution.FAVOUR_BUYER;
+    return this.disputesService.resolveByOrder(
+      admin,
+      orderId,
+      mapped,
+      `Resolved via shipping admin panel: ${resolution}`,
+    );
   }
 
   // ── Get order tracking info ──
