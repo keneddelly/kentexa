@@ -1362,12 +1362,20 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const otherMoments = moments.filter(m => m.business?.id !== currentUser?.id);
 
   return (
-    <div style={{ backgroundColor:'#FAFAFA', minHeight:'100vh', paddingBottom:80,
+    <div style={{ backgroundColor:'#FAFAFA', minHeight:'100vh',
       fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
       <style>{`
         @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
         ::-webkit-scrollbar { display:none }
       `}</style>
+
+      {/* Instagram-style desktop layout: the feed stays a fixed-width
+          centered column against the gray backdrop instead of stretching
+          full-bleed on wide screens (which is what was blowing up
+          mobile-sized post images on laptop/desktop viewports). */}
+      <div style={{ maxWidth:630, margin:'0 auto', backgroundColor:WH,
+        minHeight:'100vh', paddingBottom:80,
+        boxShadow:'0 0 0 1px rgba(15,23,42,0.05)' }}>
 
       {/* ── Top bar ── */}
       <div style={{ position:'sticky', top:0, zIndex:200, backgroundColor:WH,
@@ -1662,6 +1670,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
