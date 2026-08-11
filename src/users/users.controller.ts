@@ -38,8 +38,21 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  // Full user record — same owner-or-admin boundary as update() below.
+  // (Anyone needing another user's public-facing info should go through a
+  // dedicated public-profile endpoint, not this one.)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number) {
+  findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const requestingUser = req.user;
+    const isAdmin =
+      requestingUser?.role === UserRole.ADMIN ||
+      requestingUser?.role === UserRole.MANAGER;
+    const isOwnProfile = requestingUser?.id === id;
+
+    if (!isAdmin && !isOwnProfile) {
+      throw new ForbiddenException('You can only view your own profile');
+    }
+
     return this.usersService.findOne(id);
   }
 

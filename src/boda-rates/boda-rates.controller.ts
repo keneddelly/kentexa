@@ -1,5 +1,18 @@
-import { Controller, Get, Patch, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
 import { BodaRatesService } from './boda-rates.service';
+import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('boda-rates')
 export class BodaRatesController {
@@ -20,13 +33,17 @@ export class BodaRatesController {
     return this.service.getRateCardSummary();
   }
 
-  // Admin — get all rates (frontend handles auth via requireAdmin)
+  // Admin — get all rates
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get('all')
   getAllRates() {
     return this.service.getAllRates();
   }
 
   // Admin — update a rate by key
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Patch(':rateKey')
   updateRate(
     @Param('rateKey') rateKey: string,
@@ -39,6 +56,9 @@ export class BodaRatesController {
       category?: string;
     },
   ) {
+    if (dto.fee !== undefined && (!Number.isFinite(dto.fee) || dto.fee < 0)) {
+      throw new BadRequestException('fee must be a non-negative number');
+    }
     return this.service.updateRate(rateKey, dto);
   }
 }

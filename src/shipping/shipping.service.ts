@@ -12,6 +12,7 @@ import {
   OrderStatus,
   EscrowStatus,
 } from '../orders/entities/order.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
@@ -173,9 +174,31 @@ export class ShippingService {
   }
 
   // ── Get order tracking info ──
-  async getOrderTracking(orderId: number) {
-    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+  // Every other lookup in this service scopes by buyer/seller ownership —
+  // this one didn't, so any logged-in user could pull any order's tracking
+  // (incl. escrow/dispute state) by ID-guessing. requestingUser is optional
+  // only so existing internal callers keep working; the controller always
+  // passes it.
+  async getOrderTracking(orderId: number, requestingUser?: User) {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: { buyer: true, seller: true },
+    });
     if (!order) throw new NotFoundException('Order not found');
+
+    if (requestingUser) {
+      const isOwner =
+        order.buyer?.id === requestingUser.id ||
+        order.seller?.id === requestingUser.id;
+      const isAdmin =
+        requestingUser.role === UserRole.ADMIN ||
+        requestingUser.role === UserRole.MANAGER;
+      if (!isOwner && !isAdmin) {
+        throw new ForbiddenException(
+          'You do not have access to this order.',
+        );
+      }
+    }
 
     const timeline = this.buildTimeline(order);
 

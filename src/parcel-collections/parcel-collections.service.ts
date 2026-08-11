@@ -142,11 +142,26 @@ export class ParcelCollectionsService {
       throw new BadRequestException('Already claimed by another agent');
     }
 
-    await this.collectionRepo.update(collectionId, {
-      agent: { id: agent.id },
-      status: CollectionStatus.CLAIMED,
-      claimedAt: new Date(),
-    });
+    // Atomic conditional update — the checks above are only for the
+    // friendly error messages. This WHERE clause is what actually prevents
+    // two agents claiming the same job in the same race window.
+    const result = await this.collectionRepo
+      .createQueryBuilder()
+      .update()
+      .set({
+        agent: { id: agent.id } as any,
+        status: CollectionStatus.CLAIMED,
+        claimedAt: new Date(),
+      })
+      .where('id = :id', { id: collectionId })
+      .andWhere('"agentId" IS NULL')
+      .andWhere('status = :status', { status: CollectionStatus.REQUESTED })
+      .execute();
+    if (!result.affected) {
+      throw new BadRequestException(
+        'Already claimed by another agent, or no longer available.',
+      );
+    }
 
     // Notify seller that an agent is coming
     if ((job.seller as any)?.phone) {

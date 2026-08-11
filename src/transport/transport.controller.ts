@@ -17,6 +17,9 @@ import {
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 import { TransportService } from './transport.service';
 import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
@@ -161,13 +164,15 @@ export class TransportController {
 
   // ── ADMIN ─────────────────────────────────────────────────────────────────
   @Get('admin/providers')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   adminAll(@Query('status') status?: string) {
     return this.svc.adminGetAll(status);
   }
 
   @Patch('admin/providers/:id/verify')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   adminVerify(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: { approve: boolean; reason?: string },
@@ -176,7 +181,8 @@ export class TransportController {
   }
 
   @Get('admin/assignments')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   adminAssignments(@Query() q: any) {
     return this.svc.adminGetAssignments(q);
   }

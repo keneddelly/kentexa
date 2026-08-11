@@ -1221,11 +1221,27 @@ export class SuperAgentsService {
     const agentProfile = await this.agentRepo.findOne({
       where: { user: { id: user.id } },
     });
-    await this.parcelRepo.update(parcel.id, {
-      localAgentId: String(user.id),
-      localAgentName: agentProfile?.fullName || user.name,
-      claimedAt: new Date(),
-    });
+
+    // Atomic conditional update — the read above is only for the friendly
+    // error messages. This WHERE clause is what actually prevents two
+    // agents claiming the same parcel in the same race window.
+    const result = await this.parcelRepo
+      .createQueryBuilder()
+      .update()
+      .set({
+        localAgentId: String(user.id),
+        localAgentName: agentProfile?.fullName || user.name,
+        claimedAt: new Date(),
+      } as any)
+      .where('id = :id', { id: parcel.id })
+      .andWhere('"localAgentId" IS NULL')
+      .andWhere('status = :status', { status: ParcelStatus.ARRIVED_AT_HUB })
+      .execute();
+    if (!result.affected) {
+      throw new BadRequestException(
+        'Already claimed by another agent, or no longer available.',
+      );
+    }
 
     await this.addTrackingEvent(
       parcel,

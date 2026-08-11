@@ -111,10 +111,24 @@ export class AgentOrdersService {
       );
     }
 
-    await this.orderRepo.update(orderId, {
-      agentId: String(agent.id),
-      status: OrderStatus.PREPARING,
-    });
+    // Atomic conditional update — the checks above are only for the
+    // friendly error messages. This WHERE clause is what actually prevents
+    // two agents claiming the same order in the same race window.
+    const result = await this.orderRepo
+      .createQueryBuilder()
+      .update()
+      .set({ agentId: String(agent.id), status: OrderStatus.PREPARING })
+      .where('id = :id', { id: orderId })
+      .andWhere('"agentId" IS NULL')
+      .andWhere('status IN (:...statuses)', {
+        statuses: [OrderStatus.PAID, OrderStatus.PREPARING],
+      })
+      .execute();
+    if (!result.affected) {
+      throw new BadRequestException(
+        'Already claimed by another agent, or no longer available.',
+      );
+    }
 
     if (order.seller?.phone) {
       await this.smsService.sendSms(

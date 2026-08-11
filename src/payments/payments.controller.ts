@@ -110,15 +110,17 @@ export class PaymentsController {
     return this.paymentsService.agentPaymentCallback(body, provider);
   }
 
-  // DEV ONLY — remove in production when real API is ready
+  // DEV ONLY — service layer also refuses to run this when NODE_ENV=production.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Post('agent/mock-confirm/:providerRequestId')
   mockAgentConfirm(@Param('providerRequestId') providerRequestId: string) {
     return this.paymentsService.mockAgentCallback(providerRequestId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Post('admin/:orderId/release-escrow')
-  @UseGuards(JwtAuthGuard)
   releaseEscrow(
     @Param('orderId', ParseIntPipe) orderId: number,
     @Request() req,
@@ -126,12 +128,14 @@ export class PaymentsController {
     return this.paymentsService.releaseEscrow(orderId, req.user.id);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get('admin/payout-summary')
-  @UseGuards(JwtAuthGuard)
   getPayoutSummary() {
     return this.paymentsService.getPayoutSummary();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('agent/dashboard')
   getAgentDashboard(@Request() req) {
     return this.paymentsService.getAgentDashboard(req.user);

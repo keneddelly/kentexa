@@ -423,13 +423,15 @@ export class SuperAgentsController {
 
   // ── Admin: Hub Management ─────────────────────────────────────────────────
   @Get('admin/super-agents')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   adminGetAll(@Query('status') status?: string) {
     return this.service.adminGetAllSuperAgents(status);
   }
 
   @Patch('admin/super-agents/:id/assign-hub')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   adminAssignHub(
     @Param('id') id: string,
     @Body()
@@ -444,7 +446,8 @@ export class SuperAgentsController {
   }
 
   @Get('admin/hub-summary')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   adminHubSummary() {
     return this.service.adminGetHubSummary();
   }

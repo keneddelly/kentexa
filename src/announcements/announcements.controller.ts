@@ -12,6 +12,9 @@ import {
 } from '@nestjs/common';
 import { AnnouncementsService } from './announcements.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('announcements')
 export class AnnouncementsController {
@@ -39,28 +42,34 @@ export class AnnouncementsController {
   }
 
   // Admin: get all
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get('admin/all')
   findAll() {
     return this.service.findAll();
   }
 
-  // Admin: create
-  @UseGuards(JwtAuthGuard)
+  // Admin: create — can trigger a real SMS blast (sendSms: true), so this
+  // guard is the only thing standing between any signed-up user and a
+  // platform-wide message send.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Post('admin')
   create(@Request() req, @Body() dto: any) {
     return this.service.create(req.user, dto);
   }
 
   // Admin: update
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Patch('admin/:id')
   update(@Param('id', ParseIntPipe) id: number, @Body() dto: any) {
     return this.service.update(id, dto);
   }
 
   // Admin: delete
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Delete('admin/:id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.service.remove(id);

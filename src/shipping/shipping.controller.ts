@@ -67,11 +67,11 @@ export class ShippingController {
     return this.shippingService.openDispute(id, req.user.id, reason);
   }
 
-  // Public: Track order
+  // Buyer/seller on the order, or admin — not any logged-in user.
   @UseGuards(JwtAuthGuard)
   @Get('orders/:id/tracking')
-  getTracking(@Param('id', ParseIntPipe) id: number) {
-    return this.shippingService.getOrderTracking(id);
+  getTracking(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.shippingService.getOrderTracking(id, req.user);
   }
 
   // Seller: Get my orders

@@ -155,7 +155,8 @@ export class OrdersController {
 
   // ── Super Agent: Look up order before receiving ───────────────────────────
   // Auto-fills destination city, recipient name & phone in the agent's UI
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Get(':id/agent-lookup')
   lookupForAgent(@Param('id', ParseIntPipe) id: number) {
     return this.ordersService.lookupForAgent(id);
@@ -164,7 +165,8 @@ export class OrdersController {
   // ── Super Agent: Scan & receive order ─────────────────────────────────────
   // Super agent enters order ID → system generates tracking number
   // and auto-updates order to IN_TRANSIT
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Patch(':id/super-agent-receive')
   superAgentReceiveOrder(
     @Param('id', ParseIntPipe) id: number,

@@ -69,6 +69,11 @@ export class ClassifiedsController {
     return this.service.findBySeller(sellerId);
   }
 
+  // Requires login — returns buyer name/phone/email/amount, and invoice
+  // numbers are sequential so this was scrapeable end-to-end when public.
+  // Matches the same fix already applied to payments.controller.ts's
+  // equivalent lookup route.
+  @UseGuards(JwtAuthGuard)
   @Get('invoice/:invoiceNumber')
   getInvoiceByNumber(@Param('invoiceNumber') invoiceNumber: string) {
     return this.service.getInvoiceByNumber(invoiceNumber);

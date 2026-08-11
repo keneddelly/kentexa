@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -78,7 +79,9 @@ export class PaymentsService {
       );
       return this.mockAgentService;
     }
-    if (provider === 'mock') return this.mockAgentService;
+    // "mock" is NOT honored here in production — this is the one line that
+    // let anyone mark a payment SUCCESS for free by passing provider:"mock".
+    // Every request in production goes to a real provider, full stop.
     if (USE_INDIVIDUAL_NETWORKS) {
       switch (provider) {
         case 'vodacom':
@@ -414,6 +417,16 @@ export class PaymentsService {
       return { message: 'OK' };
     }
 
+    // Idempotency — a settled payment is terminal. Without this, a
+    // duplicated webhook delivery (normal for mobile-money providers) or a
+    // forged replay re-runs order confirmation every time it arrives.
+    if (payment.status === PaymentStatus.SUCCESS) {
+      this.logger.log(
+        `Callback for already-settled payment ${result.providerRequestId} ignored`,
+      );
+      return { message: 'OK' };
+    }
+
     if (result.success) {
       payment.status = PaymentStatus.SUCCESS;
       payment.providerReference = result.providerReference ?? null;
@@ -643,6 +656,16 @@ export class PaymentsService {
       return { message: 'OK' };
     }
 
+    // Idempotency — see handleCallback() above for why this matters. Without
+    // it, a replayed/duplicated callback re-runs recordAgentCommission()
+    // and double-credits agent earnings on every redelivery.
+    if (payment.status === PaymentStatus.SUCCESS) {
+      this.logger.log(
+        `Agent callback for already-settled payment ${result.providerRequestId} ignored`,
+      );
+      return { message: 'OK' };
+    }
+
     let meta: any = {};
     try {
       meta = JSON.parse((payment as any).metadata || '{}');
@@ -764,6 +787,11 @@ export class PaymentsService {
   }
 
   async mockAgentCallback(providerRequestId: string) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException(
+        'Mock payment confirmation is not available in production.',
+      );
+    }
     return this.agentPaymentCallback(
       {
         status: 'SUCCESS',

@@ -17,8 +17,15 @@ export class UsersService {
     private userRepo: Repository<User>,
   ) {}
 
-  private exclude(user: User): Omit<User, 'password'> {
-    const { password, ...result } = user;
+  // Destructuring off a User instance produces a plain object, which drops
+  // the entity's prototype — the @Exclude() decorators on otp/otpExpiry/
+  // otpAttempts never fire because ClassSerializerInterceptor only acts on
+  // real class instances. Every field that must never leave this service
+  // has to be stripped explicitly here, not left to the decorator.
+  private exclude(
+    user: User,
+  ): Omit<User, 'password' | 'otp' | 'otpExpiry' | 'otpAttempts'> {
+    const { password, otp, otpExpiry, otpAttempts, ...result } = user;
     return result;
   }
 
