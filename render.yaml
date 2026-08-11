@@ -39,6 +39,12 @@ services:
         sync: false # Africa's Talking account username (not "sandbox" once using a real key)
       - key: AT_SHORTCODE
         sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false # required — image uploads crash without this (src/upload/upload.controller.ts). Use a ROTATED key, not the one that was previously hardcoded/leaked in this file.
+      - key: CLOUDINARY_API_KEY
+        sync: false # required — see above
+      - key: CLOUDINARY_API_SECRET
+        sync: false # required — see above
       - key: ANTHROPIC_API_KEY
         sync: false # optional — Kentexa AI "coding" tier + fallback-of-last-resort; safe to leave unset for now
       - key: OPENAI_API_KEY
