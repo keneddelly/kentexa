@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 import { Agent } from './agent.entity';
 import { Invoice } from '../../invoices/entities/invoice.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum AgentTransactionStatus {
   PENDING = 'pending',
@@ -22,8 +23,11 @@ export class AgentTransaction {
   @ManyToOne(() => Agent, { eager: true, onDelete: 'CASCADE' })
   agent: Agent;
 
-  @ManyToOne(() => Invoice, { eager: true, onDelete: 'CASCADE' })
-  invoice: Invoice;
+  @ManyToOne(() => Invoice, { eager: true, onDelete: 'CASCADE', nullable: true })
+  invoice: Invoice | null;
+
+  @ManyToOne(() => User, { eager: true, onDelete: 'SET NULL', nullable: true })
+  releasedBy: User | null;
 
   @Column('decimal', { precision: 10, scale: 2 })
   invoiceAmount: number;

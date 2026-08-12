@@ -6,6 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Agent, AgentStatus } from './entities/agent.entity';
+import {
+  AgentTransaction,
+  AgentTransactionStatus,
+} from './entities/agent-transaction.entity';
 import { User } from '../users/entities/user.entity';
 import { SmsService } from '../sms/sms.service';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
@@ -15,6 +19,8 @@ export class AgentsService {
   constructor(
     @InjectRepository(Agent) private agentRepo: Repository<Agent>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(AgentTransaction)
+    private agentTransactionRepo: Repository<AgentTransaction>,
     private smsService: SmsService,
   ) {}
 
@@ -334,7 +340,12 @@ export class AgentsService {
 
   // ── Admin: release agent earnings (payment collection commission only) ────
 
-  async releaseEarnings(agentId: number, amount: number, note?: string) {
+  async releaseEarnings(
+    agentId: number,
+    amount: number,
+    admin: User,
+    note?: string,
+  ) {
     const agent = await this.agentRepo.findOne({
       where: { id: agentId },
       relations: { user: true },
@@ -345,6 +356,25 @@ export class AgentsService {
     await this.agentRepo.update(agentId, {
       pendingEarnings: pending - release,
     });
+
+    // Ledger entry for the release itself — previously only the running
+    // pendingEarnings balance was decremented, with no record of who
+    // released how much and when. commissionAmount is negative here since
+    // this is a debit against the balance, not a commission being earned
+    // (unlike every other write site for this table).
+    await this.agentTransactionRepo.save(
+      this.agentTransactionRepo.create({
+        agent,
+        releasedBy: admin,
+        invoiceAmount: release,
+        commissionRate: 0,
+        commissionAmount: -release,
+        transactionReference: note || null,
+        paymentMethod: 'earnings_release',
+        status: AgentTransactionStatus.CONFIRMED,
+      }),
+    );
+
     const phone = agent.phone || agent.user?.phone;
     if (phone) {
       await this.smsService

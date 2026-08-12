@@ -78,8 +78,9 @@ export class AgentsController {
   releaseEarnings(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { amount: number; note?: string },
+    @Request() req,
   ) {
-    return this.service.releaseEarnings(id, body.amount, body.note);
+    return this.service.releaseEarnings(id, body.amount, req.user, body.note);
   }
 
   // ── Admin: all agents ─────────────────────────────────────────────────────
