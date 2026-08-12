@@ -76,6 +76,19 @@ export class ProductsController {
     return this.service.findAllAdmin();
   }
 
+  // Curatorial merchandising badges — admin-only, separate from the normal
+  // seller-facing update() below (isFeatured/isRecommended aren't in
+  // CreateProductDto/UpdateProductDto on purpose).
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/badges')
+  setBadges(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { isFeatured?: boolean; isRecommended?: boolean },
+  ) {
+    return this.service.setBadges(id, dto);
+  }
+
   @Get('seller/:sellerId')
   findBySeller(@Param('sellerId', ParseIntPipe) sellerId: number) {
     return this.service.findBySeller(sellerId);

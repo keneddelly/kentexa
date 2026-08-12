@@ -103,7 +103,7 @@ export class ProfileService {
 
     return {
       user: safeUser,
-      products,
+      products: this.withComputedBadges(products),
       reviews: reviews.map((r) => ({
         id: r.id,
         rating: r.rating,
@@ -115,5 +115,32 @@ export class ProfileService {
       isFollowing,
       roleEntities,
     };
+  }
+
+  // isBestSeller/isNewArrival aren't stored columns — both are fully
+  // derivable from data the product already tracks (salesCount, createdAt),
+  // so computing them here at read time means they can never drift stale
+  // the way an admin-set flag could. isFeatured/isRecommended are the only
+  // badges that are actually stored, since those are curatorial calls with
+  // no underlying signal to derive them from.
+  private withComputedBadges(products: Product[]) {
+    const NEW_ARRIVAL_WINDOW_DAYS = 21;
+    const BEST_SELLER_COUNT = 3;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - NEW_ARRIVAL_WINDOW_DAYS);
+
+    const bestSellerIds = new Set(
+      [...products]
+        .filter((p) => p.salesCount > 0)
+        .sort((a, b) => b.salesCount - a.salesCount)
+        .slice(0, BEST_SELLER_COUNT)
+        .map((p) => p.id),
+    );
+
+    return products.map((p) => ({
+      ...p,
+      isBestSeller: bestSellerIds.has(p.id),
+      isNewArrival: new Date(p.createdAt) >= cutoff,
+    }));
   }
 }

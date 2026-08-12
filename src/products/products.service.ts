@@ -125,6 +125,25 @@ export class ProductsService {
     });
   }
 
+  // isFeatured/isRecommended are curatorial (platform merchandising), not
+  // something a seller sets on their own product — hence a dedicated
+  // admin-only endpoint rather than being part of UpdateProductDto.
+  async setBadges(
+    id: number,
+    dto: { isFeatured?: boolean; isRecommended?: boolean },
+  ) {
+    const product = await this.repo.findOne({ where: { id } });
+    if (!product) throw new NotFoundException('Product not found');
+
+    const update: Partial<Product> = {};
+    if (dto.isFeatured !== undefined) update.isFeatured = dto.isFeatured;
+    if (dto.isRecommended !== undefined)
+      update.isRecommended = dto.isRecommended;
+
+    await this.repo.update(id, update);
+    return { message: 'Badges updated', ...update };
+  }
+
   async create(dto: CreateProductDto, seller?: User): Promise<Product> {
     const basePrice = Number(dto.basePrice || 0);
     const deliveryFee = Number(dto.deliveryFee || 0);

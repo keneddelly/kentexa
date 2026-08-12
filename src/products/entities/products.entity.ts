@@ -98,14 +98,13 @@ export class Product {
   shippingNotes: string | null;
 
   // ── Store badges ──
+  // isFeatured/isRecommended are curatorial — admin-set via PATCH
+  // /products/:id/badges (see products.controller.ts). isBestSeller and
+  // isNewArrival aren't stored at all — they're derived at read time in
+  // profile.service.ts from salesCount/createdAt, which are always
+  // up to date and need no admin upkeep.
   @Column({ default: false })
   isFeatured: boolean;
-
-  @Column({ default: false })
-  isBestSeller: boolean;
-
-  @Column({ default: false })
-  isNewArrival: boolean;
 
   @Column({ default: false })
   isRecommended: boolean;
