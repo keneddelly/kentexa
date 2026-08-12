@@ -24,7 +24,6 @@ import { TzPricingModule } from './tz-location/tz-pricing.module';
 import { BusinessModule } from './business/business.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TransportModule } from './transport/transport.module';
-import { WishlistModule } from './wishlist/wishlist.module';
 import { ReputationModule } from './reputation/reputation.module';
 import { FeedModule } from './feed/feed.module';
 import { OffersModule } from './offers/offers.module';
@@ -78,7 +77,6 @@ import { SearchModule } from './search/search.module';
     BusinessModule,
     NotificationsModule,
     TransportModule,
-    WishlistModule,
     ReputationModule,
     FeedModule,
     OffersModule,
