@@ -1,15 +1,18 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 
 describe('AuthController', () => {
   let controller: AuthController;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [AuthController],
-    }).compile();
-
-    controller = module.get<AuthController>(AuthController);
+  beforeEach(() => {
+    const authService = {
+      registerWithPhone: jest.fn(),
+      registerWithEmail: jest.fn(),
+    };
+    const profileService = {};
+    controller = new AuthController(
+      authService as any,
+      profileService as any,
+    );
   });
 
   it('should be defined', () => {
