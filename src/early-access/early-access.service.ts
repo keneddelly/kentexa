@@ -4,10 +4,12 @@ import { Repository } from 'typeorm';
 import * as ExcelJS from 'exceljs';
 import {
   AccountType,
+  BusinessCategory,
   EarlyAccessRegistration,
   RegistrationStatus,
 } from './entities/early-access-registration.entity';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
+import { CreateQuickRegistrationDto } from './dto/create-quick-registration.dto';
 import { QueryRegistrationsDto } from './dto/query-registrations.dto';
 import { RejectRegistrationDto } from './dto/reject-registration.dto';
 import { EarlyAccessOtpService } from './early-access-otp.service';
@@ -44,6 +46,7 @@ const EXPORT_COLUMNS: { key: keyof EarlyAccessRegistration; header: string }[] =
   { key: 'coverageRegions', header: 'Coverage Regions' },
   { key: 'needsDeliverySupport', header: 'Needs Delivery Support' },
   { key: 'employeeCount', header: 'Employee Count' },
+  { key: 'isQuickSignup', header: 'Quick Signup (needs follow-up)' },
   { key: 'status', header: 'Status' },
   { key: 'createdAt', header: 'Registered At' },
 ];
@@ -68,6 +71,32 @@ export class EarlyAccessService {
       }
     }
     const registration = await this.repo.save(this.repo.create(dto));
+    return {
+      ...registration,
+      earlyAccessId: registration.earlyAccessId,
+    };
+  }
+
+  // Short-funnel entry point — see CreateQuickRegistrationDto for why only
+  // 3 fields are collected. Placeholder text fills the rest so this is a
+  // fully-valid row admins can already see, approve, or reach out on.
+  async createQuick(dto: CreateQuickRegistrationDto) {
+    const registration = await this.repo.save(
+      this.repo.create({
+        accountType: dto.accountType,
+        ownerName: dto.ownerName.trim(),
+        businessName: dto.ownerName.trim(),
+        phone: dto.whatsapp.trim(),
+        whatsapp: dto.whatsapp.trim(),
+        region: 'Haijabainishwa',
+        district: 'Haijabainishwa',
+        businessCategory: BusinessCategory.OTHER,
+        businessDescription: 'Bado hajaeleza zaidi — atafuatiliwa.',
+        productsOrServices: 'Bado hajaeleza zaidi — atafuatiliwa.',
+        consentToContact: true,
+        isQuickSignup: true,
+      }),
+    );
     return {
       ...registration,
       earlyAccessId: registration.earlyAccessId,

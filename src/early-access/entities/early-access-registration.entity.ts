@@ -119,6 +119,14 @@ export class EarlyAccessRegistration {
   @Column({ type: 'boolean', default: false })
   consentToContact: boolean;
 
+  // True for rows created via the short 2-field funnel (quick-register) —
+  // region/businessCategory/businessDescription/productsOrServices are
+  // placeholder values on these until the person is followed up with, not
+  // real data. Lets admin exports tell "hasn't filled in details yet" apart
+  // from "genuinely has no description".
+  @Column({ type: 'boolean', default: false })
+  isQuickSignup: boolean;
+
   // ── AI research questions ─────────────────────────────────────────────
   @Column({ type: 'text', nullable: true })
   biggestChallenge: string | null;

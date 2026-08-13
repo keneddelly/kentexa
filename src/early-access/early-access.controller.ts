@@ -25,6 +25,7 @@ import { EarlyAccessService } from './early-access.service';
 import { EarlyAccessUploadService } from './early-access-upload.service';
 import { EarlyAccessOtpService } from './early-access-otp.service';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
+import { CreateQuickRegistrationDto } from './dto/create-quick-registration.dto';
 import { QueryRegistrationsDto } from './dto/query-registrations.dto';
 import { RejectRegistrationDto } from './dto/reject-registration.dto';
 import { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
@@ -71,6 +72,16 @@ export class EarlyAccessController {
   @Post('register')
   register(@Body() dto: CreateRegistrationDto) {
     return this.service.create(dto);
+  }
+
+  @ApiOperation({
+    summary: 'Submit a short early-access registration (accountType, name, WhatsApp only)',
+  })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 3600000 } })
+  @Post('quick-register')
+  quickRegister(@Body() dto: CreateQuickRegistrationDto) {
+    return this.service.createQuick(dto);
   }
 
   @ApiOperation({ summary: 'Upload registration images (logo/cover/photos)' })
