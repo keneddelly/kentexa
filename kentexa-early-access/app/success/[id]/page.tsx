@@ -2,15 +2,12 @@
 
 import Link from 'next/link';
 import { use, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Button from '@/components/ui/Button';
 import { trackMetaEvent, trackMetaCustomEvent } from '@/components/MetaPixel';
+import { EDIT_TOKEN_ID_KEY, EDIT_TOKEN_KEY } from '@/lib/apiClient';
 import { useLanguage } from '@/lib/i18n';
-
-// Overridable via NEXT_PUBLIC_SUPPORT_WHATSAPP on Render — defaults to the
-// same Kentexa support number used as SUPPORT_PHONE on the backend
-// (src/disputes/disputes.service.ts).
-const SUPPORT_WHATSAPP = process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || '255788075633';
 
 function formatEarlyAccessId(id: string): string {
   const numeric = id.replace(/\D/g, '');
@@ -21,20 +18,40 @@ function formatEarlyAccessId(id: string): string {
 export default function SuccessPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
+  const isProfileCompleted = searchParams.get('stage') === 'completed';
   const [copied, setCopied] = useState(false);
+  const [canTellMore, setCanTellMore] = useState(false);
   const earlyAccessId = formatEarlyAccessId(id);
 
   useEffect(() => {
-    // Reached only after quickRegister()'s POST resolved successfully and
-    // navigated here with a real id — so both events fire exactly once, and
-    // only on a backend-confirmed registration, never on a button click
-    // alone. Standard event for Meta's ad-delivery optimization, custom
-    // event so it's visible in Ads Manager as its own named event distinct
-    // from PageView/LinkClick.
-    trackMetaEvent('CompleteRegistration', { content_name: earlyAccessId });
-    trackMetaCustomEvent('EarlyAccessRegistration', { content_name: earlyAccessId });
+    // Reached only after a POST (quick-register or complete-profile)
+    // resolved successfully and navigated here — so events fire exactly
+    // once, and only on a backend-confirmed save, never on a bare button
+    // click. The completed-profile visit fires its own distinct event
+    // instead of re-firing CompleteRegistration/EarlyAccessRegistration,
+    // which already fired for this id at quick-register time — refiring
+    // would double-count the same person as two registrations in Ads
+    // Manager.
+    if (isProfileCompleted) {
+      trackMetaCustomEvent('EarlyAccessProfileCompleted', { content_name: earlyAccessId });
+    } else {
+      trackMetaEvent('CompleteRegistration', { content_name: earlyAccessId });
+      trackMetaCustomEvent('EarlyAccessRegistration', { content_name: earlyAccessId });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isProfileCompleted]);
+
+  useEffect(() => {
+    if (isProfileCompleted) return; // already completed — nothing more to tell
+    try {
+      const storedToken = window.sessionStorage.getItem(EDIT_TOKEN_KEY);
+      const storedId = window.sessionStorage.getItem(EDIT_TOKEN_ID_KEY);
+      setCanTellMore(!!storedToken && storedId === id);
+    } catch {
+      setCanTellMore(false);
+    }
+  }, [id, isProfileCompleted]);
 
   const handleCopy = async () => {
     try {
@@ -46,10 +63,6 @@ export default function SuccessPage({ params }: { params: Promise<{ id: string }
       toast.error('Could not copy — please copy it manually.');
     }
   };
-
-  const whatsappHref = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent(
-    `Habari Kentexa! Nimejiunga Early Access (${earlyAccessId}) — nataka kuwaambia zaidi kuhusu biashara yangu.`,
-  )}`;
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 py-16 dark:bg-gray-900">
@@ -64,9 +77,20 @@ export default function SuccessPage({ params }: { params: Promise<{ id: string }
           </svg>
         </div>
 
-        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">{t('success_title')}</h1>
-        <p className="mt-3 text-gray-700 dark:text-gray-200">{t('success_message1')}</p>
-        <p className="mt-1 text-gray-600 dark:text-gray-300">{t('success_message2')}</p>
+        {isProfileCompleted ? (
+          <>
+            <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">
+              {t('success_profile_completed_title')}
+            </h1>
+            <p className="mt-3 text-gray-700 dark:text-gray-200">{t('success_profile_completed_message')}</p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white">{t('success_title')}</h1>
+            <p className="mt-3 text-gray-700 dark:text-gray-200">{t('success_message1')}</p>
+            <p className="mt-1 text-gray-600 dark:text-gray-300">{t('success_message2')}</p>
+          </>
+        )}
 
         <div className="mt-6">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
@@ -83,17 +107,17 @@ export default function SuccessPage({ params }: { params: Promise<{ id: string }
           </p>
         </div>
 
-        <div className="mt-8 rounded-xl border border-dashed border-gray-200 p-4 dark:border-gray-700">
-          <a
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:underline dark:text-primary-light"
-          >
-            💬 {t('success_tell_more')}
-          </a>
-          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{t('success_tell_more_sub')}</p>
-        </div>
+        {canTellMore && (
+          <div className="mt-8 rounded-xl border border-dashed border-gray-200 p-4 dark:border-gray-700">
+            <Link
+              href="/register/complete"
+              className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:underline dark:text-primary-light"
+            >
+              💬 {t('success_tell_more')}
+            </Link>
+            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{t('success_tell_more_sub')}</p>
+          </div>
+        )}
 
         <div className="mt-6">
           <Link href="/">

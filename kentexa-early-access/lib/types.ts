@@ -105,6 +105,10 @@ export interface QuickRegistrationPayload {
   whatsapp: string;
 }
 
+// Same shape as RegistrationPayload minus accountType — mirrors
+// CompleteRegistrationDto (src/early-access/dto/complete-registration.dto.ts).
+export type CompleteRegistrationPayload = Omit<RegistrationPayload, 'accountType'>;
+
 export interface RegistrationPayload {
   accountType: AccountType;
   ownerName: string;
@@ -174,6 +178,10 @@ export interface LocationSearchResult {
 
 export interface Registration extends RegistrationPayload {
   id: number;
+  isQuickSignup?: boolean;
+  // Only ever present right after quick-register — never re-fetched or
+  // shown elsewhere. See editToken on the backend entity.
+  editToken?: string | null;
   // Legacy fields from the old generic "Quick Questions" step — no longer
   // collected by the current form, but may still be present on older rows.
   howCustomersFindYou?: string;

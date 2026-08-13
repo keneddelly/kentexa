@@ -491,6 +491,18 @@ const dict = {
   },
   success_back_home: { en: 'Back to Home', sw: 'Rudi Mwanzo' },
 
+  // ── "Tell us more" (completes a quick signup via the full wizard) ──────
+  loading: { en: 'Loading…', sw: 'Inapakia…' },
+  complete_link_invalid: {
+    en: "We couldn't find your session. Please register again to get a fresh link.",
+    sw: 'Hatukuweza kupata kikao chako. Tafadhali jiunge tena upate kiungo kipya.',
+  },
+  success_profile_completed_title: { en: '🎉 THANK YOU', sw: '🎉 ASANTE' },
+  success_profile_completed_message: {
+    en: 'Your full business profile has been saved.',
+    sw: 'Wasifu wako kamili wa biashara umehifadhiwa.',
+  },
+
   // ── Validation error messages (referenced as keys from zod issues) ───
   err_account_type: { en: 'Please select an account type', sw: 'Tafadhali chagua aina ya akaunti' },
   err_owner_name: {

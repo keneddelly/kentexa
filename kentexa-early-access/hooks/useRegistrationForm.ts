@@ -65,17 +65,29 @@ const STEP_FIELDS: (keyof RegistrationFormValues)[][] = [
   ['consentToContact'],
 ];
 
-export function useRegistrationForm() {
-  const [step, setStep] = useState(0);
+interface UseRegistrationFormOptions {
+  // Prefills fields already known before this form loads (e.g. accountType/
+  // ownerName/phone from a prior quick-register) — merged over the plain
+  // defaults, not replacing them.
+  initialValues?: Partial<RegistrationFormValues>;
+  // Starting step, and the floor goBack/goToStep won't cross — used by the
+  // "tell us more" flow to skip the Account Type step (already answered)
+  // without letting Back navigate into it.
+  minStep?: number;
+}
+
+export function useRegistrationForm(options: UseRegistrationFormOptions = {}) {
+  const { initialValues, minStep = 0 } = options;
+  const [step, setStep] = useState(minStep);
 
   const form = useForm<RegistrationFormValues>({
     resolver: zodResolver(registrationFormSchema),
-    defaultValues: defaultRegistrationFormValues,
+    defaultValues: { ...defaultRegistrationFormValues, ...initialValues },
     mode: 'onBlur',
   });
 
   const isLastStep = step === TOTAL_STEPS - 1;
-  const isFirstStep = step === 0;
+  const isFirstStep = step === minStep;
 
   const goNext = async () => {
     const fieldsToValidate = STEP_FIELDS[step];
@@ -88,12 +100,12 @@ export function useRegistrationForm() {
   };
 
   const goBack = () => {
-    setStep((s) => Math.max(s - 1, 0));
+    setStep((s) => Math.max(s - 1, minStep));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const goToStep = (index: number) => {
-    setStep(Math.max(0, Math.min(index, TOTAL_STEPS - 1)));
+    setStep(Math.max(minStep, Math.min(index, TOTAL_STEPS - 1)));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

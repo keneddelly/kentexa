@@ -1,6 +1,7 @@
 import type {
   AdminStats,
   CategoriesResponse,
+  CompleteRegistrationPayload,
   LocationSearchResult,
   LoginResponse,
   NestErrorBody,
@@ -18,6 +19,11 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const ADMIN_TOKEN_KEY = 'kentexa_ea_admin_token';
 export const ADMIN_USER_KEY = 'kentexa_ea_admin_user';
+
+// sessionStorage only, never a URL — see editToken on the backend entity
+// for why this specifically must not be shareable/bookmarkable.
+export const EDIT_TOKEN_KEY = 'kentexa_ea_edit_token';
+export const EDIT_TOKEN_ID_KEY = 'kentexa_ea_edit_token_id';
 
 /** Typed error thrown for any non-2xx API response. */
 export class ApiError extends Error {
@@ -170,6 +176,20 @@ export function quickRegister(
 ): Promise<Registration & { earlyAccessId: string }> {
   return request('/early-access/quick-register', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getRegistrationByToken(token: string): Promise<Registration> {
+  return request(`/early-access/complete/${encodeURIComponent(token)}`);
+}
+
+export function completeRegistrationByToken(
+  token: string,
+  payload: CompleteRegistrationPayload,
+): Promise<Registration & { earlyAccessId: string }> {
+  return request(`/early-access/complete/${encodeURIComponent(token)}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }

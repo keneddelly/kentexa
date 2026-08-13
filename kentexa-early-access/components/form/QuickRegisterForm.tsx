@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import toast from 'react-hot-toast';
 import { quickRegistrationSchema, type QuickRegistrationFormValues } from '@/lib/formSchema';
 import { AccountType } from '@/lib/types';
-import { ApiError, quickRegister } from '@/lib/apiClient';
+import { ApiError, EDIT_TOKEN_ID_KEY, EDIT_TOKEN_KEY, quickRegister } from '@/lib/apiClient';
 import Button from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useLanguage } from '@/lib/i18n';
@@ -64,6 +64,14 @@ export default function QuickRegisterForm() {
         ownerName: values.ownerName.trim(),
         whatsapp: values.whatsapp.trim(),
       });
+      if (result.editToken) {
+        try {
+          window.sessionStorage.setItem(EDIT_TOKEN_KEY, result.editToken);
+          window.sessionStorage.setItem(EDIT_TOKEN_ID_KEY, String(result.id));
+        } catch {
+          // sessionStorage unavailable — "tell us more" just won't show on the success page.
+        }
+      }
       router.push(`/success/${result.id}`);
     } catch (err) {
       if (err instanceof ApiError) {
