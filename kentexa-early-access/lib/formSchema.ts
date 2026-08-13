@@ -122,6 +122,24 @@ export const registrationFormSchema = z
 
 export type RegistrationFormValues = z.infer<typeof registrationFormSchema>;
 
+// ── Short funnel (primary landing-page flow) ────────────────────────────
+// Deliberately separate from registrationFormSchema above — the long form
+// stays intact for later use, this one only validates the 3 fields the
+// quick-register endpoint actually needs.
+const whatsappPattern = /^[+]?[\d\s-]{7,20}$/;
+
+export const quickRegistrationSchema = z.object({
+  accountType: z.nativeEnum(AccountType, { required_error: 'err_account_type' }),
+  ownerName: z.string().trim().min(2, 'err_owner_name'),
+  whatsapp: z
+    .string()
+    .trim()
+    .min(7, 'err_phone')
+    .regex(whatsappPattern, 'err_whatsapp_format'),
+});
+
+export type QuickRegistrationFormValues = z.infer<typeof quickRegistrationSchema>;
+
 export const defaultRegistrationFormValues: Partial<RegistrationFormValues> = {
   ownerName: '',
   businessName: '',

@@ -96,6 +96,15 @@ export interface RegionOption {
   nameSw: string;
 }
 
+// Short-funnel payload — accountType, name, WhatsApp only. Mirrors
+// CreateQuickRegistrationDto on the backend (src/early-access/dto/
+// create-quick-registration.dto.ts).
+export interface QuickRegistrationPayload {
+  accountType: AccountType;
+  ownerName: string;
+  whatsapp: string;
+}
+
 export interface RegistrationPayload {
   accountType: AccountType;
   ownerName: string;

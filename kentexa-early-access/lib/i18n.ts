@@ -9,39 +9,56 @@ const STORAGE_KEY = 'kentexa_ea_lang';
 const dict = {
   // ── Landing page ──────────────────────────────────────────────────────
   nav_admin: { en: 'Admin', sw: 'Msimamizi' },
-  hero_badge: { en: 'First Ever in Tanzania', sw: 'Kwa Mara ya Kwanza Tanzania' },
+  hero_badge: { en: 'EARLY ACCESS — FREE', sw: 'EARLY ACCESS — BURE' },
   hero_headline: {
-    en: "Not a Marketplace. Your Business's Intelligence.",
-    sw: 'Sio Soko la Mtandaoni. Ni Akili ya Biashara Yako.',
+    en: 'Be Among the First Businesses on Kentexa.',
+    sw: 'Kuwa Miongoni mwa Biashara za Kwanza Kwenye Kentexa.',
   },
   hero_sub: {
-    en: 'Kentexa is an AI-powered business identity connecting sellers, transporters, service providers and agents — all of Tanzania.',
-    sw: 'Kentexa ni utambulisho wa kibiashara unaotumia AI, unaounganisha wauzaji, wasafirishaji, watoa huduma na wakala — Tanzania nzima.',
+    en: 'Kentexa is a new AI-powered commerce network connecting sellers, businesses, service providers, transporters and agents with the opportunities that fit them.',
+    sw: 'Kentexa ni mtandao mpya wa biashara unaotumia AI kuunganisha wauzaji, biashara, watoa huduma, wasafirishaji na mawakala na fursa zinazowafaa.',
   },
-  hero_cta: { en: 'Build Your Identity — Free', sw: 'Jenga Utambulisho Wako — Bure' },
+  hero_cta: { en: 'JOIN EARLY ACCESS — FREE →', sw: 'JIUNGE EARLY ACCESS — BURE →' },
 
-  benefits_heading: { en: 'Why register early?', sw: 'Kwa nini ujisajili mapema?' },
-  benefit_free_profile: { en: 'Free business profile', sw: 'Wasifu wa biashara bure' },
-  benefit_early_access: { en: 'Early access to Kentexa', sw: 'Ufikiaji wa mapema wa Kentexa' },
-  benefit_ai_tools: { en: 'AI tools for your business', sw: 'Zana za AI kwa biashara yako' },
-  benefit_reach: { en: 'Reach more customers', sw: 'Fikia wateja wengi zaidi' },
-  benefit_verified: { en: 'Verified business badge', sw: 'Alama ya biashara iliyothibitishwa' },
-  benefit_marketing: {
-    en: 'Future marketing opportunities',
-    sw: 'Fursa za uuzaji za baadaye',
+  // ── Why join (replaces the old generic benefits list) ─────────────────
+  why_join_heading: { en: 'Why Join Early Access?', sw: 'Kwa Nini Ujiunge Early Access?' },
+  why_early_title: { en: 'EARLY POSITIONING', sw: 'EARLY POSITIONING' },
+  why_early_desc: {
+    en: 'Build your business presence before the public launch.',
+    sw: 'Jenga uwepo wa biashara yako kabla ya uzinduzi wa umma.',
   },
+  why_ai_title: { en: 'AI-POWERED', sw: 'AI-POWERED' },
+  why_ai_desc: {
+    en: 'Kentexa is built with AI to match needs with the right businesses, products and services.',
+    sw: 'Kentexa inajengwa kwa AI ili kuunganisha mahitaji na biashara, bidhaa na huduma zinazofaa.',
+  },
+  why_network_title: { en: 'NETWORK', sw: 'NETWORK' },
+  why_network_desc: {
+    en: 'Be part of a new business network connecting Tanzania.',
+    sw: 'Kuwa sehemu ya mtandao mpya wa biashara unaounganisha Tanzania.',
+  },
+  why_free_title: { en: 'FREE', sw: 'BURE' },
+  why_free_desc: { en: 'Early Access is free.', sw: 'Early Access ni bure.' },
 
-  stats_businesses: { en: 'Businesses Registered', sw: 'Biashara Zilizosajiliwa' },
-  stats_service_providers: { en: 'Service Providers', sw: 'Watoa Huduma' },
-  stats_transporters: { en: 'Transporters', sw: 'Wasafirishaji' },
-  stats_regions: { en: 'Regions Covered', sw: 'Mikoa Inayohudumiwa' },
+  // ── "Wa Kwanza Kujiunga" — replaces the live numeric stats counter, which
+  // showed things like "0+ Watoa Huduma" and read as social proof in the
+  // wrong direction this early. ──────────────────────────────────────────
+  founding_heading: { en: 'FIRST TO JOIN', sw: 'WA KWANZA KUJIUNGA' },
+  founding_message: {
+    en: "We're looking for Kentexa's first partners.",
+    sw: 'Tunatafuta washirika wa kwanza wa Kentexa.',
+  },
+  founding_sellers: { en: 'Sellers & Businesses', sw: 'Wauzaji & Biashara' },
+  founding_service_providers: { en: 'Service Providers', sw: 'Watoa Huduma' },
+  founding_transporters: { en: 'Transporters', sw: 'Wasafirishaji' },
+  founding_agents: { en: 'Agents', sw: 'Mawakala' },
 
   cta_heading: { en: 'Ready to be first in line?', sw: 'Uko Tayari Kuwa wa Kwanza?' },
   cta_sub: {
-    en: "Registration takes less than 5 minutes. Secure your spot in Kentexa's early access program today — completely free.",
-    sw: 'Usajili unachukua chini ya dakika 5. Hakikisha nafasi yako katika mpango wa Kentexa wa mapema leo — bure kabisa.',
+    en: 'Registration takes less than a minute. Secure your spot in Kentexa’s early access program today — completely free.',
+    sw: 'Usajili unachukua chini ya dakika moja. Hakikisha nafasi yako katika mpango wa Kentexa wa mapema leo — bure kabisa.',
   },
-  cta_button: { en: 'Register Free', sw: 'Jisajili Bure' },
+  cta_button: { en: 'JOIN EARLY ACCESS — FREE →', sw: 'JIUNGE EARLY ACCESS — BURE →' },
 
   footer_rights: { en: 'All rights reserved.', sw: 'Haki zote zimehifadhiwa.' },
   footer_tagline: {
@@ -439,6 +456,40 @@ const dict = {
     sw: 'Nakubali kuwasiliana nami kabla ya wasifu wangu kuchapishwa.',
   },
   submit_registration: { en: 'Submit Registration', sw: 'Tuma Usajili' },
+
+  // ── Quick registration (primary landing-page flow) ────────────────────
+  quick_role_heading: { en: 'How are you joining Kentexa?', sw: 'Unajiunga Kentexa kama nani?' },
+  quick_role_seller: { en: 'Seller', sw: 'Muuzaji' },
+  quick_role_business: { en: 'Business', sw: 'Biashara' },
+  quick_role_service_provider: { en: 'Service Provider', sw: 'Mtoa Huduma' },
+  quick_role_transporter: { en: 'Transporter', sw: 'Msafirishaji' },
+  quick_role_agent: { en: 'Agent', sw: 'Agent' },
+  quick_name_label: { en: 'Your name', sw: 'Jina lako' },
+  quick_name_placeholder: { en: 'e.g. Amina Juma', sw: 'mfano: Amina Juma' },
+  quick_whatsapp_label: { en: 'Your WhatsApp number', sw: 'Namba yako ya WhatsApp' },
+  quick_whatsapp_placeholder: { en: 'e.g. 0712 345 678', sw: 'mfano: 0712 345 678' },
+  quick_submit: { en: 'JOIN EARLY ACCESS →', sw: 'JIUNGE EARLY ACCESS →' },
+  err_whatsapp_format: {
+    en: 'Please enter a valid WhatsApp number',
+    sw: 'Tafadhali weka namba sahihi ya WhatsApp',
+  },
+
+  // ── Success screen ──────────────────────────────────────────────────────
+  success_title: { en: '🎉 WELCOME TO KENTEXA', sw: '🎉 KARIBU KENTEXA' },
+  success_message1: { en: "You've joined Kentexa Early Access.", sw: 'Umejiunga na Kentexa Early Access.' },
+  success_message2: {
+    en: "You're among the first people building a new AI-powered commerce network.",
+    sw: 'Uko miongoni mwa watu wa kwanza kujenga mtandao mpya wa biashara unaotumia AI.',
+  },
+  success_id_label: { en: 'Your Early Access ID', sw: 'Namba Yako ya Early Access' },
+  success_copied: { en: 'Copied!', sw: 'Imenakiliwa!' },
+  success_tap_copy: { en: 'Tap to copy', sw: 'Gusa kunakili' },
+  success_tell_more: { en: 'Tell us more about your business', sw: 'Tuambie zaidi kuhusu biashara yako' },
+  success_tell_more_sub: {
+    en: "Optional — we'll also follow up with you directly.",
+    sw: 'Si lazima — tutakufuatilia pia moja kwa moja.',
+  },
+  success_back_home: { en: 'Back to Home', sw: 'Rudi Mwanzo' },
 
   // ── Validation error messages (referenced as keys from zod issues) ───
   err_account_type: { en: 'Please select an account type', sw: 'Tafadhali chagua aina ya akaunti' },

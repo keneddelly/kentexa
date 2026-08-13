@@ -6,6 +6,7 @@ import type {
   NestErrorBody,
   PaginatedRegistrations,
   PublicStats,
+  QuickRegistrationPayload,
   Registration,
   RegistrationListFilters,
   RegistrationPayload,
@@ -159,6 +160,15 @@ function triggerBlobDownload(blob: Blob, filename: string): void {
 
 export function registerBusiness(payload: RegistrationPayload): Promise<Registration & { earlyAccessId: string }> {
   return request('/early-access/register', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function quickRegister(
+  payload: QuickRegistrationPayload,
+): Promise<Registration & { earlyAccessId: string }> {
+  return request('/early-access/quick-register', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

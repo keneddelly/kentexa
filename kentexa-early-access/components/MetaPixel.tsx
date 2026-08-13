@@ -40,10 +40,24 @@ export default function MetaPixel() {
   );
 }
 
-/** Fire a Meta Pixel standard event from a client component, e.g. on the success page. */
+/** Fire a Meta Pixel standard event (PageView, CompleteRegistration, ...) from a client component. */
 export function trackMetaEvent(event: string, params?: Record<string, unknown>) {
   if (!PIXEL_ID) return;
   if (typeof window === 'undefined') return;
   const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
   fbq?.('track', event, params);
+}
+
+// Non-standard event names (anything Meta doesn't recognize as one of its
+// built-in event types) must go through trackCustom, not track — fbq
+// silently no-ops standard-event calls for unrecognized names otherwise.
+// Used for 'EarlyAccessRegistration' specifically, so registration
+// completions are visible in Ads Manager as their own named event, distinct
+// from PageView/LinkClick and from the standard CompleteRegistration event
+// fired alongside it.
+export function trackMetaCustomEvent(event: string, params?: Record<string, unknown>) {
+  if (!PIXEL_ID) return;
+  if (typeof window === 'undefined') return;
+  const fbq = (window as unknown as { fbq?: (...args: unknown[]) => void }).fbq;
+  fbq?.('trackCustom', event, params);
 }
