@@ -123,9 +123,23 @@ export class EarlyAccessRegistration {
   // region/businessCategory/businessDescription/productsOrServices are
   // placeholder values on these until the person is followed up with, not
   // real data. Lets admin exports tell "hasn't filled in details yet" apart
-  // from "genuinely has no description".
+  // from "genuinely has no description". Flipped to false once the person
+  // completes their profile via the editToken flow below.
   @Column({ type: 'boolean', default: false })
   isQuickSignup: boolean;
+
+  // Capability token for the "tell us more about your business" flow —
+  // lets someone who just quick-registered come back and fill in the full
+  // profile (region, category, description, ...) as an update to THIS row
+  // instead of creating a duplicate registration. Deliberately not the
+  // sequential id: ids are guessable/enumerable, and the complete-profile
+  // endpoints return the existing owner name/phone to prefill the form, so
+  // using id there would let anyone walk the sequence and read other
+  // people's registration data. Never shown in a URL — the frontend keeps
+  // it in sessionStorage only.
+  @Index({ unique: true })
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  editToken: string | null;
 
   // ── AI research questions ─────────────────────────────────────────────
   @Column({ type: 'text', nullable: true })

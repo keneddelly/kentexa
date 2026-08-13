@@ -26,6 +26,7 @@ import { EarlyAccessUploadService } from './early-access-upload.service';
 import { EarlyAccessOtpService } from './early-access-otp.service';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
 import { CreateQuickRegistrationDto } from './dto/create-quick-registration.dto';
+import { CompleteRegistrationDto } from './dto/complete-registration.dto';
 import { QueryRegistrationsDto } from './dto/query-registrations.dto';
 import { RejectRegistrationDto } from './dto/reject-registration.dto';
 import { SendPhoneOtpDto } from './dto/send-phone-otp.dto';
@@ -82,6 +83,26 @@ export class EarlyAccessController {
   @Post('quick-register')
   quickRegister(@Body() dto: CreateQuickRegistrationDto) {
     return this.service.createQuick(dto);
+  }
+
+  // ── "Tell us more about your business" — completes a quick signup ──────
+  // Token-scoped, not id-scoped — see editToken on the entity. No JwtAuthGuard:
+  // the token itself is the credential, since the person isn't logged in.
+
+  @ApiOperation({ summary: 'Look up a quick registration by its edit token, to prefill the full form' })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 20, ttl: 3600000 } })
+  @Get('complete/:token')
+  getByEditToken(@Param('token') token: string) {
+    return this.service.findByEditToken(token);
+  }
+
+  @ApiOperation({ summary: 'Complete a quick registration with the full business profile' })
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600000 } })
+  @Patch('complete/:token')
+  completeByEditToken(@Param('token') token: string, @Body() dto: CompleteRegistrationDto) {
+    return this.service.completeByToken(token, dto);
   }
 
   @ApiOperation({ summary: 'Upload registration images (logo/cover/photos)' })

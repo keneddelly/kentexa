@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import * as ExcelJS from 'exceljs';
 import {
   AccountType,
@@ -10,6 +11,7 @@ import {
 } from './entities/early-access-registration.entity';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
 import { CreateQuickRegistrationDto } from './dto/create-quick-registration.dto';
+import { CompleteRegistrationDto } from './dto/complete-registration.dto';
 import { QueryRegistrationsDto } from './dto/query-registrations.dto';
 import { RejectRegistrationDto } from './dto/reject-registration.dto';
 import { EarlyAccessOtpService } from './early-access-otp.service';
@@ -95,12 +97,36 @@ export class EarlyAccessService {
         productsOrServices: 'Bado hajaeleza zaidi — atafuatiliwa.',
         consentToContact: true,
         isQuickSignup: true,
+        editToken: randomUUID(),
       }),
     );
     return {
       ...registration,
       earlyAccessId: registration.earlyAccessId,
     };
+  }
+
+  // ── "Tell us more about your business" — completes a quick signup ────────
+  // Token-scoped rather than id-scoped: see the editToken column comment on
+  // the entity for why.
+
+  async findByEditToken(token: string) {
+    const registration = await this.repo.findOne({
+      where: { editToken: token, isDeleted: false },
+    });
+    if (!registration) throw new NotFoundException('Invalid or expired link');
+    return { ...registration, earlyAccessId: registration.earlyAccessId };
+  }
+
+  async completeByToken(token: string, dto: CompleteRegistrationDto) {
+    const registration = await this.repo.findOne({
+      where: { editToken: token, isDeleted: false },
+    });
+    if (!registration) throw new NotFoundException('Invalid or expired link');
+
+    Object.assign(registration, dto, { isQuickSignup: false });
+    await this.repo.save(registration);
+    return { ...registration, earlyAccessId: registration.earlyAccessId };
   }
 
   private baseQuery() {
