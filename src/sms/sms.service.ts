@@ -60,7 +60,14 @@ export class SmsService {
         return true;
       }
 
-      this.logger.warn(`⚠️ SMS status: ${status} to ${formatted}`);
+      // status alone doesn't say why AT rejected it (InvalidSenderId,
+      // UserInBlackList, InsufficientBalance, ...) — log the full recipient
+      // object (and the raw result if Recipients itself is missing/empty)
+      // so a failure is actually diagnosable instead of just "undefined".
+      this.logger.warn(
+        `⚠️ SMS not sent to ${formatted} — recipient: ${JSON.stringify(recipient)}` +
+          (recipient ? '' : ` — full result: ${JSON.stringify(result)}`),
+      );
       return false;
     } catch (err) {
       this.logger.error(`❌ SMS error: ${err.message}`);
