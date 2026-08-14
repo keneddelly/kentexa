@@ -108,14 +108,14 @@ export default function SuccessPage({ params }: { params: Promise<{ id: string }
         </div>
 
         {canTellMore && (
-          <div className="mt-8 rounded-xl border border-dashed border-gray-200 p-4 dark:border-gray-700">
+          <div className="mt-8 rounded-xl border-2 border-accent/30 bg-accent/5 p-5 dark:border-accent-light/30 dark:bg-accent/10">
             <Link
               href="/register/complete"
-              className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:underline dark:text-primary-light"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-6 py-3.5 text-base font-bold text-white shadow-lg shadow-accent/30 transition-transform hover:-translate-y-0.5 hover:bg-accent-dark"
             >
-              💬 {t('success_tell_more')}
+              💬 {t('success_tell_more')} <span aria-hidden>→</span>
             </Link>
-            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">{t('success_tell_more_sub')}</p>
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">{t('success_tell_more_sub')}</p>
           </div>
         )}
 
