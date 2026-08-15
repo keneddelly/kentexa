@@ -13,6 +13,11 @@ import {
 import { User } from '../users/entities/user.entity';
 import { SmsService } from '../sms/sms.service';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import {
+  CommerceProfileType,
+  CommerceProfileStatus,
+} from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class AgentsService {
@@ -22,6 +27,7 @@ export class AgentsService {
     @InjectRepository(AgentTransaction)
     private agentTransactionRepo: Repository<AgentTransaction>,
     private smsService: SmsService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Agent: register ────────────────────────────────────────────────────────
@@ -58,6 +64,9 @@ export class AgentsService {
         status: AgentStatus.PENDING,
         rejectionReason: null,
       });
+      await this.commerceProfiles
+        .syncStatusByLink('agentId', existing.id, CommerceProfileStatus.PENDING)
+        .catch(() => {});
       return { message: 'Ombi lako jipya limewasilishwa. Tutawasiliana nawe.' };
     }
     const agent = this.agentRepo.create({
@@ -76,7 +85,24 @@ export class AgentsService {
       vehicleDescription: dto.vehicleDescription || null,
       status: AgentStatus.PENDING,
     } as any);
-    await this.agentRepo.save(agent);
+    // .create() was already passed `as any` here (pre-existing), which
+    // makes TS resolve .save()'s array overload instead of the single-
+    // entity one — cast back since this is always exactly one Agent.
+    const saved = (await this.agentRepo.save(agent)) as unknown as Agent;
+
+    try {
+      await this.commerceProfiles.createProfile({
+        ownerId: user.id,
+        type: CommerceProfileType.AGENT,
+        displayName: saved.fullName,
+        usernameSeed: saved.fullName,
+        photoUrl: user.avatarUrl,
+        location: saved.city,
+        status: CommerceProfileStatus.PENDING,
+        agentId: saved.id,
+      });
+    } catch {}
+
     return { message: 'Ombi limewasilishwa. Tutawasiliana nawe haraka.' };
   }
 
@@ -215,6 +241,9 @@ export class AgentsService {
         role: 'agent' as any,
         activeRoles: mergeActiveRole(agent.user.activeRoles, 'agent'),
       });
+    await this.commerceProfiles
+      .syncStatusByLink('agentId', agentId, CommerceProfileStatus.ACTIVE)
+      .catch(() => {});
     const phone = agent.phone || agent.user?.phone;
     if (phone) {
       await this.smsService
@@ -240,6 +269,9 @@ export class AgentsService {
       status: AgentStatus.REJECTED,
       rejectionReason: reason,
     });
+    await this.commerceProfiles
+      .syncStatusByLink('agentId', agentId, CommerceProfileStatus.REJECTED)
+      .catch(() => {});
     const phone = agent.phone || agent.user?.phone;
     if (phone) {
       await this.smsService

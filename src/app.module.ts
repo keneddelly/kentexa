@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ClassifiedsModule } from './classifieds/classifieds.module';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
+import { CommerceProfilesModule } from './commerce-profiles/commerce-profiles.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { UploadModule } from './upload/upload.module';
@@ -65,6 +66,7 @@ import { SearchModule } from './search/search.module';
     ClassifiedsModule,
     ProductsModule,
     CategoriesModule,
+    CommerceProfilesModule,
     OrdersModule,
     PaymentsModule,
     UploadModule,

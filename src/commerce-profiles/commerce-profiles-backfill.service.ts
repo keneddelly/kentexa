@@ -1,0 +1,162 @@
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CommerceProfile, CommerceProfileType, CommerceProfileStatus } from './entities/commerce-profile.entity';
+import { CommerceProfilesService } from './commerce-profiles.service';
+import { User } from '../users/entities/user.entity';
+import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
+import { TransportProvider, ProviderStatus } from '../transport/entities/transport-provider.entity';
+import { Agent, AgentStatus } from '../agents/entities/agent.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+
+export interface BackfillResult {
+  personalCreated: number;
+  businessCreated: number;
+  transportCreated: number;
+  agentCreated: number;
+  hubCreated: number;
+  skippedAlreadyExisted: number;
+}
+
+// One-time (idempotent) catch-up for data that predates CommerceProfile.
+// New records never need this — they get their CommerceProfile created
+// inline by their own apply/register/approve flow going forward. Safe to
+// re-run: every check below looks for an existing linked profile first.
+@Injectable()
+export class CommerceProfilesBackfillService {
+  private readonly logger = new Logger(CommerceProfilesBackfillService.name);
+
+  constructor(
+    @InjectRepository(CommerceProfile) private profileRepo: Repository<CommerceProfile>,
+    @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(SellerProfile) private sellerRepo: Repository<SellerProfile>,
+    @InjectRepository(TransportProvider) private transportRepo: Repository<TransportProvider>,
+    @InjectRepository(Agent) private agentRepo: Repository<Agent>,
+    @InjectRepository(SuperAgent) private superAgentRepo: Repository<SuperAgent>,
+    private profiles: CommerceProfilesService,
+  ) {}
+
+  async run(): Promise<BackfillResult> {
+    const result: BackfillResult = {
+      personalCreated: 0,
+      businessCreated: 0,
+      transportCreated: 0,
+      agentCreated: 0,
+      hubCreated: 0,
+      skippedAlreadyExisted: 0,
+    };
+
+    // ── Personal profile for every user ─────────────────────────────────────
+    const users = await this.userRepo.find();
+    for (const user of users) {
+      const existing = await this.profiles.findForUserByType(user.id, CommerceProfileType.PERSONAL);
+      if (existing) { result.skippedAlreadyExisted++; continue; }
+      await this.profiles.createProfile({
+        ownerId: user.id,
+        type: CommerceProfileType.PERSONAL,
+        displayName: user.name || `User ${user.id}`,
+        usernameSeed: user.name || `user${user.id}`,
+        photoUrl: user.avatarUrl,
+        status: CommerceProfileStatus.ACTIVE,
+      });
+      result.personalCreated++;
+    }
+    this.logger.log(`Personal profiles: ${result.personalCreated} created`);
+
+    // ── Business profile for every seller application ──────────────────────
+    const sellerProfiles = await this.sellerRepo.find();
+    for (const sp of sellerProfiles) {
+      if (!sp.user) continue;
+      const existing = await this.profileRepo.findOne({ where: { sellerProfileId: sp.id } });
+      if (existing) { result.skippedAlreadyExisted++; continue; }
+      await this.profiles.createProfile({
+        ownerId: sp.user.id,
+        type: CommerceProfileType.BUSINESS,
+        displayName: sp.user.storeName || sp.businessName,
+        usernameSeed: sp.businessName,
+        photoUrl: sp.user.logo || sp.logo,
+        bio: sp.businessDescription,
+        location: sp.address,
+        status: sp.status === SellerStatus.APPROVED ? CommerceProfileStatus.ACTIVE
+          : sp.status === SellerStatus.REJECTED ? CommerceProfileStatus.REJECTED
+          : sp.status === SellerStatus.SUSPENDED ? CommerceProfileStatus.SUSPENDED
+          : CommerceProfileStatus.PENDING,
+        sellerProfileId: sp.id,
+      });
+      result.businessCreated++;
+    }
+    this.logger.log(`Business profiles: ${result.businessCreated} created`);
+
+    // ── Transport-provider profile for every registration ──────────────────
+    const providers = await this.transportRepo.find();
+    for (const tp of providers) {
+      if (!tp.userId) continue;
+      const existing = await this.profileRepo.findOne({ where: { transportProviderId: tp.id } });
+      if (existing) { result.skippedAlreadyExisted++; continue; }
+      await this.profiles.createProfile({
+        ownerId: tp.userId,
+        type: CommerceProfileType.TRANSPORT_PROVIDER,
+        displayName: tp.name,
+        usernameSeed: tp.name,
+        photoUrl: tp.logoUrl,
+        bio: tp.description,
+        status: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(tp.status)
+          ? CommerceProfileStatus.ACTIVE
+          : tp.status === ProviderStatus.REJECTED ? CommerceProfileStatus.REJECTED
+          : tp.status === ProviderStatus.SUSPENDED ? CommerceProfileStatus.SUSPENDED
+          : CommerceProfileStatus.PENDING,
+        transportProviderId: tp.id,
+      });
+      result.transportCreated++;
+    }
+    this.logger.log(`Transport provider profiles: ${result.transportCreated} created`);
+
+    // ── Agent profile for every registration ────────────────────────────────
+    const agents = await this.agentRepo.find();
+    for (const a of agents) {
+      if (!a.user) continue;
+      const existing = await this.profileRepo.findOne({ where: { agentId: a.id } });
+      if (existing) { result.skippedAlreadyExisted++; continue; }
+      await this.profiles.createProfile({
+        ownerId: a.user.id,
+        type: CommerceProfileType.AGENT,
+        displayName: a.fullName,
+        usernameSeed: a.fullName,
+        photoUrl: a.user.avatarUrl,
+        location: a.city,
+        status: a.status === AgentStatus.APPROVED ? CommerceProfileStatus.ACTIVE
+          : a.status === AgentStatus.REJECTED ? CommerceProfileStatus.REJECTED
+          : a.status === AgentStatus.SUSPENDED ? CommerceProfileStatus.SUSPENDED
+          : CommerceProfileStatus.PENDING,
+        agentId: a.id,
+      });
+      result.agentCreated++;
+    }
+    this.logger.log(`Agent profiles: ${result.agentCreated} created`);
+
+    // ── Hub profile for every super agent ───────────────────────────────────
+    const hubs = await this.superAgentRepo.find();
+    for (const sa of hubs) {
+      if (!sa.user) continue;
+      const existing = await this.profileRepo.findOne({ where: { superAgentId: sa.id } });
+      if (existing) { result.skippedAlreadyExisted++; continue; }
+      await this.profiles.createProfile({
+        ownerId: sa.user.id,
+        type: CommerceProfileType.HUB,
+        displayName: sa.businessName,
+        usernameSeed: sa.businessName,
+        photoUrl: sa.user.avatarUrl,
+        location: sa.city,
+        status: sa.status === SuperAgentStatus.ACTIVE ? CommerceProfileStatus.ACTIVE
+          : sa.status === SuperAgentStatus.BLOCKED ? CommerceProfileStatus.REJECTED
+          : sa.status === SuperAgentStatus.SUSPENDED ? CommerceProfileStatus.SUSPENDED
+          : CommerceProfileStatus.PENDING,
+        superAgentId: sa.id,
+      });
+      result.hubCreated++;
+    }
+    this.logger.log(`Hub profiles: ${result.hubCreated} created`);
+
+    return result;
+  }
+}

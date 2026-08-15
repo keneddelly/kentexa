@@ -30,6 +30,11 @@ import { SmsService } from '../sms/sms.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import {
+  CommerceProfileType,
+  CommerceProfileStatus,
+} from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class SuperAgentsService {
@@ -54,6 +59,7 @@ export class SuperAgentsService {
     private dataSource: DataSource,
     private businessCustomerService: BusinessCustomerService,
     private inAppNotif: InAppNotificationService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
@@ -146,7 +152,22 @@ export class SuperAgentsService {
       shippingRates: {},
     });
 
-    return this.superAgentRepo.save(agent);
+    const saved = await this.superAgentRepo.save(agent);
+
+    try {
+      await this.commerceProfiles.createProfile({
+        ownerId: user.id,
+        type: CommerceProfileType.HUB,
+        displayName: saved.businessName,
+        usernameSeed: saved.businessName,
+        photoUrl: user.avatarUrl,
+        location: saved.city,
+        status: CommerceProfileStatus.PENDING,
+        superAgentId: saved.id,
+      });
+    } catch {}
+
+    return saved;
   }
 
   async getMyProfile(user: User) {
@@ -691,6 +712,9 @@ export class SuperAgentsService {
         activeRoles: mergeActiveRole(agent.user.activeRoles, 'super_agent'),
       });
     }
+    await this.commerceProfiles
+      .syncStatusByLink('superAgentId', id, CommerceProfileStatus.ACTIVE)
+      .catch(() => {});
     return saved;
   }
 
@@ -699,6 +723,9 @@ export class SuperAgentsService {
     if (!agent) throw new NotFoundException('Super agent not found');
     agent.status = SuperAgentStatus.SUSPENDED;
     agent.rejectionReason = reason;
+    await this.commerceProfiles
+      .syncStatusByLink('superAgentId', id, CommerceProfileStatus.SUSPENDED)
+      .catch(() => {});
     return this.superAgentRepo.save(agent);
   }
 

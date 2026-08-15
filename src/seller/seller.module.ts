@@ -15,6 +15,7 @@ import { Product } from '../products/entities/products.entity';
 import { BusinessTeamMember } from '../business/entities/business-team-member.entity';
 import { ProfileModule } from '../profile/profile.module';
 import { BusinessModule } from '../business/business.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { BusinessModule } from '../business/business.module';
     ]),
     ProfileModule,
     BusinessModule,
+    CommerceProfilesModule,
   ],
   controllers: [SellerController],
   providers: [SellerService],

@@ -11,6 +11,8 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
 import { SmsService } from '../sms/sms.service';
 import { MailService } from '../mail/mail.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +22,7 @@ export class AuthService {
     private jwtService: JwtService,
     private smsService: SmsService,
     private mailService: MailService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   private signToken(user: User) {
@@ -151,6 +154,29 @@ export class AuthService {
       await this.smsService.sendWelcome(user.phone, String(user.name || ''));
     if (user.email)
       await this.mailService.sendWelcome(user.email, String(user.name || ''));
+
+    // Every verified account gets exactly one personal Commerce Profile —
+    // this is what makes "one Kentexa account" true from the very first
+    // moment, before the person ever becomes a seller/agent/anything else.
+    // Never blocks verification itself if it fails.
+    try {
+      const existing = await this.commerceProfiles.findForUserByType(
+        user.id,
+        CommerceProfileType.PERSONAL,
+      );
+      if (!existing) {
+        await this.commerceProfiles.createProfile({
+          ownerId: user.id,
+          type: CommerceProfileType.PERSONAL,
+          displayName: user.name || `User ${user.id}`,
+          usernameSeed: user.name || `user${user.id}`,
+          photoUrl: user.avatarUrl,
+        });
+      }
+    } catch {
+      // Non-fatal — the admin backfill will catch any account that slips
+      // through here.
+    }
 
     const token = this.signToken(user);
     return {

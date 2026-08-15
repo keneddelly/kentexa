@@ -11,11 +11,13 @@ import { User } from '../users/entities/user.entity';
 import { SmsModule } from '../sms/sms.module';
 import { MailModule } from '../mail/mail.module';
 import { ProfileModule } from '../profile/profile.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
     ProfileModule,
+    CommerceProfilesModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

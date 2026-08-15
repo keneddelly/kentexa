@@ -35,6 +35,11 @@ import {
   PriceType,
 } from '../services/entities/service-ad.entity';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import {
+  CommerceProfileType,
+  CommerceProfileStatus,
+} from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class TransportService {
@@ -50,6 +55,7 @@ export class TransportService {
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
     @InjectRepository(User) private userRepo: Repository<User>,
     private readonly reputationService: ReputationService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── REGISTRATION ──────────────────────────────────────────────────────────
@@ -96,6 +102,20 @@ export class TransportService {
     const saved = await this.providerRepo.save(provider);
     // Auto-create a paused service ad (activates when admin verifies)
     await this.syncServiceAd(saved, false);
+
+    try {
+      await this.commerceProfiles.createProfile({
+        ownerId: user.id,
+        type: CommerceProfileType.TRANSPORT_PROVIDER,
+        displayName: saved.name,
+        usernameSeed: saved.name,
+        photoUrl: saved.logoUrl,
+        bio: saved.description,
+        status: CommerceProfileStatus.PENDING,
+        transportProviderId: saved.id,
+      });
+    } catch {}
+
     return saved;
   }
 
@@ -705,6 +725,13 @@ export class TransportService {
         });
       }
     }
+    await this.commerceProfiles
+      .syncStatusByLink(
+        'transportProviderId',
+        p.id,
+        approve ? CommerceProfileStatus.ACTIVE : CommerceProfileStatus.REJECTED,
+      )
+      .catch(() => {});
     return saved;
   }
 

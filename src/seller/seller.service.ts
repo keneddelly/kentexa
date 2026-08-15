@@ -20,6 +20,11 @@ import { Product } from '../products/entities/products.entity';
 import { BusinessTeamMember } from '../business/entities/business-team-member.entity';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { ProfileService } from '../profile/profile.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import {
+  CommerceProfileType,
+  CommerceProfileStatus,
+} from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class SellerService {
@@ -37,6 +42,7 @@ export class SellerService {
     @InjectRepository(BusinessTeamMember)
     private teamRepo: Repository<BusinessTeamMember>,
     private profileService: ProfileService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Public: all approved sellers (raw profiles) ──────────────────────────
@@ -195,7 +201,26 @@ export class SellerService {
       user,
       status: SellerStatus.PENDING,
     });
-    return this.profileRepo.save(profile);
+    const saved = await this.profileRepo.save(profile);
+
+    // Creates the business's Commerce Profile alongside the application —
+    // starts PENDING, mirrors the SellerProfile's own status exactly.
+    // Non-fatal: the admin backfill catches anything that slips through.
+    try {
+      await this.commerceProfiles.createProfile({
+        ownerId: user.id,
+        type: CommerceProfileType.BUSINESS,
+        displayName: saved.businessName,
+        usernameSeed: saved.businessName,
+        photoUrl: saved.logo,
+        bio: saved.businessDescription,
+        location: saved.address,
+        status: CommerceProfileStatus.PENDING,
+        sellerProfileId: saved.id,
+      });
+    } catch {}
+
+    return saved;
   }
 
   // ── Get my seller profile ─────────────────────────────────────────────────
@@ -493,6 +518,9 @@ export class SellerService {
       role: UserRole.SELLER,
       activeRoles: mergeActiveRole(profile.user.activeRoles, 'seller'),
     });
+    await this.commerceProfiles
+      .syncStatusByLink('sellerProfileId', profile.id, CommerceProfileStatus.ACTIVE)
+      .catch(() => {});
     return this.profileRepo.save(profile);
   }
 
@@ -504,6 +532,9 @@ export class SellerService {
     if (!profile) throw new NotFoundException('Seller profile not found');
     profile.status = SellerStatus.REJECTED;
     profile.rejectionReason = reason;
+    await this.commerceProfiles
+      .syncStatusByLink('sellerProfileId', profile.id, CommerceProfileStatus.REJECTED)
+      .catch(() => {});
     return this.profileRepo.save(profile);
   }
 
@@ -515,6 +546,9 @@ export class SellerService {
     if (!profile) throw new NotFoundException('Seller profile not found');
     profile.status = SellerStatus.SUSPENDED;
     profile.rejectionReason = reason;
+    await this.commerceProfiles
+      .syncStatusByLink('sellerProfileId', profile.id, CommerceProfileStatus.SUSPENDED)
+      .catch(() => {});
     await this.userRepo.update(profile.user.id, { role: UserRole.USER });
     return this.profileRepo.save(profile);
   }
