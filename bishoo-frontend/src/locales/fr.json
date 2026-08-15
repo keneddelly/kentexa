@@ -3446,6 +3446,9 @@
   },
   "seller_customers": {
     "title": "Mes Clients",
+    "sellers_only_title": "Réservé aux Vendeurs",
+    "sellers_only_desc": "La gestion des clients est réservée aux vendeurs qui suivent les acheteurs de leurs produits. Devenez vendeur pour commencer à créer votre liste de clients.",
+    "become_seller_button": "Devenir Vendeur",
     "stat_total_customers": "Total Clients",
     "stat_new_this_month": "Nouveaux ce Mois",
     "stat_total_revenue": "Revenus Totaux",
@@ -3509,6 +3512,7 @@
     "loading": "⏳ Chargement...",
     "no_conversations": "Aucune conversation",
     "go_to_customer_hint": "Allez sur un client et appuyez sur « Démarrer une Conversation »",
+    "no_conversations_hint": "Les messages des vendeurs que vous avez contactés apparaîtront ici.",
     "view_customers": "👥 Voir les Clients",
     "start_conversation_prompt": "Démarrer la conversation",
     "quick_order_title": "🚀 Commande Rapide",

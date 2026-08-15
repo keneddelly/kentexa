@@ -3283,6 +3283,9 @@
   },
   "seller_customers": {
     "title": "Wateja Wangu",
+    "sellers_only_title": "Kwa Wachuuzi Tu",
+    "sellers_only_desc": "Usimamizi wa wateja ni kwa wachuuzi wanaofuatilia wanunuzi wa bidhaa zao. Kuwa muuzaji ili uanze kujenga orodha ya wateja wako.",
+    "become_seller_button": "Kuwa Muuzaji",
     "stat_total_customers": "Wateja Wote",
     "stat_new_this_month": "Wapya Mwezi",
     "stat_total_revenue": "Mapato Yote",
@@ -3346,6 +3349,7 @@
     "loading": "⏳ Inapakia...",
     "no_conversations": "Hakuna mazungumzo",
     "go_to_customer_hint": "Nenda kwa mteja na ubonyeze \"Anza Mazungumzo\"",
+    "no_conversations_hint": "Ujumbe kutoka kwa wachuuzi uliowasiliana nao utaonekana hapa.",
     "view_customers": "👥 Ona Wateja",
     "start_conversation_prompt": "Anza mazungumzo",
     "quick_order_title": "🚀 Unda Agizo Haraka",

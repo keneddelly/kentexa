@@ -455,7 +455,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   <div style={{ fontSize:11, fontWeight:700, color:B,
                     backgroundColor:'#EFF6FF', padding:'4px 10px', borderRadius:8,
                     display:'inline-block' }}>
-                    KTX-{String(profile?.id||0).padStart(6,'0')}
+                    {profile?.kentexaId || '—'}
                   </div>
                 </div>
               </div>

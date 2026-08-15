@@ -331,8 +331,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
           display:'flex', alignItems:'center', justifyContent:'center',
           fontSize:32, color:'#fff', fontWeight:900,
           boxShadow:'0 4px 16px rgba(0,0,0,0.15)' }}>
-          {profile.logo
-            ? <img src={profile.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+          {(profile.avatarUrl || profile.logo)
+            ? <img src={profile.avatarUrl || profile.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
             : (profile.storeName||profile.name||'K').charAt(0).toUpperCase()}
         </div>
 
@@ -397,6 +397,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
           )}
           <ReputationBadge score={score} size="sm" />
         </div>
+
+        {/* Kentexa ID — the identity anchor across the whole site */}
+        {profile.kentexaId && (
+          <div style={{ fontSize:11, fontWeight:700, color:B, marginBottom:8,
+            display:'inline-flex', alignItems:'center', gap:4,
+            backgroundColor:'#eff6ff', border:'1px solid #bfdbfe',
+            borderRadius:100, padding:'2px 10px', letterSpacing:0.5 }}>
+            🆔 {profile.kentexaId}
+          </div>
+        )}
 
         {/* Role badges */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>

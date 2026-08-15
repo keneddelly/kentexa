@@ -153,9 +153,11 @@ export class SellerService {
     return {
       id: u.id, // ✅ USER id — matches CommerceProfile-{id} route
       userId: u.id,
+      kentexaId: u.kentexaId,
       role: u.role,
       activeRoles: (u as any).activeRoles || [],
       name: u.name,
+      avatarUrl: u.avatarUrl || null,
       storeName: u.storeName || sellerProfile?.businessName || null,
       storeTagline: u.storeTagline || null,
       storeDescription: u.storeDescription || null,

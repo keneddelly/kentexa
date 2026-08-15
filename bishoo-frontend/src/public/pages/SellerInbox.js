@@ -150,8 +150,9 @@ const MessageBubble = ({ msg, mode, t }) => {
   );
 };
 
-const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole }) => {
   const { t, i18n } = useTranslation();
+  const canSell = ['seller', 'admin', 'manager'].includes(userRole);
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);
@@ -379,14 +380,16 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId }) => {
                   {t('seller_inbox.no_conversations')}
                 </div>
                 <div style={{ fontSize: 12, color: '#64748b' }}>
-                  {t('seller_inbox.go_to_customer_hint')}
+                  {canSell ? t('seller_inbox.go_to_customer_hint') : t('seller_inbox.no_conversations_hint')}
                 </div>
-                <button onClick={() => onNavigate('SellerCustomers')}
-                  style={{ marginTop: 16, backgroundColor: '#1d4ed8', color: '#fff',
-                    border: 'none', padding: '10px 20px', borderRadius: 10,
-                    cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                  {t('seller_inbox.view_customers')}
-                </button>
+                {canSell && (
+                  <button onClick={() => onNavigate('SellerCustomers')}
+                    style={{ marginTop: 16, backgroundColor: '#1d4ed8', color: '#fff',
+                      border: 'none', padding: '10px 20px', borderRadius: 10,
+                      cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                    {t('seller_inbox.view_customers')}
+                  </button>
+                )}
               </div>
             ) : conversations.map(c => (
               <ConversationItem key={c.id} convo={c} t={t} dateLocale={dateLocale}

@@ -3450,6 +3450,9 @@
   },
   "seller_customers": {
     "title": "My Customers",
+    "sellers_only_title": "Sellers Only",
+    "sellers_only_desc": "Customer management is for sellers tracking buyers of their products. Become a seller to start building your customer list.",
+    "become_seller_button": "Become a Seller",
     "stat_total_customers": "Total Customers",
     "stat_new_this_month": "New This Month",
     "stat_total_revenue": "Total Revenue",
@@ -3513,6 +3516,7 @@
     "loading": "⏳ Loading...",
     "no_conversations": "No conversations",
     "go_to_customer_hint": "Go to a customer and tap \"Start Conversation\"",
+    "no_conversations_hint": "Messages from sellers you've contacted will show up here.",
     "view_customers": "👥 View Customers",
     "start_conversation_prompt": "Start the conversation",
     "quick_order_title": "🚀 Quick Order",

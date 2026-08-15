@@ -11,6 +11,9 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 import { BusinessCustomerService } from './business-customer.service';
 import { ConversationService } from './conversation.service';
 
@@ -29,9 +32,13 @@ export class BusinessController {
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // CUSTOMERS (CRM)
+  // CUSTOMERS (CRM) — was JwtAuthGuard-only, so any logged-in account (a
+  // plain buyer included) could add/list "their customers". Restricted to
+  // roles that actually run a store.
   // ═══════════════════════════════════════════════════════════════════════════
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Get('customers')
   getCustomers(
     @Request() req,
@@ -48,21 +55,29 @@ export class BusinessController {
     });
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Get('customers/stats')
   getCustomerStats(@Request() req) {
     return this.customerService.getDashboardStats(req.user.id);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Get('customers/:id')
   getCustomer(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.customerService.getCustomerDetail(req.user.id, id);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Post('customers/migrate')
   migrateExistingOrders(@Request() req) {
     return this.customerService.migrateFromExistingOrders(req.user.id);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Post('customers')
   addCustomer(
     @Request() req,
@@ -85,6 +100,8 @@ export class BusinessController {
     return this.customerService.addCustomer(req.user.id, dto);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Patch('customers/:id')
   updateCustomer(
     @Request() req,
