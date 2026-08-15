@@ -46,16 +46,17 @@ export class SellerController {
     return this.sellerService.apply(dto, req.user);
   }
 
-  // Get my seller profile — "my" here means the effective business: own, or
-  // an employer's if I'm an active team member with the right permission.
+  // Get my seller profile — this is always a self-check (pending/approved/
+  // rejected application status), never a delegatable business action, so
+  // it's always the caller's own id. A pending applicant has role='user'
+  // and no team membership — routing this through sellerScope.resolve()
+  // (as an earlier pass did) blocked them from ever seeing their own
+  // application status, which broke the seller dashboard's whole "you're
+  // pending review" flow.
   @UseGuards(JwtAuthGuard)
   @Get('my-profile')
-  async getMyProfile(@Request() req) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canManageProducts',
-    );
-    return this.sellerService.getMyProfile(sellerId);
+  getMyProfile(@Request() req) {
+    return this.sellerService.getMyProfile(req.user.id);
   }
 
   // Update my seller profile
@@ -72,25 +73,35 @@ export class SellerController {
     return this.sellerService.updateProfile(sellerId, dto);
   }
 
-  // Get seller dashboard
+  // Get seller dashboard — team members with canViewOrders see their
+  // employer's dashboard; everyone else (including a pending/rejected
+  // applicant with no team membership) falls back to their own id, so
+  // getDashboardStats()'s own status check still gives the real "you're
+  // pending review" / "you were rejected" message instead of a generic
+  // permission error.
   @UseGuards(JwtAuthGuard)
   @Get('dashboard')
   async getDashboard(@Request() req) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canViewOrders',
-    );
+    const sellerId = await this.resolveOrSelf(req.user, 'canViewOrders');
     return this.sellerService.getDashboardStats({ id: sellerId } as User);
   }
 
   @Get('my-payouts')
   @UseGuards(JwtAuthGuard)
   async getMyPayouts(@Request() req) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canViewRevenue',
-    );
+    const sellerId = await this.resolveOrSelf(req.user, 'canViewRevenue');
     return this.sellerService.getMyPayouts(sellerId);
+  }
+
+  private async resolveOrSelf(
+    user: User,
+    permission: Parameters<SellerScopeService['resolve']>[1],
+  ): Promise<number> {
+    try {
+      return await this.sellerScope.resolve(user, permission);
+    } catch {
+      return user.id;
+    }
   }
 
   // Admin routes

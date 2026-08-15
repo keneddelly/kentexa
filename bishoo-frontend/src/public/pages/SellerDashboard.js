@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
+import BackBar from '../components/BackBar';
 import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
 import ProfileCompletionBanner from '../components/ProfileCompletionBanner';
 import api from '../../api/api';
@@ -224,7 +224,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
-      <Navbar currentPage="SellerDashboard" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('MyProfile')} title={t('seller_dashboard.badge')} top={0} />
       <div style={{ textAlign: 'center', padding: 80, color: GR }}>
         <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>{t('seller_dashboard.loading')}
       </div>
@@ -235,7 +235,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
       backgroundColor: '#F8FAFC', fontFamily: "'Inter','Segoe UI',sans-serif",
       paddingBottom: 90 }}>
-      <Navbar currentPage="SellerDashboard" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('MyProfile')} title={t('seller_dashboard.badge')} top={0} />
 
       {/* ── Identity header ── */}
       <div style={{ backgroundColor: WH, borderBottom: '1px solid #F1F5F9', padding: '18px 16px' }}>
