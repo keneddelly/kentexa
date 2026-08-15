@@ -198,7 +198,7 @@ const ClassifiedsPublic = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
                 </div>
                 <div style={{ padding: '10px 10px 12px' }}>
                   <span style={{ fontSize: 10, backgroundColor: '#EFF6FF', color: B, padding: '2px 7px', borderRadius: 8, fontWeight: 700 }}>
-                    {CAT_ICONS[item.category] || '📋'} {item.category?.replace(/_/g,' ')}
+                    {categories.find(c => c.key === item.category)?.icon || '📋'} {item.category?.replace(/_/g,' ')}
                   </span>
                   <h3 style={{ fontSize: 13, fontWeight: 700, color: DK, margin: '6px 0 4px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.4 }}>
                     {item.title}
