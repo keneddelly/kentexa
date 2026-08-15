@@ -18,8 +18,9 @@ import { updateClassifiedDto } from './dto/update-classified.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
+import { SellerScopeService } from '../business/seller-scope.service';
 
 @Controller('classifieds')
 export class ClassifiedsController {
@@ -27,6 +28,7 @@ export class ClassifiedsController {
     private readonly service: ClassifiedsService,
     private readonly priceSvc: PriceSuggestionService,
     private readonly aiSearchParser: AiSearchParserService,
+    private readonly sellerScope: SellerScopeService,
   ) {}
 
   // ─── Static GET routes — MUST be before :id ──────────────────────────────
@@ -87,24 +89,33 @@ export class ClassifiedsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('invoices/:requestId/shipping')
-  setShipping(
+  async setShipping(
     @Param('requestId', ParseIntPipe) requestId: number,
     @Body() body: { shippingMethod: string; notes?: string },
     @Request() req,
   ) {
-    return this.service.setShippingMethod(requestId, req.user, body);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.service.setShippingMethod(requestId, { id: sellerId } as User, body);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('invoices/seller-requests')
-  getSellerInvoiceRequests(@Request() req) {
-    return this.service.getSellerInvoiceRequests(req.user);
+  async getSellerInvoiceRequests(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canViewOrders');
+    return this.service.getSellerInvoiceRequests({ id: sellerId } as User);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('user/mine')
-  findMine(@Request() req) {
-    return this.service.findMine(req.user);
+  async findMine(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.findMine({ id: sellerId } as User);
   }
 
   // ─── Admin endpoints ──────────────────────────────────────────────────────
@@ -132,7 +143,7 @@ export class ClassifiedsController {
 
   @UseGuards(JwtAuthGuard)
   @Post('invoices/manual')
-  createManualInvoice(
+  async createManualInvoice(
     @Request() req,
     @Body()
     body: {
@@ -146,12 +157,16 @@ export class ClassifiedsController {
       dueDays?: number;
     },
   ) {
-    return this.service.createManualInvoice(req.user, body);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.service.createManualInvoice({ id: sellerId } as User, body);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('invoices/:requestId/create')
-  createInvoiceForRequest(
+  async createInvoiceForRequest(
     @Param('requestId', ParseIntPipe) requestId: number,
     @Request() req,
     @Body()
@@ -162,7 +177,15 @@ export class ClassifiedsController {
       dueDays?: number;
     },
   ) {
-    return this.service.createInvoiceForRequest(requestId, req.user, body);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.service.createInvoiceForRequest(
+      requestId,
+      { id: sellerId } as User,
+      body,
+    );
   }
 
   // ─── General list & CRUD ──────────────────────────────────────────────────
@@ -177,8 +200,12 @@ export class ClassifiedsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateClassifiedDto, @Request() req) {
-    return this.service.create(dto, req.user);
+  async create(@Body() dto: CreateClassifiedDto, @Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.create(dto, { id: sellerId } as User);
   }
 
   // ─── :id routes LAST ─────────────────────────────────────────────────────
@@ -212,24 +239,44 @@ export class ClassifiedsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: updateClassifiedDto,
     @Request() req,
   ) {
-    return this.service.update(id, dto, req.user);
+    // service.update() short-circuits its ownership check for role===ADMIN —
+    // carry the real role through the shim so that bypass still works.
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.update(id, dto, {
+      id: sellerId,
+      role: req.user.role,
+    } as User);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/sold')
-  markAsSold(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.service.markAsSold(id, req.user);
+  async markAsSold(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.markAsSold(id, { id: sellerId } as User);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.service.remove(id, req.user);
+  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.remove(id, {
+      id: sellerId,
+      role: req.user.role,
+    } as User);
   }
 
   // ── Price suggestion ──────────────────────────────────────────────────────

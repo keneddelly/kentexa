@@ -19,6 +19,7 @@ import {
   DisputeReason,
   DisputeResolution,
 } from '../disputes/entities/dispute.entity';
+import { SellerScopeService } from '../business/seller-scope.service';
 
 @Injectable()
 export class ShippingService {
@@ -28,6 +29,7 @@ export class ShippingService {
     @InjectRepository(Order)
     private orderRepo: Repository<Order>,
     private disputesService: DisputesService,
+    private sellerScope: SellerScopeService,
   ) {}
 
   // ── Seller: Mark order as preparing ──
@@ -180,7 +182,16 @@ export class ShippingService {
       const isAdmin =
         requestingUser.role === UserRole.ADMIN ||
         requestingUser.role === UserRole.MANAGER;
-      if (!isOwner && !isAdmin) {
+      const isAuthorizedStaff =
+        !isOwner &&
+        !isAdmin &&
+        order.seller?.id &&
+        (await this.sellerScope.isAuthorizedFor(
+          requestingUser,
+          order.seller.id,
+          'canViewOrders',
+        ));
+      if (!isOwner && !isAdmin && !isAuthorizedStaff) {
         throw new ForbiddenException(
           'You do not have access to this order.',
         );

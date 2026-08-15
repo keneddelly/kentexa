@@ -57,6 +57,7 @@ const getCommissionRate = (category: string): number =>
 import { ParcelCollectionsService } from '../parcel-collections/parcel-collections.service';
 import { SmsService } from '../sms/sms.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
+import { SellerScopeService } from '../business/seller-scope.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
@@ -99,6 +100,7 @@ export class OrdersService {
     private smsService: SmsService,
     private businessCustomerService: BusinessCustomerService,
     private inAppNotif: InAppNotificationService,
+    private sellerScope: SellerScopeService,
   ) {}
 
   // ── Create Order ──────────────────────────────────────────────────────────
@@ -991,12 +993,22 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    // Allow seller OR admin to generate
+    // Allow seller OR admin OR an authorized team member to generate
     const isSeller =
       (order.seller as any)?.id === seller.id ||
       (order as any).createdByUserId === seller.id;
     const isAdmin = seller.role === 'admin';
-    if (!isSeller && !isAdmin) throw new ForbiddenException('Not your order');
+    const isAuthorizedStaff =
+      !isSeller &&
+      !isAdmin &&
+      (order.seller as any)?.id &&
+      (await this.sellerScope.isAuthorizedFor(
+        seller,
+        (order.seller as any).id,
+        'canCreateOrders',
+      ));
+    if (!isSeller && !isAdmin && !isAuthorizedStaff)
+      throw new ForbiddenException('Not your order');
 
     // Generate secure random token (24 chars)
     const token = randomBytes(18).toString('hex'); // 36-char hex
@@ -1596,13 +1608,25 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    // Allow: buyer, seller, admin, or creator of offline order
+    // Allow: buyer, seller, admin, creator of offline order, or an
+    // authorized team member of the seller
     const isBuyer = order.buyer && order.buyer.id === user.id;
     const isSeller = order.seller && order.seller.id === user.id;
     const isCreator = order.createdByUserId === user.id;
     const isAdmin = user.role === UserRole.ADMIN;
+    const isAuthorizedStaff =
+      !isBuyer &&
+      !isSeller &&
+      !isCreator &&
+      !isAdmin &&
+      order.seller?.id &&
+      (await this.sellerScope.isAuthorizedFor(
+        user,
+        order.seller.id,
+        'canViewOrders',
+      ));
 
-    if (!isBuyer && !isSeller && !isCreator && !isAdmin) {
+    if (!isBuyer && !isSeller && !isCreator && !isAdmin && !isAuthorizedStaff) {
       throw new ForbiddenException('Access denied');
     }
 

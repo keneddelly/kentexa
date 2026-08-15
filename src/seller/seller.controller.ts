@@ -16,11 +16,15 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
+import { SellerScopeService } from '../business/seller-scope.service';
 
 @Controller('seller')
 export class SellerController {
-  constructor(private sellerService: SellerService) {}
+  constructor(
+    private sellerService: SellerService,
+    private sellerScope: SellerScopeService,
+  ) {}
 
   // Public: Get all approved sellers (for Home/Stores cards)
   @UseGuards(OptionalJwtAuthGuard)
@@ -42,31 +46,51 @@ export class SellerController {
     return this.sellerService.apply(dto, req.user);
   }
 
-  // Get my seller profile
+  // Get my seller profile — "my" here means the effective business: own, or
+  // an employer's if I'm an active team member with the right permission.
   @UseGuards(JwtAuthGuard)
   @Get('my-profile')
-  getMyProfile(@Request() req) {
-    return this.sellerService.getMyProfile(req.user.id);
+  async getMyProfile(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.sellerService.getMyProfile(sellerId);
   }
 
   // Update my seller profile
   @UseGuards(JwtAuthGuard)
   @Patch('my-profile')
-  updateProfile(@Body() dto: Partial<CreateSellerProfileDto>, @Request() req) {
-    return this.sellerService.updateProfile(req.user.id, dto);
+  async updateProfile(
+    @Body() dto: Partial<CreateSellerProfileDto>,
+    @Request() req,
+  ) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.sellerService.updateProfile(sellerId, dto);
   }
 
   // Get seller dashboard
   @UseGuards(JwtAuthGuard)
   @Get('dashboard')
-  getDashboard(@Request() req) {
-    return this.sellerService.getDashboardStats(req.user);
+  async getDashboard(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewOrders',
+    );
+    return this.sellerService.getDashboardStats({ id: sellerId } as User);
   }
 
   @Get('my-payouts')
   @UseGuards(JwtAuthGuard)
-  getMyPayouts(@Request() req) {
-    return this.sellerService.getMyPayouts(req.user.id);
+  async getMyPayouts(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewRevenue',
+    );
+    return this.sellerService.getMyPayouts(sellerId);
   }
 
   // Admin routes
@@ -106,29 +130,33 @@ export class SellerController {
   // ── Team Management ───────────────────────────────────────────────────────
   @Get('team')
   @UseGuards(JwtAuthGuard)
-  getTeam(@Request() req) {
-    return this.sellerService.getTeamMembers(req.user.id);
+  async getTeam(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canManageTeam');
+    return this.sellerService.getTeamMembers(sellerId);
   }
 
   @Post('team/invite')
   @UseGuards(JwtAuthGuard)
-  inviteMember(@Request() req, @Body() dto: any) {
-    return this.sellerService.inviteTeamMember(req.user.id, dto);
+  async inviteMember(@Request() req, @Body() dto: any) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canManageTeam');
+    return this.sellerService.inviteTeamMember(sellerId, dto);
   }
 
   @Patch('team/:id')
   @UseGuards(JwtAuthGuard)
-  updateMember(
+  async updateMember(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: any,
   ) {
-    return this.sellerService.updateTeamMember(req.user.id, id, dto);
+    const sellerId = await this.sellerScope.resolve(req.user, 'canManageTeam');
+    return this.sellerService.updateTeamMember(sellerId, id, dto);
   }
 
   @Delete('team/:id')
   @UseGuards(JwtAuthGuard)
-  removeMember(@Request() req, @Param('id', ParseIntPipe) id: number) {
-    return this.sellerService.removeTeamMember(req.user.id, id);
+  async removeMember(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canManageTeam');
+    return this.sellerService.removeTeamMember(sellerId, id);
   }
 }

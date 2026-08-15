@@ -16,11 +16,15 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
+import { SellerScopeService } from '../business/seller-scope.service';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private ordersService: OrdersService) {}
+  constructor(
+    private ordersService: OrdersService,
+    private sellerScope: SellerScopeService,
+  ) {}
 
   // ── Customer ──────────────────────────────────────────────────────────────
 
@@ -118,7 +122,7 @@ export class OrdersController {
   // ── Seller: Upload shipping proof (direct shipping) ───────────────────────
   @UseGuards(JwtAuthGuard)
   @Patch(':id/shipping-proof')
-  uploadShippingProof(
+  async uploadShippingProof(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
     @Body()
@@ -130,14 +134,26 @@ export class OrdersController {
       shippingMethod?: string;
     },
   ) {
-    return this.ordersService.uploadShippingProof(id, req.user, body);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.ordersService.uploadShippingProof(
+      id,
+      { id: sellerId } as User,
+      body,
+    );
   }
 
   // ── Seller: Mark as shipped ───────────────────────────────────────────────
   @UseGuards(JwtAuthGuard)
   @Patch(':id/ship')
-  markShipped(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.ordersService.markShipped(id, req.user);
+  async markShipped(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.ordersService.markShipped(id, { id: sellerId } as User);
   }
 
   // ── Seller: Hand parcel to Super Agent ────────────────────────────────────
@@ -145,12 +161,20 @@ export class OrdersController {
   // System records handover — super agent will scan and generate tracking
   @UseGuards(JwtAuthGuard)
   @Patch(':id/hand-to-agent')
-  sellerHandToSuperAgent(
+  async sellerHandToSuperAgent(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
     @Body() body: { superAgentCity: string; notes?: string },
   ) {
-    return this.ordersService.sellerHandToSuperAgent(id, req.user, body);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.ordersService.sellerHandToSuperAgent(
+      id,
+      { id: sellerId } as User,
+      body,
+    );
   }
 
   // ── Super Agent: Look up order before receiving ───────────────────────────

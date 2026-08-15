@@ -11,6 +11,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
 import { OrdersModule } from '../orders/orders.module';
 import { FeedModule } from '../feed/feed.module';
 import { AiModule } from '../ai/ai.module';
+import { BusinessModule } from '../business/business.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { AiModule } from '../ai/ai.module';
     OrdersModule,
     FeedModule,
     AiModule,
+    BusinessModule,
   ],
   controllers: [ClassifiedsController],
   providers: [ClassifiedsService, PriceSuggestionService],

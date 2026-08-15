@@ -18,10 +18,11 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { AiListingService } from './ai-listing.service';
 import { GenerateListingDto } from './dto/generate-listing.dto';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
+import { SellerScopeService } from '../business/seller-scope.service';
 
 @Controller('products')
 export class ProductsController {
@@ -29,6 +30,7 @@ export class ProductsController {
     private service: ProductsService,
     private aiListing: AiListingService,
     private aiSearchParser: AiSearchParserService,
+    private sellerScope: SellerScopeService,
   ) {}
 
   // ── Public ─────────────────────────────────────────────────────────────
@@ -57,8 +59,12 @@ export class ProductsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('my/products')
-  getMyProducts(@Request() req) {
-    return this.service.findMyProducts(req.user);
+  async getMyProducts(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.findMyProducts({ id: sellerId } as User);
   }
 
   // ── Kentexa AI: suggestion-only listing generation ───────────────────────
@@ -126,23 +132,45 @@ export class ProductsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() dto: CreateProductDto, @Request() req) {
-    return this.service.create(dto, req.user);
+  async create(@Body() dto: CreateProductDto, @Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.create(dto, { id: sellerId } as User);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(
+  async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProductDto,
     @Request() req,
   ) {
-    return this.service.update(id, dto, req.user);
+    // service.update() short-circuits its ownership check for role===ADMIN —
+    // carry the real role through the shim so that bypass still works,
+    // since sellerScope.resolve() gives an admin back their own id, not a
+    // license to edit anyone's product.
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.update(id, dto, {
+      id: sellerId,
+      role: req.user.role,
+    } as User);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.service.remove(id, req.user);
+  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.remove(id, {
+      id: sellerId,
+      role: req.user.role,
+    } as User);
   }
 }

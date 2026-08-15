@@ -11,11 +11,9 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
 import { BusinessCustomerService } from './business-customer.service';
 import { ConversationService } from './conversation.service';
+import { SellerScopeService } from './seller-scope.service';
 
 /**
  * BusinessController — Seller Business Platform API
@@ -29,25 +27,31 @@ export class BusinessController {
   constructor(
     private customerService: BusinessCustomerService,
     private conversationService: ConversationService,
+    private sellerScope: SellerScopeService,
   ) {}
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // CUSTOMERS (CRM) — was JwtAuthGuard-only, so any logged-in account (a
-  // plain buyer included) could add/list "their customers". Restricted to
-  // roles that actually run a store.
+  // CUSTOMERS (CRM) — was JwtAuthGuard + a hard SELLER/ADMIN/MANAGER role
+  // check, which correctly blocked plain buyers but also blocked legitimate
+  // team members (role stays 'user' even once invited onto a seller's
+  // team). Replaced with sellerScope.resolve(), which covers both: the
+  // caller's own business if they're a seller themselves, or an employer's
+  // if they're an active team member with canViewCustomers.
   // ═══════════════════════════════════════════════════════════════════════════
 
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Get('customers')
-  getCustomers(
+  async getCustomers(
     @Request() req,
     @Query('search') search?: string,
     @Query('segment') segment?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    return this.customerService.getMyCustomers(req.user.id, {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewCustomers',
+    );
+    return this.customerService.getMyCustomers(sellerId, {
       search,
       segment,
       page: page ? Number(page) : 1,
@@ -55,31 +59,35 @@ export class BusinessController {
     });
   }
 
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Get('customers/stats')
-  getCustomerStats(@Request() req) {
-    return this.customerService.getDashboardStats(req.user.id);
+  async getCustomerStats(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewCustomers',
+    );
+    return this.customerService.getDashboardStats(sellerId);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Get('customers/:id')
-  getCustomer(@Request() req, @Param('id', ParseIntPipe) id: number) {
-    return this.customerService.getCustomerDetail(req.user.id, id);
+  async getCustomer(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewCustomers',
+    );
+    return this.customerService.getCustomerDetail(sellerId, id);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Post('customers/migrate')
-  migrateExistingOrders(@Request() req) {
-    return this.customerService.migrateFromExistingOrders(req.user.id);
+  async migrateExistingOrders(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewCustomers',
+    );
+    return this.customerService.migrateFromExistingOrders(sellerId);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Post('customers')
-  addCustomer(
+  async addCustomer(
     @Request() req,
     @Body()
     dto: {
@@ -97,18 +105,24 @@ export class BusinessController {
       notes?: string;
     },
   ) {
-    return this.customerService.addCustomer(req.user.id, dto);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewCustomers',
+    );
+    return this.customerService.addCustomer(sellerId, dto);
   }
 
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.SELLER, UserRole.ADMIN, UserRole.MANAGER)
   @Patch('customers/:id')
-  updateCustomer(
+  async updateCustomer(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: any,
   ) {
-    return this.customerService.updateCustomer(req.user.id, id, dto);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewCustomers',
+    );
+    return this.customerService.updateCustomer(sellerId, id, dto);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -116,13 +130,17 @@ export class BusinessController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   @Get('inbox')
-  getInbox(
+  async getInbox(
     @Request() req,
     @Query('status') status?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
   ) {
-    return this.conversationService.getSellerInbox(req.user.id, {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canSendMessages',
+    );
+    return this.conversationService.getSellerInbox(sellerId, {
       status,
       search,
       page: page ? Number(page) : 1,
@@ -130,20 +148,31 @@ export class BusinessController {
   }
 
   @Post('inbox/start')
-  startConversation(@Request() req, @Body() body: { customerId: number }) {
+  async startConversation(
+    @Request() req,
+    @Body() body: { customerId: number },
+  ) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canSendMessages',
+    );
     return this.conversationService.getOrCreateConversation(
-      req.user.id,
+      sellerId,
       body.customerId,
     );
   }
 
   @Get('inbox/:id/messages')
-  getMessages(@Request() req, @Param('id', ParseIntPipe) id: number) {
-    return this.conversationService.getMessages(req.user.id, id);
+  async getMessages(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canSendMessages',
+    );
+    return this.conversationService.getMessages(sellerId, id);
   }
 
   @Post('inbox/:id/messages')
-  sendMessage(
+  async sendMessage(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body()
@@ -153,18 +182,29 @@ export class BusinessController {
       isNote?: boolean;
     },
   ) {
-    return this.conversationService.sendMessage(req.user.id, id, dto, req.user);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canSendMessages',
+    );
+    // Scope is the business being messaged from; `req.user` stays the real
+    // sender so the message attributes to the actual staff member, not the
+    // business owner.
+    return this.conversationService.sendMessage(sellerId, id, dto, req.user);
   }
 
   @Post('inbox/:id/share-product')
-  shareProduct(
+  async shareProduct(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body()
     product: { id: number; name: string; price: number; image?: string },
   ) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canSendMessages',
+    );
     return this.conversationService.shareProduct(
-      req.user.id,
+      sellerId,
       id,
       product,
       req.user,
@@ -172,22 +212,30 @@ export class BusinessController {
   }
 
   @Patch('inbox/:id/status')
-  updateConversationStatus(
+  async updateConversationStatus(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { status: string },
   ) {
-    return this.conversationService.updateStatus(req.user.id, id, body.status);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canSendMessages',
+    );
+    return this.conversationService.updateStatus(sellerId, id, body.status);
   }
 
   @Patch('inbox/:id/assign')
-  assignConversation(
+  async assignConversation(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { assignedToId: number },
   ) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageTeam',
+    );
     return this.conversationService.assignTo(
-      req.user.id,
+      sellerId,
       id,
       body.assignedToId,
     );

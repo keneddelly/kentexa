@@ -12,10 +12,14 @@ import {
 import { StoreService } from './store.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
+import { SellerScopeService } from '../business/seller-scope.service';
 
 @Controller('stores')
 export class StoreController {
-  constructor(private storeService: StoreService) {}
+  constructor(
+    private storeService: StoreService,
+    private sellerScope: SellerScopeService,
+  ) {}
 
   // ── Logged-in user: Get stores I follow ───────────────────────────────────
   // NOTE: must be declared BEFORE the ':sellerId' route below, otherwise
@@ -44,8 +48,12 @@ export class StoreController {
   // ── Seller: Update own store profile ──────────────────────────────────────
   @UseGuards(JwtAuthGuard)
   @Patch('profile')
-  updateProfile(@Request() req, @Body() dto: any) {
-    return this.storeService.updateStoreProfile(req.user.id, dto);
+  async updateProfile(@Request() req, @Body() dto: any) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.storeService.updateStoreProfile(sellerId, dto);
   }
 
   // ── Logged-in user: Follow/unfollow a store ──────────────────────────────────

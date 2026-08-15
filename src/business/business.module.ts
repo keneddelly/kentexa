@@ -7,6 +7,7 @@ import { BusinessTeamMember } from './entities/business-team-member.entity';
 import { Order } from '../orders/entities/order.entity';
 import { BusinessCustomerService } from './business-customer.service';
 import { ConversationService } from './conversation.service';
+import { SellerScopeService } from './seller-scope.service';
 import { BusinessController } from './business.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -22,7 +23,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     NotificationsModule,
   ],
   controllers: [BusinessController],
-  providers: [BusinessCustomerService, ConversationService],
-  exports: [BusinessCustomerService, ConversationService],
+  providers: [BusinessCustomerService, ConversationService, SellerScopeService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService],
 })
 export class BusinessModule {}

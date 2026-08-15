@@ -8,11 +8,13 @@ import { Review } from './review.entity';
 import { Order } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
 import { ProfileModule } from '../profile/profile.module';
+import { BusinessModule } from '../business/business.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Follow, Review, Order, Product]),
     ProfileModule,
+    BusinessModule,
   ],
   providers: [StoreService],
   controllers: [StoreController],

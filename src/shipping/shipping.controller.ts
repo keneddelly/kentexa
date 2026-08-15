@@ -14,22 +14,30 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { SellerScopeService } from '../business/seller-scope.service';
 
 @Controller('shipping')
 export class ShippingController {
-  constructor(private shippingService: ShippingService) {}
+  constructor(
+    private shippingService: ShippingService,
+    private sellerScope: SellerScopeService,
+  ) {}
 
   // Seller: Mark preparing
   @UseGuards(JwtAuthGuard)
   @Patch('orders/:id/preparing')
-  markPreparing(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.shippingService.markPreparing(id, req.user.id);
+  async markPreparing(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.shippingService.markPreparing(id, sellerId);
   }
 
   // Seller: Upload direct shipping info
   @UseGuards(JwtAuthGuard)
   @Post('orders/:id/ship')
-  uploadShipmentInfo(
+  async uploadShipmentInfo(
     @Param('id', ParseIntPipe) id: number,
     @Body()
     body: {
@@ -39,7 +47,11 @@ export class ShippingController {
     },
     @Request() req,
   ) {
-    return this.shippingService.uploadShipmentInfo(id, req.user.id, body);
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.shippingService.uploadShipmentInfo(id, sellerId, body);
   }
 
   // Agent: Mark delivered
@@ -77,8 +89,12 @@ export class ShippingController {
   // Seller: Get my orders
   @UseGuards(JwtAuthGuard)
   @Get('seller/orders')
-  getSellerOrders(@Request() req) {
-    return this.shippingService.getSellerOrders(req.user.id);
+  async getSellerOrders(@Request() req) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canViewOrders',
+    );
+    return this.shippingService.getSellerOrders(sellerId);
   }
 
   // Admin: Resolve dispute
