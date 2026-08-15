@@ -106,9 +106,15 @@ const RoleActions = ({ role, onNavigate }) => {
 };
 
 // ─── Tab content sections ─────────────────────────────────────────────────────
-const tabs = (role, isOwn, t) => {
+// Takes the full activeRoles array, not just the single primary `role` — a
+// multi-role account (e.g. seller + agent + transport_provider all active)
+// should show every applicable identity tab, not just whichever role was
+// activated most recently (which is all the old single-role check could
+// ever reflect, since `role` only ever holds one value at a time).
+const tabs = (activeRoles, isOwn, t) => {
+  const has = (r) => activeRoles.includes(r);
   const base = [{ key:'posts',      label:t('commerce_profile.tab_products')   }];
-  if (isOwn && ['seller','admin','manager'].includes(role)) {
+  if (isOwn && (has('seller') || has('admin') || has('manager'))) {
     base.push(
       { key:'feed',       label:t('commerce_profile.tab_posts') },
       { key:'orders',     label:t('commerce_profile.tab_orders')   },
@@ -118,13 +124,13 @@ const tabs = (role, isOwn, t) => {
   // Identity tabs — public for everyone, not just the owner. What differs
   // by isOwn is the CONTENT (public stats vs. private earnings/dashboard
   // shortcut), not whether the tab is visible at all.
-  if (role === 'agent') {
+  if (has('agent')) {
     base.push({ key:'jobs', label:t('commerce_profile.tab_agent') });
   }
-  if (role === 'super_agent') {
+  if (has('super_agent')) {
     base.push({ key:'hub', label:t('commerce_profile.tab_hub') });
   }
-  if (role === 'transport_provider') {
+  if (has('transport_provider')) {
     base.push({ key:'transport', label:t('commerce_profile.tab_routes') });
   }
   if (isOwn) {
@@ -207,20 +213,22 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
     }).finally(() => setLoading(false));
   }, [targetId]); // eslint-disable-line
 
-  // Fetch public role-identity info once we know the profile owner's role.
-  // Uses the TARGET's role (profile.role), never the viewer's own role.
+  // Fetch public role-identity info for every ACTIVE role the target holds
+  // (not just their current primary `role`) — a multi-role account (seller
+  // + agent + transport_provider all active) needs all three tabs' data
+  // available, not just whichever role happens to be primary right now.
   useEffect(() => {
     const uid = targetId || currentUser?.id;
     if (!uid || !profile) return;
-    const role = profile.role;
+    const activeRoles = [profile.role, ...(profile.activeRoles || [])].filter((r,i,a) => a.indexOf(r)===i);
 
-    if (role === 'agent') {
+    if (activeRoles.includes('agent')) {
       api.get(`/agents/public/${uid}`).then(r => setPublicAgentData(r.data)).catch(() => setPublicAgentData(null));
     }
-    if (role === 'super_agent') {
+    if (activeRoles.includes('super_agent')) {
       api.get(`/super-agents/public/${uid}`).then(r => setPublicHubData(r.data)).catch(() => setPublicHubData(null));
     }
-    if (role === 'transport_provider') {
+    if (activeRoles.includes('transport_provider')) {
       api.get(`/transport/public/${uid}`).then(r => setPublicTransportData(r.data)).catch(() => setPublicTransportData(null));
     }
   }, [profile, targetId]); // eslint-disable-line
@@ -284,8 +292,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
 
   const score     = rep?.score || profile.reputationScore || 0;
   const tier      = getTier(score);
-  const role      = profile.role || userRole || 'user';
-  const profileTabs = tabs(role, isOwnProfile, t);
+  // `role` = the account's current primary role — still used for things
+  // that can only ever be one thing at a time (which brand the header
+  // shows). `activeRoles` = every role this account holds simultaneously
+  // (always includes `role` itself) — used for anything that should show
+  // ALL of a multi-role account's identities, like the profile's tabs.
+  const role        = profile.role || userRole || 'user';
+  const activeRoles = [role, ...(profile.activeRoles || [])].filter((r,i,a) => a.indexOf(r)===i);
+  const profileTabs = tabs(activeRoles, isOwnProfile, t);
 
   // Transport providers have their own company name/logo (TransportProvider
   // entity), separate from the person's personal name/avatarUrl — same
@@ -422,10 +436,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
 
         {/* Role badges */}
         <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
-          {role === 'seller'             && <span style={pillStyle('#eff6ff',B)}>{t('commerce_profile.role_seller')}</span>}
-          {role === 'agent'              && <span style={pillStyle('#fdf2f8','#a21caf')}>{t('commerce_profile.role_agent')}</span>}
-          {role === 'super_agent'        && <span style={pillStyle('#f5f3ff','#7c3aed')}>{t('commerce_profile.role_super_agent')}</span>}
-          {role === 'transport_provider' && <span style={pillStyle('#fff7ed','#ea580c')}>{t('commerce_profile.role_transporter')}</span>}
+          {activeRoles.includes('seller')             && <span style={pillStyle('#eff6ff',B)}>{t('commerce_profile.role_seller')}</span>}
+          {activeRoles.includes('agent')              && <span style={pillStyle('#fdf2f8','#a21caf')}>{t('commerce_profile.role_agent')}</span>}
+          {activeRoles.includes('super_agent')        && <span style={pillStyle('#f5f3ff','#7c3aed')}>{t('commerce_profile.role_super_agent')}</span>}
+          {activeRoles.includes('transport_provider') && <span style={pillStyle('#fff7ed','#ea580c')}>{t('commerce_profile.role_transporter')}</span>}
           {                               <span style={pillStyle('#f1f5f9',GR)}>{t('commerce_profile.role_buyer')}</span>}
           {profile.businessLocation && (
             <span style={{ fontSize:11, color:GR }}>📍 {profile.businessLocation}</span>
