@@ -7,9 +7,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
 const fmt  = n => Number(n||0).toLocaleString();
@@ -28,7 +26,7 @@ const getTier = (deliveries, tiers) => {
   return [...tiers].reverse().find(t => deliveries >= t.min) || tiers[0];
 };
 
-const AgentScorecard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const AgentScorecard = ({ onNavigate }) => {
   const { t } = useTranslation();
   const TIERS = getTiers(t);
   const [profile, setProfile] = useState(null);
@@ -44,8 +42,7 @@ const AgentScorecard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   if (loading) return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#f1f5f9' }}>
-      <Navbar currentPage="AgentScorecard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('AgentDashboard')} title={t('agent_scorecard.page_title')} top={0} />
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
         <div style={{ textAlign:'center', color:'#94a3b8' }}>
           <div style={{ fontSize:40, marginBottom:12 }}>🏍️</div>
@@ -57,8 +54,7 @@ const AgentScorecard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   if (!profile) return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#f1f5f9' }}>
-      <Navbar currentPage="AgentScorecard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('AgentDashboard')} title={t('agent_scorecard.page_title')} top={0} />
       <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
         <div style={{ textAlign:'center' }}>
           <div style={{ fontSize:64, marginBottom:16 }}>🏍️</div>
@@ -73,7 +69,6 @@ const AgentScorecard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -105,9 +100,7 @@ const AgentScorecard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#f1f5f9' }}>
-      <Navbar currentPage="AgentScorecard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('AgentDashboard')} title={t('agent_scorecard.page_title')} />
+      <BackBar onBack={() => onNavigate('AgentDashboard')} title={t('agent_scorecard.page_title')} top={0} />
 
       <div style={{ flex:1, padding:'16px 16px 40px', maxWidth:720,
         margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
@@ -317,7 +310,6 @@ const AgentScorecard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

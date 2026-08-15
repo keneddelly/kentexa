@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import BackBar from '../components/BackBar';
 
-const HowItWorks = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const HowItWorks = ({ onNavigate }) => {
   const { t } = useTranslation();
   const [activeRole, setActiveRole] = useState('buyer');
 
@@ -46,7 +45,7 @@ const HowItWorks = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <Navbar currentPage="HowItWorks" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('how_it_works.page_title', 'How It Works')} top={0} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '48px 16px', textAlign: 'center' }}>
@@ -169,8 +168,6 @@ const HowItWorks = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         </div>
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

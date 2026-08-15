@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
-const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRole, preSelected }) => {
+const SellerInvoices = ({ onNavigate, currentUser, preSelected }) => {
   const { t } = useTranslation();
   const [requests, setRequests]           = useState([]);
   const [loading, setLoading]             = useState(true);
@@ -176,7 +174,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRol
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SellerInvoices" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('seller_invoices.page_title')} top={0} />
       <div style={{ textAlign: 'center', padding: '60px 16px', color: '#64748b' }}>
         <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>{t('seller_invoices.loading_invoices')}
       </div>
@@ -185,8 +183,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRol
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <Navbar currentPage="SellerInvoices" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('seller_invoices.page_title')}
+      <BackBar onBack={() => onNavigate('back')} title={t('seller_invoices.page_title')} top={0}
         right={
           <button onClick={openManualModal}
             style={{ background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
@@ -635,8 +632,6 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRol
           </div>
         </div>
       )}
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

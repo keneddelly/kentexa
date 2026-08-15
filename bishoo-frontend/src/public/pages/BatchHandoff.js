@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
@@ -16,7 +15,7 @@ const DATE_LOCALES = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' };
  * Route: onNavigate('BatchHandoff') or onNavigate(`BatchHandoff-${orderId}`)
  */
 
-const BatchHandoff = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId: propOrderId }) => {
+const BatchHandoff = ({ onNavigate, orderId: propOrderId }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = DATE_LOCALES[i18n.language] || 'en-US';
   const [mode, setMode] = useState(propOrderId ? 'assign' : 'choose'); // 'choose'|'assign'|'offline'
@@ -80,7 +79,7 @@ const BatchHandoff = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId: pro
     const cutoff = result.cutoffTime ? new Date(result.cutoffTime) : null;
     return (
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-        <Navbar currentPage="BatchHandoff" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+        <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('batch_handoff.page_title')} top={0} />
         <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.08)', marginTop: 20 }}>
             <div style={{ fontSize: 56, marginBottom: 12 }}>{isAlready ? '✅' : '🎉'}</div>
@@ -140,8 +139,7 @@ const BatchHandoff = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId: pro
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="BatchHandoff" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('batch_handoff.page_title')} />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('batch_handoff.page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
 

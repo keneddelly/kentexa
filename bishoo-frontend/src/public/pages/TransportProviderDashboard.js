@@ -5,9 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer  from '../components/Footer';
 import api     from '../../api/api';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
@@ -39,7 +37,7 @@ const inp = {
   outline: 'none', fontFamily: 'inherit',
 };
 
-const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment }) => {
+const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
   const { t } = useTranslation();
   const STATUS_STYLE = getStatusStyle(t);
   const AVAIL_STATUS = getAvailStatus(t);
@@ -111,8 +109,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="TransportProviderDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🚌</div>
@@ -124,8 +121,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
 
   if (!profile) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="TransportProviderDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
@@ -142,7 +138,6 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -154,8 +149,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
   // TRANSPORT_OPS_ENABLED back on later; nothing below needs to change.
   if (!TRANSPORT_OPS_ENABLED) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="TransportProviderDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center', maxWidth: 340 }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🚌</div>
@@ -170,7 +164,6 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
           </div>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -179,9 +172,7 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="TransportProviderDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('transport_provider_dashboard.header_title')} top={0} />
 
       <div style={{ flex: 1, padding: '16px 16px 40px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
@@ -513,7 +504,6 @@ const TransportProviderDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

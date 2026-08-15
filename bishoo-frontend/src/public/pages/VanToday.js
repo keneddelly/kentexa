@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
@@ -38,7 +37,7 @@ const PARCEL_STATUS_COLOR = {
   returned:          { bg: '#fee2e2', color: '#dc2626' },
 };
 
-const VanToday = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const VanToday = ({ onNavigate }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
   const STATUS_COLOR = getStatusColor(t);
@@ -85,7 +84,7 @@ const VanToday = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="VanToday" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('van_today.page_title')} top={0} />
       <div style={{ textAlign: 'center', padding: '60px 16px', color: '#64748b' }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>🚐</div>
         <div>{t('van_today.loading')}</div>
@@ -95,8 +94,7 @@ const VanToday = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="VanToday" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('van_today.page_title')} />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('van_today.page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 600, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 100 }}>
 

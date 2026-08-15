@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
@@ -10,7 +8,7 @@ const getFaqs = (t) => Array.from({ length: 7 }, (_, i) => ({
   a: t(`contact_us.faq${i + 1}_a`),
 }));
 
-const ContactUs = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRole }) => {
+const ContactUs = ({ onNavigate, currentUser }) => {
   const { t } = useTranslation();
   const FAQS = getFaqs(t);
   const [form, setForm]       = useState({ name: '', email: '', phone: '', subject: '', message: '' });
@@ -43,8 +41,7 @@ const ContactUs = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRole }) 
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <Navbar currentPage="ContactUs" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('Home')} title={t('contact_us.page_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('contact_us.page_title')} top={0} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
@@ -147,8 +144,6 @@ const ContactUs = ({ onNavigate, currentUser, isLoggedIn, onLogout, userRole }) 
           </div>
         </div>
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

@@ -27,8 +27,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
@@ -140,7 +139,7 @@ const PCard = ({ p, actions = [] }) => (
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
 
   // ── Core state ────────────────────────────────────────────────────────────
@@ -479,8 +478,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
 
   if (!loading && profileStatus === 'not_applied') return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SuperAgentDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.apply_title')} top={0} />
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', paddingBottom: 32 }}>
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24,
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginTop: 16 }}>
@@ -514,20 +512,17 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
   if (!loading && profileStatus === 'pending') return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SuperAgentDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.pending_title')} top={0} />
       <div style={{ padding: 40, textAlign: 'center' }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
         <h3 style={{ color: '#1e293b' }}>{t('super_agent_dashboard.pending_title')}</h3>
         <p style={{ color: '#64748b', fontSize: 14 }}>{t('super_agent_dashboard.pending_desc')}</p>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
@@ -540,8 +535,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
   // below needs to change.
   if (!loading && profileStatus === 'active' && !HUB_OPS_ENABLED) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SuperAgentDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.header_title', 'Hub Dashboard')} top={0} />
       <div style={{ padding: '40px 20px', textAlign: 'center', maxWidth: 420, margin: '0 auto', flex: 1 }}>
         <div style={{ fontSize: 48, marginBottom: 16 }}>🏢</div>
         <h2 style={{ fontSize: 18, fontWeight: 900, color: '#1e293b', margin: '0 0 8px' }}>
@@ -557,14 +551,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
           {t('super_agent_dashboard.create_shipment_button')}
         </button>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SuperAgentDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} top={0} />
       <div style={{ textAlign: 'center', padding: 80, color: '#94a3b8' }}>{t('super_agent_dashboard.loading')}</div>
     </div>
   );
@@ -589,8 +581,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
       backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SuperAgentDashboard" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.header_title', 'Hub Dashboard')} top={0} />
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '16px 16px 0' }}>
@@ -1719,7 +1710,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => 
         </div>
       )}
 
-      <Footer onNavigate={onNavigate} />
       {transferModal && (
         <div style={{ position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',zIndex:3000,display:'flex',alignItems:'flex-end' }}>
           <div style={{ width:'100%',backgroundColor:'#fff',borderRadius:'20px 20px 0 0',padding:'24px 20px 40px' }}>

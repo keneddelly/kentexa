@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import BackBar from '../components/BackBar';
 
-const TermsAndConditions = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const TermsAndConditions = ({ onNavigate }) => {
   const { t } = useTranslation();
   const [openSection, setOpenSection] = useState(null);
 
@@ -14,7 +13,7 @@ const TermsAndConditions = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <Navbar currentPage="Terms" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} top={0} />
 
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e1b4b)', padding: '40px 16px', textAlign: 'center' }}>
         <h1 style={{ fontSize: 26, fontWeight: 900, color: '#fff', margin: '0 0 10px', fontFamily: 'Manrope,sans-serif' }}>{t('terms_and_conditions.page_title')}</h1>
@@ -45,8 +44,6 @@ const TermsAndConditions = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           ))}
         </div>
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

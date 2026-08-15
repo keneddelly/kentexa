@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import BackBar from '../components/BackBar';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
 
-const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) => {
+const SellerStore = ({ onNavigate, sellerId }) => {
   const { t } = useTranslation();
   const [seller, setSeller] = useState(null);
   const [products, setProducts] = useState([]);
@@ -48,7 +47,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-        <Navbar currentPage="Stores" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+        <BackBar onBack={() => onNavigate('Stores')} title={t('seller_store.loading_store')} top={0} />
         <div style={{ textAlign: 'center', padding: '80px', color: '#64748b' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
           <p>{t('seller_store.loading_store')}</p>
@@ -60,7 +59,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
   if (!seller) {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-        <Navbar currentPage="Stores" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+        <BackBar onBack={() => onNavigate('Stores')} title={t('seller_store.store_not_found')} top={0} />
         <div style={{ textAlign: 'center', padding: '80px' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>😕</div>
           <p style={{ color: '#64748b' }}>{t('seller_store.store_not_found')}</p>
@@ -74,7 +73,7 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <Navbar currentPage="Stores" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('Stores')} title={seller.businessName} top={0} />
 
       {/* Store Header */}
       <div style={{
@@ -82,12 +81,6 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
         padding: '40px 32px',
       }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-          <button
-            onClick={() => onNavigate('Stores')}
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#94a3b8', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', marginBottom: '20px' }}
-          >
-            {t('seller_store.all_stores')}
-          </button>
           <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             {/* Store Logo */}
             <div style={{
@@ -282,8 +275,6 @@ const SellerStore = ({ onNavigate, isLoggedIn, onLogout, userRole, sellerId }) =
           </>
         )}
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

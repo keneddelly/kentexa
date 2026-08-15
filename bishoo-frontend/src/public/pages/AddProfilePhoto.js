@@ -6,7 +6,6 @@
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import api from '../../api/api';
 
 const AddProfilePhoto = ({ onNavigate, currentUser }) => {
@@ -49,8 +48,6 @@ const AddProfilePhoto = ({ onNavigate, currentUser }) => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f0f4ff', display: 'flex', flexDirection: 'column' }}>
-      <Navbar currentPage="AddProfilePhoto" onNavigate={onNavigate} isLoggedIn={true} onLogout={() => {}} />
-
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800;900&display=swap');
         .rb { width:100%; padding:14px; background:linear-gradient(135deg,#1d4ed8,#2563eb); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:800; cursor:pointer; font-family:'Manrope',sans-serif; box-shadow:0 6px 18px rgba(37,99,235,0.4); }

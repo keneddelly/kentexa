@@ -4,9 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
@@ -16,7 +14,7 @@ const inp = {
   boxSizing: 'border-box', outline: 'none',
 };
 
-const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const [profile, setProfile]   = useState(null);
   const [form, setForm]         = useState({
@@ -61,9 +59,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
       backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SuperAgentSettings" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_settings.page_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_settings.page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto',
         width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
@@ -142,7 +138,6 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

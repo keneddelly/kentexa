@@ -7,9 +7,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer  from '../components/Footer';
 import api     from '../../api/api';
 
 const B = '#2563EB';
@@ -50,7 +48,7 @@ const ROUTES = [
   ['Dodoma','Singida'],['Singida','Mwanza'],['Bukoba','Musoma'],
 ];
 
-const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const RouteCoverageMap = ({ onNavigate }) => {
   const { t } = useTranslation();
   const [providers,  setProviders]  = useState([]);
   const [selected,   setSelected]   = useState(null);
@@ -93,9 +91,7 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc',
       fontFamily:'Manrope,Inter,-apple-system,sans-serif', display:'flex', flexDirection:'column' }}>
-      <Navbar currentPage="RouteCoverageMap" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('route_coverage_map.page_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('route_coverage_map.page_title')} top={0} />
 
       <div style={{ flex:1, maxWidth:900, margin:'0 auto', width:'100%',
         padding:'16px 16px 80px', boxSizing:'border-box' }}>
@@ -293,7 +289,6 @@ const RouteCoverageMap = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import api from '../../api/api';
 
 const Register = ({ onNavigate, onLoginSuccess }) => {
@@ -130,8 +129,6 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f0f4ff', display: 'flex', flexDirection: 'column' }}>
-      <Navbar currentPage="Register" onNavigate={onNavigate} isLoggedIn={false} onLogout={() => {}} />
-
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800;900&display=swap');
         .ri { width:100%; padding:13px 14px; border-radius:10px; border:2px solid #e2e8f0; font-size:15px; outline:none; box-sizing:border-box; font-family:'Manrope',sans-serif; transition:border 0.2s; background:#fff; }
@@ -148,7 +145,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
 
           {/* Logo */}
           <div style={{ textAlign:'center', marginBottom:24 }}>
-            <div style={{ display:'flex', alignItems:'baseline', justifyContent:'center', gap:0, marginBottom:6 }}>
+            <div onClick={() => onNavigate('Home')} style={{ cursor:'pointer', display:'flex', alignItems:'baseline', justifyContent:'center', gap:0, marginBottom:6 }}>
               <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', background:'linear-gradient(135deg,#1e40af,#2563eb)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>K</span>
               <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', color:'#0f172a' }}>ente</span>
               <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', background:'linear-gradient(135deg,#1e40af,#2563eb)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent' }}>X</span>

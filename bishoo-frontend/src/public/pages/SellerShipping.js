@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
-const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const SellerShipping = ({ onNavigate }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,17 +98,11 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <Navbar currentPage="SellerShipping" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('seller_shipping.page_title')} top={0} />
 
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', padding: '40px 32px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
-          <button
-            onClick={() => onNavigate('SellerDashboard')}
-            style={{ backgroundColor: 'rgba(255,255,255,0.1)', color: '#94a3b8', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', marginBottom: '12px' }}
-          >
-            {t('seller_shipping.back_dashboard')}
-          </button>
           <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#fff', margin: '0 0 4px' }}>
             {t('seller_shipping.page_title')}
           </h1>
@@ -350,8 +343,6 @@ const SellerShipping = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         </div>
       )}
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

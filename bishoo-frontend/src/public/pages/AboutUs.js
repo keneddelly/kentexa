@@ -1,9 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import BackBar from '../components/BackBar';
 
-const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const AboutUs = ({ onNavigate }) => {
   const { t } = useTranslation();
   const team = [
     { name: t('about_us.team1_name'), role: t('about_us.team1_role'), emoji: '👨‍💼', desc: t('about_us.team1_desc') },
@@ -28,7 +27,7 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <Navbar currentPage="AboutUs" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} title="About Us" top={0} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#1d4ed8 100%)', padding: '60px 16px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
@@ -162,8 +161,6 @@ const AboutUs = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         </div>
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

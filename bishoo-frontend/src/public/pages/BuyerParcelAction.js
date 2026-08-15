@@ -12,9 +12,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const getStatusLabels = (t) => ({
@@ -29,7 +27,7 @@ const getStatusLabels = (t) => ({
 
 const TIER_ICON = { basic: '🥉', silver: '🥈', gold: '🥇' };
 
-const BuyerParcelAction = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumber }) => {
+const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
   const STATUS_LABELS = getStatusLabels(t);
@@ -109,16 +107,15 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, onLogout, userRole, trackin
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="BuyerParcelAction" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('Home')} title={t('buyer_parcel_action.page_title')} top={0} />
       <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>{t('buyer_parcel_action.loading')}</div>
     </div>
   );
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="BuyerParcelAction" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <BackBar onBack={() => view === 'agents' ? setView('parcel') : onNavigate('Home')}
-        title={view === 'agents' ? t('buyer_parcel_action.back') : t('buyer_parcel_action.page_title')} />
+        title={view === 'agents' ? t('buyer_parcel_action.back') : t('buyer_parcel_action.page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
 
@@ -325,7 +322,6 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, onLogout, userRole, trackin
           </>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

@@ -4,9 +4,7 @@
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
 const getCategories = (t) => [
@@ -45,7 +43,7 @@ const inp = {
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
 
-const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const PostService = ({ onNavigate }) => {
   const { t } = useTranslation();
   const CATEGORIES = getCategories(t);
   const PRICE_TYPES = getPriceTypes(t);
@@ -105,10 +103,8 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
       paddingBottom: 90,
       backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
-      <Navbar currentPage="PostService" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <BackBar onBack={() => step > 1 ? setStep(s => s - 1) : onNavigate('Services')}
-        title={t('post_service.page_title')} />
+        title={t('post_service.page_title')} top={0} />
 
       <div style={{ flex: 1, padding: '16px 16px 48px', maxWidth: 600,
         margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -346,7 +342,6 @@ const PostService = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

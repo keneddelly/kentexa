@@ -4,9 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 import api      from '../../api/api';
 
 const getJobStatus = (t) => ({
@@ -20,7 +18,7 @@ const getJobStatus = (t) => ({
 
 const fmt = n => Number(n||0).toLocaleString();
 
-const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const MyServices = ({ onNavigate }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
   const JOB_STATUS = getJobStatus(t);
@@ -83,9 +81,7 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
       backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
-      <Navbar currentPage="MyServices" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('my_services.page_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('my_services.page_title')} top={0} />
 
       <div style={{ flex: 1, maxWidth: 900, margin: '0 auto',
         padding: '16px 16px 48px', width: '100%', boxSizing: 'border-box' }}>
@@ -315,7 +311,6 @@ const MyServices = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           )}
         </>)}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

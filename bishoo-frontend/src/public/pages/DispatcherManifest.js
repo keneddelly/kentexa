@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
@@ -47,7 +46,7 @@ const getParcelStatusLabel = (t) => ({
   returned:          t('dispatcher_manifest.parcel_status_returned'),
 });
 
-const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const DispatcherManifest = ({ onNavigate }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
   const STATUS_COLOR = getStatusColor(t);
@@ -147,7 +146,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="Dispatcher" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('SuperAgentDashboard')} title={t('dispatcher_manifest.page_title')} top={0} />
       <div style={{ textAlign: 'center', padding: '60px 16px', color: '#64748b' }}>
         <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
         <div>{t('dispatcher_manifest.loading')}</div>
@@ -157,8 +156,7 @@ const DispatcherManifest = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="Dispatcher" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('SuperAgentDashboard')} title={t('dispatcher_manifest.page_title')}
+      <BackBar onBack={() => onNavigate('SuperAgentDashboard')} title={t('dispatcher_manifest.page_title')} top={0}
         right={<button onClick={() => onNavigate('HubReceive')} style={{ background:'none', border:'none', color:'#f59e0b', fontWeight:800, fontSize:13, cursor:'pointer' }}>{t('dispatcher_manifest.receive_button')}</button>}
       />
 

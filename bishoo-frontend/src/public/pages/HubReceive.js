@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
@@ -16,7 +15,7 @@ import api from '../../api/api';
  * 5. Parcel is ready for van loading
  */
 
-const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const HubReceive = ({ onNavigate }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
   const [trackingInput, setTrackingInput] = useState('');
@@ -114,8 +113,7 @@ const HubReceive = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="HubReceive" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('DispatcherManifest')} title={t('hub_receive.page_title')} />
+      <BackBar onBack={() => onNavigate('DispatcherManifest')} title={t('hub_receive.page_title')} top={0} />
 
       {/* Status banner */}
       {todaySummary?.batch && (

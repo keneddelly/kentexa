@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useCart } from '../../context/CartContext';
@@ -24,7 +22,7 @@ const getCategories = (t) => ({
   general:       { icon: '📦', label: t('category_page.cat_general'),       color: '#64748b', bg: '#f1f5f9' },
 });
 
-const CategoryPage = ({ onNavigate, isLoggedIn, onLogout, userRole, category }) => {
+const CategoryPage = ({ onNavigate, category }) => {
   const { t } = useTranslation();
   const [products, setProducts]     = useState([]);
   const [classifieds, setClassifieds] = useState([]);
@@ -76,8 +74,7 @@ const CategoryPage = ({ onNavigate, isLoggedIn, onLogout, userRole, category }) 
         .cp-card:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.1); }
       `}</style>
 
-      <Navbar currentPage="CategoryPage" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('Home')} title={`${cat.icon} ${cat.label}`} />
+      <BackBar onBack={() => onNavigate('Home')} title={`${cat.icon} ${cat.label}`} top={0} />
 
       {/* Category Hero */}
       <div style={{ backgroundColor: cat.color, padding: '20px 16px 16px' }}>
@@ -225,8 +222,6 @@ const CategoryPage = ({ onNavigate, isLoggedIn, onLogout, userRole, category }) 
           </div>
         )}
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

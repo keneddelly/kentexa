@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
@@ -36,7 +34,7 @@ const Field = ({ label, required, children, hint }) => (
   </div>
 );
 
-const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
+const SuperAgentParcel = ({ onNavigate, currentUser }) => {
   const { t } = useTranslation();
   const SIZES = getSizes(t);
   const [recipientLocation, setRecipientLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
@@ -155,8 +153,7 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
   // ── Success screen ─────────────────────────────────────────────────────────
   if (result) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SuperAgentParcel" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_parcel.success_page_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_parcel.success_page_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         {/* Step 1: Pay TZS 1,000 platform tracking fee */}
@@ -266,15 +263,13 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
           </>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 
   // ── Form ──────────────────────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="SuperAgentParcel" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_parcel.form_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('super_agent_parcel.form_title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 32 }}>
 
@@ -432,7 +427,6 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
           </button>
         </div>
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

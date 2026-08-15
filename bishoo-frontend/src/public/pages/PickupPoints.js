@@ -4,9 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer  from '../components/Footer';
 import api     from '../../api/api';
 
 const B  = '#2563EB';
@@ -26,7 +24,7 @@ const getStatusColors = (t) => ({
   busy:     { bg:'#FEF3C7', color:'#D97706',  label:t('pickup_points.status_busy')   },
 });
 
-const PickupPoints = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
+const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
   const { t } = useTranslation();
   const STATUS_COLORS = getStatusColors(t);
   const isAgent = ['agent','super_agent','admin'].includes(userRole);
@@ -115,9 +113,7 @@ const PickupPoints = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#F8FAFC',
       fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
-      <Navbar currentPage="PickupPoints" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('pickup_points.page_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('pickup_points.page_title')} top={0} />
 
       {/* Tabs */}
       <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9',
@@ -394,7 +390,6 @@ const PickupPoints = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser 
           </>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

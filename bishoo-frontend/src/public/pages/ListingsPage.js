@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useCart } from '../../context/CartContext';
 
-const ListingsPage = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const ListingsPage = ({ onNavigate }) => {
   const { t } = useTranslation();
   const [products, setProducts]       = useState([]);
   const [classifieds, setClassifieds] = useState([]);
@@ -64,7 +63,7 @@ const ListingsPage = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         .lp-scroll::-webkit-scrollbar { display:none; }
       `}</style>
 
-      <Navbar currentPage="Listings" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('back')} top={0} />
 
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '16px 16px 14px' }}>
@@ -210,8 +209,6 @@ const ListingsPage = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
           </>
         )}
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 import { useTranslation } from 'react-i18next';
 
@@ -31,7 +29,7 @@ const EMPTY_FORM = {
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
 };
 
-const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProductId }) => {
+const SellerProducts = ({ onNavigate, editProductId }) => {
   const { t } = useTranslation();
   const [CATEGORIES, setCategories]   = useState(FALLBACK_CATEGORIES);
   const [products, setProducts]       = useState([]);
@@ -265,9 +263,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <Navbar currentPage="SellerProducts" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-
-      <BackBar onBack={() => onNavigate('back')} title={`📦 ${t('seller_products.title')}`} />
+      <BackBar onBack={() => onNavigate('back')} title={`📦 ${t('seller_products.title')}`} top={0} />
       <div style={{ background: 'linear-gradient(135deg,#1e1b4b,#1d4ed8)', padding: '20px 16px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
@@ -658,8 +654,6 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
         </div>
         </div>
       )}
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

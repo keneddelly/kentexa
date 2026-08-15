@@ -4,9 +4,7 @@
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar        from '../components/Navbar';
 import BackBar       from '../components/BackBar';
-import Footer        from '../components/Footer';
 import WishlistHeart from '../components/WishlistHeart';
 import api           from '../../api/api';
 
@@ -178,7 +176,7 @@ const FlashCard = ({ item, onNavigate, isLoggedIn }) => {
 };
 
 // ── Main FlashSales page ──────────────────────────────────────────────────────
-const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const FlashSales = ({ onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const [items,   setItems]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -219,9 +217,7 @@ const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#FFF5F5',
       fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
-      <Navbar currentPage="FlashSales" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('flash_sales.page_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('flash_sales.page_title')} top={0} />
 
       {/* Hero banner */}
       <div style={{ background: 'linear-gradient(135deg,#DC2626,#EA580C)',
@@ -309,7 +305,6 @@ const FlashSales = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
       <style>{`
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
       `}</style>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

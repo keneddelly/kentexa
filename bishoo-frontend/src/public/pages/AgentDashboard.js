@@ -19,7 +19,6 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
@@ -196,7 +195,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
   );
 };
 
-const AgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const AgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const TIER_STYLE = getTierStyle(t);
   // ── State ────────────────────────────────────────────────────────────────
@@ -513,7 +512,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="AgentDashboard" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
+      <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} top={0} />
       <div style={{ textAlign: 'center', padding: 60, color: '#64748b' }}>
         <div style={{ fontSize: 36, marginBottom: 12 }}>⏳</div>
         {t('agent_dashboard.loading_ellipsis')}
@@ -525,8 +524,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', paddingBottom: 90 }}>
-      <Navbar currentPage="AgentDashboard" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} />
+      <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} top={0} />
 
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)', padding: '20px 16px' }}>

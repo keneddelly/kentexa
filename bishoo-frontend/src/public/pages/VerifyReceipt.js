@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
-const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const VerifyReceipt = ({ onNavigate }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-GB';
   const [receiptNumber, setReceiptNumber] = useState('');
@@ -38,13 +37,7 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <Navbar
-        currentPage="VerifyReceipt"
-        onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn}
-        onLogout={onLogout}
-        userRole={userRole}
-      />
+      <BackBar onBack={() => onNavigate('back')} top={0} />
 
       {/* Hero */}
       <div style={{
@@ -342,8 +335,6 @@ const VerifyReceipt = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
         )}
 
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };
