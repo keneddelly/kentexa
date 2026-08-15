@@ -14,24 +14,6 @@ export enum ClassifiedStatus {
   EXPIRED = 'expired',
 }
 
-export enum ClassifiedCategory {
-  ELECTRONICS = 'electronics',
-  FASHION = 'fashion',
-  VEHICLES = 'vehicles',
-  FOOD = 'food',
-  HOME_GARDEN = 'home_garden',
-  HEALTH_BEAUTY = 'health_beauty',
-  BABY_KIDS = 'baby_kids',
-  SPORTS = 'sports',
-  AGRICULTURE = 'agriculture',
-  SECURITY = 'security',
-  BOOKS = 'books',
-  ARTS = 'arts',
-  GENERAL = 'general',
-  PROPERTY = 'property',
-  SERVICES = 'services',
-}
-
 @Entity()
 export class Classified {
   @PrimaryGeneratedColumn()
@@ -46,12 +28,11 @@ export class Classified {
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
 
-  @Column({
-    type: 'enum',
-    enum: ClassifiedCategory,
-    default: ClassifiedCategory.GENERAL,
-  })
-  category: ClassifiedCategory;
+  // Was a strict Postgres enum (15 fixed values) — converted to validated
+  // text (validation now lives in the DTO, against categories.data.ts) so
+  // the category list can grow without a schema migration each time.
+  @Column({ type: 'varchar', default: 'general' })
+  category: string;
 
   // ── Subcategory (free text, driven by frontend dropdown per category) ──
   @Column({ type: 'text', nullable: true })

@@ -8,24 +8,6 @@ const DK = '#0F172A';
 const GR = '#64748B';
 const WH = '#FFFFFF';
 
-const CAT_ICONS = {
-  all:            '🔥',
-  electronics:    '📱',
-  vehicles:       '🚗',
-  property:       '🏢',
-  fashion:        '👗',
-  services:       '🔧',
-  home_garden:    '🏠',
-  agriculture:    '🌾',
-  health_beauty:  '💄',
-  food:           '🍎',
-  baby_kids:      '🧸',
-  sports:         '⚽',
-  security:       '🔒',
-  books:          '📚',
-  other:          '📦',
-};
-
 const ClassifiedsPublic = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [classifieds, setClassifieds] = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -34,23 +16,19 @@ const ClassifiedsPublic = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [searchInput, setSearchInput] = useState('');
   const { t } = useTranslation();
 
-  const categories = [
-    { key: 'all',          icon: CAT_ICONS.all,           label: 'All' },
-    { key: 'electronics',  icon: CAT_ICONS.electronics,   label: 'Electronics' },
-    { key: 'vehicles',     icon: CAT_ICONS.vehicles,      label: 'Vehicles' },
-    { key: 'property',     icon: CAT_ICONS.property,      label: 'Property' },
-    { key: 'fashion',      icon: CAT_ICONS.fashion,       label: 'Fashion' },
-    { key: 'services',     icon: CAT_ICONS.services,      label: 'Services' },
-    { key: 'home_garden',  icon: CAT_ICONS.home_garden,   label: 'Home' },
-    { key: 'agriculture',  icon: CAT_ICONS.agriculture,   label: 'Agriculture' },
-    { key: 'health_beauty',icon: CAT_ICONS.health_beauty, label: 'Health' },
-    { key: 'food',         icon: CAT_ICONS.food,          label: 'Food' },
-    { key: 'baby_kids',    icon: CAT_ICONS.baby_kids,     label: 'Kids' },
-    { key: 'sports',       icon: CAT_ICONS.sports,        label: 'Sports' },
-    { key: 'security',     icon: CAT_ICONS.security,      label: 'Security' },
-    { key: 'books',        icon: CAT_ICONS.books,         label: 'Books' },
-    { key: 'other',        icon: CAT_ICONS.other,         label: 'Other' },
-  ];
+  // Fetched from GET /categories — this list used to be hardcoded here with
+  // its own key set, including an 'other' filter chip that never matched
+  // anything (the real backend category was 'general'), silently filtering
+  // to zero results whenever clicked.
+  const [categories, setCategories] = useState([{ key: 'all', icon: '🔥', label: 'All' }]);
+  useEffect(() => {
+    api.get('/categories').then(res => {
+      setCategories([
+        { key: 'all', icon: '🔥', label: 'All' },
+        ...(res.data || []).map(c => ({ key: c.key, icon: c.icon, label: c.label })),
+      ]);
+    }).catch(() => {});
+  }, []);
 
   const fetchClassifieds = useCallback(async () => {
     try {

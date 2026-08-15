@@ -12,130 +12,14 @@ const TZ_CITIES = [
   'Kilosa','Njombe','Kasulu','Mpanda','Masasi','Korogwe','Moshi',
 ];
 
-// ── Full category → subcategory → spec fields structure ──────────────────────
-const CATEGORIES = {
-  electronics: {
-    label: 'Electronics', icon: '📱',
-    subcategories: {
-      hidden_cameras:    { label: 'Zimefichwa Cameras',     specs: ['Resolution','Night Vision','WiFi','Battery Life','Storage','Motion Detection','Dimensions','Weight'] },
-      voice_recorders:   { label: 'Voice Recorders',    specs: ['Battery Life','Storage','Microphone Range','VOX Mode','File Format','Dimensions'] },
-      gps_trackers:      { label: 'GPS Trackers',       specs: ['Network Support','Battery Life','Update Interval','Waterproof','SIM Required','Dimensions'] },
-      smartphones:       { label: 'Smartphones',        specs: ['Brand','RAM','Internal Storage','Camera','Battery','OS','Screen Size','Color'] },
-      laptops:           { label: 'Laptops',            specs: ['Brand','Processor','RAM','Storage','Screen Size','OS','Battery','Color'] },
-      tvs:               { label: 'TVs & Displays',     specs: ['Screen Size','Resolution','Smart TV','HDMI Ports','Brand','Refresh Rate'] },
-      audio:             { label: 'Audio & Sound',      specs: ['Type','Connectivity','Battery Life','Brand','Frequency Response'] },
-      accessories:       { label: 'Accessories',        specs: ['Compatible With','Material','Color','Brand'] },
-      other_electronics: { label: 'Other Electronics',  specs: ['Brand','Model','Condition'] },
-    },
-  },
-  fashion: {
-    label: 'Fashion', icon: '👗',
-    subcategories: {
-      mens_clothing:   { label: "Men's Clothing",    specs: ['Size','Material','Color','Brand','Occasion'] },
-      womens_clothing: { label: "Women's Clothing",  specs: ['Size','Material','Color','Brand','Occasion'] },
-      kids_clothing:   { label: "Kids' Clothing",    specs: ['Age Range','Size','Material','Color','Gender'] },
-      shoes:           { label: 'Shoes',             specs: ['Size (EU/UK)','Material','Color','Gender','Brand','Sole Material'] },
-      bags:            { label: 'Bags & Handbags',   specs: ['Material','Color','Dimensions','Brand','Closure Type'] },
-      watches:         { label: 'Watches',           specs: ['Brand','Movement Type','Water Resistance','Strap Material','Case Size'] },
-      jewelry:         { label: 'Jewelry',           specs: ['Material','Color','Size','Brand','Occasion'] },
-    },
-  },
-  home_garden: {
-    label: 'Home & Garden', icon: '🏠',
-    subcategories: {
-      furniture:    { label: 'Furniture',          specs: ['Material','Dimensions','Color','Weight Capacity','Assembly Required'] },
-      bedding:      { label: 'Bedding & Pillows',  specs: ['Size','Material','Color','Thread Count'] },
-      kitchen:      { label: 'Kitchen & Dining',   specs: ['Material','Capacity','Brand','Dishwasher Safe'] },
-      appliances:   { label: 'Home Appliances',    specs: ['Brand','Power (W)','Voltage','Dimensions','Weight','Warranty'] },
-      garden:       { label: 'Garden & Outdoor',   specs: ['Material','Dimensions','Color','Weatherproof'] },
-      cleaning:     { label: 'Cleaning Supplies',  specs: ['Type','Volume','Scent','Concentrated'] },
-    },
-  },
-  health_beauty: {
-    label: 'Health & Beauty', icon: '💄',
-    subcategories: {
-      skincare:    { label: 'Skincare',           specs: ['Skin Type','Volume (ml)','Brand','Key Ingredients','SPF'] },
-      haircare:    { label: 'Hair Care',          specs: ['Hair Type','Volume (ml)','Brand','Key Ingredients'] },
-      cosmetics:   { label: 'Cosmetics',          specs: ['Shade','Brand','Volume/Weight','Finish'] },
-      supplements: { label: 'Health Supplements', specs: ['Type','Quantity','Brand','Expiry Date','Dosage'] },
-      medical:     { label: 'Medical Equipment',  specs: ['Brand','Model','Certification','Power Source'] },
-    },
-  },
-  food: {
-    label: 'Food & Beverages', icon: '🍎',
-    subcategories: {
-      fresh_food: { label: 'Fresh Food',      specs: ['Weight (kg)','Origin','Expiry Date','Organic'] },
-      packaged:   { label: 'Packaged Food',   specs: ['Weight','Brand','Expiry Date','Ingredients','Allergens'] },
-      beverages:  { label: 'Beverages',       specs: ['Volume (ml)','Brand','Type','Flavour'] },
-      spices:     { label: 'Spices & Herbs',  specs: ['Weight','Origin','Brand','Organic'] },
-    },
-  },
-  baby_kids: {
-    label: 'Baby & Kids', icon: '🧸',
-    subcategories: {
-      toys:      { label: 'Toys & Games',    specs: ['Age Range','Material','Brand','Safety Certified','Battery Required'] },
-      baby_care: { label: 'Baby Care',       specs: ['Age Range','Volume/Weight','Brand','Ingredients'] },
-      school:    { label: 'School Supplies', specs: ['Grade Level','Brand','Quantity','Color'] },
-    },
-  },
-  sports: {
-    label: 'Sports & Fitness', icon: '⚽',
-    subcategories: {
-      gym:        { label: 'Gym Equipment', specs: ['Weight Capacity','Material','Dimensions','Brand','Weight (kg)'] },
-      outdoor:    { label: 'Outdoor Sports', specs: ['Material','Size','Brand','Waterproof'] },
-      sportswear: { label: 'Sportswear',    specs: ['Size','Material','Color','Gender','Brand'] },
-      cycling:    { label: 'Cycling',       specs: ['Frame Size','Material','Gears','Brand','Wheel Size'] },
-    },
-  },
-  agriculture: {
-    label: 'Agriculture', icon: '🌾',
-    subcategories: {
-      seeds:       { label: 'Seeds & Seedlings', specs: ['Crop Type','Weight','Planting Season','Origin','Germination Rate'] },
-      tools:       { label: 'Farming Tools',     specs: ['Material','Brand','Dimensions','Weight'] },
-      fertilizers: { label: 'Fertilizers',       specs: ['Type','Weight (kg)','NPK Ratio','Organic','Application Method'] },
-      livestock:   { label: 'Livestock Products', specs: ['Type','Quantity','Origin','Breed'] },
-    },
-  },
-  security: {
-    label: 'Security', icon: '🔒',
-    subcategories: {
-      cctv:    { label: 'CCTV Cameras',    specs: ['Resolution','Night Vision','Indoor/Outdoor','Storage','Brand','Power Source','Viewing Angle'] },
-      alarms:  { label: 'Alarm Systems',   specs: ['Type','Coverage Area','Brand','Power Source','GSM Compatible'] },
-      access:  { label: 'Access Control',  specs: ['Type','Brand','User Capacity','Connectivity'] },
-      safes:   { label: 'Safes & Locks',   specs: ['Material','Dimensions','Lock Type','Brand','Fire Resistant'] },
-    },
-  },
-  vehicles: {
-    label: 'Vehicles & Parts', icon: '🚗',
-    subcategories: {
-      cars:        { label: 'Cars',               specs: ['Make','Model','Year','Mileage (km)','Fuel Type','Transmission','Color','Engine (cc)','Condition'] },
-      motorcycles: { label: 'Motorcycles',        specs: ['Make','Model','Year','Engine (cc)','Color','Mileage (km)','Condition'] },
-      spare_parts: { label: 'Spare Parts',        specs: ['Compatible With','Part Number','Brand','Condition','OEM/Aftermarket'] },
-      accessories: { label: 'Vehicle Accessories', specs: ['Compatible With','Material','Color','Brand'] },
-    },
-  },
-  books: {
-    label: 'Books & Education', icon: '📚',
-    subcategories: {
-      textbooks:  { label: 'Textbooks',        specs: ['Subject','Grade/Level','Author','Publisher','Edition','Language','Condition'] },
-      fiction:    { label: 'Fiction & Novels', specs: ['Author','Publisher','Language','Pages','Genre','Condition'] },
-      stationery: { label: 'Stationery',       specs: ['Type','Brand','Quantity','Color'] },
-    },
-  },
-  arts: {
-    label: 'Arts & Crafts', icon: '🎨',
-    subcategories: {
-      paintings: { label: 'Paintings & Art',     specs: ['Medium','Dimensions','Style','Framed','Artist'] },
-      crafts:    { label: 'Craft Supplies',      specs: ['Type','Brand','Quantity','Material'] },
-      music:     { label: 'Musical Instruments', specs: ['Type','Brand','Material','Condition','Key/Tuning'] },
-    },
-  },
-  general: {
-    label: 'General', icon: '📦',
-    subcategories: {
-      other: { label: 'Other', specs: ['Brand','Model','Condition','Color'] },
-    },
-  },
+// ── Category → subcategory → spec fields structure ───────────────────────────
+// Fetched from GET /categories (src/categories/categories.data.ts on the
+// backend — the single source of truth now; this used to be its own
+// independent 124-line hardcoded list, one of five that all disagreed with
+// each other across the app). This fallback only covers the brief window
+// before that fetch resolves.
+const FALLBACK_CATEGORIES = {
+  general: { label: 'General', icon: '📦', subcategories: { other: { label: 'Other', specs: ['Brand', 'Model', 'Condition', 'Color'] } } },
 };
 
 const labelStyle = { display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' };
@@ -149,6 +33,7 @@ const EMPTY_FORM = {
 
 const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProductId }) => {
   const { t } = useTranslation();
+  const [CATEGORIES, setCategories]   = useState(FALLBACK_CATEGORIES);
   const [products, setProducts]       = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState('');
@@ -189,6 +74,20 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
     const saved = localStorage.getItem('sellerOriginCity');
     if (saved) setOriginCity(saved);
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    api.get('/categories').then(res => {
+      const tree = {};
+      (res.data || []).forEach(cat => {
+        const subcategories = {};
+        (cat.subcategories || []).forEach(sub => {
+          subcategories[sub.key] = { label: sub.label, specs: sub.specs || [] };
+        });
+        tree[cat.key] = { label: cat.label, icon: cat.icon, subcategories };
+      });
+      if (Object.keys(tree).length) setCategories(tree);
+    }).catch(() => {});
   }, []);
 
   // Deep-linked straight into editing one product (e.g. from its Product

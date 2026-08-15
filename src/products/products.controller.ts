@@ -22,6 +22,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { AiListingService } from './ai-listing.service';
 import { GenerateListingDto } from './dto/generate-listing.dto';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
+import { resolveCategoryKey } from '../categories/categories.data';
 import { SellerScopeService } from '../business/seller-scope.service';
 
 @Controller('products')
@@ -42,7 +43,16 @@ export class ProductsController {
     if (ai === 'true') {
       try {
         const parsed = await this.aiSearchParser.parse(q);
-        return this.service.search(parsed.keywords || q, parsed);
+        // The AI's category guess is free text ("phones") that won't
+        // strict-equal-match a canonical key ("electronics") — resolving it
+        // here means a near-miss still narrows the search instead of
+        // silently zeroing out results, and an unresolvable guess is
+        // dropped rather than applied as a wrong, over-strict filter.
+        const category = resolveCategoryKey(parsed.category);
+        return this.service.search(parsed.keywords || q, {
+          ...parsed,
+          category: category || undefined,
+        });
       } catch {
         // AI parsing failed — fall through to the plain keyword search.
       }

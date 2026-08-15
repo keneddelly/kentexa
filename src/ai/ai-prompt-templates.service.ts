@@ -1,4 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { CATEGORY_KEYS } from '../categories/categories.data';
+
+const CATEGORY_LIST = CATEGORY_KEYS.join(', ');
 
 export interface PromptTemplate {
   system: string;
@@ -72,6 +75,9 @@ export class AiPromptTemplateService {
         'listings from partial input. Given whatever the seller has already typed (a name, ' +
         'keywords, or free-text notes), produce a complete listing: a concise product name, a ' +
         'short persuasive description, a category, a subcategory, and 3-5 short feature bullets. ' +
+        `The category MUST be exactly one of these keys (pick the closest match, never invent ` +
+        `a new one): ${CATEGORY_LIST}. The subcategory should be a short, natural label for the ` +
+        'specific kind of item within that category (e.g. "smartphones" under "electronics"). ' +
         'Never invent specific technical specs (exact dimensions, capacities, or prices) that ' +
         'were not given — keep those generic if unknown.',
       schema: {
@@ -79,7 +85,7 @@ export class AiPromptTemplateService {
         properties: {
           name: { type: 'string' },
           description: { type: 'string' },
-          category: { type: 'string' },
+          category: { type: 'string', enum: CATEGORY_KEYS },
           subcategory: { type: 'string' },
           features: { type: 'array', items: { type: 'string' } },
         },
@@ -101,10 +107,14 @@ export class AiPromptTemplateService {
         'two cities — a transporter, courier, bus, or truck), or "all" if it is ambiguous or ' +
         'could span multiple. Then extract the core keywords to search for, and, only if ' +
         'clearly stated or strongly implied: a category, minimum price, and maximum price ' +
-        '(in Tanzanian Shillings) for product/classified/service queries; or fromCity and ' +
-        'toCity for transport queries — expand common shorthand to the full city name (e.g. ' +
-        '"Dar" → "Dar es Salaam"). Omit fields that are not present in the query rather than ' +
-        'guessing.',
+        '(in Tanzanian Shillings); or fromCity and toCity for transport queries — expand common ' +
+        'shorthand to the full city name (e.g. "Dar" → "Dar es Salaam"). Omit fields that are ' +
+        'not present in the query rather than guessing.\n\n' +
+        `For "product" or "classified" queries, category MUST be exactly one of these keys ` +
+        `if you set it at all (pick the closest match, or omit it if nothing fits): ` +
+        `${CATEGORY_LIST}. For "service" or "transport" queries, always omit category — those ` +
+        'parts of the marketplace use a different classification and category here would be ' +
+        'meaningless.',
       schema: {
         type: 'object',
         properties: {

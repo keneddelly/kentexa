@@ -1,12 +1,12 @@
 import {
-  IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
   Min,
   IsArray,
 } from 'class-validator';
-import { ClassifiedCategory } from '../entities/classified.entity';
+import { CATEGORY_KEYS } from '../../categories/categories.data';
 
 export class updateClassifiedDto {
   @IsString()
@@ -19,8 +19,8 @@ export class updateClassifiedDto {
   @Min(0)
   price: number;
 
-  @IsEnum(ClassifiedCategory)
-  category: ClassifiedCategory;
+  @IsIn(CATEGORY_KEYS)
+  category: string;
 
   @IsOptional()
   @IsString()

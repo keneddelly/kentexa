@@ -2,12 +2,14 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
   Min,
   IsObject,
 } from 'class-validator';
+import { CATEGORY_KEYS } from '../../categories/categories.data';
 
 export enum ShippingMethod {
   DIRECT = 'direct',
@@ -36,7 +38,7 @@ export class CreateProductDto {
   stock: number;
 
   @IsOptional()
-  @IsString()
+  @IsIn(CATEGORY_KEYS)
   category?: string;
 
   @IsOptional()

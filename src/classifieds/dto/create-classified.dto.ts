@@ -1,5 +1,5 @@
 import {
-  IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
@@ -8,7 +8,7 @@ import {
   IsBoolean,
   IsObject,
 } from 'class-validator';
-import { ClassifiedCategory } from '../entities/classified.entity';
+import { CATEGORY_KEYS } from '../../categories/categories.data';
 
 export class CreateClassifiedDto {
   @IsString()
@@ -21,8 +21,8 @@ export class CreateClassifiedDto {
   @Min(0)
   price: number;
 
-  @IsEnum(ClassifiedCategory)
-  category: ClassifiedCategory;
+  @IsIn(CATEGORY_KEYS)
+  category: string;
 
   @IsOptional()
   @IsString()

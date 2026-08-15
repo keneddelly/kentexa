@@ -21,6 +21,7 @@ import { Roles } from '../auth/roles.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
 import { SellerScopeService } from '../business/seller-scope.service';
+import { resolveCategoryKey } from '../categories/categories.data';
 
 @Controller('classifieds')
 export class ClassifiedsController {
@@ -53,11 +54,15 @@ export class ClassifiedsController {
     if (ai === 'true') {
       try {
         const parsed = await this.aiSearchParser.parse(q);
+        // Resolve the AI's free-text category guess to a canonical key —
+        // an unresolved guess is dropped rather than applied as an
+        // over-strict filter that silently zeroes out results.
+        const category = resolveCategoryKey(parsed.category);
         return this.service.search(parsed.keywords || q, {
           ...opts,
           minPrice: opts.minPrice ?? parsed.minPrice ?? undefined,
           maxPrice: opts.maxPrice ?? parsed.maxPrice ?? undefined,
-          category: parsed.category,
+          category: category || undefined,
         });
       } catch {
         // AI parsing failed — fall through to the plain keyword search.
