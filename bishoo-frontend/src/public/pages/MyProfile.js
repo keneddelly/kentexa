@@ -918,20 +918,25 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 onAction={() => onNavigate('CustomerProfile')} />
             </SCard>
 
-            <SCard>
-              <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
-                {t('my_profile.payments_title')}
-              </div>
-              <Row icon="🏦" label={t('my_profile.payout_method_label')}
-                value={profile?.payoutMethod || t('my_profile.not_set')}
-                onAction={() => onNavigate('CustomerProfile')} />
-              <Row icon="👤" label={t('my_profile.account_name_label')}
-                value={profile?.payoutAccountName || '—'}
-                onAction={() => onNavigate('CustomerProfile')} />
-              <Row icon="🏛️" label={t('my_profile.bank_label')}
-                value={profile?.payoutBankName || '—'}
-                onAction={() => onNavigate('CustomerProfile')} />
-            </SCard>
+            {/* Payout details — only means anything if KenteXa actually pays
+                you (seller/agent/admin/manager). A plain buyer never
+                receives a payout, only makes payments. */}
+            {isPaidRole && (
+              <SCard>
+                <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
+                  {t('my_profile.payments_title')}
+                </div>
+                <Row icon="🏦" label={t('my_profile.payout_method_label')}
+                  value={profile?.payoutMethod || t('my_profile.not_set')}
+                  onAction={() => onNavigate('CustomerProfile')} />
+                <Row icon="👤" label={t('my_profile.account_name_label')}
+                  value={profile?.payoutAccountName || '—'}
+                  onAction={() => onNavigate('CustomerProfile')} />
+                <Row icon="🏛️" label={t('my_profile.bank_label')}
+                  value={profile?.payoutBankName || '—'}
+                  onAction={() => onNavigate('CustomerProfile')} />
+              </SCard>
+            )}
 
             <SCard>
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
