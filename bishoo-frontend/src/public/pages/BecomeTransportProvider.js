@@ -3,7 +3,7 @@
  * Place at: src/public/pages/BecomeTransportProvider.js
  * Route: 'BecomeTransportProvider'
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
@@ -25,7 +25,7 @@ const inp = {
   outline: 'none', fontFamily: 'inherit',
 };
 
-const BecomeTransportProvider = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
   const { t } = useTranslation();
   const PROVIDER_TYPES = getProviderTypes(t);
   const [step,   setStep]   = useState(1); // 1=type, 2=details, 3=success
@@ -38,6 +38,18 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, onLogout, userRole })
   const [error,  setError]  = useState('');
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  // Pre-fill from profile — don't make them re-type what's already known.
+  useEffect(() => {
+    if (!currentUser) return;
+    setForm(prev => ({
+      ...prev,
+      name:          prev.name          || currentUser.name          || '',
+      contactPhone:  prev.contactPhone  || currentUser.phone          || '',
+      contactEmail:  prev.contactEmail  || currentUser.email          || '',
+      whatsappPhone: prev.whatsappPhone || currentUser.storeWhatsApp  || '',
+    }));
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
     if (!form.name.trim())         return setError(t('become_transport_provider.name_required'));

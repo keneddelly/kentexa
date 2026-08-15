@@ -18,7 +18,7 @@ const inputStyle = {
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
 
-const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
   const { t } = useTranslation();
   const [step, setStep]                   = useState('info');  // 'info' | 'form' | 'done'
   const [existingProfile, setExistingProfile] = useState(null);
@@ -29,6 +29,20 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, onLogout, userRole }) =>
     businessName: '', city: '', address: '',
     phone: '', governmentId: '', governmentIdImage: '',
   });
+
+  // Pre-fill from profile — the platform already knows this person's
+  // phone/city/store name if they've set them elsewhere; don't make them
+  // re-type it.
+  useEffect(() => {
+    if (!currentUser) return;
+    setForm(prev => ({
+      ...prev,
+      phone:        prev.phone        || currentUser.phone           || '',
+      city:         prev.city         || currentUser.city             || '',
+      address:      prev.address      || currentUser.businessLocation || '',
+      businessName: prev.businessName || currentUser.storeName        || '',
+    }));
+  }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isLoggedIn) { setCheckingStatus(false); return; }

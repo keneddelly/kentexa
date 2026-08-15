@@ -504,6 +504,10 @@ export class AgentsService {
     if (dto.phone) updates.phone = dto.phone;
     if (dto.address) updates.address = dto.address;
     await this.agentRepo.update((agent as any).id, updates);
+    // Keep the single source of truth in sync — Agent.phone previously
+    // drifted from User.phone the moment someone edited it here, since
+    // this only ever wrote to the Agent row.
+    if (dto.phone) await this.userRepo.update(user.id, { phone: dto.phone });
     return { message: 'Wasifu umesasishwa' };
   }
 }
