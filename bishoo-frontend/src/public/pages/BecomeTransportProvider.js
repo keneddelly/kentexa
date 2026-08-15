@@ -29,13 +29,31 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout
   const [step,   setStep]   = useState(1); // 1=type, 2=details, 3=success
   const [form,   setForm]   = useState({
     type: '', name: '', contactPhone: '', whatsappPhone: '',
-    contactEmail: '', registrationNumber: '', description: '',
+    contactEmail: '', registrationNumber: '', description: '', logoUrl: '',
     defaultParcelCapacity: '20', defaultMaxWeightKg: '200',
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
+  const [logoUploading, setLogoUploading] = useState(false);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setLogoUploading(true);
+      setError('');
+      const formData = new FormData();
+      formData.append('files', file);
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      set('logoUrl', res.data.urls?.[0] || '');
+    } catch {
+      setError(t('become_transport_provider.logo_upload_failed'));
+    } finally {
+      setLogoUploading(false);
+    }
+  };
 
   // Pre-fill from profile — don't make them re-type what's already known.
   useEffect(() => {
@@ -139,6 +157,27 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout
               <input style={inp} value={form.name}
                 placeholder={form.type === 'boda' ? t('become_transport_provider.field_name_placeholder_boda') : t('become_transport_provider.field_name_placeholder_default')}
                 onChange={e => set('name', e.target.value)} />
+            </div>
+
+            {/* Logo — this is what shows on the public profile instead of
+                the personal photo, same as a seller's store logo */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 6 }}>
+                {t('become_transport_provider.field_logo_label')}
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
+                border: '2px dashed #93c5fd', borderRadius: 14, padding: '12px 16px', backgroundColor: '#f8fafc' }}>
+                {form.logoUrl ? (
+                  <img src={form.logoUrl} alt="" style={{ width: 56, height: 56, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: '#e2e8f0',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>🚌</div>
+                )}
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#2563eb' }}>
+                  {logoUploading ? t('become_transport_provider.logo_uploading') : t('become_transport_provider.logo_upload_hint')}
+                </span>
+                <input type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} disabled={logoUploading} />
+              </label>
             </div>
 
             {/* Phone */}

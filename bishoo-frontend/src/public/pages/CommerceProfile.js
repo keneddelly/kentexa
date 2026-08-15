@@ -287,6 +287,18 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   const role      = profile.role || userRole || 'user';
   const profileTabs = tabs(role, isOwnProfile, t);
 
+  // Transport providers have their own company name/logo (TransportProvider
+  // entity), separate from the person's personal name/avatarUrl — same
+  // "business brand vs. the person running the account" split sellers
+  // already get via storeName/logo. Falls back to the personal identity
+  // until the role-specific fetch resolves (or if there's nothing set yet).
+  const displayName  = (role === 'transport_provider' && publicTransportData?.name)
+    ? publicTransportData.name
+    : (profile.storeName || profile.name);
+  const displayPhoto = (role === 'transport_provider' && publicTransportData?.logoUrl)
+    ? publicTransportData.logoUrl
+    : (profile.avatarUrl || profile.logo);
+
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc', paddingBottom:100,
       fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
@@ -305,7 +317,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
         </button>
         <div style={{ flex:1, fontSize:15, fontWeight:900, color:DK, overflow:'hidden',
           textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-          {profile.storeName || profile.name || t('commerce_profile.profile_fallback')}
+          {displayName || t('commerce_profile.profile_fallback')}
         </div>
         {isOwnProfile && (
           <button onClick={() => onNavigate('MyProfile')}
@@ -331,9 +343,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
           display:'flex', alignItems:'center', justifyContent:'center',
           fontSize:32, color:'#fff', fontWeight:900,
           boxShadow:'0 4px 16px rgba(0,0,0,0.15)' }}>
-          {(profile.avatarUrl || profile.logo)
-            ? <img src={profile.avatarUrl || profile.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-            : (profile.storeName||profile.name||'K').charAt(0).toUpperCase()}
+          {displayPhoto
+            ? <img src={displayPhoto} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
+            : (displayName||'K').charAt(0).toUpperCase()}
         </div>
 
         {/* Action buttons top-right */}
@@ -390,7 +402,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
         {/* Name + verified */}
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2, flexWrap:'wrap' }}>
           <h1 style={{ fontSize:20, fontWeight:900, color:DK, margin:0 }}>
-            {profile.storeName || profile.name || t('commerce_profile.default_name')}
+            {displayName || t('commerce_profile.default_name')}
           </h1>
           {profile.isOfficialStore && (
             <span style={{ fontSize:16 }} title={t('commerce_profile.verified_title')}>✅</span>

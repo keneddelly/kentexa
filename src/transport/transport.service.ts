@@ -64,6 +64,7 @@ export class TransportService {
       contactEmail?: string;
       registrationNumber?: string;
       description?: string;
+      logoUrl?: string;
       defaultParcelCapacity?: number;
       defaultMaxWeightKg?: number;
     },
@@ -84,6 +85,7 @@ export class TransportService {
       contactEmail: dto.contactEmail || null,
       registrationNumber: dto.registrationNumber || null,
       description: dto.description || null,
+      logoUrl: dto.logoUrl || null,
       defaultParcelCapacity: dto.defaultParcelCapacity || 10,
       defaultMaxWeightKg: dto.defaultMaxWeightKg || 100,
       status: ProviderStatus.PENDING,
