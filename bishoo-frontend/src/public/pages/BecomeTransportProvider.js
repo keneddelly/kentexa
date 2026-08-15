@@ -5,9 +5,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar  from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer  from '../components/Footer';
 import api     from '../../api/api';
 
 const getProviderTypes = (t) => [
@@ -69,10 +67,8 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <Navbar currentPage="BecomeTransportProvider" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
       <BackBar onBack={() => step > 1 ? setStep(s => s - 1) : onNavigate('back')}
-        title={t('become_transport_provider.page_title')} />
+        title={t('become_transport_provider.page_title')} top={0} />
 
       <div style={{ flex: 1, padding: '16px 16px 40px', maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 
@@ -260,7 +256,6 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

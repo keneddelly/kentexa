@@ -7,9 +7,7 @@
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar   from '../components/Navbar';
 import BackBar  from '../components/BackBar';
-import Footer   from '../components/Footer';
 
 const B = '#2563EB';
 
@@ -82,9 +80,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc',
       fontFamily:'Manrope,Inter,-apple-system,sans-serif', display:'flex', flexDirection:'column' }}>
-      <Navbar currentPage="RoleActivation" onNavigate={onNavigate}
-        isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('CommerceProfile')} title={t('role_activation.page_title')} />
+      <BackBar onBack={() => onNavigate('CommerceProfile')} title={t('role_activation.page_title')} top={0} />
 
       <div style={{ flex:1, maxWidth:760, margin:'0 auto', width:'100%',
         padding:'20px 16px 80px', boxSizing:'border-box' }}>
@@ -229,7 +225,6 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

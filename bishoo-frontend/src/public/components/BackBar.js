@@ -4,15 +4,20 @@ import { useTranslation } from 'react-i18next';
 /**
  * BackBar — universal back navigation bar
  * Usage: <BackBar onBack={() => onNavigate('Home')} title="Product Name" />
+ *
+ * Defaults to sticking below a 56px Navbar (`top={56}`) since that's how
+ * most pages use it. Pages with no Navbar above it (the newer, minimal-chrome
+ * pages — no marketplace-style top nav/footer) must pass `top={0}`, or this
+ * sticks 56px down the viewport, leaving a blank gap above it.
  */
-const BackBar = ({ onBack, title, right }) => {
+const BackBar = ({ onBack, title, right, top = 56 }) => {
   const { t } = useTranslation();
   return (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '10px 14px', backgroundColor: '#fff',
     borderBottom: '1px solid #f1f5f9',
-    position: 'sticky', top: 56, zIndex: 90,
+    position: 'sticky', top, zIndex: 90,
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   }}>
     <button onClick={onBack}

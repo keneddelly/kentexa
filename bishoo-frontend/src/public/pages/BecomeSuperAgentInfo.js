@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
 import BackBar from '../components/BackBar';
-import Footer from '../components/Footer';
 import api from '../../api/api';
 
 const CITIES = [
@@ -80,8 +78,7 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
-      <Navbar currentPage="BecomeSuperAgentInfo" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('Home')} title={t('become_super_agent_info.page_title')} />
+      <BackBar onBack={() => onNavigate('Home')} title={t('become_super_agent_info.page_title')} top={0} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '28px 16px', textAlign: 'center' }}>
@@ -255,7 +252,6 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
           </div>
         ) : null}
       </div>
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };

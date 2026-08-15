@@ -23,7 +23,7 @@ const BecomeSellerInfo = ({ onNavigate }) => {
   const BENEFITS = getBenefits(t);
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <BackBar title={t('become_seller_info.page_title')} onBack={() => onNavigate('back')} />
+      <BackBar title={t('become_seller_info.page_title')} onBack={() => onNavigate('back')} top={0} />
 
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '16px 16px 40px' }}>
 

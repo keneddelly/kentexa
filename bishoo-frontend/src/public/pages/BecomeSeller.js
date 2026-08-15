@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
@@ -59,8 +57,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <Navbar currentPage="BecomeSeller" onNavigate={onNavigate} isLoggedIn={isLoggedIn} onLogout={onLogout} userRole={userRole} />
-      <BackBar onBack={() => onNavigate('back')} title={t('become_seller.page_title')} />
+      <BackBar onBack={() => onNavigate('back')} title={t('become_seller.page_title')} top={0} />
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', padding: '28px 16px', textAlign: 'center' }}>
@@ -229,8 +226,6 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
           </div>
         )}
       </div>
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };
