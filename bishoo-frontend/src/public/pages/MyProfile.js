@@ -594,8 +594,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               </div>
               <Row icon="🛒" label={t('my_profile.my_orders_label')} value={fmt(orders.length)}
                 onAction={() => onNavigate('MyOrders')} />
-              <Row icon="📦" label={t('my_profile.shipments_label')}
-                onAction={() => onNavigate('SellerShipment')} />
+              <Row icon="🧾" label={t('my_profile.pay_invoice_label')}
+                onAction={() => onNavigate('PayInvoice')} />
               <Row icon="🔍" label={t('my_profile.track_parcel_label')}
                 onAction={() => onNavigate('TrackParcel')} />
               <Row icon="❤️" label={t('my_profile.wishlist_label')}

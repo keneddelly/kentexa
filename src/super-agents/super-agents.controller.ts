@@ -345,7 +345,15 @@ export class SuperAgentsController {
 
   // ══ Seller shipments ════════════════════════════════════════════════════
 
-  @UseGuards(JwtAuthGuard)
+  // Was JwtAuthGuard-only — any logged-in user (not just sellers) could hit
+  // this and create an order with themselves as the seller.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(
+    UserRole.SELLER,
+    UserRole.SUPER_AGENT,
+    UserRole.ADMIN,
+    UserRole.MANAGER,
+  )
   @Post('shipments')
   createSellerShipment(@Request() req, @Body() body: any) {
     return this.service.createSellerShipment(req.user, body);

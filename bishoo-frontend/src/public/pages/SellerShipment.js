@@ -377,6 +377,32 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     setError('');
   };
 
+  // ── Role gate ──────────────────────────────────────────────────────────────
+  // Creating a shipment means picking one of YOUR OWN products/classifieds to
+  // ship — meaningless (and previously reachable) for a plain buyer, who has
+  // none. Restrict to roles that actually sell/arrange transport; the
+  // backend enforces this too (POST /super-agents/shipments), this just
+  // avoids showing a broken "pick a product" form to everyone else.
+  if (!['seller', 'super_agent', 'admin', 'manager'].includes(userRole)) return (
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+      <BackBar onBack={() => onNavigate('back')} title={`📦 ${t('seller_shipment.title')}`} />
+      <div style={{ padding: '48px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
+        <div style={{ fontSize: 44, marginBottom: 12 }}>🏪</div>
+        <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
+          {t('seller_shipment.sellers_only_title')}
+        </h2>
+        <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
+          {t('seller_shipment.sellers_only_desc')}
+        </p>
+        <button onClick={() => onNavigate('BecomeSeller')}
+          style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none',
+            padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+          🚀 {t('seller_shipment.become_seller_button')}
+        </button>
+      </div>
+    </div>
+  );
+
   // ── Success screen ────────────────────────────────────────────────────────
   if (result) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
