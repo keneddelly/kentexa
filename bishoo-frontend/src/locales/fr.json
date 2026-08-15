@@ -479,19 +479,6 @@
     "resend_code": "← Renvoyer le code",
     "footer_tagline": "KenteXa © 2026 · Marché n°1 de Tanzanie"
   },
-  "become_seller": {
-    "title": "Devenir Vendeur",
-    "subtitle": "Commencez à vendre sur KenteXa aujourd'hui",
-    "business_name": "Nom de l'Entreprise *",
-    "category": "Catégorie d'Activité *",
-    "phone": "Téléphone Professionnel *",
-    "location": "Localisation de l'Entreprise",
-    "description": "Description de l'Entreprise",
-    "submit": "Soumettre la Candidature",
-    "submitting": "Envoi...",
-    "success": "Candidature soumise! Nous examinerons sous 24 heures.",
-    "already_applied": "Déjà postulé? Vérifiez votre statut →"
-  },
   "super_agent": {
     "title": "Hub Super Agent",
     "dashboard": "Tableau de Bord",
@@ -4336,6 +4323,7 @@
     "loading": "⏳ Chargement..."
   },
   "become_seller": {
+    "page_title": "Devenir Vendeur",
     "hero_title": "🏪 Devenir vendeur",
     "hero_desc": "Rejoignez des milliers de vendeurs sur Kentexa Tanzanie",
     "benefit_list_title": "Répertorier des produits",

@@ -20,22 +20,21 @@ const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [existingProfile, setExistingProfile] = useState(null);
 
-  const regions = [
-    'Dar es Salaam','Mwanza','Arusha','Dodoma','Mbeya','Morogoro','Tanga',
-    'Zanzibar','Kilimanjaro','Kigoma','Shinyanga','Kagera','Tabora','Lindi',
-    'Mtwara','Ruvuma','Singida','Iringa','Mara','Pwani','Rukwa','Geita',
-  ];
-
   const idTypes = ['National ID','Passport','Driving License','Voter ID'];
 
-  // Pre-fill from profile
+  // Pre-fill from profile — Kentexa already knows these once you're logged
+  // in, no reason to make you retype them.
   React.useEffect(() => {
     if (!currentUser) return;
     setForm && setForm(prev => ({
       ...prev,
-      fullName: prev.fullName || currentUser.name  || '',
-      phone:    prev.phone    || currentUser.phone || '',
+      fullName: prev.fullName || currentUser.name            || '',
+      phone:    prev.phone    || currentUser.phone           || '',
+      address:  prev.address  || currentUser.businessLocation || '',
     }));
+    // Not prefilling agentLocation (region/district/ward) here — LocationPicker
+    // cascades strictly by id (loaded from /locations/*), so a bare city name
+    // string from currentUser can't select anything in it.
   }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -173,7 +172,6 @@ const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }
                   { label: t('become_agent.field_full_name'), key: 'fullName', placeholder: t('become_agent.field_full_name_placeholder'), type: 'text' },
                   { label: t('become_agent.field_phone'), key: 'phone', placeholder: t('become_agent.field_phone_placeholder'), type: 'tel' },
                   { label: t('become_agent.field_address'), key: 'address', placeholder: t('become_agent.field_address_placeholder'), type: 'text' },
-                  { label: t('become_agent.field_district'), key: 'district', placeholder: t('become_agent.field_district_placeholder'), type: 'text' },
                   { label: t('become_agent.field_id_number'), key: 'idNumber', placeholder: t('become_agent.field_id_number_placeholder'), type: 'text' },
                 ].map(field => (
                   <div key={field.key}>
@@ -207,14 +205,6 @@ const BecomeAgent = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }
                   <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
                     {t('become_agent.work_city_hint')}
                   </div>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{t('become_agent.region_label')}</label>
-                  <select value={form.region} onChange={e => setForm({ ...form, region: e.target.value })} style={inputStyle}>
-                    <option value="">{t('become_agent.region_placeholder')}</option>
-                    {regions.map(r => <option key={r} value={r}>{r}</option>)}
-                  </select>
                 </div>
 
                 <div>

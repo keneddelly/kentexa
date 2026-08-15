@@ -96,7 +96,7 @@ const BecomeSellerInfo = ({ onNavigate }) => {
         </div>
 
         {/* CTA */}
-        <button onClick={() => onNavigate('BecomeAgent')}
+        <button onClick={() => onNavigate('BecomeSeller')}
           style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
             color: '#fff', border: 'none', padding: '16px 20px', borderRadius: 14,
             fontSize: 16, fontWeight: 900, cursor: 'pointer', marginBottom: 12 }}>

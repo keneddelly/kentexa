@@ -479,19 +479,6 @@
     "resend_code": "← Resend Code",
     "footer_tagline": "KenteXa © 2026 · Tanzania's #1 Marketplace"
   },
-  "become_seller": {
-    "title": "Become a Seller",
-    "subtitle": "Start selling on KenteXa today",
-    "business_name": "Business Name *",
-    "category": "Business Category *",
-    "phone": "Business Phone *",
-    "location": "Business Location",
-    "description": "Business Description",
-    "submit": "Submit Application",
-    "submitting": "Submitting...",
-    "success": "Application submitted! We will review within 24 hours.",
-    "already_applied": "Already applied? Check your status →"
-  },
   "super_agent": {
     "title": "Super Agent Hub",
     "dashboard": "Dashboard",
@@ -4340,6 +4327,7 @@
     "loading": "⏳ Loading..."
   },
   "become_seller": {
+    "page_title": "Become a Seller",
     "hero_title": "🏪 Become a Seller",
     "hero_desc": "Join thousands of sellers on Kentexa Tanzania",
     "benefit_list_title": "List Products",
