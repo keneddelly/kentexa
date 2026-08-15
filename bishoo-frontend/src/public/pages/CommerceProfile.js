@@ -171,6 +171,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   const [publicAgentData,     setPublicAgentData]     = useState(null);
   const [publicHubData,       setPublicHubData]       = useState(null);
   const [publicTransportData, setPublicTransportData] = useState(null);
+  const [commerceProfiles,    setCommerceProfiles]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState('posts');
   const [following,  setFollowing]  = useState(false);
@@ -199,7 +200,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
       targetId ? api.get(`/stores/${targetId}`) : Promise.resolve({data:null}),
       uid ? api.get(`/classifieds/seller/${uid}`) : Promise.resolve({data:[]}),
       uid ? api.get(`/products/seller/${uid}`)    : Promise.resolve({data:[]}),
-    ]).then(([p,r,f,o,s,a,st,cl,pr]) => {
+      uid ? api.get(`/profiles/for-user/${uid}`)  : Promise.resolve({data:[]}),
+    ]).then(([p,r,f,o,s,a,st,cl,pr,cp]) => {
       if (p.status==='fulfilled') setProfile(p.value.data);
       if (r.status==='fulfilled') setRep(r.value.data);
       if (f.status==='fulfilled') setFeed(f.value.data || []);
@@ -210,6 +212,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
       else setFollowing(false);
       if (cl.status==='fulfilled') setClassifieds(cl.value.data || []);
       if (pr.status==='fulfilled') setProducts(pr.value.data || []);
+      if (cp.status==='fulfilled') setCommerceProfiles(cp.value.data || []);
     }).finally(() => setLoading(false));
   }, [targetId]); // eslint-disable-line
 
@@ -306,17 +309,19 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   // approved most recently and has nothing to do with why a visitor is
   // here. Someone on the Products tab is here to buy something from the
   // seller; someone who's switched to Routes is here for the transport
-  // side. Pinning the header to `role` meant a buyer looking at a seller's
-  // camera listing would see whatever business was approved last (e.g. a
-  // transport company), not the store they actually came for.
-  const displayName  = (tab === 'transport' && publicTransportData?.name)
-    ? publicTransportData.name
-    : (tab === 'hub' && publicHubData?.businessName)
-    ? publicHubData.businessName
-    : (profile.storeName || profile.name);
-  const displayPhoto = (tab === 'transport' && publicTransportData?.logoUrl)
-    ? publicTransportData.logoUrl
-    : (profile.avatarUrl || profile.logo);
+  // side. Source of truth is the real CommerceProfile record for that
+  // identity (not ad hoc fields scattered across profile/publicXData),
+  // so the header never again depends on which role got approved last.
+  const findCommerceProfile = (type) => commerceProfiles.find(cp => cp.type === type);
+  const activeCommerceProfile =
+    (tab === 'transport' && findCommerceProfile('transport_provider')) ||
+    (tab === 'hub'       && findCommerceProfile('hub')) ||
+    (tab === 'jobs'      && findCommerceProfile('agent')) ||
+    findCommerceProfile('business') ||
+    findCommerceProfile('personal');
+  const displayName  = activeCommerceProfile?.displayName || profile.storeName || profile.name;
+  const displayPhoto = activeCommerceProfile?.photoUrl || profile.avatarUrl || profile.logo;
+  const displayHandle = activeCommerceProfile?.username ? `@${activeCommerceProfile.username}` : null;
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc', paddingBottom:100,
@@ -429,13 +434,26 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
           <ReputationBadge score={score} size="sm" />
         </div>
 
-        {/* Kentexa ID — the identity anchor across the whole site */}
-        {profile.kentexaId && (
-          <div style={{ fontSize:11, fontWeight:700, color:B, marginBottom:8,
-            display:'inline-flex', alignItems:'center', gap:4,
-            backgroundColor:'#eff6ff', border:'1px solid #bfdbfe',
-            borderRadius:100, padding:'2px 10px', letterSpacing:0.5 }}>
-            🆔 {profile.kentexaId}
+        {/* Handle + Kentexa ID — the identity anchors across the whole site.
+            The handle is this specific commerce identity's public username
+            (unique per CommerceProfile); the Kentexa ID is the underlying
+            account, shown as secondary context, not the primary label. */}
+        {(displayHandle || profile.kentexaId) && (
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
+            {displayHandle && (
+              <div style={{ fontSize:12, fontWeight:800, color:DK,
+                display:'inline-flex', alignItems:'center', gap:4 }}>
+                {displayHandle}
+              </div>
+            )}
+            {profile.kentexaId && (
+              <div style={{ fontSize:11, fontWeight:700, color:B,
+                display:'inline-flex', alignItems:'center', gap:4,
+                backgroundColor:'#eff6ff', border:'1px solid #bfdbfe',
+                borderRadius:100, padding:'2px 10px', letterSpacing:0.5 }}>
+                🆔 {profile.kentexaId}
+              </div>
+            )}
           </div>
         )}
 

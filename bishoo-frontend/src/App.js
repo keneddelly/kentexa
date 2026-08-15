@@ -285,6 +285,22 @@ function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Boot-time /@username routing — resolves a public commerce-identity
+  // handle (e.g. kentexa.com/@bishoo_intelligence_syst) straight to that
+  // profile's owner. Can't be read synchronously like ?track=/?confirm=
+  // in the page useState initializer above because it needs a network
+  // round trip to resolve the username to an owner id; runs once on mount
+  // instead, same as the other boot effects here.
+  useEffect(() => {
+    try {
+      const match = window.location.pathname.match(/^\/@([a-z0-9_]+)\/?$/i);
+      if (!match) return;
+      api.get(`/profiles/username/${match[1]}`).then(res => {
+        if (res.data?.ownerId) setPage(`CommerceProfile-${res.data.ownerId}`);
+      }).catch(() => {});
+    } catch { /* no window — SSR */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('kentexa_user');
