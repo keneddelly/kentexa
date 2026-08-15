@@ -117,6 +117,7 @@ export class AuthController {
       storeTagline: user.storeTagline || null,
       storeDescription: user.storeDescription || null,
       bio: user.bio || null,
+      city: user.city || null,
       logo: user.logo || null,
       coverImage: user.coverImage || null,
       storeWhatsApp: user.storeWhatsApp || null,
