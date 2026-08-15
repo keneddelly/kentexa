@@ -104,3 +104,17 @@ services:
         sync: false # set to the bishoo-backend service's URL once it's deployed (see above)
       - key: NEXT_PUBLIC_META_PIXEL_ID
         sync: false # optional — your Meta (Facebook/Instagram) Pixel ID from Events Manager; leave unset to disable Pixel tracking entirely
+
+  - type: web
+    name: bishoo-frontend
+    runtime: static # pure client-rendered SPA (no server-side routing — App.js manages "pages" via in-memory state, not real URL paths), so a free static site is the right fit, not a paid Node web service
+    rootDir: bishoo-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://bishoo-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
