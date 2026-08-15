@@ -33,12 +33,9 @@ import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
-// Registration/application always stays open. The full hub-operations
-// dashboard (receive/dispatch/pricing/van) stays disabled at launch while
-// that logic gets more real-world testing — Create Shipment (a separate,
-// already-working action) remains available in the meantime. Flip this
-// back on later; nothing else in this file needs to change.
-const HUB_OPS_ENABLED = false;
+// Full hub-operations dashboard (receive/dispatch/pricing/van) re-enabled —
+// the backend endpoints it calls have been live all along.
+const HUB_OPS_ENABLED = true;
 
 // ── Constants ─────────────────────────────────────────────────────────────
 

@@ -11,6 +11,7 @@ export enum UserRole {
   SELLER = 'seller',
   AGENT = 'agent',
   SUPER_AGENT = 'super_agent',
+  TRANSPORT_PROVIDER = 'transport_provider',
   CUSTOMER_CARE = 'customer_care',
   MANAGER = 'manager',
   ADMIN = 'admin',

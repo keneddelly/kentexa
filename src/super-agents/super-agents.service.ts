@@ -17,7 +17,7 @@ import { TANZANIA_ROUTE_SEEDS } from '../database/seed-routes';
 import { Parcel, ParcelStatus, ParcelTracking } from './entities/parcel.entity';
 import { ShippingRate } from './entities/shipping-rate.entity';
 import { BulkShipment } from './entities/bulk-shipment.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
 import {
@@ -687,6 +687,7 @@ export class SuperAgentsService {
     const saved = await this.superAgentRepo.save(agent);
     if (agent.user) {
       await this.userRepo.update(agent.user.id, {
+        role: UserRole.SUPER_AGENT,
         activeRoles: mergeActiveRole(agent.user.activeRoles, 'super_agent'),
       });
     }

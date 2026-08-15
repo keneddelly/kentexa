@@ -11,10 +11,10 @@ import Footer  from '../components/Footer';
 import api     from '../../api/api';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
-// Registration stays fully open. The operational dashboard (posting routes,
-// availability, accepting assignments) stays disabled at launch while that
-// logic gets more real-world testing. Flip this back on later.
-const TRANSPORT_OPS_ENABLED = false;
+// Operational dashboard (posting routes, availability, accepting
+// assignments) re-enabled — the backend endpoints it calls have been live
+// all along.
+const TRANSPORT_OPS_ENABLED = true;
 
 const getStatusStyle = t => ({
   pending:   { bg: '#fef3c7', text: '#d97706', label: t('transport_provider_dashboard.status_pending') },

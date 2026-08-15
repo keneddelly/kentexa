@@ -42,11 +42,9 @@ const getTierStyle = t => ({
 });
 
 // ── Launch scope ──────────────────────────────────────────────────────────
-// Agents can help buyers pay (💳 Pay tab) from day one. The job queue
-// (claim/pickup/deliver flow) stays disabled until that logic gets more
-// real-world testing — flip this back on when ready, nothing below it
-// needs to change.
-const JOB_QUEUE_ENABLED = false;
+// Job queue (claim/pickup/deliver flow) re-enabled — the backend endpoints
+// it calls have been live all along, this just un-stubs the Work tab.
+const JOB_QUEUE_ENABLED = true;
 
 const ComingSoonPanel = ({ icon, title, body }) => (
   <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 40,

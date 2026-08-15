@@ -44,7 +44,7 @@ const getRoles = (t) => [
     desc:     t('role_activation.super_agent_desc'),
     perks:    [t('role_activation.super_agent_perk1'), t('role_activation.super_agent_perk2'), t('role_activation.super_agent_perk3'), t('role_activation.super_agent_perk4')],
     needs:    [t('role_activation.super_agent_need1'), t('role_activation.super_agent_need2'), t('role_activation.super_agent_need3')],
-    page:     'BecomeSuperAgent',
+    page:     'BecomeSuperAgentInfo',
     color:    '#F5F3FF', accent: '#7C3AED',
   },
   {

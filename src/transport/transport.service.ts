@@ -27,7 +27,7 @@ import {
   TransportAssignment,
   AssignmentStatus,
 } from './entities/transport-assignment.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import {
   ServiceAd,
   ServiceCategory,
@@ -159,7 +159,14 @@ export class TransportService {
     for (const key of allowed) {
       if (dto[key] !== undefined) (p as any)[key] = (dto as any)[key];
     }
-    return this.providerRepo.save(p);
+    const saved = await this.providerRepo.save(p);
+    // Keep the single source of truth in sync — only contactPhone maps
+    // cleanly to a User field; the business `name` isn't the same concept
+    // as the person's own name, so that one stays provider-only.
+    if (dto.contactPhone) {
+      await this.userRepo.update(userId, { phone: dto.contactPhone });
+    }
+    return saved;
   }
 
   // ── ROUTES ────────────────────────────────────────────────────────────────
@@ -691,6 +698,7 @@ export class TransportService {
       const user = await this.userRepo.findOne({ where: { id: p.userId } });
       if (user) {
         await this.userRepo.update(p.userId, {
+          role: UserRole.TRANSPORT_PROVIDER,
           activeRoles: mergeActiveRole(user.activeRoles, 'transport_provider'),
         });
       }
