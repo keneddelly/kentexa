@@ -912,10 +912,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               </div>
               <Row icon="✏️" label={t('my_profile.edit_profile_label')}
                 onAction={() => onNavigate('CustomerProfile')} />
-              <Row icon="🏪" label={t('my_profile.store_settings_label')}
-                onAction={() => onNavigate('StoreSettings')} />
-              <Row icon="🪪" label={t('my_profile.verify_id_label')}
-                onAction={() => onNavigate('CustomerProfile')} />
+              {isBusinessOwner && (
+                <Row icon="🏪" label={t('my_profile.store_settings_label')}
+                  onAction={() => onNavigate('StoreSettings')} />
+              )}
+              {/* "Verify ID" removed — same dead KYC row already removed from
+                  the Identity tab; it linked to CustomerProfile, which has no
+                  ID-verification UI, for any role, seller included. */}
             </SCard>
 
             {/* Payout details — only means anything if KenteXa actually pays
