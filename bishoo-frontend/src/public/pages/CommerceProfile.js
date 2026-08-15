@@ -301,15 +301,20 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   const activeRoles = [role, ...(profile.activeRoles || [])].filter((r,i,a) => a.indexOf(r)===i);
   const profileTabs = tabs(activeRoles, isOwnProfile, t);
 
-  // Transport providers have their own company name/logo (TransportProvider
-  // entity), separate from the person's personal name/avatarUrl — same
-  // "business brand vs. the person running the account" split sellers
-  // already get via storeName/logo. Falls back to the personal identity
-  // until the role-specific fetch resolves (or if there's nothing set yet).
-  const displayName  = (role === 'transport_provider' && publicTransportData?.name)
+  // Which brand the header shows follows the TAB being viewed, not the
+  // account's primary `role` — role is just whichever identity was
+  // approved most recently and has nothing to do with why a visitor is
+  // here. Someone on the Products tab is here to buy something from the
+  // seller; someone who's switched to Routes is here for the transport
+  // side. Pinning the header to `role` meant a buyer looking at a seller's
+  // camera listing would see whatever business was approved last (e.g. a
+  // transport company), not the store they actually came for.
+  const displayName  = (tab === 'transport' && publicTransportData?.name)
     ? publicTransportData.name
+    : (tab === 'hub' && publicHubData?.businessName)
+    ? publicHubData.businessName
     : (profile.storeName || profile.name);
-  const displayPhoto = (role === 'transport_provider' && publicTransportData?.logoUrl)
+  const displayPhoto = (tab === 'transport' && publicTransportData?.logoUrl)
     ? publicTransportData.logoUrl
     : (profile.avatarUrl || profile.logo);
 
