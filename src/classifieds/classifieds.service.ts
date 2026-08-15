@@ -180,9 +180,24 @@ export class ClassifiedsService {
     else if (sort === 'rating')
       qb.orderBy('s.rating', 'DESC').addOrderBy('c.createdAt', 'DESC');
     else {
-      // Default: reputation-ranked
-      qb.orderBy('CASE WHEN s."isVerified" = true THEN 1 ELSE 2 END', 'ASC')
-        .addOrderBy('COALESCE(CAST(s."reputationScore" AS int), 0)', 'DESC')
+      // Default: reputation-ranked. Pre-existing bug found while testing
+      // AI search: TypeORM's orderBy() tries to resolve its argument
+      // against known aliases before treating it as raw SQL, and misparses
+      // this CASE expression's leading tokens as an alias lookup
+      // ("CASE WHEN s" alias not found) — every classified search (AI or
+      // not) that reached this default sort branch was 500ing. Selecting
+      // the expressions as named columns first sidesteps the alias lookup
+      // entirely.
+      qb.addSelect(
+        'CASE WHEN s."isVerified" = true THEN 1 ELSE 2 END',
+        'verified_rank',
+      )
+        .addSelect(
+          'COALESCE(CAST(s."reputationScore" AS int), 0)',
+          'reputation_rank',
+        )
+        .orderBy('verified_rank', 'ASC')
+        .addOrderBy('reputation_rank', 'DESC')
         .addOrderBy('c.createdAt', 'DESC');
     }
 
