@@ -873,6 +873,7 @@
     "badge_new": "{{count}} mpya",
     "basic_info_title": "👤 Taarifa za Msingi",
     "profile_photo_label": "Picha ya Profile",
+    "kentexa_id_label": "Kitambulisho cha Kentexa",
     "set_status": "✓ Imewekwa",
     "incomplete_status": "Haijakamilika",
     "full_name_label": "Jina Kamili",
@@ -2403,7 +2404,16 @@
     "resend_seconds": "sekunde {{seconds}}",
     "resend_otp": "🔁 Tuma OTP Tena",
     "sending": "⏳ Inatuma...",
-    "change_button": "← Badilisha {{method}}"
+    "change_button": "← Badilisha {{method}}",
+    "add_photo_title": "Ongeza Picha Yako",
+    "add_photo_subtitle": "Hatua ya mwisho — kila akaunti ya Kentexa inahitaji picha halisi.",
+    "photo_upload_hint": "Gusa kupakia picha",
+    "photo_uploading": "⏳ Inapakia...",
+    "photo_upload_failed": "Kupakia picha kumeshindwa. Jaribu tena.",
+    "photo_required_error": "Tafadhali ongeza picha ili kuendelea.",
+    "photo_continue_button": "✅ Endelea",
+    "welcome_heading": "🎉 Karibu Kentexa!",
+    "welcome_kentexa_id_label": "Namba Yako ya Kentexa"
   },
   "wishlist": {
     "type_products": "Bidhaa",

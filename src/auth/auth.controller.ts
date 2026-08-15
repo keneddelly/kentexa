@@ -108,6 +108,8 @@ export class AuthController {
       phone: user.phone,
       email: user.email,
       name: user.name,
+      avatarUrl: user.avatarUrl || null,
+      kentexaId: user.kentexaId,
       role: user.role,
       createdAt: user.createdAt,
       // Store / seller branding

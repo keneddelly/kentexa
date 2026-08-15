@@ -22,11 +22,15 @@ export class UsersService {
   // otpAttempts never fire because ClassSerializerInterceptor only acts on
   // real class instances. Every field that must never leave this service
   // has to be stripped explicitly here, not left to the decorator.
+  //
+  // Same prototype-loss problem hits the other direction too: kentexaId is
+  // a getter (not an own property), so it's silently dropped by the same
+  // destructure unless re-added explicitly here.
   private exclude(
     user: User,
   ): Omit<User, 'password' | 'otp' | 'otpExpiry' | 'otpAttempts'> {
     const { password, otp, otpExpiry, otpAttempts, ...result } = user;
-    return result;
+    return { ...result, kentexaId: user.kentexaId };
   }
 
   async create(dto: CreateUserDto) {

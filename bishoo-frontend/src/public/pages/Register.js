@@ -17,6 +17,15 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
   const [resendTimer, setResendTimer]     = useState(0);
   const [error, setError]   = useState('');
 
+  // Step 3 — mandatory profile photo, verified account/JWT already exist
+  // by this point (token stashed in handleVerify below), just not
+  // considered "done" registering until this completes.
+  const [verifiedUserId, setVerifiedUserId] = useState(null);
+  const [kentexaId, setKentexaId]           = useState('');
+  const [photoUrl, setPhotoUrl]             = useState('');
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [finishing, setFinishing]           = useState(false);
+
   const startTimer = () => {
     setResendTimer(60);
     const iv = setInterval(() => {
@@ -65,11 +74,44 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       setError('');
       const res = await api.post('/auth/verify-otp', { identifier: identifier.trim(), otp });
       localStorage.setItem('token', res.data.access_token);
-      if (onLoginSuccess) onLoginSuccess('Home'); // navigates inside handleLoginSuccess
+      setVerifiedUserId(res.data.user?.id ?? null);
+      setKentexaId(res.data.user?.kentexaId || '');
+      setStep(3); // mandatory photo — onLoginSuccess fires only once that's done
     } catch (err) {
       setError(err?.response?.data?.message || t('register.invalid_otp'));
     } finally {
       setOtpLoading(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setPhotoUploading(true);
+      setError('');
+      const formData = new FormData();
+      formData.append('files', file);
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setPhotoUrl(res.data.urls?.[0] || '');
+    } catch (err) {
+      setError(t('register.photo_upload_failed'));
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handleFinishRegistration = async () => {
+    if (!photoUrl) { setError(t('register.photo_required_error')); return; }
+    try {
+      setFinishing(true);
+      setError('');
+      await api.patch(`/users/${verifiedUserId}`, { avatarUrl: photoUrl });
+      if (onLoginSuccess) onLoginSuccess('Home'); // navigates inside handleLoginSuccess
+    } catch (err) {
+      setError(err?.response?.data?.message || t('register.photo_upload_failed'));
+    } finally {
+      setFinishing(false);
     }
   };
 
@@ -113,10 +155,14 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
               <span style={{ fontSize:28, fontWeight:900, fontFamily:'Manrope,sans-serif', color:'#0f172a' }}>a</span>
             </div>
             <h2 style={{ fontSize:20, fontWeight:900, color:'#0f172a', margin:'0 0 4px', fontFamily:'Manrope,sans-serif' }}>
-              {step === 1 ? t('register.create_account_title') : t('register.verify_title', { method: method === 'phone' ? t('register.method_phone') : t('register.method_email') })}
+              {step === 1 ? t('register.create_account_title')
+                : step === 2 ? t('register.verify_title', { method: method === 'phone' ? t('register.method_phone') : t('register.method_email') })
+                : t('register.add_photo_title')}
             </h2>
             <p style={{ fontSize:13, color:'#64748b', margin:0 }}>
-              {step === 1 ? t('register.subtitle_create') : t('register.subtitle_code_sent', { identifier })}
+              {step === 1 ? t('register.subtitle_create')
+                : step === 2 ? t('register.subtitle_code_sent', { identifier })
+                : t('register.add_photo_subtitle')}
             </p>
           </div>
 
@@ -226,6 +272,36 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
               <button onClick={() => { setStep(1); setOtp(''); setError(''); }}
                 style={{ background:'none', border:'none', color:'#94a3b8', cursor:'pointer', fontSize:13 }}>
                 {t('register.change_button', { method: method === 'phone' ? t('register.method_phone') : t('register.method_email') })}
+              </button>
+            </div>
+          )}
+
+          {/* STEP 3 — mandatory profile photo, no skip */}
+          {step === 3 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              {kentexaId && (
+                <div style={{ textAlign:'center', backgroundColor:'#f0f9ff', borderRadius:12, padding:'10px 14px', border:'1px solid #bae6fd' }}>
+                  <div style={{ fontSize:11, color:'#0369a1', fontWeight:700, textTransform:'uppercase', letterSpacing:0.5 }}>
+                    {t('register.welcome_kentexa_id_label')}
+                  </div>
+                  <div style={{ fontSize:18, fontWeight:900, color:'#0369a1', letterSpacing:1 }}>{kentexaId}</div>
+                </div>
+              )}
+
+              <label style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8, cursor:'pointer', border:'2px dashed #93c5fd', borderRadius:16, padding:'28px 16px', backgroundColor:'#f8fafc' }}>
+                {photoUrl ? (
+                  <img src={photoUrl} alt="" style={{ width:96, height:96, borderRadius:'50%', objectFit:'cover' }} />
+                ) : (
+                  <div style={{ width:96, height:96, borderRadius:'50%', backgroundColor:'#e2e8f0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32 }}>📷</div>
+                )}
+                <span style={{ fontSize:13, fontWeight:700, color:'#2563eb' }}>
+                  {photoUploading ? t('register.photo_uploading') : t('register.photo_upload_hint')}
+                </span>
+                <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display:'none' }} disabled={photoUploading} />
+              </label>
+
+              <button className="rb" onClick={handleFinishRegistration} disabled={!photoUrl || photoUploading || finishing}>
+                {finishing ? t('register.verifying') : t('register.photo_continue_button')}
               </button>
             </div>
           )}

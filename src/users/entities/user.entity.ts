@@ -36,6 +36,13 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   name: string | null;
 
+  // Personal profile photo — deliberately separate from `logo` (store/
+  // seller branding, a different concept). Collected once, mandatorily,
+  // right after OTP verification during registration; editable afterward
+  // via the normal profile-edit path.
+  @Column({ type: 'varchar', nullable: true })
+  avatarUrl: string | null;
+
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
 
@@ -168,4 +175,15 @@ export class User {
 
   @CreateDateColumn()
   createdAt: Date;
+
+  // Not a column — derived from id, e.g. id=4821 -> "KTX-U-004821". A
+  // getter rather than a stored column (unlike Agent.agentCode) because it
+  // needs to exist the instant `id` is assigned; there's no "approval"
+  // moment for a base user to generate it at. NOTE: this is a prototype
+  // getter, not an own enumerable property — plain object destructuring
+  // (e.g. UsersService.exclude()) silently drops it, so anywhere that
+  // spreads/destructures a User must re-add it explicitly.
+  get kentexaId(): string {
+    return `KTX-U-${String(this.id).padStart(6, '0')}`;
+  }
 }

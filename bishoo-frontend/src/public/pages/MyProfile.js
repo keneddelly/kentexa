@@ -243,8 +243,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               border:'3px solid rgba(255,255,255,0.3)', overflow:'hidden',
               backgroundColor:'rgba(255,255,255,0.2)', flexShrink:0,
               display:'flex', alignItems:'center', justifyContent:'center' }}>
-              {profile.logo
-                ? <img src={profile.logo} alt=""
+              {profile.avatarUrl
+                ? <img src={profile.avatarUrl} alt=""
                     style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                 : <span style={{ fontSize:28, fontWeight:900 }}>
                     {(profile.name||'K').charAt(0).toUpperCase()}
@@ -402,9 +402,10 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 {t('my_profile.basic_info_title')}
               </div>
               <Row icon="📸" label={t('my_profile.profile_photo_label')}
-                value={profile?.logo ? t('my_profile.set_status') : t('my_profile.incomplete_status')}
-                color={profile?.logo ? '#16A34A' : '#DC2626'}
+                value={profile?.avatarUrl ? t('my_profile.set_status') : t('my_profile.incomplete_status')}
+                color={profile?.avatarUrl ? '#16A34A' : '#DC2626'}
                 onAction={() => onNavigate('CustomerProfile')} />
+              <Row icon="🆔" label={t('my_profile.kentexa_id_label')} value={profile?.kentexaId || '—'} />
               <Row icon="✏️" label={t('my_profile.full_name_label')} value={profile?.name || '—'}
                 onAction={() => onNavigate('CustomerProfile')} />
               <Row icon="📱" label={t('my_profile.phone_number_label')} value={profile?.phone || '—'} />

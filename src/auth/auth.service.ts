@@ -162,6 +162,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
+        kentexaId: user.kentexaId,
       },
     };
   }
@@ -253,6 +254,8 @@ export class AuthService {
         phone: user.phone,
         email: user.email,
         name: user.name,
+        avatarUrl: user.avatarUrl || null,
+        kentexaId: user.kentexaId,
         role: user.role,
         onboardingCompleted: !!user.onboardingCompleted,
       },

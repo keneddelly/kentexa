@@ -1036,6 +1036,7 @@
     "badge_new": "{{count}} nouveau(x)",
     "basic_info_title": "👤 Informations de Base",
     "profile_photo_label": "Photo de Profil",
+    "kentexa_id_label": "ID Kentexa",
     "set_status": "✓ Définie",
     "incomplete_status": "Incomplet",
     "full_name_label": "Nom Complet",
@@ -2566,7 +2567,16 @@
     "resend_seconds": "{{seconds}}s",
     "resend_otp": "🔁 Renvoyer l'OTP",
     "sending": "⏳ Envoi...",
-    "change_button": "← Changer {{method}}"
+    "change_button": "← Changer {{method}}",
+    "add_photo_title": "Ajoutez votre photo",
+    "add_photo_subtitle": "Dernière étape — chaque compte Kentexa nécessite une vraie photo.",
+    "photo_upload_hint": "Appuyez pour ajouter une photo",
+    "photo_uploading": "⏳ Téléchargement...",
+    "photo_upload_failed": "Échec du téléchargement de la photo. Réessayez.",
+    "photo_required_error": "Veuillez ajouter une photo pour continuer.",
+    "photo_continue_button": "✅ Continuer",
+    "welcome_heading": "🎉 Bienvenue sur Kentexa !",
+    "welcome_kentexa_id_label": "Votre identifiant Kentexa"
   },
   "wishlist": {
     "type_products": "Produits",

@@ -39,9 +39,11 @@ export class UpdateUserDto {
   @IsString()
   businessName?: string;
 
+  // Was `profilePhoto` — no matching User column ever existed, so PATCHing
+  // it was a silent no-op. Renamed to match the real column.
   @IsOptional()
   @IsString()
-  profilePhoto?: string;
+  avatarUrl?: string;
 
   // ── Onboarding fields — were missing here entirely, so the global
   // ValidationPipe's whitelist silently stripped them from every request,

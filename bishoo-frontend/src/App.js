@@ -7,6 +7,7 @@ import HomeFeed           from './public/pages/HomeFeed';
 import MyProfile          from './public/pages/MyProfile';
 import RoleActivation     from './public/pages/RoleActivation';
 import Onboarding          from './public/pages/Onboarding';
+import AddProfilePhoto     from './public/pages/AddProfilePhoto';
 import FlashSales          from './public/pages/FlashSales';
 import PickupPoints        from './public/pages/PickupPoints';
 import RouteCoverageMap   from './public/pages/RouteCoverageMap';
@@ -222,20 +223,21 @@ function App() {
     window.scrollTo(0, 0);
   };
 
-  const handleLoginSuccess = (targetPage) => {
+  const handleLoginSuccess = async (targetPage) => {
     try {
       const token   = localStorage.getItem('token');
       const decoded = decodeToken(token);
       if (decoded) {
         setIsLoggedIn(true);
         setUserRole(decoded.role);
-        // Check if user needs onboarding
-        if (!decoded.onboardingCompleted && decoded.role === 'user') {
-          setTimeout(() => setPage('Onboarding'), 100);
-        }
-        // Fetch and cache full profile so all forms can pre-fill
-        api.get('/auth/profile').then(res => {
-          setCurrentUser(res.data);
+        // Fetch full profile first — avatarUrl can't be read from the JWT
+        // (it's signed before the mandatory-photo step completes, so a baked-in
+        // claim would go stale). Await it so the photo gate can act on live data.
+        let profile = null;
+        try {
+          const res = await api.get('/auth/profile');
+          profile = res.data;
+          setCurrentUser(profile);
           // Subscribe to push notifications in background
           if ('Notification' in window && Notification.permission === 'granted') {
             subscribeToPush(process.env.REACT_APP_API_URL || '').catch(() => {});
@@ -244,17 +246,23 @@ function App() {
               if (perm === 'granted') subscribeToPush(process.env.REACT_APP_API_URL || '').catch(() => {});
             });
           }
-          localStorage.setItem('kentexa_user', JSON.stringify(res.data));
-        }).catch(() => {});
+          localStorage.setItem('kentexa_user', JSON.stringify(profile));
+        } catch {}
         setNavParams(null);
-        // Check if there's a stored intended destination (e.g. from + menu)
-        const intended = localStorage.getItem('kentexa_after_login');
-        if (intended) {
-          localStorage.removeItem('kentexa_after_login');
-          setPage(intended);
+        if (profile && !profile.avatarUrl) {
+          setPage('AddProfilePhoto');
+        } else if (!decoded.onboardingCompleted && decoded.role === 'user') {
+          setTimeout(() => setPage('Onboarding'), 100);
         } else {
-          const dest = typeof targetPage === 'string' ? targetPage : 'Home';
-          setPage(dest);
+          // Check if there's a stored intended destination (e.g. from + menu)
+          const intended = localStorage.getItem('kentexa_after_login');
+          if (intended) {
+            localStorage.removeItem('kentexa_after_login');
+            setPage(intended);
+          } else {
+            const dest = typeof targetPage === 'string' ? targetPage : 'Home';
+            setPage(dest);
+          }
         }
         window.dispatchEvent(new Event('kentexa-auth-changed'));
       }
@@ -270,6 +278,9 @@ function App() {
       api.get('/auth/profile').then(res => {
         setCurrentUser(res.data);
         localStorage.setItem('kentexa_user', JSON.stringify(res.data));
+        if (!res.data.avatarUrl) {
+          setPage('AddProfilePhoto');
+        }
       }).catch(() => {});
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -420,6 +431,7 @@ function App() {
       case 'Activity':          return requireLogin(<Activity {...publicProps} />);
       case 'RoleActivation':    return requireLogin(<RoleActivation {...publicProps} />);
       case 'Onboarding':        return requireLogin(<Onboarding {...publicProps} />);
+      case 'AddProfilePhoto':   return requireLogin(<AddProfilePhoto {...publicProps} />);
       case 'RouteCoverageMap':   return <RouteCoverageMap {...publicProps} />;
       case 'MyProfile':         return requireLogin(<MyProfile {...publicProps} />);
       case 'CommerceProfile':     return requireLogin(<CommerceProfile {...publicProps} pageParam={null} />);
@@ -518,7 +530,7 @@ function App() {
       {/* Hidden during Onboarding — a focused setup wizard shouldn't show
           tab navigation, and this also fixes the Continue button being
           hidden behind the nav bar on each step. */}
-      {isLoggedIn && page !== 'Onboarding' && (
+      {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && (
         <BottomNav
           currentPage={page}
           onNavigate={handleNavigate}
