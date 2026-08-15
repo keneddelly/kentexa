@@ -415,8 +415,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 value={profile?.businessLocation || profile?.city || t('my_profile.not_set')}
                 onAction={() => onNavigate('CustomerProfile')} />
               <Row icon="📝" label={t('my_profile.short_bio_label')}
-                value={profile?.storeDescription || profile?.bio ? '✓' : t('my_profile.incomplete_status')}
-                color={profile?.storeDescription ? '#16A34A' : '#DC2626'}
+                value={(profile?.storeDescription || profile?.bio) ? '✓' : t('my_profile.incomplete_status')}
+                color={(profile?.storeDescription || profile?.bio) ? '#16A34A' : '#DC2626'}
                 onAction={() => onNavigate('CustomerProfile')} />
             </SCard>
 
@@ -431,9 +431,9 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 value={profile?.onboardingCompleted ? t('my_profile.account_completed_label') : t('my_profile.incomplete_status')}
                 color={profile?.onboardingCompleted ? '#16A34A' : '#D97706'}
                 onAction={() => !profile?.onboardingCompleted && onNavigate('Onboarding')} />
-              <Row icon="🪪" label={t('my_profile.id_kyc_label')}
-                value={profile?.kycLevel || t('my_profile.not_done')}
-                onAction={() => onNavigate('CustomerProfile')} />
+              {/* ID/KYC row removed — no verification pipeline exists yet
+                  (kycLevel is never set anywhere); re-add once a real
+                  document-upload + admin-review flow is built. */}
               <Row icon="🏢" label={t('my_profile.business_verified_label')}
                 value={['seller','admin','manager'].includes(role) ? t('my_profile.yes_label') : t('my_profile.not_yet_label')}
                 color={['seller','admin','manager'].includes(role) ? '#16A34A' : GR} />

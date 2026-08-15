@@ -24,8 +24,10 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
   const [changingPassword, setChangingPassword] = useState(false);
   const [message, setMessage]   = useState('');
   const [error, setError]       = useState('');
-  const [form, setForm]         = useState({ name: '', phone: '', email: '' });
+  const [form, setForm]         = useState({ name: '', phone: '', email: '', city: '', bio: '' });
   const [saving, setSaving]     = useState(false);
+  const [avatarUrl, setAvatarUrl]   = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   // Pre-fill immediately from cached currentUser before API loads
   React.useEffect(() => {
@@ -36,6 +38,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
       phone: prev.phone || currentUser.phone || '',
       email: prev.email || currentUser.email || '',
     }));
+    setAvatarUrl(prev => prev || currentUser.avatarUrl || '');
   }, [currentUser, profile]); // eslint-disable-line react-hooks/exhaustive-deps
   const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
 
@@ -54,7 +57,11 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
       ]);
       setProfile(profileRes.data);
       setOrders(ordersRes.data);
-      setForm({ email: profileRes.data.email || '', name: profileRes.data.name || '', phone: profileRes.data.phone || '' });
+      setForm({
+        email: profileRes.data.email || '', name: profileRes.data.name || '', phone: profileRes.data.phone || '',
+        city: profileRes.data.city || '', bio: profileRes.data.bio || '',
+      });
+      setAvatarUrl(profileRes.data.avatarUrl || '');
     } catch { setError(t('profile.load_failed')); }
     finally { setLoading(false); }
   };
@@ -75,6 +82,9 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         name:  form.name.trim(),
         phone: form.phone.trim() || undefined,
         email: form.email.trim().toLowerCase() || undefined,
+        city:  form.city.trim() || undefined,
+        bio:   form.bio.trim() || undefined,
+        avatarUrl: avatarUrl || undefined,
       });
       setSaving(false);
       setMessage('✅ Wasifu umebadilishwa!');
@@ -95,6 +105,29 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
       } else {
         setError('Imeshindwa kubadilisha. Jaribu tena.');
       }
+    }
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      setAvatarUploading(true);
+      setError('');
+      const formData = new FormData();
+      formData.append('files', file);
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = res.data.urls?.[0];
+      if (url) {
+        setAvatarUrl(url);
+        await api.patch(`/users/${profile.id}`, { avatarUrl: url });
+        setMessage('✅ Picha imesasishwa!');
+        fetchData();
+      }
+    } catch {
+      setError('Imeshindwa kupakia picha. Jaribu tena.');
+    } finally {
+      setAvatarUploading(false);
     }
   };
 
@@ -169,14 +202,24 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
 
       {/* ── Gradient identity header ── */}
       <div style={{ background: `linear-gradient(135deg,#1E1B4B,${B})`, padding: '28px 16px', textAlign: 'center' }}>
-        <div style={{ width: 80, height: 80, borderRadius: 22, overflow: 'hidden',
-          background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 30, fontWeight: 900, color: WH, margin: '0 auto 12px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.25)', border: '3px solid rgba(255,255,255,0.35)' }}>
-          {profile?.logo
-            ? <img src={profile.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            : (profile?.name || profile?.email || 'U').charAt(0).toUpperCase()}
-        </div>
+        <label style={{ position: 'relative', display: 'inline-block', width: 80, height: 80, margin: '0 auto 12px', cursor: 'pointer' }}>
+          <div style={{ width: 80, height: 80, borderRadius: 22, overflow: 'hidden',
+            background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 30, fontWeight: 900, color: WH,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)', border: '3px solid rgba(255,255,255,0.35)' }}>
+            {avatarUploading ? (
+              <span style={{ fontSize: 13 }}>⏳</span>
+            ) : avatarUrl ? (
+              <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              (profile?.name || profile?.email || 'U').charAt(0).toUpperCase()
+            )}
+          </div>
+          <div style={{ position: 'absolute', bottom: -4, right: -4, width: 26, height: 26, borderRadius: '50%',
+            backgroundColor: WH, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 12, boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>📷</div>
+          <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} disabled={avatarUploading} />
+        </label>
         <h1 style={{ fontSize: 20, fontWeight: 900, color: WH, margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>
           {profile?.name || profile?.email?.split('@')[0] || profile?.phone}
         </h1>
@@ -289,9 +332,17 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
             <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>{t('profile.phone')}</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.phone || '—'}</div>
           </div>
-          <div style={{ marginBottom: editing ? 10 : 0, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
+          <div style={{ marginBottom: 10, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
             <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>Email</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.email || '—'}</div>
+          </div>
+          <div style={{ marginBottom: 10, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
+            <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>📍 Mahali</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.city || '—'}</div>
+          </div>
+          <div style={{ marginBottom: editing ? 10 : 0, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
+            <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>📝 Kuhusu mimi</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.bio || '—'}</div>
           </div>
 
           {editing && (
@@ -314,6 +365,18 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   placeholder="barua@mfano.com"
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
                 <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Email inatumiwa kuingia kwenye akaunti</div>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>📍 Mahali (Jiji)</label>
+                <input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
+                  placeholder="mfano: Dar es Salaam"
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>📝 Kuhusu mimi</label>
+                <textarea value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })}
+                  placeholder="Maelezo mafupi kukuhusu..." rows={3} maxLength={200}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => setEditing(false)} style={{ flex: 1, backgroundColor: '#F1F5F9', color: GR, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('profile.cancel')}</button>

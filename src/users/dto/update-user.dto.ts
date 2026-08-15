@@ -59,4 +59,10 @@ export class UpdateUserDto {
   @IsOptional()
   @IsArray()
   interests?: string[];
+
+  // Was collected nowhere — CustomerProfile's edit form had no field for it,
+  // so this stayed permanently null for every account.
+  @IsOptional()
+  @IsString()
+  bio?: string;
 }
