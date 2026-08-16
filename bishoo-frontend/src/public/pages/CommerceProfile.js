@@ -179,6 +179,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [publicAgentData,     setPublicAgentData]     = useState(null);
   const [publicHubData,       setPublicHubData]       = useState(null);
   const [publicTransportData, setPublicTransportData] = useState(null);
+  const [siblingProfiles, setSiblingProfiles] = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState('posts');
   const [following,  setFollowing]  = useState(false);
@@ -246,6 +247,17 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     } else if (activeProfile.type === 'transport_provider') {
       api.get(`/transport/public/${uid}`).then(r => setPublicTransportData(r.data)).catch(() => {});
     }
+
+    // "Also on Kentexa" — every OTHER profile this same account runs,
+    // shown as independent, clickable cards (own name/photo/followers,
+    // linking to their own page) — never blended into this profile's own
+    // identity. This is the discovery mechanism for "buyer landed on
+    // Kened personally but Bishoo Intelligence Systems is who they
+    // actually want" without ever making the personal page ITSELF show
+    // business data.
+    api.get(`/profiles/for-user/${uid}`)
+      .then(r => setSiblingProfiles((r.data || []).filter(p => p.id !== activeProfile.id)))
+      .catch(() => setSiblingProfiles([]));
   }, [activeProfile]); // eslint-disable-line
 
   // Deep-linked from a "New save"/"New comment" notification — scroll to and
@@ -480,6 +492,44 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <Stat value={score} label={t('commerce_profile.stat_reputation')} />
         </div>
       </div>
+
+      {/* Also on Kentexa — every OTHER independent profile this account
+          runs, shown as its own clickable card (own photo/name/type/
+          followers). Visible to everyone, not just the owner — this is
+          how a visitor who landed on the wrong identity finds the right
+          one, without either profile's own header/stats ever blending
+          into the other's. */}
+      {siblingProfiles.length > 0 && (
+        <div style={{ backgroundColor:WH, padding:'14px 16px', marginBottom:4 }}>
+          <div style={{ fontSize:11, fontWeight:800, color:GR, textTransform:'uppercase',
+            letterSpacing:0.5, marginBottom:10 }}>
+            {t('commerce_profile.also_on_kentexa')}
+          </div>
+          <div style={{ display:'flex', gap:10, overflowX:'auto', scrollbarWidth:'none', paddingBottom:2 }}>
+            {siblingProfiles.map(sp => (
+              <button key={sp.id}
+                onClick={() => onNavigate(`CommerceProfile-${sp.ownerId}`, { commerceProfileId: sp.id })}
+                style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+                  background:'none', border:'none', cursor:'pointer', flexShrink:0, width:76 }}>
+                <div style={{ width:56, height:56, borderRadius:16, overflow:'hidden',
+                  backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
+                  justifyContent:'center', fontSize:24, border:'1px solid #F1F5F9' }}>
+                  {sp.photoUrl
+                    ? <img src={sp.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    : (sp.displayName||'?').charAt(0).toUpperCase()}
+                </div>
+                <div style={{ fontSize:11, fontWeight:700, color:DK, textAlign:'center',
+                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', width:'100%' }}>
+                  {sp.displayName}
+                </div>
+                <div style={{ fontSize:10, color:GR }}>
+                  {fmtM(sp.followersCount||0)} {t('commerce_profile.stat_followers')}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Profile completion (own profile only) */}
       {isOwnProfile && (

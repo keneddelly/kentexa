@@ -655,8 +655,7 @@ function App() {
         <PostModal
           onNavigate={handleNavigate}
           onClose={() => setShowPostModal(false)}
-          currentUser={currentUser}
-          userRole={userRole}
+          activeProfile={activeProfile}
           onOpenMoment={(mode) => {
             setShowPostModal(false);
             setMomentModalMode(mode);

@@ -1207,6 +1207,7 @@
     "stat_followers": "Abonnés",
     "stat_rating": "Note",
     "stat_reputation": "Réputation",
+    "also_on_kentexa": "Également sur Kentexa",
     "no_products_yet": "Aucun produit répertorié pour le moment",
     "add_product_action": "Ajouter un Produit",
     "out_of_stock": "Rupture de Stock",
@@ -2894,6 +2895,10 @@
     "action_online_sub": "Activez votre statut — recevez des missions près de vous",
     "action_route_title": "Publier l'itinéraire du jour",
     "action_route_sub": "Listez les places ou l'espace disponible aujourd'hui",
+    "action_receive_title": "Recevoir un colis",
+    "action_receive_sub": "Confirmer l'arrivée d'un colis à votre hub",
+    "action_hub_shipment_title": "Créer une expédition",
+    "action_hub_shipment_sub": "Enregistrer un nouveau colis à votre hub",
     "action_shipment_title": "Créer une expédition",
     "action_shipment_sub": "Enregistrer un nouveau colis dans le système",
 

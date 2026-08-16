@@ -1057,6 +1057,7 @@
     "stat_followers": "Followers",
     "stat_rating": "Ukadiriaji",
     "stat_reputation": "Reputation",
+    "also_on_kentexa": "Pia kwenye Kentexa",
     "no_products_yet": "Bado hakuna bidhaa zilizowekwa",
     "add_product_action": "Ongeza Bidhaa",
     "out_of_stock": "Imeisha Stock",
@@ -2744,6 +2745,10 @@
     "action_online_sub": "Washa hali yako — pata kazi karibu nawe",
     "action_route_title": "Tuma Njia ya Leo",
     "action_route_sub": "Orodhesha viti au nafasi inayopatikana leo",
+    "action_receive_title": "Pokea Kifurushi",
+    "action_receive_sub": "Thibitisha kifurushi kilichofika kwenye hub yako",
+    "action_hub_shipment_title": "Unda Shehena",
+    "action_hub_shipment_sub": "Sajili kifurushi kipya kwenye hub yako",
     "action_shipment_title": "Unda Shehena",
     "action_shipment_sub": "Sajili kifurushi kipya kwenye mfumo",
 

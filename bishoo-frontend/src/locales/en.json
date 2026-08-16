@@ -1211,6 +1211,7 @@
     "stat_followers": "Followers",
     "stat_rating": "Rating",
     "stat_reputation": "Reputation",
+    "also_on_kentexa": "Also on Kentexa",
     "no_products_yet": "No products listed yet",
     "add_product_action": "Add a Product",
     "out_of_stock": "Out of stock",
@@ -2898,6 +2899,10 @@
     "action_online_sub": "Turn on your status — get jobs near you",
     "action_route_title": "Post Today's Route",
     "action_route_sub": "List the seats or space available today",
+    "action_receive_title": "Receive Parcel",
+    "action_receive_sub": "Confirm a parcel arriving at your hub",
+    "action_hub_shipment_title": "Create Shipment",
+    "action_hub_shipment_sub": "Register a new parcel at your hub",
     "action_shipment_title": "Create Shipment",
     "action_shipment_sub": "Register a new parcel in the system",
 

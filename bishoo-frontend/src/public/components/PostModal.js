@@ -2,101 +2,72 @@
  * PostModal.js — Context-aware ➕ posting modal
  * Place at: src/public/components/PostModal.js
  *
- * Shows role-aware posting options when user taps ➕
- * One person, one button, all their capabilities
+ * Which actions show is driven by the ACTIVE COMMERCE PROFILE's type, not
+ * the account's role — a seller who has switched into their transport
+ * profile sees route/dispatch actions here, never "post a product", even
+ * though the same account also runs a store. Matches the profile switcher
+ * (BottomNav's reconfiguring tabs) rather than the account's fixed role.
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment }) => {
+const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
   const { t } = useTranslation();
-  const role = userRole || currentUser?.role || 'user';
-  const isSeller = ['seller', 'admin', 'manager'].includes(role);
+  const type = activeProfile?.type || 'personal';
+  const isBusiness = type === 'business';
   const [showListChoice, setShowListChoice] = useState(false);
 
-  // Build action list based on roles
-  const actions = [
-    // Moments — open to every user, drives daily engagement.
-    // One tile only: the modal itself has a Selling / Looking For toggle inside.
-    {
-      icon: '📸',
-      title: t('post_modal.action_moment_title'),
-      sub: t('post_modal.action_moment_sub'),
-      mode: 'selling',
-      color: '#EFF6FF',
-      accent: '#2563EB',
-      roles: ['all'],
-    },
-    // Everyone can list something — sellers get an extra choice (see below)
-    {
-      icon: '🏷️',
-      title: t('post_modal.action_listing_title'),
-      sub: isSeller
-        ? t('post_modal.action_listing_sub_seller')
-        : t('post_modal.action_listing_sub_buyer'),
-      key: 'list',
-      color: '#F5F3FF',
-      accent: '#7C3AED',
-      roles: ['all'],
-    },
-    // Everyone can offer a service
-    {
-      icon: '🔧',
-      title: t('post_modal.action_service_title'),
-      sub: t('post_modal.action_service_sub'),
-      page: 'PostService',
-      color: '#F0FDF4',
-      accent: '#16A34A',
-      roles: ['all'],
-    },
-    // Sellers post to followers
-    {
-      icon: '📢',
-      title: t('post_modal.action_update_title'),
-      sub: t('post_modal.action_update_sub'),
-      page: 'CommerceProfile',
-      color: '#FFF7ED',
-      accent: '#EA580C',
-      roles: ['seller', 'admin', 'manager'],
-    },
-    // Agents toggle availability
-    {
-      icon: '🏍️',
-      title: t('post_modal.action_online_title'),
-      sub: t('post_modal.action_online_sub'),
-      page: 'AgentDashboard',
-      color: '#FDF2F8',
-      accent: '#A21CAF',
-      roles: ['agent'],
-    },
-    // Transport providers publish availability
-    {
-      icon: '🚌',
-      title: t('post_modal.action_route_title'),
-      sub: t('post_modal.action_route_sub'),
-      page: 'TransportProviderDashboard',
-      color: '#FEF3C7',
-      accent: '#D97706',
-      roles: ['transport_provider'],
-    },
-    // Sellers and super agents create shipments
-    {
-      icon: '📦',
-      title: t('post_modal.action_shipment_title'),
-      sub: t('post_modal.action_shipment_sub'),
-      page: 'SellerShipment',
-      color: '#F5F3FF',
-      accent: '#7C3AED',
-      roles: ['seller', 'admin', 'manager', 'super_agent'],
-    },
-  ];
+  const momentAction = {
+    icon: '📸', title: t('post_modal.action_moment_title'), sub: t('post_modal.action_moment_sub'),
+    mode: 'selling', color: '#EFF6FF', accent: '#2563EB',
+  };
+  const listAction = {
+    icon: '🏷️', title: t('post_modal.action_listing_title'),
+    sub: isBusiness ? t('post_modal.action_listing_sub_seller') : t('post_modal.action_listing_sub_buyer'),
+    key: 'list', color: '#F5F3FF', accent: '#7C3AED',
+  };
+  const serviceAction = {
+    icon: '🔧', title: t('post_modal.action_service_title'), sub: t('post_modal.action_service_sub'),
+    page: 'PostService', color: '#F0FDF4', accent: '#16A34A',
+  };
+  const updateAction = {
+    icon: '📢', title: t('post_modal.action_update_title'), sub: t('post_modal.action_update_sub'),
+    page: 'CommerceProfile', color: '#FFF7ED', accent: '#EA580C',
+  };
+  const shipmentAction = {
+    icon: '📦', title: t('post_modal.action_shipment_title'), sub: t('post_modal.action_shipment_sub'),
+    page: 'SellerShipment', color: '#F5F3FF', accent: '#7C3AED',
+  };
+  const onlineAction = {
+    icon: '🏍️', title: t('post_modal.action_online_title'), sub: t('post_modal.action_online_sub'),
+    page: 'AgentDashboard', color: '#FDF2F8', accent: '#A21CAF',
+  };
+  const routeAction = {
+    icon: '🚌', title: t('post_modal.action_route_title'), sub: t('post_modal.action_route_sub'),
+    page: 'TransportProviderDashboard', color: '#FEF3C7', accent: '#D97706',
+  };
+  const receiveAction = {
+    icon: '📥', title: t('post_modal.action_receive_title'), sub: t('post_modal.action_receive_sub'),
+    page: 'HubReceive', color: '#EFF6FF', accent: '#2563EB',
+  };
+  const hubShipmentAction = {
+    icon: '📦', title: t('post_modal.action_hub_shipment_title'), sub: t('post_modal.action_hub_shipment_sub'),
+    page: 'SuperAgentParcel', color: '#F5F3FF', accent: '#7C3AED',
+  };
 
-  // Filter by role
-  const visibleActions = actions.filter(a =>
-    a.roles.includes('all') ||
-    a.roles.includes(role) ||
-    (role === 'admin')
-  );
+  // Every action here must make sense for the profile you're CURRENTLY
+  // acting as — a transport company has no products to list, a hub
+  // doesn't post store updates, an agent doesn't create shipments.
+  const ACTIONS_BY_TYPE = {
+    personal:            [momentAction, listAction, serviceAction],
+    business:            [momentAction, listAction, updateAction, shipmentAction, serviceAction],
+    hub:                 [hubShipmentAction, receiveAction],
+    transport_provider:  [routeAction],
+    agent:                [onlineAction],
+    service_provider:    [momentAction, serviceAction],
+  };
+
+  const visibleActions = ACTIONS_BY_TYPE[type] || ACTIONS_BY_TYPE.personal;
 
   return (
     <>
@@ -194,7 +165,7 @@ const PostModal = ({ onNavigate, onClose, currentUser, userRole, onOpenMoment })
               onClick={() => {
                 if (a.mode) { onOpenMoment?.(a.mode); onClose(); return; }
                 if (a.key === 'list') {
-                  if (isSeller) { setShowListChoice(true); return; }
+                  if (isBusiness) { setShowListChoice(true); return; }
                   onNavigate('SellerClassifieds'); onClose(); return;
                 }
                 onNavigate(a.page); onClose();
