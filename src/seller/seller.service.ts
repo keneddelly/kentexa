@@ -103,13 +103,17 @@ export class SellerService {
     // OR query — a Brackets()-wrapped OR here was triggering a TypeORM
     // alias-resolution bug ("COALESCE(CAST(u" alias was not found) when
     // mixed with the partial .select() above, so this sidesteps it
-    // entirely instead of fighting the query builder.
+    // entirely instead of fighting the query builder. Neither query
+    // filters on storeName in SQL — a seller who applied via the normal
+    // application flow only ever gets a businessName on SellerProfile;
+    // User.storeName stays null unless separately edited later. That
+    // filter now happens in JS below, checking both fields (same
+    // fallback findByUserId already uses), so an approved seller isn't
+    // silently dropped just because storeName specifically is unset.
     const byRole = await this.userRepo
       .createQueryBuilder('u')
       .select(selectColumns)
       .where("u.role IN ('seller','admin','manager')")
-      .andWhere('u."storeName" IS NOT NULL')
-      .andWhere('u."storeName" != \'\'')
       .getMany();
 
     let byApprovedProfile: User[] = [];
@@ -118,16 +122,14 @@ export class SellerService {
         .createQueryBuilder('u')
         .select(selectColumns)
         .where('u.id IN (:...approvedUserIds)', { approvedUserIds })
-        .andWhere('u."storeName" IS NOT NULL')
-        .andWhere('u."storeName" != \'\'')
         .getMany();
     }
 
     const userById = new Map<number, User>();
     for (const u of [...byRole, ...byApprovedProfile]) userById.set(u.id, u);
-    const users = Array.from(userById.values()).sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-    );
+    const users = Array.from(userById.values())
+      .filter((u) => u.storeName || profileByUserId.get(u.id)?.businessName)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     let followedIds = new Set<number>();
     if (viewerId) {
@@ -145,7 +147,12 @@ export class SellerService {
         id: u.id, // ✅ USER id — matches /stores/:sellerId route
         businessName: p?.businessName || u.storeName,
         businessCategory: (p as any)?.businessCategory || null,
-        storeName: u.storeName || null,
+        // Falls back to the SellerProfile application's businessName —
+        // storeName only gets set if the seller separately edits their
+        // store branding later; without this, Onboarding's suggested-
+        // sellers cards (which read s.storeName || s.name) would show
+        // the owner's personal name instead of their business name.
+        storeName: u.storeName || p?.businessName || null,
         storeTagline: u.storeTagline || null,
         storeDescription: u.storeDescription || null,
         logo: u.logo || null,
