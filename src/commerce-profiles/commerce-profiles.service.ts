@@ -6,6 +6,7 @@ import {
   CommerceProfileType,
   CommerceProfileStatus,
 } from './entities/commerce-profile.entity';
+import { CommerceProfileFollow } from './entities/commerce-profile-follow.entity';
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -28,6 +29,8 @@ export class CommerceProfilesService {
   constructor(
     @InjectRepository(CommerceProfile)
     private repo: Repository<CommerceProfile>,
+    @InjectRepository(CommerceProfileFollow)
+    private followRepo: Repository<CommerceProfileFollow>,
   ) {}
 
   // Slugifies `seed` and appends a numeric suffix until it's free. Never
@@ -148,6 +151,43 @@ export class CommerceProfilesService {
     status: CommerceProfileStatus,
   ): Promise<void> {
     await this.repo.update({ [linkField]: linkId } as any, { status });
+  }
+
+  // ── Following a specific profile ────────────────────────────────────────
+  // Separate from every other CommerceProfile identity — Kened following
+  // his own hub, or a buyer following Bishoo Intelligence Systems without
+  // ever following Kened personally, has to be representable. followerId
+  // is a User id (whoever's logged in), commerceProfileId is the exact
+  // profile being followed, never the owning account.
+  async isFollowing(
+    followerId: number | undefined,
+    commerceProfileId: number,
+  ): Promise<boolean> {
+    if (!followerId) return false;
+    const row = await this.followRepo.findOne({
+      where: { followerId, commerceProfileId },
+    });
+    return !!row;
+  }
+
+  async toggleFollow(
+    followerId: number,
+    commerceProfileId: number,
+  ): Promise<{ following: boolean; followersCount: number }> {
+    const existing = await this.followRepo.findOne({
+      where: { followerId, commerceProfileId },
+    });
+    if (existing) {
+      await this.followRepo.remove(existing);
+      await this.repo.decrement({ id: commerceProfileId }, 'followersCount', 1);
+    } else {
+      await this.followRepo.save(
+        this.followRepo.create({ followerId, commerceProfileId }),
+      );
+      await this.repo.increment({ id: commerceProfileId }, 'followersCount', 1);
+    }
+    const profile = await this.findById(commerceProfileId);
+    return { following: !existing, followersCount: profile.followersCount };
   }
 
   async updatePublicFields(

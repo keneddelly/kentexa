@@ -11,6 +11,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -47,8 +48,21 @@ export class CommerceProfilesController {
   }
 
   @Get(':id')
-  getById(@Param('id', ParseIntPipe) id: number) {
-    return this.service.findById(id);
+  @UseGuards(OptionalJwtAuthGuard)
+  async getById(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const profile = await this.service.findById(id);
+    const isFollowing = await this.service.isFollowing(req.user?.id, id);
+    return { ...profile, isFollowing };
+  }
+
+  // Follows/unfollows THIS SPECIFIC profile — never the owning account.
+  // A buyer can follow Bishoo Intelligence Systems without following
+  // Kened personally, and vice versa; each profile's followersCount is
+  // its own independent number.
+  @Post(':id/follow')
+  @UseGuards(JwtAuthGuard)
+  toggleFollow(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.service.toggleFollow(req.user.id, id);
   }
 
   @Patch(':id')

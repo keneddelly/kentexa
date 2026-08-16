@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CommerceProfile } from './entities/commerce-profile.entity';
 import { CommerceProfileMember } from './entities/commerce-profile-member.entity';
+import { CommerceProfileFollow } from './entities/commerce-profile-follow.entity';
 import { User } from '../users/entities/user.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
@@ -16,6 +17,7 @@ import { CommerceProfilesController } from './commerce-profiles.controller';
     TypeOrmModule.forFeature([
       CommerceProfile,
       CommerceProfileMember,
+      CommerceProfileFollow,
       User,
       SellerProfile,
       TransportProvider,
