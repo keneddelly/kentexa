@@ -637,7 +637,27 @@
     "parts_only": "Pièces Seulement"
   },
   "bottom_nav": {
-    "activity": "Activité"
+    "activity": "Activité",
+    "dashboard": "Tableau de bord",
+    "orders": "Commandes",
+    "inbox": "Messages",
+    "hub": "Hub",
+    "manifest": "Manifeste",
+    "settings": "Paramètres",
+    "routes": "Itinéraires",
+    "scorecard": "Bilan",
+    "earnings": "Revenus"
+  },
+  "profile_switcher": {
+    "title": "Changer de profil",
+    "type_personal": "Personnel",
+    "type_business": "Entreprise",
+    "type_hub": "Hub",
+    "type_transport": "Transporteur",
+    "type_agent": "Agent",
+    "type_service": "Prestataire de services",
+    "active_label": "Actif",
+    "add_business": "Ajouter une autre entreprise"
   },
   "become_agent": {
     "page_title": "Devenir agent",

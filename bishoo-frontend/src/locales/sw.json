@@ -487,7 +487,27 @@
     "my_profile": "Wasifu Wangu"
   },
   "bottom_nav": {
-    "activity": "Shughuli"
+    "activity": "Shughuli",
+    "dashboard": "Dashibodi",
+    "orders": "Maagizo",
+    "inbox": "Ujumbe",
+    "hub": "Hub",
+    "manifest": "Manifesti",
+    "settings": "Mipangilio",
+    "routes": "Njia",
+    "scorecard": "Alama",
+    "earnings": "Mapato"
+  },
+  "profile_switcher": {
+    "title": "Badilisha wasifu",
+    "type_personal": "Binafsi",
+    "type_business": "Biashara",
+    "type_hub": "Hub",
+    "type_transport": "Mtoa usafiri",
+    "type_agent": "Wakala",
+    "type_service": "Mtoa huduma",
+    "active_label": "Inatumika",
+    "add_business": "Ongeza biashara nyingine"
   },
   "become_agent": {
     "page_title": "Kuwa Wakala",

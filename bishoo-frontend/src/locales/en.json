@@ -641,7 +641,27 @@
     "parts_only": "Parts Only"
   },
   "bottom_nav": {
-    "activity": "Activity"
+    "activity": "Activity",
+    "dashboard": "Dashboard",
+    "orders": "Orders",
+    "inbox": "Inbox",
+    "hub": "Hub",
+    "manifest": "Manifest",
+    "settings": "Settings",
+    "routes": "Routes",
+    "scorecard": "Scorecard",
+    "earnings": "Earnings"
+  },
+  "profile_switcher": {
+    "title": "Switch profile",
+    "type_personal": "Personal",
+    "type_business": "Business",
+    "type_hub": "Hub",
+    "type_transport": "Transport provider",
+    "type_agent": "Agent",
+    "type_service": "Service provider",
+    "active_label": "Active",
+    "add_business": "Add another business"
   },
   "become_agent": {
     "page_title": "Become an Agent",

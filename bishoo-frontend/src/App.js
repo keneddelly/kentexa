@@ -13,6 +13,7 @@ import PickupPoints        from './public/pages/PickupPoints';
 import RouteCoverageMap   from './public/pages/RouteCoverageMap';
 import Activity       from './public/pages/Activity';
 import BottomNav      from './public/components/BottomNav';
+import ProfileSwitcherSheet from './public/components/ProfileSwitcherSheet';
 import PostModal      from './public/components/PostModal';
 import CreateMomentModal from './public/components/CreateMomentModal';
 import BecomeSellerInfo from './public/pages/BecomeSellerInfo';
@@ -164,6 +165,68 @@ function App() {
   const [navParams, setNavParams]   = useState(null);
   // Show language picker only on first visit
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem('kentexa_lang'));
+
+  // ── Active commerce profile ───────────────────────────────────────────────
+  // Every account owns one PERSONAL profile plus whichever business/hub/
+  // agent/transport profiles it's had approved. "Active" is which one the
+  // app shell is currently acting as — it changes what BottomNav shows and
+  // what new posts get attributed to, but never re-authenticates: it's the
+  // same account, same JWT, just a different lens (same model as switching
+  // between a personal Facebook profile and a Page you manage).
+  const [myProfiles, setMyProfiles] = useState([]);
+  const [activeProfileId, setActiveProfileIdState] = useState(() => {
+    const v = localStorage.getItem('kentexa_active_profile_id');
+    return v ? Number(v) : null;
+  });
+  const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
+  const activeProfile = myProfiles.find(p => p.id === activeProfileId)
+    || myProfiles.find(p => p.type === 'personal')
+    || null;
+
+  const setActiveProfileId = (id) => {
+    setActiveProfileIdState(id);
+    if (id) localStorage.setItem('kentexa_active_profile_id', String(id));
+    else localStorage.removeItem('kentexa_active_profile_id');
+  };
+
+  // Loads every profile this account can act as, once logged in. Re-runs
+  // after login and can be called again after a new role gets approved
+  // (RoleActivation) so a freshly-created profile shows up in the switcher
+  // without requiring a full app reload.
+  const loadMyProfiles = () => {
+    api.get('/profiles/mine').then(res => {
+      const list = res.data || [];
+      setMyProfiles(list);
+      // First time ever (no stored choice) or the stored profile no longer
+      // exists (e.g. different browser/device) — default to personal.
+      if (!activeProfileId || !list.some(p => p.id === activeProfileId)) {
+        const personal = list.find(p => p.type === 'personal');
+        if (personal) setActiveProfileId(personal.id);
+      }
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (isLoggedIn) loadMyProfiles();
+  }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Which page each profile type lands on when it becomes active — the
+  // "home base" for that identity, same idea as roleHome() below but keyed
+  // to the profile actually being switched to, not the account's overall role.
+  const DASHBOARD_BY_TYPE = {
+    business: 'SellerDashboard',
+    hub: 'SuperAgentDashboard',
+    transport_provider: 'TransportProviderDashboard',
+    agent: 'AgentDashboard',
+    personal: 'Home',
+  };
+
+  const handleSwitchProfile = (profileId) => {
+    setActiveProfileId(profileId);
+    setShowProfileSwitcher(false);
+    const p = myProfiles.find(x => x.id === profileId);
+    handleNavigate(DASHBOARD_BY_TYPE[p?.type] || 'Home');
+  };
 
   // Analytics — tracks every page, click, scroll automatically
   const { track } = useAnalytics({
@@ -573,6 +636,17 @@ function App() {
           userRole={userRole}
           currentUser={currentUser}
           onPostClick={() => setShowPostModal(true)}
+          activeProfile={activeProfile}
+          onOpenSwitcher={() => setShowProfileSwitcher(true)}
+        />
+      )}
+      {showProfileSwitcher && (
+        <ProfileSwitcherSheet
+          profiles={myProfiles}
+          activeProfileId={activeProfile?.id}
+          onSwitch={handleSwitchProfile}
+          onClose={() => setShowProfileSwitcher(false)}
+          onNavigate={handleNavigate}
         />
       )}
       {showPostModal && (
