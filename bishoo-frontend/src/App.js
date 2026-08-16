@@ -398,6 +398,7 @@ function App() {
   const publicProps = {
     onNavigate: handleNavigate, isLoggedIn, onLogout: handleLogout, userRole, currentUser,
     onUserUpdated: handleUserUpdated,
+    activeProfile, activeProfileId: activeProfile?.id,
     onOpenMoment: () => {
       if (!isLoggedIn) { handleNavigate('PublicLogin'); return; }
       setMomentModalMode('selling');
@@ -666,6 +667,7 @@ function App() {
         <CreateMomentModal
           currentUser={currentUser}
           initialMode={momentModalMode}
+          activeProfileId={activeProfile?.id}
           onClose={() => setShowMomentModal(false)}
           onPosted={() => {
             setMomentRefreshKey(k => k + 1);

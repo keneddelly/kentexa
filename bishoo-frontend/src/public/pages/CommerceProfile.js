@@ -218,7 +218,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     Promise.allSettled([
       api.get(`/seller/public/${uid}`).catch(() => ({ data: null })),
       api.get(`/reputation/user/${uid}`),
-      api.get(`/feed/business/${uid}`),
+      api.get(`/feed/business/${uid}`, { params: { commerceProfileId: activeProfile.id } }),
       own ? api.get('/orders/my-orders?limit=5') : Promise.resolve({data:[]}),
       own ? api.get('/services/my') : Promise.resolve({data:[]}),
       (own && activeProfile.type === 'agent') ? api.get('/agents/my-profile') : Promise.resolve({data:null}),
@@ -269,7 +269,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     if (!postForm.title.trim()) return;
     try {
       setPublishing(true);
-      const res = await api.post('/feed/publish', postForm);
+      const res = await api.post('/feed/publish', { ...postForm, commerceProfileId: activeProfile?.id });
       setFeed(prev => [res.data, ...prev]);
       setShowPost(false);
       setPostForm({ type:'new_product', title:'', body:'', ctaLabel:'' });

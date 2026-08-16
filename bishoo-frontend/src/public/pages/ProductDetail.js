@@ -24,7 +24,7 @@ const Stars = ({ rating, size = 12, interactive = false, onRate }) => (
   </span>
 );
 
-const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, track, currentUser, onOpenMoment, initialTab }) => {
+const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, track, currentUser, onOpenMoment, initialTab, activeProfileId }) => {
   const { t } = useTranslation();
   const [product, setProduct]           = useState(null);
   const [loading, setLoading]           = useState(true);
@@ -107,6 +107,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
         imageUrl: product.images?.[0] || null,
         linkedEntityType: 'product',
         linkedEntityId: product.id,
+        commerceProfileId: activeProfileId || undefined,
       });
       setMessage('📸 Shared to your Moments!');
       setTimeout(() => setMessage(''), 3000);

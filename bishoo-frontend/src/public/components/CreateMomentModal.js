@@ -38,7 +38,7 @@ const routeTitle = (r, t) => {
   return t('create_moment_modal.my_route_fallback');
 };
 
-const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
+const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId }) => {
   const { t } = useTranslation();
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
   const [mode,      setMode]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'selling');
@@ -126,6 +126,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
           imageUrl,
           linkedEntityType: tagged.type,
           linkedEntityId: tagged.id,
+          commerceProfileId: activeProfileId || undefined,
         });
       } else {
         await api.post('/feed/publish', {
@@ -134,6 +135,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode }) => {
           body: caption.trim(),
           imageUrl,
           category,
+          commerceProfileId: activeProfileId || undefined,
         });
       }
 
