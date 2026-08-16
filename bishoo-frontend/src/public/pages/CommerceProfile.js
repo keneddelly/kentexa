@@ -106,34 +106,30 @@ const RoleActions = ({ role, onNavigate }) => {
 };
 
 // ─── Tab content sections ─────────────────────────────────────────────────────
-// Takes the full activeRoles array, not just the single primary `role` — a
-// multi-role account (e.g. seller + agent + transport_provider all active)
-// should show every applicable identity tab, not just whichever role was
-// activated most recently (which is all the old single-role check could
-// ever reflect, since `role` only ever holds one value at a time).
-const tabs = (activeRoles, isOwn, t) => {
-  const has = (r) => activeRoles.includes(r);
-  const base = [{ key:'posts',      label:t('commerce_profile.tab_products')   }];
-  if (isOwn && (has('seller') || has('admin') || has('manager'))) {
-    base.push(
-      { key:'feed',       label:t('commerce_profile.tab_posts') },
-      { key:'orders',     label:t('commerce_profile.tab_orders')   },
-      { key:'analytics',  label:t('commerce_profile.tab_analytics') },
-    );
-  }
-  // Identity tabs — public for everyone, not just the owner. What differs
-  // by isOwn is the CONTENT (public stats vs. private earnings/dashboard
-  // shortcut), not whether the tab is visible at all.
-  if (has('agent')) {
+// Tabs are derived from the ONE CommerceProfile actually being viewed —
+// its `type`, never the viewer's/owner's activeRoles. Every profile is
+// its own independent identity: visiting a business profile never shows
+// that owner's hub or transport tabs bleeding in, and visiting someone's
+// personal profile never shows business tabs at all, regardless of how
+// many other profiles that same account happens to run.
+const tabs = (profileType, isOwn, t) => {
+  const base = [{ key:'posts', label:t('commerce_profile.tab_products') }];
+  if (profileType === 'business') {
+    if (isOwn) {
+      base.push(
+        { key:'feed',      label:t('commerce_profile.tab_posts') },
+        { key:'orders',    label:t('commerce_profile.tab_orders') },
+        { key:'analytics', label:t('commerce_profile.tab_analytics') },
+      );
+    }
+  } else if (profileType === 'agent') {
     base.push({ key:'jobs', label:t('commerce_profile.tab_agent') });
-  }
-  if (has('super_agent')) {
+  } else if (profileType === 'hub') {
     base.push({ key:'hub', label:t('commerce_profile.tab_hub') });
-  }
-  if (has('transport_provider')) {
+  } else if (profileType === 'transport_provider') {
     base.push({ key:'transport', label:t('commerce_profile.tab_routes') });
-  }
-  if (isOwn) {
+  } else if (isOwn) {
+    // Personal profile, own view only — a buyer's own quick extras.
     base.push({ key:'services', label:t('commerce_profile.tab_services') });
   }
   base.push({ key:'reputation', label:t('commerce_profile.tab_reputation') });
@@ -143,8 +139,8 @@ const tabs = (activeRoles, isOwn, t) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
-const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
-  currentUser, pageParam }) => {
+const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
+  currentUser, pageParam, commerceProfileId }) => {
   const { t } = useTranslation();
   const TIERS = getTiers(t);
   const getTier = s => TIERS.find(tier => Number(s||0) >= tier.min) || TIERS[4];
@@ -156,9 +152,18 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   // people to their OWN profile instead of the seller's).
   const [rawTargetId, deepLinkTab, deepLinkPostId] = String(pageParam || '').split('-');
   const targetId   = rawTargetId ? Number(rawTargetId) : null;
-  const isOwnProfile = !targetId || (currentUser && targetId === currentUser.id);
   const highlightPostId = deepLinkPostId ? Number(deepLinkPostId) : null;
   const highlightPostRef = React.useRef(null);
+
+  // The ONE identity this page renders — resolved either from an explicit
+  // commerceProfileId (arrived via /@username or a card that already knows
+  // which specific profile it's linking to) or, for older bare-user-id
+  // links, defaulting to that account's PERSONAL profile. Never an
+  // aggregate of "every role this account holds" — that's the exact bug
+  // this replaced (a visitor landing on someone's personal page seeing
+  // their business/hub tabs and follower counts bleed in).
+  const [activeProfile, setActiveProfile] = useState(null);
+  const isOwnProfile = !!(activeProfile && currentUser && activeProfile.ownerId === currentUser.id);
 
   const [profile,    setProfile]    = useState(null);
   const [rep,        setRep]        = useState(null);
@@ -171,70 +176,74 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
   const [publicAgentData,     setPublicAgentData]     = useState(null);
   const [publicHubData,       setPublicHubData]       = useState(null);
   const [publicTransportData, setPublicTransportData] = useState(null);
-  const [commerceProfiles,    setCommerceProfiles]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState('posts');
   const [following,  setFollowing]  = useState(false);
-  const [showFollowers, setShowFollowers] = useState(false);
-  const [followers,      setFollowers]    = useState([]);
-  const [loadingFollowers, setLoadingFollowers] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showPost,   setShowPost]   = useState(false);
   const [postForm,   setPostForm]   = useState({
     type:'new_product', title:'', body:'', ctaLabel:''
   });
 
+  // Step 1 — resolve exactly which profile this page is for.
   useEffect(() => {
     setLoading(true);
+    setActiveProfile(null);
     setTab(deepLinkTab === 'feed' ? 'feed' : 'posts');
 
     const uid = targetId || currentUser?.id || 0;
+    const resolve = commerceProfileId
+      ? api.get(`/profiles/${commerceProfileId}`)
+      : api.get(`/profiles/for-user/${uid}`).then(r => {
+          const list = r.data || [];
+          const personal = list.find(p => p.type === 'personal');
+          return { data: personal || list[0] || null };
+        });
+
+    resolve.then(res => {
+      setActiveProfile(res.data || null);
+      setFollowing(!!res.data?.isFollowing);
+    }).catch(() => setActiveProfile(null));
+  }, [targetId, commerceProfileId]); // eslint-disable-line
+
+  // Step 2 — once the specific profile is known, load everything that
+  // hangs off it: shared buyer-facing content (feed/products/classifieds),
+  // owner-only extras, and exactly the ONE role-specific public dataset
+  // that matches this profile's type (never all three).
+  useEffect(() => {
+    if (!activeProfile) return;
+    const uid = activeProfile.ownerId;
+    const own = currentUser && uid === currentUser.id;
 
     Promise.allSettled([
-      api.get(targetId ? `/seller/public/${targetId}` : '/auth/profile'),
-      api.get(targetId ? `/reputation/user/${targetId}` : '/reputation/my'),
+      api.get(`/seller/public/${uid}`).catch(() => ({ data: null })),
+      api.get(`/reputation/user/${uid}`),
       api.get(`/feed/business/${uid}`),
-      isOwnProfile ? api.get('/orders/my-orders?limit=5') : Promise.resolve({data:[]}),
-      isOwnProfile ? api.get('/services/my') : Promise.resolve({data:[]}),
-      (isOwnProfile && userRole==='agent') ? api.get('/agents/my-profile') : Promise.resolve({data:null}),
-      targetId ? api.get(`/stores/${targetId}`) : Promise.resolve({data:null}),
-      uid ? api.get(`/classifieds/seller/${uid}`) : Promise.resolve({data:[]}),
-      uid ? api.get(`/products/seller/${uid}`)    : Promise.resolve({data:[]}),
-      uid ? api.get(`/profiles/for-user/${uid}`)  : Promise.resolve({data:[]}),
-    ]).then(([p,r,f,o,s,a,st,cl,pr,cp]) => {
+      own ? api.get('/orders/my-orders?limit=5') : Promise.resolve({data:[]}),
+      own ? api.get('/services/my') : Promise.resolve({data:[]}),
+      (own && activeProfile.type === 'agent') ? api.get('/agents/my-profile') : Promise.resolve({data:null}),
+      api.get(`/classifieds/seller/${uid}`),
+      api.get(`/products/seller/${uid}`),
+    ]).then(([p,r,f,o,s,a,cl,pr]) => {
       if (p.status==='fulfilled') setProfile(p.value.data);
       if (r.status==='fulfilled') setRep(r.value.data);
       if (f.status==='fulfilled') setFeed(f.value.data || []);
       if (o.status==='fulfilled') setOrders(o.value.data?.orders || o.value.data || []);
       if (s.status==='fulfilled') setServices(s.value.data || []);
       if (a.status==='fulfilled') setAgentData(a.value.data);
-      if (st.status==='fulfilled' && st.value.data) setFollowing(!!st.value.data.isFollowing);
-      else setFollowing(false);
       if (cl.status==='fulfilled') setClassifieds(cl.value.data || []);
       if (pr.status==='fulfilled') setProducts(pr.value.data || []);
-      if (cp.status==='fulfilled') setCommerceProfiles(cp.value.data || []);
     }).finally(() => setLoading(false));
-  }, [targetId]); // eslint-disable-line
 
-  // Fetch public role-identity info for every ACTIVE role the target holds
-  // (not just their current primary `role`) — a multi-role account (seller
-  // + agent + transport_provider all active) needs all three tabs' data
-  // available, not just whichever role happens to be primary right now.
-  useEffect(() => {
-    const uid = targetId || currentUser?.id;
-    if (!uid || !profile) return;
-    const activeRoles = [profile.role, ...(profile.activeRoles || [])].filter((r,i,a) => a.indexOf(r)===i);
-
-    if (activeRoles.includes('agent')) {
-      api.get(`/agents/public/${uid}`).then(r => setPublicAgentData(r.data)).catch(() => setPublicAgentData(null));
+    setPublicAgentData(null); setPublicHubData(null); setPublicTransportData(null);
+    if (activeProfile.type === 'agent') {
+      api.get(`/agents/public/${uid}`).then(r => setPublicAgentData(r.data)).catch(() => {});
+    } else if (activeProfile.type === 'hub') {
+      api.get(`/super-agents/public/${uid}`).then(r => setPublicHubData(r.data)).catch(() => {});
+    } else if (activeProfile.type === 'transport_provider') {
+      api.get(`/transport/public/${uid}`).then(r => setPublicTransportData(r.data)).catch(() => {});
     }
-    if (activeRoles.includes('super_agent')) {
-      api.get(`/super-agents/public/${uid}`).then(r => setPublicHubData(r.data)).catch(() => setPublicHubData(null));
-    }
-    if (activeRoles.includes('transport_provider')) {
-      api.get(`/transport/public/${uid}`).then(r => setPublicTransportData(r.data)).catch(() => setPublicTransportData(null));
-    }
-  }, [profile, targetId]); // eslint-disable-line
+  }, [activeProfile]); // eslint-disable-line
 
   // Deep-linked from a "New save"/"New comment" notification — scroll to and
   // highlight that specific post once it's loaded into the Feed tab.
@@ -246,9 +255,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
 
   const handleFollow = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    if (!activeProfile) return;
     try {
-      const res = await api.post(`/stores/${targetId}/follow`);
-      setFollowing(res.data.following ?? !following);
+      // Follows THIS profile specifically — following Bishoo Intelligence
+      // Systems never implies following Kened personally, or vice versa.
+      const res = await api.post(`/profiles/${activeProfile.id}/follow`);
+      setFollowing(res.data.following);
+      setActiveProfile(p => p ? { ...p, followersCount: res.data.followersCount } : p);
     } catch {}
   };
 
@@ -275,7 +288,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
     </div>
   );
 
-  if (!profile) return (
+  if (!activeProfile) return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc', display:'flex',
       flexDirection:'column', fontFamily:'Manrope,Inter,sans-serif' }}>
       <div style={{ backgroundColor:WH, borderBottom:'1px solid #f1f5f9', padding:'14px 16px' }}>
@@ -293,35 +306,25 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
     </div>
   );
 
-  const score     = rep?.score || profile.reputationScore || 0;
+  const score     = rep?.score || profile?.reputationScore || 0;
   const tier      = getTier(score);
-  // `role` = the account's current primary role — still used for things
-  // that can only ever be one thing at a time (which brand the header
-  // shows). `activeRoles` = every role this account holds simultaneously
-  // (always includes `role` itself) — used for anything that should show
-  // ALL of a multi-role account's identities, like the profile's tabs.
-  const role        = profile.role || userRole || 'user';
-  const activeRoles = [role, ...(profile.activeRoles || [])].filter((r,i,a) => a.indexOf(r)===i);
-  const profileTabs = tabs(activeRoles, isOwnProfile, t);
+  const profileTabs = tabs(activeProfile.type, isOwnProfile, t);
 
-  // Which brand the header shows follows the TAB being viewed, not the
-  // account's primary `role` — role is just whichever identity was
-  // approved most recently and has nothing to do with why a visitor is
-  // here. Someone on the Products tab is here to buy something from the
-  // seller; someone who's switched to Routes is here for the transport
-  // side. Source of truth is the real CommerceProfile record for that
-  // identity (not ad hoc fields scattered across profile/publicXData),
-  // so the header never again depends on which role got approved last.
-  const findCommerceProfile = (type) => commerceProfiles.find(cp => cp.type === type);
-  const activeCommerceProfile =
-    (tab === 'transport' && findCommerceProfile('transport_provider')) ||
-    (tab === 'hub'       && findCommerceProfile('hub')) ||
-    (tab === 'jobs'      && findCommerceProfile('agent')) ||
-    findCommerceProfile('business') ||
-    findCommerceProfile('personal');
-  const displayName  = activeCommerceProfile?.displayName || profile.storeName || profile.name;
-  const displayPhoto = activeCommerceProfile?.photoUrl || profile.avatarUrl || profile.logo;
-  const displayHandle = activeCommerceProfile?.username ? `@${activeCommerceProfile.username}` : null;
+  // Everything the header shows comes from activeProfile — the ONE
+  // profile this page is for — never from role state or from whichever
+  // tab happens to be selected. A visitor to a business page sees that
+  // business's name/photo/followers the entire time they're on this
+  // page, full stop; there is no other identity to bleed in.
+  const displayName   = activeProfile.displayName;
+  const displayPhoto  = activeProfile.photoUrl || (activeProfile.type === 'personal' ? currentUser?.avatarUrl : null);
+  const displayHandle = activeProfile.username ? `@${activeProfile.username}` : null;
+  // RoleActions' internal keying predates CommerceProfileType and still
+  // expects role-shaped strings ('seller' not 'business', 'super_agent'
+  // not 'hub') — map at the boundary rather than rename that component's
+  // internal vocabulary as part of this change.
+  const roleActionsKey = {
+    business: 'seller', agent: 'agent', hub: 'super_agent', transport_provider: 'transport_provider',
+  }[activeProfile.type] || null;
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc', paddingBottom:100,
@@ -355,8 +358,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
       {/* Cover */}
       <div style={{ position:'relative' }}>
         <div style={{ height:140, overflow:'hidden',
-          background: profile.coverImage
-            ? `url(${profile.coverImage}) center/cover`
+          background: (activeProfile.coverImage || profile?.coverImage)
+            ? `url(${activeProfile.coverImage || profile.coverImage}) center/cover`
             : 'linear-gradient(135deg,#1e1b4b,#1d4ed8)' }} />
 
         {/* Avatar */}
@@ -395,7 +398,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
                 {following ? t('commerce_profile.unfollow_button') : t('commerce_profile.follow_button')}
               </button>
-              <button onClick={() => onNavigate(isLoggedIn ? `MessageSeller-${targetId}` : 'PublicLogin')}
+              <button onClick={() => onNavigate(isLoggedIn ? `MessageSeller-${activeProfile.ownerId}` : 'PublicLogin')}
                 style={{ backgroundColor:'#eff6ff', color:B,
                   border:'1px solid #bfdbfe', borderRadius:10,
                   padding:'8px 14px', cursor:'pointer',
@@ -403,7 +406,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
                 {t('commerce_profile.message_button')}
               </button>
-              {(profile.storeWhatsApp || profile.phone) && (
+              {(profile?.storeWhatsApp || profile?.phone) && (
                 <a href={`https://wa.me/${(profile.storeWhatsApp||profile.phone).replace(/^0/,'255').replace(/[^0-9]/g,'')}`}
                   target="_blank" rel="noreferrer"
                   style={{ backgroundColor:'#dcfce7', color:'#16a34a',
@@ -428,72 +431,48 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
           <h1 style={{ fontSize:20, fontWeight:900, color:DK, margin:0 }}>
             {displayName || t('commerce_profile.default_name')}
           </h1>
-          {profile.isOfficialStore && (
+          {(activeProfile.isVerified || profile?.isOfficialStore) && (
             <span style={{ fontSize:16 }} title={t('commerce_profile.verified_title')}>✅</span>
           )}
           <ReputationBadge score={score} size="sm" />
         </div>
 
-        {/* Handle + Kentexa ID — the identity anchors across the whole site.
-            The handle is this specific commerce identity's public username
-            (unique per CommerceProfile); the Kentexa ID is the underlying
-            account, shown as secondary context, not the primary label. */}
-        {(displayHandle || profile.kentexaId) && (
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
+        {/* Handle + location — the identity anchors for THIS profile only.
+            No role badges here by design: an account's roles are internal
+            bookkeeping for what it's allowed to manage, never a public
+            label. A visitor to a business page sees that business; a
+            visitor to a personal page sees a person — never both, and
+            never a hint of what else the owner runs on the side. */}
+        {(displayHandle || activeProfile.location || profile?.businessLocation) && (
+          <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', marginBottom:8 }}>
             {displayHandle && (
               <div style={{ fontSize:12, fontWeight:800, color:DK,
                 display:'inline-flex', alignItems:'center', gap:4 }}>
                 {displayHandle}
               </div>
             )}
-            {profile.kentexaId && (
-              <div style={{ fontSize:11, fontWeight:700, color:B,
-                display:'inline-flex', alignItems:'center', gap:4,
-                backgroundColor:'#eff6ff', border:'1px solid #bfdbfe',
-                borderRadius:100, padding:'2px 10px', letterSpacing:0.5 }}>
-                🆔 {profile.kentexaId}
-              </div>
+            {(activeProfile.location || profile?.businessLocation) && (
+              <span style={{ fontSize:11, color:GR }}>📍 {activeProfile.location || profile.businessLocation}</span>
             )}
           </div>
         )}
 
-        {/* Role badges */}
-        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
-          {activeRoles.includes('seller')             && <span style={pillStyle('#eff6ff',B)}>{t('commerce_profile.role_seller')}</span>}
-          {activeRoles.includes('agent')              && <span style={pillStyle('#fdf2f8','#a21caf')}>{t('commerce_profile.role_agent')}</span>}
-          {activeRoles.includes('super_agent')        && <span style={pillStyle('#f5f3ff','#7c3aed')}>{t('commerce_profile.role_super_agent')}</span>}
-          {activeRoles.includes('transport_provider') && <span style={pillStyle('#fff7ed','#ea580c')}>{t('commerce_profile.role_transporter')}</span>}
-          {                               <span style={pillStyle('#f1f5f9',GR)}>{t('commerce_profile.role_buyer')}</span>}
-          {profile.businessLocation && (
-            <span style={{ fontSize:11, color:GR }}>📍 {profile.businessLocation}</span>
-          )}
-        </div>
-
         {/* Bio */}
-        {(profile.storeDescription || profile.bio) && (
+        {(activeProfile.bio || profile?.storeDescription) && (
           <p style={{ fontSize:13, color:'#475569', margin:'0 0 10px',
             lineHeight:1.5 }}>
-            {profile.storeDescription || profile.bio}
+            {activeProfile.bio || profile.storeDescription}
           </p>
         )}
 
         {/* Stats */}
         <div style={{ display:'flex', borderTop:'1px solid #f1f5f9',
           marginTop:8 }}>
-          <Stat value={fmtM(profile.completedOrders||0)} label={t('commerce_profile.stat_sales')} />
+          <Stat value={fmtM(profile?.completedOrders||0)} label={t('commerce_profile.stat_sales')} />
           <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-          <Stat value={fmtM(profile.followersCount||0)} label={t('commerce_profile.stat_followers')}
-            onClick={!isOwnProfile ? undefined : () => {
-              setShowFollowers(true);
-              if (followers.length) return;
-              setLoadingFollowers(true);
-              api.get('/stores/me/followers')
-                .then(r => setFollowers(r.data || []))
-                .catch(() => setFollowers([]))
-                .finally(() => setLoadingFollowers(false));
-            }} />
+          <Stat value={fmtM(activeProfile.followersCount||0)} label={t('commerce_profile.stat_followers')} />
           <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-          <Stat value={Number(profile.rating||0).toFixed(1)} label={t('commerce_profile.stat_rating')} />
+          <Stat value={Number(activeProfile.rating||0).toFixed(1)} label={t('commerce_profile.stat_rating')} />
           <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
           <Stat value={score} label={t('commerce_profile.stat_reputation')} />
         </div>
@@ -511,12 +490,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
         </div>
       )}
 
-      {/* Role quick actions (own profile only) */}
+      {/* Quick actions for THIS profile (own profile only) */}
       {isOwnProfile && (
         <div style={{ backgroundColor:WH, padding:'14px 0',
           marginBottom:4,
           boxShadow:'0 1px 3px rgba(0,0,0,0.04)' }}>
-          <RoleActions role={role} onNavigate={onNavigate} />
+          <RoleActions role={roleActionsKey} onNavigate={onNavigate} />
         </div>
       )}
 
@@ -1000,75 +979,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, onLogout, userRole,
           </div>
         )}
       </div>
-
-      {/* ── Followers list modal ── */}
-      {showFollowers && (
-        <div onClick={() => setShowFollowers(false)}
-          style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.5)',
-            zIndex:3000, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ width:'100%', maxWidth:480, backgroundColor:WH,
-              borderRadius:'20px 20px 0 0', maxHeight:'75vh', display:'flex',
-              flexDirection:'column' }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-              padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
-              <div style={{ fontSize:15, fontWeight:900, color:DK }}>
-                {t('commerce_profile.followers_title')} {followers.length > 0 && `(${followers.length})`}
-              </div>
-              <button onClick={() => setShowFollowers(false)}
-                style={{ background:'none', border:'none', cursor:'pointer',
-                  fontSize:20, color:GR }}>×</button>
-            </div>
-            <div style={{ flex:1, overflowY:'auto', padding:'8px 16px 16px' }}>
-              {loadingFollowers ? (
-                <div style={{ fontSize:13, color:GR, padding:'20px 0', textAlign:'center' }}>
-                  {t('commerce_profile.loading_ellipsis')}
-                </div>
-              ) : followers.length === 0 ? (
-                <div style={{ fontSize:13, color:GR, padding:'30px 0', textAlign:'center' }}>
-                  {t('commerce_profile.no_followers_desc')}
-                </div>
-              ) : (
-                followers.map(f => (
-                  <div key={f.id}
-                    onClick={() => { setShowFollowers(false); onNavigate(`CommerceProfile-${f.id}`); }}
-                    style={{ display:'flex', alignItems:'center', gap:12,
-                      padding:'10px 0', borderBottom:'1px solid #F8FAFC', cursor:'pointer' }}>
-                    <div style={{ width:40, height:40, borderRadius:'50%', flexShrink:0,
-                      backgroundColor:'#F1F5F9', overflow:'hidden', display:'flex',
-                      alignItems:'center', justifyContent:'center' }}>
-                      {f.logo
-                        ? <img src={f.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-                        : <span style={{ fontSize:16, fontWeight:900, color:B }}>
-                            {f.name.charAt(0).toUpperCase()}
-                          </span>}
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:DK,
-                        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {f.name}
-                      </div>
-                      <div style={{ fontSize:11, color:GR }}>
-                        {t('commerce_profile.following_since_label', { date: new Date(f.followedAt).toLocaleDateString('en-GB') })}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const pillStyle = (bg, color) => ({
-  fontSize:10, fontWeight:700, backgroundColor:bg,
-  color, padding:'3px 10px', borderRadius:100,
-  display:'inline-flex', alignItems:'center', gap:3,
-});
 
 const inputSt = {
   width:'100%', padding:'10px 12px', borderRadius:10,

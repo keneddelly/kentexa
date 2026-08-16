@@ -296,7 +296,14 @@ function App() {
       const match = window.location.pathname.match(/^\/@([a-z0-9_]+)\/?$/i);
       if (!match) return;
       api.get(`/profiles/username/${match[1]}`).then(res => {
-        if (res.data?.ownerId) setPage(`CommerceProfile-${res.data.ownerId}`);
+        if (res.data?.ownerId) {
+          // Carries the SPECIFIC profile that was resolved (not just the
+          // owning account) so the page renders exactly that identity —
+          // never a shared "all of this owner's roles" view. See
+          // CommerceProfile.js's commerceProfileId prop.
+          setNavParams({ commerceProfileId: res.data.id });
+          setPage(`CommerceProfile-${res.data.ownerId}`);
+        }
       }).catch(() => {});
     } catch { /* no window — SSR */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -393,7 +400,7 @@ function App() {
       return <CommerceProfile {...publicProps} pageParam={page.split('Store-')[1]} />;
     if (page.startsWith('CommerceProfile-')) {
       const pid = page.split('CommerceProfile-')[1];
-      return <CommerceProfile {...publicProps} pageParam={pid} />;
+      return <CommerceProfile {...publicProps} pageParam={pid} commerceProfileId={navParams?.commerceProfileId} />;
     }
     // Order-lifecycle notifications (orderPlaced, orderPaid, disputeRaised,
     // payoutReleased, ...) carry actionPage + orderId as actionParam. Without
