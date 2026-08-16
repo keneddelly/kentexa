@@ -12,6 +12,8 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class ProductsService {
@@ -23,6 +25,7 @@ export class ProductsService {
     private reviewRepo: Repository<ProductReview>,
 
     private readonly feedService: FeedService,
+    private readonly commerceProfiles: CommerceProfilesService,
   ) {}
 
   async findAll(category?: string) {
@@ -101,7 +104,33 @@ export class ProductsService {
       relations: { seller: true },
     });
     if (!product) throw new NotFoundException('Product not found');
-    return product;
+
+    // "Sold by" must point at the seller's BUSINESS identity, not their
+    // personal one — this is the exact bug CommerceProfile.js's header
+    // had before Stage 1 (a visitor seeing the owner's personal name/
+    // follower count instead of the store's), just one layer deeper: the
+    // product page's seller card was still doing it. commerceProfile is
+    // null when the seller has no business profile yet (shouldn't happen
+    // for anyone who can list a product, but stay defensive).
+    const commerceProfile = product.seller
+      ? await this.commerceProfiles
+          .findForUserByType(product.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
+
+    return {
+      ...product,
+      commerceProfile: commerceProfile
+        ? {
+            id: commerceProfile.id,
+            username: commerceProfile.username,
+            displayName: commerceProfile.displayName,
+            photoUrl: commerceProfile.photoUrl,
+            followersCount: commerceProfile.followersCount,
+            rating: commerceProfile.rating,
+          }
+        : null,
+    };
   }
 
   async findBySeller(sellerId: number) {
@@ -291,6 +320,19 @@ export class ProductsService {
       const existing = await this.reviewRepo.findOne({
         where: { productId, reviewerId },
       });
+      // Which business actually sells this product — resolved once here
+      // rather than trusted from any caller, same as the Review entity's
+      // equivalent lookup in store.service.ts's submitReview().
+      const product = await this.repo.findOne({
+        where: { id: productId },
+        relations: { seller: true },
+      });
+      const businessProfile = product?.seller
+        ? await this.commerceProfiles
+            .findForUserByType(product.seller.id, CommerceProfileType.BUSINESS)
+            .catch(() => null)
+        : null;
+
       if (existing) {
         await this.reviewRepo.update(existing.id, { rating, comment });
       } else {
@@ -302,8 +344,14 @@ export class ProductsService {
             comment,
             isVerifiedPurchase: true,
             orderId,
+            commerceProfileId: businessProfile?.id ?? null,
           }),
         );
+        if (businessProfile) {
+          await this.commerceProfiles
+            .recordReview(businessProfile.id, rating)
+            .catch(() => {});
+        }
       }
       // Update product average rating
       const reviews = await this.reviewRepo.find({ where: { productId } });
@@ -318,7 +366,10 @@ export class ProductsService {
   }
 
   async addReview(productId: number, dto: CreateReviewDto, user: any) {
-    const product = await this.repo.findOne({ where: { id: productId } });
+    const product = await this.repo.findOne({
+      where: { id: productId },
+      relations: { seller: true },
+    });
     if (!product) throw new NotFoundException('Product not found');
 
     const userId = user.id ?? user.sub;
@@ -333,6 +384,12 @@ export class ProductsService {
       return this.reviewRepo.save(existing);
     }
 
+    const businessProfile = product.seller
+      ? await this.commerceProfiles
+          .findForUserByType(product.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
+
     const review = this.reviewRepo.create({
       product: { id: productId },
       reviewer: { id: userId },
@@ -340,7 +397,14 @@ export class ProductsService {
       comment: dto.comment,
       isVerifiedPurchase: (dto as any).isVerifiedPurchase || false,
       orderId: (dto as any).orderId || null,
+      commerceProfileId: businessProfile?.id ?? null,
     });
-    return this.reviewRepo.save(review);
+    const saved = await this.reviewRepo.save(review);
+    if (businessProfile) {
+      await this.commerceProfiles
+        .recordReview(businessProfile.id, dto.rating)
+        .catch(() => {});
+    }
+    return saved;
   }
 }

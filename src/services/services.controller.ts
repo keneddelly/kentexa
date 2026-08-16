@@ -67,6 +67,12 @@ export class ServicesController {
     return this.svc.getById(id);
   }
 
+  // Public — backs the Services section on a CommerceProfile page.
+  @Get('provider/:providerId')
+  getByProvider(@Param('providerId', ParseIntPipe) providerId: number) {
+    return this.svc.findByProvider(providerId);
+  }
+
   // ── Provider: manage own ads ──────────────────────────────────────────────
   @Post()
   @UseGuards(JwtAuthGuard)

@@ -23,6 +23,8 @@ import { updateClassifiedDto } from './dto/update-classified.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { FeedService } from '../feed/feed.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class ClassifiedsService {
@@ -42,6 +44,7 @@ export class ClassifiedsService {
     private invoicesService: InvoicesService,
     private dataSource: DataSource,
     private readonly feedService: FeedService,
+    private readonly commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ─── Create listing ───────────────────────────────────────────────────────
@@ -104,7 +107,28 @@ export class ClassifiedsService {
   async findOne(id: number) {
     const listing = await this.repo.findOne({ where: { id } });
     if (!listing) throw new NotFoundException('Listing not found');
-    return listing;
+
+    // Same "sold by must point at the business, not the person" fix as
+    // ProductsService.findOne().
+    const commerceProfile = listing.seller
+      ? await this.commerceProfiles
+          .findForUserByType(listing.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
+
+    return {
+      ...listing,
+      commerceProfile: commerceProfile
+        ? {
+            id: commerceProfile.id,
+            username: commerceProfile.username,
+            displayName: commerceProfile.displayName,
+            photoUrl: commerceProfile.photoUrl,
+            followersCount: commerceProfile.followersCount,
+            rating: commerceProfile.rating,
+          }
+        : null,
+    };
   }
 
   // ─── Find mine ────────────────────────────────────────────────────────────

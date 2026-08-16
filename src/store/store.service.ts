@@ -12,6 +12,8 @@ import { Review } from './review.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
 import { ProfileService } from '../profile/profile.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class StoreService {
@@ -22,6 +24,7 @@ export class StoreService {
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
     private profileService: ProfileService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Get full store page data ──────────────────────────────────────────────
@@ -122,6 +125,15 @@ export class StoreService {
     if (existing)
       throw new ConflictException('You already reviewed this order');
 
+    // Which business this review actually belongs to — never guessed from
+    // the seller's personal identity. A seller with no BUSINESS-type
+    // CommerceProfile yet (shouldn't happen for anyone who can receive
+    // orders, but stay defensive) just leaves commerceProfileId null,
+    // same as any other pre-this-feature review.
+    const businessProfile = await this.commerceProfiles
+      .findForUserByType(sellerId, CommerceProfileType.BUSINESS)
+      .catch(() => null);
+
     const review = await this.reviewRepo.save(
       this.reviewRepo.create({
         buyer: { id: buyerId } as User,
@@ -130,8 +142,15 @@ export class StoreService {
         rating: dto.rating,
         comment: dto.comment || null,
         verified: true,
+        commerceProfileId: businessProfile?.id ?? null,
       }),
     );
+
+    if (businessProfile) {
+      await this.commerceProfiles
+        .recordReview(businessProfile.id, dto.rating)
+        .catch(() => {});
+    }
 
     // Update seller's aggregate rating & review count
     const allReviews = await this.reviewRepo.find({

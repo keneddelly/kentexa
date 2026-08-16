@@ -9,6 +9,8 @@ import {
 import { CommerceProfileFollow } from './entities/commerce-profile-follow.entity';
 import { CommerceProfileMember } from './entities/commerce-profile-member.entity';
 import { User } from '../users/entities/user.entity';
+import { Review } from '../store/review.entity';
+import { ProductReview } from '../products/entities/product-review.entity';
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -37,6 +39,10 @@ export class CommerceProfilesService {
     private memberRepo: Repository<CommerceProfileMember>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    @InjectRepository(Review)
+    private reviewRepo: Repository<Review>,
+    @InjectRepository(ProductReview)
+    private productReviewRepo: Repository<ProductReview>,
   ) {}
 
   // Slugifies `seed` and appends a numeric suffix until it's free. Never
@@ -217,6 +223,68 @@ export class CommerceProfilesService {
     }
     const profile = await this.findById(commerceProfileId);
     return { following: !existing, followersCount: profile.followersCount };
+  }
+
+  // Rolling-average rating + count, called once per new review (Review or
+  // ProductReview) that gets a commerceProfileId stamped on it. Same
+  // "denormalized, kept in sync by the services that own Follow/Review
+  // writes" contract the entity's own comment describes — this is the
+  // Review half of that (toggleFollow above is the Follow half).
+  async recordReview(commerceProfileId: number, rating: number): Promise<void> {
+    const profile = await this.findById(commerceProfileId);
+    const newCount = profile.reviewsCount + 1;
+    const newAverage =
+      (Number(profile.rating) * profile.reviewsCount + rating) / newCount;
+    await this.repo.update(commerceProfileId, {
+      reviewsCount: newCount,
+      rating: Number(newAverage.toFixed(2)),
+    });
+  }
+
+  // Reviews scoped to THIS profile — merges the two separate review tables
+  // (Review, keyed to a seller account's storefront checkout; ProductReview,
+  // keyed to an individual product) into one normalized, newest-first list.
+  // Only rows with commerceProfileId set are returned — reviews written
+  // before this feature existed have no profile to correctly attribute to,
+  // so they're omitted here rather than guessed at (same rule Stage 3 used
+  // for feed posts, just inverted: there, untagged posts stayed visible
+  // everywhere; here, untagged reviews aren't scoped to any one profile so
+  // they can't appear on this profile-specific list at all).
+  async getReviews(commerceProfileId: number, limit = 30) {
+    const [storeReviews, productReviews] = await Promise.all([
+      this.reviewRepo.find({
+        where: { commerceProfileId },
+        relations: { buyer: true },
+        order: { createdAt: 'DESC' },
+        take: limit,
+      }),
+      this.productReviewRepo.find({
+        where: { commerceProfileId },
+        order: { createdAt: 'DESC' },
+        take: limit,
+      }),
+    ]);
+
+    const normalized = [
+      ...storeReviews.map((r) => ({
+        id: `store-${r.id}`,
+        rating: r.rating,
+        comment: r.comment,
+        reviewerName: r.buyer?.name || 'Kentexa user',
+        reviewerPhoto: r.buyer?.avatarUrl || null,
+        createdAt: r.createdAt,
+      })),
+      ...productReviews.map((r) => ({
+        id: `product-${r.id}`,
+        rating: r.rating,
+        comment: r.comment,
+        reviewerName: r.reviewer?.name || 'Kentexa user',
+        reviewerPhoto: r.reviewer?.avatarUrl || null,
+        createdAt: r.createdAt,
+      })),
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    return normalized.slice(0, limit);
   }
 
   // ── Team management ────────────────────────────────────────────────────

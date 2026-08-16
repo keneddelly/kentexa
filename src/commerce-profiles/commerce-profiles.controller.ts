@@ -61,6 +61,13 @@ export class CommerceProfilesController {
     return { ...profile, isFollowing };
   }
 
+  // Reviews scoped to THIS profile — never account-wide. Public: reviews
+  // are part of a business's public reputation, same as its follower count.
+  @Get(':id/reviews')
+  getReviews(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getReviews(id);
+  }
+
   // Follows/unfollows THIS SPECIFIC profile — never the owning account.
   // A buyer can follow Bishoo Intelligence Systems without following
   // Kened personally, and vice versa; each profile's followersCount is

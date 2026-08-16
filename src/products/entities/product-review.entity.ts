@@ -40,6 +40,12 @@ export class ProductReview {
   @Column({ type: 'int', nullable: true })
   orderId: number | null;
 
+  // Which specific CommerceProfile (the seller's business) earned this
+  // review — same additive, never-retro-tagged pattern as Review.
+  // commerceProfileId and BusinessFeedItem.commerceProfileId.
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

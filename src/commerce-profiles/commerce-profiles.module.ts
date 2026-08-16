@@ -8,6 +8,8 @@ import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { Review } from '../store/review.entity';
+import { ProductReview } from '../products/entities/product-review.entity';
 import { CommerceProfilesService } from './commerce-profiles.service';
 import { CommerceProfilesBackfillService } from './commerce-profiles-backfill.service';
 import { CommerceProfileScopeService } from './commerce-profile-scope.service';
@@ -24,6 +26,8 @@ import { CommerceProfilesController } from './commerce-profiles.controller';
       TransportProvider,
       Agent,
       SuperAgent,
+      Review,
+      ProductReview,
     ]),
   ],
   controllers: [CommerceProfilesController],

@@ -13,6 +13,8 @@ import { ServiceAd, ServiceStatus } from './entities/service-ad.entity';
 import { JobRequest, JobStatus } from './entities/job-request.entity';
 import { User } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class ServicesService {
@@ -20,6 +22,7 @@ export class ServicesService {
     @InjectRepository(ServiceAd) private adRepo: Repository<ServiceAd>,
     @InjectRepository(JobRequest) private jobRepo: Repository<JobRequest>,
     private readonly feedService: FeedService,
+    private readonly commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Create / Edit Service Ad ──────────────────────────────────────────────
@@ -101,6 +104,17 @@ export class ServicesService {
     });
   }
 
+  // Public — active service ads for a given provider, backing the
+  // Services section on a Business/Service Provider/Agent CommerceProfile
+  // page. Unlike getMyAds() (own, any status), this only ever shows what
+  // a visitor should see.
+  async findByProvider(providerId: number): Promise<ServiceAd[]> {
+    return this.adRepo.find({
+      where: { providerId, status: ServiceStatus.ACTIVE },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   // ── Browse / Search ───────────────────────────────────────────────────────
 
   async browse(params: {
@@ -156,7 +170,7 @@ export class ServicesService {
     return { ads, total };
   }
 
-  async getById(id: number): Promise<ServiceAd> {
+  async getById(id: number) {
     const ad = await this.adRepo.findOne({
       where: { id, status: ServiceStatus.ACTIVE },
       relations: { provider: true },
@@ -164,7 +178,32 @@ export class ServicesService {
     if (!ad) throw new NotFoundException('Huduma haijapatikana');
     // Increment views
     await this.adRepo.update(id, { views: () => 'views + 1' });
-    return ad;
+
+    // No dedicated "service provider" operational entity/CommerceProfile
+    // creation flow exists yet (unlike seller/hub/transport/agent) — the
+    // closest real identity to attach is the provider's BUSINESS profile,
+    // if they happen to have one (e.g. a seller who also offers repairs).
+    // Falls back to null → frontend's existing personal-profile default,
+    // same honest fallback as ProductsService/ClassifiedsService.findOne().
+    const commerceProfile = ad.provider
+      ? await this.commerceProfiles
+          .findForUserByType(ad.provider.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
+
+    return {
+      ...ad,
+      commerceProfile: commerceProfile
+        ? {
+            id: commerceProfile.id,
+            username: commerceProfile.username,
+            displayName: commerceProfile.displayName,
+            photoUrl: commerceProfile.photoUrl,
+            followersCount: commerceProfile.followersCount,
+            rating: commerceProfile.rating,
+          }
+        : null,
+    };
   }
 
   async getFeatured(limit = 8): Promise<ServiceAd[]> {

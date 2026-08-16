@@ -10,9 +10,14 @@ import { JobRequest } from './entities/job-request.entity';
 import { ServicesService } from './services.service';
 import { ServicesController } from './services.controller';
 import { FeedModule } from '../feed/feed.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ServiceAd, JobRequest]), FeedModule],
+  imports: [
+    TypeOrmModule.forFeature([ServiceAd, JobRequest]),
+    FeedModule,
+    CommerceProfilesModule,
+  ],
   controllers: [ServicesController],
   providers: [ServicesService],
   exports: [ServicesService],

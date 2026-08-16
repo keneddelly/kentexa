@@ -8,6 +8,7 @@ import { ProductReview } from './entities/product-review.entity';
 import { FeedModule } from '../feed/feed.module';
 import { AiModule } from '../ai/ai.module';
 import { BusinessModule } from '../business/business.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { BusinessModule } from '../business/business.module';
     FeedModule,
     AiModule,
     BusinessModule,
+    CommerceProfilesModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService, AiListingService],

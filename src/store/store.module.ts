@@ -9,12 +9,14 @@ import { Order } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
 import { ProfileModule } from '../profile/profile.module';
 import { BusinessModule } from '../business/business.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Follow, Review, Order, Product]),
     ProfileModule,
     BusinessModule,
+    CommerceProfilesModule,
   ],
   providers: [StoreService],
   controllers: [StoreController],
