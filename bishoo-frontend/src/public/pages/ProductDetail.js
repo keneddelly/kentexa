@@ -180,8 +180,14 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
       .map(l => l.substring(1).trim()).slice(0, 8);
   })();
   const hasFeatures = autoFeatures.length > 0;
-  const sellerRating = product.seller?.rating || 4.5;
-  const sellerName   = product.seller?.storeName || product.seller?.businessName || product.seller?.name || 'KenteXa Store';
+  // Prefer the BUSINESS CommerceProfile's own identity/numbers — falls
+  // back to the seller's personal fields only when they have no business
+  // profile yet, same as before this fix.
+  const sellerRating = product.commerceProfile?.rating || product.seller?.rating || 4.5;
+  const sellerName   = product.commerceProfile?.displayName || product.seller?.storeName || product.seller?.businessName || product.seller?.name || 'KenteXa Store';
+  const sellerFollowers = product.commerceProfile?.followersCount ?? product.seller?.followersCount;
+  const sellerPhoto = product.commerceProfile?.photoUrl || product.seller?.logo;
+  const sellerNavParams = product.commerceProfile?.id ? { commerceProfileId: product.commerceProfile.id } : undefined;
 
   const avgRating = reviews.length > 0
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
@@ -362,19 +368,21 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
 
             <div style={{ backgroundColor: '#fff', padding: '12px 16px', marginBottom: 8, borderRadius: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
-                <div onClick={() => product.seller?.id && onNavigate(`CommerceProfile-${product.seller.id}`)}
+                <div onClick={() => product.seller?.id && onNavigate(`CommerceProfile-${product.seller.id}`, sellerNavParams)}
                   style={{ width: 42, height: 42, borderRadius: 10, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}>
-                  {product.seller?.logo ? <img src={product.seller.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : sellerName[0]}
+                  {sellerPhoto ? <img src={sellerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : sellerName[0]}
                 </div>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sellerName}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     <Stars rating={sellerRating} size={10} />
-                    <span style={{ fontSize: 11, color: '#94a3b8' }}>· {t('product_detail.verified')} ✅</span>
+                    {sellerFollowers != null && (
+                      <span style={{ fontSize: 11, color: '#94a3b8' }}>· {sellerFollowers.toLocaleString()} {t('commerce_profile.stat_followers')}</span>
+                    )}
                   </div>
                 </div>
               </div>
-              <button onClick={() => product.seller?.id && onNavigate(`CommerceProfile-${product.seller.id}`)}
+              <button onClick={() => product.seller?.id && onNavigate(`CommerceProfile-${product.seller.id}`, sellerNavParams)}
                 style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1.5px solid #bfdbfe', padding: '7px 13px', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {t('product_detail.visit_store')}
               </button>

@@ -115,9 +115,20 @@ const RoleActions = ({ role, onNavigate }) => {
 // that owner's hub or transport tabs bleeding in, and visiting someone's
 // personal profile never shows business tabs at all, regardless of how
 // many other profiles that same account happens to run.
+//
+// Each type gets a PURPOSE-BUILT section list, not one generic template:
+// Business → Products/Services/About/Reviews (+ owner-only Feed/Orders/
+// Analytics dashboard shortcuts); Service Provider → Services/Portfolio/
+// Reviews/About; Agent → Services/Jobs/Reviews/About; Hub/Transport keep
+// their existing rich public stats tab, with Reviews added. The old
+// single 'reputation' tab (tier badge + score history) is folded into
+// the top of 'reviews' rather than dropped, so that content isn't lost.
 const tabs = (profileType, isOwn, t) => {
-  const base = [{ key:'posts', label:t('commerce_profile.tab_products') }];
   if (profileType === 'business') {
+    const base = [
+      { key:'posts',         label:t('commerce_profile.tab_products') },
+      { key:'services_pub',  label:t('commerce_profile.tab_services') },
+    ];
     if (isOwn) {
       base.push(
         { key:'feed',      label:t('commerce_profile.tab_posts') },
@@ -125,16 +136,47 @@ const tabs = (profileType, isOwn, t) => {
         { key:'analytics', label:t('commerce_profile.tab_analytics') },
       );
     }
-  } else if (profileType === 'agent') {
-    base.push({ key:'jobs', label:t('commerce_profile.tab_agent') });
-  } else if (profileType === 'hub') {
-    base.push({ key:'hub', label:t('commerce_profile.tab_hub') });
-  } else if (profileType === 'transport_provider') {
-    base.push({ key:'transport', label:t('commerce_profile.tab_routes') });
-  } else if (isOwn) {
-    // Personal profile, own view only — a buyer's own quick extras.
-    base.push({ key:'services', label:t('commerce_profile.tab_services') });
+    base.push(
+      { key:'about',   label:t('commerce_profile.tab_about') },
+      { key:'reviews', label:t('commerce_profile.tab_reviews') },
+    );
+    return base;
   }
+  if (profileType === 'service_provider') {
+    return [
+      { key:'services_pub', label:t('commerce_profile.tab_services') },
+      { key:'portfolio',    label:t('commerce_profile.tab_portfolio') },
+      { key:'reviews',      label:t('commerce_profile.tab_reviews') },
+      { key:'about',        label:t('commerce_profile.tab_about') },
+    ];
+  }
+  if (profileType === 'agent') {
+    return [
+      { key:'services_pub', label:t('commerce_profile.tab_services') },
+      { key:'jobs',         label:t('commerce_profile.tab_agent') },
+      { key:'reviews',      label:t('commerce_profile.tab_reviews') },
+      { key:'about',        label:t('commerce_profile.tab_about') },
+    ];
+  }
+  if (profileType === 'hub') {
+    return [
+      { key:'hub',     label:t('commerce_profile.tab_hub') },
+      { key:'reviews', label:t('commerce_profile.tab_reviews') },
+    ];
+  }
+  if (profileType === 'transport_provider') {
+    return [
+      { key:'transport', label:t('commerce_profile.tab_routes') },
+      { key:'reviews',   label:t('commerce_profile.tab_reviews') },
+    ];
+  }
+  // Personal — About + (own-only) their own listing grid/quick services,
+  // plus Reputation. "Profiles" (Also on Kentexa) is always-visible below
+  // the header, not a tab, so it isn't listed here.
+  const base = [];
+  if (isOwn) base.push({ key:'posts', label:t('commerce_profile.tab_products') });
+  base.push({ key:'about', label:t('commerce_profile.tab_about') });
+  if (isOwn) base.push({ key:'services', label:t('commerce_profile.tab_services') });
   base.push({ key:'reputation', label:t('commerce_profile.tab_reputation') });
   return base;
 };
@@ -180,6 +222,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [publicHubData,       setPublicHubData]       = useState(null);
   const [publicTransportData, setPublicTransportData] = useState(null);
   const [siblingProfiles, setSiblingProfiles] = useState([]);
+  const [reviews,          setReviews]          = useState([]);
+  const [providerServices, setProviderServices] = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState('posts');
   const [following,  setFollowing]  = useState(false);
@@ -193,7 +237,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   useEffect(() => {
     setLoading(true);
     setActiveProfile(null);
-    setTab(deepLinkTab === 'feed' ? 'feed' : 'posts');
+    // Which tab actually applies depends on this profile's TYPE, not known
+    // until it resolves below — Step 2 picks the real default (deep-linked
+    // tab if valid for this type, else this type's first tab) once
+    // activeProfile is set. This placeholder only avoids a stale tab from
+    // a previously-viewed profile flashing before that happens.
+    setTab(deepLinkTab || null);
 
     const uid = targetId || currentUser?.id || 0;
     const resolve = commerceProfileId
@@ -247,6 +296,30 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     } else if (activeProfile.type === 'transport_provider') {
       api.get(`/transport/public/${uid}`).then(r => setPublicTransportData(r.data)).catch(() => {});
     }
+
+    // Reviews are profile-scoped (GET /profiles/:id/reviews), not
+    // account-wide — every type that shows a Reviews tab fetches its OWN
+    // review list, never the owner's other profiles' reviews.
+    setReviews([]);
+    if (['business', 'service_provider', 'agent', 'hub', 'transport_provider'].includes(activeProfile.type)) {
+      api.get(`/profiles/${activeProfile.id}/reviews`).then(r => setReviews(r.data || [])).catch(() => {});
+    }
+
+    // Services this profile publicly offers — backs the Services/Portfolio
+    // sections on Business/Service Provider/Agent profiles. Distinct from
+    // `services` above, which is the OWNER's own quick-manage list from
+    // /services/my and only ever loads for the own-profile view.
+    setProviderServices([]);
+    if (['business', 'service_provider', 'agent'].includes(activeProfile.type)) {
+      api.get(`/services/provider/${uid}`).then(r => setProviderServices(r.data || [])).catch(() => {});
+    }
+
+    // Default to the first tab that's actually valid for THIS profile's
+    // type, unless a deep-linked tab was requested and is valid here too —
+    // a stale tab key from switching profiles (e.g. 'posts' from a
+    // business landing on a hub) must never be left selected.
+    const validTabKeys = tabs(activeProfile.type, own, t).map(x => x.key);
+    setTab(validTabKeys.includes(deepLinkTab) ? deepLinkTab : validTabKeys[0]);
 
     // "Also on Kentexa" — every OTHER profile this same account runs,
     // shown as independent, clickable cards (own name/photo/followers,
@@ -530,6 +603,39 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           </div>
         </div>
       )}
+
+      {/* People Behind This / Managed By — trust signal on any non-personal
+          profile: who's actually running this. Derived from the SAME
+          sibling-profiles fetch as "Also on Kentexa" above (no extra
+          request) rather than a dedicated lookup. Never shown on a
+          personal profile — there's no one "behind" a person. */}
+      {activeProfile.type !== 'personal' && (() => {
+        const owner = siblingProfiles.find(sp => sp.type === 'personal');
+        if (!owner) return null;
+        return (
+          <div style={{ backgroundColor:WH, padding:'14px 16px', marginBottom:4 }}>
+            <div style={{ fontSize:11, fontWeight:800, color:GR, textTransform:'uppercase',
+              letterSpacing:0.5, marginBottom:10 }}>
+              {t('commerce_profile.people_behind_this')}
+            </div>
+            <button onClick={() => onNavigate(`CommerceProfile-${owner.ownerId}`, { commerceProfileId: owner.id })}
+              style={{ display:'flex', alignItems:'center', gap:10, width:'100%',
+                background:'none', border:'none', cursor:'pointer', textAlign:'left', padding:0 }}>
+              <div style={{ width:44, height:44, borderRadius:14, overflow:'hidden',
+                backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
+                justifyContent:'center', fontSize:18, fontWeight:800, color:GR, flexShrink:0 }}>
+                {owner.photoUrl
+                  ? <img src={owner.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : (owner.displayName||'?').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontSize:13, fontWeight:800, color:DK }}>{owner.displayName}</div>
+                <div style={{ fontSize:11, color:GR }}>{t('commerce_profile.founder_owner_label')}</div>
+              </div>
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Profile completion (own profile only) */}
       {isOwnProfile && (
@@ -1029,6 +1135,151 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Services (public) — Business/Service Provider/Agent's own active
+            service ads, as a visitor sees them. Distinct from the personal
+            'services' tab above, which only ever shows the OWNER's own
+            quick-manage list and never renders for a visitor. */}
+        {tab==='services_pub' && (
+          <div>
+            {providerServices.length === 0
+              ? <Empty icon="🔧" text={t('commerce_profile.no_services')} />
+              : <div style={{ display:'grid',
+                  gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:12 }}>
+                  {providerServices.map(s => (
+                    <div key={s.id}
+                      onClick={()=>onNavigate(`ServiceDetail-${s.id}`)}
+                      style={{ backgroundColor:WH, borderRadius:14, padding:16,
+                        cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+                      <span style={{ fontSize:11, fontWeight:700,
+                        backgroundColor:'#f0fdf4', color:'#16a34a',
+                        padding:'3px 10px', borderRadius:100,
+                        display:'inline-block', marginBottom:8 }}>
+                        🔧 {s.category}
+                      </span>
+                      <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:4 }}>
+                        {s.title}
+                      </div>
+                      <div style={{ fontSize:14, fontWeight:900, color:B }}>
+                        {s.priceType==='negotiate' ? t('search.negotiate_price')
+                         : s.priceType==='free_quote' ? t('search.request_quote')
+                         : `TZS ${fmt(s.price)}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>}
+          </div>
+        )}
+
+        {/* Portfolio (service_provider only) — past-work gallery, sourced
+            from this provider's own service ads' images. No dedicated
+            portfolio entity exists yet, so this reuses what's already
+            there rather than adding new storage for this pass. */}
+        {tab==='portfolio' && (() => {
+          const shots = providerServices.flatMap(s =>
+            (s.images || []).map(img => ({ img, serviceId: s.id })));
+          return shots.length === 0 ? (
+            <Empty icon="🖼️" text={t('commerce_profile.no_portfolio_yet')} />
+          ) : (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
+              {shots.map((shot, i) => (
+                <div key={`${shot.serviceId}-${i}`}
+                  onClick={() => onNavigate(`ServiceDetail-${shot.serviceId}`)}
+                  style={{ aspectRatio:'1', backgroundColor:'#F8FAFC',
+                    cursor:'pointer', overflow:'hidden' }}>
+                  <img src={shot.img} alt=""
+                    style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                    onError={e => e.target.style.display='none'} />
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* About — bio plus a compact facts block. Same shape across
+            Business/Service Provider/Agent; only the facts that actually
+            exist for this profile render, so it never shows empty rows. */}
+        {tab==='about' && (() => {
+          const facts = [
+            (activeProfile.location || profile?.businessLocation) &&
+              [t('commerce_profile.about_location'), activeProfile.location || profile.businessLocation],
+            (profile?.storeWhatsApp || profile?.phone) &&
+              [t('commerce_profile.about_contact'), profile.storeWhatsApp || profile.phone],
+            activeProfile.category && [t('commerce_profile.about_category'), activeProfile.category],
+            [t('commerce_profile.about_verified'),
+              (activeProfile.isVerified || profile?.isOfficialStore)
+                ? t('commerce_profile.about_verified_yes')
+                : t('commerce_profile.about_verified_no')],
+          ].filter(Boolean);
+          const bio = activeProfile.bio || profile?.storeDescription;
+          return (
+            <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
+              boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+              {bio && (
+                <p style={{ fontSize:13, color:'#475569', lineHeight:1.6, margin:'0 0 16px' }}>
+                  {bio}
+                </p>
+              )}
+              {facts.map(([label, value]) => (
+                <div key={label} style={{ display:'flex', justifyContent:'space-between',
+                  gap:12, padding:'10px 0', borderBottom:'1px solid #f1f5f9' }}>
+                  <span style={{ fontSize:12, color:GR, flexShrink:0 }}>{label}</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:DK, textAlign:'right' }}>{value}</span>
+                </div>
+              ))}
+              {!bio && facts.length === 0 && (
+                <Empty icon="ℹ️" text={t('commerce_profile.no_about_yet')} />
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Reviews — profile-scoped (GET /profiles/:id/reviews), never the
+            owner's account-wide history. The tier card that used to live
+            alone under 'reputation' opens this tab too, condensed, so nothing
+            from the old single-tab view is lost, just relocated. */}
+        {tab==='reviews' && (
+          <div>
+            <div style={{ background:`linear-gradient(135deg,${tier.color},#1d4ed8)`,
+              borderRadius:20, padding:20, color:WH, textAlign:'center', marginBottom:16 }}>
+              <div style={{ fontSize:36, marginBottom:6 }}>{tier.icon}</div>
+              <div style={{ fontSize:18, fontWeight:900 }}>{tier.name}</div>
+              <div style={{ fontSize:13, color:'rgba(255,255,255,0.85)', marginTop:4 }}>
+                {activeProfile.reviewsCount || reviews.length} {t('commerce_profile.tab_reviews')} · ⭐ {Number(activeProfile.rating||0).toFixed(1)}
+              </div>
+            </div>
+            {reviews.length === 0
+              ? <Empty icon="⭐" text={t('commerce_profile.no_reviews_yet')} />
+              : reviews.map(rv => (
+                  <div key={rv.id} style={{ backgroundColor:WH, borderRadius:14, padding:16,
+                    marginBottom:10, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:8 }}>
+                      <div style={{ width:32, height:32, borderRadius:10, overflow:'hidden',
+                        backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
+                        justifyContent:'center', fontSize:14, fontWeight:800, color:GR, flexShrink:0 }}>
+                        {rv.reviewerPhoto
+                          ? <img src={rv.reviewerPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                          : (rv.reviewerName||'?').charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:12, fontWeight:800, color:DK }}>
+                          {rv.reviewerName || t('commerce_profile.reviewer_fallback')}
+                        </div>
+                        <div style={{ fontSize:10, color:'#94a3b8' }}>
+                          {new Date(rv.createdAt).toLocaleDateString('sw-TZ')}
+                        </div>
+                      </div>
+                      <div style={{ fontSize:12, fontWeight:800, color:'#d97706', flexShrink:0 }}>
+                        {'⭐'.repeat(Math.max(0, Math.round(rv.rating||0)))}
+                      </div>
+                    </div>
+                    {rv.comment && (
+                      <div style={{ fontSize:12, color:'#475569', lineHeight:1.5 }}>{rv.comment}</div>
+                    )}
+                  </div>
+                ))}
           </div>
         )}
       </div>

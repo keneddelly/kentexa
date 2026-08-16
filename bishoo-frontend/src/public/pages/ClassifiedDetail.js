@@ -145,7 +145,13 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
 
   const hasSpecs = classified.specs && Object.keys(classified.specs).filter(k => classified.specs[k]).length > 0;
   const catIcon  = CAT_ICONS[classified.category] || '📋';
-  const sellerName = classified.seller?.storeName || classified.seller?.businessName || classified.seller?.name || 'Seller';
+  // Prefer the BUSINESS CommerceProfile's own identity — same fix as
+  // ProductDetail.js. Falls back to the seller's personal fields when
+  // they have no business profile yet.
+  const sellerName = classified.commerceProfile?.displayName || classified.seller?.storeName || classified.seller?.businessName || classified.seller?.name || 'Seller';
+  const sellerPhoto = classified.commerceProfile?.photoUrl || classified.seller?.logo;
+  const sellerFollowers = classified.commerceProfile?.followersCount ?? classified.seller?.followersCount;
+  const sellerNavParams = classified.commerceProfile?.id ? { commerceProfileId: classified.commerceProfile.id } : undefined;
   const isVerifiedSeller = ['seller','admin','manager'].includes(classified.seller?.role);
 
   const handleMakeOffer = async () => {
@@ -320,17 +326,21 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
 
         <div style={{ backgroundColor: '#fff', padding: '12px 16px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16, flexShrink: 0 }}>
-              {sellerName[0]}
+            <div onClick={() => classified.seller?.id && onNavigate(`CommerceProfile-${classified.seller.id}`, sellerNavParams)}
+              style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 16, flexShrink: 0, cursor: 'pointer', overflow: 'hidden' }}>
+              {sellerPhoto ? <img src={sellerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : sellerName[0]}
             </div>
             <div>
               <div style={{ display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' }}>
-                <span onClick={() => classified.seller?.id && onNavigate(`CommerceProfile-${classified.seller.id}`)}
+                <span onClick={() => classified.seller?.id && onNavigate(`CommerceProfile-${classified.seller.id}`, sellerNavParams)}
                   style={{ fontSize:13,fontWeight:800,color:'#1d4ed8',cursor:'pointer' }}>
                   {sellerName}
                 </span>
                 {classified.seller?.reputationScore > 0 && (
                   <ReputationBadge score={classified.seller.reputationScore} size="xs" />
+                )}
+                {sellerFollowers != null && (
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>· {sellerFollowers.toLocaleString()} {t('commerce_profile.stat_followers')}</span>
                 )}
               </div>
               <div style={{ fontSize: 11, color: '#64748b' }}>{t('classified_detail.listed')} {new Date(classified.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</div>

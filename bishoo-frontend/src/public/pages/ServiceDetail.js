@@ -241,31 +241,47 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
               <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 14 }}>
                 {t('service_detail.provider_title')}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 52, height: 52, borderRadius: '50%',
-                  background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 22, color: '#fff', fontWeight: 900, flexShrink: 0 }}>
-                  {ad.provider?.name?.charAt(0)?.toUpperCase() || 'P'}
-                </div>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
-                    <span
-                      onClick={() => ad.provider?.id && onNavigate('CommerceProfile-' + ad.provider.id)}
-                      style={{ cursor: ad.provider?.id ? 'pointer' : 'default', color: '#1d4ed8' }}>
-                      {ad.provider?.name || t('service_detail.default_provider_name')}
-                    </span>
-                    {ad.provider?.reputationScore > 0 && (
-                      <ReputationBadge score={ad.provider.reputationScore} size="xs"
-                        style={{ marginLeft: 8 }} />
-                    )}
+              {(() => {
+                // Prefers the provider's BUSINESS CommerceProfile when they
+                // have one (e.g. a seller also offering repairs) — same
+                // fix as ProductDetail.js/ClassifiedDetail.js. Falls back
+                // to the personal name/initials, same as before, since
+                // most service listings won't have one.
+                const providerName = ad.commerceProfile?.displayName || ad.provider?.name || t('service_detail.default_provider_name');
+                const providerPhoto = ad.commerceProfile?.photoUrl;
+                const navParams = ad.commerceProfile?.id ? { commerceProfileId: ad.commerceProfile.id } : undefined;
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div onClick={() => ad.provider?.id && onNavigate('CommerceProfile-' + ad.provider.id, navParams)}
+                      style={{ width: 52, height: 52, borderRadius: '50%',
+                        background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 22, color: '#fff', fontWeight: 900, flexShrink: 0,
+                        cursor: ad.provider?.id ? 'pointer' : 'default', overflow: 'hidden' }}>
+                      {providerPhoto
+                        ? <img src={providerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (providerName?.charAt(0)?.toUpperCase() || 'P')}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>
+                        <span
+                          onClick={() => ad.provider?.id && onNavigate('CommerceProfile-' + ad.provider.id, navParams)}
+                          style={{ cursor: ad.provider?.id ? 'pointer' : 'default', color: '#1d4ed8' }}>
+                          {providerName}
+                        </span>
+                        {ad.provider?.reputationScore > 0 && (
+                          <ReputationBadge score={ad.provider.reputationScore} size="xs"
+                            style={{ marginLeft: 8 }} />
+                        )}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                        {t('service_detail.jobs_completed', { count: ad.totalJobs })}
+                        {ad.isVerified && t('service_detail.verified_suffix')}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                    {t('service_detail.jobs_completed', { count: ad.totalJobs })}
-                    {ad.isVerified && t('service_detail.verified_suffix')}
-                  </div>
-                </div>
-              </div>
+                );
+              })()}
               {isLoggedIn && currentUser?.id === ad.provider?.id && (
                 <div style={{ marginTop: 12 }}>
                   <button onClick={() => onOpenMoment?.('selling', {
