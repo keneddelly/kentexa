@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
-const AddProfilePhoto = ({ onNavigate, currentUser }) => {
+const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
   const { t } = useTranslation();
   const [photoUrl, setPhotoUrl]             = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -38,6 +38,7 @@ const AddProfilePhoto = ({ onNavigate, currentUser }) => {
       setFinishing(true);
       setError('');
       await api.patch(`/users/${currentUser?.id}`, { avatarUrl: photoUrl });
+      onUserUpdated?.({ ...currentUser, avatarUrl: photoUrl });
       onNavigate('Home');
     } catch (err) {
       setError(err?.response?.data?.message || t('register.photo_upload_failed'));

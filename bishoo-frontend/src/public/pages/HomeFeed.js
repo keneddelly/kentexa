@@ -1474,8 +1474,8 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                     backgroundColor:'#F8FAFC', display:'flex', alignItems:'center',
                     justifyContent:'center', overflow:'hidden',
                     padding: myMoment ? 2 : 0, boxSizing:'border-box' }}>
-                    {currentUser?.logo
-                      ? <img src={currentUser.logo} alt="me"
+                    {(currentUser?.avatarUrl || currentUser?.logo)
+                      ? <img src={currentUser.avatarUrl || currentUser.logo} alt="me"
                           style={{ width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover' }} />
                       : <span style={{ fontSize:20 }}>
                           {isLoggedIn ? (currentUser?.name||'').charAt(0).toUpperCase()||'👤' : '👤'}

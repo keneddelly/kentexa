@@ -15,7 +15,7 @@ const BackIcon = ({ color = DK }) => (
   </svg>
 );
 
-const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
+const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onUserUpdated }) => {
   const { t } = useTranslation();
   const [profile, setProfile]   = useState(null);
   const [orders, setOrders]     = useState([]);
@@ -62,6 +62,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         city: profileRes.data.city || '', bio: profileRes.data.bio || '',
       });
       setAvatarUrl(profileRes.data.avatarUrl || '');
+      onUserUpdated?.(profileRes.data);
     } catch { setError(t('profile.load_failed')); }
     finally { setLoading(false); }
   };

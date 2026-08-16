@@ -301,6 +301,17 @@ function App() {
     } catch { /* no window — SSR */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Lets any page (profile edit, avatar upload, etc.) push a fresh user
+  // object up into App's currentUser state after a save — without this,
+  // BottomNav/HomeFeed keep reading the currentUser snapshot taken at
+  // login (also cached in localStorage, so even a page reload wouldn't
+  // pick up the change) and a newly-added photo never appears outside
+  // the page that set it.
+  const handleUserUpdated = (updatedUser) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem('kentexa_user', JSON.stringify(updatedUser));
+  };
+
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('kentexa_user');
@@ -316,6 +327,7 @@ function App() {
 
   const publicProps = {
     onNavigate: handleNavigate, isLoggedIn, onLogout: handleLogout, userRole, currentUser,
+    onUserUpdated: handleUserUpdated,
     onOpenMoment: () => {
       if (!isLoggedIn) { handleNavigate('PublicLogin'); return; }
       setMomentModalMode('selling');

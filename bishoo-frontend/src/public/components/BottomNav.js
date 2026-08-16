@@ -66,8 +66,8 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, userRole, currentUser,
     },
     {
       key:   'MyProfile',
-      icon:  (active) => currentUser?.logo
-        ? <img src={currentUser.logo} alt=""
+      icon:  (active) => (currentUser?.avatarUrl || currentUser?.logo)
+        ? <img src={currentUser.avatarUrl || currentUser.logo} alt=""
             style={{ width:26, height:26, borderRadius:'50%', objectFit:'cover',
               border: active ? `2px solid ${B}` : '2px solid #e2e8f0' }} />
         : (
