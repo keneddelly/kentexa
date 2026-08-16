@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Brackets } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { SellerProfile, SellerStatus } from './entities/seller-profile.entity';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -80,39 +80,54 @@ export class SellerService {
       .filter((p) => p.status === SellerStatus.APPROVED && p.user)
       .map((p) => p.user.id);
 
-    const qb = this.userRepo
+    const selectColumns = [
+      'u.id',
+      'u.name',
+      'u.storeName',
+      'u.storeTagline',
+      'u.storeDescription',
+      'u.logo',
+      'u.coverImage',
+      'u.rating',
+      'u.isOfficialStore',
+      'u.isVerified',
+      'u.followersCount',
+      'u.businessLocation',
+      'u.completedOrders',
+      'u.reviewsCount',
+      'u.reputationScore',
+      'u.createdAt',
+    ];
+
+    // Two separate, simple queries merged in JS rather than one combined
+    // OR query — a Brackets()-wrapped OR here was triggering a TypeORM
+    // alias-resolution bug ("COALESCE(CAST(u" alias was not found) when
+    // mixed with the partial .select() above, so this sidesteps it
+    // entirely instead of fighting the query builder.
+    const byRole = await this.userRepo
       .createQueryBuilder('u')
-      .select([
-        'u.id',
-        'u.name',
-        'u.storeName',
-        'u.storeTagline',
-        'u.storeDescription',
-        'u.logo',
-        'u.coverImage',
-        'u.rating',
-        'u.isOfficialStore',
-        'u.isVerified',
-        'u.followersCount',
-        'u.businessLocation',
-        'u.completedOrders',
-        'u.reviewsCount',
-        'u.reputationScore',
-        'u.createdAt',
-      ])
-      .where(
-        new Brackets((sub) => {
-          sub.where("u.role IN ('seller','admin','manager')");
-          if (approvedUserIds.length > 0) {
-            sub.orWhere('u.id IN (:...approvedUserIds)', { approvedUserIds });
-          }
-        }),
-      );
-    const users = await qb
+      .select(selectColumns)
+      .where("u.role IN ('seller','admin','manager')")
       .andWhere('u."storeName" IS NOT NULL')
       .andWhere('u."storeName" != \'\'')
-      .orderBy('u.createdAt', 'DESC')
       .getMany();
+
+    let byApprovedProfile: User[] = [];
+    if (approvedUserIds.length > 0) {
+      byApprovedProfile = await this.userRepo
+        .createQueryBuilder('u')
+        .select(selectColumns)
+        .where('u.id IN (:...approvedUserIds)', { approvedUserIds })
+        .andWhere('u."storeName" IS NOT NULL')
+        .andWhere('u."storeName" != \'\'')
+        .getMany();
+    }
+
+    const userById = new Map<number, User>();
+    for (const u of [...byRole, ...byApprovedProfile]) userById.set(u.id, u);
+    const users = Array.from(userById.values()).sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
 
     let followedIds = new Set<number>();
     if (viewerId) {
