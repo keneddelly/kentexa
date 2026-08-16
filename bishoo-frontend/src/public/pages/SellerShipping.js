@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
-const SellerShipping = ({ onNavigate }) => {
+const SellerShipping = ({ onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);

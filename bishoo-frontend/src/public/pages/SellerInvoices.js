@@ -5,7 +5,7 @@ import api from '../../api/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
-const SellerInvoices = ({ onNavigate, currentUser, preSelected }) => {
+const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected }) => {
   const { t } = useTranslation();
   const [requests, setRequests]           = useState([]);
   const [loading, setLoading]             = useState(true);
