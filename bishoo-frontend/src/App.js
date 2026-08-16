@@ -638,6 +638,7 @@ function App() {
           currentUser={currentUser}
           onPostClick={() => setShowPostModal(true)}
           activeProfile={activeProfile}
+          myProfiles={myProfiles}
           onOpenSwitcher={() => setShowProfileSwitcher(true)}
         />
       )}

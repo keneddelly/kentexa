@@ -37,6 +37,11 @@ const emojiIcon = (emoji) => (active) => (
   <span style={{ fontSize: 21, opacity: active ? 1 : 0.55 }}>{emoji}</span>
 );
 
+const PROFILE_TYPE_ICON = {
+  personal: '👤', business: '🏪', hub: '🏢',
+  transport_provider: '🚌', agent: '🏍️', service_provider: '🔧',
+};
+
 // Per-profile-type tab set for positions 1/2/4. `home`/`activity` reuse
 // isLoggedIn-gating the way the original Home/Activity tabs did (always
 // reachable once logged in, since these pages all require an active
@@ -70,7 +75,7 @@ const TYPE_TABS = (t) => ({
 });
 
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,
-  activeProfile, onOpenSwitcher }) => {
+  activeProfile, onOpenSwitcher, myProfiles }) => {
   const { t } = useTranslation();
   const cfg = TYPE_TABS(t)[activeProfile?.type] || TYPE_TABS(t).personal;
 
@@ -117,11 +122,15 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
     },
   ];
 
-  // Active-profile pill — only worth showing once switching is actually
-  // meaningful (a business/hub/agent/transport profile is active, or the
-  // account has more than just its personal profile). Sits just above the
-  // tab row so it never competes with the 5 fixed tap targets below it.
-  const showPill = isLoggedIn && activeProfile && activeProfile.type !== 'personal';
+  // Active-profile pill — the switcher's ONLY entry point, so it must show
+  // whenever there's actually something to switch BETWEEN, regardless of
+  // which profile happens to be active right now. Gating this on
+  // "activeProfile.type !== 'personal'" (an earlier version) made the
+  // switcher undiscoverable for anyone starting from — or currently on —
+  // their personal profile, which is the default for every account and
+  // where most people are most of the time. Sits just above the tab row
+  // so it never competes with the 5 fixed tap targets below it.
+  const showPill = isLoggedIn && activeProfile && (myProfiles?.length || 0) > 1;
 
   return (
     <>
@@ -139,7 +148,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
             alignItems: 'center', justifyContent: 'center', fontSize: 11 }}>
             {activeProfile.photoUrl
               ? <img src={activeProfile.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              : '🏪'}
+              : (PROFILE_TYPE_ICON[activeProfile.type] || '👤')}
           </span>
           <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden',
             textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
