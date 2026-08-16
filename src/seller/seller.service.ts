@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Brackets } from 'typeorm';
 import { SellerProfile, SellerStatus } from './entities/seller-profile.entity';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -61,7 +61,26 @@ export class SellerService {
   // store-branding fields (storeName, logo) that live on the User entity,
   // not on SellerProfile. If viewerId is given, stamps isFollowing per card.
   async findPublicSellers(viewerId?: number) {
-    const users = await this.userRepo
+    // Optional enrichment — a formal SellerProfile application isn't
+    // required to show up here, but if one exists we layer on its extra
+    // fields (business category/city/district/region).
+    const profiles = await this.profileRepo
+      .find({ relations: { user: true } })
+      .catch(() => [] as SellerProfile[]);
+    const profileByUserId = new Map(
+      profiles.filter((p) => p.user).map((p) => [p.user.id, p]),
+    );
+    // A multi-role account's SELLER business shouldn't disappear from
+    // here just because a LATER role approval (agent/hub/transport) has
+    // since overwritten User.role — that field only ever holds one value
+    // at a time and says nothing about whether the seller side is still
+    // active. Approved-profile ownership is checked independently of
+    // whatever role currently happens to be primary.
+    const approvedUserIds = profiles
+      .filter((p) => p.status === SellerStatus.APPROVED && p.user)
+      .map((p) => p.user.id);
+
+    const qb = this.userRepo
       .createQueryBuilder('u')
       .select([
         'u.id',
@@ -81,7 +100,15 @@ export class SellerService {
         'u.reputationScore',
         'u.createdAt',
       ])
-      .where("u.role IN ('seller','admin','manager')")
+      .where(
+        new Brackets((sub) => {
+          sub.where("u.role IN ('seller','admin','manager')");
+          if (approvedUserIds.length > 0) {
+            sub.orWhere('u.id IN (:...approvedUserIds)', { approvedUserIds });
+          }
+        }),
+      );
+    const users = await qb
       .andWhere('u."storeName" IS NOT NULL')
       .andWhere('u."storeName" != \'\'')
       .orderBy('u.createdAt', 'DESC')
@@ -96,16 +123,6 @@ export class SellerService {
         .catch(() => []);
       followedIds = new Set(rows.map((r) => r.sellerId));
     }
-
-    // Optional enrichment — a formal SellerProfile application isn't
-    // required to show up here, but if one exists we layer on its extra
-    // fields (business category/city/district/region).
-    const profiles = await this.profileRepo
-      .find({ relations: { user: true } })
-      .catch(() => [] as SellerProfile[]);
-    const profileByUserId = new Map(
-      profiles.filter((p) => p.user).map((p) => [p.user.id, p]),
-    );
 
     return users.map((u) => {
       const p = profileByUserId.get(u.id);
