@@ -72,8 +72,14 @@ export class FeedController {
 
   // ── Business feed ─────────────────────────────────────────────────────────
   @Get('business/:id')
-  getBusinessFeed(@Param('id', ParseIntPipe) id: number) {
-    return this.svc.getBusinessFeed(id);
+  getBusinessFeed(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('commerceProfileId') commerceProfileId?: string,
+  ) {
+    return this.svc.getBusinessFeed(
+      id,
+      commerceProfileId ? Number(commerceProfileId) : undefined,
+    );
   }
 
   // ── Publish post ──────────────────────────────────────────────────────────

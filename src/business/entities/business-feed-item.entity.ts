@@ -35,6 +35,17 @@ export class BusinessFeedItem {
   @Column({ type: 'int' })
   businessId: number;
 
+  // Which specific CommerceProfile this post was published AS — plain
+  // nullable id (not a relation, matching CommerceProfile's own pattern
+  // of avoiding import-time coupling between modules). Null on every post
+  // that predates profile-switching; old posts are never retagged, they
+  // just don't have a specific profile to diverge into. Going forward,
+  // every new post attributes to whichever profile was active when it
+  // was published — Kened's personal posts and Bishoo Intelligence
+  // Systems' posts stop being the same feed the moment this is set.
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
   @Column({ type: 'enum', enum: FeedItemType })
   type: FeedItemType;
 

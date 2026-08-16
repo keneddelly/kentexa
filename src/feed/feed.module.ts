@@ -28,6 +28,7 @@ import {
 } from './comment-support.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AiModule } from '../ai/ai.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AiModule } from '../ai/ai.module';
     ]),
     NotificationsModule,
     AiModule,
+    CommerceProfilesModule,
   ],
   controllers: [FeedController, EngagementsController, CommentsController],
   providers: [

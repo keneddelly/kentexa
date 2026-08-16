@@ -2,7 +2,7 @@
  * FeedService — Commerce feed with CVS algorithm
  * Place at: src/feed/feed.service.ts
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
@@ -16,6 +16,7 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { User } from '../users/entities/user.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 
 export type FeedFilter =
   | 'for_you'
@@ -42,6 +43,7 @@ export class FeedService {
     private classifiedRepo: Repository<Classified>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
     private readonly notifService: InAppNotificationService,
+    private readonly commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Publish a post ────────────────────────────────────────────────────────
@@ -57,11 +59,31 @@ export class FeedService {
       ctaLabel?: string;
       expiresAt?: string;
       category?: string;
+      commerceProfileId?: number;
     },
   ): Promise<BusinessFeedItem> {
+    // Attributes the post to whichever profile was active when it was
+    // published, so Kened's personal posts and Bishoo Intelligence
+    // Systems' posts stop sharing one feed. Ownership-checked here rather
+    // than trusted from the client — ownership is all that's checked for
+    // now (no delegated posting via CommerceProfileMember yet).
+    let commerceProfileId: number | null = null;
+    if (dto.commerceProfileId) {
+      const profile = await this.commerceProfiles.findById(
+        dto.commerceProfileId,
+      );
+      if (profile.ownerId !== sellerId) {
+        throw new ForbiddenException(
+          'You do not manage this commerce profile',
+        );
+      }
+      commerceProfileId = profile.id;
+    }
+
     const item = await this.feedRepo.save(
       this.feedRepo.create({
         businessId: sellerId,
+        commerceProfileId,
         type: dto.type as any,
         title: dto.title,
         body: dto.body || null,
@@ -612,9 +634,21 @@ export class FeedService {
   }
 
   // ── Business feed (for profile page) ─────────────────────────────────────
-  async getBusinessFeed(sellerId: number): Promise<BusinessFeedItem[]> {
+  // When commerceProfileId is given, scopes to posts published as THAT
+  // profile, plus any pre-existing untagged posts (commerceProfileId
+  // null) — old posts never disappear, they just aren't scoped to one
+  // profile the way anything published after this feature is.
+  async getBusinessFeed(
+    sellerId: number,
+    commerceProfileId?: number,
+  ): Promise<BusinessFeedItem[]> {
     return this.feedRepo.find({
-      where: { businessId: sellerId, isActive: true },
+      where: commerceProfileId
+        ? [
+            { businessId: sellerId, isActive: true, commerceProfileId },
+            { businessId: sellerId, isActive: true, commerceProfileId: IsNull() },
+          ]
+        : { businessId: sellerId, isActive: true },
       order: { cvsScore: 'DESC', createdAt: 'DESC' },
       take: 20,
     });
