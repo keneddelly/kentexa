@@ -1,12 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import {
   CommerceProfile,
   CommerceProfileType,
   CommerceProfileStatus,
 } from './entities/commerce-profile.entity';
 import { CommerceProfileFollow } from './entities/commerce-profile-follow.entity';
+import { CommerceProfileMember } from './entities/commerce-profile-member.entity';
+import { User } from '../users/entities/user.entity';
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -31,6 +33,10 @@ export class CommerceProfilesService {
     private repo: Repository<CommerceProfile>,
     @InjectRepository(CommerceProfileFollow)
     private followRepo: Repository<CommerceProfileFollow>,
+    @InjectRepository(CommerceProfileMember)
+    private memberRepo: Repository<CommerceProfileMember>,
+    @InjectRepository(User)
+    private userRepo: Repository<User>,
   ) {}
 
   // Slugifies `seed` and appends a numeric suffix until it's free. Never
@@ -80,6 +86,29 @@ export class CommerceProfilesService {
       where: { ownerId },
       order: { createdAt: 'ASC' },
     });
+  }
+
+  // Every profile a user can ACT AS — their own, plus any profile they're
+  // an active CommerceProfileMember of. This is what the profile switcher
+  // uses (GET /profiles/mine): a hub's staff needs to see and switch into
+  // that hub even though they don't own it. findForUser() above stays
+  // owned-only — it backs public "which profiles does this account run"
+  // lookups where membership shouldn't leak.
+  async findAccessibleForUser(userId: number): Promise<CommerceProfile[]> {
+    const owned = await this.findForUser(userId);
+    const memberships = await this.memberRepo.find({
+      where: { userId, isActive: true },
+    });
+    const memberProfileIds = memberships
+      .map((m) => m.commerceProfileId)
+      .filter((id) => !owned.some((p) => p.id === id));
+    if (memberProfileIds.length === 0) return owned;
+    const memberProfiles = await this.repo.find({
+      where: { id: In(memberProfileIds) },
+    });
+    return [...owned, ...memberProfiles].sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
+    );
   }
 
   async findForUserByType(
@@ -188,6 +217,75 @@ export class CommerceProfilesService {
     }
     const profile = await this.findById(commerceProfileId);
     return { following: !existing, followersCount: profile.followersCount };
+  }
+
+  // ── Team management ────────────────────────────────────────────────────
+  // Direct generalization of SellerService's getTeamMembers/inviteTeamMember/
+  // updateTeamMember/removeTeamMember (src/seller/seller.service.ts) — same
+  // shape, keyed by commerceProfileId instead of sellerId so it works for
+  // any profile type (hub staff, transport company staff), not just sellers.
+  async getMembers(commerceProfileId: number): Promise<CommerceProfileMember[]> {
+    return this.memberRepo.find({
+      where: { commerceProfileId, isActive: true },
+      relations: { user: true },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async inviteMember(
+    commerceProfileId: number,
+    dto: { phone: string; role: string; permissions: Record<string, boolean> },
+  ): Promise<CommerceProfileMember> {
+    const profile = await this.findById(commerceProfileId);
+    const user = await this.userRepo.findOne({ where: { phone: dto.phone } });
+    if (!user) {
+      throw new NotFoundException(
+        `No user found with phone ${dto.phone}. Ask them to register first.`,
+      );
+    }
+    if (user.id === profile.ownerId) {
+      throw new BadRequestException("You can't add yourself.");
+    }
+    const existing = await this.memberRepo.findOne({
+      where: { commerceProfileId, userId: user.id, isActive: true },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        'This person is already on the team.',
+      );
+    }
+    return this.memberRepo.save(
+      this.memberRepo.create({
+        commerceProfileId,
+        userId: user.id,
+        role: dto.role || 'staff',
+        permissions: dto.permissions || {},
+      }),
+    );
+  }
+
+  async updateMember(
+    commerceProfileId: number,
+    memberId: number,
+    dto: { role?: string; permissions?: Record<string, boolean>; isActive?: boolean },
+  ): Promise<CommerceProfileMember> {
+    const member = await this.memberRepo.findOne({
+      where: { id: memberId, commerceProfileId },
+    });
+    if (!member) throw new NotFoundException('Team member not found');
+    if (dto.role !== undefined) member.role = dto.role;
+    if (dto.permissions !== undefined) member.permissions = dto.permissions;
+    if (dto.isActive !== undefined) member.isActive = dto.isActive;
+    return this.memberRepo.save(member);
+  }
+
+  async removeMember(commerceProfileId: number, memberId: number): Promise<void> {
+    const member = await this.memberRepo.findOne({
+      where: { id: memberId, commerceProfileId },
+    });
+    if (!member) throw new NotFoundException('Team member not found');
+    member.isActive = false;
+    await this.memberRepo.save(member);
   }
 
   async updatePublicFields(

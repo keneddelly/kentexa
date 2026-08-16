@@ -10,6 +10,7 @@ import { Agent } from '../agents/entities/agent.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { CommerceProfilesService } from './commerce-profiles.service';
 import { CommerceProfilesBackfillService } from './commerce-profiles-backfill.service';
+import { CommerceProfileScopeService } from './commerce-profile-scope.service';
 import { CommerceProfilesController } from './commerce-profiles.controller';
 
 @Module({
@@ -26,7 +27,11 @@ import { CommerceProfilesController } from './commerce-profiles.controller';
     ]),
   ],
   controllers: [CommerceProfilesController],
-  providers: [CommerceProfilesService, CommerceProfilesBackfillService],
-  exports: [CommerceProfilesService],
+  providers: [
+    CommerceProfilesService,
+    CommerceProfilesBackfillService,
+    CommerceProfileScopeService,
+  ],
+  exports: [CommerceProfilesService, CommerceProfileScopeService],
 })
 export class CommerceProfilesModule {}

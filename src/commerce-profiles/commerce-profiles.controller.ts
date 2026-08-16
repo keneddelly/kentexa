@@ -3,6 +3,7 @@ import {
   Get,
   Patch,
   Post,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -17,12 +18,14 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { CommerceProfilesService } from './commerce-profiles.service';
 import { CommerceProfilesBackfillService } from './commerce-profiles-backfill.service';
+import { CommerceProfileScopeService } from './commerce-profile-scope.service';
 
 @Controller('profiles')
 export class CommerceProfilesController {
   constructor(
     private service: CommerceProfilesService,
     private backfill: CommerceProfilesBackfillService,
+    private scope: CommerceProfileScopeService,
   ) {}
 
   // Public — the future `/@username` route resolves through this.
@@ -41,10 +44,13 @@ export class CommerceProfilesController {
     return this.service.findForUser(userId);
   }
 
+  // Every profile the caller can ACT AS — owned, plus any they're an
+  // active team member of. Backs the profile switcher (Stage 2): a hub's
+  // staff needs to see and switch into that hub even without owning it.
   @Get('mine')
   @UseGuards(JwtAuthGuard)
   getMine(@Request() req) {
-    return this.service.findForUser(req.user.id);
+    return this.service.findAccessibleForUser(req.user.id);
   }
 
   @Get(':id')
@@ -88,6 +94,54 @@ export class CommerceProfilesController {
       throw new ForbiddenException('You do not manage this profile');
     }
     return this.service.updatePublicFields(id, dto);
+  }
+
+  // ── Team management ────────────────────────────────────────────────────
+  // Direct generalization of /seller/team/* (src/seller/seller.controller.ts)
+  // — same shape, scoped to any profile id instead of always resolving the
+  // caller's own seller business. Every action requires 'canManageTeam' for
+  // THIS profile specifically (ownership always satisfies it, per
+  // CommerceProfileScopeService).
+  @Get(':id/members')
+  @UseGuards(JwtAuthGuard)
+  async getMembers(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    await this.scope.requireAuthorized(req.user.id, id, 'canManageTeam');
+    return this.service.getMembers(id);
+  }
+
+  @Post(':id/members/invite')
+  @UseGuards(JwtAuthGuard)
+  async inviteMember(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { phone: string; role: string; permissions: Record<string, boolean> },
+  ) {
+    await this.scope.requireAuthorized(req.user.id, id, 'canManageTeam');
+    return this.service.inviteMember(id, dto);
+  }
+
+  @Patch(':id/members/:memberId')
+  @UseGuards(JwtAuthGuard)
+  async updateMember(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('memberId', ParseIntPipe) memberId: number,
+    @Body() dto: { role?: string; permissions?: Record<string, boolean>; isActive?: boolean },
+  ) {
+    await this.scope.requireAuthorized(req.user.id, id, 'canManageTeam');
+    return this.service.updateMember(id, memberId, dto);
+  }
+
+  @Delete(':id/members/:memberId')
+  @UseGuards(JwtAuthGuard)
+  async removeMember(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('memberId', ParseIntPipe) memberId: number,
+  ) {
+    await this.scope.requireAuthorized(req.user.id, id, 'canManageTeam');
+    await this.service.removeMember(id, memberId);
+    return { success: true };
   }
 
   // Admin-only, one-time (idempotent — safe to re-run): creates the

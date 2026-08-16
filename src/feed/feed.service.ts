@@ -16,7 +16,7 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { User } from '../users/entities/user.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
-import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 
 export type FeedFilter =
   | 'for_you'
@@ -43,7 +43,7 @@ export class FeedService {
     private classifiedRepo: Repository<Classified>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
     private readonly notifService: InAppNotificationService,
-    private readonly commerceProfiles: CommerceProfilesService,
+    private readonly profileScope: CommerceProfileScopeService,
   ) {}
 
   // ── Publish a post ────────────────────────────────────────────────────────
@@ -64,20 +64,23 @@ export class FeedService {
   ): Promise<BusinessFeedItem> {
     // Attributes the post to whichever profile was active when it was
     // published, so Kened's personal posts and Bishoo Intelligence
-    // Systems' posts stop sharing one feed. Ownership-checked here rather
-    // than trusted from the client — ownership is all that's checked for
-    // now (no delegated posting via CommerceProfileMember yet).
+    // Systems' posts stop sharing one feed. Authorization is never
+    // trusted from the client — owner or an active team member with
+    // canManageProducts (posting on a business's behalf is presentation,
+    // the same bucket product listings live in).
     let commerceProfileId: number | null = null;
     if (dto.commerceProfileId) {
-      const profile = await this.commerceProfiles.findById(
+      const authorized = await this.profileScope.isAuthorizedFor(
+        sellerId,
         dto.commerceProfileId,
+        'canManageProducts',
       );
-      if (profile.ownerId !== sellerId) {
+      if (!authorized) {
         throw new ForbiddenException(
           'You do not manage this commerce profile',
         );
       }
-      commerceProfileId = profile.id;
+      commerceProfileId = dto.commerceProfileId;
     }
 
     const item = await this.feedRepo.save(
