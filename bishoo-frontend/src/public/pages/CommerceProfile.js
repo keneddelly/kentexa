@@ -398,6 +398,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const tier      = getTier(score);
   const profileTabs = tabs(activeProfile.type, isOwnProfile, t);
 
+  // `profile` comes from GET /seller/public/:uid — a SELLER/business-shaped
+  // payload (storeDescription, businessLocation, storeWhatsApp, isOfficialStore,
+  // completedOrders). It belongs to the account's BUSINESS identity only, and
+  // must never backfill header/about fields for any other profile type — doing
+  // so leaks the business's bio/location/verified-badge/sales count onto that
+  // same account's personal (or agent/hub/transport) profile, which is the
+  // exact "roles bleeding into public identity" bug this whole redesign exists
+  // to prevent. Below, `profile?.X` is only ever read behind this guard.
+  const isBusinessProfile = activeProfile.type === 'business';
+
   // Everything the header shows comes from activeProfile — the ONE
   // profile this page is for — never from role state or from whichever
   // tab happens to be selected. A visitor to a business page sees that
@@ -446,7 +456,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       {/* Cover */}
       <div style={{ position:'relative' }}>
         <div style={{ height:140, overflow:'hidden',
-          background: (activeProfile.coverImage || profile?.coverImage)
+          background: (activeProfile.coverImage || (isBusinessProfile && profile?.coverImage))
             ? `url(${activeProfile.coverImage || profile.coverImage}) center/cover`
             : 'linear-gradient(135deg,#1e1b4b,#1d4ed8)' }} />
 
@@ -494,7 +504,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
                 {t('commerce_profile.message_button')}
               </button>
-              {(profile?.storeWhatsApp || profile?.phone) && (
+              {isBusinessProfile && (profile?.storeWhatsApp || profile?.phone) && (
                 <a href={`https://wa.me/${(profile.storeWhatsApp||profile.phone).replace(/^0/,'255').replace(/[^0-9]/g,'')}`}
                   target="_blank" rel="noreferrer"
                   style={{ backgroundColor:'#dcfce7', color:'#16a34a',
@@ -519,7 +529,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <h1 style={{ fontSize:20, fontWeight:900, color:DK, margin:0 }}>
             {displayName || t('commerce_profile.default_name')}
           </h1>
-          {(activeProfile.isVerified || profile?.isOfficialStore) && (
+          {(activeProfile.isVerified || (isBusinessProfile && profile?.isOfficialStore)) && (
             <span style={{ fontSize:16 }} title={t('commerce_profile.verified_title')}>✅</span>
           )}
           <ReputationBadge score={score} size="sm" />
@@ -531,7 +541,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             label. A visitor to a business page sees that business; a
             visitor to a personal page sees a person — never both, and
             never a hint of what else the owner runs on the side. */}
-        {(displayHandle || activeProfile.location || profile?.businessLocation) && (
+        {(displayHandle || activeProfile.location || (isBusinessProfile && profile?.businessLocation)) && (
           <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', marginBottom:8 }}>
             {displayHandle && (
               <div style={{ fontSize:12, fontWeight:800, color:DK,
@@ -539,28 +549,47 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 {displayHandle}
               </div>
             )}
-            {(activeProfile.location || profile?.businessLocation) && (
+            {(activeProfile.location || (isBusinessProfile && profile?.businessLocation)) && (
               <span style={{ fontSize:11, color:GR }}>📍 {activeProfile.location || profile.businessLocation}</span>
             )}
           </div>
         )}
 
         {/* Bio */}
-        {(activeProfile.bio || profile?.storeDescription) && (
+        {(activeProfile.bio || (isBusinessProfile && profile?.storeDescription)) && (
           <p style={{ fontSize:13, color:'#475569', margin:'0 0 10px',
             lineHeight:1.5 }}>
             {activeProfile.bio || profile.storeDescription}
           </p>
         )}
 
-        {/* Stats */}
+        {/* Stats — Sales (profile.completedOrders) and Rating
+            (activeProfile.rating) only ever hold real numbers for the
+            business type: Sales comes from the seller/business payload,
+            and only submitReview()/addReview() stamp commerceProfileId
+            for BUSINESS profiles, so every other type's `rating` is
+            permanently 0. Showing them elsewhere is either a straight
+            leak of the account's business numbers onto a different
+            identity (personal, worst case) or a dead "0.0" stat that
+            duplicates what agent/hub/transport already show in their own
+            tab (deliveries completed, parcels handled, etc.). Followers
+            and Reputation (account-level trust) are the only two that
+            genuinely apply to every type. */}
         <div style={{ display:'flex', borderTop:'1px solid #f1f5f9',
           marginTop:8 }}>
-          <Stat value={fmtM(profile?.completedOrders||0)} label={t('commerce_profile.stat_sales')} />
-          <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
+          {isBusinessProfile && (
+            <>
+              <Stat value={fmtM(profile?.completedOrders||0)} label={t('commerce_profile.stat_sales')} />
+              <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
+            </>
+          )}
           <Stat value={fmtM(activeProfile.followersCount||0)} label={t('commerce_profile.stat_followers')} />
-          <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
-          <Stat value={Number(activeProfile.rating||0).toFixed(1)} label={t('commerce_profile.stat_rating')} />
+          {isBusinessProfile && (
+            <>
+              <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
+              <Stat value={Number(activeProfile.rating||0).toFixed(1)} label={t('commerce_profile.stat_rating')} />
+            </>
+          )}
           <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
           <Stat value={score} label={t('commerce_profile.stat_reputation')} />
         </div>
@@ -1199,21 +1228,25 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         })()}
 
         {/* About — bio plus a compact facts block. Same shape across
-            Business/Service Provider/Agent; only the facts that actually
-            exist for this profile render, so it never shows empty rows. */}
+            Business/Service Provider/Agent/Personal; only the facts that
+            actually exist for THIS profile render (profile?.X only ever
+            applies to the business type — see isBusinessProfile above),
+            so a personal or agent profile's About never shows the
+            account's business location/contact/verification instead of
+            its own. */}
         {tab==='about' && (() => {
           const facts = [
-            (activeProfile.location || profile?.businessLocation) &&
+            (activeProfile.location || (isBusinessProfile && profile?.businessLocation)) &&
               [t('commerce_profile.about_location'), activeProfile.location || profile.businessLocation],
-            (profile?.storeWhatsApp || profile?.phone) &&
+            (isBusinessProfile && (profile?.storeWhatsApp || profile?.phone)) &&
               [t('commerce_profile.about_contact'), profile.storeWhatsApp || profile.phone],
             activeProfile.category && [t('commerce_profile.about_category'), activeProfile.category],
             [t('commerce_profile.about_verified'),
-              (activeProfile.isVerified || profile?.isOfficialStore)
+              (activeProfile.isVerified || (isBusinessProfile && profile?.isOfficialStore))
                 ? t('commerce_profile.about_verified_yes')
                 : t('commerce_profile.about_verified_no')],
           ].filter(Boolean);
-          const bio = activeProfile.bio || profile?.storeDescription;
+          const bio = activeProfile.bio || (isBusinessProfile && profile?.storeDescription);
           return (
             <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
               boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
