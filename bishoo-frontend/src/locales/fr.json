@@ -3966,6 +3966,7 @@
     "no_orders_in_group": "Aucune commande dans ce groupe"
   },
   "seller_team": {
+    "no_active_profile": "Passez à un profil entreprise, hub, transport ou agent pour gérer son équipe.",
     "role_sales": "🛒 Ventes",
     "role_sales_desc": "Peut voir et créer des commandes",
     "role_support": "💬 Support client",

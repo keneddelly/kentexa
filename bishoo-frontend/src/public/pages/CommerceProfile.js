@@ -67,18 +67,21 @@ const RoleActions = ({ role, onNavigate }) => {
       {icon:'💰',label:t('commerce_profile.action_earnings'),     page:'AgentEarnings',    bg:'#f0fdf4', color:'#16a34a'},
       {icon:'📊',label:t('commerce_profile.action_scorecard'),  page:'AgentScorecard',   bg:'#eff6ff', color:B},
       {icon:'📦',label:t('commerce_profile.action_parcels'),  page:'AgentDashboard',   bg:'#fff7ed', color:'#ea580c'},
+      {icon:'👥',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
     ],
     super_agent: [
       {icon:'🏢',label:t('commerce_profile.action_my_hub'),  page:'SuperAgentDashboard',bg:'#f5f3ff',color:'#7c3aed'},
       {icon:'📦',label:t('commerce_profile.action_parcels'),  page:'SuperAgentDashboard',bg:'#eff6ff',color:B},
       {icon:'🚌',label:t('commerce_profile.action_transport'),    page:'SuperAgentDashboard',bg:'#fff7ed',color:'#ea580c'},
       {icon:'📊',label:t('commerce_profile.action_analytics'),  page:'SuperAgentDashboard',bg:'#f0fdf4',color:'#16a34a'},
+      {icon:'👥',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
     ],
     transport_provider: [
       {icon:'🚌',label:t('commerce_profile.action_my_routes'),page:'TransportProviderDashboard',bg:'#fff7ed',color:'#ea580c'},
       {icon:'📅',label:t('commerce_profile.action_availability'),page:'TransportProviderDashboard',bg:'#f0fdf4',color:'#16a34a'},
       {icon:'📦',label:t('commerce_profile.action_orders'),    page:'TransportProviderDashboard',bg:'#eff6ff',color:B},
       {icon:'🗺️',label:t('commerce_profile.action_my_routes'), page:'RouteCoverageMap',          bg:'#f5f3ff',color:'#7c3aed'},
+      {icon:'👥',label:t('commerce_profile.action_team'),       page:'SellerTeam',       bg:'#f0f9ff', color:'#0284c7'},
     ],
   };
 

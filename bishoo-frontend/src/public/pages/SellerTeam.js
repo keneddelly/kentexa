@@ -40,7 +40,7 @@ const inp = {
   boxSizing:'border-box', outline:'none', fontFamily:'inherit',
 };
 
-const SellerTeam = ({ onNavigate }) => {
+const SellerTeam = ({ onNavigate, activeProfile, activeProfileId }) => {
   const { t } = useTranslation();
   const ROLES = getRoles(t);
   const PERMS = getPerms(t);
@@ -54,16 +54,23 @@ const SellerTeam = ({ onNavigate }) => {
     phone: '', role: 'sales', permissions: { ...ROLE_DEFAULTS.sales },
   });
 
+  // Team management is generalized to whichever profile is currently
+  // active — a business, hub, transport company, or agent identity — not
+  // just sellers, via the profile-scoped /profiles/:id/members endpoints
+  // (CommerceProfileScopeService: ownership or an active member with
+  // canManageTeam). Requires having switched into a specific profile
+  // first (Stage 2's switcher).
   const fetchMembers = async () => {
+    if (!activeProfileId) { setLoading(false); return; }
     try {
       setLoading(true);
-      const res = await api.get('/seller/team');
+      const res = await api.get(`/profiles/${activeProfileId}/members`);
       setMembers(res.data || []);
     } catch { setMembers([]); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchMembers(); }, []);
+  useEffect(() => { fetchMembers(); }, [activeProfileId]); // eslint-disable-line
 
   const setRole = (role) => {
     setForm(f => ({ ...f, role, permissions: { ...(ROLE_DEFAULTS[role] || {}) } }));
@@ -77,7 +84,7 @@ const SellerTeam = ({ onNavigate }) => {
     if (!form.phone.trim()) return setError(t('seller_team.phone_required'));
     try {
       setSaving(true); setError('');
-      await api.post('/seller/team/invite', form);
+      await api.post(`/profiles/${activeProfileId}/members/invite`, form);
       setShowInvite(false);
       setForm({ phone: '', role: 'sales', permissions: { ...ROLE_DEFAULTS.sales } });
       fetchMembers();
@@ -89,21 +96,35 @@ const SellerTeam = ({ onNavigate }) => {
   const handleRemove = async (id, name) => {
     if (!window.confirm(t('seller_team.confirm_remove', { name }))) return;
     try {
-      await api.delete(`/seller/team/${id}`);
+      await api.delete(`/profiles/${activeProfileId}/members/${id}`);
       fetchMembers();
     } catch { alert(t('seller_team.remove_failed')); }
   };
 
   const handleToggleActive = async (id, current) => {
     try {
-      await api.patch(`/seller/team/${id}`, { isActive: !current });
+      await api.patch(`/profiles/${activeProfileId}/members/${id}`, { isActive: !current });
       fetchMembers();
     } catch { alert(t('seller_team.toggle_failed')); }
   };
 
+  if (!activeProfileId) return (
+    <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#f1f5f9' }}>
+      <BackBar onBack={() => onNavigate('back')} title={t('seller_team.page_title')} top={0} />
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
+        <div style={{ textAlign:'center', color:'#94a3b8' }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>👥</div>
+          <div>{t('seller_team.no_active_profile')}</div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ minHeight:'100vh', display:'flex', flexDirection:'column', backgroundColor:'#f1f5f9' }}>
-      <BackBar onBack={() => onNavigate('SellerDashboard')} title={t('seller_team.page_title')} top={0} />
+      <BackBar onBack={() => onNavigate('back')}
+        title={activeProfile ? `${t('seller_team.page_title')} · ${activeProfile.displayName}` : t('seller_team.page_title')}
+        top={0} />
 
       <div style={{ flex:1, padding:'16px 16px 40px', maxWidth:720,
         margin:'0 auto', width:'100%', boxSizing:'border-box' }}>

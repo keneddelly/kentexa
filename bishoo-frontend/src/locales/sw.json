@@ -3816,6 +3816,7 @@
     "no_orders_in_group": "Hakuna maagizo katika kikundi hiki"
   },
   "seller_team": {
+    "no_active_profile": "Badilisha kwenda wasifu wa biashara, hub, usafiri, au wakala ili kusimamia timu yake.",
     "role_sales": "🛒 Mauzo",
     "role_sales_desc": "Inaweza kuona na kuunda maagizo",
     "role_support": "💬 Msaada wa Wateja",

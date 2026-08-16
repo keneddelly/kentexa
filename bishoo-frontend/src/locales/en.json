@@ -3970,6 +3970,7 @@
     "no_orders_in_group": "No orders in this group"
   },
   "seller_team": {
+    "no_active_profile": "Switch to a business, hub, transport, or agent profile to manage its team.",
     "role_sales": "🛒 Sales",
     "role_sales_desc": "Can view and create orders",
     "role_support": "💬 Customer Support",
