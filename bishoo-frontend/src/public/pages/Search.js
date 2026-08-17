@@ -374,26 +374,64 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
 
     // People/business name match — uses the raw query, not the AI-extracted
     // keywords (that extraction is tuned for listing search, not names).
-    // Awaited up front so every exit path below can use its count for
-    // both the merged "all" total and the search-history log call.
-    const profileResults = rawQ
-      ? await api.get('/profiles/search', { params: { q: rawQ } }).then(r => r.data || []).catch(() => [])
-      : [];
-    setProfiles(profileResults);
+    // Runs alongside the meaning-based semantic search (GET /search/semantic)
+    // — catches matches keyword search structurally cannot, e.g. a query in
+    // one language against content in another, or a match that only exists
+    // in a business's bio rather than a listing's own title. Both are
+    // additive: they never replace or gate what keyword search already
+    // finds, only add what it would otherwise miss.
+    const [profileResults, semanticResults] = rawQ
+      ? await Promise.all([
+          api.get('/profiles/search', { params: { q: rawQ } }).then(r => r.data || []).catch(() => []),
+          api.get('/search/semantic', { params: { q: rawQ } }).then(r => r.data || []).catch(() => []),
+        ])
+      : [[], []];
+    const semanticByType = {
+      product:    semanticResults.filter(r => r._type === 'product'),
+      classified: semanticResults.filter(r => r._type === 'classified'),
+      service:    semanticResults.filter(r => r._type === 'service'),
+      profile:    semanticResults.filter(r => r._type === 'profile'),
+    };
+    const mergedProfiles = [
+      ...profileResults,
+      ...semanticByType.profile.filter(sp => !profileResults.some(p => p.id === sp.id)),
+    ];
+    setProfiles(mergedProfiles);
 
-    // finish() closes out every branch below: logs to search history, then
-    // fires the AI "explain what was found" call — the conversational layer
-    // on top of the plain result grid. Fire-and-forget: never blocks the
-    // results themselves from rendering, and if it fails/times out the
-    // summary banner simply never appears (search.controller.ts's /explain
-    // fails open the same way /intent already does).
+    // finish() closes out every branch below: merges in semantic-only
+    // extras for whatever this branch found, logs to search history, then
+    // fires the AI "explain what was found" call. Fire-and-forget: never
+    // blocks the results themselves from rendering, and if it fails/times
+    // out the summary banner simply never appears (search.controller.ts's
+    // /explain fails open the same way /intent already does).
     const finish = (otherResultCount, opts = {}) => {
-      const { topItems = [], domainCounts = {}, skipExplain = false } = opts;
+      const {
+        topItems = [], domainCounts = {}, skipExplain = false,
+        classifiedsList = [], productsList = [], servicesList = [],
+      } = opts;
+
+      const mergeSemantic = (list, type) => [
+        ...list,
+        ...semanticByType[type].filter(s => !list.some(x => x.id === s.id)),
+      ];
+      const finalClassifieds = mergeSemantic(classifiedsList, 'classified');
+      const finalProducts    = mergeSemantic(productsList, 'product');
+      const finalServices    = mergeSemantic(servicesList, 'service');
+      setClassifieds(finalClassifieds);
+      setProducts(finalProducts);
+      setServices(finalServices);
+      const semanticExtra =
+        (finalClassifieds.length - classifiedsList.length) +
+        (finalProducts.length - productsList.length) +
+        (finalServices.length - servicesList.length) +
+        (mergedProfiles.length - profileResults.length);
+
       setLoading(false);
       if (typeof track === 'function') {
-        trackSearch(track, rawQ, otherResultCount + profileResults.length, {
+        trackSearch(track, rawQ, otherResultCount + mergedProfiles.length + semanticExtra, {
           domain: intent?.domain ?? null,
-          profileMatches: profileResults.length,
+          profileMatches: mergedProfiles.length,
+          semanticMatches: semanticResults.length,
         });
       }
       setAiSummary(null);
@@ -401,7 +439,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       if (skipExplain || !rawQ) return;
       const allTopItems = [
         ...topItems,
-        ...profileResults.slice(0, 2).map(p => ({
+        ...mergedProfiles.slice(0, 2).map(p => ({
           type: 'profile', name: p.displayName,
           subtitle: (p.type || '').replace(/_/g, ' '),
         })),
@@ -411,7 +449,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         q: rawQ,
         resultSummary: {
           domain: intent?.domain ?? 'all',
-          counts: { ...domainCounts, people: profileResults.length },
+          counts: { ...domainCounts, people: mergedProfiles.length },
           topItems: allTopItems,
         },
       }).then(r => {
@@ -459,6 +497,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     let count = 0;
     const domainCounts = {};
     const topItems = [];
+    const lists = { classifieds: [], products: [], services: [] };
     try {
       const results = await Promise.allSettled(
         domains.map((d) => {
@@ -471,9 +510,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         const res = results[i];
         if (res.status !== 'fulfilled') return;
         let list = [];
-        if (d === 'classifieds') { list = res.value.data?.classifieds || res.value.data || []; setClassifieds(list); }
-        else if (d === 'products') { list = res.value.data?.products || res.value.data || []; setProducts(list); }
-        else { list = res.value.data?.ads || res.value.data || []; setServices(list); }
+        if (d === 'classifieds') list = res.value.data?.classifieds || res.value.data || [];
+        else if (d === 'products') list = res.value.data?.products || res.value.data || [];
+        else list = res.value.data?.ads || res.value.data || [];
+        lists[d] = list;
         count += list.length;
         domainCounts[d] = list.length;
         topItems.push(...list.slice(0, 2).map(item => ({
@@ -485,7 +525,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         })));
       });
     } catch {}
-    finish(count, { domainCounts, topItems: topItems.slice(0, 4) });
+    finish(count, {
+      domainCounts, topItems: topItems.slice(0, 4),
+      classifiedsList: lists.classifieds, productsList: lists.products, servicesList: lists.services,
+    });
   }, [query, track]);
 
   // Every search on this page goes through the AI query-understanding step
