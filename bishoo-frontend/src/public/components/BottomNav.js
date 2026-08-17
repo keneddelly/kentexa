@@ -2,11 +2,13 @@
  * BottomNav.js — Instagram-style 5-tab bottom navigation
  * Place at: src/public/components/BottomNav.js
  *
- * Tabs 1/2/4 (Home/Search/Activity by default) reconfigure per the
- * currently ACTIVE CommerceProfile's type — a business profile gets
- * Dashboard/Orders/Inbox, a hub gets Hub/Manifest/Settings, and so on.
- * Post(+) and Profile (tab 5, always the account hub where you switch
- * profiles) stay constant across every type.
+ * Tab 1 is always Home — a real-time feed of OTHER people's/businesses'
+ * content, reachable no matter which CommerceProfile is active. Tabs 2/4
+ * reconfigure per the currently ACTIVE profile's type (a business profile
+ * gets Orders/Inbox, a hub gets Manifest/Settings, and so on) — those are
+ * quick-access shortcuts to that identity's own management surfaces, not
+ * a replacement for discovery. Post(+) and Profile (tab 5, always the
+ * account hub where you switch profiles) stay constant across every type.
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,37 +44,48 @@ const PROFILE_TYPE_ICON = {
   transport_provider: '🚌', agent: '🏍️', service_provider: '🔧',
 };
 
-// Per-profile-type tab set for positions 1/2/4. `home`/`activity` reuse
-// isLoggedIn-gating the way the original Home/Activity tabs did (always
-// reachable once logged in, since these pages all require an active
-// profile of the matching type to mean anything).
-const TYPE_TABS = (t) => ({
-  personal: {
-    first:  { page: 'Home',     icon: HomeIcon,             label: t('nav.home') },
-    second: { page: 'Search',   icon: SearchIcon,           label: t('common.search') },
-    fourth: { page: 'Activity', icon: ActivityIcon,         label: t('bottom_nav.activity') },
-  },
-  business: {
-    first:  { page: 'SellerDashboard', icon: emojiIcon('📊'), label: t('bottom_nav.dashboard') },
-    second: { page: 'SellerOrders',    icon: emojiIcon('📦'), label: t('bottom_nav.orders') },
-    fourth: { page: 'SellerInbox',     icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
-  },
-  hub: {
-    first:  { page: 'SuperAgentDashboard', icon: emojiIcon('🏢'), label: t('bottom_nav.hub') },
-    second: { page: 'DispatcherManifest',  icon: emojiIcon('📋'), label: t('bottom_nav.manifest') },
-    fourth: { page: 'SuperAgentSettings',  icon: emojiIcon('⚙️'), label: t('bottom_nav.settings') },
-  },
-  transport_provider: {
-    first:  { page: 'TransportProviderDashboard', icon: emojiIcon('🚌'), label: t('bottom_nav.dashboard') },
-    second: { page: 'RouteCoverageMap',            icon: emojiIcon('🗺️'), label: t('bottom_nav.routes') },
-    fourth: { page: 'Search',                      icon: SearchIcon,      label: t('common.search') },
-  },
-  agent: {
-    first:  { page: 'AgentDashboard',  icon: emojiIcon('🏍️'), label: t('bottom_nav.dashboard') },
-    second: { page: 'AgentScorecard',  icon: emojiIcon('📊'), label: t('bottom_nav.scorecard') },
-    fourth: { page: 'AgentEarnings',   icon: emojiIcon('💰'), label: t('bottom_nav.earnings') },
-  },
-});
+// Position 1 is fixed to Home for every type — see file header. Positions
+// 2/4 reconfigure per the currently ACTIVE CommerceProfile's type.
+const TYPE_TABS = (t) => {
+  const first = { page: 'Home', icon: HomeIcon, label: t('nav.home') };
+  return {
+    personal: {
+      first,
+      second: { page: 'Search',   icon: SearchIcon,   label: t('common.search') },
+      fourth: { page: 'Activity', icon: ActivityIcon, label: t('bottom_nav.activity') },
+    },
+    business: {
+      first,
+      second: { page: 'SellerOrders', icon: emojiIcon('📦'), label: t('bottom_nav.orders') },
+      fourth: { page: 'SellerInbox',  icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
+    },
+    hub: {
+      first,
+      second: { page: 'DispatcherManifest', icon: emojiIcon('📋'), label: t('bottom_nav.manifest') },
+      fourth: { page: 'SuperAgentSettings', icon: emojiIcon('⚙️'), label: t('bottom_nav.settings') },
+    },
+    transport_provider: {
+      first,
+      second: { page: 'RouteCoverageMap', icon: emojiIcon('🗺️'), label: t('bottom_nav.routes') },
+      fourth: { page: 'Search',           icon: SearchIcon,      label: t('common.search') },
+    },
+    agent: {
+      first,
+      second: { page: 'AgentScorecard', icon: emojiIcon('📊'), label: t('bottom_nav.scorecard') },
+      fourth: { page: 'AgentEarnings',  icon: emojiIcon('💰'), label: t('bottom_nav.earnings') },
+    },
+    // No dedicated service-provider dashboard/inbox page exists yet (no
+    // operational entity behind this type — see services.service.ts) —
+    // MyServices (manage own ads) covers the one thing that's actually
+    // theirs to manage; Activity mirrors personal rather than inventing a
+    // settings page that doesn't exist.
+    service_provider: {
+      first,
+      second: { page: 'MyServices', icon: emojiIcon('🔧'), label: t('bottom_nav.my_services') },
+      fourth: { page: 'Activity',   icon: ActivityIcon,    label: t('bottom_nav.activity') },
+    },
+  };
+};
 
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,
   activeProfile, onOpenSwitcher, myProfiles }) => {

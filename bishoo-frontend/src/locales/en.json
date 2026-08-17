@@ -650,7 +650,8 @@
     "settings": "Settings",
     "routes": "Routes",
     "scorecard": "Scorecard",
-    "earnings": "Earnings"
+    "earnings": "Earnings",
+    "my_services": "My Services"
   },
   "profile_switcher": {
     "title": "Switch profile",
@@ -816,6 +817,7 @@
     "front_door_placeholder": "What can we help you find?",
     "front_door_button": "Search",
     "tab_transport": "🚚 Transport",
+    "tab_people": "👤 People & Businesses",
     "transport_contact_button": "Contact",
     "transport_no_contact": "No contact info available",
     "transport_needs_cities_title": "Tell us where from and where to",

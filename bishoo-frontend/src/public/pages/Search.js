@@ -16,6 +16,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import WishlistHeart from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
+import { trackSearch } from '../hooks/useAnalytics';
 import api           from '../../api/api';
 
 const B  = '#2563EB';
@@ -45,6 +46,7 @@ const getTabs = t => [
   { key:'products',   label:t('search.tab_products')    },
   { key:'services',   label:t('search.tab_services')     },
   { key:'transport',  label:t('search.tab_transport')    },
+  { key:'people',     label:t('search.tab_people')       },
 ];
 
 // ── Classified card ───────────────────────────────────────────────────────────
@@ -170,6 +172,44 @@ const TransportCard = ({ item, isLoggedIn, onNavigate }) => {
   );
 };
 
+// ── Profile card (people/business search results) ──────────────────────────
+// Distinct from SellerCard below (which reads the legacy `/seller/public/all`
+// shape for the featured-sellers strip) — this reads an actual CommerceProfile
+// row from GET /profiles/search, so it works for ANY profile type a name
+// search can match, not just sellers.
+const PROFILE_TYPE_ICON = {
+  personal: '👤', business: '🏪', hub: '🏢',
+  transport_provider: '🚌', agent: '🏍️', service_provider: '🔧',
+};
+const ProfileResultCard = ({ item, onNavigate }) => {
+  const { t } = useTranslation();
+  return (
+    <div onClick={() => onNavigate(`CommerceProfile-${item.ownerId}`, { commerceProfileId: item.id })}
+      style={{ backgroundColor:WH, borderRadius:14, padding:14,
+        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer',
+        display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
+      <div style={{ width:52, height:52, borderRadius:16, overflow:'hidden',
+        backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
+        justifyContent:'center', fontSize:22, marginBottom:8 }}>
+        {item.photoUrl
+          ? <img src={item.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          : (PROFILE_TYPE_ICON[item.type] || '👤')}
+      </div>
+      <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:2,
+        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%' }}>
+        {item.displayName}{item.isVerified ? ' ✅' : ''}
+      </div>
+      <div style={{ fontSize:10, color:GR, textTransform:'capitalize', marginBottom:6 }}>
+        {(item.type||'').replace(/_/g,' ')}
+      </div>
+      <div style={{ fontSize:10, color:GR }}>
+        {fmt(item.followersCount||0)} {t('commerce_profile.stat_followers')}
+        {Number(item.rating||0) > 0 ? ` · ⭐ ${Number(item.rating).toFixed(1)}` : ''}
+      </div>
+    </div>
+  );
+};
+
 // ── Seller card ───────────────────────────────────────────────────────────────
 const SellerCard = ({ seller, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
@@ -252,9 +292,9 @@ const Section = ({ title, sub, action, onAction, children, hscroll }) => (
 );
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', all: 'all' };
+const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', people: 'people', all: 'all' };
 
-const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIntent }) => {
+const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIntent, track }) => {
   const { t } = useTranslation();
   const CATEGORIES = getCategories(t);
   const TABS = getTabs(t);
@@ -268,6 +308,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   const [products,    setProducts]    = useState([]);
   const [services,    setServices]    = useState([]);
   const [transports,  setTransports]  = useState([]);
+  const [profiles,    setProfiles]    = useState([]);
   const [transportNeedsCities, setTransportNeedsCities] = useState(false);
 
   // Featured / discover content (auto-loaded)
@@ -304,30 +345,15 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     inputRef.current?.focus();
   }, [initialQuery]); // eslint-disable-line
 
-  const handleSearch = useCallback(async (q) => {
-    const trimmed = (q || query).trim();
-    if (!trimmed) return;
-    setLoading(true);
-    setSearched(true);
-    setTab('all');
-    try {
-      const params = new URLSearchParams({ q: trimmed, limit: '20' });
-      const [cRes, pRes, sRes] = await Promise.allSettled([
-        api.get(`/classifieds/search?${params}`),
-        api.get(`/products/search?${params}`),
-        api.get(`/services/search?q=${encodeURIComponent(trimmed)}`),
-      ]);
-      if (cRes.status === 'fulfilled') setClassifieds(cRes.value.data?.classifieds || cRes.value.data || []);
-      if (pRes.status === 'fulfilled') setProducts(pRes.value.data?.products || pRes.value.data || []);
-      if (sRes.status === 'fulfilled') setServices(sRes.value.data || []);
-    } catch {}
-    finally { setLoading(false); }
-  }, [query]);
-
   // ── AI-routed search — one domain (or all, filtered) instead of three
-  // blind unfiltered calls. `intent` comes from GET /search/intent. ────────
+  // blind unfiltered calls, PLUS an unconditional people/profile lookup so
+  // a name match is never dropped just because the AI guessed the wrong
+  // domain. `intent` comes from GET /search/intent, reached either via
+  // handleSearch below (every query typed on this page) or the homepage's
+  // AiSearchBar handoff (see the mount effect further down). ─────────────
   const handleAiSearch = useCallback(async (q, intent) => {
     const trimmed = (intent?.keywords || q || query).trim();
+    const rawQ    = (q || query).trim();
     const tabForDomain = AI_DOMAIN_TO_TAB[intent?.domain] || 'all';
     setLoading(true);
     setSearched(true);
@@ -336,7 +362,27 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     setProducts([]);
     setServices([]);
     setTransports([]);
+    setProfiles([]);
     setTransportNeedsCities(false);
+
+    // People/business name match — uses the raw query, not the AI-extracted
+    // keywords (that extraction is tuned for listing search, not names).
+    // Awaited up front so every exit path below can use its count for
+    // both the merged "all" total and the search-history log call.
+    const profileResults = rawQ
+      ? await api.get('/profiles/search', { params: { q: rawQ } }).then(r => r.data || []).catch(() => [])
+      : [];
+    setProfiles(profileResults);
+
+    const finish = (otherResultCount) => {
+      setLoading(false);
+      if (typeof track === 'function') {
+        trackSearch(track, rawQ, otherResultCount + profileResults.length, {
+          domain: intent?.domain ?? null,
+          profileMatches: profileResults.length,
+        });
+      }
+    };
 
     // Transport is structured (from/to city), not a free-text match, so it
     // never joins the "all" fan-out below — it only fires when the AI is
@@ -344,7 +390,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     if (tabForDomain === 'transport') {
       if (!intent?.fromCity || !intent?.toCity) {
         setTransportNeedsCities(true);
-        setLoading(false);
+        finish(0);
         return;
       }
       try {
@@ -352,18 +398,23 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
           params: { from: intent.fromCity, to: intent.toCity },
         });
         setTransports(res.data || []);
-      } catch {}
-      finally { setLoading(false); }
+        finish((res.data || []).length);
+      } catch { finish(0); }
       return;
     }
 
-    if (!trimmed) { setLoading(false); return; }
+    // People is likewise a dedicated single-source domain — the fetch
+    // above already covers it, nothing further to fan out to.
+    if (tabForDomain === 'people') { finish(0); return; }
+
+    if (!trimmed) { finish(0); return; }
     const params = new URLSearchParams({ q: trimmed, limit: '20' });
     if (intent?.category) params.set('category', intent.category);
     if (intent?.minPrice != null) params.set('minPrice', String(intent.minPrice));
     if (intent?.maxPrice != null) params.set('maxPrice', String(intent.maxPrice));
 
     const domains = tabForDomain === 'all' ? ['classifieds', 'products', 'services'] : [tabForDomain];
+    let count = 0;
     try {
       const results = await Promise.allSettled(
         domains.map((d) => {
@@ -375,15 +426,32 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       domains.forEach((d, i) => {
         const res = results[i];
         if (res.status !== 'fulfilled') return;
-        if (d === 'classifieds') setClassifieds(res.value.data?.classifieds || res.value.data || []);
-        else if (d === 'products') setProducts(res.value.data?.products || res.value.data || []);
-        else setServices(res.value.data?.ads || res.value.data || []);
+        if (d === 'classifieds') { const list = res.value.data?.classifieds || res.value.data || []; setClassifieds(list); count += list.length; }
+        else if (d === 'products') { const list = res.value.data?.products || res.value.data || []; setProducts(list); count += list.length; }
+        else { const list = res.value.data?.ads || res.value.data || []; setServices(list); count += list.length; }
       });
     } catch {}
-    finally { setLoading(false); }
-  }, [query]);
+    finish(count);
+  }, [query, track]);
 
-  const total = classifieds.length + products.length + services.length + transports.length;
+  // Every search on this page goes through the AI query-understanding step
+  // first — previously only the FIRST query (handed off from the homepage's
+  // AiSearchBar via the `aiIntent` prop) got AI treatment; retyping a query
+  // directly on this page silently fell back to plain keyword search. If
+  // /search/intent itself is unreachable, the synthesized "all" intent below
+  // reduces to that same plain behavior, so search never goes fully dark.
+  const handleSearch = useCallback(async (q) => {
+    const trimmed = (q || query).trim();
+    if (!trimmed) return;
+    let intent = { domain: 'all', keywords: trimmed, category: null, minPrice: null, maxPrice: null, fromCity: null, toCity: null };
+    try {
+      const res = await api.get('/search/intent', { params: { q: trimmed } });
+      if (res?.data) intent = res.data;
+    } catch {}
+    await handleAiSearch(trimmed, intent);
+  }, [query, handleAiSearch]);
+
+  const total = classifieds.length + products.length + services.length + transports.length + profiles.length;
 
   // Every item is tagged with _type so the render loop below picks the
   // right card regardless of whether it came via a single-domain tab or
@@ -394,11 +462,13 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   const tabItems = {
     all:        [...classifieds.map(c => ({...c, _type:'classified'})),
                  ...products.map(p => ({...p, _type:'product'})),
-                 ...services.map(s => ({...s, _type:'service'}))],
+                 ...services.map(s => ({...s, _type:'service'})),
+                 ...profiles.map(p => ({...p, _type:'profile'}))],
     classifieds: classifieds.map(c => ({...c, _type:'classified'})),
     products:    products.map(p => ({...p, _type:'product'})),
     services:    services.map(s => ({...s, _type:'service'})),
     transport:   transports.map(tr => ({...tr, _type:'transport'})),
+    people:      profiles.map(p => ({...p, _type:'profile'})),
   };
 
   return (
@@ -512,6 +582,9 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                           <TransportCard key={`t-${item.id}`} item={item}
                             isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
                         );
+                      }
+                      if (item._type === 'profile') {
+                        return <ProfileResultCard key={`pr-${item.id}`} item={item} onNavigate={onNavigate} />;
                       }
                       if (item._type === 'product') {
                         return (

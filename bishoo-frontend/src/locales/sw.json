@@ -496,7 +496,8 @@
     "settings": "Mipangilio",
     "routes": "Njia",
     "scorecard": "Alama",
-    "earnings": "Mapato"
+    "earnings": "Mapato",
+    "my_services": "Huduma Zangu"
   },
   "profile_switcher": {
     "title": "Badilisha wasifu",
@@ -662,6 +663,7 @@
     "front_door_placeholder": "Tunaweza kukusaidia kutafuta nini?",
     "front_door_button": "Tafuta",
     "tab_transport": "🚚 Usafirishaji",
+    "tab_people": "👤 Watu na Biashara",
     "transport_contact_button": "Wasiliana",
     "transport_no_contact": "Hakuna mawasiliano yaliyopatikana",
     "transport_needs_cities_title": "Tuambie unatoka wapi na unaenda wapi",

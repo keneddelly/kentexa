@@ -504,7 +504,7 @@ function App() {
       return requireLogin(<SellerInbox {...publicProps} initialCustomerId={null} sellerId={sellerId} />);
     }
     if (page.startsWith('Search-'))
-      return <Search {...publicProps} initialQuery={page.split('Search-')[1]} aiIntent={navParams?.aiIntent} />;
+      return <Search {...publicProps} initialQuery={page.split('Search-')[1]} aiIntent={navParams?.aiIntent} track={track} />;
     if (page.startsWith('Category-'))
       return <CategoryPage {...publicProps} category={page.split('Category-')[1]} />;
     if (page === 'Listings')
@@ -526,7 +526,7 @@ function App() {
       case 'ProductDetail':        return <ProductDetail {...publicProps} />;
       case 'OrderTracking':        return requireLogin(<OrderTracking {...publicProps} />);
 
-      case 'Discover':          return <Search {...publicProps} />;
+      case 'Discover':          return <Search {...publicProps} track={track} />;
       case 'Activity':          return requireLogin(<Activity {...publicProps} />);
       case 'RoleActivation':    return requireLogin(<RoleActivation {...publicProps} />);
       case 'Onboarding':        return requireLogin(<Onboarding {...publicProps} />);
@@ -539,7 +539,7 @@ function App() {
       case 'ClassifiedsPublic': return <ClassifiedsPublic {...publicProps} />;
       case 'PublicLogin':       return loginPage;
       case 'Register':          return <Register onNavigate={handleNavigate} onLoginSuccess={handleLoginSuccess} />;
-      case 'Search':            return <Search {...publicProps} aiIntent={navParams?.aiIntent} />;
+      case 'Search':            return <Search {...publicProps} aiIntent={navParams?.aiIntent} track={track} />;
       case 'Cart':              return <Cart {...publicProps} />;
       case 'BecomeSeller':      return <BecomeSeller {...publicProps} />;
       case 'BecomeSellerInfo':  return <BecomeSellerInfo {...publicProps} />;

@@ -265,11 +265,11 @@ export const trackProductView = (track, product) => {
   });
 };
 
-export const trackSearch = (track, query, resultCount) => {
+export const trackSearch = (track, query, resultCount, extraMetadata = {}) => {
   track('search', {
     eventCategory: 'search',
     targetName:    query,
-    metadata:      { resultCount },
+    metadata:      { resultCount, ...extraMetadata },
   });
 };
 
