@@ -148,15 +148,27 @@ export class TransportService {
   // Never exposes apiKey, webhookEnabled, contract/fee details.
   async findPublicByUserId(userId: number) {
     const p = await this.providerRepo.findOne({ where: { userId } });
+    if (!p) return null;
+    // Rejected/suspended providers stay fully hidden — nothing to show a
+    // visitor. A PENDING provider (just registered, not yet admin-verified)
+    // still gets a real profile: identity is real regardless of review
+    // status, same as how a seller's business profile shows while their
+    // application is pending. What's withheld is routes/trips, since those
+    // represent bookable commitments no one should act on before the
+    // provider is actually verified.
+    const isVerified = [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(
+      p.status,
+    );
     if (
-      !p ||
-      ![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(p.status)
+      [ProviderStatus.REJECTED, ProviderStatus.SUSPENDED].includes(p.status)
     )
       return null;
 
-    const routes = await this.routeRepo.find({
-      where: { providerId: p.id, isActive: true },
-    });
+    const routes = isVerified
+      ? await this.routeRepo.find({
+          where: { providerId: p.id, isActive: true },
+        })
+      : [];
 
     // Real upcoming departures, not just static route coverage — a visitor
     // should see WHEN the next trip actually leaves, per the spec's "never
@@ -164,20 +176,24 @@ export class TransportService {
     // 7-day OPEN-slot window as the provider's own getMyAvailability().
     const today = new Date().toISOString().slice(0, 10);
     const end = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
-    const upcomingTrips = await this.availabilityRepo
-      .createQueryBuilder('a')
-      .leftJoinAndSelect('a.route', 'r')
-      .where('a.providerId = :pid', { pid: p.id })
-      .andWhere('a.status = :open', { open: AvailabilityStatus.OPEN })
-      .andWhere('a.date >= :today', { today })
-      .andWhere('a.date <= :end', { end })
-      .orderBy('a.date', 'ASC')
-      .addOrderBy('a.departureTime', 'ASC')
-      .getMany();
+    const upcomingTrips = isVerified
+      ? await this.availabilityRepo
+          .createQueryBuilder('a')
+          .leftJoinAndSelect('a.route', 'r')
+          .where('a.providerId = :pid', { pid: p.id })
+          .andWhere('a.status = :open', { open: AvailabilityStatus.OPEN })
+          .andWhere('a.date >= :today', { today })
+          .andWhere('a.date <= :end', { end })
+          .orderBy('a.date', 'ASC')
+          .addOrderBy('a.departureTime', 'ASC')
+          .getMany()
+      : [];
 
     return {
       name: p.name,
       type: p.type,
+      status: p.status,
+      isVerified,
       logoUrl: p.logoUrl,
       description: p.description,
       whatsappPhone: p.whatsappPhone,

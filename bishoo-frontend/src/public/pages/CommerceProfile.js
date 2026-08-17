@@ -20,6 +20,14 @@ const WH = '#FFFFFF';
 const fmt  = n => Number(n||0).toLocaleString();
 const fmtM = n => { const v=Number(n||0); return v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1000?`${(v/1e3).toFixed(0)}K`:String(v); };
 
+// Matches ProviderType on the backend (transport-provider.entity.ts) — a
+// truck operator's profile showing a bus icon (the old hardcoded default)
+// told visitors nothing true about what that provider actually runs.
+const PROVIDER_TYPE_ICON = {
+  bus: '🚌', van: '🚐', courier: '📦', truck: '🚛',
+  boda: '🏍️', rail: '🚆', air: '✈️', boat: '⛵',
+};
+
 const getTiers = t => [
   {min:900,name:t('my_profile.tier_elite'),  icon:'🏆',color:'#dc2626',bg:'#fee2e2'},
   {min:600,name:t('my_profile.tier_partner'),icon:'💎',color:'#7c3aed',bg:'#ede9fe'},
@@ -1080,7 +1088,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:12 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
-                    <span style={{ fontSize:28 }}>🚌</span>
+                    <span style={{ fontSize:28 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
                     <div>
                       <div style={{ fontSize:15, fontWeight:900, color:DK }}>
                         {publicTransportData.name}
@@ -1091,6 +1099,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       </div>
                     </div>
                   </div>
+                  {!publicTransportData.isVerified && (
+                    <div style={{ fontSize:11, fontWeight:700, color:'#D97706',
+                      backgroundColor:'#FEF3C7', padding:'6px 10px', borderRadius:8, marginBottom:10 }}>
+                      ⏳ {t('commerce_profile.transport_pending_verification')}
+                    </div>
+                  )}
                   {publicTransportData.description && (
                     <div style={{ fontSize:13, color:GR, lineHeight:1.5 }}>
                       {publicTransportData.description}
@@ -1116,7 +1130,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         })}
                         style={{ display:'flex', alignItems:'center', gap:10,
                           padding:'10px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
-                        <span style={{ fontSize:16 }}>🚌</span>
+                        <span style={{ fontSize:16 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:13, fontWeight:700, color:DK }}>
                             {trip.fromCity} → {trip.toCity}
@@ -1146,7 +1160,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         })}
                         style={{ display:'flex', alignItems:'center', gap:10,
                           padding:'10px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
-                        <span style={{ fontSize:16 }}>🚌</span>
+                        <span style={{ fontSize:16 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
                         <div style={{ flex:1, fontSize:13, fontWeight:700, color:DK }}>
                           {r.routeType === 'intercity' && r.originCity && r.destinationCity
                             ? `${r.originCity} → ${r.destinationCity}`

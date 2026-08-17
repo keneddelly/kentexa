@@ -87,6 +87,7 @@ export class ShipmentsService {
         providerId: a.providerId,
         providerName: (a as any).provider?.name ?? null,
         providerLogo: (a as any).provider?.logoUrl ?? null,
+        providerType: (a as any).provider?.type ?? null,
         routeId: a.routeId,
         date: a.date,
         departureTime: a.departureTime,

@@ -192,6 +192,10 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
             </span>
           </div>
           <div style={{ textAlign: 'right' }}>
+            <button onClick={() => onNavigate('TransportProviderSettings')}
+              style={{ background: 'rgba(255,255,255,0.1)', border: 'none',
+                borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+                color: '#fff', fontSize: 15, marginBottom: 6 }}>⚙️</button>
             <div style={{ fontSize: 28, fontWeight: 900 }}>{profile.completedAssignments || 0}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{t('transport_provider_dashboard.completed_label')}</div>
             {pendingAssignments.length > 0 && (

@@ -22,6 +22,14 @@ const WH = '#FFFFFF';
 const OR = '#EA580C';
 const fmt = n => Number(n || 0).toLocaleString();
 
+// Matches ProviderType on the backend (transport-provider.entity.ts) —
+// showing a bus icon for every provider regardless of what they actually
+// operate told a shipper nothing true about who they were picking.
+const PROVIDER_TYPE_ICON = {
+  bus: '🚌', van: '🚐', courier: '📦', truck: '🚛',
+  boda: '🏍️', rail: '🚆', air: '✈️', boat: '⛵',
+};
+
 const inputSt = {
   width: '100%', padding: '12px 14px', borderRadius: 12,
   border: '1px solid #E2E8F0', fontSize: 14, outline: 'none',
@@ -306,10 +314,15 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                         justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                         {trip.providerLogo
                           ? <img src={trip.providerLogo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : '🚌'}
+                          : (PROVIDER_TYPE_ICON[trip.providerType] || '🚚')}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>{trip.providerName || t('send_shipment.provider_fallback')}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>
+                          {trip.providerName || t('send_shipment.provider_fallback')}
+                          {trip.providerType && (
+                            <span style={{ fontWeight: 700, color: GR, textTransform: 'capitalize' }}> · {trip.providerType}</span>
+                          )}
+                        </div>
                         <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
                           {new Date(trip.date).toLocaleDateString('sw-TZ')}
                           {trip.departureTime ? ` · ${trip.departureTime}` : ''}
@@ -346,7 +359,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                         justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                         {p.logoUrl
                           ? <img src={p.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : '🚌'}
+                          : (PROVIDER_TYPE_ICON[p.type] || '🚚')}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>{p.name}</div>

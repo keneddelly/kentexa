@@ -22,6 +22,7 @@ import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
 import SellerPayouts     from './public/pages/SellerPayouts';
 import SellerWallet      from './public/pages/SellerWallet';
+import TransportProviderSettings from './public/pages/TransportProviderSettings';
 import SellerAnalytics            from './public/pages/SellerAnalytics'; // eslint-disable-line
 import BecomeTransportProvider    from './public/pages/BecomeTransportProvider'; // eslint-disable-line
 import TransportAdmin             from './admin/pages/TransportAdmin'; // eslint-disable-line
@@ -603,6 +604,7 @@ function App() {
 
       case 'BecomeTransportProvider':    return requireLogin(<BecomeTransportProvider {...publicProps} />);
       case 'TransportProviderDashboard': return requireLogin(<TransportProviderDashboard {...publicProps} />);
+      case 'TransportProviderSettings': return requireLogin(<TransportProviderSettings {...publicProps} />);
       case 'TransportAdmin':             return requireAdmin(<TransportAdmin onNavigate={handleNavigate} activePage={page} />);
       case 'HubAdmin':                   return requireAdmin(<HubAdmin onNavigate={handleNavigate} activePage={page} />);
       case 'SellerAnalytics':            return requireLogin(<SellerAnalytics {...publicProps} />);
