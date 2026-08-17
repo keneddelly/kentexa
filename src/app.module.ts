@@ -40,6 +40,7 @@ import { ContactModule } from './contact/contact.module';
 import { ServiceProvidersModule } from './service-providers/service-providers.module';
 import { EarlyAccessModule } from './early-access/early-access.module';
 import { SearchModule } from './search/search.module';
+import { ShipmentsModule } from './shipments/shipments.module';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { SearchModule } from './search/search.module';
     ServiceProvidersModule,
     EarlyAccessModule,
     SearchModule,
+    ShipmentsModule,
   ],
 })
 export class AppModule {}

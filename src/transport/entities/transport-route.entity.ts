@@ -45,6 +45,16 @@ export class TransportRoute {
   @Column({ type: 'varchar', nullable: true })
   destinationCity: string | null; // "Mbeya"
 
+  // Additive, best-effort links into the existing tz-location hierarchy —
+  // resolved from originCity/destinationCity at write time when a match is
+  // found. Nullable and never backfilled onto old rows; the plain city
+  // strings above remain the source of truth for display either way.
+  @Column({ type: 'int', nullable: true })
+  originRegionId: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  destinationRegionId: number | null;
+
   @Column({ type: 'simple-array', nullable: true })
   transitCities: string[] | null; // ["Morogoro", "Iringa"]
 

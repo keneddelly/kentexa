@@ -35,7 +35,9 @@ export class TransportAssignment {
   @PrimaryGeneratedColumn()
   id: number;
 
-  // What's being transported (order or parcel)
+  // What's being transported (order, parcel, or — going forward — a real
+  // Shipment). orderId/parcelId are legacy, unlinked-by-FK identifiers kept
+  // for existing rows; new assignments should set shipmentId instead.
   @Column({ type: 'varchar', nullable: true })
   trackingNumber: string | null;
 
@@ -44,6 +46,9 @@ export class TransportAssignment {
 
   @Column({ type: 'int', nullable: true })
   parcelId: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  shipmentId: number | null;
 
   // Who assigned it
   @ManyToOne(() => User)

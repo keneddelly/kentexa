@@ -40,6 +40,7 @@ import {
   CommerceProfileType,
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
+import { TzLocationService } from '../tz-location/tz-location.service';
 
 @Injectable()
 export class TransportService {
@@ -56,7 +57,22 @@ export class TransportService {
     @InjectRepository(User) private userRepo: Repository<User>,
     private readonly reputationService: ReputationService,
     private commerceProfiles: CommerceProfilesService,
+    private readonly tzLocation: TzLocationService,
   ) {}
+
+  // Best-effort city → region resolution against the existing tz-location
+  // search. Never throws, never blocks the caller — a route/shipment with
+  // an unresolved region is exactly as usable as one with a plain string,
+  // just without the FK for future location-aware features.
+  private async resolveRegionId(city: string | null | undefined): Promise<number | null> {
+    if (!city?.trim()) return null;
+    try {
+      const results = await this.tzLocation.search(city.trim());
+      return results?.[0]?.regionId ?? null;
+    } catch {
+      return null;
+    }
+  }
 
   // ── REGISTRATION ──────────────────────────────────────────────────────────
 
@@ -142,6 +158,23 @@ export class TransportService {
       where: { providerId: p.id, isActive: true },
     });
 
+    // Real upcoming departures, not just static route coverage — a visitor
+    // should see WHEN the next trip actually leaves, per the spec's "never
+    // hardcode route information into the profile UI" instruction. Same
+    // 7-day OPEN-slot window as the provider's own getMyAvailability().
+    const today = new Date().toISOString().slice(0, 10);
+    const end = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+    const upcomingTrips = await this.availabilityRepo
+      .createQueryBuilder('a')
+      .leftJoinAndSelect('a.route', 'r')
+      .where('a.providerId = :pid', { pid: p.id })
+      .andWhere('a.status = :open', { open: AvailabilityStatus.OPEN })
+      .andWhere('a.date >= :today', { today })
+      .andWhere('a.date <= :end', { end })
+      .orderBy('a.date', 'ASC')
+      .addOrderBy('a.departureTime', 'ASC')
+      .getMany();
+
     return {
       name: p.name,
       type: p.type,
@@ -159,6 +192,19 @@ export class TransportService {
         loopStops: (r as any).loopStops,
         coverageCity: (r as any).coverageCity,
         coverageWards: (r as any).coverageWards,
+        pricePerKg: r.pricePerKg,
+        fixedFee: r.fixedFee,
+      })),
+      upcomingTrips: upcomingTrips.map((a) => ({
+        availabilityId: a.id,
+        routeId: a.routeId,
+        date: a.date,
+        departureTime: a.departureTime,
+        arrivalEstimate: a.arrivalEstimate,
+        fromCity: a.fromCity || (a as any).route?.originCity || null,
+        toCity: a.toCity || (a as any).route?.destinationCity || null,
+        slotsAvailable: Math.max(0, a.totalSlots - a.usedSlots),
+        capacityAvailableKg: Math.max(0, Number(a.totalCapacityKg) - Number(a.usedCapacityKg)),
       })),
     };
   }
@@ -213,12 +259,18 @@ export class TransportService {
     if (provider.status !== ProviderStatus.VERIFIED) {
       throw new ForbiddenException('Akaunti yako haijahakikiwa bado');
     }
+    const [originRegionId, destinationRegionId] = await Promise.all([
+      this.resolveRegionId(dto.originCity),
+      this.resolveRegionId(dto.destinationCity),
+    ]);
     const route = await this.routeRepo.save(
       this.routeRepo.create({
         providerId: provider.id,
         routeType: dto.routeType as RouteType,
         originCity: dto.originCity || null,
+        originRegionId,
         destinationCity: dto.destinationCity || null,
+        destinationRegionId,
         transitCities: dto.transitCities || null,
         loopStops: dto.loopStops || null,
         coverageWards: dto.coverageWards || null,
@@ -450,12 +502,29 @@ export class TransportService {
 
   // ── TRANSPORT ASSIGNMENT ──────────────────────────────────────────────────
 
+  // Extracted so ShipmentsService can reserve capacity against a slot at
+  // shipment-request time too — a shipment against a slot is real demand
+  // whether or not a formal TransportAssignment has been created yet.
+  async reserveCapacity(availabilityId: number, weightKg: number): Promise<void> {
+    const avail = await this.availabilityRepo.findOne({
+      where: { id: availabilityId },
+    });
+    if (avail && avail.usedSlots < avail.totalSlots) {
+      avail.usedSlots++;
+      avail.usedCapacityKg += weightKg || 1;
+      if (avail.usedSlots >= avail.totalSlots)
+        avail.status = AvailabilityStatus.FULL;
+      await this.availabilityRepo.save(avail);
+    }
+  }
+
   async createAssignment(
     superAgent: User,
     dto: {
       trackingNumber?: string;
       orderId?: number;
       parcelId?: number;
+      shipmentId?: number;
       providerId: number;
       availabilityId?: number;
       fromCity: string;
@@ -480,16 +549,7 @@ export class TransportService {
 
     // Reserve slot if availability specified
     if (dto.availabilityId) {
-      const avail = await this.availabilityRepo.findOne({
-        where: { id: dto.availabilityId },
-      });
-      if (avail && avail.usedSlots < avail.totalSlots) {
-        avail.usedSlots++;
-        avail.usedCapacityKg += dto.weightKg || 1;
-        if (avail.usedSlots >= avail.totalSlots)
-          avail.status = AvailabilityStatus.FULL;
-        await this.availabilityRepo.save(avail);
-      }
+      await this.reserveCapacity(dto.availabilityId, dto.weightKg || 1);
     }
 
     const assignment = await this.assignmentRepo.save(
@@ -497,6 +557,7 @@ export class TransportService {
         trackingNumber: dto.trackingNumber || null,
         orderId: dto.orderId || null,
         parcelId: dto.parcelId || null,
+        shipmentId: dto.shipmentId || null,
         assignedById: superAgent.id,
         providerId: dto.providerId,
         availabilityId: dto.availabilityId || null,

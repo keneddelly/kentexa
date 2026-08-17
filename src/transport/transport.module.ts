@@ -16,11 +16,13 @@ import { TransportService } from './transport.service';
 import { TransportController } from './transport.controller';
 import { ReputationModule } from '../reputation/reputation.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { TzLocationModule } from '../tz-location/tz-location.module';
 
 @Module({
   imports: [
     ReputationModule,
     CommerceProfilesModule,
+    TzLocationModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
     TypeOrmModule.forFeature([
       TransportProvider,
