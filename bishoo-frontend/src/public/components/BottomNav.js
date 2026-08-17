@@ -71,7 +71,11 @@ const TYPE_TABS = (t) => {
     transport_provider: {
       first,
       second: { page: 'TransportProviderDashboard', icon: emojiIcon('🚌'), label: t('bottom_nav.dashboard') },
-      fourth: { page: 'Search',                      icon: SearchIcon,      label: t('common.search') },
+      // RouteCoverageMap (the routes network map) used to sit in this slot
+      // before tab 2 became the Dashboard — it was silently dropped, not
+      // reachable from the bottom nav at all otherwise, and generic Search
+      // defaults to showing marketplace classifieds, not transport routes.
+      fourth: { page: 'RouteCoverageMap', icon: emojiIcon('🗺️'), label: t('bottom_nav.routes') },
     },
     agent: {
       first,
