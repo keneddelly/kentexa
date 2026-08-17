@@ -780,6 +780,24 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
               </div>
             </div>
 
+            {/* Send Something — any authenticated user, not gated behind
+                seller/business/transport-provider role. Kentexa's own
+                transport network, not just a shortcut to someone else's
+                store. */}
+            <div onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin')}
+              style={{ margin:'8px 14px', background:'linear-gradient(135deg,#EA580C,#7C2D12)',
+                borderRadius:14, padding:'14px 18px', cursor:'pointer',
+                display:'flex', alignItems:'center', justifyContent:'space-between',
+                color:WH }}>
+              <div>
+                <div style={{ fontSize:14, fontWeight:900 }}>🚚 {t('search.send_shipment_title')}</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.85)' }}>
+                  {t('search.send_shipment_sub')}
+                </div>
+              </div>
+              <span style={{ fontSize:20 }}>→</span>
+            </div>
+
             {/* Flash Sales banner */}
             <div onClick={() => onNavigate('FlashSales')}
               style={{ margin:'8px 14px', background:'linear-gradient(135deg,#DC2626,#EA580C)',

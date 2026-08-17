@@ -91,6 +91,7 @@ import OfflineIntercityOrder from './public/pages/OfflineIntercityOrder';
 import SuperAgentParcel from './public/pages/SuperAgentParcel';
 import SuperAgentSettings from './public/pages/SuperAgentSettings';
 import SellerShipment from './public/pages/SellerShipment';
+import SendShipment from './public/pages/SendShipment';
 import BuyerParcelAction from './public/pages/BuyerParcelAction';
 import VanToday from './public/pages/VanToday';
 import StoreSettings from './seller/pages/StoreSettings';
@@ -560,6 +561,7 @@ function App() {
       case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} />);
       case 'SellerOrders':      return requireLogin(<SellerOrders {...publicProps} />);
       case 'SellerShipping':    return requireLogin(<SellerShipping {...publicProps} />);
+      case 'SendShipment':      return requireLogin(<SendShipment {...publicProps} navParams={navParams} />);
       case 'SellerInvoices':    return requireLogin(<SellerInvoices {...publicProps} preSelected={navParams?.preSelected} />);
       case 'AgentDashboard':    return requireLogin(<AgentDashboard {...publicProps} />);
       case 'AgentOrderDashboard': return requireLogin(<AgentDashboard {...publicProps} />); // merged into unified dashboard

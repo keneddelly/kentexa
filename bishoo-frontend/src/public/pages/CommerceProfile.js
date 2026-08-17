@@ -1086,6 +1086,41 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   )}
                 </div>
 
+                {/* Real upcoming departures — when the next trip actually
+                    leaves, not just static coverage. Never hardcoded:
+                    sourced from ProviderAvailability via
+                    GET /transport/public/:userId. */}
+                {publicTransportData.upcomingTrips?.length > 0 && (
+                  <div style={{ backgroundColor:WH, borderRadius:16, padding:16,
+                    boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:12 }}>
+                    <div style={{ fontSize:12, fontWeight:800, color:GR, marginBottom:10 }}>
+                      {t('commerce_profile.upcoming_trips_label')}
+                    </div>
+                    {publicTransportData.upcomingTrips.map(trip => (
+                      <div key={trip.availabilityId}
+                        onClick={() => onNavigate('SendShipment', {
+                          origin: trip.fromCity, destination: trip.toCity,
+                          availabilityId: trip.availabilityId, routeId: trip.routeId,
+                        })}
+                        style={{ display:'flex', alignItems:'center', gap:10,
+                          padding:'10px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
+                        <span style={{ fontSize:16 }}>🚌</span>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:700, color:DK }}>
+                            {trip.fromCity} → {trip.toCity}
+                          </div>
+                          <div style={{ fontSize:11, color:GR, marginTop:2 }}>
+                            {new Date(trip.date).toLocaleDateString('sw-TZ')}
+                            {trip.departureTime ? ` · ${trip.departureTime}` : ''}
+                            {' · '}{t('commerce_profile.slots_available', { count: trip.slotsAvailable })}
+                          </div>
+                        </div>
+                        <span style={{ fontSize:11, fontWeight:700, color:'#EA580C' }}>{t('commerce_profile.ship_button')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {publicTransportData.routes?.length > 0 && (
                   <div style={{ backgroundColor:WH, borderRadius:16, padding:16,
                     boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -1093,7 +1128,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       {t('commerce_profile.active_routes_label')}
                     </div>
                     {publicTransportData.routes.map(r => (
-                      <div key={r.id} onClick={() => onNavigate('SellerShipment')}
+                      <div key={r.id}
+                        onClick={() => onNavigate('SendShipment', {
+                          origin: r.originCity, destination: r.destinationCity, routeId: r.id,
+                        })}
                         style={{ display:'flex', alignItems:'center', gap:10,
                           padding:'10px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
                         <span style={{ fontSize:16 }}>🚌</span>
