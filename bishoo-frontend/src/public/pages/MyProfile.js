@@ -253,14 +253,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             {/* Info */}
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:18, fontWeight:900, lineHeight:1.2 }}>
-                {profile.storeName || profile.name || t('my_profile.default_name')}
+                {profile.name || profile.storeName || t('my_profile.default_name')}
               </div>
               <div style={{ fontSize:12, color:'rgba(255,255,255,0.7)', marginTop:2 }}>
                 📱 {profile.phone}
                 {profile.isVerified && t('my_profile.verified_suffix')}
               </div>
               <div style={{ fontSize:11, color:'rgba(255,255,255,0.6)', marginTop:2 }}>
-                📍 {profile.businessLocation || profile.city || t('my_profile.location_fallback')}
+                📍 {profile.city || profile.businessLocation || t('my_profile.location_fallback')}
               </div>
             </div>
             {/* Reputation */}
@@ -1011,7 +1011,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               KTX-{String(profile?.id||0).padStart(6,'0')}
             </div>
             <div style={{ fontSize:12, color:GR, marginBottom:20 }}>
-              {profile?.storeName || profile?.name}
+              {profile?.name || profile?.storeName}
             </div>
             <button onClick={() => setShowQR(false)}
               style={{ width:'100%', backgroundColor:'#F1F5F9', color:DK,
