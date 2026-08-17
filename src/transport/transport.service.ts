@@ -424,6 +424,18 @@ export class TransportService {
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
     // Published availability for this route (open slots, today + tomorrow)
+    // City matching must work BOTH directions: a provider might store a
+    // short free-text city ("Dar") while a caller searches with the full
+    // canonical name from tz-location ("Dar es Salaam"), or vice versa.
+    // "Dar" LIKE '%Dar es Salaam%' is false (the short form never contains
+    // the long one) — that one-directional check was silently hiding real,
+    // verified trips/routes the moment either side used a different
+    // abbreviation than the other. Checking both containment directions
+    // fixes it without requiring every existing free-text city value to be
+    // rewritten.
+    const cityMatch = (column: string, param: string) =>
+      `(LOWER(${column}) LIKE LOWER(:${param}) OR LOWER(:${param}Raw) LIKE '%' || LOWER(${column}) || '%')`;
+
     const published = await this.availabilityRepo
       .createQueryBuilder('a')
       .leftJoinAndSelect('a.provider', 'p')
@@ -432,12 +444,12 @@ export class TransportService {
       .andWhere('a.date IN (:...dates)', { dates: [today, tomorrow] })
       .andWhere('a.usedSlots < a.totalSlots')
       .andWhere(
-        '(LOWER(a.fromCity) LIKE LOWER(:from) OR LOWER(r.originCity) LIKE LOWER(:from))',
-        { from: `%${fromCity}%` },
+        `(${cityMatch('a.fromCity', 'from')} OR ${cityMatch('r.originCity', 'from')})`,
+        { from: `%${fromCity}%`, fromRaw: fromCity },
       )
       .andWhere(
-        '(LOWER(a.toCity) LIKE LOWER(:to) OR LOWER(r.destinationCity) LIKE LOWER(:to))',
-        { to: `%${toCity}%` },
+        `(${cityMatch('a.toCity', 'to')} OR ${cityMatch('r.destinationCity', 'to')})`,
+        { to: `%${toCity}%`, toRaw: toCity },
       )
       .orderBy('a.date', 'ASC')
       .addOrderBy('a.departureTime', 'ASC')
@@ -454,12 +466,12 @@ export class TransportService {
       )
       .where('p.status = :verified', { verified: ProviderStatus.VERIFIED })
       .andWhere(
-        '(LOWER(r.originCity) LIKE LOWER(:from) OR LOWER(r.destinationCity) LIKE LOWER(:from))',
-        { from: `%${fromCity}%` },
+        `(${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.destinationCity', 'from')})`,
+        { from: `%${fromCity}%`, fromRaw: fromCity },
       )
       .andWhere(
-        '(LOWER(r.destinationCity) LIKE LOWER(:to) OR LOWER(r.originCity) LIKE LOWER(:to))',
-        { to: `%${toCity}%` },
+        `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.originCity', 'to')})`,
+        { to: `%${toCity}%`, toRaw: toCity },
       )
       .orderBy('p.rating', 'DESC')
       .getMany();
