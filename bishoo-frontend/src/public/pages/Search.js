@@ -311,6 +311,13 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   const [profiles,    setProfiles]    = useState([]);
   const [transportNeedsCities, setTransportNeedsCities] = useState(false);
 
+  // AI's conversational summary of the results actually found (not the
+  // routing step above — see search.controller.ts's /search/explain).
+  // Fetched after results are already showing; never blocks rendering them.
+  const [aiSummary,      setAiSummary]      = useState(null);
+  const [aiSuggestions,  setAiSuggestions]  = useState([]);
+  const [aiExplaining,   setAiExplaining]   = useState(false);
+
   // Featured / discover content (auto-loaded)
   const [featured,    setFeatured]    = useState([]);    // recent classifieds
   const [sellers,     setSellers]     = useState([]);    // top sellers
@@ -374,7 +381,14 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       : [];
     setProfiles(profileResults);
 
-    const finish = (otherResultCount) => {
+    // finish() closes out every branch below: logs to search history, then
+    // fires the AI "explain what was found" call — the conversational layer
+    // on top of the plain result grid. Fire-and-forget: never blocks the
+    // results themselves from rendering, and if it fails/times out the
+    // summary banner simply never appears (search.controller.ts's /explain
+    // fails open the same way /intent already does).
+    const finish = (otherResultCount, opts = {}) => {
+      const { topItems = [], domainCounts = {}, skipExplain = false } = opts;
       setLoading(false);
       if (typeof track === 'function') {
         trackSearch(track, rawQ, otherResultCount + profileResults.length, {
@@ -382,6 +396,28 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
           profileMatches: profileResults.length,
         });
       }
+      setAiSummary(null);
+      setAiSuggestions([]);
+      if (skipExplain || !rawQ) return;
+      const allTopItems = [
+        ...topItems,
+        ...profileResults.slice(0, 2).map(p => ({
+          type: 'profile', name: p.displayName,
+          subtitle: (p.type || '').replace(/_/g, ' '),
+        })),
+      ].slice(0, 6);
+      setAiExplaining(true);
+      api.post('/search/explain', {
+        q: rawQ,
+        resultSummary: {
+          domain: intent?.domain ?? 'all',
+          counts: { ...domainCounts, people: profileResults.length },
+          topItems: allTopItems,
+        },
+      }).then(r => {
+        setAiSummary(r.data?.summary || null);
+        setAiSuggestions(r.data?.suggestions || []);
+      }).catch(() => {}).finally(() => setAiExplaining(false));
     };
 
     // Transport is structured (from/to city), not a free-text match, so it
@@ -390,16 +426,22 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     if (tabForDomain === 'transport') {
       if (!intent?.fromCity || !intent?.toCity) {
         setTransportNeedsCities(true);
-        finish(0);
+        finish(0, { skipExplain: true });
         return;
       }
       try {
         const res = await api.get('/transport/search-public', {
           params: { from: intent.fromCity, to: intent.toCity },
         });
-        setTransports(res.data || []);
-        finish((res.data || []).length);
-      } catch { finish(0); }
+        const transportList = res.data || [];
+        setTransports(transportList);
+        finish(transportList.length, {
+          domainCounts: { transport: transportList.length },
+          topItems: transportList.slice(0, 3).map(tItem => ({
+            type: 'transport', name: tItem.name, subtitle: tItem.type,
+          })),
+        });
+      } catch { finish(0, { skipExplain: true }); }
       return;
     }
 
@@ -407,7 +449,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     // above already covers it, nothing further to fan out to.
     if (tabForDomain === 'people') { finish(0); return; }
 
-    if (!trimmed) { finish(0); return; }
+    if (!trimmed) { finish(0, { skipExplain: true }); return; }
     const params = new URLSearchParams({ q: trimmed, limit: '20' });
     if (intent?.category) params.set('category', intent.category);
     if (intent?.minPrice != null) params.set('minPrice', String(intent.minPrice));
@@ -415,6 +457,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
 
     const domains = tabForDomain === 'all' ? ['classifieds', 'products', 'services'] : [tabForDomain];
     let count = 0;
+    const domainCounts = {};
+    const topItems = [];
     try {
       const results = await Promise.allSettled(
         domains.map((d) => {
@@ -426,12 +470,22 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       domains.forEach((d, i) => {
         const res = results[i];
         if (res.status !== 'fulfilled') return;
-        if (d === 'classifieds') { const list = res.value.data?.classifieds || res.value.data || []; setClassifieds(list); count += list.length; }
-        else if (d === 'products') { const list = res.value.data?.products || res.value.data || []; setProducts(list); count += list.length; }
-        else { const list = res.value.data?.ads || res.value.data || []; setServices(list); count += list.length; }
+        let list = [];
+        if (d === 'classifieds') { list = res.value.data?.classifieds || res.value.data || []; setClassifieds(list); }
+        else if (d === 'products') { list = res.value.data?.products || res.value.data || []; setProducts(list); }
+        else { list = res.value.data?.ads || res.value.data || []; setServices(list); }
+        count += list.length;
+        domainCounts[d] = list.length;
+        topItems.push(...list.slice(0, 2).map(item => ({
+          type: d === 'classifieds' ? 'classified' : d === 'products' ? 'product' : 'service',
+          name: item.title || item.name,
+          subtitle: item.category || null,
+          price: item.price ?? null,
+          rating: item.rating ?? null,
+        })));
       });
     } catch {}
-    finish(count);
+    finish(count, { domainCounts, topItems: topItems.slice(0, 4) });
   }, [query, track]);
 
   // Every search on this page goes through the AI query-understanding step
@@ -535,6 +589,44 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
             </div>
 
             <div style={{ padding:'14px' }}>
+              {/* AI summary — the conversational layer on top of the result
+                  grid below: a short explanation of what was actually found,
+                  plus tappable follow-up suggestions. Appears once ready
+                  (or a brief "thinking" state) without blocking the results
+                  themselves, which render as soon as they're back. */}
+              {(aiExplaining || aiSummary) && (
+                <div style={{ display:'flex', gap:10, backgroundColor:'#F5F3FF',
+                  border:'1px solid #DDD6FE', borderRadius:14, padding:'12px 14px',
+                  marginBottom:14 }}>
+                  <span style={{ fontSize:18, flexShrink:0, lineHeight:1 }}>✨</span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    {!aiSummary ? (
+                      <div style={{ fontSize:12, color:GR, fontStyle:'italic' }}>
+                        {t('search.ai_thinking')}
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize:13, color:DK, fontWeight:600, lineHeight:1.5 }}>
+                          {aiSummary}
+                        </div>
+                        {aiSuggestions.length > 0 && (
+                          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:8 }}>
+                            {aiSuggestions.map(s => (
+                              <button key={s}
+                                onClick={() => { setQuery(s); handleSearch(s); }}
+                                style={{ fontSize:11, fontWeight:700, color:'#7C3AED',
+                                  backgroundColor:WH, border:'1px solid #DDD6FE',
+                                  borderRadius:100, padding:'5px 10px', cursor:'pointer' }}>
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
               {loading ? (
                 <div style={{ textAlign:'center', padding:'60px 0', color:GR }}>
                   <div style={{ fontSize:32, marginBottom:8 }}>🔍</div>
