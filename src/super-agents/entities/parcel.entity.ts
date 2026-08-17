@@ -10,6 +10,7 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { Order } from '../../orders/entities/order.entity';
 import { SuperAgent } from './super-agent.entity';
+import { Shipment } from '../../shipments/entities/shipment.entity';
 
 export enum ParcelStatus {
   PENDING = 'pending', // Created, waiting for seller handover
@@ -45,6 +46,15 @@ export class Parcel {
   // ── Linked order ──────────────────────────────────────────────────────────
   @ManyToOne(() => Order, { eager: true, nullable: true, onDelete: 'SET NULL' })
   order: Order | null;
+
+  // ── Linked standalone Shipment ───────────────────────────────────────────
+  // A Parcel originates from EITHER an Order (marketplace sale) OR a
+  // Shipment (independent "send something" request) — never both, and
+  // never neither once it's a real Parcel. This is a brand-new column with
+  // no legacy data to reconcile, so — unlike the loose ids on
+  // TransportAssignment — it's safe to make a real FK from day one.
+  @ManyToOne(() => Shipment, { nullable: true, onDelete: 'SET NULL' })
+  shipment: Shipment | null;
 
   // ── People ────────────────────────────────────────────────────────────────
   @ManyToOne(() => User, { eager: false, nullable: true, onDelete: 'SET NULL' })

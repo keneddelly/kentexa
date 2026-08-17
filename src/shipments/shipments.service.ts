@@ -13,13 +13,20 @@
  * writes through the EXISTING supply model (TransportService/TransportRoute/
  * ProviderAvailability); this module owns demand, not supply.
  */
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
+import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 
 export interface CreateShipmentDto {
   senderName?: string;
@@ -49,9 +56,24 @@ export interface CreateShipmentDto {
 
 @Injectable()
 export class ShipmentsService {
+  // Only these transitions are reachable via the controlled state machine —
+  // no arbitrary jumps (e.g. never COMPLETED -> PENDING), and CANCELLED is
+  // only reachable before physical collection has started.
+  private static readonly VALID_TRANSITIONS: Record<ShipmentStatus, ShipmentStatus[]> = {
+    [ShipmentStatus.PENDING]: [ShipmentStatus.CONFIRMED, ShipmentStatus.CANCELLED],
+    [ShipmentStatus.CONFIRMED]: [ShipmentStatus.COLLECTED, ShipmentStatus.CANCELLED],
+    [ShipmentStatus.COLLECTED]: [ShipmentStatus.IN_TRANSIT],
+    [ShipmentStatus.IN_TRANSIT]: [ShipmentStatus.DELIVERED],
+    [ShipmentStatus.DELIVERED]: [ShipmentStatus.COMPLETED],
+    [ShipmentStatus.COMPLETED]: [],
+    [ShipmentStatus.CANCELLED]: [],
+  };
+
   constructor(
     @InjectRepository(Shipment) private shipmentRepo: Repository<Shipment>,
     @InjectRepository(TransportRoute) private routeRepo: Repository<TransportRoute>,
+    @InjectRepository(Parcel) private parcelRepo: Repository<Parcel>,
+    @InjectRepository(SuperAgent) private superAgentRepo: Repository<SuperAgent>,
     private readonly transportService: TransportService,
     private readonly tzLocation: TzLocationService,
   ) {}
@@ -191,9 +213,145 @@ export class ShipmentsService {
     });
   }
 
-  async trackShipment(trackingNumber: string): Promise<Shipment> {
+  async trackShipment(trackingNumber: string) {
     const s = await this.shipmentRepo.findOne({ where: { trackingNumber } });
     if (!s) throw new NotFoundException('Shipment not found');
-    return s;
+    // Once a Parcel exists, point the caller at it — TrackParcel.js re-fetches
+    // /super-agents/track/:parcelTrackingNumber for the same rich tracking
+    // view an Order-based delivery already gets, rather than this module
+    // rebuilding that shape itself.
+    const parcel = await this.parcelRepo.findOne({
+      where: { shipment: { id: s.id } },
+    });
+    return { ...s, parcelTrackingNumber: parcel?.trackingNumber || null };
+  }
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Beyond creation, a Shipment previously had no update path at all — every
+  // row sat frozen at PENDING/CONFIRMED forever. confirmShipment()/
+  // cancelShipment() are the two transitions reachable directly (before a
+  // Parcel exists); everything past CONFIRMED is driven by real transport
+  // events once the Parcel is born (see TransportService.syncParcelFromAssignment,
+  // which mirrors Parcel status changes back onto the linked Shipment) —
+  // deliberately not a second, independently-editable status machine.
+  private assertTransition(current: ShipmentStatus, next: ShipmentStatus): void {
+    const allowed = ShipmentsService.VALID_TRANSITIONS[current] || [];
+    if (!allowed.includes(next)) {
+      throw new BadRequestException(
+        `Cannot move shipment from "${current}" to "${next}"`,
+      );
+    }
+  }
+
+  // Marks a Shipment as matched to a provider/slot and — this is the point
+  // it actually enters Kentexa's logistics network — creates (or reuses)
+  // its Parcel. Requester-initiated (picking a provider they liked) or
+  // staff-initiated; either way the shipment's own owner check happens here.
+  async confirmShipment(
+    userId: number,
+    shipmentId: number,
+    dto: { providerId?: number; availabilityId?: number; routeId?: number },
+  ): Promise<{ shipment: Shipment; parcel: Parcel }> {
+    const shipment = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
+    if (!shipment) throw new NotFoundException('Shipment not found');
+    if (shipment.requestedByUserId !== userId) {
+      throw new ForbiddenException('Not your shipment');
+    }
+    this.assertTransition(shipment.status, ShipmentStatus.CONFIRMED);
+
+    const providerId = dto.providerId ?? shipment.providerId;
+    if (!providerId) {
+      throw new BadRequestException('Select a provider before confirming');
+    }
+
+    const updates: Partial<Shipment> = {
+      status: ShipmentStatus.CONFIRMED,
+      providerId,
+    };
+    if (dto.availabilityId && dto.availabilityId !== shipment.availabilityId) {
+      await this.transportService.reserveCapacity(
+        dto.availabilityId,
+        Number(shipment.weightKg) || 1,
+      );
+      updates.availabilityId = dto.availabilityId;
+    }
+    if (dto.routeId) updates.routeId = dto.routeId;
+
+    await this.shipmentRepo.update(shipment.id, updates);
+    const updated = await this.shipmentRepo.findOne({ where: { id: shipment.id } });
+
+    const parcel = await this.ensureParcelForShipment(updated!);
+    return { shipment: updated!, parcel };
+  }
+
+  // Only reachable before physical collection has started — matches
+  // TransportAssignment's own cancel-before-departure rule. Releases any
+  // capacity this shipment had reserved.
+  async cancelShipment(userId: number, shipmentId: number): Promise<Shipment> {
+    const shipment = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
+    if (!shipment) throw new NotFoundException('Shipment not found');
+    if (shipment.requestedByUserId !== userId) {
+      throw new ForbiddenException('Not your shipment');
+    }
+    this.assertTransition(shipment.status, ShipmentStatus.CANCELLED);
+
+    if (shipment.availabilityId) {
+      await this.transportService.releaseCapacity(
+        shipment.availabilityId,
+        Number(shipment.weightKg) || 1,
+      );
+    }
+    await this.shipmentRepo.update(shipment.id, { status: ShipmentStatus.CANCELLED });
+    return (await this.shipmentRepo.findOne({ where: { id: shipment.id } }))!;
+  }
+
+  // Idempotent by construction: a Shipment can only ever have one Parcel
+  // (checked by querying for an existing one before creating), so calling
+  // this twice — e.g. a retried request — never creates a duplicate.
+  // Mirrors OrdersService.superAgentReceiveOrder()'s existing
+  // Order -> Parcel creation exactly, just triggered from the Shipment side.
+  private async ensureParcelForShipment(shipment: Shipment): Promise<Parcel> {
+    const existing = await this.parcelRepo.findOne({
+      where: { shipment: { id: shipment.id } },
+    });
+    if (existing) return existing;
+
+    // Best-effort hub match by city — same convention OrdersService.create()
+    // already uses. No active hub on a route is a valid, common state (not
+    // every city has a Super Agent yet); the Parcel is still created with
+    // a null hub rather than blocking the shipment.
+    const [originSuperAgent, destinationSuperAgent] = await Promise.all([
+      this.superAgentRepo.findOne({
+        where: { city: shipment.originCity, status: SuperAgentStatus.ACTIVE },
+      }),
+      this.superAgentRepo.findOne({
+        where: { city: shipment.destinationCity, status: SuperAgentStatus.ACTIVE },
+      }),
+    ]);
+
+    const created: Parcel = this.parcelRepo.create({
+      shipment: { id: shipment.id } as any,
+      order: null,
+      senderName: shipment.senderName,
+      senderPhone: shipment.senderPhone,
+      buyerPhone: shipment.receiverPhone,
+      recipientName: shipment.receiverName,
+      originCity: shipment.originCity,
+      destinationCity: shipment.destinationCity,
+      weightKg: shipment.weightKg,
+      description: shipment.itemDescription,
+      estimatedShippingFee: Number(shipment.priceQuoted) || 0,
+      superAgent: originSuperAgent || null,
+      destinationSuperAgent: destinationSuperAgent || null,
+      // A plain descriptive string (not a strict enum on this entity) —
+      // distinct from 'seller_shipment' (a seller-initiated sale) and
+      // 'online_order', since this parcel came from neither: an
+      // independent, non-seller "send something" request.
+      source: 'shipment',
+      status: ParcelStatus.PENDING,
+    });
+    const saved = await this.parcelRepo.save(created);
+    saved.trackingNumber = `KTX-PCL-${saved.id}`;
+    return this.parcelRepo.save(saved);
   }
 }

@@ -18,6 +18,9 @@ import {
 import { TransportProvider } from './transport-provider.entity';
 import { ProviderAvailability } from './provider-availability.entity';
 import { User } from '../../users/entities/user.entity';
+import { Parcel } from '../../super-agents/entities/parcel.entity';
+import { Order } from '../../orders/entities/order.entity';
+import { Shipment } from '../../shipments/entities/shipment.entity';
 
 export enum AssignmentStatus {
   PENDING = 'pending', // assigned, waiting for provider to accept (manual confirm)
@@ -49,6 +52,36 @@ export class TransportAssignment {
 
   @Column({ type: 'int', nullable: true })
   shipmentId: number | null;
+
+  // Real, FK-constrained counterparts to the three legacy columns above.
+  // Deliberately NOT converting orderId/parcelId/shipmentId in place — this
+  // app runs with synchronize:true and no migration tooling, so adding a
+  // hard FK constraint on a column that may already hold orphaned/legacy
+  // values (never validated at write time until now) would fail the next
+  // boot the moment one bad row exists. These new columns start every row
+  // at NULL, so the constraint is always satisfiable. createAssignment()
+  // now populates both the legacy int and this real relation going
+  // forward; the legacy column stays untouched for any code still reading it.
+  @ManyToOne(() => Parcel, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'parcelRefId' })
+  parcel: Parcel | null;
+
+  @Column({ type: 'int', nullable: true })
+  parcelRefId: number | null;
+
+  @ManyToOne(() => Order, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'orderRefId' })
+  order: Order | null;
+
+  @Column({ type: 'int', nullable: true })
+  orderRefId: number | null;
+
+  @ManyToOne(() => Shipment, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'shipmentRefId' })
+  shipment: Shipment | null;
+
+  @Column({ type: 'int', nullable: true })
+  shipmentRefId: number | null;
 
   // Who assigned it
   @ManyToOne(() => User)

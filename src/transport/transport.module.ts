@@ -17,6 +17,9 @@ import { TransportController } from './transport.controller';
 import { ReputationModule } from '../reputation/reputation.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { TzLocationModule } from '../tz-location/tz-location.module';
+import { Parcel, ParcelTracking } from '../super-agents/entities/parcel.entity';
+import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { Shipment } from '../shipments/entities/shipment.entity';
 
 @Module({
   imports: [
@@ -31,6 +34,19 @@ import { TzLocationModule } from '../tz-location/tz-location.module';
       TransportAssignment,
       ServiceAd, // for auto-linking transport providers to service marketplace
       User,
+      // Repo-only access into the super-agents/shipments entities — NOT a
+      // module import (super-agents/shipments never import TransportModule
+      // for their entities, so this stays one-directional; ShipmentsModule
+      // itself already depends on TransportModule the other way, so
+      // importing ShipmentsModule here would be circular — registering
+      // just the Shipment repository avoids that entirely). Needed so
+      // createAssignment() can validate a caller-supplied parcelId and
+      // updateAssignmentStatus() can sync a transport event onto the
+      // Parcel/Shipment it's carrying (Phases 1, 3-5).
+      Parcel,
+      ParcelTracking,
+      SuperAgent,
+      Shipment,
     ]),
   ],
   controllers: [TransportController],

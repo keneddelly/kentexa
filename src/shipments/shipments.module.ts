@@ -11,10 +11,16 @@ import { ShipmentsService } from './shipments.service';
 import { ShipmentsController } from './shipments.controller';
 import { TransportModule } from '../transport/transport.module';
 import { TzLocationModule } from '../tz-location/tz-location.module';
+import { Parcel } from '../super-agents/entities/parcel.entity';
+import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Shipment, TransportRoute]),
+    // Parcel/SuperAgent: repo-only, same reasoning as TransportModule's own
+    // repo-only registration — lets confirmShipment() create the Parcel a
+    // confirmed Shipment becomes (Phase 3) and resolve an origin SuperAgent
+    // by city, without importing SuperAgentsModule as a whole.
+    TypeOrmModule.forFeature([Shipment, TransportRoute, Parcel, SuperAgent]),
     TransportModule,
     TzLocationModule,
   ],

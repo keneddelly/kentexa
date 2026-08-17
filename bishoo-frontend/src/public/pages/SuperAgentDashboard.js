@@ -417,8 +417,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
         trackingNumber:  assignTransport.trackingNumber,
         providerId:      selectedProvider.id,
         availabilityId:  selectedAvailId || undefined,
-        fromCity:        assignTransport.fromCity,
-        toCity:          assignTransport.toCity,
         agreedPrice:     agreedPrice ? Number(agreedPrice) : undefined,
         superAgentNotes: transportNotes || undefined,
       });

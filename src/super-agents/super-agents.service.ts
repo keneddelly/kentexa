@@ -35,12 +35,15 @@ import {
   CommerceProfileType,
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
+import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
 
 @Injectable()
 export class SuperAgentsService {
   constructor(
     @InjectRepository(SuperAgent)
     private superAgentRepo: Repository<SuperAgent>,
+    @InjectRepository(TransportAssignment)
+    private transportAssignmentRepo: Repository<TransportAssignment>,
     @InjectRepository(Parcel) private parcelRepo: Repository<Parcel>,
     @InjectRepository(ParcelTracking)
     private trackingRepo: Repository<ParcelTracking>,
@@ -1128,6 +1131,12 @@ export class SuperAgentsService {
       transportRef?: string; // legacy alias
       // Agent assignment
       localAgentId?: number;
+      // Real registered TransportProvider, via an already-created
+      // TransportAssignment — the alternative to typing a free-text
+      // company name below. Optional and additive: every existing
+      // busCompany/courierName-based dispatch keeps working exactly as
+      // before if this is omitted.
+      transportAssignmentId?: number;
       // Other
       dispatchMode?: string;
       notes?: string;
@@ -1161,6 +1170,36 @@ export class SuperAgentsService {
       updates.courierCostReceipt = dto.courierCostReceipt;
     if (dto.transportRef) updates.transportRef = dto.transportRef;
 
+    // Real registered provider, via a TransportAssignment this super
+    // agent already created and had accepted — links the assignment back
+    // to this specific parcel (idempotent: only sets it if not already
+    // linked) and surfaces the provider's real name as courierName/
+    // transportRef purely for display, without touching any legacy field
+    // the caller also supplied.
+    let linkedProviderName: string | null = null;
+    if (dto.transportAssignmentId) {
+      const assignment = await this.transportAssignmentRepo.findOne({
+        where: { id: dto.transportAssignmentId },
+        relations: { provider: true },
+      });
+      if (assignment && assignment.assignedById === user.id) {
+        if (!assignment.parcelRefId) {
+          await this.transportAssignmentRepo.update(assignment.id, {
+            parcelRefId: parcel.id,
+            parcelId: parcel.id,
+            trackingNumber: parcel.trackingNumber,
+          });
+        }
+        linkedProviderName = assignment.provider?.name || null;
+        if (linkedProviderName && !dto.courierName && !dto.busCompany) {
+          updates.courierName = linkedProviderName;
+        }
+        if (!dto.transportRef) {
+          updates.transportRef = `TA-${assignment.id}`;
+        }
+      }
+    }
+
     if (dto.localAgentId) {
       const localAgent = await this.agentRepo.findOne({
         where: { id: dto.localAgentId },
@@ -1188,6 +1227,8 @@ export class SuperAgentsService {
       trackNote = `Imetumwa via courier — ${dto.courierName}`;
       if (dto.courierTrackingRef)
         trackNote += ` — Ref: ${dto.courierTrackingRef}`;
+    } else if (linkedProviderName) {
+      trackNote = `Imetumwa via ${linkedProviderName} (msafirishaji aliyesajiliwa)`;
     } else if (dto.localAgentId) {
       trackNote = `Imepewa wakala wa mtaa kwa uwasilishaji`;
     }

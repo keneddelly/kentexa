@@ -117,6 +117,23 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
         return;
       }
 
+      // 2e. KTX-SHP-xxx → standalone Shipment request. Before it's confirmed
+      // there's no Parcel yet (nothing to show beyond the request itself);
+      // once confirmed, reach for the same tracking experience an
+      // Order-based delivery already gets, rather than a second, differently
+      // shaped view — a shipment requester shouldn't need to know their
+      // package became "a Parcel" internally.
+      if (val.startsWith('KTX-SHP-')) {
+        const shipRes = await api.get(`/shipments/track/${val}`);
+        if (shipRes.data?.parcelTrackingNumber) {
+          const res = await api.get(`/super-agents/track/${shipRes.data.parcelTrackingNumber}`);
+          setResult({ ...res.data, _source: 'superagent' });
+        } else {
+          setResult({ ...shipRes.data, _source: 'shipment' });
+        }
+        return;
+      }
+
       // 3. KTX-XXX-XXX-xxxxxx → Super Agent parcel
       if (val.startsWith('KTX-')) {
         try {

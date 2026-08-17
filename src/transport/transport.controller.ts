@@ -100,9 +100,14 @@ export class TransportController {
   }
 
   // ── SUPER AGENT: FIND TRANSPORT ───────────────────────────────────────────
-  @Get('available') // Public — used on homepage
+  // Public — RouteCoverageMap.js genuinely calls this pre-login. Used to
+  // return the raw internal dispatch shape (full TransportProvider entity,
+  // including apiKey/contract fields, embedded in every result) to anyone.
+  // Same underlying query now goes through a safe, credential-free
+  // projection instead.
+  @Get('available')
   findAvailable(@Query('from') from: string, @Query('to') to: string) {
-    return this.svc.findAvailableForRoute(from, to);
+    return this.svc.findPublicAvailabilityForRoute(from, to);
   }
 
   // ── PUBLIC: CONSUMER SEARCH (AI front door) ───────────────────────────────
@@ -119,8 +124,16 @@ export class TransportController {
   }
 
   // ── ASSIGNMENTS ───────────────────────────────────────────────────────────
+  // A transport assignment is created by whoever is dispatching a parcel —
+  // normally a Super Agent (or an admin acting on their behalf). Previously
+  // any authenticated user could hit this with no role check at all and
+  // create assignments against any verified provider using unvalidated
+  // ids; the role guard here plus the ownership/legitimacy checks inside
+  // createAssignment() (parcel must belong to the caller's own hub,
+  // availability must belong to the selected provider) close that.
   @Post('assignments')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN, UserRole.MANAGER)
   createAssignment(@Request() req, @Body() dto: any) {
     return this.svc.createAssignment(req.user, dto);
   }
@@ -154,7 +167,7 @@ export class TransportController {
     @Body()
     dto: { status: AssignmentStatus; proofUrl?: string; notes?: string },
   ) {
-    return this.svc.updateAssignmentStatus(req.user.id, id, dto);
+    return this.svc.updateAssignmentStatus(req.user, id, dto);
   }
 
   @Get('assignments/track/:trackingNumber')

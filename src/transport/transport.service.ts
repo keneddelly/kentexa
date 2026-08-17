@@ -41,6 +41,9 @@ import {
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
 import { TzLocationService } from '../tz-location/tz-location.service';
+import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/parcel.entity';
+import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
 
 @Injectable()
 export class TransportService {
@@ -55,10 +58,43 @@ export class TransportService {
     private assignmentRepo: Repository<TransportAssignment>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Parcel) private parcelRepo: Repository<Parcel>,
+    @InjectRepository(ParcelTracking)
+    private parcelTrackingRepo: Repository<ParcelTracking>,
+    @InjectRepository(SuperAgent) private superAgentRepo: Repository<SuperAgent>,
+    @InjectRepository(Shipment) private shipmentRepo: Repository<Shipment>,
     private readonly reputationService: ReputationService,
     private commerceProfiles: CommerceProfilesService,
     private readonly tzLocation: TzLocationService,
   ) {}
+
+  // ── Safe, credential-free provider projection ────────────────────────────
+  // Reused everywhere a provider is embedded in a response a non-owner
+  // might see (public tracking, public availability search) — never
+  // includes apiKey/webhookEnabled/contract fields/contactEmail/admin
+  // notes. This is the single source of truth for "what's safe to show
+  // about a provider publicly" so a future new public endpoint can't
+  // reintroduce the same leak by hand-picking fields itself and missing one.
+  private toSafeProvider(p: TransportProvider) {
+    return {
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      logoUrl: p.logoUrl,
+      rating: Number(p.rating) || 0,
+      contactPhone: p.contactPhone,
+      whatsappPhone: p.whatsappPhone,
+      cities: p.cities,
+    };
+  }
+
+  // Resolves the caller's own SuperAgent profile, or null if they don't
+  // have one — never throws, since "not a super agent" is a legitimate
+  // answer callers need to branch on (e.g. reject with a clear message)
+  // rather than a 404/500.
+  private async findCallerSuperAgent(userId: number): Promise<SuperAgent | null> {
+    return this.superAgentRepo.findOne({ where: { user: { id: userId } } });
+  }
 
   // Best-effort city → region resolution against the existing tz-location
   // search. Never throws, never blocks the caller — a route/shipment with
@@ -336,7 +372,28 @@ export class TransportService {
       where: { id: routeId, providerId: p.id },
     });
     if (!route) throw new NotFoundException('Njia haijapatikana');
-    Object.assign(route, dto);
+    // Explicit whitelist — the previous Object.assign(route, dto) let an
+    // owner smuggle a providerId (or any other column) into the same
+    // request that was only supposed to let them edit their own route,
+    // silently reassigning/vandalizing it. `providerId`/`id` are never
+    // editable here regardless of what the caller sends.
+    const editable = [
+      'routeType',
+      'originCity',
+      'destinationCity',
+      'transitCities',
+      'loopStops',
+      'coverageWards',
+      'coverageCity',
+      'pricePerKg',
+      'fixedFee',
+      'estimatedHours',
+      'isActive',
+      'notes',
+    ];
+    for (const key of editable) {
+      if (dto[key] !== undefined) (route as any)[key] = dto[key];
+    }
     return this.routeRepo.save(route);
   }
 
@@ -516,37 +573,47 @@ export class TransportService {
     return { published, providers };
   }
 
+  // ── PUBLIC: safe availability discovery ──────────────────────────────────
+  // GET /transport/available is genuinely called by a public page
+  // (RouteCoverageMap.js) pre-login, so it stays public rather than being
+  // locked behind auth — but it must never again return the raw
+  // TransportProvider entity (apiKey, contract fields, contactEmail, admin
+  // notes) embedded in every result the way findAvailableForRoute's
+  // internal shape does. Same underlying query, safe projection on top.
+  async findPublicAvailabilityForRoute(fromCity: string, toCity: string) {
+    const { published, providers } = await this.findAvailableForRoute(
+      fromCity,
+      toCity,
+    );
+    return {
+      trips: published.map((a) => ({
+        availabilityId: a.id,
+        provider: this.toSafeProvider((a as any).provider),
+        fromCity: a.fromCity || (a as any).route?.originCity || null,
+        toCity: a.toCity || (a as any).route?.destinationCity || null,
+        date: a.date,
+        departureTime: a.departureTime,
+        arrivalEstimate: a.arrivalEstimate,
+        slotsAvailable: Math.max(0, a.totalSlots - a.usedSlots),
+        capacityAvailableKg: Math.max(
+          0,
+          Number(a.totalCapacityKg) - Number(a.usedCapacityKg),
+        ),
+        pricePerKg: (a as any).route?.pricePerKg ?? null,
+        fixedFee: (a as any).route?.fixedFee ?? null,
+      })),
+      providers: providers.map((p) => this.toSafeProvider(p)),
+    };
+  }
+
   // ── PUBLIC CONSUMER SEARCH ───────────────────────────────────────────────
   // Unlike findAvailableForRoute (super-agent dispatch — internal slot/
   // capacity data), this returns a lean, consumer-safe card shape for the
   // AI front door's "transport" domain. Reuses the same verified-providers
   // query rather than duplicating it.
-  async findPublicProvidersForRoute(
-    fromCity: string,
-    toCity: string,
-  ): Promise<
-    {
-      id: number;
-      name: string;
-      type: ProviderType;
-      logoUrl: string | null;
-      rating: number;
-      contactPhone: string | null;
-      whatsappPhone: string | null;
-      cities: string[] | null;
-    }[]
-  > {
+  async findPublicProvidersForRoute(fromCity: string, toCity: string) {
     const { providers } = await this.findAvailableForRoute(fromCity, toCity);
-    return providers.map((p) => ({
-      id: p.id,
-      name: p.name,
-      type: p.type,
-      logoUrl: p.logoUrl,
-      rating: Number(p.rating) || 0,
-      contactPhone: p.contactPhone,
-      whatsappPhone: p.whatsappPhone,
-      cities: p.cities,
-    }));
+    return providers.map((p) => this.toSafeProvider(p));
   }
 
   // ── TRANSPORT ASSIGNMENT ──────────────────────────────────────────────────
@@ -567,17 +634,120 @@ export class TransportService {
     }
   }
 
+  // Counterpart to reserveCapacity — an assignment cancelled/declined
+  // before departure must give its slot back, or a provider's real
+  // capacity silently shrinks every time a booking falls through.
+  async releaseCapacity(availabilityId: number, weightKg: number): Promise<void> {
+    const avail = await this.availabilityRepo.findOne({
+      where: { id: availabilityId },
+    });
+    if (!avail) return;
+    avail.usedSlots = Math.max(0, avail.usedSlots - 1);
+    avail.usedCapacityKg = Math.max(0, Number(avail.usedCapacityKg) - (weightKg || 1));
+    if (avail.status === AvailabilityStatus.FULL && avail.usedSlots < avail.totalSlots) {
+      avail.status = AvailabilityStatus.OPEN;
+    }
+    await this.availabilityRepo.save(avail);
+  }
+
+  // Only these transitions are reachable via updateAssignmentStatus() —
+  // accept/decline stay in respondToAssignment(). Cancellation is only
+  // allowed before the parcel has physically departed; nothing can jump
+  // straight to COMPLETED or move backwards.
+  private static readonly NEXT_STATUS: Partial<
+    Record<AssignmentStatus, AssignmentStatus[]>
+  > = {
+    [AssignmentStatus.ACCEPTED]: [
+      AssignmentStatus.COLLECTED,
+      AssignmentStatus.CANCELLED,
+    ],
+    [AssignmentStatus.COLLECTED]: [
+      AssignmentStatus.DEPARTED,
+      AssignmentStatus.CANCELLED,
+    ],
+    [AssignmentStatus.DEPARTED]: [AssignmentStatus.ARRIVED],
+    [AssignmentStatus.ARRIVED]: [AssignmentStatus.COMPLETED],
+  };
+
+  // A transport leg reaching one of these states is real evidence about
+  // where the physical parcel actually is — Kentexa (not the provider
+  // directly) translates that into the Parcel's own lifecycle. COMPLETED
+  // is deliberately absent: the entity's own status comment says it means
+  // "handed to destination super agent OR buyer" — two different real
+  // events collapsed into one value — so it is never auto-translated;
+  // the existing Super Agent hub-receive / local-agent-delivered actions
+  // remain the only things allowed to advance a Parcel that far.
+  private static readonly PARCEL_SYNC: Partial<
+    Record<AssignmentStatus, ParcelStatus>
+  > = {
+    [AssignmentStatus.COLLECTED]: ParcelStatus.DISPATCHED,
+    [AssignmentStatus.DEPARTED]: ParcelStatus.IN_TRANSIT,
+    [AssignmentStatus.ARRIVED]: ParcelStatus.ARRIVED_AT_HUB,
+  };
+
+  // A Parcel already resolved one way or another shouldn't be dragged
+  // backwards by a transport event arriving late/out of order.
+  private static readonly PARCEL_SYNC_BLOCKED = new Set([
+    ParcelStatus.DELIVERED,
+    ParcelStatus.SELF_PICKUP,
+    ParcelStatus.RETURNED,
+    ParcelStatus.DISPUTED,
+  ]);
+
+  // Best-effort mirror onto the standalone Shipment a Parcel may have
+  // originated from — so a shipment requester sees real progress without
+  // needing to know their parcel is also, internally, a Parcel. Never
+  // blocks the transport-status update itself if it fails.
+  private static readonly SHIPMENT_SYNC: Partial<
+    Record<ParcelStatus, ShipmentStatus>
+  > = {
+    [ParcelStatus.DISPATCHED]: ShipmentStatus.COLLECTED,
+    [ParcelStatus.IN_TRANSIT]: ShipmentStatus.IN_TRANSIT,
+    [ParcelStatus.ARRIVED_AT_HUB]: ShipmentStatus.IN_TRANSIT,
+    [ParcelStatus.DELIVERED]: ShipmentStatus.DELIVERED,
+    [ParcelStatus.SELF_PICKUP]: ShipmentStatus.DELIVERED,
+  };
+
+  private async syncParcelFromAssignment(
+    a: TransportAssignment,
+    newStatus: AssignmentStatus,
+  ): Promise<void> {
+    const parcelId = a.parcelRefId || a.parcelId;
+    const targetParcelStatus = TransportService.PARCEL_SYNC[newStatus];
+    if (!parcelId || !targetParcelStatus) return;
+    try {
+      const parcel = await this.parcelRepo.findOne({ where: { id: parcelId } });
+      if (!parcel || TransportService.PARCEL_SYNC_BLOCKED.has(parcel.status)) return;
+
+      await this.parcelRepo.update(parcel.id, { status: targetParcelStatus });
+      await this.parcelTrackingRepo.save(
+        this.parcelTrackingRepo.create({
+          parcel,
+          status: targetParcelStatus,
+          city: newStatus === AssignmentStatus.ARRIVED ? a.toCity : a.fromCity,
+          note: `Auto-synced from transport assignment #${a.id}: ${newStatus}`,
+          updatedBy: 'Kentexa',
+          handlerType: 'system',
+        } as any),
+      );
+
+      const shipmentId = a.shipmentRefId || (parcel as any).shipmentId;
+      const shipmentStatus = TransportService.SHIPMENT_SYNC[targetParcelStatus];
+      if (shipmentId && shipmentStatus) {
+        await this.shipmentRepo.update(shipmentId, { status: shipmentStatus });
+      }
+    } catch {
+      /* non-fatal — the transport status update itself already succeeded */
+    }
+  }
+
   async createAssignment(
-    superAgent: User,
+    caller: User,
     dto: {
-      trackingNumber?: string;
-      orderId?: number;
       parcelId?: number;
-      shipmentId?: number;
+      trackingNumber?: string;
       providerId: number;
       availabilityId?: number;
-      fromCity: string;
-      toCity: string;
       parcelCount?: number;
       weightKg?: number;
       agreedPrice?: number;
@@ -585,6 +755,33 @@ export class TransportService {
       superAgentNotes?: string;
     },
   ): Promise<TransportAssignment> {
+    // Only an active Super Agent may create an assignment, and only for a
+    // parcel their own hub actually holds — never trust a bare "I am a
+    // super agent, trust my ids" claim from the client.
+    const superAgent = await this.findCallerSuperAgent(caller.id);
+    if (!superAgent) {
+      throw new ForbiddenException(
+        'Only a Super Agent can create a transport assignment',
+      );
+    }
+
+    if (!dto.parcelId && !dto.trackingNumber) {
+      throw new BadRequestException('parcelId or trackingNumber is required');
+    }
+    const parcel = await this.parcelRepo.findOne({
+      where: dto.parcelId ? { id: dto.parcelId } : { trackingNumber: dto.trackingNumber },
+      relations: { superAgent: true, destinationSuperAgent: true, order: true, shipment: true },
+    });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+    const ownsParcel =
+      parcel.superAgent?.id === superAgent.id ||
+      parcel.destinationSuperAgent?.id === superAgent.id;
+    if (!ownsParcel) {
+      throw new ForbiddenException(
+        "You don't have authority over this parcel",
+      );
+    }
+
     const provider = await this.providerRepo.findOne({
       where: { id: dto.providerId },
     });
@@ -593,27 +790,56 @@ export class TransportService {
       throw new BadRequestException('Msafirishaji huyu hajakaguliwa bado');
     }
 
+    // If a specific slot was chosen, it must actually belong to the
+    // selected provider and still have room — pairing an unrelated
+    // availabilityId with any providerId used to silently deplete a
+    // stranger's capacity with no relationship check at all.
+    if (dto.availabilityId) {
+      const availability = await this.availabilityRepo.findOne({
+        where: { id: dto.availabilityId },
+      });
+      if (!availability) {
+        throw new NotFoundException('Availability slot not found');
+      }
+      if (availability.providerId !== dto.providerId) {
+        throw new BadRequestException(
+          "That availability slot doesn't belong to the selected provider",
+        );
+      }
+      if (
+        availability.status !== AvailabilityStatus.OPEN ||
+        availability.usedSlots >= availability.totalSlots
+      ) {
+        throw new BadRequestException('That slot is no longer available');
+      }
+    }
+
     // Auto-confirm large providers, manual for small
     const isAutoConfirm = provider.confirmMode === ConfirmMode.AUTO;
 
-    // Reserve slot if availability specified
     if (dto.availabilityId) {
       await this.reserveCapacity(dto.availabilityId, dto.weightKg || 1);
     }
 
+    // orderId/shipmentId are never taken from the client — always derived
+    // from the parcel that was just validated above, so they can't be
+    // spoofed independently of a legitimate parcelId.
     const assignment = await this.assignmentRepo.save(
       this.assignmentRepo.create({
-        trackingNumber: dto.trackingNumber || null,
-        orderId: dto.orderId || null,
-        parcelId: dto.parcelId || null,
-        shipmentId: dto.shipmentId || null,
-        assignedById: superAgent.id,
+        trackingNumber: parcel.trackingNumber || null,
+        orderId: parcel.order?.id || null,
+        parcelId: parcel.id,
+        shipmentId: (parcel as any).shipment?.id || null,
+        parcelRefId: parcel.id,
+        orderRefId: parcel.order?.id || null,
+        shipmentRefId: (parcel as any).shipment?.id || null,
+        assignedById: caller.id,
         providerId: dto.providerId,
         availabilityId: dto.availabilityId || null,
-        fromCity: dto.fromCity,
-        toCity: dto.toCity,
+        fromCity: parcel.originCity,
+        toCity: parcel.destinationCity,
         parcelCount: dto.parcelCount || 1,
-        weightKg: dto.weightKg || 0,
+        weightKg: dto.weightKg || Number(parcel.weightKg) || 0,
         agreedPrice: dto.agreedPrice || null,
         scheduledDeparture: dto.scheduledDeparture || null,
         superAgentNotes: dto.superAgentNotes || null,
@@ -654,12 +880,19 @@ export class TransportService {
       : AssignmentStatus.DECLINED;
     assignment.acceptedAt = accept ? new Date() : null;
     assignment.declineReason = declineReason || null;
-    return this.assignmentRepo.save(assignment);
+    const saved = await this.assignmentRepo.save(assignment);
+
+    if (!accept && assignment.availabilityId) {
+      await this.releaseCapacity(assignment.availabilityId, Number(assignment.weightKg) || 1);
+    }
+    return saved;
   }
 
-  // Update assignment status (collected/departed/arrived/completed) with proof
+  // Update assignment status (collected/departed/arrived/completed/cancelled)
+  // with proof. Caller must be either the assigned provider, or the Super
+  // Agent who created the assignment — anyone else is rejected outright.
   async updateAssignmentStatus(
-    userId: number,
+    caller: User,
     assignmentId: number,
     dto: {
       status: AssignmentStatus;
@@ -667,13 +900,29 @@ export class TransportService {
       notes?: string;
     },
   ) {
-    const provider = await this.getMyProfile(userId);
-    const a = await this.assignmentRepo.findOne({
-      where: { id: assignmentId, providerId: provider.id },
-    });
+    const a = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
     if (!a) throw new NotFoundException('Mgawo haukupatikana');
 
+    const providerProfile = await this.providerRepo.findOne({
+      where: { user: { id: caller.id } },
+    });
+    const isOwningProvider = !!providerProfile && providerProfile.id === a.providerId;
+    const isCreatingSuperAgent =
+      a.assignedById === caller.id && !!(await this.findCallerSuperAgent(caller.id));
+    const isAdmin = [UserRole.ADMIN, UserRole.MANAGER].includes(caller.role);
+    if (!isOwningProvider && !isCreatingSuperAgent && !isAdmin) {
+      throw new ForbiddenException('Not authorized to update this transport assignment');
+    }
+
+    const allowedNext = TransportService.NEXT_STATUS[a.status] || [];
+    if (!isAdmin && !allowedNext.includes(dto.status)) {
+      throw new BadRequestException(
+        `Cannot move assignment from "${a.status}" to "${dto.status}"`,
+      );
+    }
+
     const now = new Date();
+    const previousStatus = a.status;
     a.status = dto.status;
     if (dto.notes) a.providerNotes = dto.notes;
 
@@ -690,15 +939,20 @@ export class TransportService {
         a.arrivedAt = now;
         a.arrivalProofUrl = dto.proofUrl || null;
         break;
+      case AssignmentStatus.CANCELLED:
+        if (a.availabilityId && previousStatus !== AssignmentStatus.DEPARTED) {
+          await this.releaseCapacity(a.availabilityId, Number(a.weightKg) || 1);
+        }
+        break;
       case AssignmentStatus.COMPLETED:
         a.completedAt = now;
-        await this.providerRepo.update(provider.id, {
+        await this.providerRepo.update(a.providerId, {
           completedAssignments: () => 'completedAssignments + 1',
         });
         // Award reputation for completed transport assignment
-        if (provider.userId) {
+        if (providerProfile?.userId) {
           this.reputationService
-            .award(provider.userId, ReputationEventType.TRANSPORT_COMPLETED, {
+            .award(providerProfile.userId, ReputationEventType.TRANSPORT_COMPLETED, {
               sourceEntityType: 'transport_assignment',
               sourceEntityId: a.id,
             })
@@ -706,7 +960,14 @@ export class TransportService {
         }
         break;
     }
-    return this.assignmentRepo.save(a);
+    const saved = await this.assignmentRepo.save(a);
+
+    // Kentexa (not the transport provider directly) turns a real transport
+    // event into the Parcel's own lifecycle — see PARCEL_SYNC's comment for
+    // exactly which transitions apply and why COMPLETED is excluded.
+    await this.syncParcelFromAssignment(saved, dto.status);
+
+    return saved;
   }
 
   // Get assignments for a provider
@@ -723,15 +984,35 @@ export class TransportService {
     return q.orderBy('a.createdAt', 'DESC').take(50).getMany();
   }
 
-  // Get assignments for a tracking number
-  async getAssignmentByTracking(
-    trackingNumber: string,
-  ): Promise<TransportAssignment[]> {
-    return this.assignmentRepo.find({
+  // Get assignments for a tracking number — PUBLIC, unauthenticated. Used
+  // to leak the full TransportAssignment + embedded TransportProvider
+  // entity (apiKey included — the exact bearer credential the webhook
+  // controller trusts, i.e. this was a full impersonation path for
+  // anyone who could guess a tracking number). Now returns a hand-picked,
+  // credential-free shape only.
+  async getAssignmentByTracking(trackingNumber: string) {
+    const rows = await this.assignmentRepo.find({
       where: { trackingNumber },
       relations: { provider: true },
       order: { createdAt: 'DESC' },
     });
+    return rows.map((a) => ({
+      status: a.status,
+      fromCity: a.fromCity,
+      toCity: a.toCity,
+      provider: a.provider ? this.toSafeProvider(a.provider) : null,
+      scheduledDeparture: a.scheduledDeparture,
+      collectedAt: a.collectedAt,
+      collectionProofUrl: a.collectionProofUrl,
+      departedAt: a.departedAt,
+      departureProofUrl: a.departureProofUrl,
+      arrivedAt: a.arrivedAt,
+      arrivalProofUrl: a.arrivalProofUrl,
+      completedAt: a.completedAt,
+      parcelCount: a.parcelCount,
+      weightKg: a.weightKg,
+      createdAt: a.createdAt,
+    }));
   }
 
   // ── ADMIN ─────────────────────────────────────────────────────────────────

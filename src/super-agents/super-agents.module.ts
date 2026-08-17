@@ -19,6 +19,7 @@ import { SmsModule } from '../sms/sms.module';
 import { BusinessModule } from '../business/business.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
 
 @Module({
   imports: [
@@ -36,6 +37,10 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
       DeliveryZone, // all three needed — BatchParcel has relations to both
       IntercityRoute,
       User,
+      // Repo-only (not importing TransportModule) — lets dispatchParcel()
+      // optionally link a real, verified TransportAssignment instead of
+      // only free-text company fields, without a module-level dependency.
+      TransportAssignment,
     ]),
     AgentsModule,
     SmsModule,

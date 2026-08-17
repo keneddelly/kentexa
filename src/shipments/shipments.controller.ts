@@ -6,8 +6,10 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Param,
+  ParseIntPipe,
   Query,
   Request,
   UseGuards,
@@ -46,6 +48,22 @@ export class ShipmentsController {
   @UseGuards(JwtAuthGuard)
   mine(@Request() req) {
     return this.svc.getMyShipments(req.user.id);
+  }
+
+  @Patch(':id/confirm')
+  @UseGuards(JwtAuthGuard)
+  confirm(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { providerId?: number; availabilityId?: number; routeId?: number },
+  ) {
+    return this.svc.confirmShipment(req.user.id, id, dto);
+  }
+
+  @Patch(':id/cancel')
+  @UseGuards(JwtAuthGuard)
+  cancel(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.svc.cancelShipment(req.user.id, id);
   }
 
   // Public — tracking must work for the receiver too, who may not have an
