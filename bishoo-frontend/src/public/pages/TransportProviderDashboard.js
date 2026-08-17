@@ -37,6 +37,51 @@ const inp = {
   outline: 'none', fontFamily: 'inherit',
 };
 
+// Real structured location search (same GET /locations/search + suggestion
+// pattern already used in SendShipment.js) — the route form previously
+// took origin/destination as bare typed text with no resolution against
+// the actual location engine at all, unlike every other place in the app
+// that collects a city/place.
+const CityInput = ({ label, value, onChange, placeholder }) => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [showList, setShowList] = useState(false);
+
+  useEffect(() => {
+    if (!value?.trim() || value.trim().length < 2) { setSuggestions([]); return; }
+    const timer = setTimeout(() => {
+      api.get('/locations/search', { params: { q: value.trim() } })
+        .then(r => setSuggestions(r.data || []))
+        .catch(() => setSuggestions([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [value]);
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{label}</label>
+      <input style={inp} value={value} placeholder={placeholder}
+        onChange={e => { onChange(e.target.value); setShowList(true); }}
+        onFocus={() => setShowList(true)}
+        onBlur={() => setTimeout(() => setShowList(false), 150)} />
+      {showList && suggestions.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
+          backgroundColor: '#fff', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
+          marginTop: 4, overflow: 'hidden', maxHeight: 200, overflowY: 'auto' }}>
+          {suggestions.map((s, i) => (
+            <button key={i} type="button"
+              onClick={() => { onChange(s.region || s.fullAddress); setShowList(false); }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px',
+                border: 'none', borderBottom: '1px solid #f1f5f9', backgroundColor: '#fff',
+                cursor: 'pointer', fontSize: 12, color: '#1e293b' }}>
+              {s.fullAddress}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
   const { t } = useTranslation();
   const STATUS_STYLE = getStatusStyle(t);
@@ -538,16 +583,12 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
 
                 {routeForm.routeType === 'intercity' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_from')}</label>
-                      <input style={inp} value={routeForm.originCity} placeholder="Dar es Salaam"
-                        onChange={e => setRouteForm(p => ({ ...p, originCity: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_to')}</label>
-                      <input style={inp} value={routeForm.destinationCity} placeholder="Mbeya"
-                        onChange={e => setRouteForm(p => ({ ...p, destinationCity: e.target.value }))} />
-                    </div>
+                    <CityInput label={t('transport_provider_dashboard.field_from')}
+                      value={routeForm.originCity} placeholder="Dar es Salaam"
+                      onChange={v => setRouteForm(p => ({ ...p, originCity: v }))} />
+                    <CityInput label={t('transport_provider_dashboard.field_to')}
+                      value={routeForm.destinationCity} placeholder="Mbeya"
+                      onChange={v => setRouteForm(p => ({ ...p, destinationCity: v }))} />
                   </div>
                 )}
 
@@ -561,11 +602,9 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
 
                 {routeForm.routeType === 'last_mile' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_coverage_city')}</label>
-                      <input style={inp} value={routeForm.coverageCity} placeholder="Dar es Salaam"
-                        onChange={e => setRouteForm(p => ({ ...p, coverageCity: e.target.value }))} />
-                    </div>
+                    <CityInput label={t('transport_provider_dashboard.field_coverage_city')}
+                      value={routeForm.coverageCity} placeholder="Dar es Salaam"
+                      onChange={v => setRouteForm(p => ({ ...p, coverageCity: v }))} />
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_coverage_wards')}</label>
                       <input style={inp} value={routeForm.coverageWards} placeholder="Bunju, Tegeta"

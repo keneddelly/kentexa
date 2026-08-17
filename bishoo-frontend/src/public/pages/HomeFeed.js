@@ -996,7 +996,18 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
     onClose();
     if (moment.linkedEntityType === 'product') onNavigate(`ProductDetail-${moment.linkedEntityId}`);
     else if (moment.linkedEntityType === 'service') onNavigate(`ServiceDetail-${moment.linkedEntityId}`);
-    else if (moment.linkedEntityType === 'route') onNavigate('SellerShipment');
+    else if (moment.linkedEntityType === 'route') {
+      // Was a hardcoded 'SellerShipment' — a generic, unrelated seller page
+      // that ignored moment.linkedEntityId entirely, so tapping a shared
+      // route always landed you nowhere near that route. The moment only
+      // carries the provider's user id and the route id, not the route's
+      // own origin/destination cities, so the correct landing spot is the
+      // provider's public transport tab — it already lists their real
+      // routes with a working "Ship" button per route (CommerceProfile.js),
+      // rather than guessing at a SendShipment prefill with incomplete data.
+      if (biz.id) onNavigate(`CommerceProfile-${biz.id}-transport`);
+      else onNavigate('SendShipment');
+    }
     else onNavigate(`ClassifiedDetail-${moment.linkedEntityId}`);
   };
 
