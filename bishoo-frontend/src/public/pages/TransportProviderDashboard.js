@@ -55,6 +55,14 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
     fromCity: '', toCity: '', notes: '',
   });
   const [savingAvail, setSavingAvail] = useState(false);
+  const [showRouteForm, setShowRouteForm] = useState(false);
+  const [routeForm,     setRouteForm]     = useState({
+    routeType: 'intercity',
+    originCity: '', destinationCity: '',
+    loopStops: '', coverageCity: '', coverageWards: '',
+    pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '',
+  });
+  const [savingRoute, setSavingRoute] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -88,6 +96,38 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
       fetchAll();
     } catch (e) { alert(e.response?.data?.message || t('transport_provider_dashboard.publish_error')); }
     finally { setSavingAvail(false); }
+  };
+
+  // Previously there was no way to add a route at all — the Routes tab
+  // only ever listed rows a route had to already exist to show, and the
+  // "Add Route" button elsewhere in the app just linked back to
+  // registration. POST /transport/routes has always existed server-side;
+  // this is the first UI that actually calls it.
+  const handleAddRoute = async () => {
+    try {
+      setSavingRoute(true);
+      const dto = {
+        routeType: routeForm.routeType,
+        pricePerKg: routeForm.pricePerKg ? Number(routeForm.pricePerKg) : undefined,
+        fixedFee: routeForm.fixedFee ? Number(routeForm.fixedFee) : undefined,
+        estimatedHours: routeForm.estimatedHours ? Number(routeForm.estimatedHours) : undefined,
+        notes: routeForm.notes || undefined,
+      };
+      if (routeForm.routeType === 'intercity') {
+        dto.originCity = routeForm.originCity;
+        dto.destinationCity = routeForm.destinationCity;
+      } else if (routeForm.routeType === 'local_loop') {
+        dto.loopStops = routeForm.loopStops.split(',').map(s => s.trim()).filter(Boolean);
+      } else if (routeForm.routeType === 'last_mile') {
+        dto.coverageCity = routeForm.coverageCity;
+        dto.coverageWards = routeForm.coverageWards.split(',').map(s => s.trim()).filter(Boolean);
+      }
+      await api.post('/transport/routes', dto);
+      setShowRouteForm(false);
+      setRouteForm(p => ({ ...p, originCity: '', destinationCity: '', loopStops: '', coverageCity: '', coverageWards: '', pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '' }));
+      fetchAll();
+    } catch (e) { alert(e.response?.data?.message || t('transport_provider_dashboard.route_save_error')); }
+    finally { setSavingRoute(false); }
   };
 
   const handleRespond = async (id, accept) => {
@@ -472,6 +512,102 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
         {/* Routes tab */}
         {tab === 'routes' && (
           <div>
+            <button onClick={() => setShowRouteForm(true)}
+              style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
+                color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0',
+                fontSize: 14, fontWeight: 800, cursor: 'pointer', marginBottom: 16 }}>
+              {t('transport_provider_dashboard.add_route_button')}
+            </button>
+
+            {showRouteForm && (
+              <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
+                marginBottom: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>
+                  {t('transport_provider_dashboard.new_route_title')}
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_route_type')}</label>
+                  <select style={inp} value={routeForm.routeType}
+                    onChange={e => setRouteForm(p => ({ ...p, routeType: e.target.value }))}>
+                    <option value="intercity">{t('transport_provider_dashboard.route_type_intercity')}</option>
+                    <option value="local_loop">{t('transport_provider_dashboard.route_type_local_loop')}</option>
+                    <option value="last_mile">{t('transport_provider_dashboard.route_type_last_mile')}</option>
+                  </select>
+                </div>
+
+                {routeForm.routeType === 'intercity' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_from')}</label>
+                      <input style={inp} value={routeForm.originCity} placeholder="Dar es Salaam"
+                        onChange={e => setRouteForm(p => ({ ...p, originCity: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_to')}</label>
+                      <input style={inp} value={routeForm.destinationCity} placeholder="Mbeya"
+                        onChange={e => setRouteForm(p => ({ ...p, destinationCity: e.target.value }))} />
+                    </div>
+                  </div>
+                )}
+
+                {routeForm.routeType === 'local_loop' && (
+                  <div style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_loop_stops')}</label>
+                    <input style={inp} value={routeForm.loopStops} placeholder="Kariakoo, Buguruni, Mbagala"
+                      onChange={e => setRouteForm(p => ({ ...p, loopStops: e.target.value }))} />
+                  </div>
+                )}
+
+                {routeForm.routeType === 'last_mile' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_coverage_city')}</label>
+                      <input style={inp} value={routeForm.coverageCity} placeholder="Dar es Salaam"
+                        onChange={e => setRouteForm(p => ({ ...p, coverageCity: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_coverage_wards')}</label>
+                      <input style={inp} value={routeForm.coverageWards} placeholder="Bunju, Tegeta"
+                        onChange={e => setRouteForm(p => ({ ...p, coverageWards: e.target.value }))} />
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_price_per_kg')}</label>
+                    <input type="number" style={inp} value={routeForm.pricePerKg}
+                      onChange={e => setRouteForm(p => ({ ...p, pricePerKg: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_fixed_fee')}</label>
+                    <input type="number" style={inp} value={routeForm.fixedFee}
+                      onChange={e => setRouteForm(p => ({ ...p, fixedFee: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_estimated_hours')}</label>
+                  <input type="number" style={inp} value={routeForm.estimatedHours}
+                    onChange={e => setRouteForm(p => ({ ...p, estimatedHours: e.target.value }))} />
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button onClick={() => setShowRouteForm(false)}
+                    style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none',
+                      borderRadius: 8, padding: '10px 0', cursor: 'pointer', fontWeight: 700 }}>
+                    {t('transport_provider_dashboard.close_button')}
+                  </button>
+                  <button onClick={handleAddRoute} disabled={savingRoute}
+                    style={{ flex: 2, backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
+                      borderRadius: 8, padding: '10px 0', cursor: 'pointer', fontWeight: 800 }}>
+                    {savingRoute ? t('transport_provider_dashboard.saving_button') : t('transport_provider_dashboard.save_route_button')}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {routes.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, backgroundColor: '#fff', borderRadius: 16, color: '#94a3b8' }}>
                 <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>

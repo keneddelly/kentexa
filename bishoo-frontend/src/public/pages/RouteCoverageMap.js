@@ -56,14 +56,18 @@ const RouteCoverageMap = ({ onNavigate }) => {
   const [cityStatus, setCityStatus] = useState({});
 
   useEffect(() => {
+    // /transport/available now returns a safe { trips, providers } shape
+    // (it used to embed the full raw TransportProvider entity — apiKey
+    // included — in every result; { published, providers } was that old
+    // internal shape). Same trip data, different envelope.
     api.get('/transport/available?from=Dar%20es%20Salaam&to=')
       .then(r => {
-        const data = r.data?.published || r.data || [];
+        const data = r.data?.trips || [];
         setProviders(data);
         // Build city coverage map
         const status = {};
         data.forEach(p => {
-          const city = p.provider?.city || p.fromCity;
+          const city = p.fromCity;
           if (city) status[city] = (status[city] || 0) + 1;
         });
         setCityStatus(status);
@@ -83,8 +87,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
   const selectedCity = selected ? CITIES.find(c => c.name === selected) : null;
   const cityProviders = selectedCity
     ? providers.filter(p =>
-        (p.provider?.city || p.fromCity || '').toLowerCase() ===
-        selectedCity.name.toLowerCase()
+        (p.fromCity || '').toLowerCase() === selectedCity.name.toLowerCase()
       )
     : [];
 
@@ -220,7 +223,7 @@ const RouteCoverageMap = ({ onNavigate }) => {
                           </div>
                         </div>
                         <span style={{ fontSize:10, color:'#16a34a', fontWeight:700 }}>
-                          {t('route_coverage_map.slots_available', { count: (p.totalSlots||0)-(p.usedSlots||0) })}
+                          {t('route_coverage_map.slots_available', { count: p.slotsAvailable||0 })}
                         </span>
                       </div>
                     ))}
@@ -278,7 +281,15 @@ const RouteCoverageMap = ({ onNavigate }) => {
                   <span style={{ fontSize:13, fontWeight:900, color:B }}>{s.value}</span>
                 </div>
               ))}
-              <button onClick={() => onNavigate('BecomeTransportProvider')}
+              {/* Was pointed at BecomeTransportProvider (registration)
+                  regardless of whether the visitor already had a provider
+                  account — an already-registered provider tapping "Add
+                  Route" just got sent back through sign-up again, with no
+                  way to actually add one. TransportProviderDashboard now
+                  handles both cases itself: shows the join flow if there's
+                  no account yet, otherwise its Routes tab (which now has a
+                  real add-route form). */}
+              <button onClick={() => onNavigate('TransportProviderDashboard')}
                 style={{ width:'100%', marginTop:12,
                   backgroundColor:'#f0fdf4', color:'#16a34a',
                   border:'1px solid #bbf7d0', borderRadius:10,
