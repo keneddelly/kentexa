@@ -137,4 +137,42 @@ export class AiPromptTemplateService {
       schemaName: 'search_query_parse',
     };
   }
+
+  // Distinct job from searchParsePrompt() above: that one decides WHERE to
+  // search, before any results exist. This one runs AFTER results come
+  // back and explains what was actually found — the conversational layer
+  // Kentexa's search was missing entirely (routing results into a grid is
+  // not the same as an AI that talks about them).
+  searchExplainPrompt(): PromptTemplate {
+    return {
+      system:
+        'You are Kentexa\'s shopping assistant for Tanzania. You are given a user\'s search ' +
+        'query and a compact summary of what the search actually found (counts per category, ' +
+        'and a short list of the top matching items/businesses/people with name, price, and ' +
+        'rating where available). Write a short, warm, natural-language response (1-2 sentences, ' +
+        'like a helpful person, not a robot) that tells the user what was found — mention a ' +
+        'specific standout item or business by name when one exists, and note price range or ' +
+        'rating only if it adds real value. If nothing or very little was found, say so honestly ' +
+        'and encourage a broader search rather than inventing results. Never claim an item exists ' +
+        'that is not in the provided summary. Then suggest up to 3 short, concrete follow-up ' +
+        'search queries (each under 6 words, phrased as something the user could type or tap — ' +
+        'e.g. "cheaper hidden cameras", "search Mwanza too") that are genuinely useful given what ' +
+        'was and wasn\'t found — omit suggestions entirely if none would help. Respond in the same ' +
+        'language the query was written in.',
+      schema: {
+        type: 'object',
+        properties: {
+          summary: { type: 'string' },
+          suggestions: {
+            type: 'array',
+            items: { type: 'string' },
+            maxItems: 3,
+          },
+        },
+        required: ['summary', 'suggestions'],
+        additionalProperties: false,
+      },
+      schemaName: 'search_results_explain',
+    };
+  }
 }

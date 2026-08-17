@@ -13,6 +13,7 @@ import { AiUsageLogService } from './ai-usage-log.service';
 import { AiService } from './ai.service';
 import { AiController } from './ai.controller';
 import { AiSearchParserService } from './ai-search-parser.service';
+import { AiSearchExplainerService } from './ai-search-explainer.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([AiUsageLog])],
@@ -29,7 +30,8 @@ import { AiSearchParserService } from './ai-search-parser.service';
     AiUsageLogService,
     AiService,
     AiSearchParserService,
+    AiSearchExplainerService,
   ],
-  exports: [AiService, AiPromptTemplateService, AiSearchParserService],
+  exports: [AiService, AiPromptTemplateService, AiSearchParserService, AiSearchExplainerService],
 })
 export class AiModule {}
