@@ -1,38 +1,38 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import OpenAI from 'openai';
+import { EmbeddingRouter } from './embedding.router';
 
-// A separate capability from AiService/AiRouter — embeddings aren't a
-// "generate a response" task, they're a fixed numeric representation of
-// text, and only OpenAI (of the four configured providers) exposes an
-// embeddings endpoint at all. Talks to OpenAI directly rather than routing
-// through AiRouter's model-tier system, which doesn't apply here.
+// The ONLY entry point the rest of Kentexa calls for embeddings — same role
+// AiService plays for generate() tasks. Nothing downstream (SearchIndexService,
+// every reindex hook in products/classifieds/services/commerce-profiles)
+// knows or should know which vendor actually computes the vector; that's
+// entirely EmbeddingRouter's decision, driven by the EMBEDDING_PROVIDER env
+// var. Swapping providers later (e.g. if OpenAI becomes too expensive) means
+// adding a new EmbeddingProvider + a config change here — this method's
+// signature, and every caller of it, never change.
 @Injectable()
 export class EmbeddingService {
   private readonly logger = new Logger(EmbeddingService.name);
-  private readonly client: OpenAI | null;
-  private static readonly MODEL = 'text-embedding-3-small'; // 1536 dims
 
-  constructor(config: ConfigService) {
-    const apiKey = config.get<string>('OPENAI_API_KEY');
-    this.client = apiKey ? new OpenAI({ apiKey }) : null;
-  }
+  constructor(private readonly router: EmbeddingRouter) {}
 
   get isConfigured(): boolean {
-    return this.client !== null;
+    try {
+      this.router.resolve();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // Fails open — returns null on any error or missing key, same discipline
   // as every other AI feature in this app (AiSearchParserService,
   // AiSearchExplainerService). Callers must treat null as "skip silently."
   async embed(text: string): Promise<number[] | null> {
-    if (!this.client || !text?.trim()) return null;
+    if (!text?.trim()) return null;
     try {
-      const res = await this.client.embeddings.create({
-        model: EmbeddingService.MODEL,
-        input: text.trim().slice(0, 8000),
-      });
-      return res.data[0]?.embedding ?? null;
+      const provider = this.router.resolve();
+      const res = await provider.embed({ text: text.trim() });
+      return res.embedding;
     } catch (err) {
       this.logger.warn(`Embedding request failed: ${err.message}`);
       return null;

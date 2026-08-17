@@ -15,6 +15,8 @@ import { AiController } from './ai.controller';
 import { AiSearchParserService } from './ai-search-parser.service';
 import { AiSearchExplainerService } from './ai-search-explainer.service';
 import { EmbeddingService } from './embedding.service';
+import { EmbeddingRouter } from './embedding.router';
+import { OpenAiEmbeddingProvider } from './providers/openai-embedding.provider';
 
 @Module({
   imports: [TypeOrmModule.forFeature([AiUsageLog])],
@@ -32,6 +34,8 @@ import { EmbeddingService } from './embedding.service';
     AiService,
     AiSearchParserService,
     AiSearchExplainerService,
+    OpenAiEmbeddingProvider,
+    EmbeddingRouter,
     EmbeddingService,
   ],
   exports: [

@@ -6,6 +6,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { AiRouter, AiTask } from './ai.router';
 import { AiUsageLogService } from './ai-usage-log.service';
+import { EmbeddingRouter } from './embedding.router';
 
 const ALL_TASKS: AiTask[] = [
   'moderation',
@@ -13,6 +14,7 @@ const ALL_TASKS: AiTask[] = [
   'reply-draft',
   'product-listing',
   'search-parse',
+  'search-explain',
 ];
 
 // Admin-only visibility into the hybrid AI system — which providers are
@@ -26,6 +28,7 @@ const ALL_TASKS: AiTask[] = [
 export class AiController {
   constructor(
     private router: AiRouter,
+    private embeddingRouter: EmbeddingRouter,
     private usageLog: AiUsageLogService,
   ) {}
 
@@ -48,7 +51,21 @@ export class AiController {
         return { task, error: err.message };
       }
     });
-    return { providers, routing };
+
+    let embedding: { provider: string; dimensions: number } | { error: string };
+    try {
+      const p = this.embeddingRouter.resolve();
+      embedding = { provider: p.name, dimensions: p.dimensions };
+    } catch (err) {
+      embedding = { error: err.message };
+    }
+
+    return {
+      providers,
+      routing,
+      embeddingProviders: this.embeddingRouter.listProviders(),
+      embedding,
+    };
   }
 
   @Throttle({ default: { limit: 30, ttl: 60000 } })
