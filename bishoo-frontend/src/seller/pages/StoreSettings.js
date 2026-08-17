@@ -26,8 +26,19 @@ const StoreSettings = ({ userId, onNavigate }) => {
   const [uploading, setUploading] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError]     = useState('');
+  // The business CommerceProfile this settings page actually edits —
+  // needed so "view your store" after saving lands on Bishoo Intelligence
+  // Systems (or whichever business this account runs), not the account's
+  // personal profile. CommerceProfile-{userId} with no commerceProfileId
+  // falls back to resolving the owner's PERSONAL profile by default.
+  const [businessProfileId, setBusinessProfileId] = useState(null);
 
-  useEffect(() => { fetchProfile(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    fetchProfile();
+    api.get(`/profiles/for-user/${userId}`)
+      .then(r => setBusinessProfileId((r.data || []).find(p => p.type === 'business')?.id || null))
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchProfile = async () => {
     try {
@@ -94,7 +105,10 @@ const StoreSettings = ({ userId, onNavigate }) => {
       setMessage('Store profile updated successfully!');
       // Take seller to their public store page so they can see how it looks
       setTimeout(() => {
-        if (onNavigate && userId) onNavigate(`CommerceProfile-${userId}`);
+        if (onNavigate && userId) {
+          onNavigate(`CommerceProfile-${userId}`,
+            businessProfileId ? { commerceProfileId: businessProfileId } : undefined);
+        }
       }, 1200);
     } catch (err) {
       setError(err?.response?.data?.message || 'Failed to save');
