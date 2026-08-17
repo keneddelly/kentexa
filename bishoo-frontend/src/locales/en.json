@@ -939,6 +939,8 @@
     "field_email_label": "Contact Email",
     "field_capacity_label": "Default Parcel Capacity",
     "field_max_weight_label": "Default Max Weight (kg)",
+    "field_cities_label": "Cities You Cover",
+    "field_cities_hint": "Comma-separated — shown on your profile and in search results",
     "field_description_label": "Description",
     "field_description_placeholder": "Tell shippers what you carry and where...",
     "saving": "Saving...",

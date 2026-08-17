@@ -273,7 +273,11 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
               const id = c.offerCard.entityId;
               if (entType === 'product') onNavigate(`ProductDetail-${id}`);
               else if (entType === 'service') onNavigate(`ServiceDetail-${id}`);
-              else if (entType === 'route') onNavigate('SellerShipment');
+              else if (entType === 'route') {
+                const pid = c.offerCard.providerUserId;
+                if (pid) onNavigate(`CommerceProfile-${pid}-transport`);
+                else onNavigate('SendShipment');
+              }
               else onNavigate(`ClassifiedDetail-${id}`);
             }}
             style={{ display:'flex', alignItems:'center', gap:10, marginTop:8,

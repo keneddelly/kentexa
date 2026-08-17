@@ -176,6 +176,7 @@ export class EntityOwnerResolver {
     title: string;
     image: string | null;
     price: number | null;
+    providerUserId?: number | null;
   } | null> {
     try {
       if (entityType === 'classified') {
@@ -215,7 +216,10 @@ export class EntityOwnerResolver {
         };
       }
       if (entityType === 'route') {
-        const r = await this.routeRepo.findOne({ where: { id: entityId } });
+        const r = await this.routeRepo.findOne({
+          where: { id: entityId },
+          relations: { provider: true },
+        });
         if (!r) return null;
         return {
           entityType,
@@ -223,6 +227,7 @@ export class EntityOwnerResolver {
           title: routeTitle(r),
           image: null,
           price: null,
+          providerUserId: r.provider?.userId ?? null,
         };
       }
     } catch {

@@ -271,6 +271,10 @@ export class TransportService {
     dto: Partial<TransportProvider>,
   ): Promise<TransportProvider> {
     const p = await this.getMyProfile(userId);
+    // `cities` (declared coverage areas) was read everywhere — the public
+    // profile, search results, RouteCoverageMap — but never once
+    // writable: not here, not at registration. Every provider's coverage
+    // list was permanently empty regardless of what they actually served.
     const allowed = [
       'name',
       'contactPhone',
@@ -280,6 +284,7 @@ export class TransportService {
       'defaultParcelCapacity',
       'defaultMaxWeightKg',
       'logoUrl',
+      'cities',
     ];
     for (const key of allowed) {
       if (dto[key] !== undefined) (p as any)[key] = (dto as any)[key];

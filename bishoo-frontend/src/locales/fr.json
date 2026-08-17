@@ -935,6 +935,8 @@
     "field_email_label": "E-mail de contact",
     "field_capacity_label": "Capacité de colis par défaut",
     "field_max_weight_label": "Poids maximal par défaut (kg)",
+    "field_cities_label": "Villes Couvertes",
+    "field_cities_hint": "Séparées par des virgules — affichées sur votre profil et dans les résultats de recherche",
     "field_description_label": "Description",
     "field_description_placeholder": "Dites aux expéditeurs ce que vous transportez et où...",
     "saving": "Enregistrement...",

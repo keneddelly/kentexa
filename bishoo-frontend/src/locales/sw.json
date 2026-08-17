@@ -785,6 +785,8 @@
     "field_email_label": "Barua Pepe",
     "field_capacity_label": "Uwezo wa Kawaida wa Vifurushi",
     "field_max_weight_label": "Uzito wa Juu wa Kawaida (kg)",
+    "field_cities_label": "Miji Unayohudumia",
+    "field_cities_hint": "Tenganisha kwa koma — inaonekana kwenye wasifu wako na matokeo ya utafutaji",
     "field_description_label": "Maelezo",
     "field_description_placeholder": "Waambie wateja unabeba nini na wapi...",
     "saving": "Inahifadhi...",

@@ -23,7 +23,7 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({
     name: '', contactPhone: '', whatsappPhone: '', contactEmail: '',
-    description: '', defaultParcelCapacity: '', defaultMaxWeightKg: '', logoUrl: '',
+    description: '', defaultParcelCapacity: '', defaultMaxWeightKg: '', logoUrl: '', cities: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -45,6 +45,7 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
           defaultParcelCapacity: res.data.defaultParcelCapacity ?? '',
           defaultMaxWeightKg: res.data.defaultMaxWeightKg ?? '',
           logoUrl: res.data.logoUrl || '',
+          cities: (res.data.cities || []).join(', '),
         });
       })
       .catch(() => setError(t('transport_provider_settings.load_failed')))
@@ -75,6 +76,7 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
         ...form,
         defaultParcelCapacity: form.defaultParcelCapacity === '' ? undefined : Number(form.defaultParcelCapacity),
         defaultMaxWeightKg: form.defaultMaxWeightKg === '' ? undefined : Number(form.defaultMaxWeightKg),
+        cities: form.cities.split(',').map(c => c.trim()).filter(Boolean),
       });
       setSuccess(t('transport_provider_settings.save_success'));
     } catch (err) {
@@ -158,6 +160,17 @@ const TransportProviderSettings = ({ onNavigate, isLoggedIn }) => {
                 <input type="number" min="0" value={form.defaultMaxWeightKg}
                   onChange={e => setForm(p => ({ ...p, defaultMaxWeightKg: e.target.value }))}
                   style={inp} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 5 }}>
+                {t('transport_provider_settings.field_cities_label')}
+              </label>
+              <input style={inp} value={form.cities} placeholder="Dar es Salaam, Mwanza, Arusha"
+                onChange={e => setForm(p => ({ ...p, cities: e.target.value }))} />
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                {t('transport_provider_settings.field_cities_hint')}
               </div>
             </div>
 

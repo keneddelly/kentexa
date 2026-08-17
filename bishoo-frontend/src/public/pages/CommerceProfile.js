@@ -426,6 +426,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // exact "roles bleeding into public identity" bug this whole redesign exists
   // to prevent. Below, `profile?.X` is only ever read behind this guard.
   const isBusinessProfile = activeProfile.type === 'business';
+  const isTransportProfile = activeProfile.type === 'transport_provider';
 
   // Everything the header shows comes from activeProfile — the ONE
   // profile this page is for — never from role state or from whichever
@@ -525,6 +526,24 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               </button>
               {isBusinessProfile && (profile?.storeWhatsApp || profile?.phone) && (
                 <a href={`https://wa.me/${(profile.storeWhatsApp||profile.phone).replace(/^0/,'255').replace(/[^0-9]/g,'')}`}
+                  target="_blank" rel="noreferrer"
+                  style={{ backgroundColor:'#dcfce7', color:'#16a34a',
+                    border:'1px solid #bbf7d0', borderRadius:10,
+                    padding:'8px 12px', cursor:'pointer', fontSize:16,
+                    textDecoration:'none', display:'flex', alignItems:'center',
+                    boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
+                  📲
+                </a>
+              )}
+              {/* Same quick-contact button businesses already get — a
+                  transport provider's whatsappPhone was fetched into
+                  publicTransportData all along but never actually
+                  surfaced anywhere on their own profile page, even though
+                  WhatsApp is the primary contact channel this app treats
+                  transport providers as using (Search.js's TransportCard,
+                  the settings form, etc). */}
+              {isTransportProfile && publicTransportData?.whatsappPhone && (
+                <a href={`https://wa.me/${publicTransportData.whatsappPhone.replace(/^0/,'255').replace(/[^0-9]/g,'')}`}
                   target="_blank" rel="noreferrer"
                   style={{ backgroundColor:'#dcfce7', color:'#16a34a',
                     border:'1px solid #bbf7d0', borderRadius:10,

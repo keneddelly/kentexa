@@ -491,7 +491,7 @@ export class CvsService {
             .getMany()
         : [],
       byType.route.length
-        ? this.routeRepo.find({ where: { id: In(byType.route) } })
+        ? this.routeRepo.find({ where: { id: In(byType.route) }, relations: { provider: true } })
         : [],
     ]);
 
@@ -586,7 +586,13 @@ export class CvsService {
         title,
         image: null,
         price: null,
-        business: null,
+        business: r.provider
+          ? {
+              id: r.provider.userId,
+              name: r.provider.name,
+              logo: r.provider.logoUrl,
+            }
+          : null,
         savedAt: savedAtByKey.get(`route-${r.id}`),
       });
     });

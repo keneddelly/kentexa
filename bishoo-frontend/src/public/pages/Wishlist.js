@@ -21,7 +21,7 @@ const getTypeMeta = (t) => ({
   product:    { label: t('wishlist.type_products'),    icon: '📦', detailPage: 'ProductDetail' },
   classified: { label: t('wishlist.type_listings'),    icon: '🏷️', detailPage: 'ClassifiedDetail' },
   service:    { label: t('wishlist.type_services'),    icon: '🔧', detailPage: 'ServiceDetail' },
-  route:      { label: t('wishlist.type_routes'),      icon: '🚌', detailPage: 'SellerShipment' },
+  route:      { label: t('wishlist.type_routes'),      icon: '🚌', detailPage: null },
   moment:     { label: t('wishlist.type_moments'),     icon: '📸', detailPage: null },
 });
 
@@ -80,13 +80,21 @@ const Wishlist = ({ onNavigate, isLoggedIn, currentUser }) => {
       if (item.linkedEntityType && item.linkedEntityId) {
         const meta = TYPE_META[item.linkedEntityType];
         if (meta?.detailPage) { onNavigate(`${meta.detailPage}-${item.linkedEntityId}`); return; }
-        if (item.linkedEntityType === 'route') { onNavigate('SellerShipment'); return; }
+        if (item.linkedEntityType === 'route') {
+          if (item.business?.id) onNavigate(`CommerceProfile-${item.business.id}-transport`);
+          else onNavigate('SendShipment');
+          return;
+        }
       }
       onNavigate('Home');
       return;
     }
     const meta = TYPE_META[item.type];
-    if (item.type === 'route') { onNavigate('SellerShipment'); return; }
+    if (item.type === 'route') {
+      if (item.business?.id) onNavigate(`CommerceProfile-${item.business.id}-transport`);
+      else onNavigate('SendShipment');
+      return;
+    }
     if (meta?.detailPage) onNavigate(`${meta.detailPage}-${item.id}`);
   };
 
