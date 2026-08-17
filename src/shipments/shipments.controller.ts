@@ -22,13 +22,18 @@ export class ShipmentsController {
   constructor(private readonly svc: ShipmentsService) {}
 
   // Public — any user browsing "send something" needs this before logging
-  // in to see what's even possible on their route.
+  // in to see what's even possible on their route. weightKg (optional)
+  // hard-filters to providers who can actually carry that much.
   @Get('routes')
-  findRoutes(@Query('origin') origin: string, @Query('destination') destination: string) {
+  findRoutes(
+    @Query('origin') origin: string,
+    @Query('destination') destination: string,
+    @Query('weightKg') weightKg?: string,
+  ) {
     if (!origin?.trim() || !destination?.trim()) {
       throw new BadRequestException('origin and destination are required');
     }
-    return this.svc.findAvailableRoutes(origin, destination);
+    return this.svc.findAvailableRoutes(origin, destination, weightKg ? Number(weightKg) : 0);
   }
 
   @Post()

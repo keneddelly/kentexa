@@ -412,10 +412,17 @@ export class TransportService {
   /**
    * Super agent calls this when assigning transport to a shipment.
    * Returns: available slots TODAY + TOMORROW + all verified providers on that route.
+   *
+   * weightKg, when given, hard-filters out anything that structurally can't
+   * carry the load — a bus/boda/courier registered for ~100kg has no
+   * business being offered for a 2,000kg+ shipment just because it covers
+   * the right cities. Omit it (or pass 0) to skip capacity filtering
+   * entirely, e.g. for a first browse before the requester knows weight.
    */
   async findAvailableForRoute(
     fromCity: string,
     toCity: string,
+    weightKg = 0,
   ): Promise<{
     published: ProviderAvailability[];
     providers: TransportProvider[];
@@ -436,7 +443,7 @@ export class TransportService {
     const cityMatch = (column: string, param: string) =>
       `(LOWER(${column}) LIKE LOWER(:${param}) OR LOWER(:${param}Raw) LIKE '%' || LOWER(${column}) || '%')`;
 
-    const published = await this.availabilityRepo
+    const publishedQuery = this.availabilityRepo
       .createQueryBuilder('a')
       .leftJoinAndSelect('a.provider', 'p')
       .leftJoinAndSelect('a.route', 'r')
@@ -450,13 +457,20 @@ export class TransportService {
       .andWhere(
         `(${cityMatch('a.toCity', 'to')} OR ${cityMatch('r.destinationCity', 'to')})`,
         { to: `%${toCity}%`, toRaw: toCity },
-      )
+      );
+    if (weightKg > 0) {
+      publishedQuery.andWhere(
+        '(a.totalCapacityKg - a.usedCapacityKg) >= :weightKg',
+        { weightKg },
+      );
+    }
+    const published = await publishedQuery
       .orderBy('a.date', 'ASC')
       .addOrderBy('a.departureTime', 'ASC')
       .getMany();
 
     // All verified providers covering this route (even without published availability)
-    const providers = await this.providerRepo
+    const providersQuery = this.providerRepo
       .createQueryBuilder('p')
       .innerJoin('p.user', 'u')
       .leftJoin(
@@ -472,9 +486,16 @@ export class TransportService {
       .andWhere(
         `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.originCity', 'to')})`,
         { to: `%${toCity}%`, toRaw: toCity },
-      )
-      .orderBy('p.rating', 'DESC')
-      .getMany();
+      );
+    if (weightKg > 0) {
+      // 0 means "not specified" on registration, not "zero capacity" —
+      // never exclude a provider who simply never declared a max.
+      providersQuery.andWhere(
+        '(p.defaultMaxWeightKg = 0 OR p.defaultMaxWeightKg >= :weightKg)',
+        { weightKg },
+      );
+    }
+    const providers = await providersQuery.orderBy('p.rating', 'DESC').getMany();
 
     return { published, providers };
   }

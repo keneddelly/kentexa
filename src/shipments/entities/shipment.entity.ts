@@ -74,6 +74,9 @@ export class Shipment {
   @Column({ type: 'varchar', nullable: true })
   originWard: string | null;
 
+  @Column({ type: 'int', nullable: true })
+  originWardId: number | null;
+
   @Column({ type: 'varchar' })
   destinationCity: string;
 
@@ -82,6 +85,9 @@ export class Shipment {
 
   @Column({ type: 'varchar', nullable: true })
   destinationWard: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  destinationWardId: number | null;
 
   @Column({ type: 'text' })
   itemDescription: string;

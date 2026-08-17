@@ -28,8 +28,16 @@ export interface CreateShipmentDto {
   receiverPhone: string;
   originCity: string;
   originWard?: string;
+  // Set when the frontend's location picker resolved a real tz-location
+  // suggestion (the user actually SELECTED a place, not just typed text) —
+  // when present, this is authoritative and skips the fuzzy server-side
+  // re-resolution below entirely.
+  originRegionId?: number;
+  originWardId?: number;
   destinationCity: string;
   destinationWard?: string;
+  destinationRegionId?: number;
+  destinationWardId?: number;
   itemDescription: string;
   weightKg?: number;
   routeId?: number;
@@ -61,13 +69,17 @@ export class ShipmentsService {
   // Real available trips + verified providers for a city pair — reuses
   // TransportService.findAvailableForRoute() rather than re-querying, so
   // this can never drift from what super-agent dispatch already sees.
-  async findAvailableRoutes(origin: string, destination: string) {
+  // weightKg, when given, hard-excludes anything that can't structurally
+  // carry it (see findAvailableForRoute's own doc comment) — a 20ft
+  // container search should never surface a boda or courier.
+  async findAvailableRoutes(origin: string, destination: string, weightKg = 0) {
     if (!origin?.trim() || !destination?.trim()) {
       throw new BadRequestException('Origin and destination are required');
     }
     const { published, providers } = await this.transportService.findAvailableForRoute(
       origin.trim(),
       destination.trim(),
+      weightKg,
     );
     return {
       availableTrips: published.map((a) => ({
@@ -117,9 +129,13 @@ export class ShipmentsService {
       throw new BadRequestException('Describe what you are sending');
     }
 
+    // Prefer what the user actually SELECTED from the location engine over
+    // guessing again from the typed city string — only fall back to the
+    // fuzzy search when the frontend didn't resolve a suggestion (e.g. the
+    // user typed a city and never picked from the dropdown).
     const [originRegionId, destinationRegionId] = await Promise.all([
-      this.resolveRegionId(dto.originCity),
-      this.resolveRegionId(dto.destinationCity),
+      dto.originRegionId ?? this.resolveRegionId(dto.originCity),
+      dto.destinationRegionId ?? this.resolveRegionId(dto.destinationCity),
     ]);
 
     let priceQuoted: number | null = null;
@@ -144,9 +160,11 @@ export class ShipmentsService {
         originCity: dto.originCity.trim(),
         originRegionId,
         originWard: dto.originWard?.trim() || null,
+        originWardId: dto.originWardId || null,
         destinationCity: dto.destinationCity.trim(),
         destinationRegionId,
         destinationWard: dto.destinationWard?.trim() || null,
+        destinationWardId: dto.destinationWardId || null,
         itemDescription: dto.itemDescription.trim(),
         weightKg: dto.weightKg || 0,
         routeId: dto.routeId || null,
