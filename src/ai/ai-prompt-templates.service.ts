@@ -104,7 +104,9 @@ export class AiPromptTemplateService {
         '"product" (a physical item sold by a business/shop), "classified" (a secondhand/' +
         'peer-to-peer item listing), "service" (a bookable service from a provider, e.g. a ' +
         'plumber, tutor, or repair technician), "transport" (moving people or cargo between ' +
-        'two cities — a transporter, courier, bus, or truck), or "all" if it is ambiguous or ' +
+        'two cities — a transporter, courier, bus, or truck), "people" (looking up a specific ' +
+        'person, seller, or business by their name/username/brand directly — not what they ' +
+        'sell, e.g. "kened" or "Bishoo Intelligence Systems"), or "all" if it is ambiguous or ' +
         'could span multiple. Then extract the core keywords to search for, and, only if ' +
         'clearly stated or strongly implied: a category, minimum price, and maximum price ' +
         '(in Tanzanian Shillings); or fromCity and toCity for transport queries — expand common ' +
@@ -120,7 +122,7 @@ export class AiPromptTemplateService {
         properties: {
           domain: {
             type: 'string',
-            enum: ['product', 'classified', 'service', 'transport', 'all'],
+            enum: ['product', 'classified', 'service', 'transport', 'people', 'all'],
           },
           keywords: { type: 'string' },
           category: { type: ['string', 'null'] },

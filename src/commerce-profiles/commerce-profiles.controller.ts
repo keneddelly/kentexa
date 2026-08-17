@@ -5,6 +5,7 @@ import {
   Post,
   Delete,
   Param,
+  Query,
   Body,
   UseGuards,
   Request,
@@ -32,6 +33,14 @@ export class CommerceProfilesController {
   @Get('username/:username')
   getByUsername(@Param('username') username: string) {
     return this.service.findByUsername(username);
+  }
+
+  // Public — People/Businesses results for unified search. Must be
+  // declared before ':id' below (route-ordering), same as the other
+  // static-prefix routes on this controller.
+  @Get('search')
+  search(@Query('q') q: string) {
+    return this.service.search(q);
   }
 
   // Public — every profile a given account owns. Used today by

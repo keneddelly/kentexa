@@ -79,6 +79,27 @@ export class CommerceProfilesService {
     });
   }
 
+  // Public — backs unified search's People/Businesses results. Same LIKE-
+  // match shape as products/classifieds/services search; this is the piece
+  // that was missing entirely (only an exact-username lookup existed
+  // before), which is why searching a person's or business's name used to
+  // return nothing no matter how the query was classified.
+  async search(q: string, limit = 15): Promise<CommerceProfile[]> {
+    const query = q?.trim();
+    if (!query) return [];
+    return this.repo
+      .createQueryBuilder('p')
+      .where('p.status = :status', { status: CommerceProfileStatus.ACTIVE })
+      .andWhere(
+        '(LOWER(p.displayName) LIKE :q OR LOWER(p.username) LIKE :q)',
+        { q: `%${query.toLowerCase()}%` },
+      )
+      .orderBy('p.isVerified', 'DESC')
+      .addOrderBy('p.followersCount', 'DESC')
+      .take(limit)
+      .getMany();
+  }
+
   async findById(id: number): Promise<CommerceProfile> {
     const profile = await this.repo.findOne({ where: { id } });
     if (!profile) throw new NotFoundException('Commerce profile not found');
