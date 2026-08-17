@@ -15,6 +15,7 @@ import { User } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { SearchIndexService } from '../search/search-index.service';
 
 @Injectable()
 export class ServicesService {
@@ -23,6 +24,7 @@ export class ServicesService {
     @InjectRepository(JobRequest) private jobRepo: Repository<JobRequest>,
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   // ── Create / Edit Service Ad ──────────────────────────────────────────────
@@ -51,6 +53,10 @@ export class ServicesService {
         })
         .catch(() => {});
     }
+
+    this.searchIndex
+      .upsert('service', saved.id, [saved.title, saved.description, saved.category, saved.coverageCity].filter(Boolean).join(' \n '))
+      .catch(() => {});
 
     return saved;
   }
@@ -85,7 +91,11 @@ export class ServicesService {
     for (const key of allowed) {
       if ((dto as any)[key] !== undefined) (ad as any)[key] = (dto as any)[key];
     }
-    return this.adRepo.save(ad);
+    const saved = await this.adRepo.save(ad);
+    this.searchIndex
+      .upsert('service', saved.id, [saved.title, saved.description, saved.category, saved.coverageCity].filter(Boolean).join(' \n '))
+      .catch(() => {});
+    return saved;
   }
 
   async deleteAd(userId: number, adId: number): Promise<void> {
@@ -95,6 +105,7 @@ export class ServicesService {
     if (!ad) throw new NotFoundException('Tangazo halijapatikana');
     ad.status = ServiceStatus.INACTIVE;
     await this.adRepo.save(ad);
+    this.searchIndex.remove('service', ad.id).catch(() => {});
   }
 
   async getMyAds(userId: number): Promise<ServiceAd[]> {

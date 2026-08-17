@@ -14,6 +14,7 @@ import { CommerceProfilesService } from './commerce-profiles.service';
 import { CommerceProfilesBackfillService } from './commerce-profiles-backfill.service';
 import { CommerceProfileScopeService } from './commerce-profile-scope.service';
 import { CommerceProfilesController } from './commerce-profiles.controller';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { CommerceProfilesController } from './commerce-profiles.controller';
       Review,
       ProductReview,
     ]),
+    SearchModule,
   ],
   controllers: [CommerceProfilesController],
   providers: [

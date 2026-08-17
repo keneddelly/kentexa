@@ -14,6 +14,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { SearchIndexService } from '../search/search-index.service';
 
 @Injectable()
 export class ProductsService {
@@ -26,6 +27,7 @@ export class ProductsService {
 
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   async findAll(category?: string) {
@@ -217,6 +219,10 @@ export class ProductsService {
         .catch(() => {});
     }
 
+    this.searchIndex
+      .upsert('product', saved.id, [saved.name, saved.description, saved.category].filter(Boolean).join(' \n '))
+      .catch(() => {});
+
     return saved;
   }
 
@@ -243,7 +249,11 @@ export class ProductsService {
     if (displayPriceChanged) {
       product.displayPrice = newBasePrice + newDeliveryFee;
     }
-    return this.repo.save(product);
+    const saved = await this.repo.save(product);
+    this.searchIndex
+      .upsert('product', saved.id, [saved.name, saved.description, saved.category].filter(Boolean).join(' \n '))
+      .catch(() => {});
+    return saved;
   }
 
   async remove(id: number, user: User) {
@@ -256,6 +266,7 @@ export class ProductsService {
       throw new ForbiddenException('You can only delete your own products');
     }
     await this.repo.remove(product);
+    this.searchIndex.remove('product', id).catch(() => {});
     return { message: 'Product deleted successfully' };
   }
 

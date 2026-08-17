@@ -14,6 +14,7 @@ import { AiService } from './ai.service';
 import { AiController } from './ai.controller';
 import { AiSearchParserService } from './ai-search-parser.service';
 import { AiSearchExplainerService } from './ai-search-explainer.service';
+import { EmbeddingService } from './embedding.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([AiUsageLog])],
@@ -31,7 +32,14 @@ import { AiSearchExplainerService } from './ai-search-explainer.service';
     AiService,
     AiSearchParserService,
     AiSearchExplainerService,
+    EmbeddingService,
   ],
-  exports: [AiService, AiPromptTemplateService, AiSearchParserService, AiSearchExplainerService],
+  exports: [
+    AiService,
+    AiPromptTemplateService,
+    AiSearchParserService,
+    AiSearchExplainerService,
+    EmbeddingService,
+  ],
 })
 export class AiModule {}

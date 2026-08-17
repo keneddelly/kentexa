@@ -9,6 +9,7 @@ import { FeedModule } from '../feed/feed.module';
 import { AiModule } from '../ai/ai.module';
 import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
     AiModule,
     BusinessModule,
     CommerceProfilesModule,
+    SearchModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService, AiListingService],

@@ -25,6 +25,7 @@ import { InvoicesService } from '../invoices/invoices.service';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { SearchIndexService } from '../search/search-index.service';
 
 @Injectable()
 export class ClassifiedsService {
@@ -45,6 +46,7 @@ export class ClassifiedsService {
     private dataSource: DataSource,
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   // ─── Create listing ───────────────────────────────────────────────────────
@@ -64,6 +66,10 @@ export class ClassifiedsService {
         })
         .catch(() => {});
     }
+
+    this.searchIndex
+      .upsert('classified', saved.id, [saved.title, saved.description, saved.category, saved.location].filter(Boolean).join(' \n '))
+      .catch(() => {});
 
     return saved;
   }
@@ -235,7 +241,11 @@ export class ClassifiedsService {
       throw new ForbiddenException('Not your listing');
     }
     Object.assign(listing, dto);
-    return this.repo.save(listing);
+    const saved = await this.repo.save(listing);
+    this.searchIndex
+      .upsert('classified', saved.id, [saved.title, saved.description, saved.category, saved.location].filter(Boolean).join(' \n '))
+      .catch(() => {});
+    return saved;
   }
 
   // ─── Remove ───────────────────────────────────────────────────────────────
@@ -245,6 +255,7 @@ export class ClassifiedsService {
       throw new ForbiddenException('Not your listing');
     }
     await this.repo.remove(listing);
+    this.searchIndex.remove('classified', id).catch(() => {});
     return { message: 'Listing deleted successfully' };
   }
 

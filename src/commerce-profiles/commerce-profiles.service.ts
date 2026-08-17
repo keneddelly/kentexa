@@ -11,6 +11,7 @@ import { CommerceProfileMember } from './entities/commerce-profile-member.entity
 import { User } from '../users/entities/user.entity';
 import { Review } from '../store/review.entity';
 import { ProductReview } from '../products/entities/product-review.entity';
+import { SearchIndexService } from '../search/search-index.service';
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -43,6 +44,7 @@ export class CommerceProfilesService {
     private reviewRepo: Repository<Review>,
     @InjectRepository(ProductReview)
     private productReviewRepo: Repository<ProductReview>,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   // Slugifies `seed` and appends a numeric suffix until it's free. Never
@@ -165,7 +167,7 @@ export class CommerceProfilesService {
     superAgentId?: number;
   }): Promise<CommerceProfile> {
     const username = await this.generateUniqueUsername(params.usernameSeed);
-    return this.repo.save(
+    const saved = await this.repo.save(
       this.repo.create({
         ownerId: params.ownerId,
         type: params.type,
@@ -182,6 +184,17 @@ export class CommerceProfilesService {
         superAgentId: params.superAgentId ?? null,
       }),
     );
+    // This is the literal fix for bios never being searchable — e.g. a
+    // business's declared "Seller of Hidden Camera, Voice Recorder and GPS"
+    // now becomes part of what semantic search can actually match against.
+    this.searchIndex
+      .upsert(
+        'profile',
+        saved.id,
+        [saved.displayName, saved.bio, saved.category, saved.location].filter(Boolean).join(' \n '),
+      )
+      .catch(() => {});
+    return saved;
   }
 
   async updateStatus(
@@ -387,6 +400,14 @@ export class CommerceProfilesService {
     >,
   ): Promise<CommerceProfile> {
     await this.repo.update(id, dto);
-    return this.findById(id);
+    const updated = await this.findById(id);
+    this.searchIndex
+      .upsert(
+        'profile',
+        updated.id,
+        [updated.displayName, updated.bio, updated.category, updated.location].filter(Boolean).join(' \n '),
+      )
+      .catch(() => {});
+    return updated;
   }
 }
