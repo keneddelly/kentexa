@@ -38,7 +38,7 @@ const CAT_ICONS = {
   books: '📚', arts: '🎨', general: '📦',
 };
 
-const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifiedId, currentUser, onOpenMoment, openComments }) => {
+const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifiedId, currentUser, onOpenMoment, openComments, activeProfileId }) => {
   const { t } = useTranslation();
   const [classified, setClassified]     = useState(null);
   const [loading, setLoading]           = useState(true);
@@ -556,7 +556,8 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
             <CommerceCommentSection
               entityType="classified" entityId={classified.id}
               entityTitle={classified.title} sellerId={classified.seller?.id}
-              isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate} />
+              isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate}
+              activeProfileId={activeProfileId} />
           </div>
         )}
 

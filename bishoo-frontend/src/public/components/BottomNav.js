@@ -44,8 +44,12 @@ const PROFILE_TYPE_ICON = {
   transport_provider: '🚌', agent: '🏍️', service_provider: '🔧',
 };
 
-// Position 1 is fixed to Home for every type — see file header. Positions
-// 2/4 reconfigure per the currently ACTIVE CommerceProfile's type.
+// Position 1 is fixed to Home (discovery, every type). Position 2 is that
+// profile's own Dashboard — the real management hub for the identity
+// that's active, one tap past discovery. Position 4 stays a quick-jump to
+// whichever single sub-page is used most for that type (Orders, Settings,
+// etc.) — a shortcut past the dashboard's own navigation, not a duplicate
+// of it.
 const TYPE_TABS = (t) => {
   const first = { page: 'Home', icon: HomeIcon, label: t('nav.home') };
   return {
@@ -56,29 +60,28 @@ const TYPE_TABS = (t) => {
     },
     business: {
       first,
-      second: { page: 'SellerOrders', icon: emojiIcon('📦'), label: t('bottom_nav.orders') },
-      fourth: { page: 'SellerInbox',  icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
+      second: { page: 'SellerDashboard', icon: emojiIcon('📊'), label: t('bottom_nav.dashboard') },
+      fourth: { page: 'SellerInbox',     icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
     },
     hub: {
       first,
-      second: { page: 'DispatcherManifest', icon: emojiIcon('📋'), label: t('bottom_nav.manifest') },
-      fourth: { page: 'SuperAgentSettings', icon: emojiIcon('⚙️'), label: t('bottom_nav.settings') },
+      second: { page: 'SuperAgentDashboard', icon: emojiIcon('🏢'), label: t('bottom_nav.dashboard') },
+      fourth: { page: 'SuperAgentSettings',  icon: emojiIcon('⚙️'), label: t('bottom_nav.settings') },
     },
     transport_provider: {
       first,
-      second: { page: 'RouteCoverageMap', icon: emojiIcon('🗺️'), label: t('bottom_nav.routes') },
-      fourth: { page: 'Search',           icon: SearchIcon,      label: t('common.search') },
+      second: { page: 'TransportProviderDashboard', icon: emojiIcon('🚌'), label: t('bottom_nav.dashboard') },
+      fourth: { page: 'Search',                      icon: SearchIcon,      label: t('common.search') },
     },
     agent: {
       first,
-      second: { page: 'AgentScorecard', icon: emojiIcon('📊'), label: t('bottom_nav.scorecard') },
+      second: { page: 'AgentDashboard', icon: emojiIcon('🏍️'), label: t('bottom_nav.dashboard') },
       fourth: { page: 'AgentEarnings',  icon: emojiIcon('💰'), label: t('bottom_nav.earnings') },
     },
     // No dedicated service-provider dashboard/inbox page exists yet (no
     // operational entity behind this type — see services.service.ts) —
-    // MyServices (manage own ads) covers the one thing that's actually
-    // theirs to manage; Activity mirrors personal rather than inventing a
-    // settings page that doesn't exist.
+    // MyServices (manage own ads) is the closest thing to their own
+    // dashboard, since it's the one surface that's actually theirs to run.
     service_provider: {
       first,
       second: { page: 'MyServices', icon: emojiIcon('🔧'), label: t('bottom_nav.my_services') },

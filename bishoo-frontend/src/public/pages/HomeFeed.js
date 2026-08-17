@@ -130,7 +130,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
 };
 
 // ── Comments section ──────────────────────────────────────────────────────────
-const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
+const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfileId }) => {
   const { t } = useTranslation();
   const ago = getAgo(t);
   const [comments, setComments] = useState([]);
@@ -170,9 +170,10 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
     try {
       setSending(true);
       const payload = isRealPost
-        ? { body: body.trim(), parentId: replyTo?.id || undefined }
+        ? { body: body.trim(), parentId: replyTo?.id || undefined, commerceProfileId: activeProfileId || undefined }
         : { body: body.trim(), entityType: post.entityType,
-            entityId: post.entityId, parentId: replyTo?.id || undefined };
+            entityId: post.entityId, parentId: replyTo?.id || undefined,
+            commerceProfileId: activeProfileId || undefined };
       const res = await api.post(postCommentUrl, payload);
       const newComment = { ...res.data, replies: [] };
       if (replyTo) {
@@ -229,6 +230,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
       const res = await api.post(postCommentUrl, {
         body: `I have this — ${replyItem.title}`,
         offer: { entityType: replyItem.type, entityId: replyItem.id },
+        commerceProfileId: activeProfileId || undefined,
       });
       setComments(prev => [...prev, { ...res.data, replies: [] }]);
       setShowReply(false);
@@ -237,19 +239,27 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
     finally { setReplySending(false); }
   };
 
-  const Comment = ({ c, isReply = false }) => (
+  const Comment = ({ c, isReply = false }) => {
+    // Show whichever profile the commenter was actually acting as — not
+    // always their personal account. Falls back to the account identity
+    // for comments predating this (commerceProfile null).
+    const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name || t('home_feed.user_fallback');
+    const commenterPhoto = c.commerceProfile?.photoUrl;
+    return (
     <div style={{ display:'flex', gap:8,
       padding: isReply ? '6px 0 4px 36px' : '10px 0',
       borderBottom: isReply ? 'none' : '1px solid #F8FAFC' }}>
       <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
         backgroundColor:B, display:'flex', alignItems:'center',
-        justifyContent:'center', fontSize:11, color:WH, fontWeight:900 }}>
-        {(c.author?.name || 'U').charAt(0).toUpperCase()}
+        justifyContent:'center', fontSize:11, color:WH, fontWeight:900, overflow:'hidden' }}>
+        {commenterPhoto
+          ? <img src={commenterPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          : commenterName.charAt(0).toUpperCase()}
       </div>
       <div style={{ flex:1 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
           <span style={{ fontSize:12, fontWeight:800, color:DK }}>
-            {c.author?.storeName || c.author?.name || t('home_feed.user_fallback')}
+            {commenterName}
           </span>
           <span style={{ fontSize:10, color:GR }}>{ago(c.createdAt)}</span>
         </div>
@@ -306,7 +316,8 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
         {c.replies?.map(r => <Comment key={r.id} c={r} isReply />)}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div style={{ backgroundColor:'#F8FAFC', borderTop:'1px solid #F1F5F9' }}>
@@ -444,7 +455,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser }) => {
 };
 
 // ── Post card ─────────────────────────────────────────────────────────────────
-const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle }) => {
+const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveToggle, activeProfileId }) => {
   const { t } = useTranslation();
   const ago = getAgo(t);
   const TYPE_META = getTypeMeta(t);
@@ -471,6 +482,10 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const biz     = post.business || {};
   const bizId   = biz.id;
   const bizName = biz.storeName || biz.name || t('home_feed.business_fallback');
+  // When the backend resolved this post's commerceProfileId to a specific
+  // CommerceProfile, nav must land there — not the owner's default/personal
+  // profile, which is what a bare account id resolves to otherwise.
+  const bizNavParams = biz.commerceProfileId ? { commerceProfileId: biz.commerceProfileId } : undefined;
   const repScore= biz.reputationScore || 0;
   const image   = (!imgErr && (post.imageUrl || post.data?.images?.[0])) || null;
   // Badge: real, unambiguous post types (Moment, Looking For, Discount...)
@@ -530,7 +545,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
     else if (isService) onNavigate(`ServiceDetail-${entityId}`);
     else if (entityType === 'route') onNavigate('SellerShipment');
     else if (entityId) onNavigate(`ClassifiedDetail-${entityId}`);
-    else if (bizId)   onNavigate(`CommerceProfile-${bizId}`);
+    else if (bizId)   onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   };
 
   return (
@@ -539,7 +554,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
       {/* ── Header ── */}
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px' }}>
-        <button onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`)}
+        <button onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`, bizNavParams)}
           style={{ width:40, height:40, borderRadius:'50%', flexShrink:0,
             border:'none', padding:0, cursor:'pointer', overflow:'hidden',
             backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
@@ -555,7 +570,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-            <button onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`)}
+            <button onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`, bizNavParams)}
               style={{ background:'none', border:'none', padding:0, cursor:'pointer',
                 fontSize:13, fontWeight:800, color:DK }}>
               {bizName}
@@ -782,13 +797,15 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
             isLoggedIn={isLoggedIn}
             currentUser={currentUser}
             onNavigate={onNavigate}
+            activeProfileId={activeProfileId}
           />
         ) : (
           // No linked entity (e.g. a Looking For request) — keep the
           // existing post-specific thread, including the "I Have This"
           // reply flow, which only makes sense without a tagged item.
           <CommentSection post={post} isLoggedIn={isLoggedIn}
-            onNavigate={onNavigate} currentUser={currentUser} />
+            onNavigate={onNavigate} currentUser={currentUser}
+            activeProfileId={activeProfileId} />
         )
       )}
 
@@ -1043,7 +1060,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
             ? <img src={biz.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
             : <span style={{ color:WH, fontSize:14, fontWeight:900 }}>{bizName.charAt(0).toUpperCase()}</span>}
         </div>
-        <button onClick={() => { onClose(); biz.id && onNavigate(`CommerceProfile-${biz.id}`); }}
+        <button onClick={() => { onClose(); biz.id && onNavigate(`CommerceProfile-${biz.id}`, biz.commerceProfileId ? { commerceProfileId: biz.commerceProfileId } : undefined); }}
           style={{ background:'none', border:'none', cursor:'pointer', textAlign:'left', flex:1 }}>
           <div style={{ color:WH, fontSize:13, fontWeight:800 }}>{bizName}</div>
           <div style={{ color:'rgba(255,255,255,0.6)', fontSize:10 }}>{ago(moment.createdAt)}</div>
@@ -1290,7 +1307,7 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
 };
 
 // ── Main HomeFeed ─────────────────────────────────────────────────────────────
-const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRefreshKey }) => {
+const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRefreshKey, activeProfileId }) => {
   const { t } = useTranslation();
   const FILTERS = getFilters(t);
   const [filter,      setFilter]      = useState('for_you');
@@ -1624,6 +1641,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
                 <PostCard post={post}
                   isLoggedIn={isLoggedIn} onNavigate={onNavigate}
                   currentUser={currentUser} savedIds={savedIds}
+                  activeProfileId={activeProfileId}
                   onSaveToggle={(id, saved) => setSavedIds(prev =>
                     saved ? [...prev, id] : prev.filter(x => x !== id)
                   )} />

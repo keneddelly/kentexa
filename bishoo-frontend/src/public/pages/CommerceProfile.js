@@ -185,7 +185,7 @@ const tabs = (profileType, isOwn, t) => {
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
 const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
-  currentUser, pageParam, commerceProfileId }) => {
+  currentUser, pageParam, commerceProfileId, activeProfileId: viewerActiveProfileId }) => {
   const { t } = useTranslation();
   const TIERS = getTiers(t);
   const getTier = s => TIERS.find(tier => Number(s||0) >= tier.min) || TIERS[4];
@@ -834,6 +834,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               : feed.map(f => (
                   <FeedPost key={f.id} f={f} onNavigate={onNavigate}
                     isLoggedIn={isLoggedIn} currentUser={currentUser}
+                    activeProfileId={viewerActiveProfileId}
                     highlighted={highlightPostId === f.id}
                     postRef={highlightPostId === f.id ? highlightPostRef : null} />
                 ))}
@@ -1347,7 +1348,7 @@ const Empty = ({ icon, text, action, onAction }) => (
 // ── Flat comment thread for a feed post that ISN'T tagged to a real
 // product/classified/service — e.g. a plain announcement or "Looking For".
 // Tagged posts reuse CommerceCommentSection instead (see FeedPost below).
-const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
+const PostThread = ({ postId, isLoggedIn, onNavigate, activeProfileId }) => {
   const { t } = useTranslation();
   const [comments, setComments] = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -1368,7 +1369,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
     try {
       setSending(true);
       setError('');
-      const res = await api.post(`/feed/${postId}/comments`, { body: body.trim() });
+      const res = await api.post(`/feed/${postId}/comments`, { body: body.trim(), commerceProfileId: activeProfileId || undefined });
       setComments(prev => [...prev, { ...res.data, replies: [] }]);
       setBody('');
     } catch (err) {
@@ -1384,23 +1385,27 @@ const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
         <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('commerce_profile.loading_ellipsis')}</div>
       ) : comments.length === 0 ? (
         <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('commerce_profile.no_comments_yet')}</div>
-      ) : comments.map(c => (
+      ) : comments.map(c => {
+        const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name;
+        const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.logo;
+        return (
         <div key={c.id} style={{ display:'flex', gap:8, marginBottom:10 }}>
           <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
             backgroundColor:B, display:'flex', alignItems:'center', justifyContent:'center',
             fontSize:11, color:WH, fontWeight:900, overflow:'hidden' }}>
-            {c.author?.logo
-              ? <img src={c.author.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              : (c.author?.storeName || c.author?.name || 'U').charAt(0).toUpperCase()}
+            {commenterPhoto
+              ? <img src={commenterPhoto} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              : (commenterName || 'U').charAt(0).toUpperCase()}
           </div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:12, fontWeight:800, color:DK }}>
-              {c.author?.storeName || c.author?.name || t('commerce_profile.user_fallback')}
+              {commenterName || t('commerce_profile.user_fallback')}
             </div>
             <div style={{ fontSize:12, color:DK, lineHeight:1.4 }}>{c.body}</div>
           </div>
         </div>
-      ))}
+        );
+      })}
       {error && (
         <div style={{ fontSize:11, color:'#DC2626', marginBottom:8, fontWeight:600 }}>{error}</div>
       )}
@@ -1420,7 +1425,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate }) => {
   );
 };
 
-const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef }) => {
+const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef, activeProfileId }) => {
   const { t } = useTranslation();
   const [showComments, setShowComments] = useState(false);
   const isTagged = !!(f.linkedEntityType && f.linkedEntityId);
@@ -1474,10 +1479,12 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef
             <CommerceCommentSection
               entityType={f.linkedEntityType} entityId={f.linkedEntityId}
               entityTitle={f.title} sellerId={f.businessId}
-              isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate} />
+              isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate}
+              activeProfileId={activeProfileId} />
           </div>
         ) : (
-          <PostThread postId={f.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
+          <PostThread postId={f.id} isLoggedIn={isLoggedIn} onNavigate={onNavigate}
+            activeProfileId={activeProfileId} />
         )
       )}
     </div>

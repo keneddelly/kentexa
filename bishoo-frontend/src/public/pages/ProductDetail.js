@@ -598,7 +598,8 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                       <CommerceCommentSection
                         entityType="product" entityId={product.id}
                         entityTitle={product.name} sellerId={product.seller?.id}
-                        isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate} />
+                        isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate}
+                        activeProfileId={activeProfileId} />
                     </div>
                   </div>
                 )}

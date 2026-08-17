@@ -158,6 +158,12 @@ const CommentRow = ({
   const isReview = c.type === 'review';
   const PURCHASE_BADGE = getPurchaseBadge(t);
   const badge = PURCHASE_BADGE[c.purchaseVerification];
+  // Show whichever profile the commenter was actually acting as — not
+  // always their personal account. Falls back to the account identity for
+  // comments predating this (commerceProfile null).
+  const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name;
+  const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.logo;
+  const commenterNavParams = c.commerceProfile?.id ? { commerceProfileId: c.commerceProfile.id } : undefined;
 
   const submitReply = async () => {
     if (!replyBody.trim()) return;
@@ -177,21 +183,21 @@ const CommentRow = ({
   return (
     <div style={{ padding: '14px', borderBottom: '1px solid #F8FAFC' }}>
       <div style={{ display: 'flex', gap: 10 }}>
-        <button onClick={() => c.author?.id && onNavigate(`CommerceProfile-${c.author.id}`)}
+        <button onClick={() => c.author?.id && onNavigate(`CommerceProfile-${c.author.id}`, commenterNavParams)}
           style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, border: 'none',
             padding: 0, cursor: 'pointer', overflow: 'hidden', backgroundColor: B,
             display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {c.author?.logo
-            ? <img src={c.author.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {commenterPhoto
+            ? <img src={commenterPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : <span style={{ color: WH, fontSize: 13, fontWeight: 900 }}>
-                {(c.author?.name || 'U').charAt(0).toUpperCase()}
+                {(commenterName || 'U').charAt(0).toUpperCase()}
               </span>}
         </button>
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 2 }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>
-              {c.author?.storeName || c.author?.name || t('comment_section.user_fallback')}
+              {commenterName || t('comment_section.user_fallback')}
             </span>
             {c.type === 'question' && (
               <span style={{ fontSize: 9, fontWeight: 700, color: '#7C3AED', backgroundColor: '#F5F3FF',
@@ -278,7 +284,7 @@ const CommentRow = ({
 };
 
 // ── Composer — Comment / Question / Review toggle ──────────────────────────
-const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, onPosted }) => {
+const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, onPosted, activeProfileId }) => {
   const { t } = useTranslation();
   const [mode, setMode] = useState('comment'); // 'comment' | 'question' | 'review'
   const [body, setBody] = useState('');
@@ -329,6 +335,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
         rating: mode === 'review' ? rating : undefined,
         media: media.length ? media : undefined,
         offlinePurchaseClaim: mode === 'review' ? offlineClaim : undefined,
+        commerceProfileId: activeProfileId || undefined,
       };
       const res = await api.post('/comments', dto);
       onPosted(res.data);
@@ -427,7 +434,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
 // ── Main ─────────────────────────────────────────────────────────────────
 const CommerceCommentSection = ({
   entityType, entityId, entityTitle = 'this listing', sellerId,
-  isLoggedIn, currentUser, onNavigate,
+  isLoggedIn, currentUser, onNavigate, activeProfileId,
 }) => {
   const { t } = useTranslation();
   const FILTERS = getFilters(t);
@@ -532,7 +539,8 @@ const CommerceCommentSection = ({
       </div>
 
       <Composer entityType={entityType} entityId={entityId} isLoggedIn={isLoggedIn}
-        currentUser={currentUser} onNavigate={onNavigate} onPosted={handlePosted} />
+        currentUser={currentUser} onNavigate={onNavigate} onPosted={handlePosted}
+        activeProfileId={activeProfileId} />
     </div>
   );
 };

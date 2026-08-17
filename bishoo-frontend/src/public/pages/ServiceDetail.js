@@ -20,7 +20,7 @@ const getDays = (t) => ({ Mon:t('service_detail.day_mon'), Tue:t('service_detail
 
 const fmt = n => Number(n||0).toLocaleString();
 
-const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, currentUser, onOpenMoment, openComments }) => {
+const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, currentUser, onOpenMoment, openComments, activeProfileId }) => {
   const { t } = useTranslation();
   const PRICE_LABELS = getPriceLabels(t);
   const DAYS_SW = getDays(t);
@@ -461,7 +461,8 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
               <CommerceCommentSection
                 entityType="service" entityId={ad.id}
                 entityTitle={ad.title} sellerId={ad.provider?.id}
-                isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate} />
+                isLoggedIn={isLoggedIn} currentUser={currentUser} onNavigate={onNavigate}
+                activeProfileId={activeProfileId} />
             </div>
           </div>
         </div>
