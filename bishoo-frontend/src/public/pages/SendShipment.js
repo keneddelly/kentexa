@@ -3,9 +3,13 @@
  * request a shipment, independent of being a seller, a business, or a
  * Transport Provider. Place at: src/public/pages/SendShipment.js
  *
- * Flow: origin/destination -> real available routes/providers (never
- * invented) -> package + receiver details -> pickup/delivery choice ->
- * review (price comes from the selected route, never guessed) -> confirm.
+ * Flow: what + how much (weight known FIRST, so route search can exclude
+ * anything that structurally can't carry it — a 20ft container should
+ * never surface a boda or courier) -> origin/destination, selected from
+ * the real location engine (not just typed text) -> real available
+ * routes/providers filtered by that weight (never invented) -> receiver +
+ * pickup/delivery -> review (price from the selected route, never
+ * guessed) -> confirm.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +29,11 @@ const inputSt = {
   display: 'block', backgroundColor: WH,
 };
 
-const LocationInput = ({ label, value, onChange, onResolved, placeholder }) => {
+// onResolved receives the FULL structured suggestion {type, regionId,
+// districtId?, wardId?, region, district?, ward?, fullAddress} — the
+// actual selection, not just a nicer string. Callers must use it as the
+// source of truth; the text box is just its display.
+const LocationInput = ({ label, value, onChange, onResolved, placeholder, resolved }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [showList, setShowList] = useState(false);
 
@@ -44,11 +52,17 @@ const LocationInput = ({ label, value, onChange, onResolved, placeholder }) => {
       <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
         {label}
       </label>
-      <input value={value} placeholder={placeholder}
-        onChange={e => { onChange(e.target.value); setShowList(true); }}
-        onFocus={() => setShowList(true)}
-        onBlur={() => setTimeout(() => setShowList(false), 150)}
-        style={{ ...inputSt, marginBottom: 0 }} />
+      <div style={{ position: 'relative' }}>
+        <input value={value} placeholder={placeholder}
+          onChange={e => { onChange(e.target.value); onResolved(null); setShowList(true); }}
+          onFocus={() => setShowList(true)}
+          onBlur={() => setTimeout(() => setShowList(false), 150)}
+          style={{ ...inputSt, marginBottom: 0, paddingRight: 32 }} />
+        {resolved && (
+          <span title="Selected from location list" style={{ position: 'absolute', right: 10,
+            top: '50%', transform: 'translateY(-50%)', fontSize: 15, color: '#16A34A' }}>✓</span>
+        )}
+      </div>
       {showList && suggestions.length > 0 && (
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
           backgroundColor: WH, borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
@@ -71,20 +85,28 @@ const LocationInput = ({ label, value, onChange, onResolved, placeholder }) => {
 const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState(1);
+
+  // Step 1 — what & how much. Captured first so the route search (step 2)
+  // can exclude anything that can't actually carry it.
+  const [itemDescription, setItemDescription] = useState('');
+  const [weightKg, setWeightKg] = useState('');
+
+  // Step 2 — origin/destination, ideally SELECTED (structured), not just typed.
   const [origin, setOrigin] = useState(navParams?.origin || '');
   const [destination, setDestination] = useState(navParams?.destination || '');
+  const [originResolved, setOriginResolved] = useState(null);
+  const [destinationResolved, setDestinationResolved] = useState(null);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [trips, setTrips] = useState([]);
   const [providers, setProviders] = useState([]);
   const [selected, setSelected] = useState(null); // { availabilityId?, routeId?, providerId?, pricePerKg?, fixedFee? }
 
+  // Step 3 — receiver + handoff.
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
   const [senderName, setSenderName] = useState(currentUser?.name || '');
   const [senderPhone, setSenderPhone] = useState(currentUser?.phone || '');
-  const [itemDescription, setItemDescription] = useState('');
-  const [weightKg, setWeightKg] = useState('');
   const [pickupOption, setPickupOption] = useState('agent');
   const [deliveryOption, setDeliveryOption] = useState('agent');
 
@@ -98,7 +120,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     setSearched(true);
     try {
       const res = await api.get('/shipments/routes', {
-        params: { origin: origin.trim(), destination: destination.trim() },
+        params: {
+          origin: origin.trim(),
+          destination: destination.trim(),
+          weightKg: Number(weightKg) || undefined,
+        },
       });
       setTrips(res.data?.availableTrips || []);
       setProviders(res.data?.providers || []);
@@ -108,12 +134,14 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     } finally {
       setSearching(false);
     }
-  }, [origin, destination]);
+  }, [origin, destination, weightKg]);
 
   // If arriving from a Transport Profile's route/trip card, jump straight
-  // into search with that context pre-filled.
+  // to the route step with that context pre-filled (weight isn't known
+  // yet in that case, so the search runs unfiltered until the user sets one).
   useEffect(() => {
     if (navParams?.origin && navParams?.destination) {
+      setStep(2);
       searchRoutes();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,8 +154,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     return Math.max(byWeight, selected.fixedFee || 0);
   })();
 
-  const canContinueStep2 = receiverName.trim() && receiverPhone.trim() &&
-    itemDescription.trim() && Number(weightKg) > 0;
+  const canContinueStep1 = itemDescription.trim() && Number(weightKg) > 0;
+  const canContinueStep3 = receiverName.trim() && receiverPhone.trim();
 
   const handleConfirm = async () => {
     setSubmitting(true);
@@ -139,7 +167,14 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         receiverName: receiverName.trim(),
         receiverPhone: receiverPhone.trim(),
         originCity: origin.trim(),
+        // Only send structured IDs when the user actually selected a
+        // suggestion — never a stale one left over from a different typed
+        // string (onResolved(null) clears this the moment the text changes).
+        originRegionId: originResolved?.regionId || undefined,
+        originWardId: originResolved?.wardId || undefined,
         destinationCity: destination.trim(),
+        destinationRegionId: destinationResolved?.regionId || undefined,
+        destinationWardId: destinationResolved?.wardId || undefined,
         itemDescription: itemDescription.trim(),
         weightKg: Number(weightKg) || 0,
         routeId: selected?.routeId || undefined,
@@ -149,7 +184,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         deliveryOption,
       });
       setConfirmed(res.data);
-      setStep(4);
+      setStep(5);
     } catch (err) {
       setError(err?.response?.data?.message || t('send_shipment.post_error'));
     } finally {
@@ -180,7 +215,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       <div style={{ position: 'sticky', top: 0, zIndex: 100, backgroundColor: WH,
         borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center',
         gap: 12, padding: '12px 16px' }}>
-        <button onClick={() => step > 1 && step < 4 ? setStep(step - 1) : onNavigate('back')}
+        <button onClick={() => step > 1 && step < 5 ? setStep(step - 1) : onNavigate('back')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={DK} strokeWidth="2.5">
             <polyline points="15,18 9,12 15,6" />
@@ -193,26 +228,63 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
 
       <div style={{ padding: 16, maxWidth: 520, margin: '0 auto' }}>
 
-        {/* Step 1 — origin/destination + real available options */}
+        {/* Step 1 — what & how much, captured before any route is shown */}
         {step === 1 && (
           <div>
+            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
+              {t('send_shipment.item_description_label')}
+            </label>
+            <textarea value={itemDescription} onChange={e => setItemDescription(e.target.value)}
+              placeholder={t('send_shipment.item_description_placeholder')}
+              style={{ ...inputSt, minHeight: 70, resize: 'vertical' }} />
+
+            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
+              {t('send_shipment.weight_label')}
+            </label>
+            <input type="number" min="0" step="0.1" value={weightKg}
+              onChange={e => setWeightKg(e.target.value)}
+              placeholder={t('send_shipment.weight_placeholder')} style={inputSt} />
+            <div style={{ fontSize: 11, color: GR, marginTop: -6, marginBottom: 16 }}>
+              {t('send_shipment.weight_hint')}
+            </div>
+
+            <button onClick={() => setStep(2)} disabled={!canContinueStep1}
+              style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
+                borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
+                fontWeight: 800, opacity: canContinueStep1 ? 1 : 0.5 }}>
+              {t('send_shipment.find_options_button')}
+            </button>
+          </div>
+        )}
+
+        {/* Step 2 — origin/destination (selected, not just typed) + real
+            available options, already filtered to what can carry this weight */}
+        {step === 2 && (
+          <div>
+            <div style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)', fontSize: 13, fontWeight: 700, color: DK }}>
+              📦 {itemDescription} · {weightKg} kg
+            </div>
+
             <LocationInput label={t('send_shipment.origin_label')} value={origin}
-              onChange={setOrigin} onResolved={() => {}}
+              onChange={setOrigin} onResolved={setOriginResolved} resolved={originResolved}
               placeholder={t('send_shipment.origin_placeholder')} />
             <LocationInput label={t('send_shipment.destination_label')} value={destination}
-              onChange={setDestination} onResolved={() => {}}
+              onChange={setDestination} onResolved={setDestinationResolved} resolved={destinationResolved}
               placeholder={t('send_shipment.destination_placeholder')} />
             <button onClick={searchRoutes} disabled={!origin.trim() || !destination.trim() || searching}
               style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
                 borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
                 fontWeight: 800, marginBottom: 20,
                 opacity: (!origin.trim() || !destination.trim()) ? 0.5 : 1 }}>
-              {searching ? t('send_shipment.searching') : t('send_shipment.find_options_button')}
+              {searching ? t('send_shipment.searching') : t('send_shipment.search_routes_button')}
             </button>
 
             {searched && !searching && trips.length === 0 && providers.length === 0 && (
               <div style={{ textAlign: 'center', padding: '30px 0', color: GR, fontSize: 13 }}>
-                {t('send_shipment.no_options_found')}
+                {Number(weightKg) > 0
+                  ? t('send_shipment.no_options_found_weight', { weight: weightKg })
+                  : t('send_shipment.no_options_found')}
               </div>
             )}
 
@@ -224,7 +296,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 </div>
                 {trips.map(trip => (
                   <div key={trip.availabilityId}
-                    onClick={() => { setSelected(trip); setStep(2); }}
+                    onClick={() => { setSelected(trip); setStep(3); }}
                     style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 8,
                       cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       border: selected?.availabilityId === trip.availabilityId ? `2px solid ${B}` : '2px solid transparent' }}>
@@ -242,6 +314,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                           {new Date(trip.date).toLocaleDateString('sw-TZ')}
                           {trip.departureTime ? ` · ${trip.departureTime}` : ''}
                           {' · '}{t('send_shipment.slots_left', { count: trip.slotsAvailable })}
+                          {trip.capacityAvailableKg ? ` · ${t('send_shipment.capacity_available', { kg: fmt(trip.capacityAvailableKg) })}` : ''}
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
@@ -263,7 +336,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 </div>
                 {providers.map(p => (
                   <div key={p.id}
-                    onClick={() => { setSelected({ providerId: p.id }); setStep(2); }}
+                    onClick={() => { setSelected({ providerId: p.id }); setStep(3); }}
                     style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 8,
                       cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       border: selected?.providerId === p.id && !selected?.availabilityId ? `2px solid ${B}` : '2px solid transparent' }}>
@@ -290,27 +363,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           </div>
         )}
 
-        {/* Step 2 — package + receiver details */}
-        {step === 2 && (
+        {/* Step 3 — receiver + pickup/delivery */}
+        {step === 3 && (
           <div>
             <div style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)', fontSize: 13, fontWeight: 700, color: DK }}>
               {origin} → {destination}
             </div>
-
-            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
-              {t('send_shipment.item_description_label')}
-            </label>
-            <textarea value={itemDescription} onChange={e => setItemDescription(e.target.value)}
-              placeholder={t('send_shipment.item_description_placeholder')}
-              style={{ ...inputSt, minHeight: 70, resize: 'vertical' }} />
-
-            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
-              {t('send_shipment.weight_label')}
-            </label>
-            <input type="number" min="0" step="0.1" value={weightKg}
-              onChange={e => setWeightKg(e.target.value)}
-              placeholder={t('send_shipment.weight_placeholder')} style={inputSt} />
 
             <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
               {t('send_shipment.receiver_name_label')}
@@ -366,17 +425,17 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               ))}
             </div>
 
-            <button onClick={() => setStep(3)} disabled={!canContinueStep2}
+            <button onClick={() => setStep(4)} disabled={!canContinueStep3}
               style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
                 borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
-                fontWeight: 800, opacity: canContinueStep2 ? 1 : 0.5 }}>
+                fontWeight: 800, opacity: canContinueStep3 ? 1 : 0.5 }}>
               {t('send_shipment.review_button')}
             </button>
           </div>
         )}
 
-        {/* Step 3 — review + confirm */}
-        {step === 3 && (
+        {/* Step 4 — review + confirm */}
+        {step === 4 && (
           <div>
             <div style={{ backgroundColor: WH, borderRadius: 16, padding: 18,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
@@ -420,8 +479,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           </div>
         )}
 
-        {/* Step 4 — confirmed */}
-        {step === 4 && confirmed && (
+        {/* Step 5 — confirmed */}
+        {step === 5 && confirmed && (
           <div style={{ textAlign: 'center', padding: '40px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
             <div style={{ fontSize: 17, fontWeight: 900, color: DK, marginBottom: 8 }}>
