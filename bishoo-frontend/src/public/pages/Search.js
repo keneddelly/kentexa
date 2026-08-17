@@ -488,12 +488,28 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     if (tabForDomain === 'people') { finish(0); return; }
 
     if (!trimmed) { finish(0, { skipExplain: true }); return; }
-    const params = new URLSearchParams({ q: trimmed, limit: '20' });
-    if (intent?.category) params.set('category', intent.category);
-    if (intent?.minPrice != null) params.set('minPrice', String(intent.minPrice));
-    if (intent?.maxPrice != null) params.set('maxPrice', String(intent.maxPrice));
 
-    const domains = tabForDomain === 'all' ? ['classifieds', 'products', 'services'] : [tabForDomain];
+    // The AI's classified domain picks the DEFAULT tab (already set above
+    // via setTab), never which domains get searched — always fan out to
+    // all three. A hard per-domain filter here meant that the moment the
+    // AI confidently classified a query (e.g. "camera" -> product), the
+    // classifieds/services tabs got skipped entirely and showed nothing
+    // even when real matches existed there, while people/semantic search
+    // (which always run unconditionally, above) kept returning results —
+    // exactly the "only profile comes back" regression this fixes.
+    const domains = ['classifieds', 'products', 'services'];
+    // intent.category/minPrice/maxPrice only ever apply to products/
+    // classifieds, which share one category taxonomy — services uses a
+    // completely different one (ServiceCategory), so forwarding e.g.
+    // "electronics" into the services browse call would silently zero out
+    // every service result via a category mismatch that never surfaces as
+    // an error.
+    const listingParams = new URLSearchParams({ q: trimmed, limit: '20' });
+    if (intent?.category) listingParams.set('category', intent.category);
+    if (intent?.minPrice != null) listingParams.set('minPrice', String(intent.minPrice));
+    if (intent?.maxPrice != null) listingParams.set('maxPrice', String(intent.maxPrice));
+    const serviceParams = new URLSearchParams({ q: trimmed, limit: '20' });
+
     let count = 0;
     const domainCounts = {};
     const topItems = [];
@@ -501,9 +517,9 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     try {
       const results = await Promise.allSettled(
         domains.map((d) => {
-          if (d === 'classifieds') return api.get(`/classifieds/search?${params}`);
-          if (d === 'products') return api.get(`/products/search?${params}`);
-          return api.get(`/services?${params}`); // filterable browse endpoint — supports q + category
+          if (d === 'classifieds') return api.get(`/classifieds/search?${listingParams}`);
+          if (d === 'products') return api.get(`/products/search?${listingParams}`);
+          return api.get(`/services?${serviceParams}`); // filterable browse endpoint — supports q, not the product/classified category taxonomy
         }),
       );
       domains.forEach((d, i) => {
