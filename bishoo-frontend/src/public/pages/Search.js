@@ -134,9 +134,15 @@ const TransportCard = ({ item, isLoggedIn, onNavigate }) => {
   const contactHref = item.whatsappPhone
     ? `https://wa.me/${item.whatsappPhone.replace(/[^0-9]/g,'')}`
     : item.contactPhone ? `tel:${item.contactPhone}` : null;
+  // Previously the only action on this whole card was the WhatsApp/call
+  // button — there was no way to actually see the provider's routes or
+  // details, only to message them cold. Now the card itself opens their
+  // real public profile; the contact button stays as a secondary,
+  // in-card action (stopPropagation so tapping it doesn't also navigate).
   return (
-    <div style={{ backgroundColor:WH, borderRadius:14, padding:14,
-      boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+    <div onClick={() => item.userId && onNavigate(`CommerceProfile-${item.userId}-transport`)}
+      style={{ backgroundColor:WH, borderRadius:14, padding:14,
+        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor: item.userId ? 'pointer' : 'default' }}>
       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
         <div style={{ width:34, height:34, borderRadius:10, backgroundColor:'#EFF6FF',
           display:'flex', alignItems:'center', justifyContent:'center', fontSize:16,
@@ -158,7 +164,7 @@ const TransportCard = ({ item, isLoggedIn, onNavigate }) => {
       </div>
       {contactHref ? (
         <a href={contactHref} target="_blank" rel="noopener noreferrer"
-          onClick={e => { if (!isLoggedIn) { e.preventDefault(); onNavigate('PublicLogin'); } }}
+          onClick={e => { e.stopPropagation(); if (!isLoggedIn) { e.preventDefault(); onNavigate('PublicLogin'); } }}
           style={{ display:'block', textAlign:'center', padding:'7px 0', borderRadius:8,
             backgroundColor:B, color:WH, fontSize:11, fontWeight:800, textDecoration:'none' }}>
           {t('search.transport_contact_button')}

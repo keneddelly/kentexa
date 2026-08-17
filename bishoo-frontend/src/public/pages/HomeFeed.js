@@ -543,7 +543,14 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const goToDetail = () => {
     if (isProduct)    onNavigate(`ProductDetail-${entityId}`);
     else if (isService) onNavigate(`ServiceDetail-${entityId}`);
-    else if (entityType === 'route') onNavigate('SellerShipment');
+    // Was a hardcoded 'SellerShipment' that ignored entityId entirely — see
+    // the same fix in ViewMomentModal's goToListing() above. The provider's
+    // own transport tab (real routes, working ship button) is the correct
+    // landing spot, not a generic unrelated seller page.
+    else if (entityType === 'route') {
+      if (bizId) onNavigate(`CommerceProfile-${bizId}-transport`);
+      else onNavigate('SendShipment');
+    }
     else if (entityId) onNavigate(`ClassifiedDetail-${entityId}`);
     else if (bizId)   onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   };

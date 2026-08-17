@@ -1151,7 +1151,7 @@ export class CvsService {
       });
 
       // 1. Classifieds (ads — contact only, no buy now)
-      if (filter !== 'services') {
+      if (filter !== 'services' && filter !== 'transport') {
         const clsQb = this.classifiedRepo
           .createQueryBuilder('c')
           .leftJoinAndSelect('c.seller', 's')
@@ -1279,6 +1279,64 @@ export class CvsService {
             data: s,
           }),
         );
+      }
+
+      // 4. Transport (registered providers' routes — a real leg, not a
+      // marketplace item). The 'transport' filter tab had nothing wired to
+      // it at all: this fallback excluded products/services correctly but
+      // never excluded classifieds (fixed above) and never added anything
+      // of its own — so the tab showed leftover classifieds with no real
+      // transport content underneath, and no way to discover a route
+      // except asking the AI search directly. routeRepo was already
+      // injected into this service for exactly this, just never used.
+      if (filter !== 'products' && filter !== 'services') {
+        const routes = await this.routeRepo
+          .createQueryBuilder('r')
+          .leftJoinAndSelect('r.provider', 'p')
+          .where('r.isActive = true')
+          .andWhere("p.status = 'verified'")
+          .orderBy('r.createdAt', 'DESC')
+          .take(6)
+          .getMany();
+
+        routes.forEach((r) => {
+          const routeLabel =
+            r.routeType === 'intercity' && r.originCity && r.destinationCity
+              ? `${r.originCity} → ${r.destinationCity}`
+              : r.routeType === 'local_loop' && r.loopStops?.length
+                ? r.loopStops.join(' → ')
+                : r.coverageCity || r.coverageWards?.join(', ') || '';
+          virtualPosts.push({
+            id: `rte-${r.id}`,
+            entityType: 'route',
+            entityId: r.id,
+            feedType: 'route',
+            type: 'delivery_info',
+            title: `${r.provider?.name || 'Transport'} — ${routeLabel}`,
+            body: r.notes || null,
+            imageUrl: r.provider?.logoUrl || null,
+            linkedEntityId: r.id,
+            linkedEntityType: 'route',
+            price: r.pricePerKg || null,
+            createdAt: (r as any).createdAt,
+            cvsScore: 0,
+            saveCount: 0,
+            commentCount: 0,
+            shareCount: 0,
+            purchaseCount: 0,
+            isSaved: savedIds.includes(`rte-${r.id}`),
+            business: {
+              id: r.provider?.userId,
+              name: r.provider?.name,
+              storeName: r.provider?.name,
+              logo: r.provider?.logoUrl,
+              reputationScore: 0,
+              isVerified: true,
+              isFollowing: false,
+            },
+            data: r,
+          });
+        });
       }
 
       // Shuffle mix: alternate classifieds, products, services

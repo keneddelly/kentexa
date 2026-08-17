@@ -78,6 +78,11 @@ export class TransportService {
   private toSafeProvider(p: TransportProvider) {
     return {
       id: p.id,
+      // Not sensitive — needed so a search/discovery result can actually
+      // link to the provider's own public profile (CommerceProfile-
+      // {userId}-transport) instead of only offering a WhatsApp/call
+      // button with no way to see their real routes/details.
+      userId: p.userId,
       name: p.name,
       type: p.type,
       logoUrl: p.logoUrl,
