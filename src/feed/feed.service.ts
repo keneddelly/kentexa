@@ -748,7 +748,13 @@ export class FeedService {
       .catch(() => []);
     for (const f of followers) {
       this.notifService
-        .businessFeedPost(f.followerId, bizName, item.title, sellerId)
+        .businessFeedPost(
+          f.followerId,
+          bizName,
+          item.title,
+          sellerId,
+          (item as any).commerceProfileId,
+        )
         .catch(() => {});
     }
   }

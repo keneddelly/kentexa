@@ -36,6 +36,7 @@ export class InAppNotificationService {
     icon?: string;
     actionPage?: string;
     actionParam?: string;
+    actionCommerceProfileId?: number;
     orderId?: number;
     trackingNumber?: string;
   }): Promise<Notification> {
@@ -48,6 +49,7 @@ export class InAppNotificationService {
         icon: params.icon || '🔔',
         actionPage: params.actionPage || null,
         actionParam: params.actionParam || null,
+        actionCommerceProfileId: params.actionCommerceProfileId || null,
         orderId: params.orderId || null,
         trackingNumber: params.trackingNumber || null,
         isRead: false,
@@ -259,6 +261,7 @@ export class InAppNotificationService {
     businessName: string,
     postTitle: string,
     sellerId: number,
+    commerceProfileId?: number | null,
   ) {
     await this.notify({
       userId: followerUserId,
@@ -267,6 +270,7 @@ export class InAppNotificationService {
       body: postTitle,
       actionPage: 'CommerceProfile',
       actionParam: String(sellerId),
+      actionCommerceProfileId: commerceProfileId || undefined,
       icon: '📢',
     });
   }

@@ -138,7 +138,8 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser }) => {
               onClick={() => {
                 markRead(n.id);
                 if (n.actionPage) onNavigate(
-                  n.actionParam ? `${n.actionPage}-${n.actionParam}` : n.actionPage
+                  n.actionParam ? `${n.actionPage}-${n.actionParam}` : n.actionPage,
+                  n.actionCommerceProfileId ? { commerceProfileId: n.actionCommerceProfileId } : undefined
                 );
               }}
               style={{

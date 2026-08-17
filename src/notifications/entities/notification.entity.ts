@@ -59,6 +59,14 @@ export class Notification {
   @Column({ type: 'varchar', nullable: true })
   actionParam: string | null;
 
+  // When actionPage targets a specific CommerceProfile (e.g. 'CommerceProfile'
+  // for a business's own post), this is REQUIRED for the frontend to land on
+  // that exact profile — without it, CommerceProfile.js's resolver falls back
+  // to the owner's personal profile, since a bare user id is ambiguous
+  // between their personal identity and any business/agent/hub they run.
+  @Column({ type: 'int', nullable: true })
+  actionCommerceProfileId: number | null;
+
   // Icon/emoji for the notification
   @Column({ type: 'varchar', nullable: true })
   icon: string | null;
