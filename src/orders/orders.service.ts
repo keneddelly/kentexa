@@ -61,6 +61,7 @@ import { SellerScopeService } from '../business/seller-scope.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
+import { WalletService } from '../wallet/wallet.service';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -101,6 +102,7 @@ export class OrdersService {
     private businessCustomerService: BusinessCustomerService,
     private inAppNotif: InAppNotificationService,
     private sellerScope: SellerScopeService,
+    private walletService: WalletService,
   ) {}
 
   // ── Create Order ──────────────────────────────────────────────────────────
@@ -886,6 +888,16 @@ export class OrdersService {
       /* non-critical */
     }
 
+    if (order.seller?.id) {
+      await this.walletService
+        .creditFromEscrowRelease(
+          order.seller.id,
+          orderId,
+          Number(order.sellerAmount || 0),
+        )
+        .catch(() => {});
+    }
+
     await this.notificationsService.orderCompleted(
       { email: order.seller?.email, name: order.seller?.name },
       { email: order.buyer?.email, name: order.buyer?.name },
@@ -1180,6 +1192,15 @@ export class OrdersService {
         order.product?.name || (order as any).manualProductName || 'Bidhaa';
       const stars = '⭐'.repeat(data.rating || 0);
       const sellerId = (order.seller as any)?.id;
+      if (sellerId && isOnlineOrder) {
+        await this.walletService
+          .creditFromEscrowRelease(
+            sellerId,
+            order.id,
+            Number(order.sellerAmount || 0),
+          )
+          .catch(() => {});
+      }
       // In-app notification
       if (sellerId) {
         await this.inAppNotif.orderConfirmed(
@@ -1345,6 +1366,16 @@ export class OrdersService {
           escrowStatus: EscrowStatus.RELEASED,
           fundsReleasedAt: now,
         });
+
+        if (order.seller?.id) {
+          await this.walletService
+            .creditFromEscrowRelease(
+              order.seller.id,
+              order.id,
+              Number(order.sellerAmount || 0),
+            )
+            .catch(() => {});
+        }
 
         // Notify seller
         const sellerPhone =

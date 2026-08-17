@@ -31,6 +31,7 @@ import { AirtelService } from './providers/airtel/airtel.service';
 import { SelcomService } from './providers/selcom/selcom.service';
 import { IPaymentProvider } from './providers/payment-provider.interface';
 import { MockAgentService } from './providers/mock/mock-agent.service';
+import { ClickPesaService } from './providers/clickpesa/clickpesa.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 const USE_INDIVIDUAL_NETWORKS = false;
@@ -68,6 +69,7 @@ export class PaymentsService {
     private airtelService: AirtelService,
     private selcomService: SelcomService,
     private mockAgentService: MockAgentService,
+    private clickPesaService: ClickPesaService,
     private notificationsService: NotificationsService,
     private invoicesService: InvoicesService,
   ) {}
@@ -82,6 +84,12 @@ export class PaymentsService {
     // "mock" is NOT honored here in production — this is the one line that
     // let anyone mark a payment SUCCESS for free by passing provider:"mock".
     // Every request in production goes to a real provider, full stop.
+    // ClickPesa is opt-in only (explicit provider:"clickpesa") — the
+    // USE_INDIVIDUAL_NETWORKS default below is untouched, so nothing that
+    // already relies on landing on Selcom changes behavior.
+    if (provider === 'clickpesa') {
+      return this.clickPesaService;
+    }
     if (USE_INDIVIDUAL_NETWORKS) {
       switch (provider) {
         case 'vodacom':

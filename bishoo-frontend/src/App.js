@@ -21,6 +21,7 @@ import ConfirmDelivery    from './public/pages/ConfirmDelivery';
 import SellerCustomers   from './public/pages/SellerCustomers';
 import AgentEarnings     from './public/pages/AgentEarnings';
 import SellerPayouts     from './public/pages/SellerPayouts';
+import SellerWallet      from './public/pages/SellerWallet';
 import SellerAnalytics            from './public/pages/SellerAnalytics'; // eslint-disable-line
 import BecomeTransportProvider    from './public/pages/BecomeTransportProvider'; // eslint-disable-line
 import TransportAdmin             from './admin/pages/TransportAdmin'; // eslint-disable-line
@@ -547,6 +548,7 @@ function App() {
       case 'SellerCustomers':   return requireLogin(<SellerCustomers {...publicProps} />);
       case 'AgentEarnings':     return requireLogin(<AgentEarnings {...publicProps} />);
       case 'SellerPayouts':     return requireLogin(<SellerPayouts {...publicProps} />);
+      case 'SellerWallet':      return requireLogin(<SellerWallet {...publicProps} />);
       case 'BecomeAgent':       return <BecomeAgent {...publicProps} />;
       case 'BecomeSuperAgentInfo': return <BecomeSuperAgentInfo {...publicProps} />;
       case 'VerifyReceipt':     return <VerifyReceipt {...publicProps} />;

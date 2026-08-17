@@ -100,6 +100,13 @@ export class CommerceProfile {
   @Column({ type: 'int', default: 0 })
   reputationScore: number;
 
+  // AI-extracted structured metadata (keywords/useCases/impliedCategories),
+  // distinct from the raw embedding vector in search_embeddings — populated
+  // by AiSellerEnrichmentService whenever bio/category/listings change.
+  // Feeds both the embedding text builder and SellerRankingService.
+  @Column({ type: 'text', nullable: true })
+  aiKeywords: string | null;
+
   // Which operational record backs this profile's role-specific data —
   // at most one of these is set, matching `type`. Kept as plain nullable
   // ids (not relations) so this entity has zero import-time coupling to

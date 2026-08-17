@@ -27,6 +27,7 @@ import { BusinessModule } from './business/business.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TransportModule } from './transport/transport.module';
 import { ReputationModule } from './reputation/reputation.module';
+import { WalletModule } from './wallet/wallet.module';
 import { FeedModule } from './feed/feed.module';
 import { OffersModule } from './offers/offers.module';
 import { PickupPointsModule } from './pickup-points/pickup-points.module';
@@ -83,6 +84,7 @@ import { ShipmentsModule } from './shipments/shipments.module';
     NotificationsModule,
     TransportModule,
     ReputationModule,
+    WalletModule,
     FeedModule,
     OffersModule,
     PickupPointsModule,

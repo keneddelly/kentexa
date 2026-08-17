@@ -12,6 +12,7 @@ import { User } from '../users/entities/user.entity';
 import { Review } from '../store/review.entity';
 import { ProductReview } from '../products/entities/product-review.entity';
 import { SearchIndexService } from '../search/search-index.service';
+import { AiSellerEnrichmentService } from '../ai/ai-seller-enrichment.service';
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -45,7 +46,38 @@ export class CommerceProfilesService {
     @InjectRepository(ProductReview)
     private productReviewRepo: Repository<ProductReview>,
     private readonly searchIndex: SearchIndexService,
+    private readonly aiEnrichment: AiSellerEnrichmentService,
   ) {}
+
+  // Shared by createProfile()/updatePublicFields() — runs the AI enrichment
+  // task, stores the result on the profile, and folds its keywords into the
+  // same text that gets embedded, so semantic search benefits too. Entirely
+  // non-fatal: an enrichment failure never blocks the profile save it's
+  // triggered from (same convention as the embedding upsert beside it).
+  private async enrichAndIndex(profile: CommerceProfile): Promise<void> {
+    try {
+      const enrichment = await this.aiEnrichment.enrich({
+        bio: profile.bio,
+        category: profile.category,
+      });
+      const aiKeywords = enrichment ? JSON.stringify(enrichment) : null;
+      if (aiKeywords) await this.repo.update(profile.id, { aiKeywords });
+
+      const embedText = [
+        profile.displayName,
+        profile.bio,
+        profile.category,
+        profile.location,
+        enrichment?.keywords?.join(' '),
+        enrichment?.useCases?.join(' '),
+      ]
+        .filter(Boolean)
+        .join(' \n ');
+      await this.searchIndex.upsert('profile', profile.id, embedText);
+    } catch {
+      /* non-fatal — the profile save already succeeded */
+    }
+  }
 
   // Slugifies `seed` and appends a numeric suffix until it's free. Never
   // throws on collision — always returns something usable, since this
@@ -187,13 +219,7 @@ export class CommerceProfilesService {
     // This is the literal fix for bios never being searchable — e.g. a
     // business's declared "Seller of Hidden Camera, Voice Recorder and GPS"
     // now becomes part of what semantic search can actually match against.
-    this.searchIndex
-      .upsert(
-        'profile',
-        saved.id,
-        [saved.displayName, saved.bio, saved.category, saved.location].filter(Boolean).join(' \n '),
-      )
-      .catch(() => {});
+    this.enrichAndIndex(saved).catch(() => {});
     return saved;
   }
 
@@ -401,13 +427,7 @@ export class CommerceProfilesService {
   ): Promise<CommerceProfile> {
     await this.repo.update(id, dto);
     const updated = await this.findById(id);
-    this.searchIndex
-      .upsert(
-        'profile',
-        updated.id,
-        [updated.displayName, updated.bio, updated.category, updated.location].filter(Boolean).join(' \n '),
-      )
-      .catch(() => {});
+    this.enrichAndIndex(updated).catch(() => {});
     return updated;
   }
 }

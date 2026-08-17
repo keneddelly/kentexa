@@ -22,6 +22,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [suspendReason, setSuspendReason] = useState('');
   const [showSuspendModal, setShowSuspendModal] = useState(false);
+  const [approveTier, setApproveTier] = useState('registered');
 
   useEffect(() => { fetchSellers(); }, []);
 
@@ -37,10 +38,10 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 4000); };
   const showErr = (m) => { setError(m);   setTimeout(() => setError(''),   4000); };
 
-  const handleApprove = async (id) => {
+  const handleApprove = async (id, tier) => {
     try {
       setActionLoading(true);
-      await api.patch(`/seller/${id}/approve`);
+      await api.patch(`/seller/${id}/approve`, tier ? { verificationTier: tier } : {});
       showMsg('✅ Muuzaji ameidhinishwa na ataarifiwa kwa SMS/email');
       setSelected(null);
       fetchSellers();
@@ -272,8 +273,15 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               { label: 'Simu',             value: selected.phone || selected.user?.phone },
               { label: 'Anwani',           value: selected.businessLocation || selected.address },
               { label: 'Maelezo',          value: selected.businessDescription },
-              { label: 'Aina ya Biashara', value: selected.businessType },
-              { label: 'Aina ya Bidhaa',   value: selected.productCategories },
+              { label: 'Aina ya Bidhaa',   value: selected.businessCategory },
+              { label: 'Mkoa',             value: selected.businessRegion },
+              { label: 'Wilaya',           value: selected.businessDistrict },
+              { label: 'Kata',             value: selected.businessCity },
+              { label: 'Kiwango cha Uthibitisho', value: {
+                  registered: 'Amesajiliwa',
+                  verified_seller: '✅ Muuzaji Aliyethibitishwa',
+                  verified_business: '🏆 Biashara Iliyothibitishwa',
+                }[selected.verificationTier] },
               { label: 'Tarehe ya Ombi',   value: selected.createdAt ? new Date(selected.createdAt).toLocaleDateString('sw-TZ') : null },
             ].filter(f => f.value).map(field => (
               <div key={field.label} style={{ marginBottom: 14, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
@@ -332,7 +340,18 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
             <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {selected.status === 'pending' && (
                 <>
-                  <button onClick={() => handleApprove(selected.id)} disabled={actionLoading}
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>
+                      Kiwango cha Uthibitisho wa Kuidhinisha
+                    </label>
+                    <select value={approveTier} onChange={e => setApproveTier(e.target.value)}
+                      style={{ ...inputStyle, marginBottom: 4 }}>
+                      <option value="registered">Amesajiliwa</option>
+                      <option value="verified_seller">✅ Muuzaji Aliyethibitishwa</option>
+                      <option value="verified_business">🏆 Biashara Iliyothibitishwa</option>
+                    </select>
+                  </div>
+                  <button onClick={() => handleApprove(selected.id, approveTier)} disabled={actionLoading}
                     style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: 15 }}>
                     {actionLoading ? '⏳...' : '✅ Idhinisha Muuzaji'}
                   </button>

@@ -12,7 +12,8 @@ export type AiTask =
   | 'reply-draft'
   | 'product-listing'
   | 'search-parse'
-  | 'search-explain';
+  | 'search-explain'
+  | 'seller-profile-enrich';
 
 export type AiTier = 'simple' | 'reasoning' | 'coding';
 
@@ -26,6 +27,7 @@ const TASK_TIER: Record<AiTask, AiTier> = {
   'product-listing': 'simple',
   'search-parse': 'simple',
   'search-explain': 'simple',
+  'seller-profile-enrich': 'simple',
   // 'reasoning' and 'coding' tiers are wired and ready for future tasks
   // (e.g. a chat assistant, code-generation tooling) that don't exist yet.
 };

@@ -175,4 +175,39 @@ export class AiPromptTemplateService {
       schemaName: 'search_results_explain',
     };
   }
+
+  // Structures a seller/business's free-text bio + category + listing
+  // titles into searchable metadata beyond the raw embedding vector — used
+  // both to enrich the embedding text (SearchIndexService) and as a light
+  // relevance signal in seller ranking (SellerRankingService).
+  sellerProfileEnrichPrompt(): PromptTemplate {
+    return {
+      system:
+        'You extract structured search metadata from a KenteXa (Tanzania marketplace) ' +
+        'seller/business profile. Given their bio, declared category, and a sample of their ' +
+        'product/listing titles, produce: keywords (5-10 short terms a buyer might actually ' +
+        'search for — synonyms, related items, and use-cases, not just words already in the ' +
+        'bio verbatim), useCases (2-5 short phrases describing who buys from them and why, ' +
+        'e.g. "home security", "gift for a wedding"), and impliedCategories (0-3 category keys ' +
+        'this business likely also serves, beyond their declared one, based on what they ' +
+        'actually sell). Never invent specific products they do not sell. If input is too thin ' +
+        'to infer anything reliably, return empty arrays rather than guessing.\n\n' +
+        `impliedCategories, if any, MUST be exactly from these keys: ${CATEGORY_LIST}.`,
+      schema: {
+        type: 'object',
+        properties: {
+          keywords: { type: 'array', items: { type: 'string' }, maxItems: 10 },
+          useCases: { type: 'array', items: { type: 'string' }, maxItems: 5 },
+          impliedCategories: {
+            type: 'array',
+            items: { type: 'string', enum: CATEGORY_KEYS },
+            maxItems: 3,
+          },
+        },
+        required: ['keywords', 'useCases', 'impliedCategories'],
+        additionalProperties: false,
+      },
+      schemaName: 'seller_profile_enrich',
+    };
+  }
 }

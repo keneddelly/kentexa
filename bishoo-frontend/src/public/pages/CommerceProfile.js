@@ -532,6 +532,18 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           {(activeProfile.isVerified || (isBusinessProfile && profile?.isOfficialStore)) && (
             <span style={{ fontSize:16 }} title={t('commerce_profile.verified_title')}>✅</span>
           )}
+          {isBusinessProfile && profile?.verificationTier === 'verified_business' && (
+            <span style={{ fontSize:10, fontWeight:800, padding:'2px 9px', borderRadius:100,
+              backgroundColor:'#FEF3C7', color:'#B45309' }}>
+              🏆 {t('commerce_profile.tier_verified_business')}
+            </span>
+          )}
+          {isBusinessProfile && profile?.verificationTier === 'verified_seller' && (
+            <span style={{ fontSize:10, fontWeight:800, padding:'2px 9px', borderRadius:100,
+              backgroundColor:'#DCFCE7', color:'#16A34A' }}>
+              ✅ {t('commerce_profile.tier_verified_seller')}
+            </span>
+          )}
           <ReputationBadge score={score} size="sm" />
         </div>
 

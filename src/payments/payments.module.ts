@@ -13,6 +13,7 @@ import { VodacomService } from './providers/vodacom/vodacom.service';
 import { AirtelService } from './providers/airtel/airtel.service';
 import { SelcomService } from './providers/selcom/selcom.service';
 import { MockAgentService } from './providers/mock/mock-agent.service';
+import { ClickPesaService } from './providers/clickpesa/clickpesa.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 
@@ -37,6 +38,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
     AirtelService, // kept — hidden on frontend for now
     SelcomService, // active
     MockAgentService, // dev only
+    ClickPesaService, // built, reachable — production selection still defaults to Selcom
   ],
   exports: [PaymentsService],
 })

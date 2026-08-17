@@ -115,8 +115,11 @@ export class SellerController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch(':id/approve')
-  approve(@Param('id', ParseIntPipe) id: number) {
-    return this.sellerService.approve(id);
+  approve(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('verificationTier') verificationTier?: string,
+  ) {
+    return this.sellerService.approve(id, verificationTier as any);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

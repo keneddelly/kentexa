@@ -146,7 +146,8 @@ export class SellerService {
       return {
         id: u.id, // ✅ USER id — matches /stores/:sellerId route
         businessName: p?.businessName || u.storeName,
-        businessCategory: (p as any)?.businessCategory || null,
+        businessCategory: p?.businessCategory || null,
+        verificationTier: p?.verificationTier || null,
         // Falls back to the SellerProfile application's businessName —
         // storeName only gets set if the seller separately edits their
         // store branding later; without this, Onboarding's suggested-
@@ -161,9 +162,9 @@ export class SellerService {
         isOfficialStore: u.isOfficialStore || false,
         isVerified: u.isVerified || false,
         followersCount: u.followersCount || 0,
-        city: (p as any)?.businessCity || u.businessLocation || null,
-        district: (p as any)?.businessDistrict || null,
-        region: (p as any)?.businessRegion || null,
+        city: p?.businessCity || u.businessLocation || null,
+        district: p?.businessDistrict || null,
+        region: p?.businessRegion || null,
         completedOrders: u.completedOrders || 0,
         reviewsCount: u.reviewsCount || 0,
         reputationScore: (u as any).reputationScore || 0,
@@ -212,8 +213,9 @@ export class SellerService {
       storeWhatsApp: u.storeWhatsApp || null,
       phone: u.phone || null,
       businessLocation:
-        u.businessLocation || (sellerProfile as any)?.businessCity || null,
-      businessCategory: (sellerProfile as any)?.businessCategory || null,
+        u.businessLocation || sellerProfile?.businessCity || null,
+      businessCategory: sellerProfile?.businessCategory || null,
+      verificationTier: sellerProfile?.verificationTier || null,
       isOfficialStore: u.isOfficialStore || false,
       isVerified: u.isVerified || false,
       isApprovedSeller: !!sellerProfile,
@@ -547,12 +549,16 @@ export class SellerService {
   }
 
   // ── Admin: approve seller ─────────────────────────────────────────────────
-  async approve(profileId: number): Promise<SellerProfile> {
+  async approve(
+    profileId: number,
+    verificationTier?: SellerProfile['verificationTier'],
+  ): Promise<SellerProfile> {
     const profile = await this.profileRepo.findOne({
       where: { id: profileId },
     });
     if (!profile) throw new NotFoundException('Seller profile not found');
     profile.status = SellerStatus.APPROVED;
+    if (verificationTier) profile.verificationTier = verificationTier;
     await this.userRepo.update(profile.user.id, {
       role: UserRole.SELLER,
       activeRoles: mergeActiveRole(profile.user.activeRoles, 'seller'),

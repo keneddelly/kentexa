@@ -15,6 +15,8 @@ import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
+import { SellerProfile } from '../seller/entities/seller-profile.entity';
+import { SellerRankingService } from './seller-ranking.service';
 
 @Injectable()
 export class ProductsService {
@@ -25,10 +27,56 @@ export class ProductsService {
     @InjectRepository(ProductReview)
     private reviewRepo: Repository<ProductReview>,
 
+    @InjectRepository(SellerProfile)
+    private sellerProfileRepo: Repository<SellerProfile>,
+
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
     private readonly searchIndex: SearchIndexService,
+    private readonly ranking: SellerRankingService,
   ) {}
+
+  // Batches verificationTier for a set of products' sellers in one query —
+  // avoids joining SellerProfile into the main product query (a different
+  // table, keyed by userId, not a Product/User relation) for every listing
+  // fetch when most requests don't need it beyond ranking.
+  private async rankByRelevance<
+    T extends {
+      id: number;
+      createdAt: Date;
+      salesCount?: number;
+      seller?: {
+        id?: number;
+        reputationScore?: number;
+        isVerified?: boolean;
+      } | null;
+    },
+  >(products: T[]): Promise<T[]> {
+    const sellerIds = [
+      ...new Set(products.map((p) => p.seller?.id).filter(Boolean)),
+    ] as number[];
+    const tierBySellerId = new Map<number, string>();
+    if (sellerIds.length > 0) {
+      const profiles = await this.sellerProfileRepo
+        .createQueryBuilder('sp')
+        .leftJoin('sp.user', 'u')
+        .select(['sp.verificationTier', 'u.id'])
+        .where('u.id IN (:...sellerIds)', { sellerIds })
+        .getMany();
+      for (const p of profiles) tierBySellerId.set(p.user.id, p.verificationTier);
+    }
+    return this.ranking.rank(
+      products.map((p) => ({
+        ...p,
+        salesCount: (p as any).salesCount || 0,
+        sellerReputationScore: p.seller?.reputationScore || 0,
+        sellerIsVerified: !!p.seller?.isVerified,
+        sellerVerificationTier: p.seller?.id
+          ? tierBySellerId.get(p.seller.id) || null
+          : null,
+      })),
+    );
+  }
 
   async findAll(category?: string) {
     const query = this.repo
@@ -50,7 +98,8 @@ export class ProductsService {
       ])
       .where('p.isAvailable = :isAvailable', { isAvailable: true });
     if (category) query.andWhere('p.category = :category', { category });
-    return query.orderBy('p.createdAt', 'DESC').getMany();
+    const products = await query.orderBy('p.createdAt', 'DESC').getMany();
+    return this.rankByRelevance(products);
   }
 
   async search(
@@ -97,7 +146,8 @@ export class ProductsService {
       qb.andWhere('p.basePrice <= :maxPrice', { maxPrice: filters.maxPrice });
     }
 
-    return qb.orderBy('p.createdAt', 'DESC').getMany();
+    const products = await qb.orderBy('p.createdAt', 'DESC').getMany();
+    return this.rankByRelevance(products);
   }
 
   async findOne(id: number) {

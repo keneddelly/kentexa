@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import LocationPicker from '../components/LocationPicker';
 import api from '../../api/api';
 
 const inputStyle = {
@@ -9,14 +10,32 @@ const inputStyle = {
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
 
+// Same keys Stores.js's category filter chips already read/expect —
+// picking one here is what actually makes a new seller show up under a
+// category filter instead of only "all".
+const getCategories = (t) => [
+  { key: 'electronics', label: t('stores.cat_electronics'), icon: '📱' },
+  { key: 'fashion',     label: t('stores.cat_fashion'),     icon: '👗' },
+  { key: 'food',        label: t('stores.cat_food'),        icon: '🍽️' },
+  { key: 'hardware',    label: t('stores.cat_hardware'),    icon: '🔧' },
+  { key: 'beauty',      label: t('stores.cat_beauty'),      icon: '💄' },
+  { key: 'furniture',   label: t('stores.cat_furniture'),   icon: '🛋️' },
+  { key: 'wholesale',   label: t('stores.cat_wholesale'),   icon: '📦' },
+  { key: 'services',    label: t('stores.cat_services'),    icon: '⚙️' },
+];
+
 const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
   const { t } = useTranslation();
+  const CATEGORIES = getCategories(t);
   const [form, setForm] = useState({
     businessName: '',
     businessDescription: '',
     address: '',
     phone: '',
+    businessCategory: '',
+    registrationNumber: '',
   });
+  const [location, setLocation] = useState({});
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -46,7 +65,15 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
     try {
       setLoading(true);
       setError('');
-      await api.post('/seller/apply', form);
+      await api.post('/seller/apply', {
+        ...form,
+        regionId: location.regionId || undefined,
+        businessRegion: location.regionName || undefined,
+        districtId: location.districtId || undefined,
+        businessDistrict: location.districtName || undefined,
+        wardId: location.wardId || undefined,
+        businessCity: location.wardName || undefined,
+      });
       setMessage(t('become_seller.apply_success'));
     } catch (err) {
       setError(err?.response?.data?.message || t('become_seller.apply_failed'));
@@ -141,6 +168,50 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
                 onChange={e => setForm({ ...form, businessDescription: e.target.value })}
                 rows={4}
                 style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
+                {t('become_seller.field_category_label')}
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {CATEGORIES.map(c => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setForm({ ...form, businessCategory: c.key })}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '8px 12px', borderRadius: 100,
+                      border: form.businessCategory === c.key ? '2px solid #7c3aed' : '2px solid #e2e8f0',
+                      backgroundColor: form.businessCategory === c.key ? '#f5f3ff' : '#fff',
+                      color: form.businessCategory === c.key ? '#7c3aed' : '#475569',
+                      fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    }}
+                  >
+                    <span>{c.icon}</span>{c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <LocationPicker
+              label={t('become_seller.field_location_label')}
+              value={location}
+              onChange={setLocation}
+            />
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
+                {t('become_seller.field_registration_number_label')}
+              </label>
+              <input
+                type="text"
+                placeholder={t('become_seller.field_registration_number_placeholder')}
+                value={form.registrationNumber}
+                onChange={e => setForm({ ...form, registrationNumber: e.target.value })}
+                style={inputStyle}
               />
             </div>
           </div>

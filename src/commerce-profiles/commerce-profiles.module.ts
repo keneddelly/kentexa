@@ -15,6 +15,7 @@ import { CommerceProfilesBackfillService } from './commerce-profiles-backfill.se
 import { CommerceProfileScopeService } from './commerce-profile-scope.service';
 import { CommerceProfilesController } from './commerce-profiles.controller';
 import { SearchModule } from '../search/search.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { SearchModule } from '../search/search.module';
       ProductReview,
     ]),
     SearchModule,
+    AiModule,
   ],
   controllers: [CommerceProfilesController],
   providers: [

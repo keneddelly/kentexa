@@ -131,6 +131,18 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
               📍 {seller.district || seller.city || seller.region}
             </span>
           )}
+          {seller.verificationTier === 'verified_business' && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px',
+              borderRadius: 100, backgroundColor: '#FEF3C7', color: '#B45309' }}>
+              🏆 {t('stores.tier_verified_business')}
+            </span>
+          )}
+          {seller.verificationTier === 'verified_seller' && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 8px',
+              borderRadius: 100, backgroundColor: '#DCFCE7', color: '#16A34A' }}>
+              ✅ {t('stores.tier_verified_seller')}
+            </span>
+          )}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between',

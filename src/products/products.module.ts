@@ -5,6 +5,8 @@ import { ProductsService } from './products.service';
 import { AiListingService } from './ai-listing.service';
 import { Product } from './entities/products.entity';
 import { ProductReview } from './entities/product-review.entity';
+import { SellerProfile } from '../seller/entities/seller-profile.entity';
+import { SellerRankingService } from './seller-ranking.service';
 import { FeedModule } from '../feed/feed.module';
 import { AiModule } from '../ai/ai.module';
 import { BusinessModule } from '../business/business.module';
@@ -13,7 +15,7 @@ import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product, ProductReview]),
+    TypeOrmModule.forFeature([Product, ProductReview, SellerProfile]),
     FeedModule,
     AiModule,
     BusinessModule,
@@ -21,7 +23,7 @@ import { SearchModule } from '../search/search.module';
     SearchModule,
   ],
   controllers: [ProductsController],
-  providers: [ProductsService, AiListingService],
+  providers: [ProductsService, AiListingService, SellerRankingService],
   exports: [ProductsService],
 })
 export class ProductsModule {}

@@ -350,6 +350,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
               <MenuRow icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')} />
               <MenuRow icon="🧾" label={t('seller_dashboard.invoices')} value={invoiceRequests.filter(r=>r.status==='pending').length > 0 ? t('seller_dashboard.pending_count', { count: invoiceRequests.filter(r=>r.status==='pending').length }) : null} onClick={() => onNavigate('SellerInvoices')} />
               <MenuRow icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')} />
+              <MenuRow icon="👛" label={t('seller_dashboard.wallet')} onClick={() => onNavigate('SellerWallet')} />
               <MenuRow icon="📊" label={t('seller_dashboard.analytics')} onClick={() => onNavigate('SellerAnalytics')} />
               <MenuRow icon="👥" label={t('seller_dashboard.my_team')} onClick={() => onNavigate('SellerTeam')} />
               <MenuRow icon="🌐" label={t('seller_dashboard.public_profile')} onClick={() => onNavigate('CommerceProfile')} />

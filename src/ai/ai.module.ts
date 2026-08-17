@@ -14,6 +14,7 @@ import { AiService } from './ai.service';
 import { AiController } from './ai.controller';
 import { AiSearchParserService } from './ai-search-parser.service';
 import { AiSearchExplainerService } from './ai-search-explainer.service';
+import { AiSellerEnrichmentService } from './ai-seller-enrichment.service';
 import { EmbeddingService } from './embedding.service';
 import { EmbeddingRouter } from './embedding.router';
 import { OpenAiEmbeddingProvider } from './providers/openai-embedding.provider';
@@ -34,6 +35,7 @@ import { OpenAiEmbeddingProvider } from './providers/openai-embedding.provider';
     AiService,
     AiSearchParserService,
     AiSearchExplainerService,
+    AiSellerEnrichmentService,
     OpenAiEmbeddingProvider,
     EmbeddingRouter,
     EmbeddingService,
@@ -43,6 +45,7 @@ import { OpenAiEmbeddingProvider } from './providers/openai-embedding.provider';
     AiPromptTemplateService,
     AiSearchParserService,
     AiSearchExplainerService,
+    AiSellerEnrichmentService,
     EmbeddingService,
   ],
 })
