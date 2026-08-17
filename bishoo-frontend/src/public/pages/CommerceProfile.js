@@ -253,12 +253,23 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     setTab(deepLinkTab || null);
 
     const uid = targetId || currentUser?.id || 0;
+    // A deep-linked tab that exists on exactly one profile type must
+    // resolve to THAT profile — not silently fall back to personal. A
+    // bare user id is ambiguous between every identity an account runs,
+    // and defaulting to personal regardless of deepLinkTab was quietly
+    // swallowing every "open their transport/hub profile" link built this
+    // session (moments, search results, notifications): the tab param
+    // arrived correctly, but the page underneath was always the person's
+    // own personal profile, which usually doesn't even have that tab.
+    const TAB_TYPE_HINT = { transport: 'transport_provider', hub: 'hub', jobs: 'agent' };
     const resolve = commerceProfileId
       ? api.get(`/profiles/${commerceProfileId}`)
       : api.get(`/profiles/for-user/${uid}`).then(r => {
           const list = r.data || [];
+          const hintedType = TAB_TYPE_HINT[deepLinkTab];
+          const hinted = hintedType ? list.find(p => p.type === hintedType) : null;
           const personal = list.find(p => p.type === 'personal');
-          return { data: personal || list[0] || null };
+          return { data: hinted || personal || list[0] || null };
         });
 
     resolve.then(res => {

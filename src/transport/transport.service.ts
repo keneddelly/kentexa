@@ -529,11 +529,18 @@ export class TransportService {
       .andWhere('a.date IN (:...dates)', { dates: [today, tomorrow] })
       .andWhere('a.usedSlots < a.totalSlots')
       .andWhere(
-        `(${cityMatch('a.fromCity', 'from')} OR ${cityMatch('r.originCity', 'from')})`,
+        // Origin/destination-city columns only cover intercity routes — a
+        // last-mile route's coverage lives in coverageWards/coverageCity
+        // instead, and a local-loop van's in loopStops. Without matching
+        // those too, a same-city search like "Kariakoo to Bunju" (both
+        // wards inside Dar es Salaam) never found the boda/van providers
+        // who actually cover exactly that — only real intercity routes
+        // ever matched at all.
+        `(${cityMatch('a.fromCity', 'from')} OR ${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')})`,
         { from: `%${fromCity}%`, fromRaw: fromCity },
       )
       .andWhere(
-        `(${cityMatch('a.toCity', 'to')} OR ${cityMatch('r.destinationCity', 'to')})`,
+        `(${cityMatch('a.toCity', 'to')} OR ${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
         { to: `%${toCity}%`, toRaw: toCity },
       );
     if (weightKg > 0) {
@@ -558,11 +565,12 @@ export class TransportService {
       )
       .where('p.status = :verified', { verified: ProviderStatus.VERIFIED })
       .andWhere(
-        `(${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.destinationCity', 'from')})`,
+        // Same last-mile/local-loop coverage extension as publishedQuery above.
+        `(${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.destinationCity', 'from')} OR ${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')})`,
         { from: `%${fromCity}%`, fromRaw: fromCity },
       )
       .andWhere(
-        `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.originCity', 'to')})`,
+        `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.originCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
         { to: `%${toCity}%`, toRaw: toCity },
       );
     if (weightKg > 0) {

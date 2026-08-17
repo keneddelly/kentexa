@@ -542,7 +542,11 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
           type: d === 'classifieds' ? 'classified' : d === 'products' ? 'product' : 'service',
           name: item.title || item.name,
           subtitle: item.category || null,
-          price: item.price ?? null,
+          // Product has no plain `price` field — it's displayPrice/basePrice
+          // (classifieds/services do use `price` directly). Reading
+          // item.price for a product was always undefined, so the AI's own
+          // summary of results silently dropped/misstated product prices.
+          price: d === 'products' ? (item.displayPrice ?? item.basePrice ?? null) : (item.price ?? null),
           rating: item.rating ?? null,
         })));
       });
@@ -762,7 +766,11 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                                 {item.name}
                               </div>
                               <div style={{ fontSize:14, fontWeight:900, color:B }}>
-                                TZS {fmt(item.price)}
+                                {/* Product has no plain `price` field — it's
+                                    displayPrice/basePrice, unlike classifieds/
+                                    services which do use `price` directly.
+                                    Reading item.price here always rendered 0. */}
+                                TZS {fmt(item.displayPrice ?? item.basePrice)}
                               </div>
                             </div>
                           </div>
