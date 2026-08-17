@@ -721,7 +721,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             {(classifieds.length === 0 && products.length === 0) ? (
               <Empty icon="🏷️" text={t('commerce_profile.no_products_yet')}
                 action={isOwnProfile ? t('commerce_profile.add_product_action') : null}
-                onAction={() => onNavigate('SellerClassifieds')} />
+                onAction={() => onNavigate('SellerProducts')} />
             ) : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
                 {[

@@ -595,7 +595,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         {actionLoading ? '⏳' : t('seller_orders.mark_shipped_button')}
                       </button>
                     )}
-                    <button onClick={() => onNavigate(`TrackParcel-KTX-ORD-order.id`)}
+                    <button onClick={() => onNavigate(`TrackParcel-KTX-ORD-${order.id}`)}
                       style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                       {t('seller_orders.track_button')}
                     </button>

@@ -106,7 +106,7 @@ const StoreSettings = ({ userId, onNavigate }) => {
   if (loading) return <div style={{ padding: 24, color: '#64748b' }}>⏳ Loading store settings...</div>;
 
   return (
-    <div style={{ maxWidth: 640, margin: '0 auto', padding: 16 }}>
+    <div style={{ maxWidth: 640, margin: '0 auto', padding: 16, paddingBottom: 100 }}>
       <BackBar onBack={() => onNavigate('back')} title="⚙️ Mipangilio ya Duka" />
       <h2 style={{ fontSize: 20, fontWeight: 900, color: '#0f172a', marginBottom: 4, fontFamily: 'Manrope,sans-serif' }}>🏪 Store Settings</h2>
       <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>Customize how your store appears to buyers</p>
