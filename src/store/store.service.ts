@@ -70,6 +70,30 @@ export class StoreService {
     }
 
     await this.userRepo.update(sellerId, update);
+
+    // Keep the business CommerceProfile's own public fields in sync — this
+    // form writes to the legacy User columns only, but CommerceProfile.js
+    // renders the business's public page from CommerceProfile.photoUrl/
+    // displayName/bio/location, which live in a completely separate row.
+    // Without this, a new logo/description saved here would silently never
+    // show up on the business's actual public profile.
+    const profileUpdate: Record<string, any> = {};
+    if (dto.logo !== undefined) profileUpdate.photoUrl = dto.logo;
+    if (dto.coverImage !== undefined) profileUpdate.coverImage = dto.coverImage;
+    if (dto.storeName !== undefined) profileUpdate.displayName = dto.storeName;
+    if (dto.storeDescription !== undefined) profileUpdate.bio = dto.storeDescription;
+    if (dto.businessLocation !== undefined) profileUpdate.location = dto.businessLocation;
+    if (Object.keys(profileUpdate).length > 0) {
+      const businessProfile = await this.commerceProfiles
+        .findForUserByType(sellerId, CommerceProfileType.BUSINESS)
+        .catch(() => null);
+      if (businessProfile) {
+        await this.commerceProfiles
+          .updatePublicFields(businessProfile.id, profileUpdate)
+          .catch(() => {});
+      }
+    }
+
     return { message: 'Store profile updated successfully' };
   }
 
