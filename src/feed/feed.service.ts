@@ -4,7 +4,7 @@
  */
 import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, In } from 'typeorm';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 import {
   PostEngagement,
@@ -16,6 +16,7 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { User } from '../users/entities/user.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 
 export type FeedFilter =
@@ -42,6 +43,8 @@ export class FeedService {
     @InjectRepository(Classified)
     private classifiedRepo: Repository<Classified>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
+    @InjectRepository(CommerceProfile)
+    private commerceProfileRepo: Repository<CommerceProfile>,
     private readonly notifService: InAppNotificationService,
     private readonly profileScope: CommerceProfileScopeService,
   ) {}
@@ -203,25 +206,47 @@ export class FeedService {
       followedIds = new Set(rows.map((r) => r.sellerId));
     }
 
-    return unique.map((m) => ({
-      momentId: m.id,
-      postType: m.type, // 'moment' | 'looking_for'
-      imageUrl: m.imageUrl,
-      caption: m.body,
-      category: m.category,
-      createdAt: m.createdAt,
-      linkedEntityType: m.linkedEntityType,
-      linkedEntityId: m.linkedEntityId,
-      business: {
-        id: m.business?.id,
-        name: m.business?.name,
-        storeName: m.business?.storeName,
-        logo: m.business?.logo,
-        businessLocation: (m.business as any)?.businessLocation,
-        isVerified: (m.business as any)?.isVerified,
-        isFollowing: m.business ? followedIds.has(m.business.id) : false,
-      },
-    }));
+    // Same fix as CvsService.getFilteredFeed: a story ring circle must show
+    // WHICH profile the moment was actually posted as, not always the
+    // owner's personal identity — this is the story ring specifically, the
+    // most visible surface for a freshly-posted Moment.
+    const profileIds = [
+      ...new Set(
+        unique
+          .map((m) => (m as any).commerceProfileId)
+          .filter((id): id is number => !!id),
+      ),
+    ];
+    const profiles = profileIds.length
+      ? await this.commerceProfileRepo.find({ where: { id: In(profileIds) } })
+      : [];
+    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
+    return unique.map((m) => {
+      const profile = (m as any).commerceProfileId
+        ? profileMap.get((m as any).commerceProfileId)
+        : null;
+      return {
+        momentId: m.id,
+        postType: m.type, // 'moment' | 'looking_for'
+        imageUrl: m.imageUrl,
+        caption: m.body,
+        category: m.category,
+        createdAt: m.createdAt,
+        linkedEntityType: m.linkedEntityType,
+        linkedEntityId: m.linkedEntityId,
+        business: {
+          id: m.business?.id,
+          commerceProfileId: profile?.id || null,
+          name: profile?.displayName || m.business?.name,
+          storeName: profile?.displayName || m.business?.storeName,
+          logo: profile?.photoUrl || m.business?.logo,
+          businessLocation: (m.business as any)?.businessLocation,
+          isVerified: profile?.isVerified ?? (m.business as any)?.isVerified,
+          isFollowing: m.business ? followedIds.has(m.business.id) : false,
+        },
+      };
+    });
   }
 
   // ── Comments ──────────────────────────────────────────────────────────────

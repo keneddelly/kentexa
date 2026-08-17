@@ -125,13 +125,22 @@ export class FeedController {
     @Body('rating') rating?: number,
     @Body('media') media?: { url: string; type: 'image' | 'video' }[],
     @Body('offlinePurchaseClaim') offlinePurchaseClaim?: boolean,
+    @Body('commerceProfileId') commerceProfileId?: number,
   ) {
-    return this.cvs.addComment(req.user.id, id, body, parentId, offer, {
-      type,
-      rating,
-      media,
-      offlinePurchaseClaim,
-    });
+    return this.cvs.addComment(
+      req.user.id,
+      id,
+      body,
+      parentId,
+      offer,
+      {
+        type,
+        rating,
+        media,
+        offlinePurchaseClaim,
+      },
+      commerceProfileId,
+    );
   }
 
   @Delete('comments/:id')

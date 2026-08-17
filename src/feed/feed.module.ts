@@ -14,6 +14,7 @@ import { PostEngagement } from './entities/post-engagement.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { PostCommentHelpfulVote } from './entities/post-comment-helpful-vote.entity';
 import { Order } from '../orders/entities/order.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FeedService } from './feed.service';
 import { CvsService } from './cvs.service';
 import { FeedController } from './feed.controller';
@@ -43,6 +44,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
       PostComment,
       PostCommentHelpfulVote,
       Order,
+      CommerceProfile,
     ]),
     NotificationsModule,
     AiModule,

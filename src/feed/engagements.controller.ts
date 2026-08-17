@@ -41,7 +41,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, In } from 'typeorm';
 import {
   PostEngagement,
   EngagementType,
@@ -52,6 +52,7 @@ import {
   PurchaseVerification,
 } from './entities/post-comment.entity';
 import { PostCommentHelpfulVote } from './entities/post-comment-helpful-vote.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import {
   PurchaseVerificationService,
   AiSummaryProvider,
@@ -428,6 +429,8 @@ export class CommentsController {
     @InjectRepository(PostCommentHelpfulVote)
     private helpfulRepo: Repository<PostCommentHelpfulVote>, // NEW
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(CommerceProfile)
+    private commerceProfileRepo: Repository<CommerceProfile>,
     private readonly owners: EntityOwnerResolver,
     private readonly notifService: InAppNotificationService,
     private readonly purchaseVerification: PurchaseVerificationService, // NEW
@@ -525,7 +528,9 @@ export class CommentsController {
       });
     }
 
-    return { pinned: pinned || null, items };
+    const [enrichedPinned] = pinned ? await this.attachCommerceProfiles([pinned]) : [null];
+    const enrichedItems = await this.attachCommerceProfiles(items);
+    return { pinned: enrichedPinned || null, items: enrichedItems };
   }
 
   // ── Rating summary — NEW ─────────────────────────────────────────────────
@@ -602,6 +607,7 @@ export class CommentsController {
       media?: { url: string; type: 'image' | 'video' }[]; // NEW
       offlinePurchaseClaim?: boolean; // NEW
       offer?: { entityType: string; entityId: number }; // existing "I Have This" support
+      commerceProfileId?: number | null; // which profile the commenter was acting as
     },
   ) {
     if (!dto.entityType || !dto.entityId) {
@@ -675,6 +681,7 @@ export class CommentsController {
         entityType: dto.entityType,
         entityId: dto.entityId,
         authorId: req.user.id,
+        commerceProfileId: dto.commerceProfileId || null,
         body: dto.body?.trim() || null,
         parentId: dto.parentId || null,
         type, // NEW
@@ -714,10 +721,52 @@ export class CommentsController {
     // NEW — refresh rating aggregate implicitly happens live at read time
     // (getRatingSummary queries directly), no denormalized column to update.
 
-    return this.commentRepo.findOne({
+    const saved = await this.commentRepo.findOne({
       where: { id: comment.id },
       relations: { author: true },
     });
+    return saved ? (await this.attachCommerceProfiles([saved]))[0] : saved;
+  }
+
+  // Resolves which CommerceProfile each commenter was acting as (and their
+  // replies'), so the thread shows the business/agent/etc. identity they
+  // actually commented as — not always their personal account. Same gap
+  // "Sold by" links and the Home feed had before this pass; comments were
+  // never wired up at all until now.
+  private async attachCommerceProfiles(comments: PostComment[]): Promise<any[]> {
+    const flat: PostComment[] = [];
+    comments.forEach((c) => {
+      flat.push(c);
+      (c.replies || []).forEach((r) => flat.push(r));
+    });
+    const profileIds = [
+      ...new Set(
+        flat.map((c) => c.commerceProfileId).filter((id): id is number => !!id),
+      ),
+    ];
+    const profiles = profileIds.length
+      ? await this.commerceProfileRepo.find({ where: { id: In(profileIds) } })
+      : [];
+    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+    const enrich = (c: PostComment): any => ({
+      ...c,
+      commerceProfile: c.commerceProfileId
+        ? (() => {
+            const p = profileMap.get(c.commerceProfileId);
+            return p
+              ? {
+                  id: p.id,
+                  type: p.type,
+                  username: p.username,
+                  displayName: p.displayName,
+                  photoUrl: p.photoUrl,
+                }
+              : null;
+          })()
+        : null,
+      replies: (c.replies || []).map(enrich),
+    });
+    return comments.map(enrich);
   }
 
   // ── Seller reply — NEW ────────────────────────────────────────────────────

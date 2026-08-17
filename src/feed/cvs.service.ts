@@ -24,6 +24,7 @@ import {
   PurchaseVerification,
 } from './entities/post-comment.entity';
 import { User } from '../users/entities/user.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { EntityOwnerResolver } from './engagements.controller';
 import { PurchaseVerificationService } from './comment-support.service';
@@ -45,6 +46,8 @@ export class CvsService {
     @InjectRepository(ServiceAd) private serviceAdRepo2: Repository<ServiceAd>,
     @InjectRepository(TransportRoute)
     private routeRepo: Repository<TransportRoute>,
+    @InjectRepository(CommerceProfile)
+    private commerceProfileRepo: Repository<CommerceProfile>,
     private readonly notifService: InAppNotificationService,
     private readonly owners: EntityOwnerResolver,
     private readonly purchaseVerification: PurchaseVerificationService,
@@ -104,6 +107,7 @@ export class CvsService {
       media?: { url: string; type: 'image' | 'video' }[];
       offlinePurchaseClaim?: boolean;
     },
+    commerceProfileId?: number | null,
   ): Promise<any> {
     // ── Unification: if this Moment is tagged to a real product/listing/
     // service, its comment thread IS that entity's own thread — not a
@@ -164,6 +168,7 @@ export class CvsService {
         entityType: linked ? linked.entityType : null,
         entityId: linked ? linked.entityId : null,
         authorId: userId,
+        commerceProfileId: commerceProfileId || null,
         body: body?.trim() || null,
         parentId: parentId || null,
         type,
@@ -228,12 +233,40 @@ export class CvsService {
         cardMap.set(`${c.offerEntityType}-${c.offerEntityId}`, cards[i]);
     });
 
+    // Resolve which CommerceProfile each commenter was acting as, so the
+    // thread shows the business/agent/etc. identity they actually commented
+    // as — not always their personal account, the same identity-bleed gap
+    // "Sold by" links and the Home feed had before this pass.
+    const profileIds = [
+      ...new Set(
+        flat.map((c) => c.commerceProfileId).filter((id): id is number => !!id),
+      ),
+    ];
+    const profiles = profileIds.length
+      ? await this.commerceProfileRepo.find({ where: { id: In(profileIds) } })
+      : [];
+    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
     const enrich = (c: PostComment): any => ({
       ...c,
       offerCard:
         c.offerEntityType && c.offerEntityId
           ? cardMap.get(`${c.offerEntityType}-${c.offerEntityId}`) || null
           : null,
+      commerceProfile: c.commerceProfileId
+        ? (() => {
+            const p = profileMap.get(c.commerceProfileId);
+            return p
+              ? {
+                  id: p.id,
+                  type: p.type,
+                  username: p.username,
+                  displayName: p.displayName,
+                  photoUrl: p.photoUrl,
+                }
+              : null;
+          })()
+        : null,
       replies: (c.replies || []).map(enrich),
     });
     return comments.map(enrich);
@@ -1260,17 +1293,52 @@ export class CvsService {
       };
     }
 
+    // Resolve which CommerceProfile each real feed item was actually posted
+    // as, so the card shows THAT business/agent/etc.'s own name/photo/
+    // followers — not always the owning account's personal identity. This
+    // was the root cause of a Moment posted while on a business profile
+    // still displaying the owner's personal name in the Home feed: the
+    // write path already stamped commerceProfileId correctly, but this read
+    // path only ever joined the raw account (`f.business`/`b`) and never
+    // looked at it. Items without a commerceProfileId (older content, or a
+    // type where it doesn't apply) fall through to the account-level
+    // `business` fields unchanged — never retro-guessed.
+    const feedProfileIds = [
+      ...new Set(
+        items
+          .map((f) => (f as any).commerceProfileId)
+          .filter((id): id is number => !!id),
+      ),
+    ];
+    const feedProfiles = feedProfileIds.length
+      ? await this.commerceProfileRepo.find({ where: { id: In(feedProfileIds) } })
+      : [];
+    const feedProfileMap = new Map(feedProfiles.map((p) => [p.id, p]));
+
     return {
-      items: items.map((f) => ({
-        ...f,
-        isSaved: savedIds.includes(f.id),
-        business: (f as any).business
+      items: items.map((f) => {
+        const rawBiz = (f as any).business;
+        const profile = (f as any).commerceProfileId
+          ? feedProfileMap.get((f as any).commerceProfileId)
+          : null;
+        const business = rawBiz
           ? {
-              ...(f as any).business,
-              isFollowing: followedSellerIds.has((f as any).business.id),
+              ...rawBiz,
+              isFollowing: followedSellerIds.has(rawBiz.id),
+              ...(profile
+                ? {
+                    commerceProfileId: profile.id,
+                    name: profile.displayName,
+                    storeName: profile.displayName,
+                    logo: profile.photoUrl || rawBiz.logo,
+                    followersCount: profile.followersCount,
+                    isVerified: profile.isVerified,
+                  }
+                : {}),
             }
-          : (f as any).business,
-      })),
+          : rawBiz;
+        return { ...f, isSaved: savedIds.includes(f.id), business };
+      }),
       total,
     };
   }

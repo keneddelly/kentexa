@@ -83,6 +83,14 @@ export class PostComment {
   @Column({ type: 'int', nullable: true })
   authorId: number | null;
 
+  // Which CommerceProfile the author was acting as when they commented —
+  // plain nullable id, same pattern as BusinessFeedItem.commerceProfileId
+  // and Review/ProductReview.commerceProfileId. Null on every comment that
+  // predates this column; never retro-tagged, so old comments keep showing
+  // the account identity they always did rather than a guess.
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
   @Column({ type: 'text', nullable: true }) // nullable relaxed for AI_SUMMARY-with-media-only edge case; still required by service validation for comment/question/review
   body: string | null;
 
