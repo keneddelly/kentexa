@@ -18,7 +18,12 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed:locations": "ts-node src/tz-location/run-location-seed.ts"
+    "seed:locations": "ts-node src/tz-location/run-location-seed.ts",
+    "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:create": "typeorm-ts-node-commonjs migration:create",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:revert": "npm run typeorm -- migration:revert"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -41,6 +46,7 @@
     "class-validator": "^0.15.1",
     "cloudinary": "^2.10.0",
     "exceljs": "^4.4.0",
+    "helmet": "^8.3.0",
     "jwt-decode": "^4.0.0",
     "multer": "^2.1.1",
     "nodemailer": "^9.0.0",

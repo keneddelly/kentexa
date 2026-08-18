@@ -5,9 +5,24 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { EarlyAccessModule } from './early-access/early-access.module';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Baseline security headers (X-Frame-Options, HSTS, no-sniff, etc.).
+  // contentSecurityPolicy is off — this is a JSON API plus a Swagger UI
+  // route (/early-access/docs) that needs inline scripts/styles; a default
+  // CSP would break that without a real gain here. crossOriginResourcePolicy
+  // is relaxed so /uploads/* (served below) keeps loading from the
+  // frontend's separate origin — the default 'same-origin' policy would
+  // silently break every product/listing image.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
 
   // Serve uploaded files
   app.useStaticAssets(join(process.cwd(), 'uploads'), {

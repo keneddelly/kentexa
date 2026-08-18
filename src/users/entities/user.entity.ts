@@ -146,6 +146,16 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   kycLevel: string | null; // 'none' | 'phone' | 'id_document' | 'business'
 
+  // Which Terms of Service version was active when this account signed up
+  // (see src/policies/). Null only for accounts created before this field
+  // existed — never backfilled, since we have no record of what version,
+  // if any, actually applied to them.
+  @Column({ type: 'varchar', nullable: true })
+  termsAcceptedVersion: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  termsAcceptedAt: Date | null;
+
   @Column({ type: 'varchar', nullable: true })
   bio: string | null; // short commerce bio
 

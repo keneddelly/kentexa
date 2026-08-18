@@ -10,6 +10,14 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
 import { ProfileService } from '../profile/profile.service';
+import { RegisterPhoneDto, RegisterEmailDto, RegisterDto } from './dto/register.dto';
+import {
+  VerifyOtpDto,
+  ResendOtpDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/otp.dto';
+import { LoginDto } from './dto/login.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -22,9 +30,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('register/phone')
-  registerPhone(
-    @Body() body: { phone: string; password: string; name: string },
-  ) {
+  registerPhone(@Body() body: RegisterPhoneDto) {
     return this.authService.registerWithPhone(body);
   }
 
@@ -32,9 +38,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('register/email')
-  registerEmail(
-    @Body() body: { email: string; password: string; name: string },
-  ) {
+  registerEmail(@Body() body: RegisterEmailDto) {
     return this.authService.registerWithEmail(body);
   }
 
@@ -42,15 +46,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('register')
-  register(
-    @Body()
-    body: {
-      phone?: string;
-      email?: string;
-      password: string;
-      name?: string;
-    },
-  ) {
+  register(@Body() body: RegisterDto) {
     return this.authService.register(body);
   }
 
@@ -58,7 +54,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 15, ttl: 3600000 } })
   @Post('verify-otp')
-  verifyOtp(@Body() body: { identifier: string; otp: string }) {
+  verifyOtp(@Body() body: VerifyOtpDto) {
     return this.authService.verifyOtp(body.identifier, body.otp);
   }
 
@@ -66,7 +62,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('resend-otp')
-  resendOtp(@Body() body: { identifier: string }) {
+  resendOtp(@Body() body: ResendOtpDto) {
     return this.authService.resendOtp(body.identifier);
   }
 
@@ -76,15 +72,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 20, ttl: 3600000 } })
   @Post('login')
-  login(
-    @Body()
-    body: {
-      phone?: string;
-      email?: string;
-      identifier?: string;
-      password: string;
-    },
-  ) {
+  login(@Body() body: LoginDto) {
     const id = body.identifier || body.phone || body.email || '';
     return this.authService.login(id, body.password);
   }
@@ -93,7 +81,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('forgot-password')
-  forgotPassword(@Body() body: { identifier: string }) {
+  forgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.forgotPassword(body.identifier);
   }
 
@@ -139,9 +127,7 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 10, ttl: 3600000 } })
   @Post('reset-password')
-  resetPassword(
-    @Body() body: { identifier: string; otp: string; newPassword: string },
-  ) {
+  resetPassword(@Body() body: ResetPasswordDto) {
     return this.authService.resetPassword(
       body.identifier,
       body.otp,

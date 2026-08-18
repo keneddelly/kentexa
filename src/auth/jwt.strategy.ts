@@ -13,11 +13,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private userRepo: Repository<User>,
     private config: ConfigService,
   ) {
+    const secret = config.get<string>('JWT_SECRET');
+    if (!secret) {
+      // Must match JwtModule's own secret (auth.module.ts) — no fallback
+      // here either, for the same reason: a fallback secret is a
+      // source-controlled secret.
+      throw new Error(
+        'JWT_SECRET is not set. Refusing to start with a fallback signing secret.',
+      );
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      // ✅ Must match JwtModule secret exactly
-      secretOrKey: config.get<string>('JWT_SECRET') || 'kentexa_secret_key',
+      secretOrKey: secret,
     });
   }
 

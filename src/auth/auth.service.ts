@@ -13,6 +13,8 @@ import { SmsService } from '../sms/sms.service';
 import { MailService } from '../mail/mail.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { PolicyVersionService } from '../policies/policy-version.service';
+import { PolicyType } from '../policies/entities/policy-version.entity';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +25,23 @@ export class AuthService {
     private smsService: SmsService,
     private mailService: MailService,
     private commerceProfiles: CommerceProfilesService,
+    private policyVersions: PolicyVersionService,
   ) {}
+
+  // Stamps whatever Terms of Service version is currently active at the
+  // moment of signup — the registration form's "I agree to the Terms"
+  // checkbox is what this proves happened, and when, for a specific
+  // version. Never fails registration if resolution fails for any reason.
+  private async currentTermsAcceptance(): Promise<{
+    termsAcceptedVersion: string | null;
+    termsAcceptedAt: Date | null;
+  }> {
+    const active = await this.policyVersions
+      .getActive(PolicyType.TERMS_OF_SERVICE)
+      .catch(() => null);
+    if (!active) return { termsAcceptedVersion: null, termsAcceptedAt: null };
+    return { termsAcceptedVersion: active.version, termsAcceptedAt: new Date() };
+  }
 
   private signToken(user: User) {
     return this.jwtService.sign({
@@ -52,6 +70,7 @@ export class AuthService {
     const hashed = await bcrypt.hash(dto.password, 10);
     const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    const terms = await this.currentTermsAcceptance();
 
     const user = this.userRepo.create({
       phone: dto.phone,
@@ -61,6 +80,7 @@ export class AuthService {
       otpExpiry,
       isVerified: false,
       otpAttempts: 0,
+      ...terms,
     } as any);
 
     await this.userRepo.save(user);
@@ -93,6 +113,7 @@ export class AuthService {
     const hashed = await bcrypt.hash(dto.password, 10);
     const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
+    const terms = await this.currentTermsAcceptance();
 
     const user = this.userRepo.create({
       email: dto.email,
@@ -102,6 +123,7 @@ export class AuthService {
       otpExpiry,
       isVerified: false,
       otpAttempts: 0,
+      ...terms,
     } as any);
 
     await this.userRepo.save(user);

@@ -12,20 +12,30 @@ import { SmsModule } from '../sms/sms.module';
 import { MailModule } from '../mail/mail.module';
 import { ProfileModule } from '../profile/profile.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { PoliciesModule } from '../policies/policies.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User]),
     ProfileModule,
     CommerceProfilesModule,
+    PoliciesModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'kentexa_secret_key',
-        signOptions: { expiresIn: '7d' },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret) {
+          // Fail startup loudly rather than silently signing tokens with a
+          // hardcoded, source-controlled secret — a previous fallback here
+          // meant a misconfigured environment let anyone forge valid JWTs.
+          throw new Error(
+            'JWT_SECRET is not set. Refusing to start with a fallback signing secret.',
+          );
+        }
+        return { secret, signOptions: { expiresIn: '7d' } };
+      },
     }),
     SmsModule,
     MailModule,

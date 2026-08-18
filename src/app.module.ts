@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ClassifiedsModule } from './classifieds/classifieds.module';
@@ -42,6 +44,8 @@ import { ServiceProvidersModule } from './service-providers/service-providers.mo
 import { EarlyAccessModule } from './early-access/early-access.module';
 import { SearchModule } from './search/search.module';
 import { ShipmentsModule } from './shipments/shipments.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
+import { PoliciesModule } from './policies/policies.module';
 
 @Module({
   imports: [
@@ -55,6 +59,20 @@ import { ShipmentsModule } from './shipments/shipments.module';
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'kentexa',
       autoLoadEntities: true,
+      // TODO(regulatory-readiness P0): migration tooling now exists
+      // (src/data-source.ts, `npm run migration:generate|run|revert`), but
+      // this stays `true` until a one-time cutover happens directly
+      // against the production DB: (1) deploy once more with
+      // synchronize:true so prod is 100% caught up with every entity,
+      // (2) run `npm run migration:generate -- src/migrations/Baseline`
+      // against the PRODUCTION connection and confirm the diff is empty
+      // (proves prod already matches every entity), (3) only then flip
+      // this to `false` and require `npm run migration:run` on deploy
+      // going forward. Flipping it off before that baseline is verified
+      // empty would silently stop any future entity change from ever
+      // reaching the production schema — this can't be done safely from a
+      // local dev DB, which drifts independently (confirmed: a migration
+      // generated against this worktree's local DB was NOT an empty diff).
       synchronize: true,
       extra: {
         query_timeout: 30000,
@@ -101,6 +119,15 @@ import { ShipmentsModule } from './shipments/shipments.module';
     EarlyAccessModule,
     SearchModule,
     ShipmentsModule,
+    AuditLogModule,
+    PoliciesModule,
+    // Blanket default rate limit — most controllers had none at all (only
+    // auth/transport/search/early-access separately registered their own
+    // tighter ThrottlerModule + guard). This adds a global floor via
+    // APP_GUARD below without touching those already-protected modules;
+    // their own local guard still applies on top, just tighter.
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
