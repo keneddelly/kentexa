@@ -273,6 +273,25 @@ export class SuperAgentsController {
     return this.service.grantFreeOrders(Number(id), Number(count));
   }
 
+  // Records that a Super Agent paid down their outstanding platform-fee
+  // balance (cash/mobile money collected outside the app) and unblocks
+  // them once the balance drops below their billingThreshold.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post(':id/billing-payment')
+  recordBillingPayment(
+    @Param('id') id: string,
+    @Body('amount') amount: number,
+    @Body('paymentMethod') paymentMethod: string,
+    @Request() req: any,
+  ) {
+    return this.service.recordBillingPayment(Number(id), {
+      amount: Number(amount),
+      paymentMethod: paymentMethod || 'cash',
+      adminUserId: req.user.id,
+    });
+  }
+
   // ── Admin: courier cost reimbursement ledger ────────────────────────────────
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

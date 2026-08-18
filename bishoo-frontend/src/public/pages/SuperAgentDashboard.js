@@ -198,6 +198,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [dispatchForm, setDispatchForm] = useState({
     transportType: 'bus', busCompany: '', busTicketNumber: '',
     busDeparture: '', courierName: '', courierTrackingRef: '', notes: '',
+    driverName: '', driverPhone: '', vehicleNumber: '',
+    departureDate: '', departureTime: '', expectedArrivalDate: '', expectedArrivalTime: '',
   });
   const [dispatchMode, setDispatchMode] = useState('transport');
   const [selectedAgent, setSelectedAgent] = useState(null);
@@ -1234,6 +1236,43 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                           style={{ ...inp, marginBottom: 8 }} />
                       </>
                     )}
+                    {/* Optional — only fields actually filled in get included in the receiver SMS */}
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
+                      marginTop: 6, marginBottom: 6, textTransform: 'uppercase' }}>
+                      Maelezo ya ziada (hiari)
+                    </div>
+                    <input type="text" placeholder="Jina la Dereva (hiari)"
+                      value={dispatchForm.driverName}
+                      onChange={e => setDispatchForm(f => ({ ...f, driverName: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
+                    <input type="text" placeholder="Namba ya Simu ya Dereva (hiari)"
+                      value={dispatchForm.driverPhone}
+                      onChange={e => setDispatchForm(f => ({ ...f, driverPhone: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
+                    <input type="text" placeholder="Namba ya Gari (hiari)"
+                      value={dispatchForm.vehicleNumber}
+                      onChange={e => setDispatchForm(f => ({ ...f, vehicleNumber: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input type="date" placeholder="Tarehe ya Kuondoka"
+                        value={dispatchForm.departureDate}
+                        onChange={e => setDispatchForm(f => ({ ...f, departureDate: e.target.value }))}
+                        style={{ ...inp, flex: 1 }} />
+                      <input type="time" placeholder="Saa ya Kuondoka"
+                        value={dispatchForm.departureTime}
+                        onChange={e => setDispatchForm(f => ({ ...f, departureTime: e.target.value }))}
+                        style={{ ...inp, flex: 1 }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      <input type="date" placeholder="Tarehe ya Kufika"
+                        value={dispatchForm.expectedArrivalDate}
+                        onChange={e => setDispatchForm(f => ({ ...f, expectedArrivalDate: e.target.value }))}
+                        style={{ ...inp, flex: 1 }} />
+                      <input type="time" placeholder="Saa ya Kufika"
+                        value={dispatchForm.expectedArrivalTime}
+                        onChange={e => setDispatchForm(f => ({ ...f, expectedArrivalTime: e.target.value }))}
+                        style={{ ...inp, flex: 1 }} />
+                    </div>
                   </>
                 )}
 
@@ -1306,7 +1345,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                             setDispatchParcel(parcel);
                             setDispatchForm({ transportType: 'bus', busCompany: '',
                               busTicketNumber: '', busDeparture: '',
-                              courierName: '', courierTrackingRef: '', notes: '' });
+                              courierName: '', courierTrackingRef: '', notes: '',
+                              driverName: '', driverPhone: '', vehicleNumber: '',
+                              departureDate: '', departureTime: '',
+                              expectedArrivalDate: '', expectedArrivalTime: '' });
                             setSelectedAgent(null); setDispatchMode('transport');
                           }},
                       ]} />
@@ -1394,6 +1436,45 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                 </div>
               ))}
             </div>
+
+            {/* Founding-pilot free orders + real billing balance */}
+            {dashData?.agent?.billing && (
+              <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14,
+                border: dashData.agent.billing.billingBlocked ? '2px solid #dc2626' : 'none' }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
+                  🎁 Faida ya Super Agent Mwanzilishi
+                </div>
+                {[
+                  ['Agizo la bure lililotolewa', dashData.agent.billing.freeOrdersGranted],
+                  ['Agizo la bure lililotumika', dashData.agent.billing.freeOrdersUsed],
+                  ['Yamebaki bure', dashData.agent.billing.freeOrdersRemaining],
+                  ['Maagizo yaliyolipiwa', dashData.agent.billing.paidOrders],
+                  ['Ada kwa kila agizo', `TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}`],
+                ].map(([l, v]) => (
+                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
+                    padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                    <span style={{ color: '#64748b' }}>{l}</span>
+                    <span style={{ fontWeight: 800, color: '#1e293b' }}>{v}</span>
+                  </div>
+                ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between',
+                  padding: '10px 0 0', fontSize: 14 }}>
+                  <span style={{ color: '#64748b', fontWeight: 700 }}>Deni lililobaki</span>
+                  <span style={{ fontWeight: 900,
+                    color: dashData.agent.billing.billingBlocked ? '#dc2626' : '#1e293b' }}>
+                    TZS {Number(dashData.agent.billing.outstandingBalance).toLocaleString()}
+                    {' '}/ {Number(dashData.agent.billing.billingThreshold).toLocaleString()}
+                  </span>
+                </div>
+                {dashData.agent.billing.billingBlocked && (
+                  <div style={{ marginTop: 10, backgroundColor: '#fef2f2', borderRadius: 8,
+                    padding: '10px 12px', fontSize: 12, color: '#b91c1c', fontWeight: 700 }}>
+                    ⚠️ Huduma imesimamishwa hadi deni lilipwe. Wasiliana na Kentexa kulipa deni lako.
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Online orders pending payout */}
             {parcels.filter(p => p.source === 'online' && !p.agentPaidOut && p.status === 'delivered').length > 0 && (

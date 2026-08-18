@@ -189,6 +189,29 @@ export class SuperAgent {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   totalPlatformFeesWaived: number;
 
+  // ── Real accumulating billing (post-free-allowance) ──
+  // Count of orders that were actually charged a platform fee (i.e. past
+  // freeOrdersGranted). platformFeePerOrder/billingThreshold are per-agent
+  // and default to the platform-wide constants in super-agents.service.ts —
+  // never hardcode a specific agent's id/name in billing logic; override
+  // these columns per-row instead if an agent needs different terms.
+  @Column({ type: 'int', default: 0 })
+  paidOrders: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 1000 })
+  platformFeePerOrder: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 10000 })
+  billingThreshold: number;
+
+  // Real money owed to Kentexa. Grows by platformFeePerOrder each time a
+  // non-free order is created; zeroed when the Super Agent pays it down via
+  // the billing-payment endpoint. When >= billingThreshold, new registration
+  // endpoints (createOfflineIntercityOrder/createSellerShipment) must refuse
+  // service until the balance is paid.
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  outstandingBalance: number;
+
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

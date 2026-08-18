@@ -22,6 +22,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
 import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
+import { Payment } from '../payments/entities/payment.entity';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
       // optionally link a real, verified TransportAssignment instead of
       // only free-text company fields, without a module-level dependency.
       TransportAssignment,
+      Payment,
     ]),
     AgentsModule,
     SmsModule,
