@@ -13,7 +13,8 @@ export type AiTask =
   | 'product-listing'
   | 'search-parse'
   | 'search-explain'
-  | 'seller-profile-enrich';
+  | 'seller-profile-enrich'
+  | 'listing-description';
 
 export type AiTier = 'simple' | 'reasoning' | 'coding';
 
@@ -28,8 +29,12 @@ const TASK_TIER: Record<AiTask, AiTier> = {
   'search-parse': 'simple',
   'search-explain': 'simple',
   'seller-profile-enrich': 'simple',
-  // 'reasoning' and 'coding' tiers are wired and ready for future tasks
-  // (e.g. a chat assistant, code-generation tooling) that don't exist yet.
+  // Vision — needs a multimodal-capable model. 'simple' defaults to
+  // DeepSeek, which is text-only, so this is the first task to actually
+  // use the 'reasoning' tier's default (openai/gpt-4o, vision-capable).
+  'listing-description': 'reasoning',
+  // 'coding' tier is wired and ready for a future task (e.g.
+  // code-generation tooling) that doesn't exist yet.
 };
 
 const TIER_DEFAULT_PROVIDER: Record<AiTier, string> = {

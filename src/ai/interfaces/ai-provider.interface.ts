@@ -6,6 +6,11 @@ export interface AiGenerateRequest {
   model: string;
   maxTokens?: number;
   temperature?: number;
+  // Plain HTTPS image URLs — Kentexa images are already hosted (uploaded
+  // via /upload/images), so no base64 encoding is needed. Only providers
+  // that support vision do anything with this; others should ignore it
+  // rather than error (see each provider's generate()).
+  images?: string[];
 }
 
 export interface AiGenerateResponse<T = unknown> {

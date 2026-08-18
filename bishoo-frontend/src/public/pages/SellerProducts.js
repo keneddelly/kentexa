@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useTranslation } from 'react-i18next';
+import LocationPicker from '../components/LocationPicker';
 
 const TZ_CITIES = [
   'Dar es Salaam','Mwanza','Arusha','Dodoma','Mbeya','Tanga','Zanzibar',
@@ -41,8 +42,10 @@ const SellerProducts = ({ onNavigate, editProductId }) => {
   const [uploading, setUploading]     = useState(false);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [form, setForm]               = useState(EMPTY_FORM);
+  const [productLocation, setProductLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [shippingEstimate, setShippingEstimate] = useState(null);
   const [estimateLoading, setEstimateLoading]   = useState(false);
+  const [descGenerating, setDescGenerating]     = useState(false);
 
   // Boda fee suggestions
   const [bodaSuggestions, setBodaSuggestions]   = useState([]);
@@ -169,6 +172,24 @@ const SellerProducts = ({ onNavigate, editProductId }) => {
   const removeImage = (i) => {
     setImagePreviews(prev => prev.filter((_, idx) => idx !== i));
     setForm(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
+  };
+
+  // Reads the already-uploaded photo(s) + typed name and writes a grounded
+  // description — never invents specs the photo/name don't support. Fills
+  // the textarea for review; never submits on its own.
+  const generateDescription = async () => {
+    if (!form.name || !form.images.length) return;
+    try {
+      setDescGenerating(true);
+      setError('');
+      const res = await api.post('/products/ai/generate-description', {
+        title: form.name,
+        imageUrls: form.images,
+        categoryHint: currentCat?.label,
+      });
+      setForm(prev => ({ ...prev, description: res.data?.description || prev.description }));
+    } catch { setError(t('seller_products.ai_description_failed')); }
+    finally { setDescGenerating(false); }
   };
 
   const resetForm = () => {
@@ -426,7 +447,18 @@ const SellerProducts = ({ onNavigate, editProductId }) => {
 
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>{t('seller_products.description')}</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>{t('seller_products.description')}</label>
+                <button type="button" onClick={generateDescription}
+                  disabled={descGenerating || !form.name || !form.images.length}
+                  title={!form.images.length ? t('seller_products.ai_description_needs_photo') : ''}
+                  style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', background: 'none',
+                    border: '1px solid #c4b5fd', borderRadius: 8, padding: '4px 10px',
+                    cursor: (descGenerating || !form.name || !form.images.length) ? 'not-allowed' : 'pointer',
+                    opacity: (!form.name || !form.images.length) ? 0.5 : 1 }}>
+                  {descGenerating ? `⏳ ${t('seller_products.ai_description_generating')}` : `✨ ${t('seller_products.ai_description_button')}`}
+                </button>
+              </div>
               <textarea placeholder={t('seller_products.description_placeholder')} value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
                 style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
@@ -604,17 +636,19 @@ const SellerProducts = ({ onNavigate, editProductId }) => {
 
               <div style={{ marginTop: 12 }}>
                 <label style={labelStyle}>{t('seller_products.ship_from_city_label')}</label>
-                <select value={form.sellerCity} onChange={e => setForm({...form, sellerCity: e.target.value})} style={inputStyle}>
-                  <option value="Dar es Salaam">Dar es Salaam</option>
-                  <option value="Mwanza">Mwanza</option>
-                  <option value="Arusha">Arusha</option>
-                  <option value="Dodoma">Dodoma</option>
-                  <option value="Mbeya">Mbeya</option>
-                  <option value="Tanga">Tanga</option>
-                  <option value="Zanzibar">Zanzibar</option>
-                  <option value="Morogoro">Morogoro</option>
-                  <option value="Other">{t('seller_products.other_city')}</option>
-                </select>
+                <LocationPicker
+                  value={productLocation}
+                  onChange={loc => {
+                    setProductLocation(loc);
+                    setForm(prev => ({
+                      ...prev,
+                      sellerCity: [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', '),
+                    }));
+                  }}
+                />
+                {form.sellerCity && (
+                  <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>✅ {form.sellerCity}</div>
+                )}
               </div>
             </div>
 

@@ -19,6 +19,9 @@ const getCategories = (t) => ({
   security:      { icon: '🔒', label: t('category_page.cat_security'),      color: '#1d4ed8', bg: '#dbeafe' },
   books:         { icon: '📚', label: t('category_page.cat_books'),         color: '#7c3aed', bg: '#ede9fe' },
   arts:          { icon: '🎨', label: t('category_page.cat_arts'),          color: '#e11d48', bg: '#ffe4e6' },
+  pets:          { icon: '🐾', label: t('category_page.cat_pets'),          color: '#b45309', bg: '#fef3c7' },
+  construction:  { icon: '🧱', label: t('category_page.cat_construction'),  color: '#78716c', bg: '#f5f5f4' },
+  industrial:    { icon: '🏭', label: t('category_page.cat_industrial'),    color: '#475569', bg: '#f1f5f9' },
   general:       { icon: '📦', label: t('category_page.cat_general'),       color: '#64748b', bg: '#f1f5f9' },
 });
 

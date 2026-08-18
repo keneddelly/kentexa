@@ -96,6 +96,34 @@ export class AiPromptTemplateService {
     };
   }
 
+  // Distinct from productListingPrompt() above: that one builds a WHOLE
+  // listing (name/category/subcategory/features) from typed hints, no
+  // image. This one is narrower and vision-based — the seller has already
+  // chosen a title and uploaded photo(s); the only job here is to look at
+  // the actual photo and write one natural description grounded in what's
+  // visible, never inventing specs/claims the photo or title don't
+  // support. Shared by both the product and classified posting forms.
+  listingDescriptionPrompt(): PromptTemplate {
+    return {
+      system:
+        'You write a short, natural, appealing marketplace listing description for KenteXa ' +
+        '(Tanzania) from a seller-uploaded photo and the title they typed. Look at the photo ' +
+        'carefully and describe what is actually visible — item type, apparent condition, ' +
+        'color, notable features — in 2-4 sentences a buyer would find useful. If a category ' +
+        'hint is given, write in a style natural for that category. Never invent specs, ' +
+        'measurements, brand names, or claims that are not visibly supported by the photo or ' +
+        'stated in the title — if something is not visible or given, simply omit it rather than ' +
+        'guessing. Write in the same language as the title (Swahili, English, or a mix).',
+      schema: {
+        type: 'object',
+        properties: { description: { type: 'string' } },
+        required: ['description'],
+        additionalProperties: false,
+      },
+      schemaName: 'listing_description',
+    };
+  }
+
   searchParsePrompt(): PromptTemplate {
     return {
       system:

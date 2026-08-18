@@ -21,6 +21,8 @@ import { Roles } from '../auth/roles.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { AiListingService } from './ai-listing.service';
 import { GenerateListingDto } from './dto/generate-listing.dto';
+import { AiListingDescriptionService } from '../ai/ai-listing-description.service';
+import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
 import { resolveCategoryKey } from '../categories/categories.data';
 import { SellerScopeService } from '../business/seller-scope.service';
@@ -30,6 +32,7 @@ export class ProductsController {
   constructor(
     private service: ProductsService,
     private aiListing: AiListingService,
+    private aiDescription: AiListingDescriptionService,
     private aiSearchParser: AiSearchParserService,
     private sellerScope: SellerScopeService,
   ) {}
@@ -100,6 +103,16 @@ export class ProductsController {
   @Post('ai/generate-listing')
   generateListing(@Body() dto: GenerateListingDto, @Request() req) {
     return this.aiListing.generateListing(dto, req.user.id);
+  }
+
+  // Narrower than the above — the seller has already chosen a title and
+  // uploaded photo(s); this reads the actual photo(s) and writes just the
+  // description, grounded in what's visible. Suggestion-only, same as
+  // above: never creates/updates a product.
+  @UseGuards(JwtAuthGuard)
+  @Post('ai/generate-description')
+  generateDescription(@Body() dto: GenerateDescriptionDto) {
+    return this.aiDescription.generate(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

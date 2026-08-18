@@ -20,6 +20,7 @@ export interface AiGenerateOptions {
   cacheKey?: string;
   maxTokens?: number;
   temperature?: number;
+  images?: string[];
 }
 
 // Thrown only after every retry/fallback attempt is exhausted. Never
@@ -70,6 +71,7 @@ export class AiService {
       model: route.model,
       maxTokens: opts.maxTokens,
       temperature: opts.temperature,
+      images: opts.images,
     };
 
     const start = Date.now();

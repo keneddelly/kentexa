@@ -57,7 +57,18 @@ export class OpenAiCompatibleClient {
         ...(systemParts.length
           ? [{ role: 'system' as const, content: systemParts.join('\n\n') }]
           : []),
-        { role: 'user' as const, content: req.prompt },
+        {
+          role: 'user' as const,
+          content: req.images?.length
+            ? [
+                ...req.images.map((url) => ({
+                  type: 'image_url' as const,
+                  image_url: { url },
+                })),
+                { type: 'text' as const, text: req.prompt },
+              ]
+            : req.prompt,
+        },
       ],
     });
 

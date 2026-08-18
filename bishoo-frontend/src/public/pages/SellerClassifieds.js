@@ -4,147 +4,14 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
-// ── Classified categories with subcategories and spec fields ─────────────────
-const CLASSIFIED_CATEGORIES = {
-  electronics: {
-    label: 'Electronics', icon: '📱',
-    subcategories: {
-      smartphones:    { label: 'Smartphones',     specs: ['Brand','Model','Storage','RAM','Color','Condition','Battery Health'] },
-      laptops:        { label: 'Laptops',         specs: ['Brand','Processor','RAM','Storage','Screen Size','OS','Condition'] },
-      tvs:            { label: 'TVs & Displays',  specs: ['Brand','Screen Size','Resolution','Smart TV','Condition'] },
-      audio:          { label: 'Audio & Sound',   specs: ['Type','Brand','Connectivity','Condition'] },
-      cameras:        { label: 'Cameras',         specs: ['Brand','Megapixels','Type','Condition'] },
-      accessories:    { label: 'Accessories',     specs: ['Compatible With','Brand','Condition'] },
-      other:          { label: 'Other',            specs: ['Brand','Model','Condition'] },
-    },
-  },
-  vehicles: {
-    label: 'Vehicles', icon: '🚗',
-    subcategories: {
-      cars:          { label: 'Cars',              specs: ['Make','Model','Year','Mileage (km)','Fuel Type','Transmission','Color','Engine (cc)','Doors','Condition'] },
-      motorcycles:   { label: 'Motorcycles',       specs: ['Make','Model','Year','Engine (cc)','Color','Mileage (km)','Condition'] },
-      trucks:        { label: 'Trucks & Buses',    specs: ['Make','Model','Year','Mileage (km)','Fuel Type','Payload (tons)','Condition'] },
-      boats:         { label: 'Boats',             specs: ['Type','Engine','Length','Year','Condition'] },
-      spare_parts:   { label: 'Spare Parts',       specs: ['Compatible With','Part Name','Brand','Condition'] },
-      accessories:   { label: 'Vehicle Accessories', specs: ['Compatible With','Brand','Condition'] },
-    },
-  },
-  property: {
-    label: 'Property', icon: '🏢',
-    subcategories: {
-      house_sale:    { label: 'House for Sale',    specs: ['Bedrooms','Bathrooms','Plot Size (sqm)','Floor Area (sqm)','Title Deed','Location','Parking'] },
-      house_rent:    { label: 'House for Rent',    specs: ['Bedrooms','Bathrooms','Floor Area (sqm)','Furnished','Location','Parking'] },
-      apartment:     { label: 'Apartment for Sale/Rent', specs: ['Bedrooms','Bathrooms','Floor','Furnished','Floor Area (sqm)','Location'] },
-      land:          { label: 'Land for Sale',     specs: ['Plot Size (sqm/acres)','Title Deed','Location','Road Access','Water Available'] },
-      commercial:    { label: 'Commercial Property', specs: ['Type','Floor Area (sqm)','Location','Parking'] },
-      office:        { label: 'Office Space',      specs: ['Floor Area (sqm)','Floor','Location','Furnished','Parking'] },
-    },
-  },
-  fashion: {
-    label: 'Fashion', icon: '👗',
-    subcategories: {
-      mens:    { label: "Men's Clothing",    specs: ['Size','Brand','Color','Material','Condition'] },
-      womens:  { label: "Women's Clothing",  specs: ['Size','Brand','Color','Material','Condition'] },
-      kids:    { label: "Kids' Clothing",    specs: ['Age Range','Size','Brand','Color','Condition'] },
-      shoes:   { label: 'Shoes',             specs: ['Size (EU)','Brand','Color','Gender','Condition'] },
-      bags:    { label: 'Bags',              specs: ['Brand','Material','Color','Condition'] },
-      watches: { label: 'Watches',           specs: ['Brand','Movement','Gender','Condition'] },
-      jewelry: { label: 'Jewelry',           specs: ['Material','Brand','Condition'] },
-    },
-  },
-  services: {
-    label: 'Services', icon: '🔧',
-    subcategories: {
-      construction:  { label: 'Construction',      specs: ['Service Type','Experience (years)','Coverage Area'] },
-      cleaning:      { label: 'Cleaning Services', specs: ['Service Type','Coverage Area','Availability'] },
-      transport:     { label: 'Transport & Moving', specs: ['Vehicle Type','Capacity','Coverage Area'] },
-      education:     { label: 'Tutoring & Education', specs: ['Subject','Level','Mode','Location/Online'] },
-      beauty:        { label: 'Beauty & Salon',    specs: ['Service Type','Location','Availability'] },
-      tech:          { label: 'Tech & IT Services', specs: ['Service Type','Experience (years)','Remote/Onsite'] },
-      events:        { label: 'Events & Photography', specs: ['Service Type','Experience (years)','Coverage Area'] },
-      other:         { label: 'Other Services',    specs: ['Service Type','Location','Availability'] },
-    },
-  },
-  home_garden: {
-    label: 'Home & Garden', icon: '🏠',
-    subcategories: {
-      furniture:   { label: 'Furniture',         specs: ['Material','Dimensions','Color','Condition'] },
-      appliances:  { label: 'Home Appliances',   specs: ['Brand','Model','Power (W)','Condition'] },
-      kitchen:     { label: 'Kitchen Items',     specs: ['Material','Brand','Condition'] },
-      garden:      { label: 'Garden & Outdoor',  specs: ['Type','Material','Condition'] },
-      decor:       { label: 'Home Decor',        specs: ['Material','Color','Dimensions','Condition'] },
-    },
-  },
-  health_beauty: {
-    label: 'Health & Beauty', icon: '💄',
-    subcategories: {
-      skincare:    { label: 'Skincare',           specs: ['Brand','Volume','Condition'] },
-      fitness:     { label: 'Fitness Equipment',  specs: ['Type','Brand','Condition'] },
-      medical:     { label: 'Medical Equipment',  specs: ['Type','Brand','Condition'] },
-    },
-  },
-  food: {
-    label: 'Food & Beverages', icon: '🍎',
-    subcategories: {
-      fresh:    { label: 'Fresh Produce',   specs: ['Type','Weight/Quantity','Origin','Harvest Date'] },
-      packaged: { label: 'Packaged Food',   specs: ['Brand','Weight','Expiry Date'] },
-      farm:     { label: 'Farm Products',   specs: ['Type','Quantity','Origin'] },
-    },
-  },
-  agriculture: {
-    label: 'Agriculture', icon: '🌾',
-    subcategories: {
-      livestock:   { label: 'Livestock',      specs: ['Type','Breed','Age','Quantity'] },
-      farm_equip:  { label: 'Farm Equipment', specs: ['Type','Brand','Condition','Year'] },
-      seeds:       { label: 'Seeds & Inputs', specs: ['Crop Type','Weight','Brand'] },
-      land:        { label: 'Farm Land',      specs: ['Size (acres)','Location','Water Source','Title'] },
-    },
-  },
-  security: {
-    label: 'Security', icon: '🔒',
-    subcategories: {
-      cctv:    { label: 'CCTV & Cameras',   specs: ['Brand','Resolution','Condition','Quantity'] },
-      alarms:  { label: 'Alarm Systems',    specs: ['Type','Brand','Condition'] },
-      other:   { label: 'Other Security',   specs: ['Type','Brand','Condition'] },
-    },
-  },
-  baby_kids: {
-    label: 'Baby & Kids', icon: '🧸',
-    subcategories: {
-      toys:     { label: 'Toys & Games',  specs: ['Age Range','Brand','Condition'] },
-      gear:     { label: 'Baby Gear',     specs: ['Type','Brand','Condition','Age Range'] },
-      clothing: { label: "Kids' Clothing", specs: ['Size','Age Range','Brand','Condition'] },
-    },
-  },
-  sports: {
-    label: 'Sports', icon: '⚽',
-    subcategories: {
-      equipment: { label: 'Sports Equipment', specs: ['Sport','Brand','Condition'] },
-      clothing:  { label: 'Sports Clothing',  specs: ['Sport','Size','Brand','Condition'] },
-      bikes:     { label: 'Bicycles',         specs: ['Type','Brand','Frame Size','Condition'] },
-    },
-  },
-  books: {
-    label: 'Books & Education', icon: '📚',
-    subcategories: {
-      textbooks:   { label: 'Textbooks',  specs: ['Subject','Level','Author','Edition','Condition'] },
-      other_books: { label: 'Other Books', specs: ['Genre','Author','Condition'] },
-    },
-  },
-  arts: {
-    label: 'Arts & Crafts', icon: '🎨',
-    subcategories: {
-      art:    { label: 'Artwork',            specs: ['Medium','Dimensions','Artist'] },
-      music:  { label: 'Musical Instruments', specs: ['Type','Brand','Condition'] },
-      crafts: { label: 'Craft Supplies',     specs: ['Type','Brand','Condition'] },
-    },
-  },
-  general: {
-    label: 'General', icon: '📦',
-    subcategories: {
-      other: { label: 'Other', specs: ['Type','Brand','Condition'] },
-    },
-  },
+// Categories fetched from GET /categories (src/categories/categories.data.ts
+// — the single source of truth). This used to be its own independently-
+// hardcoded 15-category list that had drifted from the canonical one (no
+// pets/construction/industrial, different subcategory keys/specs) — one of
+// three divergent category lists in the app. This fallback only covers the
+// brief window before that fetch resolves.
+const FALLBACK_CATEGORIES = {
+  general: { label: 'General', icon: '📦', subcategories: { other: { label: 'Other', specs: ['Brand', 'Model', 'Condition', 'Color'] } } },
 };
 
 const CONDITIONS = ['Brand New', 'Like New', 'Good', 'Fair', 'Parts Only'];
@@ -162,6 +29,7 @@ const EMPTY_FORM = {
 
 const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, editItemId, activeProfileId }) => {
   const { t } = useTranslation();
+  const [CATEGORIES, setCategories]   = useState(FALLBACK_CATEGORIES);
   const [classifieds, setClassifieds] = useState([]);
   const [classifiedLocation, setClassifiedLocation] = React.useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [loading, setLoading]         = useState(true);
@@ -175,12 +43,30 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const [imagePreviews, setImagePreviews] = useState([]);
   const [form, setForm]               = useState(EMPTY_FORM);
   const [userPhone, setUserPhone]     = useState('');
+  const [descGenerating, setDescGenerating] = useState(false);
 
   // Derived
-  const currentCat  = CLASSIFIED_CATEGORIES[form.category] || CLASSIFIED_CATEGORIES.general;
+  const currentCat  = CATEGORIES[form.category] || CATEGORIES.general;
   const subOptions  = Object.entries(currentCat.subcategories);
   const currentSub  = currentCat.subcategories[form.subcategory];
   const specFields  = currentSub?.specs || [];
+
+  // Same fetch pattern SellerProducts.js already uses against the
+  // canonical GET /categories — replaces the independently-hardcoded list
+  // this form used to carry.
+  useEffect(() => {
+    api.get('/categories').then(res => {
+      const tree = {};
+      (res.data || []).forEach(cat => {
+        const subcategories = {};
+        (cat.subcategories || []).forEach(sub => {
+          subcategories[sub.key] = { label: sub.label, specs: sub.specs || [] };
+        });
+        tree[cat.key] = { label: cat.label, icon: cat.icon, subcategories };
+      });
+      if (Object.keys(tree).length) setCategories(tree);
+    }).catch(() => {});
+  }, []);
 
   // Pre-fill location from seller's stored businessLocation
   React.useEffect(() => {
@@ -224,7 +110,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   }, [classifieds, editItemId]);
 
   const handleCategoryChange = (cat) => {
-    const firstSub = Object.keys(CLASSIFIED_CATEGORIES[cat]?.subcategories || {})[0] || '';
+    const firstSub = Object.keys(CATEGORIES[cat]?.subcategories || {})[0] || '';
     setForm(prev => ({ ...prev, category: cat, subcategory: firstSub, specs: {} }));
   };
 
@@ -267,6 +153,24 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const removeImage = (i) => {
     setImagePreviews(prev => prev.filter((_, idx) => idx !== i));
     setForm(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
+  };
+
+  // Reads the already-uploaded photo(s) + typed title and writes a
+  // grounded description — never invents specs the photo/title don't
+  // support. Fills the textarea for review; never submits on its own.
+  const generateDescription = async () => {
+    if (!form.title || !form.images.length) return;
+    try {
+      setDescGenerating(true);
+      setError('');
+      const res = await api.post('/classifieds/ai/generate-description', {
+        title: form.title,
+        imageUrls: form.images,
+        categoryHint: currentCat?.label,
+      });
+      setForm(prev => ({ ...prev, description: res.data?.description || prev.description }));
+    } catch { setError(t('seller_classifieds.ai_description_failed')); }
+    finally { setDescGenerating(false); }
   };
 
   const resetForm = () => {
@@ -421,11 +325,11 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 <div style={{ padding: 16 }}>
                   <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff' }}>
-                      {CLASSIFIED_CATEGORIES[item.category]?.icon} {item.category?.replace(/_/g,' ')}
+                      {CATEGORIES[item.category]?.icon} {item.category?.replace(/_/g,' ')}
                     </span>
                     {item.subcategory && (
                       <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 6, backgroundColor: '#f0fdf4', color: '#16a34a' }}>
-                        {CLASSIFIED_CATEGORIES[item.category]?.subcategories?.[item.subcategory]?.label || item.subcategory}
+                        {CATEGORIES[item.category]?.subcategories?.[item.subcategory]?.label || item.subcategory}
                       </span>
                     )}
                     {item.condition && (
@@ -503,7 +407,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
               <div>
                 <label style={labelStyle}>{t('seller_classifieds.category_label')}</label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
-                  {Object.entries(CLASSIFIED_CATEGORIES).map(([key, cat]) => (
+                  {Object.entries(CATEGORIES).map(([key, cat]) => (
                     <option key={key} value={key}>{cat.icon} {cat.label}</option>
                   ))}
                 </select>
@@ -521,7 +425,18 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
 
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>{t('seller_classifieds.description_label')}</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>{t('seller_classifieds.description_label')}</label>
+                <button type="button" onClick={generateDescription}
+                  disabled={descGenerating || !form.title || !form.images.length}
+                  title={!form.images.length ? t('seller_classifieds.ai_description_needs_photo') : ''}
+                  style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', background: 'none',
+                    border: '1px solid #c4b5fd', borderRadius: 8, padding: '4px 10px',
+                    cursor: (descGenerating || !form.title || !form.images.length) ? 'not-allowed' : 'pointer',
+                    opacity: (!form.title || !form.images.length) ? 0.5 : 1 }}>
+                  {descGenerating ? `⏳ ${t('seller_classifieds.ai_description_generating')}` : `✨ ${t('seller_classifieds.ai_description_button')}`}
+                </button>
+              </div>
               <textarea placeholder={t('seller_classifieds.description_placeholder')} value={form.description}
                 onChange={e => setForm({ ...form, description: e.target.value })}
                 style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />

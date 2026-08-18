@@ -20,6 +20,8 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
+import { AiListingDescriptionService } from '../ai/ai-listing-description.service';
+import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { resolveCategoryKey } from '../categories/categories.data';
 
@@ -29,8 +31,18 @@ export class ClassifiedsController {
     private readonly service: ClassifiedsService,
     private readonly priceSvc: PriceSuggestionService,
     private readonly aiSearchParser: AiSearchParserService,
+    private readonly aiDescription: AiListingDescriptionService,
     private readonly sellerScope: SellerScopeService,
   ) {}
+
+  // Reads the seller's already-uploaded photo(s) + typed title and writes
+  // a grounded description — same shared service SellerProducts.js's form
+  // uses. Suggestion-only: never creates/updates a listing.
+  @UseGuards(JwtAuthGuard)
+  @Post('ai/generate-description')
+  generateDescription(@Body() dto: GenerateDescriptionDto) {
+    return this.aiDescription.generate(dto);
+  }
 
   // Classifieds are peer-to-peer listings (a "side hustle" item, not a
   // shop's product) — unlike products, posting/managing one never required

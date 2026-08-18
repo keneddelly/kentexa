@@ -44,7 +44,20 @@ export class AnthropicProvider implements AiProvider {
           cache_control: { type: 'ephemeral' },
         },
       ],
-      messages: [{ role: 'user', content: req.prompt }],
+      messages: [
+        {
+          role: 'user',
+          content: req.images?.length
+            ? [
+                ...req.images.map((url) => ({
+                  type: 'image' as const,
+                  source: { type: 'url' as const, url },
+                })),
+                { type: 'text' as const, text: req.prompt },
+              ]
+            : req.prompt,
+        },
+      ],
       ...(req.schema
         ? {
             output_config: {
