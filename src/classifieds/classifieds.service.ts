@@ -7,6 +7,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Classified, ClassifiedStatus } from './entities/classified.entity';
+import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
+import { buildMultiTermLikeClause } from '../search/search-query.util';
 import {
   ClassifiedInvoiceRequest,
   ClassifiedInvoiceStatus,
@@ -183,14 +185,21 @@ export class ClassifiedsService {
         's.phone',
         's.role',
       ])
-      .where('c.status = :status', { status: 'active' })
-      .andWhere(
-        `(LOWER(c.title) LIKE :query
-          OR LOWER(c.description) LIKE :query
-          OR LOWER(c.category::text) LIKE :query
-          OR LOWER(c.location) LIKE :query)`,
-        { query: `%${query.toLowerCase()}%` },
-      );
+      .where('c.status = :status', { status: 'active' });
+
+    // Query normalization layer — "kamera" now also matches listings
+    // titled "camera" (and vice versa), plurals, and known Tanzanian
+    // marketplace terminology, instead of only ever matching the exact
+    // spelling/language the user happened to type. See
+    // search-term-normalizer.util.ts for the deterministic dictionary
+    // this expands against.
+    const { patterns } = normalizeSearchQuery(query);
+    const { clause, params } = buildMultiTermLikeClause(
+      ['LOWER(c.title)', 'LOWER(c.description)', 'LOWER(c.category::text)', 'LOWER(c.location)'],
+      patterns,
+      'kw',
+    );
+    qb.andWhere(clause, params);
 
     if (opts?.minPrice) qb.andWhere('c.price >= :min', { min: opts.minPrice });
     if (opts?.maxPrice) qb.andWhere('c.price <= :max', { max: opts.maxPrice });

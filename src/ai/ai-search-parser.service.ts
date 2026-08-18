@@ -3,6 +3,7 @@ import { AiService } from './ai.service';
 import { AiPromptTemplateService } from './ai-prompt-templates.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { parsePriceExpression } from './price-expression-parser.util';
+import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 
 export type SearchDomain =
   | 'product'
@@ -47,6 +48,12 @@ export class AiSearchParserService {
       Promise.resolve(parsePriceExpression(query)),
       this.extractLocationFallback(query),
     ]);
+    // Noise-stripped fallback keywords — was previously the raw query
+    // verbatim, so "camera of 40k" fell back to literally LIKE-matching
+    // "%camera of 40k%" (never a substring of any real title) whenever AI
+    // was unavailable. cleanedQuery has the price expression and filler
+    // words already removed.
+    const { cleanedQuery } = normalizeSearchQuery(query);
 
     // The AI call is allowed to fail here (no provider configured, network
     // error, etc.) without losing the deterministic price/location signal
@@ -56,7 +63,7 @@ export class AiSearchParserService {
     // intent with NO price/location at all. Catching internally means
     // "AI down" degrades to "keyword + deterministic price/location
     // search", not "keyword search with zero structure."
-    let ai: ParsedSearchQuery = { domain: 'all', keywords: query };
+    let ai: ParsedSearchQuery = { domain: 'all', keywords: cleanedQuery || query };
     try {
       const template = this.prompts.searchParsePrompt();
       const result = await this.aiService.generate<ParsedSearchQuery>({

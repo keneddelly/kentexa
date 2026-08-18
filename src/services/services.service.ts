@@ -16,6 +16,8 @@ import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
+import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
+import { buildMultiTermLikeClause } from '../search/search-query.util';
 
 @Injectable()
 export class ServicesService {
@@ -161,11 +163,16 @@ export class ServicesService {
       qb.andWhere('LOWER(a.coverageCity) LIKE LOWER(:city)', {
         city: `%${params.city}%`,
       });
-    if (params.q)
-      qb.andWhere(
-        '(LOWER(a.title) LIKE LOWER(:q) OR LOWER(a.description) LIKE LOWER(:q))',
-        { q: `%${params.q}%` },
+    if (params.q) {
+      // Query normalization layer — see search-term-normalizer.util.ts.
+      const { patterns } = normalizeSearchQuery(params.q);
+      const { clause, params: likeParams } = buildMultiTermLikeClause(
+        ['LOWER(a.title)', 'LOWER(a.description)'],
+        patterns,
+        'kw',
       );
+      qb.andWhere(clause, likeParams);
+    }
     if (params.available) qb.andWhere('a.isAvailableNow = true');
 
     const total = await qb.getCount();
@@ -464,31 +471,24 @@ export class ServicesService {
   }
   // ── Unified search ────────────────────────────────────────────────────────
   async search(query: string): Promise<ServiceAd[]> {
+    // Query normalization layer — see search-term-normalizer.util.ts.
+    const { patterns } = normalizeSearchQuery(query);
+    const { clause, params } = buildMultiTermLikeClause(
+      ['LOWER(a.title)', 'LOWER(a.description)', 'LOWER(a.category::text)', 'LOWER(a."coverageCity")'],
+      patterns,
+      'kw',
+    );
+
     return this.adRepo
       .createQueryBuilder('a')
       .leftJoin('a.provider', 'u')
       .addSelect([
-        'u.id',
-        'u.name',
-        'u.storeName',
-        'u.logo',
-        'u.businessLocation',
-        'u.reputationScore',
-        'u.followersCount',
-        'u.isVerified',
-        'u.isOfficialStore',
-        'u.storeWhatsApp',
-        'u.phone',
-        'u.role',
+        'u.id', 'u.name', 'u.storeName', 'u.logo', 'u.businessLocation',
+        'u.reputationScore', 'u.followersCount', 'u.isVerified',
+        'u.isOfficialStore', 'u.storeWhatsApp', 'u.phone', 'u.role',
       ])
       .where("a.status = 'active'")
-      .andWhere(
-        `(LOWER(a.title) LIKE :q
-          OR LOWER(a.description) LIKE :q
-          OR LOWER(a.category::text) LIKE :q
-          OR LOWER(a."coverageCity") LIKE :q)`,
-        { q: `%${query.toLowerCase()}%` },
-      )
+      .andWhere(clause, params)
       .orderBy('COALESCE(CAST(u."reputationScore" AS int), 0)', 'DESC')
       .addOrderBy('a.rating', 'DESC')
       .take(20)

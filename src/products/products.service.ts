@@ -15,6 +15,8 @@ import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
+import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
+import { buildMultiTermLikeClause } from '../search/search-query.util';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { SellerRankingService } from './seller-ranking.service';
 
@@ -128,11 +130,18 @@ export class ProductsService {
         'seller.phone',
         'seller.role',
       ])
-      .where('p.isAvailable = :isAvailable', { isAvailable: true })
-      .andWhere(
-        '(LOWER(p.name) LIKE :query OR LOWER(p.description) LIKE :query OR LOWER(p.category) LIKE :query)',
-        { query: `%${query.toLowerCase()}%` },
-      );
+      .where('p.isAvailable = :isAvailable', { isAvailable: true });
+
+    // Query normalization layer — see search-term-normalizer.util.ts.
+    // "kamera" now also matches products titled "camera" (and vice versa),
+    // plurals, and known Tanzanian marketplace terminology.
+    const { patterns } = normalizeSearchQuery(query);
+    const { clause, params } = buildMultiTermLikeClause(
+      ['LOWER(p.name)', 'LOWER(p.description)', 'LOWER(p.category)'],
+      patterns,
+      'kw',
+    );
+    qb.andWhere(clause, params);
 
     // NEW — Kentexa AI search-query parsing (opt-in, ?ai=true)
     if (filters?.category) {
