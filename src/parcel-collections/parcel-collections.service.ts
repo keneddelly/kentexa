@@ -266,6 +266,11 @@ export class ParcelCollectionsService {
           Number(job.collectionFee),
         pendingEarnings:
           Number(agentProfile.pendingEarnings) + Number(job.collectionFee),
+        // Was never added to totalEarnings here — the "Mapato" headline
+        // stat on the admin Agents page permanently understated real
+        // earnings by however much an agent earned from collection jobs.
+        totalEarnings:
+          Number(agentProfile.totalEarnings) + Number(job.collectionFee),
       });
     }
 

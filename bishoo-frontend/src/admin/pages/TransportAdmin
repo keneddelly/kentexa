@@ -6,9 +6,21 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import api    from '../../api/api';
 
+// ACTIVE/INACTIVE/TESTING are real ProviderStatus values (ACTIVE is the
+// legacy status for already-onboarded Phase 2 API-integrated providers —
+// treated as equally good-to-act-on everywhere else in the backend) that
+// were previously entirely unreachable here: the tab list only ever sent
+// status=pending/verified/rejected/suspended, so any provider sitting in
+// one of these three statuses could never be seen, verified, or suspended
+// by an admin. "all" (no status filter) is new too — there was no way to
+// see every provider in one view before.
 const STATUS = {
+  all:       { bg: '#e0e7ff', text: '#4338ca', label: '📋 Zote' },
   pending:   { bg: '#fef3c7', text: '#d97706', label: '⏳ Inasubiri' },
   verified:  { bg: '#dcfce7', text: '#16a34a', label: '✅ Imehakikiwa' },
+  active:    { bg: '#dcfce7', text: '#16a34a', label: '🟢 Inafanya kazi' },
+  inactive:  { bg: '#f1f5f9', text: '#64748b', label: '⚪ Haifanyi kazi' },
+  testing:   { bg: '#e0f2fe', text: '#0284c7', label: '🧪 Inajaribiwa' },
   rejected:  { bg: '#fee2e2', text: '#dc2626', label: '❌ Imekataliwa' },
   suspended: { bg: '#f1f5f9', text: '#64748b', label: '⛔ Imesimamishwa' },
 };
@@ -27,7 +39,8 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
   const fetchProviders = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/transport/admin/providers?status=${filter}`);
+      const query = filter === 'all' ? '' : `?status=${filter}`;
+      const res = await api.get(`/transport/admin/providers${query}`);
       setProviders(res.data || []);
     } catch { setProviders([]); }
     finally { setLoading(false); }
@@ -97,7 +110,10 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                 <div style={{ color: '#64748b' }}>Hakuna wasafirishaji wenye hali ya "{STATUS[filter]?.label}"</div>
               </div>
             ) : providers.map(p => {
-              const sc = STATUS[p.status] || STATUS.pending;
+              // Was `|| STATUS.pending` — silently mislabeled any provider
+              // whose real status wasn't in this map as "⏳ Inasubiri"
+              // instead of showing what it actually is.
+              const sc = STATUS[p.status] || { bg: '#f1f5f9', text: '#64748b', label: p.status };
               return (
                 <div key={p.id} onClick={() => setSelected(p)}
                   style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,

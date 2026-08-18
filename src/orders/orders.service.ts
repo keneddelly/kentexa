@@ -13,6 +13,7 @@ import {
   OrderStatus,
   PaymentStatus,
   EscrowStatus,
+  OrderSource,
 } from './entities/order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ProductsService } from '../products/products.service';
@@ -899,6 +900,11 @@ export class OrdersService {
           Number(order.sellerAmount || 0),
         )
         .catch(() => {});
+      // This path never collects a rating (buyer just confirms receipt),
+      // so this only increments completedOrders — but it must still run
+      // here, since this is a real order completion that confirmViaToken
+      // never sees.
+      await this.updateSellerCompletionStats(order.seller.id).catch(() => {});
     }
 
     await this.notificationsService.orderCompleted(
@@ -971,6 +977,16 @@ export class OrdersService {
                       Number(localAgent.totalEarnings || 0) + commission;
                     localAgent.totalTransactions =
                       Number(localAgent.totalTransactions || 0) + 1;
+                    // Same commission event the super-agents.service.ts
+                    // self-report path credits — these two were previously
+                    // only updated there, never here, so the delivery
+                    // count/earnings breakdown undercounted whenever a
+                    // delivery was credited via this buyer-confirms path
+                    // instead of the agent self-reporting one.
+                    localAgent.totalDeliveriesCompleted =
+                      Number(localAgent.totalDeliveriesCompleted || 0) + 1;
+                    localAgent.totalEarningsDeliveries =
+                      Number(localAgent.totalEarningsDeliveries || 0) + commission;
                     await this.agentRepo.save(localAgent);
                   }
                 }
@@ -1140,6 +1156,49 @@ export class OrdersService {
     };
   }
 
+  // Shared by every order-completion path (confirmViaToken, buyerConfirm,
+  // autoConfirmDeliveredOrders, resolveDispute-favoring-seller) — an order
+  // completing "silently" through any path other than confirmViaToken used
+  // to leave User.completedOrders/rating/reviewsCount stale, since this
+  // update used to live only inside confirmViaToken itself. Recomputes
+  // rating/reviewsCount from real Order.buyerRating values (never
+  // recalculated from a stale running average) and always increments
+  // completedOrders, rating math or not.
+  private async updateSellerCompletionStats(
+    sellerId: number,
+    rating?: number | null,
+  ): Promise<void> {
+    if (rating) {
+      try {
+        const ratingResult = await this.repo
+          .createQueryBuilder('o')
+          .select('AVG(o.buyerRating)', 'avg')
+          .addSelect('COUNT(o.buyerRating)', 'count')
+          .where('o.seller.id = :sid', { sid: sellerId })
+          .andWhere('o.buyerRating IS NOT NULL')
+          .getRawOne();
+
+        if (ratingResult) {
+          const avg = parseFloat(ratingResult.avg || '0');
+          const count = parseInt(ratingResult.count || '0');
+          await this.userRepo.update(sellerId, {
+            rating: parseFloat(avg.toFixed(1)),
+            reviewsCount: count,
+            completedOrders: () => '"completedOrders" + 1',
+          });
+        }
+      } catch (e) {
+        console.error('Seller rating update failed:', e.message);
+      }
+    } else {
+      await this.userRepo
+        .update(sellerId, {
+          completedOrders: () => '"completedOrders" + 1',
+        } as any)
+        .catch(() => {});
+    }
+  }
+
   // ── Confirm delivery via token (public — no auth needed) ─────────────────
 
   async confirmViaToken(
@@ -1256,36 +1315,8 @@ export class OrdersService {
       }
 
       // ── Update seller's aggregate rating ──────────────────────────────────
-      // Recalculate seller rating from all confirmed orders with ratings
-      if (data.rating && order.seller?.id) {
-        try {
-          const ratingResult = await this.repo
-            .createQueryBuilder('o')
-            .select('AVG(o.buyerRating)', 'avg')
-            .addSelect('COUNT(o.buyerRating)', 'count')
-            .where('o.seller.id = :sid', { sid: order.seller.id })
-            .andWhere('o.buyerRating IS NOT NULL')
-            .getRawOne();
-
-          if (ratingResult) {
-            const avg = parseFloat(ratingResult.avg || '0');
-            const count = parseInt(ratingResult.count || '0');
-            await this.userRepo.update(order.seller.id, {
-              rating: parseFloat(avg.toFixed(1)),
-              reviewsCount: count,
-              completedOrders: () => '"completedOrders" + 1',
-            });
-          }
-        } catch (e) {
-          console.error('Seller rating update failed:', e.message);
-        }
-      } else if (order.seller?.id) {
-        // Still increment completedOrders even without rating
-        await this.userRepo
-          .update(order.seller.id, {
-            completedOrders: () => '"completedOrders" + 1',
-          } as any)
-          .catch(() => {});
+      if (order.seller?.id) {
+        await this.updateSellerCompletionStats(order.seller.id, data.rating);
       }
 
       return {
@@ -1378,6 +1409,10 @@ export class OrdersService {
               Number(order.sellerAmount || 0),
             )
             .catch(() => {});
+          // Every order this cron auto-completes is a real completion the
+          // buyer never acted on — the majority-of-volume case this
+          // undercount was missing entirely.
+          await this.updateSellerCompletionStats(order.seller.id).catch(() => {});
         }
 
         // Notify seller
@@ -1438,7 +1473,10 @@ export class OrdersService {
     admin: User,
     data: { resolution: string; favour: 'buyer' | 'seller' },
   ) {
-    const order = await this.repo.findOne({ where: { id: orderId } });
+    const order = await this.repo.findOne({
+      where: { id: orderId },
+      relations: { seller: true },
+    });
     if (!order) throw new NotFoundException('Order not found');
     if (order.status !== OrderStatus.DISPUTED)
       throw new BadRequestException('No active dispute');
@@ -1452,6 +1490,12 @@ export class OrdersService {
       buyerConfirmedAt: new Date(),
       fundsReleasedAt: isSeller ? new Date() : null,
     });
+
+    // A dispute resolved in the seller's favour is a real completion too —
+    // was never reflected in the seller's completedOrders/rating.
+    if (isSeller && order.seller?.id) {
+      await this.updateSellerCompletionStats(order.seller.id).catch(() => {});
+    }
 
     return { message: `Dispute resolved in favour of ${data.favour}.` };
   }
@@ -1482,21 +1526,50 @@ export class OrdersService {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const online = orders.filter((o: any) => o.source !== 'offline');
-    const offline = orders.filter((o: any) => o.source === 'offline');
+    // Was `source !== 'offline'` for "online" — that silently folded
+    // seller_shipment and offline_intercity orders into the online bucket
+    // too, since neither literally equals 'offline'. Bucketed properly by
+    // the real OrderSource values now.
+    const online = orders.filter((o: any) => o.source === OrderSource.ONLINE);
+    const offline = orders.filter(
+      (o: any) =>
+        o.source === OrderSource.OFFLINE ||
+        o.source === OrderSource.OFFLINE_INTERCITY ||
+        !o.source,
+    );
+    const invoiceOrders = orders.filter(
+      (o: any) => o.source === OrderSource.SELLER_SHIPMENT,
+    );
 
-    // Escrow = money KenteXa is holding for seller (paid but not yet released)
+    // Escrow = money KenteXa is still holding for the seller. Was checking
+    // o.status against 'confirmed'/'refunded' — neither is a real
+    // OrderStatus value (only 'cancelled' is), so this never matched
+    // correctly. escrowStatus is the field that actually tracks this.
     const pendingRelease = online.filter(
-      (o: any) => !['confirmed', 'cancelled', 'refunded'].includes(o.status),
+      (o: any) => o.escrowStatus === EscrowStatus.HOLDING,
+    );
+    const releasedToday = online.filter(
+      (o: any) =>
+        o.escrowStatus === EscrowStatus.RELEASED &&
+        o.fundsReleasedAt &&
+        new Date(o.fundsReleasedAt) >= startOfToday,
     );
 
-    // Platform fees earned — only from confirmed/completed orders
-    const completedOnline = online.filter((o: any) =>
-      ['confirmed', 'delivered'].includes(o.status),
-    );
+    // Platform fees earned — a completed sale is DELIVERED or COMPLETED
+    // (not the non-existent 'confirmed'); DELIVERED is included since fee
+    // recognition shouldn't wait on the buyer confirming/the auto-confirm
+    // cron running days later.
+    const isFeeEligible = (o: any) =>
+      [OrderStatus.DELIVERED, OrderStatus.COMPLETED].includes(o.status);
+    const completedOnline = online.filter(isFeeEligible);
 
     const totalEscrowHeld = pendingRelease.reduce(
+      (s, o) => s + Number(o.sellerAmount || 0),
+      0,
+    );
+    const releasedTodayTotal = releasedToday.reduce(
       (s, o) => s + Number(o.sellerAmount || 0),
       0,
     );
@@ -1518,7 +1591,7 @@ export class OrdersService {
       (o) => new Date(o.createdAt) >= startOfMonth,
     );
     const monthFees = thisMonth
-      .filter((o: any) => ['confirmed', 'delivered'].includes(o.status))
+      .filter(isFeeEligible)
       .reduce((s, o) => s + Number(o.platformFeeAmount || 0), 0);
     const monthVolume = thisMonth.reduce(
       (s, o) => s + Number(o.totalAmount || 0),
@@ -1528,12 +1601,61 @@ export class OrdersService {
     // This week
     const thisWeek = online.filter((o) => new Date(o.createdAt) >= startOfWeek);
     const weekFees = thisWeek
-      .filter((o: any) => ['confirmed', 'delivered'].includes(o.status))
+      .filter(isFeeEligible)
       .reduce((s, o) => s + Number(o.platformFeeAmount || 0), 0);
     const weekVolume = thisWeek.reduce(
       (s, o) => s + Number(o.totalAmount || 0),
       0,
     );
+
+    // Last 7 days, bucketed by day — for the admin revenue chart. Built
+    // from ALL paid orders (online + offline), not just online, since the
+    // chart is meant to show total platform activity.
+    const dailyRevenue: { date: string; revenue: number; orders: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const dayStart = new Date(startOfToday);
+      dayStart.setDate(dayStart.getDate() - i);
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      const dayOrders = orders.filter((o: any) => {
+        const created = new Date(o.createdAt);
+        return created >= dayStart && created < dayEnd;
+      });
+      dailyRevenue.push({
+        date: dayStart.toISOString().slice(0, 10),
+        revenue: parseFloat(
+          dayOrders
+            .reduce((s: number, o: any) => s + Number(o.totalAmount || 0), 0)
+            .toFixed(2),
+        ),
+        orders: dayOrders.length,
+      });
+    }
+
+    // Top sellers by completed revenue — across online + offline, since a
+    // seller's real activity isn't limited to one channel. Never existed
+    // before; the admin "Top Sellers" tab had nothing computing this.
+    const completedAll = orders.filter(isFeeEligible);
+    const sellerTotals = new Map<
+      number,
+      { sellerId: number; name: string; ordersCount: number; totalRevenue: number }
+    >();
+    for (const o of completedAll as any[]) {
+      if (!o.seller?.id) continue;
+      const entry = sellerTotals.get(o.seller.id) || {
+        sellerId: o.seller.id,
+        name: o.seller.storeName || o.seller.name || 'Muuzaji',
+        ordersCount: 0,
+        totalRevenue: 0,
+      };
+      entry.ordersCount += 1;
+      entry.totalRevenue += Number(o.sellerAmount || 0);
+      sellerTotals.set(o.seller.id, entry);
+    }
+    const topSellers = [...sellerTotals.values()]
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, 10)
+      .map((s) => ({ ...s, totalRevenue: parseFloat(s.totalRevenue.toFixed(2)) }));
 
     // Order counts by status
     const byStatus = online.reduce((acc: any, o: any) => {
@@ -1544,27 +1666,42 @@ export class OrdersService {
     return {
       // Escrow
       totalEscrowHeld: parseFloat(totalEscrowHeld.toFixed(2)),
+      pendingEscrow: parseFloat(totalEscrowHeld.toFixed(2)),
       totalPendingPayouts: parseFloat(totalPendingPayouts.toFixed(2)),
       pendingReleaseCount: pendingRelease.length,
+      releasedToday: parseFloat(releasedTodayTotal.toFixed(2)),
 
       // Revenue
       totalPlatformFees: parseFloat(totalPlatformFees.toFixed(2)),
+      platformFees: parseFloat(totalPlatformFees.toFixed(2)),
       totalOrderVolume: parseFloat(totalOrderVolume.toFixed(2)),
+      totalRevenue: parseFloat(totalOrderVolume.toFixed(2)),
+      gmv: parseFloat(totalOrderVolume.toFixed(2)),
 
       // This month
       monthFees: parseFloat(monthFees.toFixed(2)),
       monthVolume: parseFloat(monthVolume.toFixed(2)),
+      monthRevenue: parseFloat(monthVolume.toFixed(2)),
       monthOrders: thisMonth.length,
 
       // This week
       weekFees: parseFloat(weekFees.toFixed(2)),
       weekVolume: parseFloat(weekVolume.toFixed(2)),
+      weekRevenue: parseFloat(weekVolume.toFixed(2)),
       weekOrders: thisWeek.length,
 
       // Counts
       totalOnlineOrders: online.length,
       totalOfflineOrders: offline.length,
+      onlineOrders: online.length,
+      offlineOrders: offline.length,
+      invoiceOrders: invoiceOrders.length,
+      totalOrders: online.length + offline.length + invoiceOrders.length,
       byStatus,
+
+      // New
+      dailyRevenue,
+      topSellers,
     };
   }
 

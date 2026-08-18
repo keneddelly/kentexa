@@ -11,6 +11,7 @@ import { Payment, PaymentStatus } from './entities/payment.entity';
 import {
   Order,
   PaymentStatus as OrderPaymentStatus,
+  EscrowStatus,
 } from '../orders/entities/order.entity';
 import { Invoice, InvoiceStatus } from '../invoices/entities/invoice.entity';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -197,30 +198,33 @@ export class PaymentsService {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+    // EscrowStatus.HOLDING is 'holding', not 'held' — the two queries below
+    // that checked 'held' never matched a real row, so pendingEscrow and
+    // pendingOrders were always 0 regardless of actual held escrow.
     const [pending, releasedToday, totalReleased] = await Promise.all([
       this.orderRepo
         .createQueryBuilder('o')
         .select('SUM(o.sellerAmount)', 'total')
-        .where("o.escrowStatus = 'held'")
+        .where('o.escrowStatus = :holding', { holding: EscrowStatus.HOLDING })
         .andWhere("o.paymentStatus = 'paid'")
         .getRawOne(),
       this.orderRepo
         .createQueryBuilder('o')
         .select('SUM(o.sellerAmount)', 'total')
-        .where("o.escrowStatus = 'released'")
+        .where('o.escrowStatus = :released', { released: EscrowStatus.RELEASED })
         .andWhere('o.fundsReleasedAt >= :today', { today })
         .getRawOne(),
       this.orderRepo
         .createQueryBuilder('o')
         .select('SUM(o.sellerAmount)', 'total')
-        .where("o.escrowStatus = 'released'")
+        .where('o.escrowStatus = :released', { released: EscrowStatus.RELEASED })
         .getRawOne(),
     ]);
 
     const pendingCount = await this.orderRepo.count({
       where: {
         paymentStatus: 'paid' as any,
-        escrowStatus: 'held' as any,
+        escrowStatus: EscrowStatus.HOLDING,
       },
     });
 
@@ -366,6 +370,14 @@ export class PaymentsService {
 
     agent.totalEarnings = Number(agent.totalEarnings) + commission;
     agent.totalTransactions = Number(agent.totalTransactions) + 1;
+    // These two were never touched here — totalEarningsPayments was a
+    // fully dead column, and pendingEarnings never grew for
+    // payment-collection commissions at all, so an agent who only does
+    // payment-collection jobs never showed up in the admin payout queue
+    // (which filters on pendingEarnings > 0), despite genuinely being owed
+    // this exact commission.
+    agent.totalEarningsPayments = Number(agent.totalEarningsPayments) + commission;
+    agent.pendingEarnings = Number(agent.pendingEarnings) + commission;
     await this.agentRepo.save(agent);
 
     if (orderId) {

@@ -475,6 +475,10 @@ export class SuperAgentsService {
 
     // Aggregate the free-order/fee counters onto the Super Agent's own
     // record — same tracked-only principle as the parcel-level fields above.
+    // totalEarnings/totalParcelsHandled were missing here entirely — every
+    // counter order registered through this endpoint (the flagship
+    // walk-in flow) permanently undercounted both on the admin dashboard,
+    // since this is the only write site for this specific event.
     await this.superAgentRepo.update(superAgent.id, {
       freeOrdersUsed: isFreeOrder
         ? superAgent.freeOrdersUsed + 1
@@ -483,6 +487,8 @@ export class SuperAgentsService {
         Number(superAgent.totalPlatformFeesCharged) + platformFeeCharged,
       totalPlatformFeesWaived:
         Number(superAgent.totalPlatformFeesWaived) + platformFeeWaived,
+      totalEarnings: Number(superAgent.totalEarnings) + agentEarnings,
+      totalParcelsHandled: superAgent.totalParcelsHandled + 1,
     });
 
     // 5. Tracking event
@@ -734,20 +740,44 @@ export class SuperAgentsService {
     return { message: 'Route deleted' };
   }
 
+  // totalParcelsDelivered/totalParcelsDelayed were dead columns — only ever
+  // written by recordDelivery(), which nothing in the codebase calls. This
+  // computes both live from real Parcel rows instead, the same proven
+  // approach getDashboard() already uses for its own "delivered" count
+  // (just a true full count here, not that method's take:50 cap). A
+  // delivered parcel counts as delayed when it arrived after its own
+  // expectedArrival date.
+  private async getLiveDeliveryStats(
+    superAgentId: number,
+  ): Promise<{ delivered: number; delayed: number; onTimeRate: number | null }> {
+    const [delivered, deliveredParcels] = await Promise.all([
+      this.parcelRepo.count({
+        where: { superAgent: { id: superAgentId }, status: ParcelStatus.DELIVERED },
+      }),
+      this.parcelRepo.find({
+        where: { superAgent: { id: superAgentId }, status: ParcelStatus.DELIVERED },
+        select: { expectedArrival: true, deliveredTime: true },
+      }),
+    ]);
+    const delayed = deliveredParcels.filter(
+      (p) =>
+        p.expectedArrival &&
+        p.deliveredTime &&
+        new Date(p.deliveredTime) > new Date(p.expectedArrival),
+    ).length;
+    const onTimeRate =
+      delivered > 0
+        ? parseFloat((((delivered - delayed) / delivered) * 100).toFixed(1))
+        : null;
+    return { delivered, delayed, onTimeRate };
+  }
+
   async getAgentPerformance(agentId: number) {
     const agent = await this.superAgentRepo.findOne({ where: { id: agentId } });
     if (!agent) throw new NotFoundException('Agent not found');
-    const delivered = agent.totalParcelsDelivered;
+    const { delivered, delayed, onTimeRate } =
+      await this.getLiveDeliveryStats(agentId);
     const handled = agent.totalParcelsHandled;
-    const onTimeRate =
-      delivered > 0
-        ? parseFloat(
-            (
-              ((delivered - agent.totalParcelsDelayed) / delivered) *
-              100
-            ).toFixed(1),
-          )
-        : null;
     const successRate =
       handled > 0 ? parseFloat(((delivered / handled) * 100).toFixed(1)) : null;
     return {
@@ -756,12 +786,16 @@ export class SuperAgentsService {
       businessName: agent.businessName,
       agentCode: agent.agentCode,
       status: agent.status,
+      // rating/totalRatings/totalParcelsLost/totalComplaints have no
+      // submission mechanism anywhere in the app yet (no one can rate a
+      // Super Agent or file a complaint against one today) — returned as
+      // the column default until that feature exists, not fabricated.
       rating: Number(agent.rating),
       totalRatings: agent.totalRatings,
       totalParcelsHandled: handled,
       totalParcelsDelivered: delivered,
       totalParcelsLost: agent.totalParcelsLost,
-      totalParcelsDelayed: agent.totalParcelsDelayed,
+      totalParcelsDelayed: delayed,
       totalComplaints: agent.totalComplaints,
       onTimeRate,
       successRate,
@@ -775,20 +809,25 @@ export class SuperAgentsService {
     const agents = await this.superAgentRepo.find({
       order: { city: 'ASC', rating: 'DESC' } as any,
     });
-    return agents.map((agent) => ({
-      id: agent.id,
-      city: agent.city,
-      businessName: agent.businessName,
-      agentCode: agent.agentCode,
-      status: agent.status,
-      rating: Number(agent.rating),
-      totalParcelsHandled: agent.totalParcelsHandled,
-      totalParcelsDelivered: agent.totalParcelsDelivered,
-      totalParcelsLost: agent.totalParcelsLost,
-      totalComplaints: agent.totalComplaints,
-      totalEarnings: Number(agent.totalEarnings),
-      pendingEarnings: Number(agent.pendingEarnings),
-    }));
+    return Promise.all(
+      agents.map(async (agent) => {
+        const { delivered } = await this.getLiveDeliveryStats(agent.id);
+        return {
+          id: agent.id,
+          city: agent.city,
+          businessName: agent.businessName,
+          agentCode: agent.agentCode,
+          status: agent.status,
+          rating: Number(agent.rating),
+          totalParcelsHandled: agent.totalParcelsHandled,
+          totalParcelsDelivered: delivered,
+          totalParcelsLost: agent.totalParcelsLost,
+          totalComplaints: agent.totalComplaints,
+          totalEarnings: Number(agent.totalEarnings),
+          pendingEarnings: Number(agent.pendingEarnings),
+        };
+      }),
+    );
   }
 
   async findAll() {
@@ -1633,6 +1672,13 @@ export class SuperAgentsService {
     if ((parcel as any).localAgentId !== String(user.id))
       throw new ForbiddenException('Not your delivery');
 
+    // A retried/duplicate PATCH to DELIVERED on an already-delivered parcel
+    // must not double-credit the agent — there was no guard here before,
+    // unlike the equivalent buyer-confirms-receipt path in orders.service.ts.
+    const alreadyDelivered =
+      status === ParcelStatus.DELIVERED &&
+      parcel.status === ParcelStatus.DELIVERED;
+
     const updates: any = { status };
     if (status === ParcelStatus.DELIVERED) {
       updates.deliveredTime = new Date();
@@ -1657,7 +1703,7 @@ export class SuperAgentsService {
       },
     );
 
-    if (status === ParcelStatus.DELIVERED) {
+    if (status === ParcelStatus.DELIVERED && !alreadyDelivered) {
       // Track delivery count and earnings for agent's own records.
       // KenteXa does NOT pay local agents — they are independent and earn
       // directly from the Super Agent or seller who hired them.
@@ -1754,14 +1800,27 @@ export class SuperAgentsService {
   // ══════════════════════════════════════════════════════════════════════════
 
   async getCourierCostLedger() {
-    const parcels = await this.parcelRepo.find({
-      where: { agentPaidOut: false },
-      relations: { superAgent: true },
-      order: { dispatchTime: 'DESC' } as any,
-    });
-    return parcels
+    // Was parcelRepo-only — bulk-shipment courier costs (totalShippingCost)
+    // never appeared here at all, even though dispatchBulkShipment stores
+    // them, so admin had no visibility into unsettled bulk courier costs.
+    const [parcels, bulkShipments] = await Promise.all([
+      this.parcelRepo.find({
+        where: { agentPaidOut: false },
+        relations: { superAgent: true },
+        order: { dispatchTime: 'DESC' } as any,
+      }),
+      this.bulkRepo.find({
+        where: { agentPaidOut: false } as any,
+        relations: { superAgent: true },
+        order: { dispatchTime: 'DESC' } as any,
+      }),
+    ]);
+
+    const parcelRows = parcels
       .filter((p) => Number((p as any).courierCost || 0) > 0)
       .map((p) => ({
+        type: 'parcel' as const,
+        id: p.trackingNumber,
         trackingNumber: p.trackingNumber,
         agentName: p.superAgent?.businessName,
         agentCity: p.superAgent?.city,
@@ -1772,6 +1831,28 @@ export class SuperAgentsService {
         costFlagged: (p as any).costFlagged,
         costNote: (p as any).costNote,
       }));
+
+    const bulkRows = bulkShipments
+      .filter((b) => Number(b.totalShippingCost || 0) > 0)
+      .map((b) => ({
+        type: 'bulk' as const,
+        id: String(b.id),
+        trackingNumber: b.shipmentCode,
+        agentName: b.superAgent?.businessName,
+        agentCity: b.superAgent?.city,
+        courierCost: Number(b.totalShippingCost),
+        courierName: b.transportCompany,
+        transportRef: b.transportRef,
+        dispatchTime: b.dispatchTime,
+        costFlagged: b.costFlagged,
+        costNote: b.costNote,
+      }));
+
+    return [...parcelRows, ...bulkRows].sort((a, b) => {
+      const at = a.dispatchTime ? new Date(a.dispatchTime).getTime() : 0;
+      const bt = b.dispatchTime ? new Date(b.dispatchTime).getTime() : 0;
+      return bt - at;
+    });
   }
 
   async markCostSettled(type: 'parcel' | 'bulk', id: string) {
@@ -1783,9 +1864,12 @@ export class SuperAgentsService {
         },
       );
     } else {
+      // BulkShipment's real column is agentPaidOut — courierCostSettled
+      // isn't a column on this entity at all, so this silently did
+      // nothing (typed through `as any`) for every bulk-settle attempt.
       await this.bulkRepo.update(Number(id), {
-        courierCostSettled: true,
-      } as any);
+        agentPaidOut: true,
+      });
     }
     return { message: 'Marked as settled' };
   }

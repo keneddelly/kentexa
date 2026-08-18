@@ -213,6 +213,13 @@ export class AgentsService {
         totalCollectionsCompleted: a.totalCollectionsCompleted,
         totalEarnings: Number(a.totalEarnings),
         pendingEarnings: Number(a.pendingEarnings),
+        // Admin's earnings-breakdown UI reads these three explicitly —
+        // they were correctly written (deliveries/collections) or waiting
+        // to be (payments, fixed alongside this) but never returned here,
+        // so they always rendered as TZS 0 regardless of real data.
+        totalEarningsPayments: Number(a.totalEarningsPayments),
+        totalEarningsDeliveries: Number(a.totalEarningsDeliveries),
+        totalEarningsCollections: Number(a.totalEarningsCollections),
         rejectionReason: a.rejectionReason,
         createdAt: a.createdAt,
       }));

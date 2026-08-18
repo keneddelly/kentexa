@@ -120,14 +120,22 @@ const FinancialDashboard = ({ onNavigate }) => {
   const weekRevenue    = data.weekRevenue   || data.weeklyRevenue     || 0;
   const avgOrderValue  = totalOrders > 0 ? gmv / totalOrders : 0;
 
-  // Build last 7 days chart from daily data if available
-  const dailyData = data.dailyRevenue || Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (6 - i));
-    return {
-      label: d.toLocaleDateString('sw-TZ', { weekday: 'short' }),
-      value: i === 6 ? weekRevenue / 7 : 0,
-    };
-  });
+  // Build last 7 days chart from real daily data now that the backend
+  // actually computes it — { date, revenue, orders } mapped to the
+  // { label, value } shape BarChart expects. Falls back to a flat
+  // synthetic series only if the backend response is ever missing it.
+  const dailyData = data.dailyRevenue?.length
+    ? data.dailyRevenue.map(d => ({
+        label: new Date(d.date).toLocaleDateString('sw-TZ', { weekday: 'short' }),
+        value: d.revenue,
+      }))
+    : Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - (6 - i));
+        return {
+          label: d.toLocaleDateString('sw-TZ', { weekday: 'short' }),
+          value: i === 6 ? weekRevenue / 7 : 0,
+        };
+      });
 
   // Top sellers
   const topSellers = data.topSellers || [];

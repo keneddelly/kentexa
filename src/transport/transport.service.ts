@@ -318,7 +318,15 @@ export class TransportService {
     },
   ): Promise<TransportRoute> {
     const provider = await this.getMyProfile(userId);
-    if (provider.status !== ProviderStatus.VERIFIED) {
+    // ACTIVE is the legacy status for already-onboarded Phase 2
+    // API-integrated providers and is treated as equally good-to-act-on
+    // everywhere else (see the isVerified check above) — this alone
+    // excluded them from adding routes at all.
+    if (
+      ![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(
+        provider.status,
+      )
+    ) {
       throw new ForbiddenException('Akaunti yako haijahakikiwa bado');
     }
     const [originRegionId, destinationRegionId] = await Promise.all([
@@ -425,7 +433,7 @@ export class TransportService {
     },
   ): Promise<ProviderAvailability> {
     const p = await this.getMyProfile(userId);
-    if (p.status !== ProviderStatus.VERIFIED) {
+    if (![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(p.status)) {
       throw new ForbiddenException('Akaunti yako haijahakikiwa bado');
     }
     // Check no duplicate for same route+date
@@ -568,7 +576,9 @@ export class TransportService {
         'r',
         'r.providerId = p.id AND r.isActive = true',
       )
-      .where('p.status = :verified', { verified: ProviderStatus.VERIFIED })
+      .where('p.status IN (:...verifiedStatuses)', {
+        verifiedStatuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
+      })
       .andWhere(
         // Same last-mile/local-loop coverage extension as publishedQuery above.
         `(${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.destinationCity', 'from')} OR ${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')})`,
@@ -804,7 +814,11 @@ export class TransportService {
       where: { id: dto.providerId },
     });
     if (!provider) throw new NotFoundException('Msafirishaji hajapatikana');
-    if (provider.status !== ProviderStatus.VERIFIED) {
+    if (
+      ![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(
+        provider.status,
+      )
+    ) {
       throw new BadRequestException('Msafirishaji huyu hajakaguliwa bado');
     }
 
