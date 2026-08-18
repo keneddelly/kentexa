@@ -162,7 +162,7 @@ const CommentRow = ({
   // always their personal account. Falls back to the account identity for
   // comments predating this (commerceProfile null).
   const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name;
-  const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.logo;
+  const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.avatarUrl || c.author?.logo;
   const commenterNavParams = c.commerceProfile?.id ? { commerceProfileId: c.commerceProfile.id } : undefined;
 
   const submitReply = async () => {
@@ -267,7 +267,7 @@ const CommentRow = ({
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                   <span style={{ fontSize: 12, fontWeight: 800, color: B }}>
-                    {r.author?.storeName || r.author?.name || t('comment_section.seller_fallback')}
+                    {r.commerceProfile?.displayName || r.author?.name || t('comment_section.seller_fallback')}
                   </span>
                   <span style={{ fontSize: 9, fontWeight: 700, color: WH, backgroundColor: B,
                     padding: '1px 7px', borderRadius: 100 }}>{t('comment_section.seller_badge')}</span>
@@ -481,7 +481,10 @@ const CommerceCommentSection = ({
 
   // Re-throws so CommentRow's submitReply can show the real error inline.
   const handleReply = async (parentId, body) => {
-    const res = await api.post(`/comments/${parentId}/reply`, { body });
+    const res = await api.post(`/comments/${parentId}/reply`, {
+      body,
+      commerceProfileId: activeProfileId || undefined,
+    });
     setItems(prev => prev.map(c => c.id === parentId
       ? { ...c, replies: [...(c.replies || []), res.data] }
       : c));

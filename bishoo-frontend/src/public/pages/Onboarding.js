@@ -54,9 +54,11 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
   const TOTAL_STEPS = 3;
   const progress = (step / TOTAL_STEPS) * 100;
 
-  // Load suggested sellers when reaching step 4
+  // Load suggested sellers when reaching step 3 (the "follow businesses"
+  // step) — TOTAL_STEPS is 3, so step never reaches 4; this was silently
+  // never firing, leaving the follow-businesses list permanently empty.
   useEffect(() => {
-    if (step !== 4) return;
+    if (step !== 3) return;
     setLoadingSellers(true);
     api.get('/seller/public/all')
       .then(r => setSellers((r.data?.sellers || r.data || []).slice(0, 8)))

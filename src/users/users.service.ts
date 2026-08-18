@@ -9,12 +9,15 @@ import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   // Destructuring off a User instance produces a plain object, which drops
@@ -94,6 +97,24 @@ export class UsersService {
 
     Object.assign(user, dto);
     const updated = await this.userRepo.save(user);
+
+    // Keep the personal CommerceProfile's own photoUrl in sync — it's only
+    // ever set once, at OTP-verification signup time, from whatever
+    // avatarUrl existed then (usually null). Without this, any avatar
+    // uploaded/changed afterward stays permanently stale on the personal
+    // profile, showing an initials placeholder in comments/profile views
+    // even though the account clearly has a real photo.
+    if (dto.avatarUrl !== undefined) {
+      const personalProfile = await this.commerceProfiles
+        .findForUserByType(id, CommerceProfileType.PERSONAL)
+        .catch(() => null);
+      if (personalProfile) {
+        await this.commerceProfiles
+          .updatePublicFields(personalProfile.id, { photoUrl: dto.avatarUrl })
+          .catch(() => {});
+      }
+    }
+
     return this.exclude(updated);
   }
 

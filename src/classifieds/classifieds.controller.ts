@@ -110,6 +110,17 @@ export class ClassifiedsController {
     return this.service.findBySeller(sellerId);
   }
 
+  // Scoped to one commerce profile — use this instead of seller/:sellerId
+  // when rendering a specific profile's own classifieds tab (a personal
+  // and a business profile on the same account must not show each other's
+  // listings).
+  @Get('profile/:commerceProfileId')
+  findByCommerceProfile(
+    @Param('commerceProfileId', ParseIntPipe) commerceProfileId: number,
+  ) {
+    return this.service.findByCommerceProfile(commerceProfileId);
+  }
+
   // Requires login — returns buyer name/phone/email/amount, and invoice
   // numbers are sequential so this was scrapeable end-to-end when public.
   // Matches the same fix already applied to payments.controller.ts's

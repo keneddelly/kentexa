@@ -234,7 +234,8 @@ const SellerCard = ({ seller, onNavigate, isLoggedIn }) => {
   };
 
   return (
-    <div onClick={() => onNavigate(`CommerceProfile-${id}`)}
+    <div onClick={() => onNavigate(`CommerceProfile-${id}`,
+      seller.commerceProfileId ? { commerceProfileId: seller.commerceProfileId } : undefined)}
       style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden',
         boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer', flexShrink:0, width:160 }}>
       <div style={{ height:60, overflow:'hidden',

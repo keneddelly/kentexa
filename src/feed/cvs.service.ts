@@ -19,13 +19,14 @@ import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
+import { ProviderStatus } from '../transport/entities/transport-provider.entity';
 import {
   PostComment,
   PostCommentType,
   PurchaseVerification,
 } from './entities/post-comment.entity';
 import { User } from '../users/entities/user.entity';
-import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
+import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { EntityOwnerResolver } from './engagements.controller';
 import { PurchaseVerificationService } from './comment-support.service';
@@ -759,11 +760,18 @@ export class CvsService {
 
     // ── Cold-start fallbacks: no BusinessFeedItem rows exist yet ─────────────
     if (!topBusinesses.length) {
+      // Was restricted to role IN ('seller','admin','manager') AND a
+      // non-empty storeName — broke for multi-role accounts (role only
+      // ever holds one value) and for anyone who applied through the
+      // normal seller flow, who only gets businessName on SellerProfile,
+      // never User.storeName. Widened to also match an approved
+      // SellerProfile; storeName requirement dropped since the mapping
+      // below already falls back to u.name.
       const sellers = await this.userRepo
         .createQueryBuilder('u')
-        .where("u.role IN ('seller','admin','manager')")
-        .andWhere('u."storeName" IS NOT NULL')
-        .andWhere('u."storeName" != \'\'')
+        .where(
+          `(u.role IN ('seller','admin','manager') OR EXISTS (SELECT 1 FROM seller_profile sp WHERE sp."userId" = u.id AND sp.status = 'approved'))`,
+        )
         .orderBy('u.followersCount', 'DESC')
         .addOrderBy('u.reputationScore', 'DESC')
         .take(limit)
@@ -814,6 +822,55 @@ export class CvsService {
             : false,
         },
       }));
+    }
+
+    // topRoutes has no non-fallback source at all — it was only ever
+    // populated from real BusinessFeedItem posts of type 'delivery_info',
+    // which providers essentially never publish (their route data lives on
+    // TransportRoute directly, not as feed posts) — so this rail was
+    // always empty in practice. Same query/shape as getFilteredFeed()'s
+    // 'transport' fallback above.
+    if (!topRoutes.length) {
+      const routes = await this.routeRepo
+        .createQueryBuilder('r')
+        .leftJoinAndSelect('r.provider', 'p')
+        .where('r.isActive = true')
+        .andWhere('p.status IN (:...statuses)', {
+          statuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
+        })
+        .orderBy('r.createdAt', 'DESC')
+        .take(limit)
+        .getMany();
+
+      topRoutes = routes.map((r) => {
+        const routeLabel =
+          r.routeType === 'intercity' && r.originCity && r.destinationCity
+            ? `${r.originCity} → ${r.destinationCity}`
+            : r.routeType === 'local_loop' && r.loopStops?.length
+              ? r.loopStops.join(' → ')
+              : r.coverageCity || r.coverageWards?.join(', ') || '';
+        return {
+          id: `rte-${r.id}`,
+          businessId: r.provider?.userId,
+          title: `${r.provider?.name || 'Transport'} — ${routeLabel}`,
+          entityType: 'route',
+          entityId: r.id,
+          imageUrl: r.provider?.logoUrl || null,
+          price: r.pricePerKg || null,
+          cvsScore: 0,
+          business: {
+            id: r.provider?.userId,
+            storeName: r.provider?.name,
+            name: r.provider?.name,
+            logo: r.provider?.logoUrl,
+            isFollowing: r.provider?.userId
+              ? followedSellerIds.has(r.provider.userId)
+              : false,
+          },
+          provider: { id: r.provider?.id, name: r.provider?.name, logoUrl: r.provider?.logoUrl || null },
+          routeLabel,
+        };
+      });
     }
 
     if (!topPurchased.length) {
@@ -931,6 +988,39 @@ export class CvsService {
         logo: c.seller?.logo,
       },
     }));
+
+    // Every rail's `business` sub-object carries a raw account id, never a
+    // commerceProfileId — the exact reason clicking a business card from
+    // HomeFeed navigated to the account's PERSONAL profile instead of the
+    // business one actually shown on the card (CommerceProfile.js defaults
+    // a bare id to the personal profile). One batch resolution covers
+    // every rail at once instead of threading it through each branch above.
+    const allBusinessIds = [
+      ...topPurchased,
+      ...fastestGrowing,
+      ...topBusinesses,
+      ...topServices,
+      ...topProducts,
+      ...topClassifieds,
+    ]
+      .map((item: any) => item.business?.id)
+      .filter((id): id is number => !!id);
+    const businessProfileByOwnerId = await this.commerceProfiles
+      .findMapForOwnersByType([...new Set(allBusinessIds)], CommerceProfileType.BUSINESS)
+      .catch(() => new Map());
+    for (const item of [
+      ...topPurchased,
+      ...fastestGrowing,
+      ...topBusinesses,
+      ...topServices,
+      ...topProducts,
+      ...topClassifieds,
+    ] as any[]) {
+      if (item.business?.id) {
+        item.business.commerceProfileId =
+          businessProfileByOwnerId.get(item.business.id)?.id || null;
+      }
+    }
 
     return {
       topPurchased,
@@ -1318,11 +1408,17 @@ export class CvsService {
       // except asking the AI search directly. routeRepo was already
       // injected into this service for exactly this, just never used.
       if (filter !== 'products' && filter !== 'services') {
+        // ACTIVE is the legacy status for already-onboarded Phase 2
+        // API-integrated providers and is treated as equally
+        // good-to-show everywhere else (TransportService's own
+        // isVerified check) — matching only VERIFIED here excluded them.
         const routes = await this.routeRepo
           .createQueryBuilder('r')
           .leftJoinAndSelect('r.provider', 'p')
           .where('r.isActive = true')
-          .andWhere("p.status = 'verified'")
+          .andWhere('p.status IN (:...statuses)', {
+            statuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
+          })
           .orderBy('r.createdAt', 'DESC')
           .take(6)
           .getMany();

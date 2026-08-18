@@ -171,9 +171,11 @@ export class AuthService {
       otpAttempts: 0,
     });
 
-    // Send welcome messages
-    if (user.phone)
-      await this.smsService.sendWelcome(user.phone, String(user.name || ''));
+    // Welcome email only — an SMS welcome message here meant every phone
+    // signup got two texts seconds apart (the OTP, then this), which read
+    // as a confusing duplicate rather than two separate things. If an SMS
+    // welcome touchpoint is wanted later, it belongs later in the funnel
+    // (e.g. after onboarding), not stacked directly on OTP verification.
     if (user.email)
       await this.mailService.sendWelcome(user.email, String(user.name || ''));
 

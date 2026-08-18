@@ -139,10 +139,22 @@ export class SellerService {
       followedIds = new Set(ids);
     }
 
+    // Each card's own BUSINESS CommerceProfile id — without this, clicking
+    // through from a search/directory card navigated on the bare account
+    // id, which the profile page then defaulted to resolving as the
+    // account's PERSONAL profile instead of the business being shown.
+    const commerceProfileByOwnerId = await this.commerceProfiles
+      .findMapForOwnersByType(
+        users.map((u) => u.id),
+        CommerceProfileType.BUSINESS,
+      )
+      .catch(() => new Map());
+
     return users.map((u) => {
       const p = profileByUserId.get(u.id);
       return {
         id: u.id, // ✅ USER id — matches /stores/:sellerId route
+        commerceProfileId: commerceProfileByOwnerId.get(u.id)?.id || null,
         businessName: p?.businessName || u.storeName,
         businessCategory: p?.businessCategory || null,
         verificationTier: p?.verificationTier || null,

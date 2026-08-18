@@ -19,9 +19,11 @@ import { ServiceAd } from '../services/entities/service-ad.entity';
 import { Product } from '../products/entities/products.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
-import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
+import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { ProviderStatus } from '../transport/entities/transport-provider.entity';
+import { SellerStatus } from '../seller/entities/seller-profile.entity';
 
 export type FeedFilter =
   | 'for_you'
@@ -585,11 +587,21 @@ export class FeedService {
           .orderBy('f.cvsScore', 'DESC')
           .take(5)
           .getMany(),
-        // Trending businesses (most new followers)
+        // Trending businesses (most new followers). Was `role = 'seller'
+        // AND storeName IS NOT NULL` — broke for any multi-role account
+        // (User.role only ever holds one value, so a seller who later
+        // becomes e.g. a transport provider drops out) and for anyone who
+        // applied through the normal seller flow, who only ever gets
+        // businessName on SellerProfile, never User.storeName. Widened to
+        // match anyone with an approved SellerProfile too, and the
+        // storeName requirement dropped (formatBusinesses/the frontend
+        // already fall back to the account name when storeName is null).
         this.userRepo
           .createQueryBuilder('u')
-          .where("u.role = 'seller'")
-          .andWhere('u."storeName" IS NOT NULL')
+          .where(
+            `(u.role = :sellerRole OR EXISTS (SELECT 1 FROM seller_profile sp WHERE sp."userId" = u.id AND sp.status = :approved))`,
+            { sellerRole: 'seller', approved: SellerStatus.APPROVED },
+          )
           .orderBy('u.followersCount', 'DESC')
           .take(10)
           .getMany(),
@@ -615,12 +627,18 @@ export class FeedService {
           .orderBy('s.rating', 'DESC')
           .take(10)
           .getMany(),
-        // Verified providers' active routes
+        // Verified providers' active routes — ACTIVE is the legacy status
+        // for already-onboarded Phase 2 API-integrated providers and is
+        // treated as equally good-to-show everywhere else in the codebase
+        // (see TransportService's own isVerified check); this query alone
+        // only matched VERIFIED, which is why the transport rail was empty.
         this.routeRepo
           .createQueryBuilder('r')
           .leftJoinAndSelect('r.provider', 'p')
           .where('r.isActive = true')
-          .andWhere("p.status = 'verified'")
+          .andWhere('p.status IN (:...statuses)', {
+            statuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
+          })
           .orderBy('r.createdAt', 'DESC')
           .take(10)
           .getMany(),
@@ -690,11 +708,15 @@ export class FeedService {
     const cutoff48h = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
     const [sellers, services, listings] = await Promise.all([
+      // Same widening this session already applied elsewhere: role-only
+      // matching breaks for multi-role accounts, and storeName-only
+      // matching excludes anyone who applied through the normal seller
+      // flow (businessName lives on SellerProfile, not User.storeName).
       this.userRepo
         .createQueryBuilder('u')
-        .where("u.role IN ('seller', 'admin', 'manager')")
-        .andWhere('u."storeName" IS NOT NULL')
-        .andWhere('u."storeName" != \'\'')
+        .where(
+          `(u.role IN ('seller', 'admin', 'manager') OR EXISTS (SELECT 1 FROM seller_profile sp WHERE sp."userId" = u.id AND sp.status = 'approved'))`,
+        )
         .orderBy('u.createdAt', 'DESC')
         .take(12)
         .getMany(),
@@ -739,10 +761,22 @@ export class FeedService {
       }
     }
 
+    // Each suggested seller's own BUSINESS commerceProfileId — without
+    // this, Story/seller cards on HomeFeed link through the bare account
+    // id, which the profile page defaults to resolving as the PERSONAL
+    // profile instead of the business actually shown on the card.
+    const sellerProfileByOwnerId = await this.commerceProfiles
+      .findMapForOwnersByType(
+        sellers.map((u) => u.id),
+        CommerceProfileType.BUSINESS,
+      )
+      .catch(() => new Map());
+
     return {
       suggestedSellers: sellers.map((u) => ({
         id: u.id,
         userId: u.id,
+        commerceProfileId: sellerProfileByOwnerId.get(u.id)?.id || null,
         storeName: u.storeName,
         name: u.name,
         logo: u.logo,

@@ -826,6 +826,7 @@ export class CommentsController {
     @Request() req,
     @Param('id') id: string,
     @Body('body') body: string,
+    @Body('commerceProfileId') commerceProfileId?: number | null,
   ) {
     if (!body?.trim()) throw new BadRequestException('body is required');
     const parent = await this.commentRepo.findOne({
@@ -852,16 +853,18 @@ export class CommentsController {
         entityType: parent.entityType,
         entityId: parent.entityId,
         authorId: req.user.id,
+        commerceProfileId: commerceProfileId || null,
         type: PostCommentType.SELLER_REPLY,
         parentId: parent.id,
         body: body.trim(),
         purchaseVerification: PurchaseVerification.NONE,
       }),
     );
-    return this.commentRepo.findOne({
+    const saved = await this.commentRepo.findOne({
       where: { id: reply.id },
       relations: { author: true },
     });
+    return saved ? (await this.attachCommerceProfiles([saved]))[0] : saved;
   }
 
   // ── AI-drafted reply — NEW — Kentexa AI ───────────────────────────────────

@@ -187,6 +187,39 @@ export class ClassifiedsService {
     });
   }
 
+  // ─── Find scoped to one commerce profile ───────────────────────────────────
+  // findBySeller() above returns every classified the ACCOUNT has ever
+  // posted — personal and business mixed together, since it only filters
+  // by seller.id. This scopes to the exact profile that was active when
+  // each listing was posted, same fallback rule findOne() already applies:
+  // a BUSINESS profile's tab also shows legacy classifieds (posted before
+  // commerceProfileId existed) since those defaulted to the business
+  // identity anyway; a PERSONAL profile's tab only shows listings
+  // explicitly tagged to it.
+  async findByCommerceProfile(commerceProfileId: number) {
+    const profile = await this.commerceProfiles
+      .findById(commerceProfileId)
+      .catch(() => null);
+    if (!profile) return [];
+
+    const qb = this.repo
+      .createQueryBuilder('c')
+      .where('c.status = :status', { status: ClassifiedStatus.ACTIVE });
+
+    if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
+      qb.andWhere(
+        '(c."commerceProfileId" = :commerceProfileId OR (c."commerceProfileId" IS NULL AND c."sellerId" = :ownerId))',
+        { commerceProfileId, ownerId: profile.ownerId },
+      );
+    } else {
+      qb.andWhere('c."commerceProfileId" = :commerceProfileId', {
+        commerceProfileId,
+      });
+    }
+
+    return qb.orderBy('c.createdAt', 'DESC').getMany();
+  }
+
   // ─── Search ───────────────────────────────────────────────────────────────
   // FIX: cast category enum to text before applying LOWER()
   // PostgreSQL cannot apply LOWER() to enum types directly

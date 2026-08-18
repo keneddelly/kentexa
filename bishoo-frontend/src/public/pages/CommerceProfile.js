@@ -308,7 +308,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       own ? api.get('/orders/my-orders?limit=5') : Promise.resolve({data:[]}),
       own ? api.get('/services/my') : Promise.resolve({data:[]}),
       (own && activeProfile.type === 'agent') ? api.get('/agents/my-profile') : Promise.resolve({data:null}),
-      api.get(`/classifieds/seller/${uid}`),
+      // Scoped to THIS specific profile — /classifieds/seller/:id returns
+      // every classified the account has ever posted (personal + business
+      // mixed together), which is exactly the "Kened's personal listings
+      // show up on Bishoo's business tab" bug.
+      api.get(`/classifieds/profile/${activeProfile.id}`),
       // Products belong to the Seller (business) Commerce Profile only —
       // /products/seller/:id is keyed on the account's userId, not a
       // specific profile, so fetching it for a personal/agent/hub/etc.
@@ -1511,7 +1515,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate, activeProfileId }) => {
         <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('commerce_profile.no_comments_yet')}</div>
       ) : comments.map(c => {
         const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name;
-        const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.logo;
+        const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.avatarUrl || c.author?.logo;
         return (
         <div key={c.id} style={{ display:'flex', gap:8, marginBottom:10 }}>
           <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,

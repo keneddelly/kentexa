@@ -244,7 +244,7 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
     // always their personal account. Falls back to the account identity
     // for comments predating this (commerceProfile null).
     const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name || t('home_feed.user_fallback');
-    const commenterPhoto = c.commerceProfile?.photoUrl;
+    const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.avatarUrl || c.author?.logo;
     return (
     <div style={{ display:'flex', gap:8,
       padding: isReply ? '6px 0 4px 36px' : '10px 0',
@@ -925,7 +925,8 @@ const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
   };
 
   return (
-    <div onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`)}
+    <div onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`,
+      p.business?.commerceProfileId ? { commerceProfileId: p.business.commerceProfileId } : undefined)}
       style={{ backgroundColor:'#F8FAFC', borderRadius:12, padding:'10px 14px',
         flexShrink:0, cursor:'pointer', border:'1px solid #F1F5F9', minWidth:160 }}>
       <div style={{ fontSize:16, marginBottom:4 }}>{icon}</div>
@@ -1428,7 +1429,8 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center',
       gap:4, flexShrink:0, width:66 }}>
-      <button onClick={() => onNavigate(`CommerceProfile-${sellerId}`)}
+      <button onClick={() => onNavigate(`CommerceProfile-${sellerId}`,
+        seller.commerceProfileId ? { commerceProfileId: seller.commerceProfileId } : undefined)}
         style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}>
         <div style={{ padding:2, borderRadius:'50%',
           background: followed

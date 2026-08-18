@@ -184,6 +184,22 @@ export class CommerceProfilesService {
     return this.repo.findOne({ where: { ownerId, type } });
   }
 
+  // Batch version of findForUserByType — for list endpoints (search
+  // results, trending rails, discover feed) that need to attach each row's
+  // own commerceProfileId without an N+1 query per row. Returns a Map
+  // keyed by ownerId for easy lookup; owners with no profile of this type
+  // are simply absent from the map.
+  async findMapForOwnersByType(
+    ownerIds: number[],
+    type: CommerceProfileType,
+  ): Promise<Map<number, CommerceProfile>> {
+    if (ownerIds.length === 0) return new Map();
+    const profiles = await this.repo.find({
+      where: { ownerId: In(ownerIds), type },
+    });
+    return new Map(profiles.map((p) => [p.ownerId, p]));
+  }
+
   // Idempotent by design: if this owner already has a profile of this type
   // (checked by the caller passing a stable linkField/linkId), callers
   // should look it up first — this always creates. Used both by the live
