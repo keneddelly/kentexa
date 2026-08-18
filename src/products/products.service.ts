@@ -108,6 +108,7 @@ export class ProductsService {
       category?: string | null;
       minPrice?: number | null;
       maxPrice?: number | null;
+      location?: string | null;
     },
   ) {
     const qb = this.repo
@@ -144,6 +145,11 @@ export class ProductsService {
     }
     if (filters?.maxPrice != null) {
       qb.andWhere('p.basePrice <= :maxPrice', { maxPrice: filters.maxPrice });
+    }
+    if (filters?.location) {
+      qb.andWhere('LOWER(p.sellerCity) LIKE :location', {
+        location: `%${filters.location.toLowerCase()}%`,
+      });
     }
 
     const products = await qb.orderBy('p.createdAt', 'DESC').getMany();

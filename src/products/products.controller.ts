@@ -37,7 +37,14 @@ export class ProductsController {
   // ── Public ─────────────────────────────────────────────────────────────
 
   @Get('search')
-  async search(@Query('q') q: string, @Query('ai') ai?: string) {
+  async search(
+    @Query('q') q: string,
+    @Query('ai') ai?: string,
+    @Query('category') category?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query('location') location?: string,
+  ) {
     if (!q) return [];
     // NEW — Kentexa AI: opt-in query understanding, backward-compatible.
     if (ai === 'true') {
@@ -48,16 +55,26 @@ export class ProductsController {
         // here means a near-miss still narrows the search instead of
         // silently zeroing out results, and an unresolvable guess is
         // dropped rather than applied as a wrong, over-strict filter.
-        const category = resolveCategoryKey(parsed.category);
+        const aiCategory = resolveCategoryKey(parsed.category);
         return this.service.search(parsed.keywords || q, {
           ...parsed,
-          category: category || undefined,
+          category: aiCategory || undefined,
         });
       } catch {
         // AI parsing failed — fall through to the plain keyword search.
       }
     }
-    return this.service.search(q);
+    // Plain path — these are the exact category/minPrice/maxPrice/location
+    // values the frontend already resolved once via GET /search/intent and
+    // sends as ordinary query params; this was previously silently
+    // ignoring all of them (only `q` was read), so a correctly AI-parsed
+    // price/category never actually narrowed the results.
+    return this.service.search(q, {
+      category: category || undefined,
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      location: location || undefined,
+    });
   }
 
   @Get()

@@ -109,9 +109,19 @@ export class AiPromptTemplateService {
         'sell, e.g. "kened" or "Bishoo Intelligence Systems"), or "all" if it is ambiguous or ' +
         'could span multiple. Then extract the core keywords to search for, and, only if ' +
         'clearly stated or strongly implied: a category, minimum price, and maximum price ' +
-        '(in Tanzanian Shillings); or fromCity and toCity for transport queries — expand common ' +
-        'shorthand to the full city name (e.g. "Dar" → "Dar es Salaam"). Omit fields that are ' +
-        'not present in the query rather than guessing.\n\n' +
+        '(in Tanzanian Shillings); fromCity and toCity for transport queries; or, for any ' +
+        'non-transport query, a generic location (a city/town/neighborhood the user wants ' +
+        'results from). Expand common city shorthand to the full name (e.g. "Dar" → "Dar es ' +
+        'Salaam"). Omit fields that are not present in the query rather than guessing.\n\n' +
+        'Tanzanian price shorthand — convert these into numeric TZS: "120k" → 120000, ' +
+        '"laki moja" → 100000 (laki = hundred-thousand), "elfu hamsini" → 50000 (elfu = ' +
+        'thousand), "nusu laki" → 50000. A bare amount with no explicit range word (e.g. ' +
+        '"kinasa sauti cha 120k") means a budget ceiling — set maxPrice, not minPrice. ' +
+        '"chini ya X" / "under X" → maxPrice only. "zaidi ya X" / "juu ya X" / "above X" → ' +
+        'minPrice only. "X mpaka Y" / "kati ya X na Y" / "between X and Y" → both.\n\n' +
+        'Location examples (non-transport): "spy camera Keko" → location "Keko". "shop ya ' +
+        'spy camera Dar" → location "Dar es Salaam". "kinasa sauti Mwanza" → location ' +
+        '"Mwanza". Do not populate location when no place is mentioned.\n\n' +
         `For "product" or "classified" queries, category MUST be exactly one of these keys ` +
         `if you set it at all (pick the closest match, or omit it if nothing fits): ` +
         `${CATEGORY_LIST}. For "service" or "transport" queries, always omit category — those ` +
@@ -130,6 +140,7 @@ export class AiPromptTemplateService {
           maxPrice: { type: ['number', 'null'] },
           fromCity: { type: ['string', 'null'] },
           toCity: { type: ['string', 'null'] },
+          location: { type: ['string', 'null'] },
         },
         required: ['domain', 'keywords'],
         additionalProperties: false,

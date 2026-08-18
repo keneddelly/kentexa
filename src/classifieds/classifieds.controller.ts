@@ -41,14 +41,21 @@ export class ClassifiedsController {
     @Query('maxPrice') maxPrice?: string,
     @Query('location') location?: string,
     @Query('sort') sort?: string,
+    @Query('category') category?: string,
     @Query('ai') ai?: string,
   ) {
     if (!q) return [];
+    // `category` was previously only ever read inside the ai=true branch
+    // below — the frontend's plain search call already sends the AI-
+    // resolved category as an ordinary query param (from GET
+    // /search/intent, resolved once before this endpoint is even hit), so
+    // it was being silently dropped on every real call.
     const opts = {
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       location,
       sort,
+      category: category || undefined,
     };
     // NEW — Kentexa AI: opt-in query understanding, backward-compatible.
     if (ai === 'true') {
@@ -57,12 +64,12 @@ export class ClassifiedsController {
         // Resolve the AI's free-text category guess to a canonical key —
         // an unresolved guess is dropped rather than applied as an
         // over-strict filter that silently zeroes out results.
-        const category = resolveCategoryKey(parsed.category);
+        const aiCategory = resolveCategoryKey(parsed.category);
         return this.service.search(parsed.keywords || q, {
           ...opts,
           minPrice: opts.minPrice ?? parsed.minPrice ?? undefined,
           maxPrice: opts.maxPrice ?? parsed.maxPrice ?? undefined,
-          category: category || undefined,
+          category: aiCategory || opts.category,
         });
       } catch {
         // AI parsing failed — fall through to the plain keyword search.

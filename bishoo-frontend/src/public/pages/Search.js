@@ -297,6 +297,65 @@ const Section = ({ title, sub, action, onAction, children, hscroll }) => (
   </div>
 );
 
+// ── Deterministic relevance ranking ─────────────────────────────────────────
+// Combines the DB's own keyword-match ordering, the semantic-search cosine
+// score (when a result came from /search/semantic), how close the item's
+// price sits to the AI-extracted min/max, whether its location matches the
+// AI-extracted location, and existing seller-quality fields already present
+// on every card (reputationScore/isVerified) — one explainable weighted sum,
+// no second AI call. Replaces "keyword list, then append semantic leftovers
+// at the end" with a real merged ranking.
+const scoreResultItem = (item, index, listLength, intent, isSemanticOnly) => {
+  const keywordScore = isSemanticOnly ? 0 : 1 - index / Math.max(listLength, 1);
+  const semanticScore = item._score || 0;
+
+  let priceScore = 0;
+  const price = item.price ?? item.displayPrice ?? item.basePrice ?? null;
+  if (price != null && (intent?.minPrice != null || intent?.maxPrice != null)) {
+    const min = intent?.minPrice ?? 0;
+    const max = intent?.maxPrice ?? Infinity;
+    if (price >= min && price <= max) priceScore = 1;
+    else {
+      const bound = price < min ? min : max;
+      const diff = Math.abs(price - bound);
+      priceScore = Math.max(0, 1 - diff / (bound || 1));
+    }
+  }
+
+  let locationScore = 0;
+  if (intent?.location) {
+    const loc = intent.location.toLowerCase();
+    const itemLoc = (
+      item.location || item.sellerCity || item.coverageCity ||
+      item.seller?.businessLocation || item.provider?.businessLocation ||
+      item.business?.businessLocation || ''
+    ).toLowerCase();
+    if (itemLoc && itemLoc.includes(loc)) locationScore = 1;
+  }
+
+  const seller = item.seller || item.provider || item.business || {};
+  const repScore = Math.min(1, (seller.reputationScore || 0) / 1000);
+  const verifiedScore = seller.isVerified ? 1 : 0;
+
+  return (
+    keywordScore  * 0.30 +
+    semanticScore * 0.25 +
+    priceScore    * 0.20 +
+    locationScore * 0.15 +
+    repScore      * 0.06 +
+    verifiedScore * 0.04
+  );
+};
+
+const rankResults = (list, semanticExtras, intent) => {
+  const scored = [
+    ...list.map((item, i) => ({ item, score: scoreResultItem(item, i, list.length, intent, false) })),
+    ...semanticExtras.map((item, i) => ({ item, score: scoreResultItem(item, i, semanticExtras.length, intent, true) })),
+  ];
+  scored.sort((a, b) => b.score - a.score);
+  return scored.map(s => s.item);
+};
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', people: 'people', all: 'all' };
 
@@ -416,10 +475,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         classifiedsList = [], productsList = [], servicesList = [],
       } = opts;
 
-      const mergeSemantic = (list, type) => [
-        ...list,
-        ...semanticByType[type].filter(s => !list.some(x => x.id === s.id)),
-      ];
+      const mergeSemantic = (list, type) => {
+        const extras = semanticByType[type].filter(s => !list.some(x => x.id === s.id));
+        return rankResults(list, extras, intent);
+      };
       const finalClassifieds = mergeSemantic(classifiedsList, 'classified');
       const finalProducts    = mergeSemantic(productsList, 'product');
       const finalServices    = mergeSemantic(servicesList, 'service');
@@ -514,7 +573,14 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     if (intent?.category) listingParams.set('category', intent.category);
     if (intent?.minPrice != null) listingParams.set('minPrice', String(intent.minPrice));
     if (intent?.maxPrice != null) listingParams.set('maxPrice', String(intent.maxPrice));
+    // Generic location (distinct from transport's fromCity/toCity) — a
+    // place mentioned in a product/classified/service query, e.g. "kinasa
+    // sauti Mwanza" or "spy camera Keko". classifieds/search already
+    // supported this param server-side; products/search gained it
+    // alongside this change; services' browse endpoint uses `city`.
+    if (intent?.location) listingParams.set('location', intent.location);
     const serviceParams = new URLSearchParams({ q: trimmed, limit: '20' });
+    if (intent?.location) serviceParams.set('city', intent.location);
 
     let count = 0;
     const domainCounts = {};

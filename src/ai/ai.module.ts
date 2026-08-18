@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TzLocationModule } from '../tz-location/tz-location.module';
 import { AiUsageLog } from './entities/ai-usage-log.entity';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { OpenAiProvider } from './providers/openai.provider';
@@ -20,7 +21,7 @@ import { EmbeddingRouter } from './embedding.router';
 import { OpenAiEmbeddingProvider } from './providers/openai-embedding.provider';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AiUsageLog])],
+  imports: [TypeOrmModule.forFeature([AiUsageLog]), TzLocationModule],
   controllers: [AiController],
   providers: [
     AnthropicProvider,
