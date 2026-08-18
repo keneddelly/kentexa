@@ -597,6 +597,13 @@ export class SuperAgentsService {
       message: senderSmsSent
         ? `Kifurushi kimesajiliwa. SMS ya malipo imetumwa kwa ${dto.senderPhone}.`
         : `Kifurushi kimesajiliwa. Risiti: ${invoice.receiptNumber}. SMS ya malipo haikutumwa — jaribu tena.`,
+      billing: {
+        isFreeOrder,
+        platformFeeCharged,
+        platformFeeWaived,
+        outstandingBalance:
+          Number(superAgent.outstandingBalance) + (isFreeOrder ? 0 : platformFeeCharged),
+      },
     };
   }
 

@@ -171,13 +171,16 @@ export class SuperAgent {
   @Column({ type: 'varchar', nullable: true })
   agentCode: string | null; // Unique code e.g. SA-DAR-001
 
-  // ── Founding-pilot free-order allowance (tracked only, no real billing yet) ──
-  // freeOrdersGranted is 0 for every Super Agent by default; set via the
-  // admin grant-free-orders endpoint for a specific pilot agent. Each
-  // qualifying counter order increments freeOrdersUsed by exactly one
-  // (computed once per created Parcel row, never on retry of an
-  // already-succeeded request) until the grant is exhausted.
-  @Column({ type: 'int', default: 0 })
+  // ── Standard new-Super-Agent free-order allowance ──
+  // Every new Super Agent account starts with 50 free orders (the column
+  // default below) — this is a standard onboarding benefit, not a one-off
+  // grant to a single pilot account. The admin grant-free-orders endpoint
+  // still exists to adjust an individual agent's allowance (e.g. extend it
+  // as a reward, or correct it) but is no longer required just to get the
+  // standard 50. Each qualifying counter order increments freeOrdersUsed by
+  // exactly one (computed once per created Parcel row, never on retry of an
+  // already-succeeded request) until the allowance is exhausted.
+  @Column({ type: 'int', default: 50 })
   freeOrdersGranted: number;
 
   @Column({ type: 'int', default: 0 })

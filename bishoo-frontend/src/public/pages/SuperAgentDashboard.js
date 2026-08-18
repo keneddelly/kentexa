@@ -170,9 +170,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [confirmSending, setConfirmSending]     = useState({});
   const [walkRouteLoading, setWalkRouteLoading] = useState(false);
   const [walkResult, setWalkResult]     = useState(null);
-  const [walkFeePhone, setWalkFeePhone] = useState('');
-  const [walkFeePaid, setWalkFeePaid]   = useState(false);
-  const [walkPayingFee, setWalkPayingFee] = useState(false);
 
   // Online order receive
   const [onlineOrderId, setOnlineOrderId] = useState('');
@@ -315,34 +312,62 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     } finally { setActionLoading(false); }
   };
 
-  const handleWalkPayFee = async () => {
-    if (!walkFeePhone.trim()) { setError('Weka namba ya M-Pesa'); return; }
-    try {
-      setWalkPayingFee(true);
-      const res = await api.post('/payments/invoice/pay', {
-        orderId: walkResult.orderId, phone: walkFeePhone.trim(),
-        provider: 'selcom', amount: 1000, purpose: 'platform_tracking_fee',
-      });
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setWalkFeePaid(true);
-        } catch { setError('Malipo yameshindwa'); }
-        setWalkPayingFee(false);
-      }, 3000);
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindwa kuanzisha malipo');
-      setWalkPayingFee(false);
-    }
-  };
-
   const resetWalk = () => {
     setWalkForm({ senderName: '', senderPhone: '', recipientName: '', recipientPhone: '',
       destinationCity: '', deliveryAddress: '', description: '',
       weightKg: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
     setWalkRoute(null); setWalkResult(null);
-    setWalkFeePaid(false); setWalkFeePhone('');
     setPokeaMode('list'); fetchAll();
+  };
+
+  // Print a physical receipt for the sender confirming payment received.
+  // Their own business name leads as the logistics brand (Super Agents are
+  // growing their own brand through every customer touchpoint — same
+  // principle already applied to the SMS templates), with Kentexa's
+  // verification badge secondary underneath, not the other way around.
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+
+  const handlePrintReceipt = (receipt) => {
+    if (!receipt) return;
+    const win = window.open('', '_blank', 'width=380,height=600');
+    if (!win) { setError('Imeshindwa kufungua dirisha la kuchapisha'); return; }
+    const row = (label, value) => value
+      ? `<div class="row"><span class="l">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`
+      : '';
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8" />
+      <title>Risiti — ${escapeHtml(receipt.parcelReference)}</title>
+      <style>
+        @page { size: 80mm auto; margin: 4mm; }
+        body { font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; color: #000; }
+        .brand { text-align: center; font-size: 18px; font-weight: 900; margin-bottom: 2px; }
+        .brand-sub { text-align: center; font-size: 11px; margin-bottom: 10px; }
+        .verified { text-align: center; font-size: 10px; color: #444; margin-bottom: 10px;
+          border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; }
+        .row { display: flex; justify-content: space-between; font-size: 12px; margin: 3px 0; }
+        .l { color: #333; } .v { font-weight: 700; text-align: right; }
+        .amount { text-align: center; font-size: 20px; font-weight: 900; margin: 12px 0; }
+        .footer { text-align: center; font-size: 10px; margin-top: 12px; color: #555; }
+      </style></head><body>
+      <div class="brand">${escapeHtml(receipt.superAgentName || 'Super Agent')}</div>
+      <div class="brand-sub">${escapeHtml(receipt.superAgentCity || '')}</div>
+      <div class="verified">✔ Verified by Kentexa</div>
+      ${row('Namba ya Risiti', receipt.receiptNumber)}
+      ${row('Kifurushi', receipt.parcelReference)}
+      ${row('Tarehe', receipt.paidAt ? new Date(receipt.paidAt).toLocaleString('sw-TZ') : '')}
+      <hr />
+      ${row('Mtumaji', receipt.senderName)}
+      ${row('Simu ya Mtumaji', receipt.senderPhone)}
+      ${row('Mpokeaji', receipt.receiverName)}
+      ${row('Simu ya Mpokeaji', receipt.receiverPhone)}
+      <hr />
+      ${row('Njia ya Malipo', receipt.paymentMethod)}
+      <div class="amount">TZS ${Number(receipt.amountPaid || 0).toLocaleString()}</div>
+      <div class="footer">Malipo yamepokewa. Asante kwa kutumia<br />${escapeHtml(receipt.superAgentName || 'Super Agent')}</div>
+      <script>window.onload = () => { window.print(); };</script>
+      </body></html>`);
+    win.document.close();
   };
 
   // ── Online order handlers ─────────────────────────────────────────────────
@@ -926,45 +951,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                       style={{ width: '100%', backgroundColor: actionLoading ? '#94a3b8' : '#16a34a',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                         cursor: 'pointer', fontSize: 14, fontWeight: 900, marginTop: 8 }}>
-                      {actionLoading ? '⏳ Inasajili...' : '📥 Sajili Kifurushi → Lipa TZS 1,000'}
+                      {actionLoading ? '⏳ Inasajili...' : '📥 Sajili Kifurushi'}
                     </button>
                   </>
-                ) : !walkFeePaid ? (
-                  /* Platform fee payment */
-                  <div>
-                    <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10,
-                      padding: 14, marginBottom: 16, textAlign: 'center' }}>
-                      <div style={{ fontSize: 14, fontWeight: 900, color: '#15803d' }}>
-                        Lipa Ada ya KenteXa — TZS 1,000
-                      </div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                        Tracking number itaamilika baada ya malipo
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
-                        display: 'block', marginBottom: 4 }}>Namba ya M-Pesa (255XXXXXXXXX)</label>
-                      <input type="tel" placeholder="255712345678"
-                        value={walkFeePhone}
-                        onChange={e => setWalkFeePhone(e.target.value)} style={inp} />
-                    </div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <button onClick={handleWalkPayFee} disabled={walkPayingFee}
-                        style={{ flex: 2, backgroundColor: walkPayingFee ? '#94a3b8' : '#16a34a',
-                          color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                          cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
-                        {walkPayingFee ? '⏳ Inashughulikia...' : '💳 Lipa TZS 1,000'}
-                      </button>
-                      <button onClick={resetWalk}
-                        style={{ flex: 1, background: '#fff', color: '#64748b',
-                          border: '2px solid #e2e8f0', padding: 14, borderRadius: 10,
-                          cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-                        Ghairi
-                      </button>
-                    </div>
-                  </div>
                 ) : (
-                  /* Success — show tracking number */
+                  /* Success — show tracking number. No separate platform-fee
+                     payment step here — Kentexa's platform fee (free for the
+                     first 50 orders, then billed per-order to the Super
+                     Agent's own account balance) is tracked automatically on
+                     the backend and never blocks activating the customer's
+                     tracking number. */
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
                     <div style={{ fontSize: 13, fontWeight: 900, color: '#15803d',
@@ -973,15 +969,33 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                       color: '#1d4ed8', marginBottom: 6 }}>
                       {walkResult.trackingNumber}
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
                       SMS imetumwa kwa mpokeaji
                     </div>
-                    <button onClick={resetWalk}
-                      style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
-                        padding: '12px 24px', borderRadius: 10, cursor: 'pointer',
-                        fontSize: 14, fontWeight: 800 }}>
-                      + Mteja Mwingine
-                    </button>
+                    {walkResult.billing && (
+                      <div style={{ fontSize: 12, color: walkResult.billing.isFreeOrder ? '#16a34a' : '#64748b',
+                        marginBottom: 20 }}>
+                        {walkResult.billing.isFreeOrder
+                          ? '🎁 Agizo la bure — halikutozwa ada'
+                          : `Ada ya Kentexa TZS ${Number(walkResult.billing.platformFeeCharged).toLocaleString()} imeongezwa kwenye deni lako`}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                      {walkResult.receipt && (
+                        <button onClick={() => handlePrintReceipt(walkResult.receipt)}
+                          style={{ backgroundColor: '#fff', color: '#1d4ed8',
+                            border: '2px solid #1d4ed8', padding: '12px 20px', borderRadius: 10,
+                            cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
+                          🖨️ Chapisha Risiti
+                        </button>
+                      )}
+                      <button onClick={resetWalk}
+                        style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
+                          padding: '12px 24px', borderRadius: 10, cursor: 'pointer',
+                          fontSize: 14, fontWeight: 800 }}>
+                        + Mteja Mwingine
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
