@@ -3904,6 +3904,10 @@
 
     "location_label": "📍 Localisation (Région / District / Quartier)",
 
+    "contact_phone_label": "Numéro de Contact (facultatif)",
+    "contact_phone_placeholder": "Utilise le numéro de votre compte si laissé vide",
+    "contact_phone_hint": "Utile si cette annonce doit joindre un numéro différent de celui de votre compte — par exemple un numéro personnel pour une activité secondaire.",
+
     "cancel_button": "Annuler",
     "please_wait": "Veuillez patienter...",
     "update_listing_button": "✅ Mettre à jour l'annonce",

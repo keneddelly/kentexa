@@ -73,6 +73,25 @@ export class Classified {
   @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   seller: User;
 
+  // Which specific CommerceProfile this was posted AS — plain nullable id
+  // (not a relation), same pattern as BusinessFeedItem.commerceProfileId.
+  // A classified posted while the account's personal profile is active
+  // must stay attributed to that personal identity, not silently resolve
+  // to the account's business brand — null on classifieds that predate
+  // this column, which keep resolving to the business identity as before.
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
+  // Optional per-listing contact override. A side-hustle classified posted
+  // from a personal profile often needs a different number than the
+  // account's main (business) contact — CommerceProfile itself has no
+  // phone/whatsapp field for any type, so this lives on the listing
+  // itself rather than requiring a schema change to every profile type.
+  // Null means "use the seller's account phone," same as before this
+  // column existed.
+  @Column({ type: 'varchar', nullable: true })
+  contactPhone: string | null;
+
   // ── Flash Sale ───────────────────────────────────────────────────────────
   @Column({ type: 'boolean', default: false })
   isFlashSale: boolean;

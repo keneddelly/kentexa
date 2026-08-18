@@ -157,9 +157,10 @@ const EMPTY_FORM = {
   category: 'electronics', subcategory: '', location: '',
   images: [], specs: {}, condition: '', isNegotiable: false,
   isFlashSale: false, flashSalePrice: '', flashSaleEndsAt: '', flashSaleQuantity: '',
+  contactPhone: '',
 };
 
-const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, editItemId }) => {
+const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, editItemId, activeProfileId }) => {
   const { t } = useTranslation();
   const [classifieds, setClassifieds] = useState([]);
   const [classifiedLocation, setClassifiedLocation] = React.useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
@@ -282,12 +283,17 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         specs:      Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         subcategory: form.subcategory || null,
         condition:  form.condition || null,
+        contactPhone: form.contactPhone || undefined,
       };
       if (editItem) {
         await api.patch(`/classifieds/${editItem.id}`, payload);
         setMessage(t('seller_classifieds.listing_updated'));
       } else {
-        await api.post('/classifieds', payload);
+        // Attributes the listing to whichever profile is active right now
+        // (e.g. a personal side-hustle classified stays on the personal
+        // profile instead of resolving to a business brand run from the
+        // same account) — set once at creation, never changed on edit.
+        await api.post('/classifieds', { ...payload, commerceProfileId: activeProfileId || undefined });
         setMessage(t('seller_classifieds.listing_posted'));
       }
       resetForm(); fetchMyClassifieds();
@@ -307,6 +313,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       specs:        item.specs || {},
       condition:    item.condition || '',
       isNegotiable: item.isNegotiable || false,
+      contactPhone: item.contactPhone || '',
     });
     setImagePreviews(item.images || []);
     setShowForm(true);
@@ -666,6 +673,19 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                     <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>✅ {form.location}</div>
                   )}
               </div>
+            </div>
+
+            {/* Optional contact override — a side-hustle listing posted
+                from a personal profile often needs a different number
+                than the account's main contact; leave blank to use the
+                account phone as before. */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>{t('seller_classifieds.contact_phone_label')}</label>
+              <input type="tel" placeholder={userPhone || t('seller_classifieds.contact_phone_placeholder')}
+                value={form.contactPhone}
+                onChange={e => setForm({ ...form, contactPhone: e.target.value })}
+                style={inputStyle} />
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{t('seller_classifieds.contact_phone_hint')}</div>
             </div>
             <div style={{ height: 16 }} />
           </div>

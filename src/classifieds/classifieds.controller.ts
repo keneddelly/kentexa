@@ -32,6 +32,21 @@ export class ClassifiedsController {
     private readonly sellerScope: SellerScopeService,
   ) {}
 
+  // Classifieds are peer-to-peer listings (a "side hustle" item, not a
+  // shop's product) — unlike products, posting/managing one never required
+  // seller approval. Sellers/team members still resolve through the normal
+  // business-delegation path (so e.g. a team member managing the business's
+  // own classifieds keeps working exactly as before); a plain, unverified
+  // user who isn't part of any business simply manages their own listings
+  // under their own account id instead of being blocked entirely.
+  private async resolveClassifiedActorId(user: User): Promise<number> {
+    try {
+      return await this.sellerScope.resolve(user, 'canManageProducts');
+    } catch {
+      return user.id;
+    }
+  }
+
   // ─── Static GET routes — MUST be before :id ──────────────────────────────
 
   @Get('search')
@@ -123,10 +138,7 @@ export class ClassifiedsController {
   @UseGuards(JwtAuthGuard)
   @Get('user/mine')
   async findMine(@Request() req) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canManageProducts',
-    );
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.findMine({ id: sellerId } as User);
   }
 
@@ -213,10 +225,7 @@ export class ClassifiedsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() dto: CreateClassifiedDto, @Request() req) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canManageProducts',
-    );
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.create(dto, { id: sellerId } as User);
   }
 
@@ -258,10 +267,7 @@ export class ClassifiedsController {
   ) {
     // service.update() short-circuits its ownership check for role===ADMIN —
     // carry the real role through the shim so that bypass still works.
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canManageProducts',
-    );
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.update(id, dto, {
       id: sellerId,
       role: req.user.role,
@@ -271,20 +277,14 @@ export class ClassifiedsController {
   @UseGuards(JwtAuthGuard)
   @Patch(':id/sold')
   async markAsSold(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canManageProducts',
-    );
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.markAsSold(id, { id: sellerId } as User);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canManageProducts',
-    );
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.remove(id, {
       id: sellerId,
       role: req.user.role,

@@ -26,6 +26,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
 
@@ -48,12 +49,32 @@ export class ClassifiedsService {
     private dataSource: DataSource,
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
+    private readonly profileScope: CommerceProfileScopeService,
     private readonly searchIndex: SearchIndexService,
   ) {}
 
   // ─── Create listing ───────────────────────────────────────────────────────
   async create(dto: CreateClassifiedDto, user: User) {
-    const listing = this.repo.create({ ...dto, seller: user });
+    // Attributes the listing to whichever profile was active when it was
+    // posted, so a personal-profile side-hustle classified stays personal
+    // instead of silently resolving to the account's business identity —
+    // same fix already applied to feed posts (FeedService.publish()).
+    // Authorization is never trusted from the client: owner or an active
+    // team member with canManageProducts.
+    let commerceProfileId: number | null = null;
+    if (dto.commerceProfileId) {
+      const authorized = await this.profileScope.isAuthorizedFor(
+        user.id,
+        dto.commerceProfileId,
+        'canManageProducts',
+      );
+      if (!authorized) {
+        throw new ForbiddenException('You do not manage this commerce profile');
+      }
+      commerceProfileId = dto.commerceProfileId;
+    }
+
+    const listing = this.repo.create({ ...dto, seller: user, commerceProfileId });
     const saved = await this.repo.save(listing);
 
     // Auto-share as a Moment — fire-and-forget, never blocks listing creation
@@ -65,6 +86,7 @@ export class ClassifiedsService {
           imageUrl: saved.images?.[0] || undefined,
           linkedEntityType: 'classified',
           linkedEntityId: saved.id,
+          commerceProfileId: commerceProfileId || undefined,
         })
         .catch(() => {});
     }
@@ -116,13 +138,23 @@ export class ClassifiedsService {
     const listing = await this.repo.findOne({ where: { id } });
     if (!listing) throw new NotFoundException('Listing not found');
 
-    // Same "sold by must point at the business, not the person" fix as
-    // ProductsService.findOne().
-    const commerceProfile = listing.seller
-      ? await this.commerceProfiles
-          .findForUserByType(listing.seller.id, CommerceProfileType.BUSINESS)
-          .catch(() => null)
-      : null;
+    // Prefer the SPECIFIC profile this listing was actually posted as
+    // (stored at creation time — see create()). Only classifieds that
+    // predate the commerceProfileId column (or were posted before this
+    // fix) fall back to "the account's business identity," matching the
+    // original behavior for those and for sellers who always post as
+    // their business anyway. This was previously hardcoded to always
+    // resolve BUSINESS regardless of which profile actually posted it —
+    // the reason a personal-profile classified still showed the seller's
+    // business brand ("Sold by Bishoo Intelligence Systems") even when
+    // posted as "Kened."
+    const commerceProfile = listing.commerceProfileId
+      ? await this.commerceProfiles.findById(listing.commerceProfileId).catch(() => null)
+      : listing.seller
+        ? await this.commerceProfiles
+            .findForUserByType(listing.seller.id, CommerceProfileType.BUSINESS)
+            .catch(() => null)
+        : null;
 
     return {
       ...listing,
@@ -282,9 +314,14 @@ export class ClassifiedsService {
   async getContactInfo(id: number) {
     const classified = await this.findOne(id);
     return {
-      sellerName: classified.seller?.name || 'Seller',
+      // The listing's own posted-as identity wins over the raw account
+      // name, same as the detail page — a personal-profile classified
+      // shows "Kened," not the business brand.
+      sellerName: classified.commerceProfile?.displayName || classified.seller?.name || 'Seller',
       sellerEmail: classified.seller?.email || null,
-      sellerPhone: classified.seller?.phone || null,
+      // Per-listing contact override (e.g. a personal number for a side
+      // hustle) wins when set; falls back to the account's phone.
+      sellerPhone: classified.contactPhone || classified.seller?.phone || null,
       title: classified.title,
       price: classified.price,
     };

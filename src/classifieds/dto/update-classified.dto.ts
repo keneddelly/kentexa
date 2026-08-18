@@ -29,4 +29,8 @@ export class updateClassifiedDto {
   @IsOptional()
   @IsArray()
   images?: string[];
+
+  @IsOptional()
+  @IsString()
+  contactPhone?: string;
 }

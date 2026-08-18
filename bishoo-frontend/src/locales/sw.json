@@ -3754,6 +3754,10 @@
 
     "location_label": "📍 Mahali (Mkoa / Wilaya / Kata)",
 
+    "contact_phone_label": "Namba ya Mawasiliano (si lazima)",
+    "contact_phone_placeholder": "Itatumia namba ya akaunti yako ukiacha wazi",
+    "contact_phone_hint": "Muhimu ikiwa tangazo hili linapaswa kufikia namba tofauti na ya akaunti yako — mfano namba yako binafsi ya biashara ndogo.",
+
     "cancel_button": "Ghairi",
     "please_wait": "Tafadhali subiri...",
     "update_listing_button": "✅ Sasisha Tangazo",

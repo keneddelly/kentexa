@@ -3908,6 +3908,10 @@
 
     "location_label": "📍 Location (Region / District / Ward)",
 
+    "contact_phone_label": "Contact Number (optional)",
+    "contact_phone_placeholder": "Uses your account phone if left blank",
+    "contact_phone_hint": "Useful if this listing should reach a different number than your account's — e.g. a personal side-hustle number.",
+
     "cancel_button": "Cancel",
     "please_wait": "Please wait...",
     "update_listing_button": "✅ Update Listing",
