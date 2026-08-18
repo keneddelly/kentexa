@@ -36,6 +36,15 @@ import {
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
 import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
+import { InvoicesService } from '../invoices/invoices.service';
+import { AuditLogService } from '../audit-log/audit-log.service';
+
+// Normal Kentexa platform fee per Super-Agent-collected counter order.
+// Tracked only — no real charge/collection mechanism exists between
+// Kentexa and Super Agents today, so this never actually deducts or
+// collects money. It exists so future billing has real per-transaction
+// data (see Parcel.platformFeeCharged/Waived, SuperAgent.freeOrdersUsed).
+const SUPER_AGENT_PLATFORM_FEE = 1000;
 
 @Injectable()
 export class SuperAgentsService {
@@ -63,6 +72,8 @@ export class SuperAgentsService {
     private businessCustomerService: BusinessCustomerService,
     private inAppNotif: InAppNotificationService,
     private commerceProfiles: CommerceProfilesService,
+    private invoicesService: InvoicesService,
+    private auditLog: AuditLogService,
   ) {}
 
   // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
@@ -423,6 +434,13 @@ export class SuperAgentsService {
     expectedArrival.setDate(expectedArrival.getDate() + estimatedDays);
     const expectedArrivalStr = expectedArrival.toISOString().split('T')[0];
 
+    // 3b. Founding-pilot free-order check — computed once per created
+    // parcel, never re-run on a retry of an already-succeeded request, so
+    // a duplicate/replayed submission can't consume the allowance twice.
+    const isFreeOrder = superAgent.freeOrdersUsed < superAgent.freeOrdersGranted;
+    const platformFeeCharged = isFreeOrder ? 0 : SUPER_AGENT_PLATFORM_FEE;
+    const platformFeeWaived = isFreeOrder ? SUPER_AGENT_PLATFORM_FEE : 0;
+
     // 4. Create parcel
     const parcel = this.parcelRepo.create({
       trackingNumber,
@@ -446,12 +464,26 @@ export class SuperAgentsService {
       estimatedShippingFee: dto.shippingFeeCollected,
       actualShippingFee: dto.shippingFeeCollected,
       superAgentEarnings: agentEarnings,
+      platformFeeCharged,
+      platformFeeWaived,
       status: ParcelStatus.RECEIVED_AT_HUB, // already at hub — super agent has it
     } as any);
 
     const savedParcel = (await this.parcelRepo.save(
       parcel as any,
     )) as unknown as Parcel;
+
+    // Aggregate the free-order/fee counters onto the Super Agent's own
+    // record — same tracked-only principle as the parcel-level fields above.
+    await this.superAgentRepo.update(superAgent.id, {
+      freeOrdersUsed: isFreeOrder
+        ? superAgent.freeOrdersUsed + 1
+        : superAgent.freeOrdersUsed,
+      totalPlatformFeesCharged:
+        Number(superAgent.totalPlatformFeesCharged) + platformFeeCharged,
+      totalPlatformFeesWaived:
+        Number(superAgent.totalPlatformFeesWaived) + platformFeeWaived,
+    });
 
     // 5. Tracking event
     await this.addTrackingEvent(
@@ -466,16 +498,56 @@ export class SuperAgentsService {
         type: 'super_agent',
       },
     );
-    // Sender confirmation omitted — seller sees result in UI
 
-    // 7. SMS to recipient — heads up that a parcel is coming
-    await this.smsService
-      .sendSms(
-        dto.recipientPhone,
-        `KenteXa: Habari ${dto.recipientName}! ${dto.senderName} amekutumia kifurushi kutoka ${originCity}.\n` +
-          `Kinakuja ${destinationCity}. Fuatilia: kentexa.com/?track=${trackingNumber}`,
-      )
-      .catch((e) => console.warn('SMS to recipient failed:', e.message));
+    // 6. Receipt — evidence the Super Agent received the sender's cash.
+    // Reuses the same transactional receipt-number generator every other
+    // paid invoice in the app uses; created already PAID since the money
+    // changed hands before this call ever ran.
+    const invoice = await this.invoicesService.recordManualPayment(
+      savedOrder,
+      {
+        amount: dto.shippingFeeCollected,
+        paymentMethod: dto.paymentMethod || 'cash',
+        agentId: superAgent.id,
+      },
+    );
+
+    // 7. SMS #1 — to the SENDER only, confirming the cash payment was
+    // received. Never to the receiver — that SMS fires later, from
+    // dispatchParcel(), only once the parcel actually leaves for transport.
+    let senderSmsSent = false;
+    try {
+      senderSmsSent = await this.smsService.sendSms(
+        dto.senderPhone,
+        `SUPER AGENT ${superAgent.businessName}\n\n` +
+          `Malipo yako ya TZS ${dto.shippingFeeCollected.toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}.\n\n` +
+          `Risiti: ${invoice.receiptNumber}\n` +
+          `Imepokewa na: ${superAgent.businessName}\n\n` +
+          `Verified by Kentexa`,
+      );
+    } catch (e: any) {
+      console.warn('Sender payment SMS failed:', e?.message);
+    }
+
+    // Payment/receipt/parcel are already committed above — this is purely
+    // the audit trail + SMS-attempt record, and never blocks the response.
+    await this.auditLog
+      .record({
+        actorId: superAgentUser.id,
+        actorRole: 'super_agent',
+        action: 'parcel.payment_received',
+        entityType: 'parcel',
+        entityId: savedParcel.id,
+        newValue: {
+          receiptNumber: invoice.receiptNumber,
+          amount: dto.shippingFeeCollected,
+          senderPhone: dto.senderPhone,
+          senderSmsSent,
+          platformFeeCharged,
+          platformFeeWaived,
+        },
+      })
+      .catch(() => {});
 
     return {
       success: true,
@@ -486,7 +558,26 @@ export class SuperAgentsService {
       destinationAgent: destAgent?.businessName || null,
       shippingFeeCollected: dto.shippingFeeCollected,
       agentEarnings,
-      message: `Kifurushi kimesajiliwa. SMS imetumwa kwa ${dto.senderPhone} na ${dto.recipientPhone}.`,
+      receiptNumber: invoice.receiptNumber,
+      receipt: {
+        receiptNumber: invoice.receiptNumber,
+        parcelReference: trackingNumber,
+        senderName: dto.senderName,
+        senderPhone: dto.senderPhone,
+        receiverName: dto.recipientName,
+        receiverPhone: dto.recipientPhone,
+        amountPaid: dto.shippingFeeCollected,
+        paymentMethod: dto.paymentMethod || 'cash',
+        superAgentName: superAgent.businessName,
+        superAgentCity: superAgent.city,
+        status: 'paid',
+        paidAt: invoice.paidAt,
+        verifiedByKentexa: true,
+      },
+      senderSmsSent,
+      message: senderSmsSent
+        ? `Kifurushi kimesajiliwa. SMS ya malipo imetumwa kwa ${dto.senderPhone}.`
+        : `Kifurushi kimesajiliwa. Risiti: ${invoice.receiptNumber}. SMS ya malipo haikutumwa — jaribu tena.`,
     };
   }
 
@@ -1137,6 +1228,10 @@ export class SuperAgentsService {
       // busCompany/courierName-based dispatch keeps working exactly as
       // before if this is omitted.
       transportAssignmentId?: number;
+      // Manual transport handoff — driver/vehicle info
+      driverName?: string;
+      driverPhone?: string;
+      vehicleNumber?: string;
       // Other
       dispatchMode?: string;
       notes?: string;
@@ -1151,6 +1246,11 @@ export class SuperAgentsService {
       },
     });
     if (!parcel) throw new NotFoundException('Parcel not found');
+
+    // Ownership check — a Super Agent may only dispatch parcels registered
+    // under their own hub; ADMIN can act on any parcel. This did not exist
+    // anywhere in the parcel-action code paths before.
+    const agent = await this.assertOwnsParcel(user, parcel);
 
     const updates: any = {
       status: ParcelStatus.DISPATCHED,
@@ -1169,6 +1269,10 @@ export class SuperAgentsService {
     if (dto.courierCostReceipt)
       updates.courierCostReceipt = dto.courierCostReceipt;
     if (dto.transportRef) updates.transportRef = dto.transportRef;
+    // Manual driver/vehicle details
+    if (dto.driverName) updates.driverName = dto.driverName;
+    if (dto.driverPhone) updates.driverPhone = dto.driverPhone;
+    if (dto.vehicleNumber) updates.vehicleNumber = dto.vehicleNumber;
 
     // Real registered provider, via a TransportAssignment this super
     // agent already created and had accepted — links the assignment back
@@ -1213,10 +1317,6 @@ export class SuperAgentsService {
 
     await this.parcelRepo.update(parcel.id, updates);
 
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
-
     // Build human-readable tracking note
     let trackNote = 'Imetumwa';
     if (dto.busCompany) {
@@ -1246,7 +1346,199 @@ export class SuperAgentsService {
       },
     );
 
-    return { message: 'Parcel dispatched', trackingNumber };
+    // SMS #2 — to the RECEIVER only, and only now, at actual handoff to
+    // transport. Never fires at registration time, and never goes to the
+    // sender — that SMS already fired from createOfflineIntercityOrder().
+    let receiverSmsSent = false;
+    const transportLine = dto.busCompany
+      ? `Usafiri: ${dto.busCompany}${dto.vehicleNumber ? ` (${dto.vehicleNumber})` : ''}`
+      : dto.courierName
+        ? `Usafiri: ${dto.courierName}`
+        : linkedProviderName
+          ? `Usafiri: ${linkedProviderName}`
+          : null;
+    const referenceLine =
+      dto.busTicketNumber || dto.courierTrackingRef || dto.transportRef
+        ? `Rejea: ${dto.busTicketNumber || dto.courierTrackingRef || dto.transportRef}`
+        : null;
+    if (parcel.buyerPhone) {
+      try {
+        receiverSmsSent = await this.smsService.sendSms(
+          parcel.buyerPhone,
+          `SUPER AGENT ${agent?.businessName || ''}\n\n` +
+            `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa.\n\n` +
+            `Kifurushi: ${trackingNumber}\n` +
+            [transportLine, `Njia: ${parcel.originCity} → ${parcel.destinationCity}`, referenceLine]
+              .filter(Boolean)
+              .join('\n') +
+            `\n\nVerified by Kentexa`,
+        );
+      } catch (e: any) {
+        console.warn('Receiver shipment SMS failed:', e?.message);
+      }
+    }
+
+    await this.auditLog
+      .record({
+        actorId: user.id,
+        actorRole: 'super_agent',
+        action: 'parcel.shipment_confirmed',
+        entityType: 'parcel',
+        entityId: parcel.id,
+        previousValue: { status: parcel.status },
+        newValue: {
+          status: ParcelStatus.DISPATCHED,
+          busCompany: dto.busCompany || null,
+          courierName: dto.courierName || null,
+          driverName: dto.driverName || null,
+          vehicleNumber: dto.vehicleNumber || null,
+          receiverPhone: parcel.buyerPhone,
+          receiverSmsSent,
+        },
+      })
+      .catch(() => {});
+
+    return {
+      message: 'Parcel dispatched',
+      trackingNumber,
+      receiverSmsSent,
+    };
+  }
+
+  // Shared ownership check for the resend actions below — a Super Agent
+  // may only act on their own hub's parcels; ADMIN may act on any.
+  private async assertOwnsParcel(user: User, parcel: Parcel) {
+    const agent = await this.superAgentRepo.findOne({
+      where: { user: { id: user.id } },
+    });
+    const isAdmin =
+      user.role === UserRole.ADMIN ||
+      (user as any).activeRoles?.includes(UserRole.ADMIN);
+    if (!isAdmin && parcel.superAgent?.id !== agent?.id) {
+      throw new ForbiddenException(
+        'You can only act on parcels registered under your own hub.',
+      );
+    }
+    return agent;
+  }
+
+  // "SMS failure must never invalidate a successful transaction... allow
+  // retry" — these two re-run the exact same message a second (or third)
+  // time without touching parcel status or re-charging/re-counting
+  // anything; each attempt gets its own audit-log entry.
+  async resendSenderSms(user: User, trackingNumber: string) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: true, superAgent: true },
+    });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+    await this.assertOwnsParcel(user, parcel);
+    if (!parcel.senderPhone)
+      throw new BadRequestException('This parcel has no sender phone on file.');
+
+    const invoice = parcel.order
+      ? await this.invoicesService.findByOrderId(parcel.order.id).catch(() => null)
+      : null;
+
+    let senderSmsSent = false;
+    try {
+      senderSmsSent = await this.smsService.sendSms(
+        parcel.senderPhone,
+        `SUPER AGENT ${parcel.superAgent?.businessName || ''}\n\n` +
+          `Malipo yako ya TZS ${Number(parcel.actualShippingFee).toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}.\n\n` +
+          (invoice?.receiptNumber ? `Risiti: ${invoice.receiptNumber}\n` : '') +
+          `Imepokewa na: ${parcel.superAgent?.businessName || ''}\n\n` +
+          `Verified by Kentexa`,
+      );
+    } catch (e: any) {
+      console.warn('Resend sender SMS failed:', e?.message);
+    }
+
+    await this.auditLog
+      .record({
+        actorId: user.id,
+        actorRole: 'super_agent',
+        action: 'parcel.payment_sms_resent',
+        entityType: 'parcel',
+        entityId: parcel.id,
+        newValue: { senderPhone: parcel.senderPhone, senderSmsSent },
+      })
+      .catch(() => {});
+
+    return { senderSmsSent };
+  }
+
+  async resendReceiverSms(user: User, trackingNumber: string) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { superAgent: true },
+    });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+    await this.assertOwnsParcel(user, parcel);
+    if (!parcel.buyerPhone)
+      throw new BadRequestException('This parcel has no receiver phone on file.');
+    if (parcel.status === ParcelStatus.PENDING || parcel.status === ParcelStatus.RECEIVED_AT_HUB) {
+      throw new BadRequestException(
+        'This parcel has not been dispatched yet — nothing to resend.',
+      );
+    }
+
+    const transportLine = parcel.busCompany
+      ? `Usafiri: ${parcel.busCompany}${parcel.vehicleNumber ? ` (${parcel.vehicleNumber})` : ''}`
+      : parcel.courierName
+        ? `Usafiri: ${parcel.courierName}`
+        : null;
+    const referenceLine =
+      parcel.busTicketNumber || parcel.courierTrackingRef || parcel.transportRef
+        ? `Rejea: ${parcel.busTicketNumber || parcel.courierTrackingRef || parcel.transportRef}`
+        : null;
+
+    let receiverSmsSent = false;
+    try {
+      receiverSmsSent = await this.smsService.sendSms(
+        parcel.buyerPhone,
+        `SUPER AGENT ${parcel.superAgent?.businessName || ''}\n\n` +
+          `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa.\n\n` +
+          `Kifurushi: ${trackingNumber}\n` +
+          [transportLine, `Njia: ${parcel.originCity} → ${parcel.destinationCity}`, referenceLine]
+            .filter(Boolean)
+            .join('\n') +
+          `\n\nVerified by Kentexa`,
+      );
+    } catch (e: any) {
+      console.warn('Resend receiver SMS failed:', e?.message);
+    }
+
+    await this.auditLog
+      .record({
+        actorId: user.id,
+        actorRole: 'super_agent',
+        action: 'parcel.shipment_sms_resent',
+        entityType: 'parcel',
+        entityId: parcel.id,
+        newValue: { receiverPhone: parcel.buyerPhone, receiverSmsSent },
+      })
+      .catch(() => {});
+
+    return { receiverSmsSent };
+  }
+
+  // Admin-only — grants a Super Agent's founding-pilot free-order
+  // allowance. Additive: repeated calls just set a new total, they don't
+  // stack, so re-running this with the same count is a no-op.
+  async grantFreeOrders(superAgentId: number, count: number) {
+    const agent = await this.superAgentRepo.findOne({
+      where: { id: superAgentId },
+    });
+    if (!agent) throw new NotFoundException('Super Agent not found');
+    await this.superAgentRepo.update(superAgentId, {
+      freeOrdersGranted: count,
+    });
+    return {
+      superAgentId,
+      freeOrdersGranted: count,
+      freeOrdersUsed: agent.freeOrdersUsed,
+    };
   }
 
   // ══════════════════════════════════════════════════════════════════════════

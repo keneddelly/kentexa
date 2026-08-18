@@ -20,6 +20,8 @@ import { BusinessModule } from '../business/business.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
+import { InvoicesModule } from '../invoices/invoices.module';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -47,6 +49,8 @@ import { TransportAssignment } from '../transport/entities/transport-assignment.
     BusinessModule,
     NotificationsModule,
     CommerceProfilesModule,
+    InvoicesModule,
+    AuditLogModule,
   ],
   controllers: [SuperAgentsController],
   providers: [SuperAgentsService],

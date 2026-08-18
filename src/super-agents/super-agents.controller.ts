@@ -124,10 +124,28 @@ export class SuperAgentsController {
   }
 
   // ── Seller: Offline intercity order — customer paid outside KenteXa ──────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Post('offline-intercity')
   createOfflineIntercity(@Request() req, @Body() dto: any) {
     return this.service.createOfflineIntercityOrder(req.user, dto);
+  }
+
+  // Resend the sender's payment-received SMS — never invalidates the
+  // underlying payment/receipt, just retries the notification.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
+  @Post('parcels/:trackingNumber/resend-sender-sms')
+  resendSenderSms(@Request() req, @Param('trackingNumber') tn: string) {
+    return this.service.resendSenderSms(req.user, tn);
+  }
+
+  // Resend the receiver's shipment-confirmed SMS.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
+  @Post('parcels/:trackingNumber/resend-receiver-sms')
+  resendReceiverSms(@Request() req, @Param('trackingNumber') tn: string) {
+    return this.service.resendReceiverSms(req.user, tn);
   }
 
   // Super agent receives parcel from seller
@@ -142,7 +160,8 @@ export class SuperAgentsController {
   }
 
   // Super agent dispatches parcel
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Patch('parcels/:trackingNumber/dispatch')
   dispatchParcel(
     @Request() req,
@@ -242,6 +261,16 @@ export class SuperAgentsController {
   @Patch(':id/suspend')
   suspend(@Param('id') id: string, @Body('reason') reason: string) {
     return this.service.suspend(Number(id), reason);
+  }
+
+  // Grants a Super Agent's founding-pilot free-order allowance (e.g. 50
+  // for the first real Super Agent). Tracked only — see
+  // SuperAgent.freeOrdersGranted/freeOrdersUsed.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/grant-free-orders')
+  grantFreeOrders(@Param('id') id: string, @Body('count') count: number) {
+    return this.service.grantFreeOrders(Number(id), Number(count));
   }
 
   // ── Admin: courier cost reimbursement ledger ────────────────────────────────

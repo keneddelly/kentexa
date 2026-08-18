@@ -67,6 +67,38 @@ export class InvoicesService {
     return this.invoiceRepo.save(invoice) as unknown as Promise<Invoice>;
   }
 
+  // For a payment collected outside the online provider pipeline — e.g. a
+  // Super Agent physically collecting cash at a counter. Skips the normal
+  // AWAITING_PAYMENT→PAID transition entirely since the money already
+  // changed hands before this is ever called; the invoice is created
+  // already PAID, with a receipt number issued immediately. Reuses the
+  // same transactional receipt-number generator every other paid invoice
+  // uses, so there's one numbering scheme, not a second one.
+  async recordManualPayment(
+    order: Order,
+    params: {
+      amount: number;
+      paymentMethod: string;
+      agentId?: number;
+      buyerId?: number | null;
+    },
+  ): Promise<Invoice> {
+    const invoiceNumber = await this.generateInvoiceNumber();
+    const receiptNumber = await this.generateReceiptNumber();
+    const invoice = this.invoiceRepo.create({
+      invoiceNumber,
+      order,
+      buyer: params.buyerId ? ({ id: params.buyerId } as any) : null,
+      amount: params.amount,
+      status: InvoiceStatus.PAID,
+      receiptNumber,
+      paymentMethod: params.paymentMethod,
+      agentId: params.agentId ?? null,
+      paidAt: new Date(),
+    } as any);
+    return this.invoiceRepo.save(invoice) as unknown as Promise<Invoice>;
+  }
+
   async findByOrderId(orderId: number): Promise<Invoice> {
     const invoice = await this.invoiceRepo.findOne({
       where: { order: { id: orderId } },

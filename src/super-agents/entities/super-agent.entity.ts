@@ -171,6 +171,24 @@ export class SuperAgent {
   @Column({ type: 'varchar', nullable: true })
   agentCode: string | null; // Unique code e.g. SA-DAR-001
 
+  // ── Founding-pilot free-order allowance (tracked only, no real billing yet) ──
+  // freeOrdersGranted is 0 for every Super Agent by default; set via the
+  // admin grant-free-orders endpoint for a specific pilot agent. Each
+  // qualifying counter order increments freeOrdersUsed by exactly one
+  // (computed once per created Parcel row, never on retry of an
+  // already-succeeded request) until the grant is exhausted.
+  @Column({ type: 'int', default: 0 })
+  freeOrdersGranted: number;
+
+  @Column({ type: 'int', default: 0 })
+  freeOrdersUsed: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  totalPlatformFeesCharged: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  totalPlatformFeesWaived: number;
+
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

@@ -195,9 +195,32 @@ export class Parcel {
   @Column({ type: 'varchar', nullable: true })
   courierTrackingRef: string | null;
 
+  // ── Manual transport handoff details (Event 2 — shipment confirmed) ──────
+  @Column({ type: 'varchar', nullable: true })
+  driverName: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  driverPhone: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  vehicleNumber: string | null; // bus/vehicle plate — distinct from busTicketNumber
+
   // Platform fee payment
   @Column({ type: 'boolean', default: false })
   platformFeePaid: boolean; // TZS 1,000 paid → tracking activates
+
+  // ── Super Agent counter platform fee (tracked only — no money moves yet) ──
+  // The founding-pilot Super Agent's first N qualifying orders (see
+  // SuperAgent.freeOrdersGranted) waive this; every other order records
+  // what would be charged. Kentexa has no collection mechanism against
+  // Super Agents today (the walk-in cash flow explicitly never touches
+  // KenteXa's money) — these two columns exist purely so future billing
+  // has real per-transaction data to work from.
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  platformFeeCharged: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  platformFeeWaived: number;
 
   // Buyer action at destination
   @Column({ type: 'boolean', nullable: true })
