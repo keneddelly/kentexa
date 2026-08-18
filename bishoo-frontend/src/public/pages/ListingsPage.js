@@ -4,12 +4,16 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useCart } from '../../context/CartContext';
 
-const ListingsPage = ({ onNavigate }) => {
+const VALID_TABS = ['all', 'products', 'classifieds'];
+
+const ListingsPage = ({ onNavigate, initialTab }) => {
   const { t } = useTranslation();
   const [products, setProducts]       = useState([]);
   const [classifieds, setClassifieds] = useState([]);
   const [loading, setLoading]         = useState(true);
-  const [tab, setTab]                 = useState('all');
+  // "See All" from a HomeFeed rail lands here already scoped to that
+  // rail's domain (e.g. Listings-products) instead of the mixed default.
+  const [tab, setTab]                 = useState(VALID_TABS.includes(initialTab) ? initialTab : 'all');
   const [search, setSearch]           = useState('');
   const [searchInput, setSearchInput] = useState('');
   const { addToCart } = useCart();

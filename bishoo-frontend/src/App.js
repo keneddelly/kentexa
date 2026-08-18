@@ -510,6 +510,8 @@ function App() {
       return <Search {...publicProps} initialQuery={page.split('Search-')[1]} aiIntent={navParams?.aiIntent} track={track} />;
     if (page.startsWith('Category-'))
       return <CategoryPage {...publicProps} category={page.split('Category-')[1]} />;
+    if (page.startsWith('Listings-'))
+      return <ListingsPage {...publicProps} initialTab={page.split('Listings-')[1]} />;
     if (page === 'Listings')
       return <ListingsPage {...publicProps} />;
     switch (page) {

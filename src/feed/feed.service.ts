@@ -16,6 +16,9 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { User } from '../users/entities/user.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import { Product } from '../products/entities/products.entity';
+import { TransportRoute } from '../transport/entities/transport-route.entity';
+import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 
@@ -43,6 +46,11 @@ export class FeedService {
     @InjectRepository(Classified)
     private classifiedRepo: Repository<Classified>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
+    @InjectRepository(Product) private productRepo: Repository<Product>,
+    @InjectRepository(TransportRoute)
+    private routeRepo: Repository<TransportRoute>,
+    @InjectRepository(ProviderAvailability)
+    private availabilityRepo: Repository<ProviderAvailability>,
     @InjectRepository(CommerceProfile)
     private commerceProfileRepo: Repository<CommerceProfile>,
     private readonly notifService: InAppNotificationService,
@@ -509,66 +517,166 @@ export class FeedService {
     }
   }
 
+  // ── Rail item shapers ──────────────────────────────────────────────────────
+  // Flat {id, entityId, title, imageUrl, price, category} shape — what
+  // DiscoveryRail's card and TrendingCard actually read. The previous
+  // getTrending() sourced topProducts/topServices from BusinessFeedItem
+  // posts wrapped as {id, data, business, ...} with no top-level title/
+  // imageUrl/price/entityId at all, so both the interleaved rail and the
+  // "trending now" bar silently rendered empty/icon-only cards and (via
+  // DiscoveryRail's goTo()) linked to `ProductDetail-undefined`. These
+  // query the real listing entities directly instead.
+  private toRailProduct(p: Product): any {
+    return {
+      id: 'product-' + p.id,
+      entityId: p.id,
+      title: (p as any).name,
+      imageUrl: (p as any).images?.[0] || null,
+      price: (p as any).displayPrice ?? (p as any).basePrice ?? null,
+      category: (p as any).category || null,
+    };
+  }
+
+  private toRailClassified(c: Classified): any {
+    return {
+      id: 'classified-' + c.id,
+      entityId: c.id,
+      title: c.title,
+      imageUrl: (c as any).images?.[0] || null,
+      price: (c as any).flashSalePrice || (c as any).price || null,
+      category: (c as any).category || null,
+    };
+  }
+
+  private toRailService(s: ServiceAd): any {
+    const provider = (s as any).provider;
+    return {
+      id: 'service-' + s.id,
+      entityId: s.id,
+      title: s.title,
+      imageUrl: (s as any).images?.[0] || null,
+      price: (s as any).price ?? null,
+      category: (s as any).category || null,
+      business: provider
+        ? { id: provider.id, storeName: provider.storeName || provider.name, isFollowing: false }
+        : null,
+    };
+  }
+
   // ── Trending summary ──────────────────────────────────────────────────────
   async getTrending(): Promise<{
     topProducts: any[];
+    topClassifieds: any[];
     topBusinesses: any[];
     topServices: any[];
     topRoutes: any[];
     fastestGrowing: any[];
   }> {
-    const cutoff24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [fastGrowing, topBiz, products, classifieds, topSvc, routes] =
+      await Promise.all([
+        // Fastest growing (CVS gained most in 6h) — real feed posts, unlike
+        // the rail queries below which read the listing entities directly.
+        this.feedRepo
+          .createQueryBuilder('f')
+          .leftJoinAndSelect('f.business', 'b')
+          .where('f.isActive = true')
+          .andWhere('f.createdAt > :cutoff', {
+            cutoff: new Date(Date.now() - 6 * 60 * 60 * 1000),
+          })
+          .orderBy('f.cvsScore', 'DESC')
+          .take(5)
+          .getMany(),
+        // Trending businesses (most new followers)
+        this.userRepo
+          .createQueryBuilder('u')
+          .where("u.role = 'seller'")
+          .andWhere('u."storeName" IS NOT NULL')
+          .orderBy('u.followersCount', 'DESC')
+          .take(10)
+          .getMany(),
+        // Recent products
+        this.productRepo
+          .createQueryBuilder('p')
+          .where('p.isAvailable = true')
+          .orderBy('p.createdAt', 'DESC')
+          .take(10)
+          .getMany(),
+        // Recent classifieds
+        this.classifiedRepo
+          .createQueryBuilder('c')
+          .where("c.status = 'active'")
+          .orderBy('c.createdAt', 'DESC')
+          .take(10)
+          .getMany(),
+        // Popular services
+        this.serviceAdRepo
+          .createQueryBuilder('s')
+          .leftJoinAndSelect('s.provider', 'u')
+          .where("s.status = 'active'")
+          .orderBy('s.rating', 'DESC')
+          .take(10)
+          .getMany(),
+        // Verified providers' active routes
+        this.routeRepo
+          .createQueryBuilder('r')
+          .leftJoinAndSelect('r.provider', 'p')
+          .where('r.isActive = true')
+          .andWhere("p.status = 'verified'")
+          .orderBy('r.createdAt', 'DESC')
+          .take(10)
+          .getMany(),
+      ]);
 
-    const [topPosts, fastGrowing, topBiz, topSvc] = await Promise.all([
-      // Most purchased today
-      this.feedRepo
-        .createQueryBuilder('f')
-        .leftJoinAndSelect('f.business', 'b')
-        .where('f.isActive = true')
-        .andWhere('f.createdAt > :cutoff', { cutoff: cutoff24h })
-        .orderBy('f.purchaseCount', 'DESC')
-        .take(5)
-        .getMany(),
-      // Fastest growing (CVS gained most in 6h)
-      this.feedRepo
-        .createQueryBuilder('f')
-        .leftJoinAndSelect('f.business', 'b')
-        .where('f.isActive = true')
-        .andWhere('f.createdAt > :cutoff', {
-          cutoff: new Date(Date.now() - 6 * 60 * 60 * 1000),
-        })
-        .orderBy('f.cvsScore', 'DESC')
-        .take(5)
-        .getMany(),
-      // Trending businesses (most new followers)
-      this.userRepo
-        .createQueryBuilder('u')
-        .where("u.role = 'seller'")
-        .andWhere('u."storeName" IS NOT NULL')
-        .orderBy('u.followersCount', 'DESC')
-        .take(5)
-        .getMany(),
-      // Popular services
-      this.serviceAdRepo
-        .createQueryBuilder('s')
-        .leftJoinAndSelect('s.provider', 'u')
-        .where("s.status = 'active'")
-        .orderBy('s.rating', 'DESC')
-        .take(5)
-        .getMany(),
-    ]);
+    const fastestGrowingFormatted = await this.formatPosts(fastGrowing, 'trending');
 
-    const [topProductsFormatted, fastestGrowingFormatted] = await Promise.all([
-      this.formatPosts(topPosts, 'trending'),
-      this.formatPosts(fastGrowing, 'trending'),
-    ]);
+    // Today's published trip capacity for the shown routes — best-effort;
+    // a route with nothing published today just omits the slot count
+    // rather than showing a fabricated one.
+    const today = new Date().toISOString().slice(0, 10);
+    const routeIds = routes.map((r) => r.id);
+    const availabilityByRouteId = new Map<number, number>();
+    if (routeIds.length) {
+      const todaysAvailability = await this.availabilityRepo.find({
+        where: { routeId: In(routeIds), date: today },
+      });
+      for (const a of todaysAvailability) {
+        if (a.routeId == null) continue;
+        availabilityByRouteId.set(a.routeId, Math.max(0, a.totalSlots - a.usedSlots));
+      }
+    }
+
+    const topRoutes = routes.map((r) => {
+      const routeLabel =
+        r.routeType === 'intercity' && r.originCity && r.destinationCity
+          ? `${r.originCity} → ${r.destinationCity}`
+          : r.routeType === 'local_loop' && r.loopStops?.length
+            ? r.loopStops.join(' → ')
+            : r.coverageCity || r.coverageWards?.join(', ') || '';
+      return {
+        id: 'route-' + r.id,
+        entityId: r.id,
+        routeType: r.routeType,
+        routeLabel,
+        location: r.originCity || r.coverageCity || null,
+        pricePerKg: r.pricePerKg || null,
+        fixedFee: r.fixedFee || null,
+        maxWeightKg: r.provider?.defaultMaxWeightKg || null,
+        slotsAvailable: availabilityByRouteId.get(r.id) ?? null,
+        provider: {
+          id: r.provider?.userId,
+          name: r.provider?.name,
+          logoUrl: r.provider?.logoUrl || null,
+        },
+      };
+    });
 
     return {
-      topProducts: topProductsFormatted,
+      topProducts: products.map((p) => this.toRailProduct(p)),
+      topClassifieds: classifieds.map((c) => this.toRailClassified(c)),
       fastestGrowing: fastestGrowingFormatted,
       topBusinesses: this.formatBusinesses(topBiz),
-      topServices: this.formatServices(topSvc),
-      topRoutes: [], // populated from transport data
+      topServices: topSvc.map((s) => this.toRailService(s)),
+      topRoutes,
     };
   }
 

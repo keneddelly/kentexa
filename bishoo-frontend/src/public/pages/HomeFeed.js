@@ -951,16 +951,28 @@ const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
 };
 
 // ── Discovery rail — small horizontal-scroll row interleaved between posts ──
+// A sample only — like an advertisement strip, not the full catalogue.
+// "See All" is how a user actually compares every option; each destination
+// is the same real browse page Search/navigation already uses elsewhere,
+// never a second listing system built just for this rail.
 const getRailConfig = t => ({
-  product:    { title: t('home_feed.rail_products_title'),   detailPage: 'ProductDetail'    },
-  classified: { title: t('home_feed.rail_classifieds_title'),            detailPage: 'ClassifiedDetail'  },
-  service:    { title: t('home_feed.rail_services_title'),           detailPage: 'ServiceDetail'     },
-  store:      { title: t('home_feed.rail_stores_title'),         detailPage: null }, // navigates to CommerceProfile
+  product:    { title: t('home_feed.rail_products_title'),    detailPage: 'ProductDetail',    seeAllPage: 'Listings-products' },
+  classified: { title: t('home_feed.rail_classifieds_title'), detailPage: 'ClassifiedDetail',  seeAllPage: 'ClassifiedsPublic' },
+  service:    { title: t('home_feed.rail_services_title'),    detailPage: 'ServiceDetail',     seeAllPage: 'Services' },
+  store:      { title: t('home_feed.rail_stores_title'),      detailPage: null,                seeAllPage: 'Stores' }, // navigates to CommerceProfile
+  transport:  { title: t('home_feed.rail_transport_title'),   detailPage: null,                seeAllPage: 'RouteCoverageMap' }, // navigates to the provider's transport profile
+});
+
+const ROUTE_TYPE_LABELS = t => ({
+  intercity:  t('home_feed.route_type_intercity'),
+  local_loop: t('home_feed.route_type_local_loop'),
+  last_mile:  t('home_feed.route_type_last_mile'),
 });
 
 const DiscoveryRail = ({ type, items, onNavigate }) => {
   const { t } = useTranslation();
   const RAIL_CONFIG = getRailConfig(t);
+  const ROUTE_LABELS = ROUTE_TYPE_LABELS(t);
   if (!items?.length) return null;
   const cfg = RAIL_CONFIG[type];
 
@@ -970,13 +982,24 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
       if (bizId) onNavigate(`CommerceProfile-${bizId}`);
       return;
     }
+    if (type === 'transport') {
+      if (item.provider?.id) onNavigate(`CommerceProfile-${item.provider.id}-transport`);
+      return;
+    }
     onNavigate(`${cfg.detailPage}-${item.entityId}`);
   };
 
   return (
     <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9', padding:'12px 0 10px' }}>
-      <div style={{ fontSize:13, fontWeight:800, color:DK, padding:'0 14px 10px' }}>
-        {cfg.title}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px 10px' }}>
+        <div style={{ fontSize:13, fontWeight:800, color:DK }}>{cfg.title}</div>
+        {cfg.seeAllPage && (
+          <button onClick={() => onNavigate(cfg.seeAllPage)}
+            style={{ background:'none', border:'none', cursor:'pointer', padding:0,
+              fontSize:12, fontWeight:700, color:B }}>
+            {t('home_feed.see_all')} →
+          </button>
+        )}
       </div>
       <div style={{ display:'flex', gap:10, overflowX:'auto', padding:'0 14px', scrollbarWidth:'none' }}>
         {items.slice(0, 10).map(item => (
@@ -993,6 +1016,47 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
               <div style={{ fontSize:11, fontWeight:700, color:DK,
                 overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                 {item.storeName || item.name}
+              </div>
+            </div>
+          ) : type === 'transport' ? (
+            <div key={item.id} onClick={() => goTo(item)}
+              style={{ flexShrink:0, width:150, cursor:'pointer' }}>
+              <div style={{ width:150, height:100, borderRadius:12, backgroundColor:'#F1F5F9',
+                overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center',
+                marginBottom:6 }}>
+                {/* Real image the company uploaded at registration — never
+                    a generic vehicle-type icon when a real photo exists. */}
+                {item.provider?.logoUrl
+                  ? <img src={item.provider.logoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  : <span style={{ fontSize:28 }}>🚚</span>}
+              </div>
+              <div style={{ fontSize:11, fontWeight:700, color:DK, marginBottom:2,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {item.routeLabel}
+              </div>
+              {item.routeType && (
+                <div style={{ fontSize:10, color:GR, marginBottom:2 }}>
+                  {ROUTE_LABELS[item.routeType] || item.routeType}
+                </div>
+              )}
+              {(item.pricePerKg || item.fixedFee || item.maxWeightKg) && (
+                <div style={{ fontSize:11, fontWeight:800, color:B, marginBottom:2 }}>
+                  {item.pricePerKg
+                    ? t('home_feed.transport_price_per_kg', { amount: fmt(item.pricePerKg) })
+                    : item.fixedFee ? `TZS ${fmt(item.fixedFee)}` : ''}
+                  {item.maxWeightKg ? ` · ${t('home_feed.rail_transport_weight', { kg: fmt(item.maxWeightKg) })}` : ''}
+                </div>
+              )}
+              {item.location && (
+                <div style={{ fontSize:10, color:GR, marginBottom:2,
+                  overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                  📍 {item.location}
+                </div>
+              )}
+              {/* Logistics company name, beneath everything else */}
+              <div style={{ fontSize:10, fontWeight:700, color:DK,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {item.provider?.name}
               </div>
             </div>
           ) : (
@@ -1715,7 +1779,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
       ) : (
         <>
           {posts.map((post, i) => {
-            const railTypes = ['product', 'classified', 'service', 'store'];
+            const railTypes = ['product', 'classified', 'service', 'store', 'transport'];
             // Every 4th post for a normal-sized feed — but also guarantee at
             // least one rail shows even in a thin feed (e.g. a fresh launch
             // with limited posts seeded yet), where "every 4th" might never
@@ -1730,10 +1794,17 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               classified: trending.topClassifieds,
               service:    trending.topServices,
               store:      trending.topBusinesses?.map(b => b.business).filter(Boolean),
+              transport:  trending.topRoutes,
             }[railType];
 
-            const isTransportPost =
-              post.entityType === 'route' || post.feedType === 'route' || post.linkedEntityType === 'route';
+            // Individual route posts only get the full-width transport card
+            // on the dedicated Transport tab (a deliberate browse action).
+            // On the general feed, transport is a sample — the rail above
+            // (with its own "See All") is that sample; a route landing in
+            // the general feed's real-post fallback just renders as a
+            // normal post rather than a second, redundant full-width ad.
+            const isTransportPost = filter === 'transport' &&
+              (post.entityType === 'route' || post.feedType === 'route' || post.linkedEntityType === 'route');
 
             return (
               <React.Fragment key={post.id || i}>
