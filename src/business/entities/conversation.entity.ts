@@ -44,6 +44,16 @@ export class Conversation {
   @Column({ name: 'customer_id', nullable: true })
   customerId: number | null;
 
+  // Which of the seller's CommerceProfiles this conversation concerns —
+  // plain nullable id (not a relation), same pattern as
+  // Classified/BusinessFeedItem.commerceProfileId. A buyer messaging about
+  // a personal-profile classified and separately about a business-profile
+  // product from the same seller account must land in two conversations
+  // that each show the correct identity, not one indistinguishable thread
+  // keyed to the raw seller User row. Set once at creation, never changed.
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
   // Assigned team member
   @ManyToOne(() => User, { nullable: true, eager: false })
   @JoinColumn({ name: 'assigned_to_id' })

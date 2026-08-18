@@ -409,6 +409,16 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                           cursor: 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10 }}>
                         {t('service_detail.request_service_button')}
                       </button>
+                      {ad.provider?.id && (
+                        <button onClick={() => onNavigate(`MessageSeller-${ad.provider.id}`,
+                            ad.commerceProfile?.id ? { commerceProfileId: ad.commerceProfile.id } : undefined)}
+                          style={{ display: 'block', textAlign: 'center', width: '100%',
+                            backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
+                            borderRadius: 12, padding: '12px 0', fontSize: 14, cursor: 'pointer',
+                            fontWeight: 700, boxSizing: 'border-box', marginBottom: waPhone ? 10 : 0 }}>
+                          💬 {t('service_detail.message_provider_button')}
+                        </button>
+                      )}
                       {waPhone && (
                         <a href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waMsg)}`}
                           target="_blank" rel="noreferrer"

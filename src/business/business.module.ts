@@ -10,6 +10,7 @@ import { ConversationService } from './conversation.service';
 import { SellerScopeService } from './seller-scope.service';
 import { BusinessController } from './business.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       Order,
     ]),
     NotificationsModule,
+    CommerceProfilesModule,
   ],
   controllers: [BusinessController],
   providers: [BusinessCustomerService, ConversationService, SellerScopeService],

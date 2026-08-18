@@ -13,6 +13,7 @@ import { Review } from '../store/review.entity';
 import { ProductReview } from '../products/entities/product-review.entity';
 import { SearchIndexService } from '../search/search-index.service';
 import { AiSellerEnrichmentService } from '../ai/ai-seller-enrichment.service';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -47,6 +48,7 @@ export class CommerceProfilesService {
     private productReviewRepo: Repository<ProductReview>,
     private readonly searchIndex: SearchIndexService,
     private readonly aiEnrichment: AiSellerEnrichmentService,
+    private readonly notifService: InAppNotificationService,
   ) {}
 
   // Shared by createProfile()/updatePublicFields() — runs the AI enrichment
@@ -282,6 +284,23 @@ export class CommerceProfilesService {
       await this.repo.increment({ id: commerceProfileId }, 'followersCount', 1);
     }
     const profile = await this.findById(commerceProfileId);
+
+    // Notify on a genuine new follow only, never on unfollow. The one
+    // caller newFollower() was actually built for — the entity/method
+    // already existed with a commerceProfileId param, just never wired to
+    // anything that fires it.
+    if (!existing && profile.ownerId && profile.ownerId !== followerId) {
+      const follower = await this.userRepo.findOne({ where: { id: followerId } });
+      this.notifService
+        .newFollower(
+          profile.ownerId,
+          follower?.name || follower?.storeName || 'Mtumiaji',
+          followerId,
+          commerceProfileId,
+        )
+        .catch(() => {});
+    }
+
     return { following: !existing, followersCount: profile.followersCount };
   }
 

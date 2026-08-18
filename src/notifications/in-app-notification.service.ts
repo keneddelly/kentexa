@@ -244,6 +244,7 @@ export class InAppNotificationService {
     businessUserId: number,
     followerName: string,
     followerId?: number,
+    commerceProfileId?: number,
   ) {
     await this.notify({
       userId: businessUserId,
@@ -252,6 +253,7 @@ export class InAppNotificationService {
       body: `${followerName} ameanza kufuata biashara yako.`,
       actionPage: 'CommerceProfile',
       actionParam: followerId ? String(followerId) : undefined,
+      actionCommerceProfileId: commerceProfileId || undefined,
       icon: '👤',
     });
   }

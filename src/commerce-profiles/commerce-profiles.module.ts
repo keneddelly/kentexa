@@ -16,6 +16,7 @@ import { CommerceProfileScopeService } from './commerce-profile-scope.service';
 import { CommerceProfilesController } from './commerce-profiles.controller';
 import { SearchModule } from '../search/search.module';
 import { AiModule } from '../ai/ai.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AiModule } from '../ai/ai.module';
     ]),
     SearchModule,
     AiModule,
+    NotificationsModule,
   ],
   controllers: [CommerceProfilesController],
   providers: [

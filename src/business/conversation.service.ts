@@ -26,6 +26,7 @@ import { BusinessTeamMember } from './entities/business-team-member.entity';
 import { BusinessCustomerService } from './business-customer.service';
 import { User } from '../users/entities/user.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 
 @Injectable()
 export class ConversationService {
@@ -40,7 +41,39 @@ export class ConversationService {
     private teamMemberRepo: Repository<BusinessTeamMember>,
     private customerService: BusinessCustomerService,
     private notifService: InAppNotificationService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
+
+  // Batched — resolves whatever distinct commerceProfileIds appear among a
+  // page of conversations in parallel, not one lookup per row. Attaches
+  // {displayName, photoUrl} so the inbox can show the actual identity a
+  // conversation concerns instead of always the seller's raw account name.
+  // Conversations that predate this column (commerceProfileId null) simply
+  // get commerceProfile: null — the caller falls back to raw fields.
+  private async attachCommerceProfiles<T extends { commerceProfileId: number | null }>(
+    conversations: T[],
+  ): Promise<(T & { commerceProfile: { id: number; displayName: string; photoUrl: string | null } | null })[]> {
+    const ids = [
+      ...new Set(
+        conversations.map((c) => c.commerceProfileId).filter((id): id is number => !!id),
+      ),
+    ];
+    const profiles = await Promise.all(
+      ids.map((id) => this.commerceProfiles.findById(id).catch(() => null)),
+    );
+    const profileMap = new Map(
+      profiles.filter(Boolean).map((p) => [p!.id, p!]),
+    );
+    return conversations.map((c) => ({
+      ...c,
+      commerceProfile: c.commerceProfileId
+        ? (() => {
+            const p = profileMap.get(c.commerceProfileId!);
+            return p ? { id: p.id, displayName: p.displayName, photoUrl: p.photoUrl } : null;
+          })()
+        : null,
+    }));
+  }
 
   // ── Get all conversations for seller ─────────────────────────────────────
 
@@ -86,7 +119,12 @@ export class ConversationService {
       .andWhere('c.unreadCount > 0')
       .getCount();
 
-    return { conversations, total, page, unread };
+    return {
+      conversations: await this.attachCommerceProfiles(conversations),
+      total,
+      page,
+      unread,
+    };
   }
 
   // ── Get all conversations for a buyer (as the customer, across sellers) ──
@@ -122,7 +160,12 @@ export class ConversationService {
       .andWhere('c.buyerUnreadCount > 0')
       .getCount();
 
-    return { conversations, total, page, unread };
+    return {
+      conversations: await this.attachCommerceProfiles(conversations),
+      total,
+      page,
+      unread,
+    };
   }
 
   // ── Get or create conversation ────────────────────────────────────────────
@@ -130,6 +173,7 @@ export class ConversationService {
   async getOrCreateConversation(
     sellerId: number,
     customerId: number,
+    commerceProfileId?: number | null,
   ): Promise<Conversation> {
     let convo = await this.convoRepo.findOne({
       where: {
@@ -149,12 +193,29 @@ export class ConversationService {
       });
       if (!customer) throw new NotFoundException('Customer not found');
 
+      // Never trust a client-supplied commerceProfileId blindly — must
+      // actually belong to this seller, same authorization posture as
+      // FeedService.publish()/ClassifiedsService.create(). An id that
+      // doesn't check out is silently dropped rather than rejecting the
+      // whole message — the conversation still opens, just without a
+      // specific identity attached (same as messaging with no context).
+      let verifiedProfileId: number | null = null;
+      if (commerceProfileId) {
+        const profile = await this.commerceProfiles
+          .findById(commerceProfileId)
+          .catch(() => null);
+        if (profile && profile.ownerId === sellerId) {
+          verifiedProfileId = commerceProfileId;
+        }
+      }
+
       convo = this.convoRepo.create({
         sellerId,
         customerId,
         status: ConversationStatus.OPEN,
         channel: customer.channel || 'kentexa',
         subject: `Mazungumzo na ${customer.name}`,
+        commerceProfileId: verifiedProfileId,
       });
       convo = await this.convoRepo.save(convo);
       convo.customer = customer;
@@ -171,6 +232,7 @@ export class ConversationService {
   async getOrCreateConversationAsBuyer(
     buyer: User,
     sellerId: number,
+    commerceProfileId?: number | null,
   ): Promise<Conversation> {
     if (sellerId === buyer.id) {
       throw new BadRequestException('Cannot message yourself');
@@ -183,7 +245,7 @@ export class ConversationService {
       email: buyer.email,
     });
 
-    return this.getOrCreateConversation(sellerId, customer.id);
+    return this.getOrCreateConversation(sellerId, customer.id, commerceProfileId);
   }
 
   // ── Get messages in a conversation ───────────────────────────────────────
@@ -204,7 +266,8 @@ export class ConversationService {
     // Mark as read
     await this.convoRepo.update(conversationId, { unreadCount: 0 });
 
-    return { conversation: convo, messages };
+    const [conversation] = await this.attachCommerceProfiles([convo]);
+    return { conversation, messages };
   }
 
   // ── Get messages in a conversation, as the BUYER ──────────────────────────
@@ -226,7 +289,8 @@ export class ConversationService {
 
     await this.convoRepo.update(conversationId, { buyerUnreadCount: 0 });
 
-    return { conversation: convo, messages };
+    const [conversation] = await this.attachCommerceProfiles([convo]);
+    return { conversation, messages };
   }
 
   // ── Send a message ────────────────────────────────────────────────────────
@@ -280,13 +344,19 @@ export class ConversationService {
 
     // Notify the buyer — internal notes are seller-only, never surfaced.
     // "MessageSeller-{sellerId}" is the exact route SellerInbox.js already
-    // uses to open this conversation as the buyer.
+    // uses to open this conversation as the buyer. The conversation's own
+    // commerceProfileId (the identity this thread concerns) wins over the
+    // seller's raw account fields when set — a personal-profile classified
+    // conversation shouldn't show the business brand, or vice versa.
     if (!dto.isNote && convo.customer?.userId) {
+      const senderProfile = convo.commerceProfileId
+        ? await this.commerceProfiles.findById(convo.commerceProfileId).catch(() => null)
+        : null;
       this.notifService
         .notify({
           userId: convo.customer.userId,
           type: 'message',
-          title: `💬 ${sender.storeName || sender.name || 'Muuzaji'}`,
+          title: `💬 ${senderProfile?.displayName || sender.storeName || sender.name || 'Muuzaji'}`,
           body: dto.content?.slice(0, 80) || '📷 Picha',
           icon: '💬',
           actionPage: 'MessageSeller',

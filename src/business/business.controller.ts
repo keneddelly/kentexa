@@ -253,10 +253,14 @@ export class BusinessController {
   }
 
   @Post('my-conversations/start')
-  startConversationAsBuyer(@Request() req, @Body() body: { sellerId: number }) {
+  startConversationAsBuyer(
+    @Request() req,
+    @Body() body: { sellerId: number; commerceProfileId?: number },
+  ) {
     return this.conversationService.getOrCreateConversationAsBuyer(
       req.user,
       body.sellerId,
+      body.commerceProfileId,
     );
   }
 

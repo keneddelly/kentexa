@@ -382,10 +382,18 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                   </div>
                 </div>
               </div>
-              <button onClick={() => product.seller?.id && onNavigate(`CommerceProfile-${product.seller.id}`, sellerNavParams)}
-                style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1.5px solid #bfdbfe', padding: '7px 13px', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                {t('product_detail.visit_store')}
-              </button>
+              <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                {product.seller?.id && currentUser?.id !== product.seller.id && (
+                  <button onClick={() => onNavigate(`MessageSeller-${product.seller.id}`, sellerNavParams)}
+                    style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1.5px solid #bbf7d0', padding: '7px 13px', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    💬 {t('product_detail.message_seller')}
+                  </button>
+                )}
+                <button onClick={() => product.seller?.id && onNavigate(`CommerceProfile-${product.seller.id}`, sellerNavParams)}
+                  style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1.5px solid #bfdbfe', padding: '7px 13px', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  {t('product_detail.visit_store')}
+                </button>
+              </div>
             </div>
 
             {isLoggedIn && currentUser?.id === product.seller?.id && (

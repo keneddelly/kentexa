@@ -502,6 +502,12 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                   </div>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {classified.seller?.id && (
+                      <button onClick={() => onNavigate(`MessageSeller-${classified.seller.id}`, sellerNavParams)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+                        💬 {t('classified_detail.message_seller')}
+                      </button>
+                    )}
                     {contactInfo?.sellerPhone && (
                       <a href={`https://wa.me/${contactInfo.sellerPhone?.replace('+','')}?text=${encodeURIComponent(`Hi, I'm interested in: ${classified.title}`)}`} target="_blank" rel="noreferrer"
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, backgroundColor: '#25D366', color: '#fff', borderRadius: 10, textDecoration: 'none', fontSize: 13, fontWeight: 800 }}>

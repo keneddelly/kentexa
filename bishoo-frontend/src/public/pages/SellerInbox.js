@@ -24,9 +24,15 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
   const isBuyerSide = convo._mode === 'buyer';
   // Buyer side of the table shows the SELLER (who I'm talking to); seller
   // side shows the CUSTOMER — same component, other party's name either way.
+  // convo.commerceProfile (resolved from the conversation's own stored
+  // commerceProfileId) wins over the seller's raw account fields when
+  // present — a conversation about a personal-profile classified shouldn't
+  // show the seller's business brand, or vice versa. Customers don't run
+  // commerce profiles, so the seller-side name is unaffected.
   const name = isBuyerSide
-    ? (convo.seller?.storeName || convo.seller?.name || t('seller_inbox.seller_fallback'))
+    ? (convo.commerceProfile?.displayName || convo.seller?.storeName || convo.seller?.name || t('seller_inbox.seller_fallback'))
     : (convo.customer?.name || t('seller_inbox.customer_fallback'));
+  const photo = isBuyerSide ? convo.commerceProfile?.photoUrl : null;
   const initial = name[0].toUpperCase();
   const unread = isBuyerSide ? convo.buyerUnreadCount : convo.unreadCount;
   const time = convo.lastMessageAt
@@ -43,8 +49,9 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
       <div style={{ width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
         background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 18, fontWeight: 900, color: '#fff', position: 'relative' }}>
-        {initial}
+        fontSize: 18, fontWeight: 900, color: '#fff', position: 'relative',
+        overflow: 'hidden' }}>
+        {photo ? <img src={photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : initial}
         {unread > 0 && (
           <div style={{ position: 'absolute', top: -2, right: -2, width: 16, height: 16,
             backgroundColor: '#dc2626', borderRadius: '50%', fontSize: 9,
@@ -150,7 +157,7 @@ const MessageBubble = ({ msg, mode, t }) => {
   );
 };
 
-const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId }) => {
   const { t, i18n } = useTranslation();
   const canSell = ['seller', 'admin', 'manager'].includes(userRole);
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
@@ -184,6 +191,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole }) => {
         try {
           const r = await api.post('/business/my-conversations/start', {
             sellerId: Number(sellerId),
+            commerceProfileId: messageCommerceProfileId ? Number(messageCommerceProfileId) : undefined,
           });
           const convo = { ...r.data, _mode: 'buyer' };
           setConversations([convo]);
@@ -235,7 +243,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole }) => {
       setConversations(merged);
     } catch {} finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, initialCustomerId, sellerId]);
+  }, [filter, initialCustomerId, sellerId, messageCommerceProfileId]);
 
   const fetchMessages = async (convo) => {
     try {
@@ -415,7 +423,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole }) => {
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 14, fontWeight: 800 }}>
                   {active._mode === 'buyer'
-                    ? (active.seller?.storeName || active.seller?.name || t('seller_inbox.seller_fallback'))
+                    ? (active.commerceProfile?.displayName || active.seller?.storeName || active.seller?.name || t('seller_inbox.seller_fallback'))
                     : (active.customer?.name || t('seller_inbox.customer_fallback'))}
                 </div>
                 <div style={{ fontSize: 11, color: '#64748b' }}>
