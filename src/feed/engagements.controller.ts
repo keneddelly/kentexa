@@ -65,6 +65,10 @@ import { ServiceAd } from '../services/entities/service-ad.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { User } from '../users/entities/user.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import {
+  CommerceProfilesService,
+} from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 export type CommentFilter = 'all' | 'reviews' | 'questions' | 'media';
 
@@ -116,12 +120,20 @@ export class EntityOwnerResolver {
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
     @InjectRepository(TransportRoute)
     private routeRepo: Repository<TransportRoute>,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
+  // Resolves which CommerceProfile actually owns this piece of content, not
+  // just the raw account — a save/comment notification's actionCommerceProfileId
+  // comes from here, so tapping it lands on the right identity (e.g. the
+  // business that owns a classified, not the owner's personal profile by
+  // default) instead of the ambiguous-bare-id fallback CommerceProfile.js
+  // otherwise falls back to. null when nothing resolves — callers already
+  // handle that the same way they handle no commerceProfileId at all today.
   async resolve(
     entityType: string,
     entityId: number,
-  ): Promise<{ ownerId: number; title: string } | null> {
+  ): Promise<{ ownerId: number; title: string; commerceProfileId: number | null } | null> {
     try {
       if (entityType === 'classified') {
         const c = await this.classifiedRepo.findOne({
@@ -129,7 +141,7 @@ export class EntityOwnerResolver {
           relations: { seller: true },
         });
         if (!c?.seller) return null;
-        return { ownerId: c.seller.id, title: c.title };
+        return { ownerId: c.seller.id, title: c.title, commerceProfileId: c.commerceProfileId };
       }
       if (entityType === 'product') {
         const p = await this.productRepo.findOne({
@@ -137,7 +149,17 @@ export class EntityOwnerResolver {
           relations: { seller: true },
         });
         if (!p?.seller) return null;
-        return { ownerId: (p as any).seller.id, title: (p as any).name };
+        // Products are business-only by established convention (never
+        // posted from a personal profile) — same resolution
+        // ProductsService.findOne() already does for its own "sold by".
+        const profile = await this.commerceProfiles
+          .findForUserByType((p as any).seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null);
+        return {
+          ownerId: (p as any).seller.id,
+          title: (p as any).name,
+          commerceProfileId: profile?.id ?? null,
+        };
       }
       if (entityType === 'service' || entityType === 'new_service') {
         const s = await this.serviceAdRepo.findOne({
@@ -145,7 +167,16 @@ export class EntityOwnerResolver {
           relations: { provider: true },
         });
         if (!s?.provider) return null;
-        return { ownerId: (s as any).provider.id, title: (s as any).title };
+        // Same BUSINESS-profile fallback ServicesService.getById() already
+        // uses — no dedicated service-provider CommerceProfile flow exists.
+        const profile = await this.commerceProfiles
+          .findForUserByType((s as any).provider.id, CommerceProfileType.BUSINESS)
+          .catch(() => null);
+        return {
+          ownerId: (s as any).provider.id,
+          title: (s as any).title,
+          commerceProfileId: profile?.id ?? null,
+        };
       }
       if (entityType === 'route') {
         const r = await this.routeRepo.findOne({
@@ -153,12 +184,19 @@ export class EntityOwnerResolver {
           relations: { provider: true },
         });
         if (!r?.provider?.userId) return null;
-        return { ownerId: r.provider.userId, title: routeTitle(r) };
+        const profile = await this.commerceProfiles
+          .findForUserByType(r.provider.userId, CommerceProfileType.TRANSPORT_PROVIDER)
+          .catch(() => null);
+        return {
+          ownerId: r.provider.userId,
+          title: routeTitle(r),
+          commerceProfileId: profile?.id ?? null,
+        };
       }
       // NEW — 'business' entityType: the entityId IS the owner's userId
       // directly (same convention as BusinessFeedItem.businessId).
       if (entityType === 'business') {
-        return { ownerId: entityId, title: '' };
+        return { ownerId: entityId, title: '', commerceProfileId: null };
       }
     } catch {
       /* entity gone or bad id — just skip notifying */
@@ -404,6 +442,10 @@ export class EngagementsController {
           entityType === 'business'
             ? `${entityId}-feed`
             : `${entityId}-comments`,
+        // Which specific profile owns this content — without it, a save on
+        // a business-owned classified still lands the owner on their
+        // personal profile by default when they tap the notification.
+        actionCommerceProfileId: owner.commerceProfileId || undefined,
       });
     } else {
       const preview =
@@ -420,6 +462,7 @@ export class EngagementsController {
           entityType === 'business'
             ? `${entityId}-feed`
             : `${entityId}-comments`,
+        actionCommerceProfileId: owner.commerceProfileId || undefined,
       });
     }
   }
@@ -720,6 +763,7 @@ export class CommentsController {
         dto.entityId,
         'comment',
         dto.body,
+        dto.commerceProfileId,
       ).catch(() => {});
     }
 
@@ -971,12 +1015,20 @@ export class CommentsController {
     entityId: number,
     kind: 'save' | 'comment',
     commentBody?: string,
+    actorCommerceProfileId?: number | null,
   ): Promise<void> {
     const owner = await this.owners.resolve(entityType, entityId);
     if (!owner || owner.ownerId === actorId) return;
 
     const actor = await this.userRepo.findOne({ where: { id: actorId } });
-    const actorName = actor?.storeName || actor?.name || 'Someone';
+    // The commenter's own acting-as profile (already stored on PostComment,
+    // just never read back out here) wins over their raw account name —
+    // a comment left while acting as a business should say so, not always
+    // show the personal account name underneath it.
+    const actorProfile = actorCommerceProfileId
+      ? await this.commerceProfileRepo.findOne({ where: { id: actorCommerceProfileId } }).catch(() => null)
+      : null;
+    const actorName = actorProfile?.displayName || actor?.storeName || actor?.name || 'Someone';
     const preview =
       (commentBody || '').slice(0, 60) +
       ((commentBody || '').length > 60 ? '...' : '');
@@ -990,6 +1042,7 @@ export class CommentsController {
       actionPage: resolveActionPage(entityType),
       actionParam:
         entityType === 'business' ? `${entityId}-feed` : `${entityId}-comments`,
+      actionCommerceProfileId: owner.commerceProfileId || undefined,
     });
   }
 }

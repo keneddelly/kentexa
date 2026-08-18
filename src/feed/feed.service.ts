@@ -21,6 +21,7 @@ import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 
 export type FeedFilter =
   | 'for_you'
@@ -55,6 +56,7 @@ export class FeedService {
     private commerceProfileRepo: Repository<CommerceProfile>,
     private readonly notifService: InAppNotificationService,
     private readonly profileScope: CommerceProfileScopeService,
+    private readonly commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Publish a post ────────────────────────────────────────────────────────
@@ -206,12 +208,10 @@ export class FeedService {
 
     let followedIds = new Set<number>();
     if (viewerId) {
-      const rows: { sellerId: number }[] = await this.feedRepo
-        .query('SELECT "sellerId" FROM follow WHERE "followerId" = $1', [
-          viewerId,
-        ])
+      const ids = await this.commerceProfiles
+        .getFollowedSellerIds(viewerId)
         .catch(() => []);
-      followedIds = new Set(rows.map((r) => r.sellerId));
+      followedIds = new Set(ids);
     }
 
     // Same fix as CvsService.getFilteredFeed: a story ring circle must show
@@ -360,16 +360,15 @@ export class FeedService {
 
       case 'following': {
         if (!userId) return { items: [], total: 0 };
+        const followedSellerIds = await this.commerceProfiles
+          .getFollowedSellerIds(userId)
+          .catch(() => []);
+        if (followedSellerIds.length === 0) return { items: [], total: 0 };
         const posts = await this.feedRepo
           .createQueryBuilder('f')
           .leftJoinAndSelect('f.business', 'b')
-          .innerJoin(
-            'follow',
-            'sf',
-            'sf."sellerId" = f."businessId" AND sf."followerId" = :uid',
-            { uid: userId },
-          )
           .where('f.isActive = true')
+          .andWhere('f."businessId" IN (:...ids)', { ids: followedSellerIds })
           .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
           .orderBy('f.createdAt', 'DESC')
           .skip(offset)
@@ -457,18 +456,18 @@ export class FeedService {
       case 'for_you':
       default: {
         // Mix: followed posts + nearby + trending + recent
+        const forYouFollowedSellerIds = userId
+          ? await this.commerceProfiles.getFollowedSellerIds(userId).catch(() => [])
+          : [];
         const [followed, trending, recent] = await Promise.all([
-          userId
+          forYouFollowedSellerIds.length > 0
             ? this.feedRepo
                 .createQueryBuilder('f')
                 .leftJoinAndSelect('f.business', 'b')
-                .innerJoin(
-                  'follow',
-                  'sf',
-                  'sf."sellerId" = f."businessId" AND sf."followerId" = :uid',
-                  { uid: userId },
-                )
                 .where('f.isActive = true')
+                .andWhere('f."businessId" IN (:...ids)', {
+                  ids: forYouFollowedSellerIds,
+                })
                 .orderBy('f.createdAt', 'DESC')
                 .take(6)
                 .getMany()
@@ -720,24 +719,17 @@ export class FeedService {
     let followedSellerIds = new Set<number>();
 
     if (userId) {
-      const rows: { sellerId: number }[] = await this.feedRepo
-        .query('SELECT "sellerId" FROM follow WHERE "followerId" = $1', [
-          userId,
-        ])
+      const ids = await this.commerceProfiles
+        .getFollowedSellerIds(userId)
         .catch(() => []);
-      followedSellerIds = new Set(rows.map((r) => r.sellerId));
+      followedSellerIds = new Set(ids);
 
       if (followedSellerIds.size > 0) {
         const followed = await this.feedRepo
           .createQueryBuilder('f')
           .leftJoinAndSelect('f.business', 'b')
-          .innerJoin(
-            'follow',
-            'sf',
-            'sf."sellerId" = f."businessId" AND sf."followerId" = :uid',
-            { uid: userId },
-          )
           .where('f.isActive = true')
+          .andWhere('f."businessId" IN (:...ids)', { ids })
           .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
           .orderBy('f.createdAt', 'DESC')
           .take(20)
@@ -911,15 +903,20 @@ export class FeedService {
       business?.storeName ||
       business?.name ||
       'Biashara';
-    const followers: { followerId: number }[] = await this.feedRepo
-      .query('SELECT "followerId" FROM follow WHERE "sellerId" = $1', [
-        sellerId,
-      ])
+    // Profile-scoped followers of this exact profile always get notified;
+    // legacy account-level followers only when this post was published
+    // under the account's own BUSINESS profile (see
+    // CommerceProfilesService.getPostNotificationAudience for why) — this
+    // is what stops a personal-profile moment from blasting every legacy
+    // business-follower, and starts profile-scoped followers receiving
+    // anything at all.
+    const followerIds = await this.commerceProfiles
+      .getPostNotificationAudience(sellerId, itemCommerceProfileId)
       .catch(() => []);
-    for (const f of followers) {
+    for (const followerId of followerIds) {
       this.notifService
         .businessFeedPost(
-          f.followerId,
+          followerId,
           bizName,
           item.title,
           sellerId,

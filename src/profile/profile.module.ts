@@ -7,9 +7,9 @@ import { Agent } from '../agents/entities/agent.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { ServiceProvider } from '../service-providers/entities/service-provider.entity';
-import { Follow } from '../store/follow.entity';
 import { Review } from '../store/review.entity';
 import { Product } from '../products/entities/products.entity';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
@@ -20,10 +20,10 @@ import { Product } from '../products/entities/products.entity';
       SuperAgent,
       TransportProvider,
       ServiceProvider,
-      Follow,
       Review,
       Product,
     ]),
+    CommerceProfilesModule,
   ],
   providers: [ProfileService],
   exports: [ProfileService],

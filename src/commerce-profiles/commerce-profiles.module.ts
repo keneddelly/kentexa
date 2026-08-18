@@ -9,6 +9,7 @@ import { TransportProvider } from '../transport/entities/transport-provider.enti
 import { Agent } from '../agents/entities/agent.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Review } from '../store/review.entity';
+import { Follow } from '../store/follow.entity';
 import { ProductReview } from '../products/entities/product-review.entity';
 import { CommerceProfilesService } from './commerce-profiles.service';
 import { CommerceProfilesBackfillService } from './commerce-profiles-backfill.service';
@@ -30,6 +31,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       Agent,
       SuperAgent,
       Review,
+      Follow,
       ProductReview,
     ]),
     SearchModule,

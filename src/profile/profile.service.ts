@@ -10,9 +10,10 @@ import {
   ServiceProvider,
   ServiceProviderStatus,
 } from '../service-providers/entities/service-provider.entity';
-import { Follow } from '../store/follow.entity';
 import { Review } from '../store/review.entity';
 import { Product } from '../products/entities/products.entity';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 export interface RoleEntities {
   sellerProfile: SellerProfile | null;
@@ -35,9 +36,9 @@ export class ProfileService {
     private transportProviderRepo: Repository<TransportProvider>,
     @InjectRepository(ServiceProvider)
     private serviceProviderRepo: Repository<ServiceProvider>,
-    @InjectRepository(Follow) private followRepo: Repository<Follow>,
     @InjectRepository(Review) private reviewRepo: Repository<Review>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Cheap: which role-entities does this user hold ───────────────────────
@@ -90,16 +91,22 @@ export class ProfileService {
       }),
     ]);
 
-    let isFollowing = false;
-    if (viewerId) {
-      const f = await this.followRepo.findOne({
-        where: { follower: { id: viewerId }, seller: { id: userId } },
-      });
-      isFollowing = !!f;
-    }
+    const [isFollowing, businessProfile] = await Promise.all([
+      this.commerceProfiles.isFollowingSeller(viewerId, userId).catch(() => false),
+      this.commerceProfiles
+        .findForUserByType(userId, CommerceProfileType.BUSINESS)
+        .catch(() => null),
+    ]);
 
     const { password, otp, otpExpiry, otpAttempts, ...safeUser } =
       user as any;
+
+    // Combined so the count doesn't appear frozen the moment new follows
+    // start being redirected onto the profile-scoped system (see
+    // StoreService.toggleFollow()) — pre-existing legacy followers still
+    // count via User.followersCount, new ones via the business profile.
+    (safeUser as any).followersCount =
+      (user.followersCount || 0) + (businessProfile?.followersCount || 0);
 
     return {
       user: safeUser,

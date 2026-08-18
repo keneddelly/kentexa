@@ -207,6 +207,7 @@ export class InAppNotificationService {
     rating: number,
     productName: string,
     productId?: number,
+    commerceProfileId?: number | null,
   ) {
     const stars = '⭐'.repeat(rating);
     await this.notify({
@@ -216,6 +217,7 @@ export class InAppNotificationService {
       body: `"${productName}" imepata tathmini ya nyota ${rating}.`,
       actionPage: productId ? 'ProductDetail' : 'SellerDashboard',
       actionParam: productId ? String(productId) : undefined,
+      actionCommerceProfileId: commerceProfileId || undefined,
       icon: '⭐',
     });
   }

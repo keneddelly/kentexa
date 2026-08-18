@@ -10,6 +10,7 @@ import { CommerceProfileFollow } from './entities/commerce-profile-follow.entity
 import { CommerceProfileMember } from './entities/commerce-profile-member.entity';
 import { User } from '../users/entities/user.entity';
 import { Review } from '../store/review.entity';
+import { Follow } from '../store/follow.entity';
 import { ProductReview } from '../products/entities/product-review.entity';
 import { SearchIndexService } from '../search/search-index.service';
 import { AiSellerEnrichmentService } from '../ai/ai-seller-enrichment.service';
@@ -46,6 +47,8 @@ export class CommerceProfilesService {
     private reviewRepo: Repository<Review>,
     @InjectRepository(ProductReview)
     private productReviewRepo: Repository<ProductReview>,
+    @InjectRepository(Follow)
+    private legacyFollowRepo: Repository<Follow>,
     private readonly searchIndex: SearchIndexService,
     private readonly aiEnrichment: AiSellerEnrichmentService,
     private readonly notifService: InAppNotificationService,
@@ -302,6 +305,204 @@ export class CommerceProfilesService {
     }
 
     return { following: !existing, followersCount: profile.followersCount };
+  }
+
+  // ── Cross-system follow resolution (legacy `follow` ∪ CommerceProfileFollow) ──
+  // Two follow systems exist side by side by design (see toggleFollow()
+  // above vs. StoreService.toggleFollow(), which still writes to the legacy
+  // account-level `follow` table for sellers with no BUSINESS profile).
+  // Everything that needs "is X following seller Y" or "who follows seller
+  // Y" goes through these so both systems stay readable without merging
+  // their underlying rows.
+
+  // True if `followerId` follows seller `sellerId` through EITHER system.
+  async isFollowingSeller(
+    followerId: number | undefined,
+    sellerId: number,
+  ): Promise<boolean> {
+    if (!followerId) return false;
+    const legacy = await this.legacyFollowRepo.findOne({
+      where: { follower: { id: followerId }, seller: { id: sellerId } },
+    });
+    if (legacy) return true;
+    const businessProfile = await this.findForUserByType(
+      sellerId,
+      CommerceProfileType.BUSINESS,
+    );
+    if (!businessProfile) return false;
+    return this.isFollowing(followerId, businessProfile.id);
+  }
+
+  // Seller (account) ids that `followerId` follows through EITHER system —
+  // legacy account-level follows, plus the owning account of any profile
+  // they follow directly.
+  async getFollowedSellerIds(followerId: number): Promise<number[]> {
+    const [legacyRows, profileFollowRows] = await Promise.all([
+      this.legacyFollowRepo.find({
+        where: { follower: { id: followerId } },
+        relations: { seller: true },
+      }),
+      this.followRepo.find({ where: { followerId } }),
+    ]);
+    const legacyIds = legacyRows.map((r) => r.seller.id);
+    const profileIds = profileFollowRows.map((r) => r.commerceProfileId);
+    let profileOwnerIds: number[] = [];
+    if (profileIds.length > 0) {
+      const profiles = await this.repo.find({ where: { id: In(profileIds) } });
+      profileOwnerIds = profiles
+        .map((p) => p.ownerId)
+        .filter((id): id is number => !!id);
+    }
+    return [...new Set([...legacyIds, ...profileOwnerIds])];
+  }
+
+  // Audience (User ids) for a new post published under `postCommerceProfileId`
+  // by account `sellerId`. Profile-scoped followers of that exact profile
+  // always get notified. Legacy account-level followers only get notified
+  // when the post was published under the account's own BUSINESS profile —
+  // legacy follows predate multi-profile support and are treated as
+  // "following the business", never as "following everything this account
+  // does" (e.g. its owner's personal moments).
+  async getPostNotificationAudience(
+    sellerId: number,
+    postCommerceProfileId: number | null | undefined,
+  ): Promise<number[]> {
+    if (!postCommerceProfileId) return [];
+
+    const profileFollowRows = await this.followRepo.find({
+      where: { commerceProfileId: postCommerceProfileId },
+    });
+    const profileFollowerIds = profileFollowRows.map((r) => r.followerId);
+
+    let legacyFollowerIds: number[] = [];
+    const businessProfile = await this.findForUserByType(
+      sellerId,
+      CommerceProfileType.BUSINESS,
+    );
+    if (businessProfile && businessProfile.id === postCommerceProfileId) {
+      const legacyRows = await this.legacyFollowRepo.find({
+        where: { seller: { id: sellerId } },
+        relations: { follower: true },
+      });
+      legacyFollowerIds = legacyRows.map((r) => r.follower.id);
+    }
+
+    return [...new Set([...profileFollowerIds, ...legacyFollowerIds])];
+  }
+
+  // Detailed "stores I follow" list, merging both systems — used by
+  // StoreService.getMyFollowedStores(). Without this, a follow that
+  // toggleFollow() redirected onto CommerceProfileFollow (any seller with a
+  // BUSINESS profile, i.e. most of them post-redirect) would silently stop
+  // appearing in "who I follow" the moment it happened.
+  async getFollowedStoresDetailed(followerId: number): Promise<
+    { id: number; storeName: string; logo: string | null; followedAt: Date }[]
+  > {
+    const [legacyRows, profileFollowRows] = await Promise.all([
+      this.legacyFollowRepo.find({
+        where: { follower: { id: followerId } },
+        relations: { seller: true },
+      }),
+      this.followRepo.find({ where: { followerId } }),
+    ]);
+
+    const legacy = legacyRows.map((f) => ({
+      id: f.seller.id,
+      storeName: f.seller.storeName || f.seller.name || 'Muuzaji',
+      logo: f.seller.logo,
+      followedAt: f.createdAt,
+    }));
+
+    let profileEntries: typeof legacy = [];
+    if (profileFollowRows.length > 0) {
+      const profileIds = profileFollowRows.map((r) => r.commerceProfileId);
+      const profiles = await this.repo.find({ where: { id: In(profileIds) } });
+      const rowByProfileId = new Map(
+        profileFollowRows.map((r) => [r.commerceProfileId, r]),
+      );
+      profileEntries = profiles
+        .filter((p) => !!p.ownerId)
+        .map((p) => ({
+          id: p.ownerId as number,
+          storeName: p.displayName,
+          logo: p.photoUrl,
+          followedAt: rowByProfileId.get(p.id)?.createdAt || new Date(),
+        }));
+    }
+
+    const merged = new Map<number, (typeof legacy)[number]>();
+    for (const entry of [...legacy, ...profileEntries]) {
+      const existing = merged.get(entry.id);
+      if (!existing || entry.followedAt > existing.followedAt) {
+        merged.set(entry.id, entry);
+      }
+    }
+    return [...merged.values()].sort(
+      (a, b) => b.followedAt.getTime() - a.followedAt.getTime(),
+    );
+  }
+
+  // Detailed "who follows me" list, merging both systems — used by
+  // StoreService.getMyFollowers(). Same reasoning as getFollowedStoresDetailed
+  // above, mirrored for the seller's own side of the relationship.
+  async getSellerFollowersDetailed(sellerId: number): Promise<
+    {
+      id: number;
+      name: string;
+      logo: string | null;
+      role: string;
+      followedAt: Date;
+    }[]
+  > {
+    const legacyRows = await this.legacyFollowRepo.find({
+      where: { seller: { id: sellerId } },
+      relations: { follower: true },
+      order: { createdAt: 'DESC' },
+    });
+    const legacy = legacyRows
+      .filter((f) => f.follower)
+      .map((f) => ({
+        id: f.follower.id,
+        name: f.follower.storeName || f.follower.name || 'KenteXa user',
+        logo: f.follower.logo,
+        role: f.follower.role,
+        followedAt: f.createdAt,
+      }));
+
+    let profileEntries: typeof legacy = [];
+    const businessProfile = await this.findForUserByType(
+      sellerId,
+      CommerceProfileType.BUSINESS,
+    );
+    if (businessProfile) {
+      const rows = await this.followRepo.find({
+        where: { commerceProfileId: businessProfile.id },
+      });
+      if (rows.length > 0) {
+        const followerUsers = await this.userRepo.find({
+          where: { id: In(rows.map((r) => r.followerId)) },
+        });
+        const rowByFollowerId = new Map(rows.map((r) => [r.followerId, r]));
+        profileEntries = followerUsers.map((u) => ({
+          id: u.id,
+          name: u.storeName || u.name || 'KenteXa user',
+          logo: u.logo,
+          role: u.role,
+          followedAt: rowByFollowerId.get(u.id)?.createdAt || new Date(),
+        }));
+      }
+    }
+
+    const merged = new Map<number, (typeof legacy)[number]>();
+    for (const entry of [...legacy, ...profileEntries]) {
+      const existing = merged.get(entry.id);
+      if (!existing || entry.followedAt > existing.followedAt) {
+        merged.set(entry.id, entry);
+      }
+    }
+    return [...merged.values()].sort(
+      (a, b) => b.followedAt.getTime() - a.followedAt.getTime(),
+    );
   }
 
   // Rolling-average rating + count, called once per new review (Review or

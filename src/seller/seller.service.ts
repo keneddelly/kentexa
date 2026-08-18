@@ -133,12 +133,10 @@ export class SellerService {
 
     let followedIds = new Set<number>();
     if (viewerId) {
-      const rows: { sellerId: number }[] = await this.userRepo
-        .query('SELECT "sellerId" FROM follow WHERE "followerId" = $1', [
-          viewerId,
-        ])
+      const ids = await this.commerceProfiles
+        .getFollowedSellerIds(viewerId)
         .catch(() => []);
-      followedIds = new Set(rows.map((r) => r.sellerId));
+      followedIds = new Set(ids);
     }
 
     return users.map((u) => {

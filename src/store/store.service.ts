@@ -14,6 +14,7 @@ import { Product } from '../products/entities/products.entity';
 import { ProfileService } from '../profile/profile.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
 
 @Injectable()
 export class StoreService {
@@ -25,6 +26,7 @@ export class StoreService {
     @InjectRepository(Product) private productRepo: Repository<Product>,
     private profileService: ProfileService,
     private commerceProfiles: CommerceProfilesService,
+    private inAppNotif: InAppNotificationService,
   ) {}
 
   // ── Get full store page data ──────────────────────────────────────────────
@@ -98,9 +100,31 @@ export class StoreService {
   }
 
   // ── Follow / Unfollow ────────────────────────────────────────────────────
+  // Every Follow button in the app (HomeFeed, Search, Stores, StorePage,
+  // Onboarding) calls this one endpoint. Sellers who already have a BUSINESS
+  // CommerceProfile get redirected onto the profile-scoped follow system
+  // (CommerceProfilesService.toggleFollow) so new follows start counting
+  // toward that profile's own followersCount and its followers actually
+  // receive post notifications — without touching any existing `follow`
+  // rows or changing a single frontend call site. Sellers with no business
+  // profile yet (rare/legacy edge case) keep today's exact legacy behavior.
   async toggleFollow(followerId: number, sellerId: number) {
     if (followerId === sellerId)
       throw new BadRequestException('Cannot follow your own store');
+
+    const businessProfile = await this.commerceProfiles
+      .findForUserByType(sellerId, CommerceProfileType.BUSINESS)
+      .catch(() => null);
+    if (businessProfile) {
+      const result = await this.commerceProfiles.toggleFollow(
+        followerId,
+        businessProfile.id,
+      );
+      return {
+        following: result.following,
+        message: result.following ? 'Following store' : 'Unfollowed store',
+      };
+    }
 
     const existing = await this.followRepo.findOne({
       where: { follower: { id: followerId }, seller: { id: sellerId } },
@@ -133,7 +157,7 @@ export class StoreService {
 
     const order = await this.orderRepo.findOne({
       where: { id: dto.orderId },
-      relations: { buyer: true, seller: true },
+      relations: { buyer: true, seller: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
     if (order.buyer?.id !== buyerId)
@@ -196,38 +220,28 @@ export class StoreService {
       sellerRated: true,
     });
 
+    const productName =
+      order.product?.name || (order as any).manualProductName || 'bidhaa yako';
+    await this.inAppNotif
+      .reviewReceived(
+        sellerId,
+        dto.rating,
+        productName,
+        order.product?.id,
+        businessProfile?.id ?? null,
+      )
+      .catch(() => {});
+
     return { message: 'Review submitted successfully', review };
   }
 
   // ── Get my followed stores ─────────────────────────────────────────────────
   async getMyFollowedStores(followerId: number) {
-    const follows = await this.followRepo.find({
-      where: { follower: { id: followerId } },
-      relations: { seller: true },
-    });
-    return follows.map((f) => ({
-      id: f.seller.id,
-      storeName: f.seller.storeName || f.seller.name,
-      logo: f.seller.logo,
-      followedAt: f.createdAt,
-    }));
+    return this.commerceProfiles.getFollowedStoresDetailed(followerId);
   }
 
   // ── Get people who follow ME (names, not just the count) ─────────────────
   async getMyFollowers(sellerId: number) {
-    const follows = await this.followRepo.find({
-      where: { seller: { id: sellerId } },
-      relations: { follower: true },
-      order: { createdAt: 'DESC' },
-    });
-    return follows
-      .filter((f) => f.follower)
-      .map((f) => ({
-        id: f.follower.id,
-        name: f.follower.storeName || f.follower.name || 'KenteXa user',
-        logo: f.follower.logo,
-        role: f.follower.role,
-        followedAt: f.createdAt,
-      }));
+    return this.commerceProfiles.getSellerFollowersDetailed(sellerId);
   }
 }

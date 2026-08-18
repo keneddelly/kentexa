@@ -62,6 +62,8 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { WalletService } from '../wallet/wallet.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -103,6 +105,7 @@ export class OrdersService {
     private inAppNotif: InAppNotificationService,
     private sellerScope: SellerScopeService,
     private walletService: WalletService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Create Order ──────────────────────────────────────────────────────────
@@ -1574,7 +1577,7 @@ export class OrdersService {
   ) {
     const order = await this.repo.findOne({
       where: { id: orderId },
-      relations: { seller: true, buyer: true },
+      relations: { seller: true, buyer: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
     if (order.buyer?.id !== buyer.id)
@@ -1595,6 +1598,10 @@ export class OrdersService {
     });
     if (existing) throw new BadRequestException('You already rated this order');
 
+    const businessProfile = await this.commerceProfiles
+      .findForUserByType(seller.id, CommerceProfileType.BUSINESS)
+      .catch(() => null);
+
     await this.reviewRepo.save(
       this.reviewRepo.create({
         buyer: { id: buyer.id } as User,
@@ -1603,8 +1610,15 @@ export class OrdersService {
         rating,
         comment: comment || null,
         verified: true,
+        commerceProfileId: businessProfile?.id ?? null,
       }),
     );
+
+    if (businessProfile) {
+      await this.commerceProfiles
+        .recordReview(businessProfile.id, rating)
+        .catch(() => {});
+    }
 
     // Recalculate seller's aggregate rating from actual review rows
     const allReviews = await this.reviewRepo.find({
@@ -1623,6 +1637,18 @@ export class OrdersService {
 
     // Mark order as rated so buyer can't double-rate
     await this.repo.update(orderId, { sellerRated: true });
+
+    const productName =
+      order.product?.name || order.manualProductName || 'bidhaa yako';
+    await this.inAppNotif
+      .reviewReceived(
+        seller.id,
+        rating,
+        productName,
+        order.product?.id,
+        businessProfile?.id ?? null,
+      )
+      .catch(() => {});
 
     return {
       success: true,

@@ -19,6 +19,7 @@ import { User } from '../users/entities/user.entity';
 import { SmsModule } from '../sms/sms.module';
 import { Review } from '../store/review.entity';
 import { WalletModule } from '../wallet/wallet.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { WalletModule } from '../wallet/wallet.module';
     BusinessModule,
     ReputationModule,
     WalletModule,
+    CommerceProfilesModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [OrdersController],

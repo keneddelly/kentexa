@@ -29,6 +29,7 @@ import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { EntityOwnerResolver } from './engagements.controller';
 import { PurchaseVerificationService } from './comment-support.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 
 @Injectable()
 export class CvsService {
@@ -54,6 +55,7 @@ export class CvsService {
     private readonly notifService: InAppNotificationService,
     private readonly owners: EntityOwnerResolver,
     private readonly purchaseVerification: PurchaseVerificationService,
+    private readonly commerceProfiles: CommerceProfilesService,
   ) {}
 
   // ── Record engagement + update CVS ───────────────────────────────────────
@@ -200,9 +202,9 @@ export class CvsService {
 
     // Notify post author (fire-and-forget, never blocks the response)
     if (offerEntityType) {
-      this.notifyOwnerOfPost(userId, postId, 'offer', body).catch(() => {});
+      this.notifyOwnerOfPost(userId, postId, 'offer', body, commerceProfileId).catch(() => {});
     } else {
-      this.notifyOwnerOfPost(userId, postId, 'comment', body).catch(() => {});
+      this.notifyOwnerOfPost(userId, postId, 'comment', body, commerceProfileId).catch(() => {});
     }
 
     const saved = (await this.commentRepo.findOne({
@@ -281,13 +283,24 @@ export class CvsService {
     postId: number,
     kind: 'save' | 'comment' | 'offer',
     commentBody?: string,
+    actorCommerceProfileId?: number | null,
   ): Promise<void> {
     const post = await this.feedRepo.findOne({ where: { id: postId } });
     if (!post || post.businessId === actorId) return; // don't notify yourself
 
     const actor = await this.userRepo.findOne({ where: { id: actorId } });
-    const actorName = actor?.storeName || actor?.name || 'Someone';
+    // The actor's own acting-as profile (stored on the comment, when this
+    // fires for a comment/offer) wins over their raw account name.
+    const actorProfile = actorCommerceProfileId
+      ? await this.commerceProfileRepo.findOne({ where: { id: actorCommerceProfileId } }).catch(() => null)
+      : null;
+    const actorName = actorProfile?.displayName || actor?.storeName || actor?.name || 'Someone';
     const postTitle = post.title || 'your post';
+    // Which specific profile owns this post — without it, tapping the
+    // notification falls back to CommerceProfile.js's ambiguous-bare-id
+    // default (the owner's personal profile), regardless of which of the
+    // owner's profiles this post actually belongs to.
+    const ownerCommerceProfileId = (post as any).commerceProfileId || undefined;
 
     if (kind === 'save') {
       await this.notifService.notify({
@@ -300,6 +313,7 @@ export class CvsService {
         // "-feed-{postId}" lands on the Posts/Feed tab and scrolls to/
         // highlights this exact post (see CommerceProfile.js pageParam parsing).
         actionParam: `${post.businessId}-feed-${postId}`,
+        actionCommerceProfileId: ownerCommerceProfileId,
       });
     } else if (kind === 'offer') {
       // A seller replied to a Looking For post with a matching item —
@@ -314,6 +328,7 @@ export class CvsService {
         // "-feed-{postId}" lands on the Posts/Feed tab and scrolls to/
         // highlights this exact post (see CommerceProfile.js pageParam parsing).
         actionParam: `${post.businessId}-feed-${postId}`,
+        actionCommerceProfileId: ownerCommerceProfileId,
       });
     } else {
       const preview =
@@ -329,6 +344,7 @@ export class CvsService {
         // "-feed-{postId}" lands on the Posts/Feed tab and scrolls to/
         // highlights this exact post (see CommerceProfile.js pageParam parsing).
         actionParam: `${post.businessId}-feed-${postId}`,
+        actionCommerceProfileId: ownerCommerceProfileId,
       });
     }
   }
@@ -610,10 +626,10 @@ export class CvsService {
     userId?: number | null,
   ): Promise<Set<number>> {
     if (!userId) return new Set();
-    const rows: { sellerId: number }[] = await this.feedRepo
-      .query('SELECT "sellerId" FROM follow WHERE "followerId" = $1', [userId])
+    const ids = await this.commerceProfiles
+      .getFollowedSellerIds(userId)
       .catch(() => []);
-    return new Set(rows.map((r) => r.sellerId));
+    return new Set(ids);
   }
 
   // ── Real save/comment counts for a batch of virtual entities ─────────────
@@ -964,12 +980,12 @@ export class CvsService {
         if (!userId) {
           return { items: [], total: 0 };
         }
-        qb.innerJoin(
-          'follow',
-          'sf',
-          'sf."sellerId" = f."businessId" AND sf."followerId" = :uid',
-          { uid: userId },
-        );
+        if (followedSellerIds.size === 0) {
+          return { items: [], total: 0 };
+        }
+        qb.andWhere('f."businessId" IN (:...followedIds)', {
+          followedIds: [...followedSellerIds],
+        });
         qb.orderBy('f.createdAt', 'DESC');
         break;
       // following fallback is handled after getManyAndCount below
@@ -1080,17 +1096,20 @@ export class CvsService {
     const savedIds = userId ? await this.getSavedPostIds(userId) : [];
 
     // ── Fallback for 'following': show classifieds from followed sellers ────
-    if (items.length === 0 && page === 1 && filter === 'following' && userId) {
+    if (
+      items.length === 0 &&
+      page === 1 &&
+      filter === 'following' &&
+      userId &&
+      followedSellerIds.size > 0
+    ) {
       const followedClassifieds = await this.classifiedRepo
         .createQueryBuilder('c')
         .leftJoinAndSelect('c.seller', 's')
-        .innerJoin(
-          'follow',
-          'sf',
-          'sf."sellerId" = c."sellerId" AND sf."followerId" = :uid',
-          { uid: userId },
-        )
         .where("c.status = 'active'")
+        .andWhere('c."sellerId" IN (:...followedIds)', {
+          followedIds: [...followedSellerIds],
+        })
         .orderBy('c.createdAt', 'DESC')
         .take(limit)
         .getMany();

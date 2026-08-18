@@ -10,6 +10,7 @@ import { Product } from '../products/entities/products.entity';
 import { ProfileModule } from '../profile/profile.module';
 import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
     ProfileModule,
     BusinessModule,
     CommerceProfilesModule,
+    NotificationsModule,
   ],
   providers: [StoreService],
   controllers: [StoreController],
