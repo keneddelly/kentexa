@@ -889,8 +889,28 @@ export class FeedService {
     sellerId: number,
     item: BusinessFeedItem,
   ): Promise<void> {
+    // The post's own commerceProfileId (which identity it was actually
+    // published as) wins over the account's raw User fields — otherwise a
+    // moment shared while the PERSONAL profile was active still announces
+    // itself under the account's business storeName. actionCommerceProfileId
+    // below already correctly used item.commerceProfileId; this was the one
+    // place still pulling the display name from a completely different,
+    // profile-agnostic source.
+    const itemCommerceProfileId = (item as any).commerceProfileId as
+      | number
+      | null
+      | undefined;
+    const commerceProfile = itemCommerceProfileId
+      ? await this.commerceProfileRepo
+          .findOne({ where: { id: itemCommerceProfileId } })
+          .catch(() => null)
+      : null;
     const business = await this.userRepo.findOne({ where: { id: sellerId } });
-    const bizName = business?.storeName || business?.name || 'Biashara';
+    const bizName =
+      commerceProfile?.displayName ||
+      business?.storeName ||
+      business?.name ||
+      'Biashara';
     const followers: { followerId: number }[] = await this.feedRepo
       .query('SELECT "followerId" FROM follow WHERE "sellerId" = $1', [
         sellerId,

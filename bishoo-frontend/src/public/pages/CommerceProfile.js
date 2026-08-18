@@ -131,15 +131,23 @@ const RoleActions = ({ role, onNavigate }) => {
 // their existing rich public stats tab, with Reviews added. The old
 // single 'reputation' tab (tier badge + score history) is folded into
 // the top of 'reviews' rather than dropped, so that content isn't lost.
+// "feed" (moments/updates shared via CreateMomentModal from ANY profile
+// type) was previously only ever reachable on business profiles, and even
+// there only for the OWNER — a visitor/follower had no way to see a
+// moment they'd just been notified about, on any profile type. Every
+// profile type that can have moments shared to it now gets this tab,
+// visible to everyone (not owner-gated) — only the compose button inside
+// it stays owner-gated, and business-only (see the tab body), since
+// "new_product/discount/restock" only make sense for a business.
 const tabs = (profileType, isOwn, t) => {
   if (profileType === 'business') {
     const base = [
       { key:'posts',         label:t('commerce_profile.tab_products') },
       { key:'services_pub',  label:t('commerce_profile.tab_services') },
+      { key:'feed',          label:t('commerce_profile.tab_posts') },
     ];
     if (isOwn) {
       base.push(
-        { key:'feed',      label:t('commerce_profile.tab_posts') },
         { key:'orders',    label:t('commerce_profile.tab_orders') },
         { key:'analytics', label:t('commerce_profile.tab_analytics') },
       );
@@ -154,6 +162,7 @@ const tabs = (profileType, isOwn, t) => {
     return [
       { key:'services_pub', label:t('commerce_profile.tab_services') },
       { key:'portfolio',    label:t('commerce_profile.tab_portfolio') },
+      { key:'feed',         label:t('commerce_profile.tab_posts') },
       { key:'reviews',      label:t('commerce_profile.tab_reviews') },
       { key:'about',        label:t('commerce_profile.tab_about') },
     ];
@@ -162,6 +171,7 @@ const tabs = (profileType, isOwn, t) => {
     return [
       { key:'services_pub', label:t('commerce_profile.tab_services') },
       { key:'jobs',         label:t('commerce_profile.tab_agent') },
+      { key:'feed',         label:t('commerce_profile.tab_posts') },
       { key:'reviews',      label:t('commerce_profile.tab_reviews') },
       { key:'about',        label:t('commerce_profile.tab_about') },
     ];
@@ -169,20 +179,24 @@ const tabs = (profileType, isOwn, t) => {
   if (profileType === 'hub') {
     return [
       { key:'hub',     label:t('commerce_profile.tab_hub') },
+      { key:'feed',    label:t('commerce_profile.tab_posts') },
       { key:'reviews', label:t('commerce_profile.tab_reviews') },
     ];
   }
   if (profileType === 'transport_provider') {
     return [
       { key:'transport', label:t('commerce_profile.tab_routes') },
+      { key:'feed',       label:t('commerce_profile.tab_posts') },
       { key:'reviews',   label:t('commerce_profile.tab_reviews') },
     ];
   }
   // Personal — About + (own-only) their own listing grid/quick services,
-  // plus Reputation. "Profiles" (Also on Kentexa) is always-visible below
-  // the header, not a tab, so it isn't listed here.
+  // plus Reputation, plus the same moments/updates feed every other type
+  // now gets. "Profiles" (Also on Kentexa) is always-visible below the
+  // header, not a tab, so it isn't listed here.
   const base = [];
   if (isOwn) base.push({ key:'posts', label:t('commerce_profile.tab_listings') });
+  base.push({ key:'feed', label:t('commerce_profile.tab_posts') });
   base.push({ key:'about', label:t('commerce_profile.tab_about') });
   if (isOwn) base.push({ key:'services', label:t('commerce_profile.tab_services') });
   base.push({ key:'reputation', label:t('commerce_profile.tab_reputation') });
@@ -824,10 +838,14 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           </div>
         )}
 
-        {/* Feed / Posts */}
+        {/* Feed / Posts — viewing is open to everyone (a follower needs to
+            be able to see a moment they were just notified about); only
+            the compose button is owner-gated, and business-only, since
+            "new_product/discount/restock" are store concepts that don't
+            apply to a personal/agent/hub/transport profile. */}
         {tab==='feed' && (
           <div>
-            {isOwnProfile && (
+            {isOwnProfile && activeProfile.type === 'business' && (
               <div style={{ marginBottom:16 }}>
                 {!showPost ? (
                   <button onClick={() => setShowPost(true)}
