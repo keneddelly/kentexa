@@ -333,6 +333,19 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             onAction:()=>onNavigate('TransportProviderDashboard'),
           });
         }
+        // The old Navbar.js hamburger menu (which had a "🛡️ Admin Panel"
+        // entry) was removed when the app moved to the CommerceProfile-
+        // driven bottom nav — nothing replaced it, leaving admin/manager
+        // accounts with no way to reach the admin pages (Dashboard,
+        // Products, Users, Orders, etc. — still fully wired in App.js's
+        // renderPage(), just orphaned from the UI). This is that entry point.
+        if (userRole === 'admin' || userRole === 'manager') {
+          actions.push({
+            icon:'🛡️', label:t('my_profile.admin_panel_label'),
+            value:'Open', sub:t('my_profile.admin_panel_sub'), color:'#7C3AED', bg:'#F5F3FF',
+            onAction:()=>onNavigate('Dashboard'),
+          });
+        }
         actions.push({
           icon:'💬', label:t('my_profile.messages_label'),
           value: unread > 0 ? String(unread) : '—',

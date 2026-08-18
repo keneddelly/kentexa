@@ -1073,6 +1073,8 @@
     "your_hub_fallback": "Your hub",
     "todays_routes_label": "Today's Routes",
     "assignments_sub": "Assignments",
+    "admin_panel_label": "Admin Panel",
+    "admin_panel_sub": "Platform management",
     "messages_label": "Messages",
     "new_sub": "New",
     "all_read_sub": "All read",

@@ -1069,6 +1069,8 @@
     "your_hub_fallback": "Votre hub",
     "todays_routes_label": "Itinéraires du Jour",
     "assignments_sub": "Missions",
+    "admin_panel_label": "Panneau Admin",
+    "admin_panel_sub": "Gestion de la plateforme",
     "messages_label": "Messages",
     "new_sub": "Nouveau",
     "all_read_sub": "Tout lu",
