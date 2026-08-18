@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
 import api      from '../../api/api';
+import LocationPicker from '../components/LocationPicker';
 
 const getCategories = (t) => [
   { value: 'ufundi',       icon: '🔧', label: t('post_service.cat_ufundi') },
@@ -54,14 +55,60 @@ const PostService = ({ onNavigate }) => {
   const [form,  setForm]  = useState({
     title: '', description: '', category: '', subcategory: '',
     priceType: 'per_job', price: '', priceMax: '',
-    coverageCity: '', coverageWards: '',
+    coverageCity: '', coverageWards: '', images: [],
     workingDays: ['Mon','Tue','Wed','Thu','Fri'],
     workingHours: '08:00 - 18:00',
     isAvailableNow: true,
     whatsappPhone: '',
   });
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [uploading, setUploading]         = useState(false);
+  const [coverageLocation, setCoverageLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [descGenerating, setDescGenerating]     = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    if (form.images.length + files.length > 5) { setError(t('post_service.max_images')); return; }
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreviews(prev => [...prev, reader.result]);
+      reader.readAsDataURL(file);
+    });
+    try {
+      setUploading(true);
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setForm(prev => ({ ...prev, images: [...prev.images, ...res.data.urls] }));
+    } catch { setError(t('post_service.image_upload_failed')); }
+    finally { setUploading(false); }
+  };
+
+  const removeImage = (i) => {
+    setImagePreviews(prev => prev.filter((_, idx) => idx !== i));
+    setForm(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
+  };
+
+  // Reads the already-uploaded photo(s) + typed title and writes a
+  // grounded description — never invents specs the photo/title don't
+  // support. Fills the textarea for review; never submits on its own.
+  const generateDescription = async () => {
+    if (!form.title || !form.images.length) return;
+    try {
+      setDescGenerating(true);
+      setError('');
+      const res = await api.post('/services/ai/generate-description', {
+        title: form.title,
+        imageUrls: form.images,
+        categoryHint: CATEGORIES.find(c => c.value === form.category)?.label,
+      });
+      setForm(prev => ({ ...prev, description: res.data?.description || prev.description }));
+    } catch { setError(t('post_service.ai_description_failed')); }
+    finally { setDescGenerating(false); }
+  };
 
   const toggleDay = (day) => {
     set('workingDays', form.workingDays.includes(day)
@@ -172,11 +219,52 @@ const PostService = ({ onNavigate }) => {
                 placeholder={t('post_service.field_title_placeholder')}
                 onChange={e => set('title', e.target.value)} />
             </div>
+
+            {/* Photos — portfolio images shown on ServiceDetail/Services
+                browse cards, which already render them if present. */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 6 }}>
-                {t('post_service.field_description_label')}
+                {t('post_service.field_photos_label')}
               </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                {imagePreviews.map((src, i) => (
+                  <div key={i} style={{ position: 'relative', width: 72, height: 72 }}>
+                    <img src={src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 10 }} />
+                    <button type="button" onClick={() => removeImage(i)}
+                      style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#ef4444',
+                        color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18,
+                        cursor: 'pointer', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+                  </div>
+                ))}
+                {form.images.length < 5 && (
+                  <label style={{ width: 72, height: 72, borderRadius: 10, border: '1.5px dashed #cbd5e1',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    color: '#94a3b8', fontSize: 24 }}>
+                    {uploading ? '⏳' : '+'}
+                    <input type="file" accept="image/*" multiple onChange={handleImageUpload}
+                      disabled={uploading} style={{ display: 'none' }} />
+                  </label>
+                )}
+              </div>
+              <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>{t('post_service.field_photos_hint')}</p>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>
+                  {t('post_service.field_description_label')}
+                </label>
+                <button type="button" onClick={generateDescription}
+                  disabled={descGenerating || !form.title || !form.images.length}
+                  title={!form.images.length ? t('post_service.ai_description_needs_photo') : ''}
+                  style={{ fontSize: 11, fontWeight: 800, color: '#7c3aed', background: 'none',
+                    border: '1px solid #c4b5fd', borderRadius: 8, padding: '4px 10px',
+                    cursor: (descGenerating || !form.title || !form.images.length) ? 'not-allowed' : 'pointer',
+                    opacity: (!form.title || !form.images.length) ? 0.5 : 1 }}>
+                  {descGenerating ? `⏳ ${t('post_service.ai_description_generating')}` : `✨ ${t('post_service.ai_description_button')}`}
+                </button>
+              </div>
               <textarea rows={5} style={{ ...inp, resize: 'vertical' }}
                 value={form.description}
                 placeholder={t('post_service.field_description_placeholder')}
@@ -300,9 +388,16 @@ const PostService = ({ onNavigate }) => {
                 color: '#64748b', marginBottom: 6 }}>
                 {t('post_service.main_city_label')}
               </label>
-              <input style={inp} value={form.coverageCity}
-                placeholder="e.g. Dar es Salaam"
-                onChange={e => set('coverageCity', e.target.value)} />
+              <LocationPicker
+                value={coverageLocation}
+                onChange={loc => {
+                  setCoverageLocation(loc);
+                  set('coverageCity', [loc.districtName, loc.regionName].filter(Boolean).join(', '));
+                }}
+              />
+              {form.coverageCity && (
+                <div style={{ fontSize: 11, color: '#16a34a', marginTop: 4 }}>✅ {form.coverageCity}</div>
+              )}
             </div>
             <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,

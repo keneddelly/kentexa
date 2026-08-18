@@ -12,6 +12,7 @@ import { ServicesController } from './services.controller';
 import { FeedModule } from '../feed/feed.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { SearchModule } from '../search/search.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { SearchModule } from '../search/search.module';
     FeedModule,
     CommerceProfilesModule,
     SearchModule,
+    AiModule,
   ],
   controllers: [ServicesController],
   providers: [ServicesService],

@@ -18,10 +18,27 @@ import {
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { ServicesService } from './services.service';
 import { JobStatus } from './entities/job-request.entity';
+import { CreateServiceAdDto } from './dto/create-service-ad.dto';
+import { UpdateServiceAdDto } from './dto/update-service-ad.dto';
+import { AiListingDescriptionService } from '../ai/ai-listing-description.service';
+import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
 
 @Controller('services')
 export class ServicesController {
-  constructor(private readonly svc: ServicesService) {}
+  constructor(
+    private readonly svc: ServicesService,
+    private readonly aiDescription: AiListingDescriptionService,
+  ) {}
+
+  // Reads the provider's already-uploaded photo(s) + typed title and
+  // writes a grounded description — same shared service the product and
+  // classified posting forms use. Suggestion-only: never creates/updates
+  // an ad on its own.
+  @UseGuards(JwtAuthGuard)
+  @Post('ai/generate-description')
+  generateDescription(@Body() dto: GenerateDescriptionDto) {
+    return this.aiDescription.generate(dto);
+  }
 
   @Get('search')
   search(@Query('q') q: string) {
@@ -76,7 +93,7 @@ export class ServicesController {
   // ── Provider: manage own ads ──────────────────────────────────────────────
   @Post()
   @UseGuards(JwtAuthGuard)
-  createAd(@Request() req, @Body() dto: any) {
+  createAd(@Request() req, @Body() dto: CreateServiceAdDto) {
     return this.svc.createAd(req.user, dto);
   }
 
@@ -91,7 +108,7 @@ export class ServicesController {
   updateAd(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: any,
+    @Body() dto: UpdateServiceAdDto,
   ) {
     return this.svc.updateAd(req.user.id, id, dto);
   }
