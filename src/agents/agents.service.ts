@@ -18,6 +18,7 @@ import {
   CommerceProfileType,
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
+import { FRONTEND_URL } from '../config/urls.config';
 
 @Injectable()
 export class AgentsService {
@@ -257,7 +258,7 @@ export class AgentsService {
         .sendSms(
           phone,
           `KenteXa: Hongera ${agent.fullName}! Ombi lako la kuwa wakala limeidhinishwa. ` +
-            `Msimbo wako: ${agentCode}. Ingia kwenye akaunti yako uanze kupata kazi. kentexa.com`,
+            `Msimbo wako: ${agentCode}. Ingia kwenye akaunti yako uanze kupata kazi. ${FRONTEND_URL}`,
         )
         .catch(() => {});
     }
@@ -285,7 +286,7 @@ export class AgentsService {
         .sendSms(
           phone,
           `KenteXa: Habari ${agent.fullName}, ombi lako la kuwa wakala halikukubaliwa. ` +
-            `Sababu: ${reason}. Unaweza kuomba tena ukisahihisha tatizo. kentexa.com`,
+            `Sababu: ${reason}. Unaweza kuomba tena ukisahihisha tatizo. ${FRONTEND_URL}`,
         )
         .catch(() => {});
     }

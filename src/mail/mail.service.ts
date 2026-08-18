@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import { FRONTEND_URL } from '../config/urls.config';
 
 @Injectable()
 export class MailService {
@@ -81,7 +82,7 @@ export class MailService {
                 <li>🏪 Open your own store and start selling</li>
                 <li>🤝 Apply to become a KenteXa agent</li>
               </ul>
-              <a href="${process.env.APP_URL || 'https://kentexa.com'}" style="display:block;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;text-decoration:none;padding:14px;border-radius:10px;text-align:center;font-size:15px;font-weight:700;">
+              <a href="${FRONTEND_URL}" style="display:block;background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;text-decoration:none;padding:14px;border-radius:10px;text-align:center;font-size:15px;font-weight:700;">
                 Start Shopping →
               </a>
             </div>

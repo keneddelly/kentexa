@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
+import { FRONTEND_URL } from '../config/urls.config';
 
 /**
  * Central notification dispatcher.
@@ -180,7 +181,7 @@ export class NotificationsService {
             buyer.email!,
             buyer.name || 'Customer',
             `Your parcel is on its way! 📦`,
-            `Tracking number: ${trackingNumber}\nRoute: ${originCity} → ${destinationCity}\nTrack it anytime at kentexa.com`,
+            `Tracking number: ${trackingNumber}\nRoute: ${originCity} → ${destinationCity}\nTrack it anytime at ${FRONTEND_URL}/?track=${trackingNumber}`,
           ),
         'parcelDispatched-email',
       );
@@ -232,7 +233,7 @@ export class NotificationsService {
             buyer.email!,
             buyer.name || 'Customer',
             `Your parcel has arrived 📬`,
-            `Order #${orderId} (${trackingNumber}) has been delivered. Please confirm receipt on kentexa.com so we can release payment to the seller.`,
+            `Order #${orderId} (${trackingNumber}) has been delivered. Please confirm receipt on ${FRONTEND_URL} so we can release payment to the seller.`,
           ),
         'delivered-email',
       );
@@ -271,7 +272,7 @@ export class NotificationsService {
             buyer.email!,
             buyer.name || 'Customer',
             `Thank you for your order! ✅`,
-            `Order #${orderId} is complete. We hope you enjoy your purchase. Rate your experience on kentexa.com`,
+            `Order #${orderId} is complete. We hope you enjoy your purchase. Rate your experience on ${FRONTEND_URL}`,
           ),
         'orderCompleted-buyer-email',
       );
@@ -315,7 +316,7 @@ export class NotificationsService {
           this.smsService.sendSms(
             seller.phone!,
             `KenteXa: Kifurushi chako cha Agizo #${orderId} kimekusanywa na wakala. ` +
-              `Kinaelekea kwenye hub. Track: kentexa.com/?track=${trackingNumber}`,
+              `Kinaelekea kwenye hub. Track: ${FRONTEND_URL}/?track=${trackingNumber}`,
           ),
         'collected-seller-sms',
       );
@@ -326,7 +327,7 @@ export class NotificationsService {
           this.smsService.sendSms(
             buyer.phone!,
             `KenteXa: Bidhaa yako (Agizo #${orderId}) imekusanywa na wakala na ipo njiani. ` +
-              `Fuatilia: kentexa.com/?track=${trackingNumber}`,
+              `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}`,
           ),
         'collected-buyer-sms',
       );

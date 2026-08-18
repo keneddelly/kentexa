@@ -15,6 +15,7 @@ import { TransportProvider } from './entities/transport-provider.entity';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
 import { ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { SmsService } from '../sms/sms.service';
+import { FRONTEND_URL } from '../config/urls.config';
 
 /**
  * WebhookController — KenteXa's public API for transport companies.
@@ -151,7 +152,7 @@ export class WebhookController {
       success: true,
       trackingNumber: body.trackingNumber,
       status: 'in_transit',
-      message: 'Departure recorded. Buyer can track at kentexa.com',
+      message: `Departure recorded. Buyer can track at ${FRONTEND_URL}`,
     };
   }
 
@@ -218,7 +219,7 @@ export class WebhookController {
             `KenteXa: Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
               `imefika ${body.city} kupitia ${provider.name}. ` +
               `Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery. ` +
-              `kentexa.com/?track=${trackingNumber}`,
+              `${FRONTEND_URL}/?track=${trackingNumber}`,
           )
           .catch(() => {});
       }
@@ -359,7 +360,7 @@ export class WebhookController {
       // Meta
       source: (parcel as any).source || 'unknown',
       trackedBy: 'KenteXa Logistics Platform',
-      trackingUrl: `https://kentexa.com/?track=${trackingNumber}`,
+      trackingUrl: `${FRONTEND_URL}/?track=${trackingNumber}`,
     };
   }
 }

@@ -29,6 +29,7 @@ import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
+import { FRONTEND_URL } from '../config/urls.config';
 
 @Injectable()
 export class ClassifiedsService {
@@ -768,13 +769,13 @@ export class ClassifiedsService {
       orderId,
       trackingNumber: orderId ? `KTX-ORD-${orderId}` : null,
       trackingUrl: orderId
-        ? `https://kentexa.com/?track=KTX-ORD-${orderId}`
+        ? `${FRONTEND_URL}/?track=KTX-ORD-${orderId}`
         : null,
       amount,
       platformFee,
       sellerAmount: sellerAmt,
       message: orderId
-        ? `Agizo #${orderId} limeundwa. Namba ya kufuatilia: KTX-ORD-${orderId}. Tuma kiungo hiki kwa mnunuzi: kentexa.com/?track=KTX-ORD-${orderId}`
+        ? `Agizo #${orderId} limeundwa. Namba ya kufuatilia: KTX-ORD-${orderId}. Tuma kiungo hiki kwa mnunuzi: ${FRONTEND_URL}/?track=KTX-ORD-${orderId}`
         : `Njia ya utoaji imewekwa. TZS ${sellerAmt.toLocaleString()} itatolewa baada ya mteja kuthibitisha.`,
     };
   }

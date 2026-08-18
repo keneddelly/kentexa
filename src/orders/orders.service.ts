@@ -65,6 +65,7 @@ import { ReputationEventType } from '../reputation/entities/reputation-event.ent
 import { WalletService } from '../wallet/wallet.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { FRONTEND_URL } from '../config/urls.config';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -1053,7 +1054,7 @@ export class OrdersService {
       deliveredAt: new Date(),
     });
 
-    const baseUrl = process.env.FRONTEND_URL || 'https://kentexa.com';
+    const baseUrl = FRONTEND_URL;
     const confirmationUrl = `${baseUrl}/?confirm=${order.trackingNumber || orderId}&token=${token}`;
 
     // Send WhatsApp to buyer
@@ -2081,7 +2082,7 @@ export class OrdersService {
 ` +
         `Nambari ya ufuatiliaji: ${trackingNumber}
 ` +
-        `Fuatilia: kentexa.com`;
+        `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}`;
       await this.smsService.sendSms(dto.buyerPhone, msg);
     } catch (e) {
       // Non-fatal — order already created, tracking number still in the response

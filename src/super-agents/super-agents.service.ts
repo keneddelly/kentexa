@@ -39,6 +39,7 @@ import { TransportAssignment } from '../transport/entities/transport-assignment.
 import { InvoicesService } from '../invoices/invoices.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
+import { FRONTEND_URL } from '../config/urls.config';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -1487,7 +1488,7 @@ export class SuperAgentsService {
             ]
               .filter(Boolean)
               .join('\n') +
-            `\n\nFuatilia: kentexa.com/?track=${trackingNumber}\n\n` +
+            `\n\nFuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
             `Verified by Kentexa`,
         );
       } catch (e: any) {
@@ -2125,7 +2126,7 @@ export class SuperAgentsService {
         [ParcelStatus.ARRIVED_AT_HUB]:
           `KenteXa: Habari ${recipientName}! Kifurushi chako (${trackingNumber}) ` +
           `kimefika ${dto.city}. Ingia KenteXa kuchagua: chukua mwenyewe au omba delivery. ` +
-          `kentexa.com/?track=${trackingNumber}`,
+          `${FRONTEND_URL}/?track=${trackingNumber}`,
 
         [ParcelStatus.DELIVERED]:
           `KenteXa: ✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
@@ -2522,7 +2523,7 @@ export class SuperAgentsService {
             ]
               .filter(Boolean)
               .join('\n') +
-            `\n\nFuatilia: kentexa.com/?track=${trackingNumber}\n\n` +
+            `\n\nFuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
             `Verified by Kentexa`,
         );
       } catch (e: any) {
@@ -2597,7 +2598,7 @@ export class SuperAgentsService {
           `SUPER AGENT ${arrivalBrand}\n\n` +
             `Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
             `imefika ${dto.city}. Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery.\n\n` +
-            `Fuatilia: kentexa.com/?track=${trackingNumber}\n\n` +
+            `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
             `Verified by Kentexa`,
         )
         .catch(() => {});
@@ -2662,7 +2663,7 @@ export class SuperAgentsService {
           agent.user.phone,
           `KenteXa: Habari ${agent.fullName}! Mpokeaji amekuomba ufanye delivery ya ` +
             `kifurushi ${trackingNumber} kwa TZS ${dto.agreedFee.toLocaleString()}. ` +
-            `Ingia dashibodini kupokea maelezo. kentexa.com`,
+            `Ingia dashibodini kupokea maelezo. ${FRONTEND_URL}`,
         )
         .catch(() => {});
     }
