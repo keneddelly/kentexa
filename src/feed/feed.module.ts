@@ -10,6 +10,7 @@ import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
+import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
 import { PostEngagement } from './entities/post-engagement.entity';
 import { PostComment } from './entities/post-comment.entity';
 import { PostCommentHelpfulVote } from './entities/post-comment-helpful-vote.entity';
@@ -39,6 +40,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
       Product,
       ServiceAd,
       TransportRoute,
+      ProviderAvailability,
       User,
       PostEngagement,
       PostComment,

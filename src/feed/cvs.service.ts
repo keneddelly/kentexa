@@ -18,6 +18,7 @@ import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
+import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
 import {
   PostComment,
   PostCommentType,
@@ -46,6 +47,8 @@ export class CvsService {
     @InjectRepository(ServiceAd) private serviceAdRepo2: Repository<ServiceAd>,
     @InjectRepository(TransportRoute)
     private routeRepo: Repository<TransportRoute>,
+    @InjectRepository(ProviderAvailability)
+    private availabilityRepo: Repository<ProviderAvailability>,
     @InjectRepository(CommerceProfile)
     private commerceProfileRepo: Repository<CommerceProfile>,
     private readonly notifService: InAppNotificationService,
@@ -1305,6 +1308,30 @@ export class CvsService {
           .take(6)
           .getMany();
 
+        // Today's published trip capacity, if the provider has posted one
+        // for this route — "available space" is a per-day figure
+        // (ProviderAvailability), not something the route definition
+        // itself carries. Best-effort: a route with no trip published
+        // today simply shows no slot count on its card, never a fake one.
+        const today = new Date().toISOString().slice(0, 10);
+        const routeIds = routes.map((r) => r.id);
+        const availabilityByRouteId = new Map<
+          number,
+          { slotsAvailable: number; departureTime: string | null }
+        >();
+        if (routeIds.length) {
+          const todaysAvailability = await this.availabilityRepo.find({
+            where: { routeId: In(routeIds), date: today },
+          });
+          for (const a of todaysAvailability) {
+            if (a.routeId == null) continue;
+            availabilityByRouteId.set(a.routeId, {
+              slotsAvailable: Math.max(0, a.totalSlots - a.usedSlots),
+              departureTime: a.departureTime,
+            });
+          }
+        }
+
         routes.forEach((r) => {
           const routeLabel =
             r.routeType === 'intercity' && r.originCity && r.destinationCity
@@ -1312,6 +1339,7 @@ export class CvsService {
               : r.routeType === 'local_loop' && r.loopStops?.length
                 ? r.loopStops.join(' → ')
                 : r.coverageCity || r.coverageWards?.join(', ') || '';
+          const todaysTrip = availabilityByRouteId.get(r.id) || null;
           virtualPosts.push({
             id: `rte-${r.id}`,
             entityType: 'route',
@@ -1339,6 +1367,21 @@ export class CvsService {
               reputationScore: 0,
               isVerified: true,
               isFollowing: false,
+            },
+            // Card-ready transport fields — kept flat (not just inside
+            // `data`) so HomeFeed's transport card doesn't need to know
+            // the raw TransportRoute/ProviderAvailability shape.
+            transport: {
+              vehicleType: r.provider?.type || null,
+              routeType: r.routeType,
+              routeLabel,
+              originCity: r.originCity,
+              destinationCity: r.destinationCity,
+              coverageCity: r.coverageCity,
+              pricePerKg: r.pricePerKg || null,
+              fixedFee: r.fixedFee || null,
+              slotsAvailable: todaysTrip?.slotsAvailable ?? null,
+              departureTime: todaysTrip?.departureTime ?? null,
             },
             data: r,
           });

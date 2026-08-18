@@ -829,6 +829,80 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   );
 };
 
+// ── Transport card — horizontal, distinct from the generic PostCard ─────────
+// Products/classifieds/services all had a card; a route post had none — it
+// just fell through into the same photo-post layout, which doesn't fit a
+// route (no photo, and "price" alone means nothing without the route and
+// available space next to it). Reuses the same CommerceProfile-{id}-transport
+// destination as every other route link fixed this session.
+const TRANSPORT_ICONS = {
+  bus: '🚌', courier: '📦', van: '🚐', truck: '🚚', boda: '🏍️', rail: '🚆', air: '✈️', boat: '🛥️',
+};
+const TransportPostCard = ({ post, onNavigate }) => {
+  const { t } = useTranslation();
+  const biz = post.business || {};
+  const bizId = biz.id;
+  const tr = post.transport || {};
+  const location = tr.originCity || tr.coverageCity || biz.businessLocation || null;
+  const priceLabel = tr.pricePerKg
+    ? t('home_feed.transport_price_per_kg', { amount: fmt(tr.pricePerKg) })
+    : tr.fixedFee
+      ? `TZS ${fmt(tr.fixedFee)}`
+      : null;
+
+  return (
+    <article style={{ backgroundColor:WH, marginBottom:2, borderTop:'1px solid #F1F5F9',
+      borderBottom:'1px solid #F1F5F9', padding:14, display:'flex', gap:12,
+      cursor: bizId ? 'pointer' : 'default' }}
+      onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}-transport`)}>
+
+      {/* Vehicle-type image/icon */}
+      <div style={{ width:64, height:64, borderRadius:14, backgroundColor:'#EFF6FF',
+        display:'flex', alignItems:'center', justifyContent:'center', fontSize:30,
+        flexShrink:0 }}>
+        {TRANSPORT_ICONS[tr.vehicleType] || '🚚'}
+      </div>
+
+      <div style={{ flex:1, minWidth:0 }}>
+        {/* Company name + profile picture */}
+        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
+          <div style={{ width:20, height:20, borderRadius:'50%', overflow:'hidden', flexShrink:0,
+            backgroundColor:'#F1F5F9', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            {biz.logo
+              ? <img src={biz.logo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}
+                  onError={e => e.target.style.display='none'} />
+              : <span style={{ fontSize:10, fontWeight:900, color:B }}>{(biz.name||'?').charAt(0).toUpperCase()}</span>}
+          </div>
+          <span style={{ fontSize:12, fontWeight:800, color:DK, overflow:'hidden',
+            textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {biz.name || t('home_feed.business_fallback')}
+          </span>
+          {biz.isVerified && <span style={{ fontSize:10, color:B, fontWeight:800 }}>✓</span>}
+        </div>
+
+        {/* Route */}
+        <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:4,
+          overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+          {tr.routeLabel || post.title}
+        </div>
+
+        {/* Price + available space + location */}
+        <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', fontSize:11, color:GR }}>
+          {priceLabel && <span style={{ color:B, fontWeight:800, fontSize:13 }}>{priceLabel}</span>}
+          {tr.slotsAvailable != null && (
+            <span style={{ fontWeight:700, color: tr.slotsAvailable > 0 ? '#16A34A' : '#DC2626' }}>
+              {tr.slotsAvailable > 0
+                ? t('home_feed.transport_slots_available', { count: tr.slotsAvailable })
+                : t('home_feed.transport_full')}
+            </span>
+          )}
+          {location && <span>📍 {location}</span>}
+        </div>
+      </div>
+    </article>
+  );
+};
+
 // ── Trending card (with inline Follow) ────────────────────────────────────────
 const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
@@ -1658,15 +1732,22 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               store:      trending.topBusinesses?.map(b => b.business).filter(Boolean),
             }[railType];
 
+            const isTransportPost =
+              post.entityType === 'route' || post.feedType === 'route' || post.linkedEntityType === 'route';
+
             return (
               <React.Fragment key={post.id || i}>
-                <PostCard post={post}
-                  isLoggedIn={isLoggedIn} onNavigate={onNavigate}
-                  currentUser={currentUser} savedIds={savedIds}
-                  activeProfileId={activeProfileId}
-                  onSaveToggle={(id, saved) => setSavedIds(prev =>
-                    saved ? [...prev, id] : prev.filter(x => x !== id)
-                  )} />
+                {isTransportPost ? (
+                  <TransportPostCard post={post} onNavigate={onNavigate} />
+                ) : (
+                  <PostCard post={post}
+                    isLoggedIn={isLoggedIn} onNavigate={onNavigate}
+                    currentUser={currentUser} savedIds={savedIds}
+                    activeProfileId={activeProfileId}
+                    onSaveToggle={(id, saved) => setSavedIds(prev =>
+                      saved ? [...prev, id] : prev.filter(x => x !== id)
+                    )} />
+                )}
                 {showRailAfter && (
                   <DiscoveryRail type={railType} items={railItems} onNavigate={onNavigate} />
                 )}
