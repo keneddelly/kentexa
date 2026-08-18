@@ -345,7 +345,7 @@ export class FeedService {
           .take(limit)
           .getMany();
         return {
-          items: this.formatPosts(posts, 'trending'),
+          items: await this.formatPosts(posts, 'trending'),
           total: posts.length,
         };
       }
@@ -368,7 +368,7 @@ export class FeedService {
           .take(limit)
           .getMany();
         return {
-          items: this.formatPosts(posts, 'following'),
+          items: await this.formatPosts(posts, 'following'),
           total: posts.length,
         };
       }
@@ -483,9 +483,13 @@ export class FeedService {
             .getMany(),
         ]);
 
+        const [followedFormatted, trendingFormatted] = await Promise.all([
+          this.formatPosts(followed, 'following'),
+          this.formatPosts(trending, 'trending'),
+        ]);
         const items = [
-          ...this.formatPosts(followed, 'following'),
-          ...this.formatPosts(trending, 'trending'),
+          ...followedFormatted,
+          ...trendingFormatted,
           ...this.formatClassifieds(recent),
         ];
 
@@ -554,9 +558,14 @@ export class FeedService {
         .getMany(),
     ]);
 
+    const [topProductsFormatted, fastestGrowingFormatted] = await Promise.all([
+      this.formatPosts(topPosts, 'trending'),
+      this.formatPosts(fastGrowing, 'trending'),
+    ]);
+
     return {
-      topProducts: this.formatPosts(topPosts, 'trending'),
-      fastestGrowing: this.formatPosts(fastGrowing, 'trending'),
+      topProducts: topProductsFormatted,
+      fastestGrowing: fastestGrowingFormatted,
       topBusinesses: this.formatBusinesses(topBiz),
       topServices: this.formatServices(topSvc),
       topRoutes: [], // populated from transport data
@@ -626,16 +635,7 @@ export class FeedService {
           .take(20)
           .getMany();
 
-        followedFeed = followed.map((f) => ({
-          id: 'feed-' + f.id,
-          feedType: 'business_post',
-          createdAt: f.createdAt,
-          data: f,
-          business: f.business,
-          cvsScore: f.cvsScore,
-          saveCount: f.saveCount,
-          commentCount: f.commentCount,
-        }));
+        followedFeed = await this.formatPosts(followed, 'business_post');
       }
     }
 
@@ -690,18 +690,60 @@ export class FeedService {
   }
 
   // ── Format helpers ────────────────────────────────────────────────────────
-  private formatPosts(posts: BusinessFeedItem[], feedType: string) {
-    return posts.map((f) => ({
-      id: 'feed-' + f.id,
-      feedType,
-      createdAt: f.createdAt,
-      data: f,
-      business: (f as any).business,
-      cvsScore: f.cvsScore,
-      saveCount: f.saveCount,
-      commentCount: f.commentCount,
-      purchaseCount: f.purchaseCount,
-    }));
+  // Resolves each post's commerceProfileId to the actual CommerceProfile it
+  // was published as, so the card shows and links to THAT identity (e.g. a
+  // business profile) instead of the owning account's raw User record,
+  // which is always what f.business resolves to and always what a bare
+  // account-id link falls back to. Same fix already applied in CvsService's
+  // main feed path and the story-ring moments query — this was the one
+  // remaining spot (trending/following tabs, discover's followedFeed) still
+  // returning the unresolved account, which is why a post published as a
+  // business profile still opened the owner's personal profile on click.
+  private async formatPosts(posts: BusinessFeedItem[], feedType: string) {
+    const profileIds = [
+      ...new Set(
+        posts
+          .map((f) => f.commerceProfileId)
+          .filter((id): id is number => !!id),
+      ),
+    ];
+    const profiles = profileIds.length
+      ? await this.commerceProfileRepo.find({ where: { id: In(profileIds) } })
+      : [];
+    const profileMap = new Map(profiles.map((p) => [p.id, p]));
+
+    return posts.map((f) => {
+      const rawBiz = (f as any).business;
+      const profile = f.commerceProfileId
+        ? profileMap.get(f.commerceProfileId)
+        : null;
+      const business = rawBiz
+        ? {
+            ...rawBiz,
+            ...(profile
+              ? {
+                  commerceProfileId: profile.id,
+                  name: profile.displayName,
+                  storeName: profile.displayName,
+                  logo: profile.photoUrl || rawBiz.logo,
+                  followersCount: profile.followersCount,
+                  isVerified: profile.isVerified,
+                }
+              : {}),
+          }
+        : rawBiz;
+      return {
+        id: 'feed-' + f.id,
+        feedType,
+        createdAt: f.createdAt,
+        data: f,
+        business,
+        cvsScore: f.cvsScore,
+        saveCount: f.saveCount,
+        commentCount: f.commentCount,
+        purchaseCount: f.purchaseCount,
+      };
+    });
   }
 
   private formatClassifieds(items: any[]) {

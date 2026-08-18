@@ -182,7 +182,7 @@ const tabs = (profileType, isOwn, t) => {
   // plus Reputation. "Profiles" (Also on Kentexa) is always-visible below
   // the header, not a tab, so it isn't listed here.
   const base = [];
-  if (isOwn) base.push({ key:'posts', label:t('commerce_profile.tab_products') });
+  if (isOwn) base.push({ key:'posts', label:t('commerce_profile.tab_listings') });
   base.push({ key:'about', label:t('commerce_profile.tab_about') });
   if (isOwn) base.push({ key:'services', label:t('commerce_profile.tab_services') });
   base.push({ key:'reputation', label:t('commerce_profile.tab_reputation') });
@@ -295,7 +295,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       own ? api.get('/services/my') : Promise.resolve({data:[]}),
       (own && activeProfile.type === 'agent') ? api.get('/agents/my-profile') : Promise.resolve({data:null}),
       api.get(`/classifieds/seller/${uid}`),
-      api.get(`/products/seller/${uid}`),
+      // Products belong to the Seller (business) Commerce Profile only —
+      // /products/seller/:id is keyed on the account's userId, not a
+      // specific profile, so fetching it for a personal/agent/hub/etc.
+      // profile would bleed that same person's store products into a
+      // profile that has nothing to do with selling products.
+      activeProfile.type === 'business' ? api.get(`/products/seller/${uid}`) : Promise.resolve({data:[]}),
     ]).then(([p,r,f,o,s,a,cl,pr]) => {
       if (p.status==='fulfilled') setProfile(p.value.data);
       if (r.status==='fulfilled') setRep(r.value.data);
@@ -769,9 +774,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         {tab==='posts' && (
           <div>
             {(classifieds.length === 0 && products.length === 0) ? (
-              <Empty icon="🏷️" text={t('commerce_profile.no_products_yet')}
-                action={isOwnProfile ? t('commerce_profile.add_product_action') : null}
-                onAction={() => onNavigate('SellerProducts')} />
+              <Empty icon="🏷️"
+                text={activeProfile.type === 'business'
+                  ? t('commerce_profile.no_products_yet')
+                  : t('commerce_profile.no_listings_yet')}
+                action={isOwnProfile
+                  ? (activeProfile.type === 'business'
+                      ? t('commerce_profile.add_product_action')
+                      : t('commerce_profile.add_listing_action'))
+                  : null}
+                onAction={() => onNavigate(activeProfile.type === 'business' ? 'SellerProducts' : 'SellerClassifieds')} />
             ) : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:2 }}>
                 {[
