@@ -81,6 +81,8 @@ export class InvoicesService {
       paymentMethod: string;
       agentId?: number;
       buyerId?: number | null;
+      payerName?: string | null;
+      payerPhone?: string | null;
     },
   ): Promise<Invoice> {
     const invoiceNumber = await this.generateInvoiceNumber();
@@ -89,6 +91,8 @@ export class InvoicesService {
       invoiceNumber,
       order,
       buyer: params.buyerId ? ({ id: params.buyerId } as any) : null,
+      payerName: params.payerName || null,
+      payerPhone: params.payerPhone || null,
       amount: params.amount,
       status: InvoiceStatus.PAID,
       receiptNumber,
@@ -484,14 +488,55 @@ export class InvoicesService {
         .lineTo(doc.page.width - 50, 180)
         .stroke();
 
+      // A manual payment (cash/mobile_money/bank/other, collected by the
+      // seller directly — see recordManualPayment()) never went through a
+      // real online gateway, unlike a paymentMethod like 'selcom'/
+      // 'vodacom'/'mock'. Everything below reflects that distinction
+      // instead of always assuming Kentexa processed the money.
+      const MANUAL_METHODS = ['cash', 'mobile_money', 'bank', 'other'];
+      const isManualPayment = MANUAL_METHODS.includes(
+        (invoice.paymentMethod || '').toLowerCase(),
+      );
+      const sellerName =
+        (invoice.order?.seller as any)?.storeName ||
+        invoice.order?.seller?.name ||
+        null;
+
       const details = [
-        { label: 'Buyer', value: invoice.buyer?.email || '—' },
-        { label: 'Product', value: invoice.order?.product?.name || '—' },
-        { label: 'Quantity', value: String(invoice.order?.quantity || 1) },
-        { label: 'Payment Method', value: invoice.paymentMethod || '—' },
+        ...(sellerName ? [{ label: 'Seller', value: sellerName }] : []),
         {
-          label: 'Transaction Ref',
-          value: invoice.transactionReference || '—',
+          label: 'Buyer',
+          value:
+            invoice.payerName ||
+            invoice.buyer?.name ||
+            invoice.buyer?.email ||
+            '—',
+        },
+        ...(invoice.payerPhone
+          ? [{ label: 'Buyer Phone', value: invoice.payerPhone }]
+          : []),
+        {
+          label: 'Product',
+          value:
+            invoice.order?.product?.name ||
+            (invoice.order as any)?.manualProductName ||
+            '—',
+        },
+        { label: 'Quantity', value: String(invoice.order?.quantity || 1) },
+        {
+          label: 'Order Ref',
+          value: (invoice.order as any)?.trackingNumber || '—',
+        },
+        {
+          label: 'Payment Method',
+          value: invoice.paymentMethod || '—',
+        },
+        ...(invoice.transactionReference
+          ? [{ label: 'Transaction Ref', value: invoice.transactionReference }]
+          : []),
+        {
+          label: 'Payment Source',
+          value: isManualPayment ? 'External / Offline' : 'Kentexa Online',
         },
       ];
 
@@ -531,10 +576,17 @@ export class InvoicesService {
         .fillColor('#16a34a')
         .fontSize(11)
         .font('Helvetica-Bold')
-        .text('Payment verified by KenteXa Payment System', 60, y + 68, {
-          align: 'center',
-          width: doc.page.width - 120,
-        });
+        .text(
+          // Never claim Kentexa processed money it never held — a manual
+          // payment was collected by the seller directly and only
+          // recorded/confirmed through Kentexa.
+          isManualPayment
+            ? 'Payment recorded and verified by Kentexa — collected directly by the seller'
+            : 'Payment verified by Kentexa Payment System',
+          60,
+          y + 68,
+          { align: 'center', width: doc.page.width - 120 },
+        );
 
       doc.end();
     });

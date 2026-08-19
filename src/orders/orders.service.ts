@@ -64,6 +64,7 @@ import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { WalletService } from '../wallet/wallet.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FRONTEND_URL } from '../config/urls.config';
 
@@ -108,6 +109,7 @@ export class OrdersService {
     private sellerScope: SellerScopeService,
     private walletService: WalletService,
     private commerceProfiles: CommerceProfilesService,
+    private profileScope: CommerceProfileScopeService,
   ) {}
 
   // ── Create Order ──────────────────────────────────────────────────────────
@@ -2042,6 +2044,9 @@ export class OrdersService {
       busCompany?: string;
       busTicketNumber?: string;
       externalTrackingRef?: string;
+      // Which CommerceProfile (personal vs a specific business) this order
+      // was created as — same pattern as createSellerShipment().
+      commerceProfileId?: number;
     },
   ) {
     const product = await this.productsService.findOne(dto.productId);
@@ -2052,6 +2057,21 @@ export class OrdersService {
       throw new BadRequestException('Product not available');
     if (product.stock < dto.quantity)
       throw new BadRequestException('Insufficient stock');
+
+    let senderDisplayName = (seller as any).storeName || seller.name;
+    if (dto.commerceProfileId) {
+      const authorized = await this.profileScope.isAuthorizedFor(
+        seller.id,
+        dto.commerceProfileId,
+        'canCreateOrders',
+      );
+      if (authorized) {
+        const profile = await this.commerceProfiles
+          .findById(dto.commerceProfileId)
+          .catch(() => null);
+        if (profile?.displayName) senderDisplayName = profile.displayName;
+      }
+    }
 
     const basePrice = Number(product.basePrice || 0);
     const deliveryFee = Number(product.deliveryFee || 0);
@@ -2107,21 +2127,34 @@ export class OrdersService {
     const trackingNumber = `KTX-ORD-${saved.id}`;
     await this.repo.update(saved.id, { trackingNumber });
 
-    // Send SMS to customer with tracking — this is a manual/offline order
-    // (no buyer account), so the buyer isn't reachable via the in-app
-    // notification system at all; a direct SMS is the only way they learn
-    // their tracking number.
+    // ── Manual-order payment confirmation ───────────────────────────────
+    // Same treatment as createSellerShipment()'s manual-payment flow:
+    // a real receipted Invoice (recordManualPayment — the same generator
+    // every other manual payment in the app uses) plus a branded SMS to
+    // the buyer, never claiming Kentexa processed money the seller
+    // collected directly. Fires exactly once, inline in this create call
+    // — no separate "mark paid" step exists that could re-trigger it.
+    const invoice = await this.invoicesService.recordManualPayment(
+      saved as any,
+      {
+        amount: totalAmount,
+        paymentMethod: dto.paymentMethod || 'cash',
+        payerName: dto.buyerName,
+        payerPhone: dto.buyerPhone,
+      },
+    );
+
+    let buyerPaymentSmsSent = false;
     try {
-      const msg =
-        `KenteXa: Habari ${dto.buyerName}! Agizo lako la "${product.name}" limepokelewa.
-` +
-        `Nambari ya ufuatiliaji: ${trackingNumber}
-` +
-        `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}`;
-      await this.smsService.sendSms(dto.buyerPhone, msg);
-    } catch (e) {
-      // Non-fatal — order already created, tracking number still in the response
-      console.error('Manual order confirmation SMS failed:', e.message);
+      buyerPaymentSmsSent = await this.smsService.sendSms(
+        dto.buyerPhone,
+        `Habari ${dto.buyerName}, ${senderDisplayName} imepokea malipo yako ya TZS ${totalAmount.toLocaleString()} kwa ${product.name} (Oda: ${trackingNumber}).\n\n` +
+          `Risiti: ${invoice.receiptNumber}\n\n` +
+          `Verified by Kentexa`,
+      );
+    } catch (e: any) {
+      // Non-fatal — order and receipt already exist regardless
+      console.error('Manual order payment SMS failed:', e.message);
     }
 
     return {
@@ -2130,6 +2163,12 @@ export class OrdersService {
       trackingNumber,
       buyerName: dto.buyerName,
       productName: product.name,
+      receipt: {
+        receiptNumber: invoice.receiptNumber,
+        amount: totalAmount,
+        paymentMethod: dto.paymentMethod || 'cash',
+        buyerPaymentSmsSent,
+      },
       sellerStoreName: (seller as any).storeName || seller.name || null,
       totalAmount,
       message: `Agizo #${saved.id} limeundwa. Nambari ${trackingNumber} imetumwa kwa ${dto.buyerPhone}`,

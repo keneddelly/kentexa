@@ -554,6 +554,8 @@ export class SuperAgentsService {
         amount: dto.shippingFeeCollected,
         paymentMethod: dto.paymentMethod || 'cash',
         agentId: superAgent.id,
+        payerName: dto.senderName,
+        payerPhone: dto.senderPhone,
       },
     );
 
@@ -2478,7 +2480,14 @@ export class SuperAgentsService {
       .catch(() => null);
     if (sellerProfile) this.assertNotBillingBlocked(sellerProfile);
 
-    let senderDisplayName = seller.name;
+    // Business identity first, never the raw personal account name — a
+    // seller acting in a seller-only flow should never show as their
+    // personal profile just because no commerceProfileId happened to be
+    // sent (e.g. the frontend's active-profile toggle was on "personal"
+    // at the time). CommerceProfile.displayName, when resolved below,
+    // still wins over storeName — it's the more specific, deliberately
+    // chosen identity for whichever profile was actually active.
+    let senderDisplayName = (seller as any).storeName || seller.name;
     if (dto.commerceProfileId) {
       const authorized = await this.profileScope.isAuthorizedFor(
         seller.id,
@@ -2687,16 +2696,19 @@ export class SuperAgentsService {
     const invoice = await this.invoicesService.recordManualPayment(order, {
       amount: orderAmount,
       paymentMethod: dto.paymentMethod || 'cash',
+      payerName: buyerName,
+      payerPhone: buyerPhone,
     });
 
     // SELLER's own brand, never "SUPER AGENT" — no Super Agent is involved
     // yet at this point, the customer is dealing with the seller only.
+    // Brand named inline in the sentence rather than as a standalone
+    // header line, alongside what was actually bought and the total.
     let buyerPaymentSmsSent = false;
     try {
       buyerPaymentSmsSent = await this.smsService.sendSms(
         buyerPhone,
-        `${senderDisplayName}\n\n` +
-          `Habari ${buyerName}, malipo yako ya TZS ${orderAmount.toLocaleString()} yamepokelewa kwa oda ${trackingNumber}.\n\n` +
+        `Habari ${buyerName}, ${senderDisplayName} imepokea malipo yako ya TZS ${orderAmount.toLocaleString()} kwa ${dto.description} (Oda: ${trackingNumber}).\n\n` +
           `Risiti: ${invoice.receiptNumber}\n\n` +
           `Verified by Kentexa`,
       );

@@ -37,6 +37,18 @@ export class Invoice {
   @ManyToOne(() => User, { eager: true, nullable: true, onDelete: 'CASCADE' })
   buyer: User | null;
 
+  // Plain name/phone for who actually paid — set for manual/offline
+  // payments (recordManualPayment()), where there's usually no `buyer`
+  // User account to reference at all. Previously this information only
+  // ever existed transiently inside the request that sent the payment
+  // SMS and was never persisted anywhere, so the receipt (this row) had
+  // no way to show who paid after the fact.
+  @Column({ type: 'text', nullable: true })
+  payerName: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  payerPhone: string | null;
+
   @Column('decimal', { precision: 10, scale: 2 })
   amount: number;
 
