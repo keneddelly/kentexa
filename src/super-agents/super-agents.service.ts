@@ -31,6 +31,7 @@ import { BusinessCustomerService } from '../business/business-customer.service';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import {
   CommerceProfileType,
   CommerceProfileStatus,
@@ -99,6 +100,7 @@ export class SuperAgentsService {
     private businessCustomerService: BusinessCustomerService,
     private inAppNotif: InAppNotificationService,
     private commerceProfiles: CommerceProfilesService,
+    private profileScope: CommerceProfileScopeService,
     private invoicesService: InvoicesService,
     private auditLog: AuditLogService,
   ) {}
@@ -2451,6 +2453,13 @@ export class SuperAgentsService {
         price: number;
         weight?: number;
       }>;
+      // Which CommerceProfile (personal vs a specific business) this
+      // shipment was sent as — same pattern as Product/Classified/Service.
+      // Without this, Parcel.senderName always fell back to seller.name
+      // (the account's PERSONAL name), so a shipment sent while a business
+      // profile was active still showed the owner's personal name as the
+      // sender everywhere the tracking data is displayed.
+      commerceProfileId?: number;
     },
   ) {
     // Billing applies only to actual sellers — an ADMIN/MANAGER/SUPER_AGENT
@@ -2460,6 +2469,21 @@ export class SuperAgentsService {
       .findOne({ where: { user: { id: seller.id } } })
       .catch(() => null);
     if (sellerProfile) this.assertNotBillingBlocked(sellerProfile);
+
+    let senderDisplayName = seller.name;
+    if (dto.commerceProfileId) {
+      const authorized = await this.profileScope.isAuthorizedFor(
+        seller.id,
+        dto.commerceProfileId,
+        'canCreateOrders',
+      );
+      if (authorized) {
+        const profile = await this.commerceProfiles
+          .findById(dto.commerceProfileId)
+          .catch(() => null);
+        if (profile?.displayName) senderDisplayName = profile.displayName;
+      }
+    }
 
     // Founding-pilot free-order check — same principle as
     // createOfflineIntercityOrder(): computed once per created parcel,
@@ -2596,7 +2620,7 @@ export class SuperAgentsService {
         source: 'seller_shipment',
         order: order,
         seller: seller,
-        senderName: seller.name,
+        senderName: senderDisplayName,
         senderPhone: seller.phone,
         destinationSuperAgent: destAgent || null,
         originCity: dto.originCity,
@@ -2752,7 +2776,12 @@ export class SuperAgentsService {
     // if one was assigned and the seller has no store branding set.
     let receiverSmsSent = false;
     if ((parcel as any).buyerPhone) {
+      // senderName was resolved at creation time to whichever profile
+      // (personal or business) was active when the shipment was sent —
+      // prefer it over storeName/seller.name, which always reflect the
+      // account's raw identity regardless of what was actually posted as.
       const brand =
+        (parcel as any).senderName ||
         (parcel.seller as any)?.storeName ||
         parcel.seller?.name ||
         (parcel as any).destinationSuperAgent?.businessName ||
@@ -2771,7 +2800,7 @@ export class SuperAgentsService {
         receiverSmsSent = await this.smsService.sendSms(
           (parcel as any).buyerPhone,
           `${brand}\n\n` +
-            `Habari ${(parcel as any).recipientName || ''}, kifurushi kutoka kwa ${parcel.seller?.name || ''} kimeshatumwa.\n\n` +
+            `Habari ${(parcel as any).recipientName || ''}, kifurushi kutoka kwa ${(parcel as any).senderName || parcel.seller?.name || ''} kimeshatumwa.\n\n` +
             `Kifurushi: ${trackingNumber}\n` +
             [
               transportLine,

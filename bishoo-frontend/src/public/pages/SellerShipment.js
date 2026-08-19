@@ -52,7 +52,7 @@ const SectionTitle = ({ icon, title, subtitle }) => (
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 
-const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = null, currentUser }) => {
+const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = null, currentUser, activeProfileId }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [products, setProducts]       = useState([]);
@@ -329,6 +329,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         courierTrackingRef: form.courierTrackingRef || null,
         notes:      [form.notes, form.superAgentNote, form.bodaNote].filter(Boolean).join(' | ') || null,
         totalValue: getTotalValue() || null,
+        commerceProfileId: activeProfileId || undefined,
       });
       setResult(res.data);
       // Tracking is active immediately — no separate upfront fee payment
