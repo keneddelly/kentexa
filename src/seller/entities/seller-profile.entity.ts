@@ -95,6 +95,31 @@ export class SellerProfile {
   @Column({ type: 'varchar', nullable: true })
   registrationNumber: string | null;
 
+  // ── Manual-shipment platform-fee billing ──────────────────────────────
+  // Same model as SuperAgent's founding-pilot billing: every new seller
+  // starts with a free-order allowance; past it, each manual shipment
+  // (super-agents.service.ts createSellerShipment()) accrues a real flat
+  // fee onto outstandingBalance instead of requiring an upfront per-order
+  // payment before the shipment can proceed. Per-seller columns (not
+  // hardcoded) so terms can be adjusted per account without code changes.
+  @Column({ type: 'int', default: 50 })
+  freeOrdersGranted: number;
+
+  @Column({ type: 'int', default: 0 })
+  freeOrdersUsed: number;
+
+  @Column({ type: 'int', default: 0 })
+  paidOrders: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 1000 })
+  platformFeePerOrder: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 10000 })
+  billingThreshold: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  outstandingBalance: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

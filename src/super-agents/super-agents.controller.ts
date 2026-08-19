@@ -308,6 +308,35 @@ export class SuperAgentsController {
     });
   }
 
+  // ── Admin: Seller manual-shipment billing (mirrors the Super Agent
+  //    endpoints above — same founding-pilot free-order + accumulating-
+  //    balance model, applied to createSellerShipment() instead) ─────────
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('admin/sellers/:id/grant-free-orders')
+  grantSellerFreeOrders(
+    @Param('id') id: string,
+    @Body('count') count: number,
+  ) {
+    return this.service.grantSellerFreeOrders(Number(id), Number(count));
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin/sellers/:id/billing-payment')
+  recordSellerBillingPayment(
+    @Param('id') id: string,
+    @Body('amount') amount: number,
+    @Body('paymentMethod') paymentMethod: string,
+    @Request() req: any,
+  ) {
+    return this.service.recordSellerBillingPayment(Number(id), {
+      amount: Number(amount),
+      paymentMethod: paymentMethod || 'cash',
+      adminUserId: req.user.id,
+    });
+  }
+
   // ── Admin: courier cost reimbursement ledger ────────────────────────────────
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)

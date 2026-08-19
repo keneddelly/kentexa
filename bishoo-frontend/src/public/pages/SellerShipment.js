@@ -3,7 +3,11 @@
  *
  * Two-stage flow:
  * STAGE 1 (seller, at creation):
- *   Pick item → buyer details → transport METHOD → pickup agent OR self drop-off → pay TZS 1,000
+ *   Pick item → buyer details → transport METHOD → pickup agent OR self drop-off
+ *   Tracking activates immediately — no upfront per-order payment. The
+ *   backend applies the same founding-pilot billing model as Super Agents:
+ *   first 50 manual shipments free, then billed per-order to the seller's
+ *   own account balance (SellerProfile.outstandingBalance).
  *
  * STAGE 2 (agent, after pickup):
  *   Agent collects → takes to bus/hub → fills ticket/ref details → tracking updates
@@ -66,10 +70,6 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
   const [shippingEst, setShippingEst] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [estLoading, setEstLoading]   = useState(false);
-  const [feePaid, setFeePaid]         = useState(false);
-  const [payingFee, setPayingFee]     = useState(false);
-  const [feePhone, setFeePhone]       = useState('');
-  const [feeError, setFeeError]       = useState('');
   const [availableAgents, setAvailableAgents] = useState([]);
   const [agentsLoading, setAgentsLoading]     = useState(false);
   const [selectedAgent, setSelectedAgent]     = useState(null);
@@ -330,43 +330,25 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         totalValue: getTotalValue() || null,
       });
       setResult(res.data);
+      // Tracking is active immediately — no separate upfront fee payment
+      // gates this anymore (see backend billing model: first 50 manual
+      // shipments free, then billed per-order to the seller's own account
+      // balance, same as Super Agents). Load available agents right away.
+      try {
+        setAgentsLoading(true);
+        const agRes = await api.get(
+          `/agents/available?city=${encodeURIComponent(sellerCity)}&weight=${form.weightKg || 5}`
+        );
+        setAvailableAgents(agRes.data || []);
+      } catch { setAvailableAgents([]); }
+      finally { setAgentsLoading(false); }
     } catch (err) {
       setError(err?.response?.data?.message || t('seller_shipment.create_order_failed'));
     } finally { setLoading(false); }
   };
 
-  const handlePayFee = async () => {
-    if (!feePhone.trim()) { setFeeError(t('seller_shipment.enter_mpesa_number')); return; }
-    try {
-      setPayingFee(true); setFeeError('');
-      const res = await api.post('/payments/invoice/pay', {
-        orderId: result.orderId, phone: feePhone.trim(),
-        provider: 'selcom', amount: 1000, purpose: 'platform_tracking_fee',
-      });
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setFeePaid(true);
-          // After payment — load available agents in seller's city
-          try {
-            setAgentsLoading(true);
-            const agRes = await api.get(
-              `/agents/available?city=${encodeURIComponent(sellerCity)}&weight=${form.weightKg || 5}`
-            );
-            setAvailableAgents(agRes.data || []);
-          } catch { setAvailableAgents([]); }
-          finally { setAgentsLoading(false); }
-        } catch { setFeeError(t('seller_shipment.payment_failed_retry')); }
-        setPayingFee(false);
-      }, 3000);
-    } catch (err) {
-      setFeeError(err?.response?.data?.message || t('seller_shipment.failed'));
-      setPayingFee(false);
-    }
-  };
-
   const handleNew = () => {
-    setResult(null); setFeePaid(false); setRouteInfo(null);
+    setResult(null); setRouteInfo(null);
     setSelectedProduct(null); setSelectedClassified(null);
     setItems([]); setAddText(''); setAddPrice(''); setAddWeight(''); setAddQty(1);
     setNewClassifiedTitle(''); setShowAddItem(true); setIsSameCity(false);
@@ -408,42 +390,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('seller_shipment.title')} />
       <div style={{ padding: 16, maxWidth: 480, margin: '0 auto', width: '100%', boxSizing: 'border-box', paddingBottom: 90 }}>
-        {!feePaid ? (
-          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <div style={{ fontSize: 44, marginBottom: 8 }}>📱</div>
-              <h3 style={{ fontSize: 17, fontWeight: 900, color: '#1e293b', margin: '0 0 6px' }}>{t('seller_shipment.pay_fee_title')}</h3>
-              <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-                {t('seller_shipment.pay_fee_desc', { name: form.recipientName })}
-              </p>
-            </div>
-            <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#15803d', marginBottom: 8 }}>{t('seller_shipment.recipient_gets')}</div>
-              {[
-                t('seller_shipment.sms_line', { city: sellerCity }),
-                t('seller_shipment.track_link_line', { trackingNumber: result.trackingNumber }),
-                t('seller_shipment.expected_line', { date: getExpectedArrival() || t('seller_shipment.today_tomorrow') }),
-                t('seller_shipment.updates_line'),
-              ].map(item => <div key={item} style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>{item}</div>)}
-            </div>
-            <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '12px 14px', marginBottom: 14, textAlign: 'center' }}>
-              <div style={{ fontSize: 22, fontWeight: 900, color: '#92400e' }}>TZS 1,000</div>
-              <div style={{ fontSize: 11, color: '#92400e' }}>{t('seller_shipment.tracking_fee_note')}</div>
-            </div>
-            <Field label={t('seller_shipment.mpesa_number')}>
-              <input type="tel" placeholder="255712345678"
-                value={feePhone} onChange={e => setFeePhone(e.target.value)} style={inputStyle} />
-            </Field>
-            {feeError && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 10 }}>❌ {feeError}</div>}
-            <button onClick={handlePayFee} disabled={payingFee}
-              style={{ width: '100%', background: payingFee ? '#94a3b8' : 'linear-gradient(135deg,#16a34a,#15803d)',
-                color: '#fff', border: 'none', padding: 14, borderRadius: 12,
-                cursor: payingFee ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 900 }}>
-              {payingFee ? `⏳ ${t('seller_shipment.processing_mpesa')}` : `💳 ${t('seller_shipment.pay_activate_tracking')}`}
-            </button>
-          </div>
-        ) : (
-          <>
+        <>
             <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', borderRadius: 20, padding: 24, textAlign: 'center', color: '#fff', marginBottom: 16 }}>
               <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
               <h2 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 4px' }}>{t('seller_shipment.order_registered')}</h2>
@@ -451,6 +398,17 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                 {t('seller_shipment.sms_sent_to', { name: form.recipientName, phone: form.recipientPhone })}
               </p>
             </div>
+            {result?.billing && (
+              <div style={{ backgroundColor: result.billing.isFreeOrder ? '#f0fdf4' : '#eff6ff',
+                borderRadius: 12, padding: '12px 14px', marginBottom: 16, textAlign: 'center' }}>
+                <div style={{ fontSize: 13, fontWeight: 800,
+                  color: result.billing.isFreeOrder ? '#15803d' : '#1d4ed8' }}>
+                  {result.billing.isFreeOrder
+                    ? '🎁 Agizo la bure — halikutozwa ada'
+                    : `Ada ya Kentexa TZS ${Number(result.billing.platformFeeCharged).toLocaleString()} imeongezwa kwenye deni lako`}
+                </div>
+              </div>
+            )}
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 1, marginBottom: 6 }}>{t('seller_shipment.tracking_number_label')}</div>
               <div style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 2 }}>
@@ -478,7 +436,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                 </div>
               ))}
             </div>
-            {/* Available agents — shown after payment */}
+            {/* Available agents — loaded immediately, tracking is already active */}
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>
                 🏍️ {t('seller_shipment.choose_driver')}
@@ -558,7 +516,6 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               </button>
             </div>
           </>
-        )}
       </div>
     </div>
   );

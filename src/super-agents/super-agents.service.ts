@@ -40,6 +40,7 @@ import { InvoicesService } from '../invoices/invoices.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { FRONTEND_URL } from '../config/urls.config';
+import { SellerProfile } from '../seller/entities/seller-profile.entity';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -91,6 +92,8 @@ export class SuperAgentsService {
     private batchParcelRepo: Repository<BatchParcel>,
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Payment) private paymentRepo: Repository<Payment>,
+    @InjectRepository(SellerProfile)
+    private sellerProfileRepo: Repository<SellerProfile>,
     private smsService: SmsService,
     private dataSource: DataSource,
     private businessCustomerService: BusinessCustomerService,
@@ -1612,13 +1615,18 @@ export class SuperAgentsService {
     return agent;
   }
 
-  // Billing gate — blocks new order registration once a Super Agent's
-  // outstandingBalance reaches their billingThreshold (per-agent columns,
-  // default 10,000/agent — never a hardcoded id/name check). Must be called
-  // at the top of every endpoint that creates a new billable parcel.
-  private assertNotBillingBlocked(superAgent: SuperAgent) {
-    const balance = Number(superAgent.outstandingBalance);
-    const threshold = Number(superAgent.billingThreshold);
+  // Billing gate — blocks new order registration once an account's
+  // outstandingBalance reaches their billingThreshold (per-account columns,
+  // default 10,000 — never a hardcoded id/name check). Shared by SuperAgent
+  // and SellerProfile, which carry the identical billing column shape. Must
+  // be called at the top of every endpoint that creates a new billable
+  // parcel.
+  private assertNotBillingBlocked(account: {
+    outstandingBalance: number;
+    billingThreshold: number;
+  }) {
+    const balance = Number(account.outstandingBalance);
+    const threshold = Number(account.billingThreshold);
     if (balance >= threshold) {
       throw new ForbiddenException(
         `Huduma imesimamishwa: deni la TZS ${balance.toLocaleString()} limefikia kiwango cha juu (TZS ${threshold.toLocaleString()}). ` +
@@ -1812,6 +1820,89 @@ export class SuperAgentsService {
       amountPaid: params.amount,
       outstandingBalance: newBalance,
       billingBlocked: newBalance >= Number(agent.billingThreshold),
+    };
+  }
+
+  // Admin-only — grants a Seller's free-order allowance for manual
+  // shipments (createSellerShipment). Additive: repeated calls just set a
+  // new total, matching grantFreeOrders()'s SuperAgent behavior.
+  async grantSellerFreeOrders(sellerProfileId: number, count: number) {
+    const profile = await this.sellerProfileRepo.findOne({
+      where: { id: sellerProfileId },
+    });
+    if (!profile) throw new NotFoundException('Seller profile not found');
+    await this.sellerProfileRepo.update(sellerProfileId, {
+      freeOrdersGranted: count,
+    });
+    return {
+      sellerProfileId,
+      freeOrdersGranted: count,
+      freeOrdersUsed: profile.freeOrdersUsed,
+    };
+  }
+
+  // Admin-only — records that a Seller paid down their outstanding manual-
+  // shipment platform-fee balance. Mirrors recordBillingPayment() exactly.
+  async recordSellerBillingPayment(
+    sellerProfileId: number,
+    params: { amount: number; paymentMethod: string; adminUserId: number },
+  ) {
+    const profile = await this.sellerProfileRepo.findOne({
+      where: { id: sellerProfileId },
+      relations: { user: true },
+    });
+    if (!profile) throw new NotFoundException('Seller profile not found');
+    const balance = Number(profile.outstandingBalance);
+    if (params.amount <= 0)
+      throw new BadRequestException('Amount must be greater than zero');
+    if (params.amount > balance)
+      throw new BadRequestException(
+        `Payment (TZS ${params.amount}) exceeds outstanding balance (TZS ${balance})`,
+      );
+
+    const payment = await this.paymentRepo.save(
+      this.paymentRepo.create({
+        order: null,
+        user: profile.user || null,
+        phone: profile.phone || profile.user?.phone || '',
+        amount: params.amount,
+        provider: params.paymentMethod || 'admin_manual',
+        status: PaymentStatus.SUCCESS,
+        metadata: JSON.stringify({
+          type: 'seller_shipment_billing',
+          sellerProfileId: profile.id,
+          recordedByAdminId: params.adminUserId,
+        }),
+      } as any),
+    );
+
+    const newBalance = balance - params.amount;
+    await this.sellerProfileRepo.update(sellerProfileId, {
+      outstandingBalance: newBalance,
+    });
+
+    await this.auditLog
+      .record({
+        actorId: params.adminUserId,
+        actorRole: 'admin',
+        action: 'seller.billing_payment_recorded',
+        entityType: 'seller_profile',
+        entityId: profile.id,
+        newValue: {
+          amount: params.amount,
+          paymentMethod: params.paymentMethod,
+          balanceBefore: balance,
+          balanceAfter: newBalance,
+          paymentId: (payment as any).id,
+        },
+      })
+      .catch(() => {});
+
+    return {
+      sellerProfileId,
+      amountPaid: params.amount,
+      outstandingBalance: newBalance,
+      billingBlocked: newBalance >= Number(profile.billingThreshold),
     };
   }
 
@@ -2319,8 +2410,11 @@ export class SuperAgentsService {
   // ══════════════════════════════════════════════════════════════════════════
   // SELLER SHIPMENT METHODS
   // Seller creates a shipment for any offline sale (WhatsApp, cash, Instagram)
-  // Shipping goes through KenteXa Super Agent network.
-  // TZS 1,000 platform fee activates tracking.
+  // Shipping goes through KenteXa Super Agent network. Same founding-pilot
+  // billing model as Super Agents: the first 50 manual shipments are free,
+  // then each one accrues SellerProfile.platformFeePerOrder onto
+  // outstandingBalance — no upfront per-order payment required before the
+  // shipment/tracking can proceed.
   // ══════════════════════════════════════════════════════════════════════════
 
   async createSellerShipment(
@@ -2359,6 +2453,27 @@ export class SuperAgentsService {
       }>;
     },
   ) {
+    // Billing applies only to actual sellers — an ADMIN/MANAGER/SUPER_AGENT
+    // acting on this route (all allowed by the controller's role guard)
+    // won't have a SellerProfile, so there's nothing to gate or charge.
+    const sellerProfile = await this.sellerProfileRepo
+      .findOne({ where: { user: { id: seller.id } } })
+      .catch(() => null);
+    if (sellerProfile) this.assertNotBillingBlocked(sellerProfile);
+
+    // Founding-pilot free-order check — same principle as
+    // createOfflineIntercityOrder(): computed once per created parcel,
+    // never re-run on a retry. No SellerProfile (e.g. admin acting) means
+    // no billing at all — not free, not charged, simply not applicable.
+    const isFreeOrder = sellerProfile
+      ? sellerProfile.freeOrdersUsed < sellerProfile.freeOrdersGranted
+      : true;
+    const feePerOrder = sellerProfile
+      ? Number(sellerProfile.platformFeePerOrder) || SUPER_AGENT_PLATFORM_FEE
+      : 0;
+    const platformFeeCharged = sellerProfile && !isFreeOrder ? feePerOrder : 0;
+    const platformFeeWaived = sellerProfile && isFreeOrder ? feePerOrder : 0;
+
     const isSameCity =
       dto.originCity.toLowerCase() === dto.destinationCity.toLowerCase();
 
@@ -2509,7 +2624,7 @@ export class SuperAgentsService {
       parcel,
       ParcelStatus.PENDING,
       dto.originCity,
-      'Agizo limeundwa. Inasubiri ada ya mfumo kulipwa.',
+      'Agizo limeundwa.',
       seller.name || 'Muuzaji',
       {
         phone: seller.phone || undefined,
@@ -2517,6 +2632,22 @@ export class SuperAgentsService {
         type: 'system',
       },
     );
+
+    // Aggregate the free-order/fee counters onto the seller's own profile —
+    // same tracked-then-real-balance principle as SuperAgent's counter flow.
+    if (sellerProfile) {
+      await this.sellerProfileRepo.update(sellerProfile.id, {
+        freeOrdersUsed: isFreeOrder
+          ? sellerProfile.freeOrdersUsed + 1
+          : sellerProfile.freeOrdersUsed,
+        paidOrders: isFreeOrder
+          ? sellerProfile.paidOrders
+          : sellerProfile.paidOrders + 1,
+        outstandingBalance: isFreeOrder
+          ? Number(sellerProfile.outstandingBalance)
+          : Number(sellerProfile.outstandingBalance) + platformFeeCharged,
+      });
+    }
 
     // No SMS here — this used to fire a receiver notification immediately
     // on creation, before the parcel had even been physically handed to
@@ -2535,7 +2666,17 @@ export class SuperAgentsService {
       transitCity,
       expectedArrival: expectedArrivalStr,
       estimatedDays,
-      message: 'Agizo limeundwa. Lipa TZS 1,000 ili kuamsha ufuatiliaji.',
+      message: 'Agizo limeundwa. Ufuatiliaji umeamilishwa.',
+      billing: sellerProfile
+        ? {
+            isFreeOrder,
+            platformFeeCharged,
+            platformFeeWaived,
+            outstandingBalance:
+              Number(sellerProfile.outstandingBalance) +
+              (isFreeOrder ? 0 : platformFeeCharged),
+          }
+        : null,
     };
   }
 

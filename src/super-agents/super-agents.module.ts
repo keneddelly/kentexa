@@ -23,6 +23,7 @@ import { TransportAssignment } from '../transport/entities/transport-assignment.
 import { InvoicesModule } from '../invoices/invoices.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { Payment } from '../payments/entities/payment.entity';
+import { SellerProfile } from '../seller/entities/seller-profile.entity';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { Payment } from '../payments/entities/payment.entity';
       // only free-text company fields, without a module-level dependency.
       TransportAssignment,
       Payment,
+      SellerProfile,
     ]),
     AgentsModule,
     SmsModule,
