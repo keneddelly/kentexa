@@ -49,6 +49,26 @@ import { FRONTEND_URL } from '../config/urls.config';
 // paid down via recordBillingPayment() below.
 export const SUPER_AGENT_PLATFORM_FEE = 1000;
 
+// Which side of a hand-off is allowed to move a parcel into each status via
+// updateParcelStatus(). The origin hub (Parcel.superAgent) owns everything
+// up through dispatch; only the receiving hub (Parcel.destinationSuperAgent)
+// may declare a parcel arrived/awaiting/delivered — this is what stops the
+// sending Super Agent from accidentally (or mistakenly) firing the
+// customer's "it has arrived" SMS from their own outgoing-parcel view.
+const ORIGIN_ONLY_STATUSES = new Set([
+  ParcelStatus.RECEIVED_AT_HUB,
+  ParcelStatus.VERIFIED,
+  ParcelStatus.READY_FOR_DISPATCH,
+  ParcelStatus.DISPATCHED,
+  ParcelStatus.IN_TRANSIT,
+]);
+const DESTINATION_ONLY_STATUSES = new Set([
+  ParcelStatus.ARRIVED_AT_HUB,
+  ParcelStatus.AWAITING_BUYER,
+  ParcelStatus.OUT_FOR_DELIVERY,
+  ParcelStatus.DELIVERED,
+]);
+
 @Injectable()
 export class SuperAgentsService {
   constructor(
@@ -1513,6 +1533,12 @@ export class SuperAgentsService {
     const destHubLine = parcel.destinationSuperAgent?.businessName
       ? `Hub ya Kupokea: ${parcel.destinationSuperAgent.businessName}`
       : null;
+    const destHubAddressLine = parcel.destinationSuperAgent?.address
+      ? `Mahali: ${parcel.destinationSuperAgent.address}`
+      : null;
+    const destHubPhoneLine = parcel.destinationSuperAgent?.phone
+      ? `Simu ya Hub: ${parcel.destinationSuperAgent.phone}`
+      : null;
     if (parcel.buyerPhone) {
       try {
         receiverSmsSent = await this.smsService.sendSms(
@@ -1529,6 +1555,8 @@ export class SuperAgentsService {
               arrivalLine,
               `Njia: ${parcel.originCity} → ${parcel.destinationCity}`,
               destHubLine,
+              destHubAddressLine,
+              destHubPhoneLine,
             ]
               .filter(Boolean)
               .join('\n') +
@@ -2125,6 +2153,42 @@ export class SuperAgentsService {
     if (!parcel)
       throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
 
+    // Ownership + direction check — the origin hub owns everything up
+    // through dispatch; only the destination hub may declare a parcel
+    // arrived/awaiting/delivered. Without this, either side could fire the
+    // other's customer-facing SMS by picking the wrong option from their
+    // own parcel's status dropdown. Falls back to allowing the origin hub
+    // for destination-side statuses ONLY if no destination hub was ever
+    // assigned (single-agent-covers-both-ends case) — otherwise a real
+    // assigned destination hub is the sole owner of those statuses.
+    const handlerAgent = await this.superAgentRepo
+      .findOne({ where: { user: { id: user.id } } })
+      .catch(() => null);
+    const isAdmin =
+      user.role === UserRole.ADMIN ||
+      (user as any).activeRoles?.includes(UserRole.ADMIN);
+    if (!isAdmin) {
+      const isOriginAgent = parcel.superAgent?.id === handlerAgent?.id;
+      const isDestinationAgent =
+        parcel.destinationSuperAgent?.id === handlerAgent?.id;
+      if (ORIGIN_ONLY_STATUSES.has(dto.status) && !isOriginAgent) {
+        throw new ForbiddenException(
+          'Hali hii inaweza kubadilishwa na hub ya asili pekee.',
+        );
+      }
+      if (DESTINATION_ONLY_STATUSES.has(dto.status)) {
+        const destinationAssigned = !!parcel.destinationSuperAgent;
+        const allowed = destinationAssigned
+          ? isDestinationAgent
+          : isOriginAgent;
+        if (!allowed) {
+          throw new ForbiddenException(
+            'Hali hii inaweza kubadilishwa na hub ya kupokea pekee.',
+          );
+        }
+      }
+    }
+
     // Build update payload
     const updates: any = { status: dto.status };
     if (dto.status === ParcelStatus.ARRIVED_AT_HUB) {
@@ -2138,10 +2202,6 @@ export class SuperAgentsService {
     await this.parcelRepo.update(parcel.id, updates);
 
     // Add tracking history event
-    // Get handler details for tracking event
-    const handlerAgent = await this.superAgentRepo
-      .findOne({ where: { user: { id: user.id } } })
-      .catch(() => null);
     await this.addTrackingEvent(
       parcel,
       dto.status,
@@ -2165,14 +2225,28 @@ export class SuperAgentsService {
       // Only send SMS for action-required moments — saves cost
       // ARRIVED_AT_HUB: buyer needs to decide pickup vs delivery
       // DELIVERED: order complete confirmation
+      const arrivalHub =
+        (parcel as any).destinationSuperAgent || parcel.superAgent || null;
+      const arrivalBrand = arrivalHub?.businessName || 'KenteXa Network';
+      const arrivalAddressLine = arrivalHub?.address
+        ? `Mahali: ${arrivalHub.address}`
+        : null;
+      const arrivalPhoneLine = arrivalHub?.phone
+        ? `Simu ya Hub: ${arrivalHub.phone}`
+        : null;
       const smsMap: Partial<Record<ParcelStatus, string>> = {
         [ParcelStatus.ARRIVED_AT_HUB]:
-          `KenteXa: Habari ${recipientName}! Kifurushi chako (${trackingNumber}) ` +
-          `kimefika ${dto.city}. Ingia KenteXa kuchagua: chukua mwenyewe au omba delivery. ` +
-          `${FRONTEND_URL}/?track=${trackingNumber}`,
+          `${arrivalBrand}\n\n` +
+          `Habari ${recipientName}! Kifurushi chako (${trackingNumber}) ` +
+          `kimefika ${dto.city}. Ingia KenteXa kuchagua: chukua mwenyewe au omba delivery.\n\n` +
+          [arrivalAddressLine, arrivalPhoneLine].filter(Boolean).join('\n') +
+          (arrivalAddressLine || arrivalPhoneLine ? '\n\n' : '') +
+          `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+          `Verified by Kentexa`,
 
         [ParcelStatus.DELIVERED]:
-          `KenteXa: ✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
+          `${arrivalBrand}\n\n` +
+          `✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
           `Asante kwa kutumia KenteXa! 🎉`,
       };
       if (smsMap[dto.status]) {
@@ -2628,10 +2702,15 @@ export class SuperAgentsService {
     );
 
     const recipientName = (parcel as any).recipientName || 'Mpokeaji';
-    const arrivalBrand =
-      (parcel as any).destinationSuperAgent?.businessName ||
-      (parcel as any).superAgent?.businessName ||
-      'KenteXa Network';
+    const arrivalHub =
+      (parcel as any).destinationSuperAgent || (parcel as any).superAgent || null;
+    const arrivalBrand = arrivalHub?.businessName || 'KenteXa Network';
+    const arrivalAddressLine = arrivalHub?.address
+      ? `Mahali: ${arrivalHub.address}`
+      : null;
+    const arrivalPhoneLine = arrivalHub?.phone
+      ? `Simu ya Hub: ${arrivalHub.phone}`
+      : null;
 
     // SMS 2: Buyer action required (essential)
     if ((parcel as any).buyerPhone) {
@@ -2641,6 +2720,8 @@ export class SuperAgentsService {
           `${arrivalBrand}\n\n` +
             `Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
             `imefika ${dto.city}. Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery.\n\n` +
+            [arrivalAddressLine, arrivalPhoneLine].filter(Boolean).join('\n') +
+            (arrivalAddressLine || arrivalPhoneLine ? '\n\n' : '') +
             `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
             `Verified by Kentexa`,
         )

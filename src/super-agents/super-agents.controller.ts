@@ -184,8 +184,11 @@ export class SuperAgentsController {
     return this.service.dispatchParcel(req.user, tn, dto);
   }
 
-  // Update parcel status (any agent)
-  @UseGuards(JwtAuthGuard)
+  // Update parcel status — ownership/direction enforced in the service
+  // (origin hub owns pre-dispatch statuses, destination hub owns
+  // arrival/delivery statuses).
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Patch('parcels/:trackingNumber/status')
   updateStatus(
     @Request() req,

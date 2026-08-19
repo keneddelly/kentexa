@@ -95,6 +95,16 @@ const PCard = ({ p, actions = [] }) => (
       </div>
     )}
 
+    {/* Phone numbers — previously only visible via the public track page;
+        the handling Super Agent needs these directly to actually call
+        someone (confirm handover, resolve a delivery issue, etc). */}
+    {(p.senderPhone || p.buyerPhone) && (
+      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>
+        {p.senderPhone && <span>📞 Mtumaji: {p.senderPhone} </span>}
+        {p.buyerPhone && <span>📞 Mpokeaji: {p.buyerPhone}</span>}
+      </div>
+    )}
+
     {p.description && (
       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
         📦 {p.description}
@@ -150,6 +160,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [loading, setLoading]           = useState(true);
   const [profileStatus, setProfileStatus] = useState(null);
   const [activeTab, setActiveTab]       = useState('pokea');
+  const [historiaSearch, setHistoriaSearch] = useState('');
+  const [historyModal, setHistoryModal] = useState(null); // { trackingNumber, loading, data, error }
   const [error, setError]               = useState('');
   const [success, setSuccess]           = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -266,6 +278,18 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const awaitingBuyer = parcels.filter(p => ['awaiting_buyer','out_for_delivery'].includes(p.status) && p.myRole === 'destination');
   // eslint-disable-next-line no-unused-vars
   const delivered     = parcels.filter(p => p.status === 'delivered');
+
+  // Every parcel this hub has ever touched (either role, any status),
+  // newest first — previously a delivered/closed-out parcel had no visible
+  // list at all, only counted toward a bare summary number.
+  const historiaList = [...parcels]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .filter(p => {
+      if (!historiaSearch.trim()) return true;
+      const q = historiaSearch.trim().toLowerCase();
+      return [p.trackingNumber, p.senderName, p.recipientName, p.senderPhone, p.buyerPhone]
+        .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
+    });
 
   // Earnings
   const cashToday     = parcels.filter(p => {
@@ -462,6 +486,17 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     } catch (e) {
       alert('Imeshindwa: ' + (e.response?.data?.message || 'Jaribu tena'));
     } finally { setAssigningTransport(false); }
+  };
+
+  const openParcelHistory = async (trackingNumber) => {
+    setHistoryModal({ trackingNumber, loading: true, data: null, error: '' });
+    try {
+      const res = await api.get(`/super-agents/track/${trackingNumber}`);
+      setHistoryModal({ trackingNumber, loading: false, data: res.data, error: '' });
+    } catch (err) {
+      setHistoryModal({ trackingNumber, loading: false, data: null,
+        error: err?.response?.data?.message || 'Imeshindwa kupata historia' });
+    }
   };
 
   const fetchDestinationHubs = async (city) => {
@@ -673,6 +708,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
             {[
               { key: 'pokea',   label: '📥 POKEA'   },
               { key: 'tuma',    label: '📤 TUMA'    },
+              { key: 'historia',label: '🕘 HISTORIA'},
               { key: 'mapato',  label: '💰 MAPATO'  },
               { key: 'bei',     label: '📋 BEI'     },
               ...(isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
@@ -1471,6 +1507,33 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
         )}
 
         {/* ════════════════════════════════════════════════════════════════
+            🕘 HISTORIA TAB — every parcel this hub has ever touched, any
+            status, either role. Previously a delivered/closed-out parcel
+            had no browsable list at all, only a bare count on Mapato.
+            ════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'historia' && (
+          <>
+            <input type="text" placeholder="🔍 Tafuta kwa namba, jina au simu..."
+              value={historiaSearch}
+              onChange={e => setHistoriaSearch(e.target.value)}
+              style={{ ...inp, marginBottom: 14 }} />
+            {historiaList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
+                <div style={{ fontSize: 36, marginBottom: 10 }}>📭</div>
+                {historiaSearch ? 'Hakuna kilicholingana' : 'Hakuna vifurushi bado'}
+              </div>
+            ) : (
+              historiaList.map(p => (
+                <PCard key={p.trackingNumber} p={p} actions={[
+                  { label: '🕘 Historia Kamili', color: '#7c3aed',
+                    fn: (parcel) => openParcelHistory(parcel.trackingNumber) },
+                ]} />
+              ))
+            )}
+          </>
+        )}
+
+        {/* ════════════════════════════════════════════════════════════════
             💰 MAPATO TAB
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'mapato' && (
@@ -1668,6 +1731,77 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
         )}
       </div>
 
+      {/* ── Parcel history modal — full tracking timeline + all details ────── */}
+      {historyModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0',
+            padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', marginBottom: 4 }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>🕘 Historia Kamili</div>
+              <button onClick={() => setHistoryModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 20, color: '#64748b' }}>×</button>
+            </div>
+            <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8', marginBottom: 14 }}>
+              {historyModal.trackingNumber}
+            </div>
+
+            {historyModal.loading && (
+              <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳ Inapakia...</div>
+            )}
+            {historyModal.error && (
+              <div style={{ backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 8,
+                padding: 12, fontSize: 12 }}>{historyModal.error}</div>
+            )}
+            {historyModal.data && (
+              <>
+                <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+                  {[
+                    ['Mtumaji', historyModal.data.senderName],
+                    ['Simu ya Mtumaji', historyModal.data.senderPhone],
+                    ['Mpokeaji', historyModal.data.recipientName],
+                    ['Anwani', historyModal.data.deliveryAddress],
+                    ['Bidhaa', historyModal.data.description],
+                    ['Njia', [historyModal.data.originCity, historyModal.data.transitCity, historyModal.data.destinationCity]
+                      .filter(Boolean).join(' → ')],
+                    ['Hub ya Asili', historyModal.data.originAgent],
+                    ['Hub ya Kupokea', historyModal.data.destinationAgent],
+                    ['Simu ya Hub ya Kupokea', historyModal.data.destinationAgentPhone],
+                  ].filter(([, v]) => v).map(([l, v]) => (
+                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
+                      fontSize: 12, padding: '4px 0' }}>
+                      <span style={{ color: '#64748b' }}>{l}</span>
+                      <span style={{ fontWeight: 700, color: '#1e293b', textAlign: 'right', marginLeft: 10 }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
+                  marginBottom: 8, textTransform: 'uppercase' }}>Matukio</div>
+                {(historyModal.data.history || []).map((h, i) => (
+                  <div key={i} style={{ borderLeft: '2px solid #e2e8f0', paddingLeft: 12,
+                    marginBottom: 12, position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: -5, top: 2, width: 8, height: 8,
+                      borderRadius: 4, backgroundColor: '#1d4ed8' }} />
+                    <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b' }}>
+                      {STATUS_LABEL[h.status]?.l || h.status}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b' }}>{h.note}</div>
+                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 2 }}>
+                      {h.updatedBy}{h.handlerPhone ? ` · ${h.handlerPhone}` : ''}
+                      {h.handlerLocation ? ` · ${h.handlerLocation}` : ''}
+                      {h.createdAt ? ` · ${new Date(h.createdAt).toLocaleString('sw-TZ')}` : ''}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Status update bottom sheet ─────────────────────────────────────── */}
       {statusParcel && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1685,15 +1819,24 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
               style={{ ...inp, marginBottom: 12 }}>
               <option value="">— Chagua Hali Mpya —</option>
               {[
-                ['received_at_hub',   '📥 Imepokewa Hubuni'],
-                ['verified',         '✅ Imethibitishwa'],
-                ['ready_for_dispatch','📦 Tayari Kutuma'],
-                ['dispatched',       '🚌 Imetumwa'],
-                ['in_transit',       '🚚 Njiani'],
-                ['arrived_at_hub',   '🏢 Imefika Hubuni'],
-                ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
-                ['out_for_delivery', '🏍️ Inafikishwa'],
-                ['delivered',        '✅ Imefikishwa'],
+                // Origin-side statuses — only offered when this hub is the
+                // sender (or both), matching the backend's ownership check.
+                ...(statusParcel.myRole !== 'destination' ? [
+                  ['received_at_hub',   '📥 Imepokewa Hubuni'],
+                  ['verified',         '✅ Imethibitishwa'],
+                  ['ready_for_dispatch','📦 Tayari Kutuma'],
+                  ['dispatched',       '🚌 Imetumwa'],
+                  ['in_transit',       '🚚 Njiani'],
+                ] : []),
+                // Destination-side statuses — only offered when this hub is
+                // the receiver (or both). Marking "arrived"/"delivered" is
+                // the receiving hub's job, never the sender's.
+                ...(statusParcel.myRole !== 'origin' ? [
+                  ['arrived_at_hub',   '🏢 Imefika Hubuni'],
+                  ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
+                  ['out_for_delivery', '🏍️ Inafikishwa'],
+                  ['delivered',        '✅ Imefikishwa'],
+                ] : []),
               ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
             <input type="text" placeholder="Maelezo (hiari)"
