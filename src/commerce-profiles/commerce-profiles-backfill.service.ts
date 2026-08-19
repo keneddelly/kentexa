@@ -16,6 +16,7 @@ export interface BackfillResult {
   agentCreated: number;
   hubCreated: number;
   skippedAlreadyExisted: number;
+  businessPhotosRepaired: number;
 }
 
 // One-time (idempotent) catch-up for data that predates CommerceProfile.
@@ -44,6 +45,7 @@ export class CommerceProfilesBackfillService {
       agentCreated: 0,
       hubCreated: 0,
       skippedAlreadyExisted: 0,
+      businessPhotosRepaired: 0,
     };
 
     // ── Personal profile for every user ─────────────────────────────────────
@@ -86,6 +88,30 @@ export class CommerceProfilesBackfillService {
       result.businessCreated++;
     }
     this.logger.log(`Business profiles: ${result.businessCreated} created`);
+
+    // ── Repair existing business profiles missing a photo ───────────────────
+    // apply() used to seed photoUrl from SellerProfile.logo, a field that's
+    // essentially never populated — real store logos live on User.logo
+    // (Store Settings writes there, and that's what search cards/post
+    // headers already display correctly). Any BUSINESS profile created
+    // before that seeding was fixed is stuck with a null photoUrl forever,
+    // since profile creation is create-once — this repairs those in place.
+    // Safe to re-run: only touches rows where photoUrl is still null.
+    const staleBusinessProfiles = await this.profileRepo.find({
+      where: { type: CommerceProfileType.BUSINESS, photoUrl: null as any },
+    });
+    for (const profile of staleBusinessProfiles) {
+      const user = await this.userRepo.findOne({ where: { id: profile.ownerId } });
+      const sellerProfile = profile.sellerProfileId
+        ? await this.sellerRepo.findOne({ where: { id: profile.sellerProfileId } })
+        : null;
+      const logo = user?.logo || sellerProfile?.logo;
+      if (logo) {
+        await this.profileRepo.update(profile.id, { photoUrl: logo });
+        result.businessPhotosRepaired++;
+      }
+    }
+    this.logger.log(`Business photos repaired: ${result.businessPhotosRepaired}`);
 
     // ── Transport-provider profile for every registration ──────────────────
     const providers = await this.transportRepo.find();

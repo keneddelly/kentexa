@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -14,6 +15,7 @@ import { JobRequest, JobStatus } from './entities/job-request.entity';
 import { User } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
 import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
@@ -27,16 +29,34 @@ export class ServicesService {
     @InjectRepository(JobRequest) private jobRepo: Repository<JobRequest>,
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
+    private readonly profileScope: CommerceProfileScopeService,
     private readonly searchIndex: SearchIndexService,
   ) {}
 
   // ── Create / Edit Service Ad ──────────────────────────────────────────────
 
-  async createAd(user: User, dto: Partial<ServiceAd>): Promise<ServiceAd> {
+  async createAd(user: User, dto: Partial<ServiceAd> & { commerceProfileId?: number }): Promise<ServiceAd> {
+    // Attributes the ad to whichever profile was active when it was posted
+    // — same fix already applied to Classifieds/Products/Moments.
+    // Authorization is never trusted from the client.
+    let commerceProfileId: number | null = null;
+    if (dto.commerceProfileId) {
+      const authorized = await this.profileScope.isAuthorizedFor(
+        user.id,
+        dto.commerceProfileId,
+        'canManageProducts',
+      );
+      if (!authorized) {
+        throw new ForbiddenException('You do not manage this commerce profile');
+      }
+      commerceProfileId = dto.commerceProfileId;
+    }
+
     const saved = await this.adRepo.save(
       this.adRepo.create({
         ...dto,
         providerId: user.id,
+        commerceProfileId,
         status: ServiceStatus.ACTIVE,
         totalJobs: 0,
         rating: 0,
@@ -65,6 +85,7 @@ export class ServicesService {
           linkedEntityType: 'service',
           linkedEntityId: saved.id,
           category: saved.category || undefined,
+          commerceProfileId: commerceProfileId || undefined,
         })
         .catch(() => {});
     }

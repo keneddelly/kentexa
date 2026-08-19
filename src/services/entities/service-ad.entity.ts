@@ -57,6 +57,11 @@ export class ServiceAd {
   @Column({ type: 'int' })
   providerId: number;
 
+  // Which specific CommerceProfile this was posted AS — plain nullable id
+  // (not a relation), same pattern as Classified.commerceProfileId.
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
   // Core info
   @Column({ type: 'varchar' })
   title: string; // "Fundi wa Umeme — Dar es Salaam"

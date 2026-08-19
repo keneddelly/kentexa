@@ -263,7 +263,13 @@ export class SellerService {
         type: CommerceProfileType.BUSINESS,
         displayName: saved.businessName,
         usernameSeed: saved.businessName,
-        photoUrl: saved.logo,
+        // User.logo is the field store-branding actually writes to (Store
+        // Settings, search cards, etc.) — SellerProfile.logo is essentially
+        // never populated. Reading only saved.logo here left the business's
+        // CommerceProfile.photoUrl null even when the seller had a real
+        // logo showing everywhere else. Matches the backfill service's
+        // already-correct sp.user.logo || sp.logo fallback order.
+        photoUrl: user.logo || saved.logo,
         bio: saved.businessDescription,
         location: saved.address,
         status: CommerceProfileStatus.PENDING,

@@ -23,6 +23,13 @@ export class Product {
   @JoinColumn()
   seller: User | null;
 
+  // Which specific CommerceProfile this was posted AS — plain nullable id
+  // (not a relation), same pattern as Classified.commerceProfileId. Null
+  // on products posted before this column existed, which keep resolving
+  // to the seller's business identity as before.
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
   @Column()
   name: string;
 

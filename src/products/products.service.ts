@@ -13,6 +13,7 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { User, UserRole } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
 import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
@@ -35,6 +36,7 @@ export class ProductsService {
 
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
+    private readonly profileScope: CommerceProfileScopeService,
     private readonly searchIndex: SearchIndexService,
     private readonly ranking: SellerRankingService,
   ) {}
@@ -246,6 +248,24 @@ export class ProductsService {
     const deliveryFee = Number(dto.deliveryFee || 0);
     const displayPrice = basePrice + deliveryFee;
 
+    // Attributes the product to whichever profile was active when it was
+    // posted — same fix already applied to Classifieds/Moments. Without
+    // this, every product's Moment/post-card silently resolved to the
+    // owner's personal profile instead of the business shown on the card.
+    // Authorization is never trusted from the client.
+    let commerceProfileId: number | null = null;
+    if (dto.commerceProfileId && seller?.id) {
+      const authorized = await this.profileScope.isAuthorizedFor(
+        seller.id,
+        dto.commerceProfileId,
+        'canManageProducts',
+      );
+      if (!authorized) {
+        throw new ForbiddenException('You do not manage this commerce profile');
+      }
+      commerceProfileId = dto.commerceProfileId;
+    }
+
     const product = this.repo.create({
       name: dto.name,
       description: dto.description || null,
@@ -268,6 +288,7 @@ export class ProductsService {
       bodaFee: Number(dto.bodaFee || 0),
       sellerCity: dto.sellerCity || 'Dar es Salaam',
       seller: seller || null,
+      commerceProfileId,
     } as any);
 
     const saved = (await this.repo.save(product)) as unknown as Product;
@@ -288,6 +309,7 @@ export class ProductsService {
           linkedEntityType: 'product',
           linkedEntityId: saved.id,
           category: saved.category || undefined,
+          commerceProfileId: commerceProfileId || undefined,
         })
         .catch(() => {});
     }

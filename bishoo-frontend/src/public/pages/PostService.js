@@ -44,7 +44,7 @@ const inp = {
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
 
-const PostService = ({ onNavigate }) => {
+const PostService = ({ onNavigate, activeProfileId }) => {
   const { t } = useTranslation();
   const CATEGORIES = getCategories(t);
   const PRICE_TYPES = getPriceTypes(t);
@@ -131,6 +131,7 @@ const PostService = ({ onNavigate }) => {
         coverageWards: form.coverageWards
           ? form.coverageWards.split(',').map(w => w.trim()).filter(Boolean)
           : [],
+        commerceProfileId: activeProfileId || undefined,
       };
       const res = await api.post('/services', payload);
       onNavigate(`ServiceDetail-${res.data.id}`);

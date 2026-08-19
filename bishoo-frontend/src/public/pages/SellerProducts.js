@@ -30,7 +30,7 @@ const EMPTY_FORM = {
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
 };
 
-const SellerProducts = ({ onNavigate, editProductId }) => {
+const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const { t } = useTranslation();
   const [CATEGORIES, setCategories]   = useState(FALLBACK_CATEGORIES);
   const [products, setProducts]       = useState([]);
@@ -224,6 +224,7 @@ const SellerProducts = ({ onNavigate, editProductId }) => {
         weightKg:     form.weightKg ? Number(form.weightKg) : null,
         specs:        Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         features:     form.features?.length > 0 ? form.features : null,
+        commerceProfileId: activeProfileId || undefined,
       };
       if (editProduct) {
         await api.patch(`/products/${editProduct.id}`, payload);

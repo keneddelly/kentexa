@@ -3,6 +3,7 @@ import {
   IsBoolean,
   IsEnum,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -98,4 +99,10 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   sellerCity?: string;
+
+  // Which CommerceProfile (personal vs a specific business) this product
+  // was posted as — same pattern as CreateClassifiedDto.commerceProfileId.
+  @IsOptional()
+  @IsInt()
+  commerceProfileId?: number;
 }

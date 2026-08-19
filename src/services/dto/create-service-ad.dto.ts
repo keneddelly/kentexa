@@ -2,6 +2,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -70,4 +71,10 @@ export class CreateServiceAdDto {
   @IsOptional()
   @IsString()
   whatsappPhone?: string;
+
+  // Which CommerceProfile (personal vs a specific business) this service
+  // was posted as — same pattern as CreateClassifiedDto.commerceProfileId.
+  @IsOptional()
+  @IsInt()
+  commerceProfileId?: number;
 }
