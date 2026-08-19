@@ -197,9 +197,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     busDeparture: '', courierName: '', courierTrackingRef: '', notes: '',
     driverName: '', driverPhone: '', vehicleNumber: '',
     departureDate: '', departureTime: '', expectedArrivalDate: '', expectedArrivalTime: '',
+    destinationSuperAgentId: null,
   });
   const [dispatchMode, setDispatchMode] = useState('transport');
   const [selectedAgent, setSelectedAgent] = useState(null);
+  // Destination Super Agent hub picker — shown only when dispatching via
+  // bus/courier. Optional: the receiving hub sees this parcel in their own
+  // "Inakuja" tray and can mark it collected once it physically arrives.
+  const [destinationHubs, setDestinationHubs] = useState([]);
+  const [loadingHubs, setLoadingHubs] = useState(false);
 
   // ── Status update ─────────────────────────────────────────────────────────
   const [statusParcel, setStatusParcel] = useState(null);
@@ -452,6 +458,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     } catch (e) {
       alert('Imeshindwa: ' + (e.response?.data?.message || 'Jaribu tena'));
     } finally { setAssigningTransport(false); }
+  };
+
+  const fetchDestinationHubs = async (city) => {
+    if (!city) { setDestinationHubs([]); return; }
+    try {
+      setLoadingHubs(true);
+      const res = await api.get(`/super-agents/hubs/${encodeURIComponent(city)}`);
+      setDestinationHubs(res.data || []);
+    } catch { setDestinationHubs([]); }
+    finally { setLoadingHubs(false); }
   };
 
   const handleDispatch = async () => {
@@ -732,7 +748,18 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                     {atHub.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: '📤 Tuma', color: '#16a34a',
-                          fn: (parcel) => { setActiveTab('tuma'); setDispatchParcel(parcel); } },
+                          fn: (parcel) => {
+                            setActiveTab('tuma'); setDispatchParcel(parcel);
+                            setDispatchForm({ transportType: 'bus', busCompany: '',
+                              busTicketNumber: '', busDeparture: '',
+                              courierName: '', courierTrackingRef: '', notes: '',
+                              driverName: '', driverPhone: '', vehicleNumber: '',
+                              departureDate: '', departureTime: '',
+                              expectedArrivalDate: '', expectedArrivalTime: '',
+                              destinationSuperAgentId: null });
+                            setSelectedAgent(null); setDispatchMode('transport');
+                            fetchDestinationHubs(parcel.destinationCity);
+                          } },
                         { label: 'Sasisha', color: '#64748b',
                           fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); } },
                       ]} />
@@ -1250,6 +1277,43 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                           style={{ ...inp, marginBottom: 8 }} />
                       </>
                     )}
+
+                    {/* Hub-to-hub hand-off — send to another Super Agent's hub
+                        in the destination city, who then arranges last-mile
+                        delivery to the customer themselves. Optional: skip
+                        this and the parcel just travels to the buyer directly. */}
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
+                      marginTop: 10, marginBottom: 6, textTransform: 'uppercase' }}>
+                      Chagua Super Agent Atakayepokea (hiari)
+                    </div>
+                    {loadingHubs ? (
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>⏳ Inatafuta...</div>
+                    ) : destinationHubs.length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}>
+                        Hakuna Super Agent mwingine katika {dispatchParcel.destinationCity}
+                      </div>
+                    ) : (
+                      <div style={{ marginBottom: 8 }}>
+                        {destinationHubs.map(h => (
+                          <div key={h.id}
+                            onClick={() => setDispatchForm(f => ({ ...f,
+                              destinationSuperAgentId: f.destinationSuperAgentId === h.id ? null : h.id }))}
+                            style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                              marginBottom: 6,
+                              border: dispatchForm.destinationSuperAgentId === h.id
+                                ? '2px solid #7c3aed' : '1px solid #e2e8f0',
+                              backgroundColor: dispatchForm.destinationSuperAgentId === h.id ? '#f5f3ff' : '#fff' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700 }}>
+                              {h.businessName} {dispatchForm.destinationSuperAgentId === h.id && '✅'}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                              ⭐ {Number(h.rating || 5).toFixed(1)} · {h.address || h.city}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Optional — only fields actually filled in get included in the receiver SMS */}
                     <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
                       marginTop: 6, marginBottom: 6, textTransform: 'uppercase' }}>
@@ -1362,8 +1426,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                               courierName: '', courierTrackingRef: '', notes: '',
                               driverName: '', driverPhone: '', vehicleNumber: '',
                               departureDate: '', departureTime: '',
-                              expectedArrivalDate: '', expectedArrivalTime: '' });
+                              expectedArrivalDate: '', expectedArrivalTime: '',
+                              destinationSuperAgentId: null });
                             setSelectedAgent(null); setDispatchMode('transport');
+                            fetchDestinationHubs(parcel.destinationCity);
                           }},
                       ]} />
                     ))}

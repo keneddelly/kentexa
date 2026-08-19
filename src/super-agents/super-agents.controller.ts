@@ -100,6 +100,19 @@ export class SuperAgentsController {
     return this.service.findPublicByUserId(userId);
   }
 
+  // Other active Super Agent hubs in a city — lets a dispatching Super
+  // Agent pick who should receive a bus/courier parcel at the destination,
+  // instead of only relying on auto-assignment by city.
+  @UseGuards(JwtAuthGuard)
+  @Get('hubs/:city')
+  async getHubsInCity(@Param('city') city: string, @Request() req) {
+    const mine = await this.service.getMyProfile(req.user).catch(() => null);
+    return this.service.findAllActiveByCity(
+      decodeURIComponent(city),
+      (mine as any)?.id,
+    );
+  }
+
   // Super agent dashboard
   @UseGuards(JwtAuthGuard)
   @Get('dashboard')

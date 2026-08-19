@@ -633,6 +633,28 @@ export class SuperAgentsService {
   }
 
   /**
+   * List every active Super Agent hub in a city — for a dispatching Super
+   * Agent to manually pick who should receive a parcel (bus/courier
+   * hand-off to another hub), instead of only relying on the single
+   * best-ranked auto-assignment above. Public-safe fields only.
+   */
+  async findAllActiveByCity(city: string, excludeAgentId?: number) {
+    const agents = await this.superAgentRepo.find({
+      where: { status: SuperAgentStatus.ACTIVE, city },
+      order: { rating: 'DESC' } as any,
+    });
+    return agents
+      .filter((a) => a.id !== excludeAgentId)
+      .map((a) => ({
+        id: a.id,
+        businessName: a.businessName,
+        city: a.city,
+        address: a.address,
+        rating: Number(a.rating),
+      }));
+  }
+
+  /**
    * Get the route information between two cities.
    * Returns estimated days, fee, and transport method.
    */
@@ -1298,6 +1320,10 @@ export class SuperAgentsService {
       transportRef?: string; // legacy alias
       // Agent assignment
       localAgentId?: number;
+      // Hub-to-hub hand-off — the specific destination Super Agent hub
+      // chosen to receive this parcel (optional; overrides city-based
+      // auto-assignment from registration time).
+      destinationSuperAgentId?: number;
       // Real registered TransportProvider, via an already-created
       // TransportAssignment — the alternative to typing a free-text
       // company name below. Optional and additive: every existing
@@ -1413,6 +1439,22 @@ export class SuperAgentsService {
       }
     }
 
+    // Hub-to-hub hand-off — sending Super Agent picks which destination
+    // Super Agent should receive this parcel via bus/courier. Overrides
+    // whatever was auto-assigned by city at registration time (or sets it
+    // for the first time, if auto-assignment found no match). The receiving
+    // agent's own dashboard already surfaces anything with their id here as
+    // an "Inakuja" (incoming) parcel — no other wiring needed.
+    if (dto.destinationSuperAgentId) {
+      const destHub = await this.superAgentRepo.findOne({
+        where: { id: dto.destinationSuperAgentId },
+      });
+      if (destHub) {
+        updates.destinationSuperAgent = { id: destHub.id } as any;
+        (parcel as any).destinationSuperAgent = destHub;
+      }
+    }
+
     await this.parcelRepo.update(parcel.id, updates);
 
     // Build human-readable tracking note
@@ -1429,6 +1471,9 @@ export class SuperAgentsService {
       trackNote = `Imetumwa via ${linkedProviderName} (msafirishaji aliyesajiliwa)`;
     } else if (dto.localAgentId) {
       trackNote = `Imepewa wakala wa mtaa kwa uwasilishaji`;
+    }
+    if ((parcel as any).destinationSuperAgent?.businessName) {
+      trackNote += ` — atapokelewa na ${(parcel as any).destinationSuperAgent.businessName}`;
     }
 
     await this.addTrackingEvent(
