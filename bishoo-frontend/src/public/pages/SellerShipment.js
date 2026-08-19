@@ -20,6 +20,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
+import { hasAnyRole } from '../utils/roles';
 
 
 const inputStyle = {
@@ -365,7 +366,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
   // none. Restrict to roles that actually sell/arrange transport; the
   // backend enforces this too (POST /super-agents/shipments), this just
   // avoids showing a broken "pick a product" form to everyone else.
-  if (!['seller', 'super_agent', 'admin', 'manager'].includes(userRole)) return (
+  if (!hasAnyRole(userRole, currentUser, ['seller', 'super_agent', 'admin', 'manager'])) return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('back')} title={`📦 ${t('seller_shipment.title')}`} />
       <div style={{ padding: '48px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>

@@ -10,6 +10,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import { hasAnyRole } from '../utils/roles';
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 
@@ -157,9 +158,9 @@ const MessageBubble = ({ msg, mode, t }) => {
   );
 };
 
-const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, currentUser }) => {
   const { t, i18n } = useTranslation();
-  const canSell = ['seller', 'admin', 'manager'].includes(userRole);
+  const canSell = hasAnyRole(userRole, currentUser, ['seller', 'admin', 'manager']);
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);

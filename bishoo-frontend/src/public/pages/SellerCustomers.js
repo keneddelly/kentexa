@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
+import { hasAnyRole } from '../utils/roles';
 
 const fmt = (n) => Number(n || 0).toLocaleString();
 
@@ -83,7 +84,7 @@ const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 
-const SellerCustomers = ({ onNavigate, userRole }) => {
+const SellerCustomers = ({ onNavigate, userRole, currentUser }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const SEGMENTS = {
@@ -161,7 +162,7 @@ const SellerCustomers = ({ onNavigate, userRole }) => {
   // for a plain buyer, who has no customers. Backend enforces this too
   // (RolesGuard on /business/customers/*), this just avoids showing an
   // empty "customer list" with an "Add Customer" form to everyone else.
-  if (!['seller', 'admin', 'manager'].includes(userRole)) return (
+  if (!hasAnyRole(userRole, currentUser, ['seller', 'admin', 'manager'])) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       <BackBar title={t('seller_customers.title')} onBack={() => onNavigate('back')} />
       <div style={{ padding: '48px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>

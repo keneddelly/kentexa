@@ -292,7 +292,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
       {/* ── Quick Actions (role-specific, list-home only) ── */}
       {!section && (() => {
         const actions = [];
-        if (['seller','admin','manager'].includes(userRole)) {
+        if (['seller','admin','manager'].some(r => roles.includes(r))) {
           actions.push({
             icon:'📦', label:t('my_profile.new_orders_label'),
             value: sellerStats?.stats?.pendingOrders != null ? String(sellerStats.stats.pendingOrders) : '—',
@@ -306,7 +306,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             onAction:()=>onNavigate('SellerAnalytics'),
           });
         }
-        if (userRole === 'agent') {
+        if (roles.includes('agent')) {
           actions.push({
             icon:'🏍️', label:t('my_profile.my_jobs_label'),
             value:'View', sub:t('my_profile.available_near_you'), color:'#A21CAF', bg:'#FDF2F8',
@@ -319,14 +319,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             onAction:()=>onNavigate('AgentEarnings'),
           });
         }
-        if (userRole === 'super_agent') {
+        if (roles.includes('super_agent')) {
           actions.push({
             icon:'📦', label:t('my_profile.hub_parcels_label'),
             value:'View', sub: saData?.city || t('my_profile.your_hub_fallback'), color:'#7C3AED', bg:'#F5F3FF',
             onAction:()=>onNavigate('SuperAgentDashboard'),
           });
         }
-        if (userRole === 'transport_provider') {
+        if (roles.includes('transport_provider')) {
           actions.push({
             icon:'🚌', label:t('my_profile.todays_routes_label'),
             value:'View', sub:t('my_profile.assignments_sub'), color:'#D97706', bg:'#FEF3C7',
@@ -339,7 +339,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         // accounts with no way to reach the admin pages (Dashboard,
         // Products, Users, Orders, etc. — still fully wired in App.js's
         // renderPage(), just orphaned from the UI). This is that entry point.
-        if (userRole === 'admin' || userRole === 'manager') {
+        if (roles.includes('admin') || roles.includes('manager')) {
           actions.push({
             icon:'🛡️', label:t('my_profile.admin_panel_label'),
             value:'Open', sub:t('my_profile.admin_panel_sub'), color:'#7C3AED', bg:'#F5F3FF',
@@ -448,8 +448,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   (kycLevel is never set anywhere); re-add once a real
                   document-upload + admin-review flow is built. */}
               <Row icon="🏢" label={t('my_profile.business_verified_label')}
-                value={['seller','admin','manager'].includes(role) ? t('my_profile.yes_label') : t('my_profile.not_yet_label')}
-                color={['seller','admin','manager'].includes(role) ? '#16A34A' : GR} />
+                value={isBusinessOwner ? t('my_profile.yes_label') : t('my_profile.not_yet_label')}
+                color={isBusinessOwner ? '#16A34A' : GR} />
             </SCard>
 
             {/* QR Code */}
@@ -733,12 +733,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <Row icon="🏦" label={t('my_profile.bank_account_label')}
                 value={profile?.payoutAccountName || t('my_profile.not_set')}
                 onAction={() => onNavigate('CustomerProfile')} />
-              {role === 'agent' && (
+              {roles.includes('agent') && (
                 <Row icon="💰" label={t('my_profile.agent_earnings_label')}
                   value={agentData ? `TZS ${fmt(agentData.totalEarnings)}` : '—'}
                   onAction={() => onNavigate('AgentEarnings')} />
               )}
-              {['seller','admin','manager'].includes(role) && (
+              {isBusinessOwner && (
                 <Row icon="📊" label={t('my_profile.payout_overview_label')}
                   onAction={() => onNavigate('SellerPayouts')} />
               )}

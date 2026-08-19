@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
+import { hasAnyRole } from '../utils/roles';
 
 const CITY_TRANSIT_DAYS = {
   'dar-mbeya': 1, 'dar-mwanza': 1, 'dar-arusha': 1, 'dar-dodoma': 1,
@@ -63,7 +64,7 @@ const getMethodInfo = t => ({
   agent:    { icon: '🏢', label: t('track_parcel.method_agent_label'),    desc: t('track_parcel.method_agent_desc') },
 });
 
-const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumber: propTracking, orderId: propOrderId }) => {
+const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, trackingNumber: propTracking, orderId: propOrderId }) => {
   const { t } = useTranslation();
   const STATUS_STEPS = getStatusSteps(t);
   const METHOD_INFO = getMethodInfo(t);
@@ -447,14 +448,8 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>{result.recipientName}</div>
                   {result.deliveryAddress && <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>📍 {result.deliveryAddress}</div>}
                   {result.destinationCity && <div style={{ fontSize:12, color:'#64748b', marginTop:2 }}>🏙️ {result.destinationCity}</div>}
-                  {(userRole === 'seller' || userRole === 'admin' || userRole === 'super_agent') && result.buyerPhone && (
-                    <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <a href={`tel:${result.buyerPhone}`} style={{ fontSize:13, color:'#1d4ed8', textDecoration:'none', fontWeight:700 }}>📞 {result.buyerPhone}</a>
-                      <a href={`https://wa.me/${String(result.buyerPhone).replace(/[^\d]/g,'').replace(/^0/,'255')}`} target="_blank" rel="noreferrer" style={{ fontSize:10, backgroundColor:'#25D366', color:'#fff', padding:'2px 8px', borderRadius:6, textDecoration:'none', fontWeight:700 }}>WA</a>
-                    </div>
-                  )}
-                  {/* Phone — only visible to logged-in seller or admin */}
-                  {(userRole === 'seller' || userRole === 'admin' || userRole === 'super_agent') && result.buyerPhone && (
+                  {/* Phone — only visible to logged-in seller, admin, or super agent */}
+                  {hasAnyRole(userRole, currentUser, ['seller', 'admin', 'super_agent']) && result.buyerPhone && (
                     <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
                       <a href={`tel:${result.buyerPhone}`}
                         style={{ fontSize:13, color:'#1d4ed8', textDecoration:'none', fontWeight:700 }}>

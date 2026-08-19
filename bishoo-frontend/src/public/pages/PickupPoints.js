@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api     from '../../api/api';
+import { hasAnyRole } from '../utils/roles';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -27,7 +28,7 @@ const getStatusColors = (t) => ({
 const PickupPoints = ({ onNavigate, isLoggedIn, userRole, currentUser }) => {
   const { t } = useTranslation();
   const STATUS_COLORS = getStatusColors(t);
-  const isAgent = ['agent','super_agent','admin'].includes(userRole);
+  const isAgent = hasAnyRole(userRole, currentUser, ['agent','super_agent','admin']);
 
   const [tab,        setTab]        = useState(isAgent ? 'mine' : 'browse');
   const [points,     setPoints]     = useState([]);

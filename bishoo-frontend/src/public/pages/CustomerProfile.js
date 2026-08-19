@@ -3,6 +3,7 @@ import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
 import ReputationBadge from '../components/ReputationBadge';
 import api from '../../api/api';
 import { useTranslation } from 'react-i18next';
+import { hasAnyRole } from '../utils/roles';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -270,7 +271,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         </div>
 
         {/* Seller store card */}
-        {(userRole === 'seller') && profile?.storeName && (
+        {hasAnyRole(userRole, currentUser, ['seller']) && profile?.storeName && (
           <Card style={{ backgroundColor: '#EFF6FF', border: '1px solid #DBEAFE', boxShadow: 'none' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
@@ -309,7 +310,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>👤 {t('profile.profile')}</h2>
             <div style={{ display: 'flex', gap: 8 }}>
-              {(userRole === 'seller' || userRole === 'admin') && (
+              {hasAnyRole(userRole, currentUser, ['seller', 'admin']) && (
                 <button onClick={() => onNavigate('StoreSettings')}
                   style={{ backgroundColor: '#F5F3FF', color: '#7C3AED',
                     border: 'none', padding: '6px 14px', borderRadius: 8,
