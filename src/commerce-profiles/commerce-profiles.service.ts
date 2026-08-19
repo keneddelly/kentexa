@@ -290,6 +290,16 @@ export class CommerceProfilesService {
     followerId: number,
     commerceProfileId: number,
   ): Promise<{ following: boolean; followersCount: number }> {
+    const profileBefore = await this.findById(commerceProfileId);
+    // The account-level self-follow guard on the legacy path
+    // (StoreService.toggleFollow) never covered this profile-scoped path —
+    // hitting POST /profiles/:id/follow directly on your own profile
+    // silently created a real self-follow relationship (just skipped the
+    // notification, which only masked it).
+    if (profileBefore.ownerId === followerId) {
+      throw new BadRequestException('Cannot follow your own profile');
+    }
+
     const existing = await this.followRepo.findOne({
       where: { followerId, commerceProfileId },
     });
@@ -304,23 +314,34 @@ export class CommerceProfilesService {
     }
     const profile = await this.findById(commerceProfileId);
 
-    // Notify on a genuine new follow only, never on unfollow. The one
-    // caller newFollower() was actually built for — the entity/method
-    // already existed with a commerceProfileId param, just never wired to
-    // anything that fires it.
-    if (!existing && profile.ownerId && profile.ownerId !== followerId) {
+    // Notify on a genuine new follow only, never on unfollow. Distinguish a
+    // reciprocal follow-back (the profile owner already followed this
+    // person first) from a cold new follow — same event, different
+    // message, since "followed you back" is the thing that actually closes
+    // the engagement loop for the ORIGINAL follower.
+    if (!existing && profile.ownerId) {
       const follower = await this.userRepo.findOne({ where: { id: followerId } });
-      this.notifService
-        .newFollower(
-          profile.ownerId,
-          follower?.name || follower?.storeName || 'Mtumiaji',
-          followerId,
-          commerceProfileId,
-        )
-        .catch(() => {});
+      const followerName = follower?.name || follower?.storeName || 'Mtumiaji';
+      const alreadyFollowedBack = await this.isFollowingSeller(profile.ownerId, followerId);
+      const notify = alreadyFollowedBack
+        ? this.notifService.followedBack(profile.ownerId, followerName, followerId)
+        : this.notifService.newFollower(profile.ownerId, followerName, followerId);
+      notify.catch(() => {});
     }
 
     return { following: !existing, followersCount: profile.followersCount };
+  }
+
+  // Does this profile's owner already follow `viewerId` back (through
+  // either follow system)? Powers the Follow/Following/Follow Back button
+  // state — without this the frontend has no way to distinguish "no
+  // relationship" from "they follow me but I haven't followed back",
+  // which are two different buttons.
+  async isFollowedBy(commerceProfileId: number, viewerId?: number): Promise<boolean> {
+    if (!viewerId) return false;
+    const profile = await this.findById(commerceProfileId);
+    if (!profile.ownerId || profile.ownerId === viewerId) return false;
+    return this.isFollowingSeller(profile.ownerId, viewerId);
   }
 
   // ── Cross-system follow resolution (legacy `follow` ∪ CommerceProfileFollow) ──

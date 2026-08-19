@@ -246,17 +246,38 @@ export class InAppNotificationService {
     businessUserId: number,
     followerName: string,
     followerId?: number,
-    commerceProfileId?: number,
   ) {
+    // actionCommerceProfileId must identify the FOLLOWER's own profile, not
+    // the profile that was just followed (the recipient's own) — passing
+    // the latter here used to make tapping "new follower" land the
+    // recipient on their OWN profile instead of the follower's, since
+    // CommerceProfile.js's resolver treats a present commerceProfileId as
+    // absolute and ignores the target user id entirely. Leaving it unset
+    // lets that resolver fall back to /profiles/for-user/{followerId},
+    // which correctly picks the follower's personal profile.
     await this.notify({
       userId: businessUserId,
-      type: NotificationType.ORDER_CONFIRMED,
+      type: NotificationType.FOLLOW,
       title: '👤 Mfuataji Mpya!',
       body: `${followerName} ameanza kufuata biashara yako.`,
       actionPage: 'CommerceProfile',
       actionParam: followerId ? String(followerId) : undefined,
-      actionCommerceProfileId: commerceProfileId || undefined,
       icon: '👤',
+    });
+  }
+
+  // Fired instead of newFollower() when the recipient already followed the
+  // new follower first — i.e. this is a reciprocal follow-back, not a cold
+  // new follow. Same destination-resolution note as newFollower() above.
+  async followedBack(businessUserId: number, followerName: string, followerId?: number) {
+    await this.notify({
+      userId: businessUserId,
+      type: NotificationType.FOLLOW_BACK,
+      title: '🤝 Amekufuata Tena!',
+      body: `${followerName} amekufuata pia sasa.`,
+      actionPage: 'CommerceProfile',
+      actionParam: followerId ? String(followerId) : undefined,
+      icon: '🤝',
     });
   }
 

@@ -860,6 +860,34 @@ export class CommentsController {
         purchaseVerification: PurchaseVerification.NONE,
       }),
     );
+
+    // Notify whoever asked/commented that the business replied — this was
+    // the one step in the comment→reply loop that silently did nothing:
+    // the reply saved fine, but the original commenter never found out
+    // short of manually revisiting the listing.
+    if (parent.authorId && parent.authorId !== req.user.id) {
+      const replier = commerceProfileId
+        ? await this.commerceProfileRepo.findOne({ where: { id: commerceProfileId } }).catch(() => null)
+        : null;
+      const replierName = replier?.displayName || '';
+      const preview = body.trim().slice(0, 60) + (body.trim().length > 60 ? '...' : '');
+      this.notifService
+        .notify({
+          userId: parent.authorId,
+          type: 'comment_reply' as any,
+          title: `💬 ${replierName || 'The seller'} replied`,
+          body: `"${preview}"`,
+          icon: '💬',
+          actionPage: resolveActionPage(parent.entityType!),
+          actionParam:
+            parent.entityType === 'business'
+              ? `${parent.entityId}-feed`
+              : `${parent.entityId}-comments`,
+          actionCommerceProfileId: owner.commerceProfileId || undefined,
+        })
+        .catch(() => {});
+    }
+
     const saved = await this.commentRepo.findOne({
       where: { id: reply.id },
       relations: { author: true },

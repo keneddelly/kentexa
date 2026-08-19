@@ -249,6 +249,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState('posts');
   const [following,  setFollowing]  = useState(false);
+  const [isFollowedBy, setIsFollowedBy] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [showPost,   setShowPost]   = useState(false);
   const [postForm,   setPostForm]   = useState({
@@ -289,6 +290,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     resolve.then(res => {
       setActiveProfile(res.data || null);
       setFollowing(!!res.data?.isFollowing);
+      setIsFollowedBy(!!res.data?.isFollowedBy);
     }).catch(() => setActiveProfile(null));
   }, [targetId, commerceProfileId]); // eslint-disable-line
 
@@ -537,7 +539,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   borderRadius:10, padding:'8px 16px',
                   cursor:'pointer', fontSize:12, fontWeight:800,
                   boxShadow:'0 2px 8px rgba(0,0,0,0.08)' }}>
-                {following ? t('commerce_profile.unfollow_button') : t('commerce_profile.follow_button')}
+                {following
+                  ? t('commerce_profile.unfollow_button')
+                  : isFollowedBy
+                    ? t('commerce_profile.follow_back_button')
+                    : t('commerce_profile.follow_button')}
               </button>
               <button onClick={() => onNavigate(isLoggedIn ? `MessageSeller-${activeProfile.ownerId}` : 'PublicLogin')}
                 style={{ backgroundColor:'#eff6ff', color:B,

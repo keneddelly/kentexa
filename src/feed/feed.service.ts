@@ -168,6 +168,28 @@ export class FeedService {
     }
 
     await this.feedRepo.save(post);
+
+    // Notify on a genuine new save only, never on un-save/toggle-off, and
+    // never to yourself. The virtual-entity save path (EngagementsController,
+    // for products/classifieds/services) already notified on save — real
+    // feed posts (Moments) never got the same treatment, so saving someone
+    // else's Moment silently did nothing they'd ever see.
+    if (toggled && type === EngagementType.SAVE && post.businessId !== userId) {
+      const saver = await this.userRepo.findOne({ where: { id: userId } });
+      this.notifService
+        .notify({
+          userId: post.businessId,
+          type: 'save' as any,
+          title: '❤️ New like',
+          body: `${saver?.name || saver?.storeName || 'Someone'} liked your post`,
+          icon: '❤️',
+          actionPage: 'CommerceProfile',
+          actionParam: `${post.businessId}-feed-${postId}`,
+          actionCommerceProfileId: (post as any).commerceProfileId || undefined,
+        })
+        .catch(() => {});
+    }
+
     return { toggled, cvsScore: Number(post.cvsScore) };
   }
 
@@ -294,6 +316,11 @@ export class FeedService {
           body: `${commenter?.name || 'A user'}: "${body.slice(0, 60)}${body.length > 60 ? '...' : ''}"`,
           actionPage: 'CommerceProfile',
           actionParam: `${post.businessId}-feed-${postId}`,
+          // Without this, a comment on a post published under a BUSINESS
+          // profile still landed the owner on their PERSONAL profile when
+          // they tapped the notification — CommerceProfile.js's resolver
+          // only lands on the right identity when this is set explicitly.
+          actionCommerceProfileId: (post as any).commerceProfileId || undefined,
           icon: '💬',
         })
         .catch(() => {});

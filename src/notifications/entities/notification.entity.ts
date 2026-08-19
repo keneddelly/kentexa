@@ -27,6 +27,11 @@ export enum NotificationType {
   AGENT_CLAIMED = 'agent_claimed',
   SHIPMENT_CREATED = 'shipment_created',
   PAYMENT_RECEIVED = 'payment_received',
+  FOLLOW = 'follow',
+  FOLLOW_BACK = 'follow_back',
+  COMMENT = 'comment',
+  COMMENT_REPLY = 'comment_reply',
+  SAVE = 'save',
   SYSTEM = 'system',
 }
 
