@@ -23,14 +23,14 @@ export function withPriceOverlay(
   const layers: string[] = [];
 
   if (opts.category) {
-    const text = encodeURIComponent(String(opts.category).toUpperCase());
+    const text = encodeOverlayText(String(opts.category).toUpperCase());
     layers.push(
       `l_text:Arial_28_bold:${text},co_white,b_rgb:1d4ed8,g_north,y_18,r_6`,
     );
   }
 
   if (opts.priceLabel) {
-    const text = encodeURIComponent(opts.priceLabel);
+    const text = encodeOverlayText(opts.priceLabel);
     layers.push(
       `l_text:Arial_56_bold:${text},co_white,b_rgb:16a34a,g_south,y_20,r_8`,
     );
@@ -38,6 +38,18 @@ export function withPriceOverlay(
 
   if (layers.length === 0) return imageUrl;
   return `${before}${layers.join('/')}/${after}`;
+}
+
+// Cloudinary's URL-based transformation parser splits components on a
+// literal "," or "/" *before* it does its own URL-decoding pass — so a
+// single encodeURIComponent() (which turns "," into "%2C") still gets
+// read as a delimiter and the whole transformation is rejected with
+// "Invalid transformation component" (verified directly against a live
+// Cloudinary delivery URL: a price like "TZS 130,000" 400'd until the
+// comma was encoded twice). Double-encoding the two delimiter characters
+// makes them survive Cloudinary's first decode pass intact.
+function encodeOverlayText(text: string): string {
+  return encodeURIComponent(text).replace(/%2C/g, '%252C').replace(/%2F/g, '%252F');
 }
 
 // Formats a product/classified price for the overlay — plain "TZS X,XXX".

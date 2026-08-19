@@ -8,6 +8,7 @@ import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.e
 import { TransportProvider, ProviderStatus } from '../transport/entities/transport-provider.entity';
 import { Agent, AgentStatus } from '../agents/entities/agent.entity';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 
 export interface BackfillResult {
   personalCreated: number;
@@ -17,6 +18,7 @@ export interface BackfillResult {
   hubCreated: number;
   skippedAlreadyExisted: number;
   businessPhotosRepaired: number;
+  feedPostsRetagged: number;
 }
 
 // One-time (idempotent) catch-up for data that predates CommerceProfile.
@@ -34,6 +36,7 @@ export class CommerceProfilesBackfillService {
     @InjectRepository(TransportProvider) private transportRepo: Repository<TransportProvider>,
     @InjectRepository(Agent) private agentRepo: Repository<Agent>,
     @InjectRepository(SuperAgent) private superAgentRepo: Repository<SuperAgent>,
+    @InjectRepository(BusinessFeedItem) private feedItemRepo: Repository<BusinessFeedItem>,
     private profiles: CommerceProfilesService,
   ) {}
 
@@ -46,6 +49,7 @@ export class CommerceProfilesBackfillService {
       hubCreated: 0,
       skippedAlreadyExisted: 0,
       businessPhotosRepaired: 0,
+      feedPostsRetagged: 0,
     };
 
     // ── Personal profile for every user ─────────────────────────────────────
@@ -112,6 +116,39 @@ export class CommerceProfilesBackfillService {
       }
     }
     this.logger.log(`Business photos repaired: ${result.businessPhotosRepaired}`);
+
+    // ── Retag old feed posts that predate commerceProfileId ─────────────────
+    // Every post created after profile-switching shipped stamps the active
+    // profile at publish time; posts from before that only have businessId
+    // (the owning account), so they fall back to that account's PERSONAL
+    // profile when rendered — wrong for a seller whose post was clearly a
+    // business one. Only safe when the poster has EXACTLY ONE business
+    // profile: with two or more, which one actually posted it is genuinely
+    // ambiguous and guessing would misattribute it, so those are left alone
+    // (same as before — this only fixes the unambiguous case).
+    const untaggedPosts = await this.feedItemRepo.find({
+      where: { commerceProfileId: null as any },
+    });
+    if (untaggedPosts.length > 0) {
+      const posterIds = Array.from(new Set(untaggedPosts.map((p) => p.businessId)));
+      const businessProfiles = await this.profileRepo.find({
+        where: { type: CommerceProfileType.BUSINESS },
+      });
+      const businessProfilesByOwner = new Map<number, CommerceProfile[]>();
+      for (const bp of businessProfiles) {
+        if (!posterIds.includes(bp.ownerId)) continue;
+        const list = businessProfilesByOwner.get(bp.ownerId) || [];
+        list.push(bp);
+        businessProfilesByOwner.set(bp.ownerId, list);
+      }
+      for (const post of untaggedPosts) {
+        const candidates = businessProfilesByOwner.get(post.businessId) || [];
+        if (candidates.length !== 1) continue;
+        await this.feedItemRepo.update(post.id, { commerceProfileId: candidates[0].id });
+        result.feedPostsRetagged++;
+      }
+    }
+    this.logger.log(`Feed posts retagged: ${result.feedPostsRetagged}`);
 
     // ── Transport-provider profile for every registration ──────────────────
     const providers = await this.transportRepo.find();

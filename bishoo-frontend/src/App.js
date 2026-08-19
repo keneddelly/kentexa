@@ -351,6 +351,32 @@ function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-fetch the profile whenever the tab regains focus. currentUser.activeRoles
+  // (what every role gate — hasAnyRole — actually checks) is otherwise only
+  // ever fetched once per session: a seller approved by an admin while still
+  // logged in stays locked out of seller-only pages until they log out and
+  // back in, since nothing else refreshes it. Throttled so switching tabs
+  // repeatedly doesn't spam the endpoint.
+  const lastProfileRefreshRef = React.useRef(0);
+  useEffect(() => {
+    const refreshProfile = () => {
+      if (!isLoggedIn || document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      if (now - lastProfileRefreshRef.current < 30000) return;
+      lastProfileRefreshRef.current = now;
+      api.get('/auth/profile').then(res => {
+        setCurrentUser(res.data);
+        localStorage.setItem('kentexa_user', JSON.stringify(res.data));
+      }).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', refreshProfile);
+    window.addEventListener('focus', refreshProfile);
+    return () => {
+      document.removeEventListener('visibilitychange', refreshProfile);
+      window.removeEventListener('focus', refreshProfile);
+    };
+  }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Boot-time /@username routing — resolves a public commerce-identity
   // handle (e.g. kentexa.com/@bishoo_intelligence_syst) straight to that
   // profile's owner. Can't be read synchronously like ?track=/?confirm=
