@@ -2460,6 +2460,14 @@ export class SuperAgentsService {
       // profile was active still showed the owner's personal name as the
       // sender everywhere the tracking data is displayed.
       commerceProfileId?: number;
+      // Manual-order payment confirmation — the customer who actually paid
+      // the seller, which is NOT always the same person as the parcel's
+      // recipient (e.g. a buyer paying for a gift shipped to someone else).
+      // Defaults to recipientName/recipientPhone when omitted, preserving
+      // the original single-person behavior.
+      buyerName?: string;
+      buyerPhone?: string;
+      paymentMethod?: string; // cash | mobile_money | bank | other
     },
   ) {
     // Billing applies only to actual sellers — an ADMIN/MANAGER/SUPER_AGENT
@@ -2657,6 +2665,62 @@ export class SuperAgentsService {
       },
     );
 
+    // ── Manual-order payment confirmation ───────────────────────────────
+    // The customer already paid the seller directly (cash/WhatsApp/mobile
+    // money/bank) — this records that payment as confirmed inside Kentexa
+    // and receipts it, exactly like createOfflineIntercityOrder()'s counter
+    // flow does, reusing the same recordManualPayment() receipt generator
+    // (one numbering scheme, not a second one). The buyer (who paid) is
+    // not necessarily the parcel's recipient — e.g. someone paying for a
+    // gift shipped to a different person — so this is billed/receipted to
+    // buyerName/buyerPhone, falling back to the recipient when the seller
+    // didn't distinguish them.
+    //
+    // Fires exactly once, inline in this create call — there is no
+    // separate "mark as paid" toggle or GET/view endpoint that could
+    // re-trigger it, so a page refresh or reopening this order can never
+    // re-send the SMS (the only code path that sends it is this one, run
+    // once per successful POST).
+    const buyerName = dto.buyerName || dto.recipientName;
+    const buyerPhone = dto.buyerPhone || dto.recipientPhone;
+    const orderAmount = Number(order.totalAmount || 0);
+    const invoice = await this.invoicesService.recordManualPayment(order, {
+      amount: orderAmount,
+      paymentMethod: dto.paymentMethod || 'cash',
+    });
+
+    // SELLER's own brand, never "SUPER AGENT" — no Super Agent is involved
+    // yet at this point, the customer is dealing with the seller only.
+    let buyerPaymentSmsSent = false;
+    try {
+      buyerPaymentSmsSent = await this.smsService.sendSms(
+        buyerPhone,
+        `${senderDisplayName}\n\n` +
+          `Habari ${buyerName}, malipo yako ya TZS ${orderAmount.toLocaleString()} yamepokelewa kwa oda ${trackingNumber}.\n\n` +
+          `Risiti: ${invoice.receiptNumber}\n\n` +
+          `Verified by Kentexa`,
+      );
+    } catch (e: any) {
+      console.warn('Manual order payment SMS failed:', e?.message);
+    }
+
+    await this.auditLog
+      .record({
+        actorId: seller.id,
+        actorRole: 'seller',
+        action: 'order.manual_payment_confirmed',
+        entityType: 'order',
+        entityId: order.id,
+        newValue: {
+          amount: orderAmount,
+          paymentMethod: dto.paymentMethod || 'cash',
+          receiptNumber: invoice.receiptNumber,
+          buyerPhone,
+          buyerPaymentSmsSent,
+        },
+      })
+      .catch(() => {});
+
     // Aggregate the free-order/fee counters onto the seller's own profile —
     // same tracked-then-real-balance principle as SuperAgent's counter flow.
     if (sellerProfile) {
@@ -2701,6 +2765,14 @@ export class SuperAgentsService {
               (isFreeOrder ? 0 : platformFeeCharged),
           }
         : null,
+      receipt: {
+        receiptNumber: invoice.receiptNumber,
+        amount: orderAmount,
+        paymentMethod: dto.paymentMethod || 'cash',
+        buyerName,
+        buyerPhone,
+        buyerPaymentSmsSent,
+      },
     };
   }
 

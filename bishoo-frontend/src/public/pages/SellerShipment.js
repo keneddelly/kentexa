@@ -93,6 +93,13 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     recipientName: '', recipientPhone: '',
     destinationCity: '', deliveryAddress: '',
     weightKg: '', parcelSize: 'small',
+    // The customer who actually paid — not always the recipient (e.g.
+    // someone paying for a gift shipped to a different person). Defaults
+    // to the recipient when left blank; buyerDiffersFromRecipient just
+    // controls whether the separate fields are shown.
+    buyerDiffersFromRecipient: false,
+    buyerName: '', buyerPhone: '',
+    paymentMethod: 'cash',
     // Shipping — all required per method
     transportMethod: 'super_agent',
     superAgentNote: '',      // confirmation seller has/will hand to hub
@@ -271,6 +278,8 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     if (items.length === 0)            return t('seller_shipment.validate_add_item');
     if (!form.recipientName.trim())    return t('seller_shipment.validate_recipient_name');
     if (!form.recipientPhone.trim())   return t('seller_shipment.validate_recipient_phone');
+    if (form.buyerDiffersFromRecipient && !form.buyerName.trim())  return t('seller_shipment.validate_payer_name');
+    if (form.buyerDiffersFromRecipient && !form.buyerPhone.trim()) return t('seller_shipment.validate_payer_phone');
     if (!form.destinationCity)         return t('seller_shipment.validate_destination');
     if (!form.deliveryAddress.trim())  return t('seller_shipment.validate_address');
     // Shipping validation — required for tracking to work
@@ -330,6 +339,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         notes:      [form.notes, form.superAgentNote, form.bodaNote].filter(Boolean).join(' | ') || null,
         totalValue: getTotalValue() || null,
         commerceProfileId: activeProfileId || undefined,
+        buyerName:  form.buyerDiffersFromRecipient ? form.buyerName.trim()  || undefined : undefined,
+        buyerPhone: form.buyerDiffersFromRecipient ? form.buyerPhone.trim() || undefined : undefined,
+        paymentMethod: form.paymentMethod,
       });
       setResult(res.data);
       // Tracking is active immediately — no separate upfront fee payment
@@ -355,7 +367,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     setItems([]); setAddText(''); setAddPrice(''); setAddWeight(''); setAddQty(1);
     setNewClassifiedTitle(''); setShowAddItem(true); setIsSameCity(false);
     setForm({ recipientName: '', recipientPhone: '', destinationCity: '', deliveryAddress: '',
-      weightKg: '', parcelSize: 'small', transportMethod: 'super_agent',
+      weightKg: '', parcelSize: 'small',
+      buyerDiffersFromRecipient: false, buyerName: '', buyerPhone: '', paymentMethod: 'cash',
+      transportMethod: 'super_agent',
       superAgentNote: '', busCompany: '', busTicketNumber: '', busDeparture: '',
       courierName: '', courierTrackingRef: '', bodaNote: '', notes: '' });
     setError('');
@@ -397,9 +411,28 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
               <div style={{ fontSize: 48, marginBottom: 8 }}>✅</div>
               <h2 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 4px' }}>{t('seller_shipment.order_registered')}</h2>
               <p style={{ fontSize: 13, opacity: 0.85, margin: '0 0 12px' }}>
-                {t('seller_shipment.sms_sent_to', { name: form.recipientName, phone: form.recipientPhone })}
+                {result?.receipt?.buyerPaymentSmsSent
+                  ? t('seller_shipment.payment_sms_sent_to', { name: result.receipt.buyerName, phone: result.receipt.buyerPhone })
+                  : t('seller_shipment.payment_recorded_no_sms')}
               </p>
             </div>
+            {result?.receipt && (
+              <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase' }}>
+                  {t('seller_shipment.receipt_title')}
+                </div>
+                {[
+                  [t('seller_shipment.receipt_number_label'), result.receipt.receiptNumber],
+                  [t('seller_shipment.receipt_amount_label'), `TZS ${Number(result.receipt.amount).toLocaleString()}`],
+                  [t('seller_shipment.receipt_payer_label'), `${result.receipt.buyerName} — ${result.receipt.buyerPhone}`],
+                ].map(([l, v]) => (
+                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12 }}>
+                    <span style={{ color: '#64748b' }}>{l}</span>
+                    <span style={{ fontWeight: 700, color: '#1e293b' }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {result?.billing && (
               <div style={{ backgroundColor: result.billing.isFreeOrder ? '#f0fdf4' : '#eff6ff',
                 borderRadius: 12, padding: '12px 14px', marginBottom: 16, textAlign: 'center' }}>
@@ -787,6 +820,39 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
             <input type="tel" placeholder="0712345678"
               value={form.recipientPhone} onChange={e => set('recipientPhone', e.target.value)} style={inputStyle} />
           </Field>
+
+          {/* Payment — who actually paid you, and how. Defaults to the
+              recipient above (the common case), but a gift/third-party
+              payment needs its own identity so the payment-confirmation
+              SMS goes to whoever paid, not whoever receives the parcel. */}
+          <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: '#475569', cursor: 'pointer', marginBottom: form.buyerDiffersFromRecipient ? 10 : 0 }}>
+              <input type="checkbox" checked={form.buyerDiffersFromRecipient}
+                onChange={e => set('buyerDiffersFromRecipient', e.target.checked)} />
+              {t('seller_shipment.payer_differs_label')}
+            </label>
+            {form.buyerDiffersFromRecipient && (
+              <>
+                <Field label={t('seller_shipment.payer_name_label')} required>
+                  <input type="text" placeholder={t('seller_shipment.payer_name_placeholder')}
+                    value={form.buyerName} onChange={e => set('buyerName', e.target.value)} style={inputStyle} />
+                </Field>
+                <Field label={t('seller_shipment.payer_phone_label')} required hint={t('seller_shipment.payer_phone_hint')}>
+                  <input type="tel" placeholder="0712345678"
+                    value={form.buyerPhone} onChange={e => set('buyerPhone', e.target.value)} style={inputStyle} />
+                </Field>
+              </>
+            )}
+            <Field label={t('seller_shipment.payment_method_label')}>
+              <select value={form.paymentMethod} onChange={e => set('paymentMethod', e.target.value)} style={inputStyle}>
+                <option value="cash">{t('seller_shipment.payment_method_cash')}</option>
+                <option value="mobile_money">{t('seller_shipment.payment_method_mobile_money')}</option>
+                <option value="bank">{t('seller_shipment.payment_method_bank')}</option>
+                <option value="other">{t('seller_shipment.payment_method_other')}</option>
+              </select>
+            </Field>
+          </div>
+
           <Field label={t('seller_shipment.destination_city_label')} required>
             <LocationPicker
               label={t('seller_shipment.location_picker_label')}
