@@ -15,10 +15,26 @@ const STATUS_STYLE = {
   refunded:        { bg: '#fee2e2', color: '#9f1239',  label: '↩️ Imerudishwa' },
 };
 
+// Matches OrderSource in src/orders/entities/order.entity.ts. Previously
+// only 'offline' had any visual treatment at all — offline_intercity
+// (Super Agent counter cash sales) and seller_shipment (seller's own
+// offline sale, shipped via the network) rendered identically to a plain
+// online order, with the "Muuzaji" column just blank for the former
+// (Super Agent orders have no seller by design) — making them
+// indistinguishable from each other and from a data error.
+const SOURCE_STYLE = {
+  online:            { bg: '#eff6ff', color: '#2563eb', label: '🌐 Mtandaoni', short: 'Mtandaoni' },
+  offline:           { bg: '#f1f5f9', color: '#64748b', label: '🤝 Mauzo ya Nje', short: 'Nje' },
+  offline_intercity: { bg: '#f5f3ff', color: '#7c3aed', label: '🏢 Super Agent', short: 'Super Agent' },
+  seller_shipment:   { bg: '#fff7ed', color: '#c2410c', label: '📦 Muuzaji-Msafirishaji', short: 'Msafirishaji' },
+};
+const sourceStyleOf = (s) => SOURCE_STYLE[s] || { bg: '#f1f5f9', color: '#64748b', label: s || '—', short: s || '—' };
+
 const Orders = ({ activePage, onNavigate, onLogout }) => {
   const [orders, setOrders]           = useState([]);
   const [loading, setLoading]         = useState(true);
   const [filter, setFilter]           = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
   const [search, setSearch]           = useState('');
   const [selected, setSelected]       = useState(null);
 
@@ -69,6 +85,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
 
   const filtered = orders.filter(o => {
     const matchStatus = filter === 'all' || o.status === filter;
+    const matchSource = sourceFilter === 'all' || o.source === sourceFilter;
     const q = search.toLowerCase();
     const matchSearch = !q ||
       String(o.id).includes(q) ||
@@ -76,12 +93,15 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
       o.buyer?.email?.toLowerCase().includes(q) ||
       o.product?.name?.toLowerCase().includes(q) ||
       o.trackingNumber?.toLowerCase().includes(q) ||
-      o.deliveryAddress?.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+      o.deliveryAddress?.toLowerCase().includes(q) ||
+      o.handlingSuperAgent?.businessName?.toLowerCase().includes(q);
+    return matchStatus && matchSource && matchSearch;
   });
 
   const counts = {};
   orders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
+  const sourceCounts = {};
+  orders.forEach(o => { sourceCounts[o.source] = (sourceCounts[o.source] || 0) + 1; });
   const totalRevenue = orders.filter(o => ['delivered','confirmed'].includes(o.status))
     .reduce((s, o) => s + Number(o.totalAmount || 0), 0);
 
@@ -123,6 +143,32 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
           ))}
         </div>
 
+        {/* Source filter — who/what actually created this order. Previously
+            the only way to tell a Super Agent counter sale from a seller's
+            own shipment or a normal online order was to open each one and
+            read the "Chanzo" field in the drawer; now grouped up front. */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Chanzo cha Agizo
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setSourceFilter('all')}
+              style={{ padding: '6px 14px', borderRadius: 16, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                backgroundColor: sourceFilter === 'all' ? '#0f172a' : '#fff', color: sourceFilter === 'all' ? '#fff' : '#64748b', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+              Vyanzo Vyote ({orders.length})
+            </button>
+            {Object.entries(SOURCE_STYLE).map(([key, s]) => (
+              sourceCounts[key] > 0 && (
+                <button key={key} onClick={() => setSourceFilter(key)}
+                  style={{ padding: '6px 14px', borderRadius: 16, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                    backgroundColor: sourceFilter === key ? s.color : '#fff', color: sourceFilter === key ? '#fff' : s.color, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  {s.label} ({sourceCounts[key]})
+                </button>
+              )
+            ))}
+          </div>
+        </div>
+
         {/* Status filter */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <button onClick={() => setFilter('all')}
@@ -154,7 +200,7 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
-                  {['#', 'Mnunuzi', 'Bidhaa', 'Muuzaji', 'Kiasi', 'Utoaji', 'Hali', 'Tarehe', ''].map(h => (
+                  {['#', 'Chanzo', 'Mnunuzi', 'Bidhaa', 'Muuzaji/Wakala', 'Kiasi', 'Utoaji', 'Hali', 'Tarehe', ''].map(h => (
                     <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -162,17 +208,17 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
               <tbody>
                 {filtered.map((order, idx) => {
                   const ss = STATUS_STYLE[order.status] || STATUS_STYLE.pending;
+                  const srcS = sourceStyleOf(order.source);
                   return (
                     <tr key={order.id} onClick={() => setSelected(order)}
                       style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}>
                       <td style={{ padding: '11px 14px', fontFamily: 'monospace', fontSize: 12, color: '#6366f1', fontWeight: 700 }}>
                         #{order.id}
-                        {order.source === 'offline' && (
-                          <div title="Mauzo ya Nje — Hakuna Malipo ya KenteXa"
-                            style={{ display: 'inline-block', marginLeft: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 10, backgroundColor: '#f1f5f9', color: '#64748b', verticalAlign: 'middle' }}>
-                            💰 NJE
-                          </div>
-                        )}
+                      </td>
+                      <td style={{ padding: '11px 14px' }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, backgroundColor: srcS.bg, color: srcS.color, whiteSpace: 'nowrap' }}>
+                          {srcS.short}
+                        </span>
                       </td>
                       <td style={{ padding: '11px 14px' }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{order.buyer?.name || order.manualBuyerName || '—'}</div>
@@ -184,7 +230,9 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                         </div>
                       </td>
                       <td style={{ padding: '11px 14px', fontSize: 12, color: '#64748b' }}>
-                        {order.seller?.businessName || order.seller?.user?.name || '—'}
+                        {order.source === 'offline_intercity'
+                          ? (order.handlingSuperAgent?.businessName || '—') + ' 🏢'
+                          : (order.seller?.storeName || order.seller?.name || '—')}
                       </td>
                       <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>
                         TZS {Number(order.totalAmount || 0).toLocaleString()}
@@ -237,6 +285,18 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
                 Agizo hili liliundwa na muuzaji kwa mteja aliyelipa nje ya mfumo (M-Pesa, taslimu). KenteXa haikushika pesa hii — hakuna ada wala malipo yanayohitajika kutoka KenteXa.
               </div>
             )}
+            {selected.source === 'offline_intercity' && (
+              <div style={{ backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#5b21b6', lineHeight: 1.6 }}>
+                🏢 <strong>SUPER AGENT — MAUZO YA KAUNTA</strong><br/>
+                Mteja alilipa taslimu kwa {selected.handlingSuperAgent?.businessName || 'Super Agent'} kaunta ya intercity. Hakuna muuzaji (seller) kwenye agizo hili — Super Agent ndiye aliyepokea malipo na kusajili kifurushi.
+              </div>
+            )}
+            {selected.source === 'seller_shipment' && (
+              <div style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 10, padding: '12px 14px', marginBottom: 14, fontSize: 12, color: '#9a3412', lineHeight: 1.6 }}>
+                📦 <strong>MUUZAJI — USAFIRISHAJI WA KIBINAFSI</strong><br/>
+                Muuzaji tayari alipokea malipo kutoka kwa mteja nje ya mfumo — anatumia mtandao wa KenteXa kusafirisha tu. KenteXa hutoza ada ya ufuatiliaji pekee (TZS 1,000), si asilimia ya mauzo.
+              </div>
+            )}
 
             {/* Status */}
             {(() => { const ss = STATUS_STYLE[selected.status] || STATUS_STYLE.pending; return (
@@ -250,13 +310,15 @@ const Orders = ({ activePage, onNavigate, onLogout }) => {
               {[
                 { label: 'Mnunuzi',   value: selected.buyer?.name || selected.manualBuyerName || '—' },
                 { label: 'Simu ya Mnunuzi', value: selected.buyer?.phone || selected.phone || selected.manualBuyerPhone || '—', isPhone: true },
-                { label: 'Muuzaji',   value: selected.seller?.businessName || selected.seller?.user?.name || '—' },
-                { label: 'Simu ya Muuzaji', value: selected.seller?.user?.phone || selected.seller?.phone || '—', isPhone: true },
+                selected.source === 'offline_intercity'
+                  ? { label: 'Super Agent', value: selected.handlingSuperAgent?.businessName || '—' }
+                  : { label: 'Muuzaji',   value: selected.seller?.storeName || selected.seller?.name || '—' },
+                { label: 'Simu ya Muuzaji', value: selected.seller?.phone || '—', isPhone: true },
                 { label: 'Bidhaa',    value: selected.product?.name || selected.manualProductName || '—' },
                 { label: 'Uzito',     value: selected.weightKg ? `${selected.weightKg} kg` : '—' },
                 { label: 'Kiasi',     value: `TZS ${Number(selected.totalAmount || 0).toLocaleString()}` },
                 { label: 'Malipo',    value: selected.paymentStatus || '—' },
-                { label: 'Chanzo',    value: selected.source === 'online' ? '🌐 Online' : selected.source === 'offline' ? '🤝 Offline' : selected.source === 'seller_shipment' ? '📦 Muuzaji' : selected.source || '—' },
+                { label: 'Chanzo',    value: sourceStyleOf(selected.source).label },
                 { label: 'Wakala wa Utoaji', value: selected.deliveryAgent?.name || selected.agentName || '—' },{ label: 'Utoaji', value: selected.shippingMethod || '—' },
                 { label: 'Anwani', value: selected.deliveryAddress || '—' },
                 { label: 'Tracking', value: selected.trackingNumber || '—' },

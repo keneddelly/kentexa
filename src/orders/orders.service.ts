@@ -7,7 +7,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import {
   Order,
   OrderStatus,
@@ -1510,8 +1510,43 @@ export class OrdersService {
   }
 
   // ── Get All Orders (Admin) ────────────────────────────────────────────────
-  async findAll(): Promise<Order[]> {
-    return this.repo.find({ order: { createdAt: 'DESC' } });
+  async findAll(): Promise<any[]> {
+    const orders = await this.repo.find({ order: { createdAt: 'DESC' } });
+
+    // offline_intercity orders (Super Agent counter sales) never have a
+    // seller — createOfflineIntercityOrder() sets seller: null by design,
+    // since there's no seller in that flow at all. The admin list showed a
+    // blank "Muuzaji" column for these, indistinguishable from a data
+    // error, and nothing separated them from seller_shipment orders
+    // either. Resolve the Super Agent that actually handled each one via
+    // shippingFeeCollectedByAgentId so the admin can see who's behind it.
+    const agentIds = [
+      ...new Set(
+        orders
+          .filter(
+            (o: any) =>
+              o.source === OrderSource.OFFLINE_INTERCITY &&
+              o.shippingFeeCollectedByAgentId,
+          )
+          .map((o: any) => o.shippingFeeCollectedByAgentId),
+      ),
+    ];
+    const agents = agentIds.length
+      ? await this.superAgentRepo.find({ where: { id: In(agentIds) } })
+      : [];
+    const agentMap = new Map(agents.map((a) => [a.id, a]));
+
+    return orders.map((o: any) => ({
+      ...o,
+      handlingSuperAgent: o.shippingFeeCollectedByAgentId
+        ? {
+            id: o.shippingFeeCollectedByAgentId,
+            businessName:
+              agentMap.get(o.shippingFeeCollectedByAgentId)?.businessName ||
+              null,
+          }
+        : null,
+    }));
   }
 
   // ── Financial Reconciliation — operator's money dashboard ─────────────────
