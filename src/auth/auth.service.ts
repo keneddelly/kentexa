@@ -15,6 +15,7 @@ import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { PolicyVersionService } from '../policies/policy-version.service';
 import { PolicyType } from '../policies/entities/policy-version.entity';
+import { normalizeTzPhone } from '../common/utils/phone.util';
 
 @Injectable()
 export class AuthService {
@@ -59,11 +60,12 @@ export class AuthService {
     password: string;
     name: string;
   }) {
+    const phone = normalizeTzPhone(dto.phone);
     const existing = await this.userRepo.findOne({
-      where: { phone: dto.phone },
+      where: { phone },
     });
     if (existing) {
-      if (!existing.isVerified) return this.resendPhoneOtp(dto.phone);
+      if (!existing.isVerified) return this.resendPhoneOtp(phone);
       throw new ConflictException('Phone number already registered');
     }
 
@@ -73,7 +75,7 @@ export class AuthService {
     const terms = await this.currentTermsAcceptance();
 
     const user = this.userRepo.create({
-      phone: dto.phone,
+      phone,
       name: dto.name,
       password: hashed,
       otp,
@@ -84,12 +86,12 @@ export class AuthService {
     } as any);
 
     await this.userRepo.save(user);
-    const sent = await this.smsService.sendOtp(dto.phone, otp);
+    const sent = await this.smsService.sendOtp(phone, otp);
 
     return {
       message: 'OTP sent to your phone number.',
       method: 'phone',
-      phone: dto.phone,
+      phone,
       otpSent: sent,
       ...(process.env.NODE_ENV !== 'production' ? { devOtp: otp } : {}),
     };
@@ -145,7 +147,7 @@ export class AuthService {
     const isEmail = identifier.includes('@');
     const user = isEmail
       ? await this.userRepo.findOne({ where: { email: identifier } })
-      : await this.userRepo.findOne({ where: { phone: identifier } });
+      : await this.userRepo.findOne({ where: { phone: normalizeTzPhone(identifier) } });
 
     if (!user) throw new BadRequestException('Account not found');
     if (user.isVerified)
@@ -219,14 +221,15 @@ export class AuthService {
 
   // ── RESEND OTP — phone ────────────────────────────────────────────────
   async resendPhoneOtp(phone: string) {
-    const user = await this.userRepo.findOne({ where: { phone } });
+    const normalizedPhone = normalizeTzPhone(phone);
+    const user = await this.userRepo.findOne({ where: { phone: normalizedPhone } });
     if (!user) throw new BadRequestException('Phone number not found');
     if (user.isVerified) throw new BadRequestException('Already verified');
 
     const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     await this.userRepo.update(user.id, { otp, otpExpiry, otpAttempts: 0 });
-    const sent = await this.smsService.sendOtp(phone, otp);
+    const sent = await this.smsService.sendOtp(normalizedPhone, otp);
 
     return {
       message: 'New OTP sent to your phone.',
@@ -268,7 +271,7 @@ export class AuthService {
     const id = identifier.trim();
     const isEmail = id.includes('@');
     // ✅ Always lowercase email — case-insensitive login
-    const normalizedId = isEmail ? id.toLowerCase() : id;
+    const normalizedId = isEmail ? id.toLowerCase() : normalizeTzPhone(id);
 
     let user: User | null = null;
     if (isEmail) {
@@ -325,7 +328,7 @@ export class AuthService {
     } else {
       user = await this.userRepo
         .createQueryBuilder('u')
-        .where('u.phone = :id', { id: identifier })
+        .where('u.phone = :id', { id: normalizeTzPhone(identifier) })
         .getOne();
     }
 
@@ -365,7 +368,7 @@ export class AuthService {
     } else {
       user = await this.userRepo
         .createQueryBuilder('u')
-        .where('u.phone = :id', { id: identifier })
+        .where('u.phone = :id', { id: normalizeTzPhone(identifier) })
         .getOne();
     }
 

@@ -19,6 +19,21 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const [fpLoading, setFpLoading]       = useState(false);
   const [fpMessage, setFpMessage]       = useState('');
 
+  // Accounts are stored as "255XXXXXXXXX" (Register.js has always converted
+  // a leading 0 to 255 before submitting), so a login typed as
+  // "0712345678" needs the same conversion here or it looks up a value
+  // that was never stored. Backend now normalizes this too, but converting
+  // live matches Register.js's existing UX and makes it obvious what's
+  // actually being sent.
+  const handlePhoneChange = (val, setter) => {
+    const digits = val.replace(/\D/g, '');
+    if (val.startsWith('0')) {
+      setter('255' + digits.slice(1));
+    } else {
+      setter(digits);
+    }
+  };
+
   const handleLogin = async () => {
     if (!identifier.trim() || !password) {
       setError(t('login.phone_email_required', { method: loginMethod === 'phone' ? t('login.method_phone') : t('login.method_email') }));
@@ -146,9 +161,15 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
               </label>
               <input type={loginMethod === 'phone' ? 'tel' : 'email'}
                 placeholder={loginMethod === 'phone' ? t('login.phone_placeholder') : t('login.email_placeholder')}
-                value={identifier} onChange={e => setIdentifier(e.target.value)}
+                value={identifier}
+                onChange={e => loginMethod === 'phone'
+                  ? handlePhoneChange(e.target.value, setIdentifier)
+                  : setIdentifier(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && handleLogin()}
                 style={inputStyle} />
+              {loginMethod === 'phone' && identifier.startsWith('255') && (
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>+{identifier}</div>
+              )}
             </div>
 
             {/* Password */}
@@ -209,7 +230,15 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
             <div>
               <label style={{ display: 'block', fontSize: 13, color: '#475569', marginBottom: 6, fontWeight: 600 }}>{t('login.phone_or_email_label')}</label>
               <input type="text" placeholder={t('login.phone_or_email_placeholder')}
-                value={fpIdentifier} onChange={e => setFpIdentifier(e.target.value)}
+                value={fpIdentifier}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val.startsWith('0') && !val.includes('@')) {
+                    handlePhoneChange(val, setFpIdentifier);
+                  } else {
+                    setFpIdentifier(val);
+                  }
+                }}
                 onKeyPress={e => e.key === 'Enter' && handleForgotSend()}
                 style={inputStyle} />
             </div>
