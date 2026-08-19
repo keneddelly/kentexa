@@ -539,10 +539,9 @@ export class SuperAgentsService {
     try {
       senderSmsSent = await this.smsService.sendSms(
         dto.senderPhone,
-        `SUPER AGENT ${superAgent.businessName}\n\n` +
-          `Malipo yako ya TZS ${dto.shippingFeeCollected.toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}.\n\n` +
-          `Risiti: ${invoice.receiptNumber}\n` +
-          `Imepokewa na: ${superAgent.businessName}\n\n` +
+        `${superAgent.businessName}\n\n` +
+          `Habari ${dto.senderName}, malipo yako ya TZS ${dto.shippingFeeCollected.toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}.\n\n` +
+          `Risiti: ${invoice.receiptNumber}\n\n` +
           `Verified by Kentexa`,
       );
     } catch (e: any) {
@@ -1518,7 +1517,7 @@ export class SuperAgentsService {
       try {
         receiverSmsSent = await this.smsService.sendSms(
           parcel.buyerPhone,
-          `SUPER AGENT ${agent?.businessName || ''}\n\n` +
+          `${agent?.businessName || ''}\n\n` +
             `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa kutoka ${parcel.originCity} kwenda ${parcel.destinationCity}.\n\n` +
             `Kifurushi: ${trackingNumber}\n` +
             [
@@ -1622,10 +1621,9 @@ export class SuperAgentsService {
     try {
       senderSmsSent = await this.smsService.sendSms(
         parcel.senderPhone,
-        `SUPER AGENT ${parcel.superAgent?.businessName || ''}\n\n` +
-          `Malipo yako ya TZS ${Number(parcel.actualShippingFee).toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}.\n\n` +
-          (invoice?.receiptNumber ? `Risiti: ${invoice.receiptNumber}\n` : '') +
-          `Imepokewa na: ${parcel.superAgent?.businessName || ''}\n\n` +
+        `${parcel.superAgent?.businessName || ''}\n\n` +
+          `Habari ${parcel.senderName || ''}, malipo yako ya TZS ${Number(parcel.actualShippingFee).toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}.\n\n` +
+          (invoice?.receiptNumber ? `Risiti: ${invoice.receiptNumber}\n\n` : '\n') +
           `Verified by Kentexa`,
       );
     } catch (e: any) {
@@ -1675,7 +1673,7 @@ export class SuperAgentsService {
     try {
       receiverSmsSent = await this.smsService.sendSms(
         parcel.buyerPhone,
-        `SUPER AGENT ${parcel.superAgent?.businessName || ''}\n\n` +
+        `${parcel.superAgent?.businessName || ''}\n\n` +
           `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa.\n\n` +
           `Kifurushi: ${trackingNumber}\n` +
           [transportLine, `Njia: ${parcel.originCity} → ${parcel.destinationCity}`, referenceLine]
@@ -2640,7 +2638,7 @@ export class SuperAgentsService {
       await this.smsService
         .sendSms(
           (parcel as any).buyerPhone,
-          `SUPER AGENT ${arrivalBrand}\n\n` +
+          `${arrivalBrand}\n\n` +
             `Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
             `imefika ${dto.city}. Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery.\n\n` +
             `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +

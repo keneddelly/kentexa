@@ -313,6 +313,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
         shippingFeeCollected: Number(walkForm.shippingFeeCollected || 0),
       });
       setWalkResult(res.data);
+      // Refresh dashboard data in the background so the new parcel shows up
+      // on the Tuma tab immediately — previously required a manual page
+      // reload since dashData was only refetched on resetWalk().
+      fetchAll();
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kuunda agizo');
     } finally { setActionLoading(false); }
