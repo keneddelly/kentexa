@@ -18,6 +18,7 @@ import { SearchIndexService } from '../search/search-index.service';
 import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 import { buildMultiTermLikeClause } from '../search/search-query.util';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
+import { withPriceOverlay, formatPriceLabel } from '../feed/utils/price-overlay.util';
 import { SellerRankingService } from './seller-ranking.service';
 
 @Injectable()
@@ -271,15 +272,22 @@ export class ProductsService {
 
     const saved = (await this.repo.save(product)) as unknown as Product;
 
-    // Auto-share as a Moment — fire-and-forget, never blocks product creation
+    // Auto-share as a Moment — fire-and-forget, never blocks product creation.
+    // Price + category burned into the shared image (see price-overlay.util)
+    // so a viewer scrolling the feed has something to act on immediately,
+    // instead of a bare photo.
     if (seller?.id) {
       this.feedService
         .publish(seller.id, {
           type: 'moment',
           title: saved.name,
-          imageUrl: saved.images?.[0] || undefined,
+          imageUrl: withPriceOverlay(saved.images?.[0], {
+            priceLabel: formatPriceLabel(saved.displayPrice),
+            category: saved.category,
+          }),
           linkedEntityType: 'product',
           linkedEntityId: saved.id,
+          category: saved.category || undefined,
         })
         .catch(() => {});
     }

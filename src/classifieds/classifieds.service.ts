@@ -30,6 +30,7 @@ import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profi
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
 import { FRONTEND_URL } from '../config/urls.config';
+import { withPriceOverlay, formatPriceLabel } from '../feed/utils/price-overlay.util';
 
 @Injectable()
 export class ClassifiedsService {
@@ -78,16 +79,23 @@ export class ClassifiedsService {
     const listing = this.repo.create({ ...dto, seller: user, commerceProfileId });
     const saved = await this.repo.save(listing);
 
-    // Auto-share as a Moment — fire-and-forget, never blocks listing creation
+    // Auto-share as a Moment — fire-and-forget, never blocks listing creation.
+    // Price + category burned into the shared image (see price-overlay.util)
+    // so a viewer scrolling the feed has something to act on immediately.
+    // Prefers the discounted flashSalePrice, if one's active, over price.
     if (user?.id) {
       this.feedService
         .publish(user.id, {
           type: 'moment',
           title: saved.title,
-          imageUrl: saved.images?.[0] || undefined,
+          imageUrl: withPriceOverlay(saved.images?.[0], {
+            priceLabel: formatPriceLabel(saved.flashSalePrice || saved.price),
+            category: saved.category,
+          }),
           linkedEntityType: 'classified',
           linkedEntityId: saved.id,
           commerceProfileId: commerceProfileId || undefined,
+          category: saved.category || undefined,
         })
         .catch(() => {});
     }

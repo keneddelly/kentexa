@@ -18,6 +18,7 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { SearchIndexService } from '../search/search-index.service';
 import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 import { buildMultiTermLikeClause } from '../search/search-query.util';
+import { withPriceOverlay, formatServicePriceLabel } from '../feed/utils/price-overlay.util';
 
 @Injectable()
 export class ServicesService {
@@ -43,15 +44,27 @@ export class ServicesService {
       }),
     );
 
-    // Auto-share as a Moment — fire-and-forget, never blocks ad creation
+    // Auto-share as a Moment — fire-and-forget, never blocks ad creation.
+    // Price + category burned into the shared image (see price-overlay.util)
+    // so a viewer scrolling the feed has something to act on immediately.
+    // No price line at all for negotiate/free-quote ads — there's no fixed
+    // number to show.
     if (user?.id) {
       this.feedService
         .publish(user.id, {
           type: 'moment',
           title: saved.title,
-          imageUrl: saved.images?.[0] || undefined,
+          imageUrl: withPriceOverlay(saved.images?.[0], {
+            priceLabel: formatServicePriceLabel(
+              saved.priceType,
+              saved.price,
+              saved.priceMax,
+            ),
+            category: saved.category,
+          }),
           linkedEntityType: 'service',
           linkedEntityId: saved.id,
+          category: saved.category || undefined,
         })
         .catch(() => {});
     }
