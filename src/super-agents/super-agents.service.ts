@@ -2299,6 +2299,7 @@ export class SuperAgentsService {
     });
     if (!shipment) throw new NotFoundException('Bulk shipment not found');
     const agent = await this.assertOwnsBulkShipment(user, shipment);
+    if (!agent) throw new BadRequestException('Super Agent profile not found');
     if (shipment.status !== BulkShipmentStatus.OPEN) {
       throw new BadRequestException(
         'This shipment has already been dispatched — start a new one',
@@ -2409,7 +2410,10 @@ export class SuperAgentsService {
     manualContactName?: string;
     manualContactPhone?: string;
     manualContactCity?: string;
-  }): Promise<{ lastMileAgent: SuperAgent | null; shipmentFields: any }> {
+  }): Promise<{
+    lastMileAgent: SuperAgent | null;
+    shipmentFields: Partial<BulkShipment>;
+  }> {
     if (dto.destinationSuperAgentId) {
       const lastMileAgent = await this.superAgentRepo.findOne({
         where: { id: dto.destinationSuperAgentId, status: 'active' as any },
@@ -2419,7 +2423,9 @@ export class SuperAgentsService {
       }
       return {
         lastMileAgent,
-        shipmentFields: { lastMileSuperAgent: { id: lastMileAgent.id } },
+        shipmentFields: {
+          lastMileSuperAgent: { id: lastMileAgent.id } as SuperAgent,
+        },
       };
     }
     if (dto.manualContactName && dto.manualContactPhone) {
