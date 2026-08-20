@@ -12,6 +12,8 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
   const [suspendReason, setSuspendReason] = useState('');
   const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [detailAgent, setDetailAgent] = useState(null);
+  const [suspendIsReject, setSuspendIsReject] = useState(false);
 
   useEffect(() => { fetchAgents(); }, []);
 
@@ -41,16 +43,17 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
   };
 
   const handleSuspend = async () => {
-    if (!suspendReason.trim()) { setError('Enter suspension reason'); return; }
+    if (!suspendReason.trim()) { setError(`Enter ${suspendIsReject ? 'rejection' : 'suspension'} reason`); return; }
     try {
       setActionLoading(true);
       await api.patch(`/super-agents/${selected.id}/suspend`, { reason: suspendReason });
-      setMessage('Super Agent suspended.');
+      setMessage(suspendIsReject ? 'Application rejected.' : 'Super Agent suspended.');
       setShowSuspendModal(false);
       setSuspendReason('');
+      setSuspendIsReject(false);
       fetchAgents();
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to suspend');
+      setError(err?.response?.data?.message || `Failed to ${suspendIsReject ? 'reject' : 'suspend'}`);
     } finally {
       setActionLoading(false);
     }
@@ -142,14 +145,24 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => setDetailAgent(agent)}
+                            style={{ backgroundColor: '#f1f5f9', color: '#1e293b', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                            🔍 View
+                          </button>
                           {agent.status === 'pending' && (
                             <button onClick={() => handleApprove(agent.id)} disabled={actionLoading}
                               style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               ✅ Approve
                             </button>
                           )}
+                          {agent.status === 'pending' && (
+                            <button onClick={() => { setSelected(agent); setSuspendIsReject(true); setShowSuspendModal(true); }}
+                              style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                              ❌ Reject
+                            </button>
+                          )}
                           {agent.status === 'active' && (
-                            <button onClick={() => { setSelected(agent); setShowSuspendModal(true); }}
+                            <button onClick={() => { setSelected(agent); setSuspendIsReject(false); setShowSuspendModal(true); }}
                               style={{ backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                               🚫 Suspend
                             </button>
@@ -175,17 +188,83 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
       {showSuspendModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 12, padding: 32, width: 400, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>🚫 Suspend Super Agent</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', marginBottom: 8 }}>
+              {suspendIsReject ? '❌ Reject Application' : '🚫 Suspend Super Agent'}
+            </h2>
             <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>{selected?.businessName} — {selected?.agentCode}</p>
-            <label style={{ display: 'block', fontSize: 13, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>Reason for suspension *</label>
+            <label style={{ display: 'block', fontSize: 13, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>
+              Reason for {suspendIsReject ? 'rejection' : 'suspension'} *
+            </label>
             <textarea value={suspendReason} onChange={e => setSuspendReason(e.target.value)}
-              placeholder="e.g. Fraud reported, policy violation..."
+              placeholder={suspendIsReject ? 'e.g. Missing government ID, incomplete address...' : 'e.g. Fraud reported, policy violation...'}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', minHeight: 80, marginBottom: 20, outline: 'none' }} />
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setShowSuspendModal(false); setSuspendReason(''); }} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+              <button onClick={() => { setShowSuspendModal(false); setSuspendReason(''); setSuspendIsReject(false); }} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
               <button onClick={handleSuspend} disabled={actionLoading} style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
-                {actionLoading ? '⏳' : '🚫 Suspend'}
+                {actionLoading ? '⏳' : suspendIsReject ? '❌ Reject' : '🚫 Suspend'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Application Detail Modal — shows everything submitted, so admin
+          never approves/rejects blind. Reuses the same approve/suspend
+          actions above rather than a second workflow. */}
+      {detailAgent && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}
+          onClick={() => setDetailAgent(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: '#fff', borderRadius: 12, padding: 32, width: 480, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>{detailAgent.businessName}</h2>
+              <button onClick={() => setDetailAgent(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#94a3b8' }}>×</button>
+            </div>
+            <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, marginBottom: 16, ...statusStyle(detailAgent.status) }}>
+              {detailAgent.status?.toUpperCase()}
+            </span>
+
+            {[
+              ['Agent Code', detailAgent.agentCode],
+              ['Applicant', detailAgent.user?.name],
+              ['Account Phone', detailAgent.user?.phone],
+              ['Account Email', detailAgent.user?.email],
+              ['Business Phone', detailAgent.phone],
+              ['WhatsApp', detailAgent.whatsappNumber],
+              ['City', detailAgent.city],
+              ['Region', detailAgent.region],
+              ['Address', detailAgent.address],
+              ['Description', detailAgent.description],
+              ['Government ID Number', detailAgent.governmentId],
+              ['Date Submitted', detailAgent.createdAt ? new Date(detailAgent.createdAt).toLocaleString() : null],
+              ['Rejection/Suspension Reason', detailAgent.rejectionReason],
+            ].filter(([, v]) => v).map(([label, value]) => (
+              <div key={label} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #f1f5f9' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>{label}</div>
+                <div style={{ fontSize: 14, color: '#0f172a', marginTop: 2 }}>{value}</div>
+              </div>
+            ))}
+
+            {detailAgent.governmentIdImage && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Government ID Photo</div>
+                <img src={detailAgent.governmentIdImage} alt="Government ID"
+                  style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              {detailAgent.status === 'pending' && (
+                <>
+                  <button onClick={() => { handleApprove(detailAgent.id); setDetailAgent(null); }} disabled={actionLoading}
+                    style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
+                    ✅ Approve
+                  </button>
+                  <button onClick={() => { setSelected(detailAgent); setSuspendIsReject(true); setShowSuspendModal(true); setDetailAgent(null); }}
+                    style={{ flex: 1, backgroundColor: '#ef4444', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontWeight: 800 }}>
+                    ❌ Reject
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

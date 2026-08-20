@@ -18,6 +18,7 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { SellerScopeService } from '../business/seller-scope.service';
+import { parseOrderIdParam } from '../common/utils/order-id.util';
 
 @Controller('orders')
 export class OrdersController {
@@ -178,12 +179,17 @@ export class OrdersController {
   }
 
   // ── Super Agent: Look up order before receiving ───────────────────────────
-  // Auto-fills destination city, recipient name & phone in the agent's UI
+  // Auto-fills destination city, recipient name & phone in the agent's UI.
+  // Accepts either the bare numeric id or the full "KTX-ORD-{id}" tracking
+  // number printed on every receipt/SMS/tracking link — a Super Agent
+  // naturally types or scans the number they were actually shown, not the
+  // raw database id, and ParseIntPipe here used to 400 on anything but a
+  // plain integer.
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Get(':id/agent-lookup')
-  lookupForAgent(@Param('id', ParseIntPipe) id: number) {
-    return this.ordersService.lookupForAgent(id);
+  lookupForAgent(@Param('id') id: string) {
+    return this.ordersService.lookupForAgent(parseOrderIdParam(id));
   }
 
   // ── Super Agent: Scan & receive order ─────────────────────────────────────
@@ -193,7 +199,7 @@ export class OrdersController {
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Patch(':id/super-agent-receive')
   superAgentReceiveOrder(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @Request() req,
     @Body()
     body: {
@@ -205,7 +211,11 @@ export class OrdersController {
       actualShippingFee?: number;
     },
   ) {
-    return this.ordersService.superAgentReceiveOrder(id, req.user, body);
+    return this.ordersService.superAgentReceiveOrder(
+      parseOrderIdParam(id),
+      req.user,
+      body,
+    );
   }
 
   // ── Agent: Mark received ──────────────────────────────────────────────────

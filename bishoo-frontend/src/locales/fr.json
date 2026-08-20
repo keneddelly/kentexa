@@ -4475,7 +4475,20 @@
     "location_picker_label": "Sélectionner la région/district du hub",
 
     "save_button": "💾 Enregistrer les modifications",
-    "saving": "⏳ Enregistrement..."
+    "saving": "⏳ Enregistrement...",
+
+    "rates_title": "Tarifs par Itinéraire (Bei)",
+    "rates_desc": "Tarifs appliqués depuis {{city}} vers chaque destination — visibles par les vendeurs qui estiment les frais d'expédition et utilisés par le système Kentexa.",
+    "rate_destination_label": "Destination",
+    "rate_destination_placeholder": "ex. Mwanza",
+    "rate_per_kg_label": "Prix par kg (TZS)",
+    "rate_minimum_label": "Frais minimum (TZS)",
+    "rate_days_label": "Jours estimés",
+    "rate_add_route": "Ajouter un autre itinéraire",
+    "rate_save_button": "💾 Enregistrer les Tarifs",
+    "rate_save_success": "✅ Tarifs enregistrés",
+    "rate_save_failed": "Échec de l'enregistrement des tarifs",
+    "rate_validation_error": "Ajoutez au moins une destination avec un prix par kg supérieur à zéro"
   },
   "super_agent_dashboard": {
     "load_failed": "Échec du chargement du tableau de bord",

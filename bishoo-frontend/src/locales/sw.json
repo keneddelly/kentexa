@@ -4325,7 +4325,20 @@
     "location_picker_label": "Chagua Mkoa / Wilaya ya Hub",
 
     "save_button": "💾 Hifadhi Mabadiliko",
-    "saving": "⏳ Inahifadhi..."
+    "saving": "⏳ Inahifadhi...",
+
+    "rates_title": "Bei ya Njia",
+    "rates_desc": "Bei unazotoza kutoka {{city}} kwenda kila mahali — zinaonekana kwa wauzaji wanaokadiria gharama ya usafirishaji na zinatumiwa na mfumo wa Kentexa.",
+    "rate_destination_label": "Unakoenda",
+    "rate_destination_placeholder": "mfano Mwanza",
+    "rate_per_kg_label": "Bei kwa kg (TZS)",
+    "rate_minimum_label": "Bei ya chini kabisa (TZS)",
+    "rate_days_label": "Siku za kadirio",
+    "rate_add_route": "Ongeza njia nyingine",
+    "rate_save_button": "💾 Hifadhi Bei za Njia",
+    "rate_save_success": "✅ Bei za njia zimehifadhiwa",
+    "rate_save_failed": "Imeshindwa kuhifadhi bei za njia",
+    "rate_validation_error": "Ongeza angalau njia moja yenye bei kwa kg zaidi ya sifuri"
   },
   "super_agent_dashboard": {
     "load_failed": "Imeshindwa kupakia dashibodi",

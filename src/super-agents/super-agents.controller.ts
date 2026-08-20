@@ -120,6 +120,14 @@ export class SuperAgentsController {
     return this.service.getDashboard(req.user);
   }
 
+  // Real today/week/month/total revenue — computed from actual parcel
+  // records and timestamps, not the dashboard's capped recent-parcel list.
+  @UseGuards(JwtAuthGuard)
+  @Get('revenue')
+  getRevenue(@Request() req) {
+    return this.service.getRevenueSummary(req.user);
+  }
+
   // Set shipping rates
   @UseGuards(JwtAuthGuard)
   @Post('rates')
@@ -238,6 +246,18 @@ export class SuperAgentsController {
   }
 
   // ── Bulk shipments ────────────────────────────────────────────────────────
+
+  // This agent's own arrived/verified parcels not yet dispatched or already
+  // in another bulk shipment — the pick-list for "which orders go in this
+  // consolidated shipment".
+  @UseGuards(JwtAuthGuard)
+  @Get('bulk-shipments/candidates')
+  getBulkShipmentCandidates(
+    @Request() req,
+    @Query('destinationCity') destinationCity?: string,
+  ) {
+    return this.service.getBulkShipmentCandidates(req.user, destinationCity);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post('bulk-shipments')

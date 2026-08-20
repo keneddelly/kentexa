@@ -16,6 +16,15 @@ export enum BulkShipmentStatus {
   COMPLETED = 'completed', // All parcels delivered
 }
 
+// How this consolidated shipment actually moves — determines which fields
+// are meaningful. BUS_TRANSPORT needs transportCompany/transportRef;
+// SUPER_AGENT_HANDOFF hands the whole box to another Super Agent for final
+// delivery and never requires bus/ticket details at all.
+export enum BulkShipmentDeliveryMethod {
+  BUS_TRANSPORT = 'bus_transport',
+  SUPER_AGENT_HANDOFF = 'super_agent_handoff',
+}
+
 @Entity('bulk_shipment')
 export class BulkShipment {
   @PrimaryGeneratedColumn()
@@ -53,11 +62,44 @@ export class BulkShipment {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   totalShippingCost: number;
 
+  @Column({
+    type: 'enum',
+    enum: BulkShipmentDeliveryMethod,
+    nullable: true,
+  })
+  deliveryMethod: BulkShipmentDeliveryMethod | null;
+
   @Column({ type: 'varchar', nullable: true })
   transportCompany: string | null; // Bus/truck company used
 
   @Column({ type: 'varchar', nullable: true })
   transportRef: string | null; // Bus ticket or waybill number
+
+  // ── Last-mile Super Agent (deliveryMethod = SUPER_AGENT_HANDOFF) ────────
+  // A REGISTERED, verified Kentexa Super Agent — set only when one was
+  // actually selected from the real hub list, never for a manually typed
+  // contact (see the plain contact fields below). Kept separate from that
+  // so the frontend can never present an unverified name as if it were a
+  // real Kentexa Super Agent.
+  @ManyToOne(() => SuperAgent, {
+    eager: true,
+    onDelete: 'SET NULL',
+    nullable: true,
+  })
+  lastMileSuperAgent: SuperAgent | null;
+
+  // ── Manually entered last-mile contact — used only when no matching
+  // registered Super Agent exists yet at the destination. Plain contact
+  // fields, deliberately NOT a SuperAgent record — never treated as
+  // verified anywhere this is displayed.
+  @Column({ type: 'varchar', nullable: true })
+  lastMileContactName: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  lastMileContactPhone: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  lastMileContactCity: string | null;
 
   @Column({ type: 'timestamp', nullable: true })
   dispatchTime: Date | null;

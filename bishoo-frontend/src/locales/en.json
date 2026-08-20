@@ -4479,7 +4479,20 @@
     "location_picker_label": "Select Hub Region / District",
 
     "save_button": "💾 Save Changes",
-    "saving": "⏳ Saving..."
+    "saving": "⏳ Saving...",
+
+    "rates_title": "Route Pricing (Bei)",
+    "rates_desc": "Prices you charge from {{city}} to each destination — shown to sellers estimating shipping cost and used by Kentexa's routing.",
+    "rate_destination_label": "Destination",
+    "rate_destination_placeholder": "e.g. Mwanza",
+    "rate_per_kg_label": "Price per kg (TZS)",
+    "rate_minimum_label": "Minimum charge (TZS)",
+    "rate_days_label": "Estimated days",
+    "rate_add_route": "Add another route",
+    "rate_save_button": "💾 Save Route Prices",
+    "rate_save_success": "✅ Route prices saved",
+    "rate_save_failed": "Failed to save route prices",
+    "rate_validation_error": "Add at least one destination with a price per kg greater than zero"
   },
   "super_agent_dashboard": {
     "load_failed": "Failed to load dashboard",
