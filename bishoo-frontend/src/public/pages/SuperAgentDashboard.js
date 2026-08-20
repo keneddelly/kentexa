@@ -207,6 +207,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [bulkActiveShipment, setBulkActiveShipment] = useState(null);
 
   const [bulkDestCity, setBulkDestCity] = useState('');
+  // Free-typed city text was silently mismatching real parcel data — a
+  // parcel's own destinationCity is set by LocationPicker elsewhere
+  // (walk-in, SellerShipment) as districtName ("Arusha City"), not a
+  // plainly typed region name ("Arusha"), so a hand-typed guess here
+  // never matched and looked like "no parcels for that city" when one
+  // genuinely existed. Driven by the same location engine now.
+  const [bulkDestLocation, setBulkDestLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [bulkCandidates, setBulkCandidates] = useState([]);
   const [bulkSelected, setBulkSelected] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -249,6 +256,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const resetBulkForm = () => {
     setBulkDestCity(''); setBulkCandidates([]); setBulkSelected(new Set());
     setBulkHubs([]); setBulkLastMileAgentId(null);
+    setBulkDestLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
     setBulkManualContact({ name: '', phone: '', city: '' });
     setBulkTransport({ transportCompany: '', transportRef: '', totalShippingCost: '' });
     setBulkActiveShipment(null);
@@ -351,6 +359,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   });
   const [transferHubs, setTransferHubs] = useState([]);
   const [transferHubsLoading, setTransferHubsLoading] = useState(false);
+  const [transferDestLocation, setTransferDestLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
 
   const fetchTransferHubs = async (city) => {
     if (!city) { setTransferHubs([]); return; }
@@ -798,6 +807,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
       alert(`✅ Kimehamishiwa kwa ${res.data.receiverName}. Ujumbe umetumwa kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}, kwa mnunuzi: ${res.data.buyerSmsSent ? 'ndiyo' : 'hapana'}.`);
       setTransferModal(null);
       setTransferForm({ destinationCity: '', destinationSuperAgentId: null, manualContactName: '', manualContactPhone: '', transportCompany: '', note: '' });
+      setTransferDestLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
       setTransferHubs([]);
       fetchAll();
     } catch (e) {
@@ -1455,10 +1465,18 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                     <div style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                         display: 'block', marginBottom: 4 }}>Mji wa Kuelekea *</label>
-                      <input type="text" placeholder="Mwanza" value={bulkDestCity}
-                        onChange={e => { setBulkDestCity(e.target.value); setBulkLastMileAgentId(null); }}
-                        onBlur={() => { fetchBulkCandidates(bulkDestCity); fetchBulkHubs(bulkDestCity); }}
-                        style={inp} />
+                      <LocationPicker
+                        label=""
+                        value={bulkDestLocation}
+                        onChange={loc => {
+                          setBulkDestLocation(loc);
+                          setBulkLastMileAgentId(null);
+                          const cityStr = loc.districtName || loc.regionName || '';
+                          setBulkDestCity(cityStr);
+                          fetchBulkCandidates(cityStr);
+                          fetchBulkHubs(cityStr);
+                        }}
+                      />
                     </div>
 
                     {bulkHubsLoading ? (
@@ -2464,11 +2482,18 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
               Mshirika wako atapata ujumbe kuhusu kifurushi kinachokuja, na mnunuzi atapata jina/simu/mahali pake pa kuchukulia.
             </div>
 
-            <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
-              placeholder="Mji wa mshirika (e.g. Iringa)"
-              value={transferForm.destinationCity}
-              onChange={e => { setTransferForm(f => ({ ...f, destinationCity: e.target.value, destinationSuperAgentId: null })); }}
-              onBlur={() => fetchTransferHubs(transferForm.destinationCity)} />
+            <div style={{ marginBottom: 10 }}>
+              <LocationPicker
+                label=""
+                value={transferDestLocation}
+                onChange={loc => {
+                  setTransferDestLocation(loc);
+                  const cityStr = loc.districtName || loc.regionName || '';
+                  setTransferForm(f => ({ ...f, destinationCity: cityStr, destinationSuperAgentId: null }));
+                  fetchTransferHubs(cityStr);
+                }}
+              />
+            </div>
 
             {transferHubsLoading ? (
               <div style={{ fontSize:12,color:'#94a3b8',padding:'8px 0' }}>⏳ Inatafuta...</div>
