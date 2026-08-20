@@ -570,9 +570,9 @@ export class OrdersService {
   async superAgentReceiveOrder(
     orderId: number,
     superAgent: User,
-    data: {
-      originCity: string;
-      destinationCity: string;
+    rawData?: {
+      originCity?: string;
+      destinationCity?: string;
       weightKg?: number;
       parcelPhoto?: string;
       notes?: string;
@@ -580,6 +580,14 @@ export class OrdersService {
       shippingFeeCollected?: number; // for MANUAL orders: cash collected from seller right now
     },
   ) {
+    // The "Pokea Agizo la KenteXa" button never actually sent a body at all
+    // — every data.* read below threw "Cannot read properties of undefined"
+    // the moment a real request hit this method (masked until now by the
+    // separate ParseIntPipe bug that 400'd before ever reaching here).
+    // Default to {} and fall back to the order's own known city fields so
+    // the Super Agent isn't required to retype what Kentexa already knows.
+    const data = rawData || {};
+
     const order = await this.repo.findOne({
       where: { id: orderId },
       relations: { seller: true, buyer: true, product: true },
@@ -591,13 +599,33 @@ export class OrdersService {
       );
     }
 
+    const superAgentProfile = await this.superAgentRepo.findOne({
+      where: { user: { id: superAgent.id } },
+    });
+
+    const guessedDestinationCity =
+      (order as any).destinationCity ||
+      (order.deliveryAddress || '').split(',')[0]?.trim() ||
+      null;
+    const originCity = data.originCity || superAgentProfile?.city || '';
+    const destinationCity = data.destinationCity || guessedDestinationCity || '';
+
     // ── Tracking number: ONE per order, set at creation, NEVER regenerated.
     // Previously this method generated a brand-new KTX-DAR-MZA-XXXXXX number
     // here, which broke the "one order, one tracking number" rule and meant
     // the SMS the buyer already received pointed to a dead/different code.
     const trackingNumber = order.trackingNumber || `KTX-ORD-${order.id}`;
 
-    const isManualOrder = order.source === ('offline' as any);
+    // SELLER_SHIPMENT orders are just as "manual" as OFFLINE ones — no
+    // escrow was ever held, platformFee/sellerAmount are already zero from
+    // creation — so they need the same no-reconciliation treatment. This
+    // used to only check for 'offline', silently running SELLER_SHIPMENT
+    // orders through the escrow-reconciliation branch below (harmless
+    // there since deliveryFeeAmount is always 0 for them, but wrong in
+    // spirit and confusing in the audit log).
+    const isManualOrder =
+      order.source === ('offline' as any) ||
+      order.source === ('seller_shipment' as any);
 
     let actualFee = 0;
     let feeDifference = 0;
@@ -662,7 +690,7 @@ export class OrdersService {
       trackingNumber, // re-affirm, never overwrite with a new value
       shippingMethod: 'agent',
       shippingNote:
-        data.notes || `Received at ${data.originCity} Super Agent hub`,
+        data.notes || `Received at ${originCity} Super Agent hub`,
       shippingProductImage: data.parcelPhoto || null,
       shippedAt: new Date(),
     };
@@ -680,10 +708,6 @@ export class OrdersService {
       orderUpdate.shippingFeeNote = shippingFeeNote;
     }
 
-    const superAgentProfile = await this.superAgentRepo.findOne({
-      where: { user: { id: superAgent.id } },
-    });
-
     if (isManualOrder && superAgentProfile) {
       orderUpdate.shippingFeeCollectedByAgentId = superAgentProfile.id;
     }
@@ -694,8 +718,8 @@ export class OrdersService {
     await this.notificationsService.parcelDispatched(
       { email: order.buyer?.email, name: order.buyer?.name },
       trackingNumber,
-      data.originCity,
-      data.destinationCity,
+      originCity,
+      destinationCity,
     );
 
     // ── Earnings: record what the Super Agent earns on this parcel.
@@ -730,38 +754,58 @@ export class OrdersService {
       }
     }
 
+    // Orders created via createSellerShipment()/createOfflineIntercityOrder()
+    // already have their own Parcel row (same trackingNumber, unique) from
+    // the moment they were created — this used to always try to INSERT a
+    // second one, which silently failed on the unique constraint (caught
+    // below) and left the parcel's actual superAgent/status untouched, so
+    // "receiving" one of those orders here looked like it worked but
+    // never actually attached this agent to the real parcel record.
+    // Update-if-exists makes this the single, idempotent "attach this
+    // agent + mark received" step regardless of which flow created the
+    // order.
     try {
-      await this.parcelRepo.save(
-        this.parcelRepo.create({
-          trackingNumber, // same number as the order — never a fresh one
-          status: ParcelStatus.RECEIVED_AT_HUB,
-          order: order,
-          seller: order.seller,
-          buyer: order.buyer,
-          superAgent: superAgentProfile || null,
-          originCity: data.originCity,
-          destinationCity: data.destinationCity,
-          deliveryAddress: order.deliveryAddress,
-          buyerPhone: order.phone || order.buyer?.phone || null,
-          recipientName: order.recipientName || order.buyer?.name || null,
-          weightKg: data.weightKg || null,
-          estimatedShippingFee: isManualOrder
-            ? null
-            : Number((order as any).deliveryFeeAmount || 0),
-          actualShippingFee: actualFee,
-          shippingMargin: isManualOrder
-            ? null
-            : parseFloat(
-                (
-                  Number((order as any).deliveryFeeAmount || 0) - actualFee
-                ).toFixed(2),
-              ),
-          superAgentEarnings,
-          parcelPhoto: data.parcelPhoto || null,
-          handoverTime: new Date(),
-          notes: data.notes || null,
-        } as any),
-      );
+      const existingParcel = await this.parcelRepo.findOne({
+        where: { trackingNumber },
+      });
+      const parcelFields: any = {
+        status: ParcelStatus.RECEIVED_AT_HUB,
+        superAgent: superAgentProfile || null,
+        originCity,
+        destinationCity,
+        weightKg: data.weightKg || existingParcel?.weightKg || null,
+        actualShippingFee: actualFee,
+        superAgentEarnings,
+        parcelPhoto: data.parcelPhoto || existingParcel?.parcelPhoto || null,
+        handoverTime: new Date(),
+        notes: data.notes || existingParcel?.notes || null,
+      };
+      if (existingParcel) {
+        await this.parcelRepo.update(existingParcel.id, parcelFields);
+      } else {
+        await this.parcelRepo.save(
+          this.parcelRepo.create({
+            trackingNumber, // same number as the order — never a fresh one
+            order: order,
+            seller: order.seller,
+            buyer: order.buyer,
+            deliveryAddress: order.deliveryAddress,
+            buyerPhone: order.phone || order.buyer?.phone || null,
+            recipientName: order.recipientName || order.buyer?.name || null,
+            estimatedShippingFee: isManualOrder
+              ? null
+              : Number((order as any).deliveryFeeAmount || 0),
+            shippingMargin: isManualOrder
+              ? null
+              : parseFloat(
+                  (
+                    Number((order as any).deliveryFeeAmount || 0) - actualFee
+                  ).toFixed(2),
+                ),
+            ...parcelFields,
+          } as any),
+        );
+      }
     } catch (err) {
       console.error('Parcel record creation failed:', err.message);
     }
@@ -773,8 +817,8 @@ export class OrdersService {
       trackingNumber,
       orderId,
       status: OrderStatus.IN_TRANSIT,
-      originCity: data.originCity,
-      destinationCity: data.destinationCity,
+      originCity,
+      destinationCity,
       buyerPhone: order.buyer?.phone || order.phone,
       buyerName: order.buyer?.name || '—',
       recipientName: order.recipientName || order.buyer?.name || '—',

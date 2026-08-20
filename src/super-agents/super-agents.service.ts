@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In } from 'typeorm';
+import { Repository, DataSource, In, IsNull } from 'typeorm';
 import {
   SuperAgent,
   SuperAgentStatus,
@@ -2188,7 +2188,7 @@ export class SuperAgentsService {
 
     const where: any = {
       superAgent: { id: agent.id },
-      bulkShipmentId: null as any,
+      bulkShipmentId: IsNull(),
       status: In([
         ParcelStatus.RECEIVED_AT_HUB,
         ParcelStatus.VERIFIED,

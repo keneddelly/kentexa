@@ -496,7 +496,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     if (!onlineOrderId.trim()) return;
     try {
       setActionLoading(true); setError('');
-      await api.patch(`/orders/${onlineOrderId.trim()}/super-agent-receive`);
+      // Backend now falls back to the agent's own hub city and the order's
+      // known destination if these are omitted, but sending them directly
+      // (already visible on-screen from the lookup) avoids relying on that
+      // fallback and lets the agent correct the destination if it's wrong.
+      await api.patch(`/orders/${onlineOrderId.trim()}/super-agent-receive`, {
+        originCity: profile?.city || undefined,
+        destinationCity: orderLookup?.destinationCity || orderLookup?.guessedCity || undefined,
+      });
       setSuccess(`✅ Agizo #${onlineOrderId} limepokewa hubuni!`);
       setOnlineOrderId(''); setOrderLookup(null);
       setPokeaMode('list'); fetchAll();
