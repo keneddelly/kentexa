@@ -3265,30 +3265,81 @@ export class SuperAgentsService {
     user: User,
     trackingNumber: string,
     dto: {
-      city: string;
+      city?: string;
       note?: string;
     },
   ) {
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
-      relations: { destinationSuperAgent: true, superAgent: true },
+      relations: { destinationSuperAgent: true, superAgent: true, order: true },
     });
     if (!parcel) throw new NotFoundException('Parcel not found');
+
+    // Real bug, found via live testing: this had NO authorization check at
+    // all — any authenticated Super Agent could confirm arrival on ANY
+    // parcel by tracking number, from any city, and it blindly trusted
+    // whatever city they typed for both the tracking event and the SMS.
+    // That's how a Dar-based agent confirming Emmy's Dar→Kilindi parcel
+    // recorded it as "arrived in Dar es Salaam" — the origin, not the real
+    // destination — since nothing checked who was allowed to confirm this
+    // parcel or where it was actually supposed to arrive.
+    //
+    // Only the parcel's actual destinationSuperAgent (or ADMIN) may confirm
+    // arrival. If no destination hub was pre-assigned at creation time
+    // (destAgent lookup can miss), fall back to allowing whichever Super
+    // Agent's own hub city matches the parcel's real destinationCity —
+    // the next-best proxy for "the hub that's actually supposed to have
+    // this parcel," never an arbitrary unrelated agent.
+    const isAdmin =
+      user.role === UserRole.ADMIN ||
+      (user as any).activeRoles?.includes(UserRole.ADMIN);
+    let callingAgent: SuperAgent | null = null;
+    if (!isAdmin) {
+      callingAgent = await this.superAgentRepo.findOne({
+        where: { user: { id: user.id } },
+      });
+      const destHub = (parcel as any).destinationSuperAgent as SuperAgent | null;
+      const authorized = destHub
+        ? destHub.id === callingAgent?.id
+        : callingAgent?.city === (parcel as any).destinationCity;
+      if (!authorized) {
+        throw new ForbiddenException(
+          'Only the destination Super Agent for this parcel can confirm arrival.',
+        );
+      }
+    }
+
+    // The parcel's own real destination — never the caller-supplied city,
+    // which is exactly what let a wrong-city confirmation silently flip
+    // the recorded direction of travel.
+    const arrivalCity = (parcel as any).destinationCity || dto.city || '';
 
     await this.parcelRepo.update((parcel as any).id, {
       status: ParcelStatus.AWAITING_BUYER,
       arrivedAtHubTime: new Date(),
     });
+    // Keep the linked Order in the same lifecycle — previously only the
+    // Parcel advanced here, so an order already progressing through its
+    // real parcel could still independently pass superAgentReceiveOrder()'s
+    // ['paid','preparing'] check and get "received" a second time by a
+    // completely different Super Agent. READY_PICKUP, not DELIVERED —
+    // arriving at the destination hub means the buyer can now choose
+    // pickup or delivery, not that they've actually received it yet.
+    if ((parcel as any).order?.id) {
+      await this.orderRepo.update((parcel as any).order.id, {
+        status: OrderStatus.READY_PICKUP,
+      });
+    }
 
     await this.addTrackingEvent(
       parcel,
       ParcelStatus.AWAITING_BUYER,
-      dto.city,
-      dto.note || `Imefika ${dto.city}. Inasubiri uamuzi wa mpokeaji.`,
+      arrivalCity,
+      dto.note || `Imefika ${arrivalCity}. Inasubiri uamuzi wa mpokeaji.`,
       user.name || 'Muuzaji',
       {
         phone: user.phone || undefined,
-        location: dto.city || undefined,
+        location: arrivalCity || undefined,
         type: 'super_agent',
       },
     );
@@ -3311,7 +3362,7 @@ export class SuperAgentsService {
           (parcel as any).buyerPhone,
           `${arrivalBrand}\n\n` +
             `Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
-            `imefika ${dto.city}. Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery.\n\n` +
+            `imefika ${arrivalCity}. Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery.\n\n` +
             [arrivalAddressLine, arrivalPhoneLine].filter(Boolean).join('\n') +
             (arrivalAddressLine || arrivalPhoneLine ? '\n\n' : '') +
             `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +

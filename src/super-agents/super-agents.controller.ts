@@ -487,7 +487,7 @@ export class SuperAgentsController {
   confirmArrived(
     @Param('trackingNumber') tn: string,
     @Request() req,
-    @Body() body: { city: string; note?: string },
+    @Body() body: { city?: string; note?: string },
   ) {
     return this.service.confirmShipmentArrived(req.user, tn, body);
   }
