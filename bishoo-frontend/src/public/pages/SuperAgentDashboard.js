@@ -302,7 +302,23 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   });
   const [applying, setApplying]         = useState(false);
   const [transferModal, setTransferModal] = useState(null);
-  const [transferForm, setTransferForm]   = useState({ destinationHub: '', destinationCity: '', note: '' });
+  const [transferForm, setTransferForm]   = useState({
+    destinationCity: '', destinationSuperAgentId: null,
+    manualContactName: '', manualContactPhone: '',
+    transportCompany: '', note: '',
+  });
+  const [transferHubs, setTransferHubs] = useState([]);
+  const [transferHubsLoading, setTransferHubsLoading] = useState(false);
+
+  const fetchTransferHubs = async (city) => {
+    if (!city) { setTransferHubs([]); return; }
+    try {
+      setTransferHubsLoading(true);
+      const res = await api.get(`/super-agents/hubs/${encodeURIComponent(city)}`);
+      setTransferHubs(res.data || []);
+    } catch { setTransferHubs([]); }
+    finally { setTransferHubsLoading(false); }
+  };
 
   const isDar = profile?.city?.toLowerCase().includes('dar');
 
@@ -653,7 +669,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
             { k: 'businessName', l: t('super_agent_dashboard.field_business_name_label'), ph: 'e.g. Geita Express Hub' },
             { k: 'phone',        l: t('super_agent_dashboard.field_phone_label'),             ph: '0712345678' },
             { k: 'city',         l: t('super_agent_dashboard.field_city_label'),              ph: 'e.g. Geita' },
-            { k: 'address',      l: t('super_agent_dashboard.field_address_label'),    ph: 'Mtaa, alama muhimu' },
+            { k: 'address',      l: t('super_agent_dashboard.field_address_label'),    ph: t('super_agent_dashboard.field_address_placeholder') },
             { k: 'region',       l: t('super_agent_dashboard.field_region_label'),               ph: 'e.g. Geita' },
             { k: 'description',  l: t('super_agent_dashboard.field_description_label'),  ph: 'Mzigo, vifurushi...' },
           ].map(f => (
@@ -725,14 +741,23 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   // ── Main dashboard ────────────────────────────────────────────────────────
 
   const handleTransferHub = async (trackingNumber, form) => {
-    if (!form.destinationHub || !form.destinationCity) {
-      alert('Weka hub na mji wa marudio'); return;
+    if (!form.destinationSuperAgentId && !form.manualContactName) {
+      alert('Chagua Super Agent aliyesajiliwa au jaza jina la mshirika'); return;
     }
     try {
-      await api.post('/super-agents/parcels/' + trackingNumber + '/transfer-hub', form);
-      alert('Kimehamishwa!');
+      const res = await api.post('/super-agents/parcels/' + trackingNumber + '/transfer-hub', {
+        destinationSuperAgentId: form.destinationSuperAgentId || undefined,
+        manualContactName:  form.destinationSuperAgentId ? undefined : form.manualContactName,
+        manualContactPhone: form.destinationSuperAgentId ? undefined : form.manualContactPhone,
+        manualContactCity:  form.destinationSuperAgentId ? undefined : form.destinationCity,
+        transportCompany: form.transportCompany || undefined,
+        note: form.note || undefined,
+      });
+      alert(`✅ Kimehamishiwa kwa ${res.data.receiverName}. Ujumbe umetumwa kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}, kwa mnunuzi: ${res.data.buyerSmsSent ? 'ndiyo' : 'hapana'}.`);
       setTransferModal(null);
-      setTransferForm({ destinationHub: '', destinationCity: '', note: '' });
+      setTransferForm({ destinationCity: '', destinationSuperAgentId: null, manualContactName: '', manualContactPhone: '', transportCompany: '', note: '' });
+      setTransferHubs([]);
+      fetchAll();
     } catch (e) {
       alert('Imeshindwa: ' + (e.response?.data?.message || 'Jaribu tena'));
     }
@@ -2299,17 +2324,62 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
 
       {transferModal && (
         <div style={{ position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',zIndex:3000,display:'flex',alignItems:'flex-end' }}>
-          <div style={{ width:'100%',backgroundColor:'#fff',borderRadius:'20px 20px 0 0',padding:'24px 20px 40px' }}>
-            <div style={{ fontSize:16,fontWeight:900,color:'#1e293b',marginBottom:4 }}>🏢 Hamisha kwa Hub Nyingine</div>
-            <div style={{ fontSize:12,color:'#64748b',marginBottom:20 }}>{transferModal.trackingNumber}</div>
+          <div style={{ width:'100%',backgroundColor:'#fff',borderRadius:'20px 20px 0 0',padding:'24px 20px 40px', maxHeight:'85vh', overflowY:'auto' }}>
+            <div style={{ fontSize:16,fontWeight:900,color:'#1e293b',marginBottom:4 }}>🏢 Hamisha kwa Super Agent Mwingine</div>
+            <div style={{ fontSize:12,color:'#64748b',marginBottom:16 }}>{transferModal.trackingNumber}</div>
+            <div style={{ fontSize:11,color:'#94a3b8',marginBottom:14, lineHeight:1.5 }}>
+              Mshirika wako atapata ujumbe kuhusu kifurushi kinachokuja, na mnunuzi atapata jina/simu/mahali pake pa kuchukulia.
+            </div>
+
             <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
-              placeholder="Jina la Hub ya Marudio (e.g. KenteXa Hub Mwanza)"
-              value={transferForm.destinationHub}
-              onChange={e => setTransferForm(f => ({ ...f, destinationHub: e.target.value }))} />
-            <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
-              placeholder="Mji wa Marudio (e.g. Mwanza)"
+              placeholder="Mji wa mshirika (e.g. Iringa)"
               value={transferForm.destinationCity}
-              onChange={e => setTransferForm(f => ({ ...f, destinationCity: e.target.value }))} />
+              onChange={e => { setTransferForm(f => ({ ...f, destinationCity: e.target.value, destinationSuperAgentId: null })); }}
+              onBlur={() => fetchTransferHubs(transferForm.destinationCity)} />
+
+            {transferHubsLoading ? (
+              <div style={{ fontSize:12,color:'#94a3b8',padding:'8px 0' }}>⏳ Inatafuta...</div>
+            ) : transferHubs.length > 0 && (
+              <>
+                <div style={{ fontSize:11,fontWeight:700,color:'#7c3aed',marginBottom:8 }}>
+                  Super Agent aliyesajiliwa
+                </div>
+                {transferHubs.map(h => (
+                  <label key={h.id} onClick={() => setTransferForm(f => ({ ...f, destinationSuperAgentId: h.id }))}
+                    style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10,
+                      marginBottom:6, cursor:'pointer',
+                      border:`2px solid ${transferForm.destinationSuperAgentId === h.id ? '#7c3aed' : '#e2e8f0'}`,
+                      backgroundColor: transferForm.destinationSuperAgentId === h.id ? '#f5f3ff' : '#f8fafc' }}>
+                    <input type="radio" checked={transferForm.destinationSuperAgentId === h.id} readOnly />
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13,fontWeight:800,color:'#1e293b' }}>{h.businessName}</div>
+                      <div style={{ fontSize:11,color:'#64748b' }}>📍 {h.address || h.city}</div>
+                    </div>
+                  </label>
+                ))}
+              </>
+            )}
+
+            {!transferForm.destinationSuperAgentId && (
+              <>
+                <div style={{ fontSize:11,fontWeight:700,color:'#94a3b8',marginTop:10,marginBottom:8 }}>
+                  AU JAZA MAWASILIANO YA MSHIRIKA (siyo Super Agent aliyesajiliwa)
+                </div>
+                <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
+                  placeholder="Jina la mshirika/biashara"
+                  value={transferForm.manualContactName}
+                  onChange={e => setTransferForm(f => ({ ...f, manualContactName: e.target.value }))} />
+                <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
+                  placeholder="Namba ya simu"
+                  value={transferForm.manualContactPhone}
+                  onChange={e => setTransferForm(f => ({ ...f, manualContactPhone: e.target.value }))} />
+              </>
+            )}
+
+            <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginTop:4,marginBottom:10,boxSizing:'border-box',outline:'none' }}
+              placeholder="Kampuni ya usafiri (hiari — e.g. Shabiby Bus)"
+              value={transferForm.transportCompany}
+              onChange={e => setTransferForm(f => ({ ...f, transportCompany: e.target.value }))} />
             <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:16,boxSizing:'border-box',outline:'none' }}
               placeholder="Maelezo (hiari)"
               value={transferForm.note}
@@ -2320,7 +2390,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                 Funga
               </button>
               <button onClick={() => handleTransferHub(transferModal.trackingNumber, transferForm)}
-                style={{ flex:2,background:'linear-gradient(135deg,#7c3aed,#1d4ed8)',color:'#fff',border:'none',borderRadius:10,padding:'12px 0',cursor:'pointer',fontSize:14,fontWeight:800 }}>
+                disabled={!transferForm.destinationSuperAgentId && !transferForm.manualContactName}
+                style={{ flex:2,background: (!transferForm.destinationSuperAgentId && !transferForm.manualContactName) ? '#c4b5fd' : 'linear-gradient(135deg,#7c3aed,#1d4ed8)',color:'#fff',border:'none',borderRadius:10,padding:'12px 0',cursor:'pointer',fontSize:14,fontWeight:800 }}>
                 ✅ Hamisha Sasa
               </button>
             </div>

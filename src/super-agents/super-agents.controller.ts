@@ -533,9 +533,11 @@ export class SuperAgentsController {
     @Param('trackingNumber') trackingNumber: string,
     @Body()
     dto: {
-      destinationHub: string;
-      destinationCity: string;
-      transportMode?: string;
+      destinationSuperAgentId?: number;
+      manualContactName?: string;
+      manualContactPhone?: string;
+      manualContactCity?: string;
+      transportCompany?: string;
       note?: string;
     },
   ) {

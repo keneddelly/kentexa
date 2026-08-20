@@ -3602,49 +3602,157 @@ export class SuperAgentsService {
     return Object.values(cities);
   }
 
-  // ── Inter-hub Transfer ────────────────────────────────────────────────────
+  // ── Hamisha — hand off to a last-mile partner Super Agent ──────────────
+  // Previously "Hamisha Hub" was a dead end: destinationHub was free text,
+  // never linked to any real account, so nobody could ever be notified —
+  // there was no phone number behind it, just a name someone typed. This
+  // is the real two-agent partnership flow (e.g. Dar → a partner hub in
+  // Iringa who collects for the buyer locally): pick a REGISTERED Super
+  // Agent (or, if the real partner isn't on Kentexa yet, enter their
+  // contact directly — never displayed as if they were verified), notify
+  // THEM about the incoming parcel, and separately tell the BUYER who to
+  // go collect from, with a real, findable address — not just a city.
+  //
+  // Deliberately does not touch TUMA/dispatchParcel()'s own SMS at all —
+  // that stays exactly as-is for the bus/courier case.
   async transferToHub(
-    superAgentId: number,
+    userId: number,
     trackingNumber: string,
     dto: {
-      destinationHub: string;
-      destinationCity: string;
-      transportMode?: string;
+      destinationSuperAgentId?: number;
+      manualContactName?: string;
+      manualContactPhone?: string;
+      manualContactCity?: string;
+      transportCompany?: string;
       note?: string;
     },
   ) {
     const sa = await this.superAgentRepo.findOne({
-      where: { user: { id: superAgentId } },
+      where: { user: { id: userId } },
       relations: { user: true },
     });
     if (!sa) throw new NotFoundException('Super Agent hajapatikana');
 
-    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { superAgent: true },
+    });
     if (!parcel)
       throw new NotFoundException(`Kifurushi ${trackingNumber} hakijapatikana`);
+    const isAdmin =
+      (await this.userRepo.findOne({ where: { id: userId } }))?.role ===
+      UserRole.ADMIN;
+    if (!isAdmin && (parcel as any).superAgent?.id !== sa.id) {
+      throw new ForbiddenException(
+        'You can only hand off parcels registered under your own hub.',
+      );
+    }
 
-    // Update parcel status
-    await this.parcelRepo.update(parcel.id, {
-      status: ParcelStatus.TRANSFERRED_HUB,
-    });
+    let lastMileAgent: SuperAgent | null = null;
+    if (dto.destinationSuperAgentId) {
+      lastMileAgent = await this.superAgentRepo.findOne({
+        where: { id: dto.destinationSuperAgentId, status: 'active' as any },
+      });
+      if (!lastMileAgent) {
+        throw new NotFoundException('Super Agent aliyechaguliwa hapatikani');
+      }
+    } else if (!dto.manualContactName || !dto.manualContactPhone) {
+      throw new BadRequestException(
+        'Chagua Super Agent aliyesajiliwa au jaza jina na simu ya mawasiliano',
+      );
+    }
 
-    // Add tracking event
+    const receiverName = lastMileAgent?.businessName || dto.manualContactName!;
+    const receiverPhone = lastMileAgent?.phone || dto.manualContactPhone!;
+    const receiverCity = lastMileAgent?.city || dto.manualContactCity || '';
+    const receiverAddress = lastMileAgent?.address || null;
+
+    const updates: any = {
+      status: ParcelStatus.DISPATCHED,
+      dispatchTime: new Date(),
+    };
+    // Only a REGISTERED agent gets linked as destinationSuperAgent — this
+    // is what makes the parcel show up on their own "incoming" dashboard.
+    // A manual contact has no Kentexa account to link to.
+    if (lastMileAgent) {
+      updates.destinationSuperAgent = { id: lastMileAgent.id };
+      if (!parcel.destinationCity) updates.destinationCity = lastMileAgent.city;
+    }
+    await this.parcelRepo.update(parcel.id, updates);
+
     await this.addTrackingEvent(
       parcel,
-      ParcelStatus.TRANSFERRED_HUB,
+      ParcelStatus.DISPATCHED,
       sa.city,
       dto.note ||
-        `Kimehamishiwa kituo cha ${dto.destinationHub}, ${dto.destinationCity}`,
-      sa.user?.name || 'Super Agent',
+        `Kimekabidhiwa kwa ${receiverName}${dto.transportCompany ? ` via ${dto.transportCompany}` : ''}`,
+      sa.user?.name || sa.businessName || 'Super Agent',
       { type: 'super_agent', location: sa.city },
     );
 
+    // Notify the RECEIVING agent about the incoming parcel — the actual
+    // gap this replaces: previously nobody but the buyer ever heard
+    // anything, and even that only from dispatchParcel(), never from here.
+    let agentNotifySent = false;
+    if (receiverPhone) {
+      try {
+        agentNotifySent = await this.smsService.sendSms(
+          receiverPhone,
+          `KenteXa\n\n` +
+            `Habari ${receiverName}, ${sa.businessName} amekukabidhi kifurushi kinachokuja kwako.\n\n` +
+            `Kifurushi: ${trackingNumber}\n` +
+            `Mtumaji: ${sa.businessName} (${sa.phone || sa.user?.phone || ''})\n` +
+            (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
+            `Mpokeaji: ${parcel.recipientName || '—'}\n\n` +
+            `Verified by Kentexa`,
+        );
+      } catch (e: any) {
+        console.warn('Hamisha agent-notify SMS failed:', e?.message);
+      }
+    }
+    if (lastMileAgent) {
+      this.inAppNotif
+        .notify({
+          userId: lastMileAgent.user?.id || 0,
+          type: 'shipment_created' as any,
+          title: '📦 Kifurushi Kinakuja',
+          body: `${sa.businessName} amekukabidhi kifurushi ${trackingNumber}${dto.transportCompany ? ` via ${dto.transportCompany}` : ''}.`,
+          icon: '📦',
+          actionPage: 'SuperAgentDashboard',
+          trackingNumber,
+        })
+        .catch(() => {});
+    }
+
+    // Tell the BUYER who to collect from and where — real name, phone,
+    // and address, never fabricated transport details (that's the
+    // agent-to-agent message above, a different audience/purpose).
+    let buyerSmsSent = false;
+    if ((parcel as any).buyerPhone) {
+      try {
+        buyerSmsSent = await this.smsService.sendSms(
+          (parcel as any).buyerPhone,
+          `${sa.businessName}\n\n` +
+            `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${trackingNumber}) kitapokelewa na ${receiverName} ${receiverCity ? `(${receiverCity})` : ''}.\n\n` +
+            `Simu: ${receiverPhone}\n` +
+            (receiverAddress ? `Mahali: ${receiverAddress}\n` : '') +
+            `\nFuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+            `Verified by Kentexa`,
+        );
+      } catch (e: any) {
+        console.warn('Hamisha buyer SMS failed:', e?.message);
+      }
+    }
+
     return {
       success: true,
-      message: `Kifurushi ${trackingNumber} kimehamishiwa ${dto.destinationHub}`,
+      message: `Kifurushi ${trackingNumber} kimehamishiwa kwa ${receiverName}`,
       trackingNumber,
-      destinationHub: dto.destinationHub,
-      destinationCity: dto.destinationCity,
+      receiverName,
+      receiverPhone,
+      isRegisteredAgent: !!lastMileAgent,
+      agentNotifySent,
+      buyerSmsSent,
     };
   }
 }
