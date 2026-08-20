@@ -165,6 +165,26 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
 
   const set = (key, value) => setForm(f => ({ ...f, [key]: value }));
 
+  // Nearby Super Agent hubs for the chosen destination — previously the
+  // "Super Agent" transport option only showed generic reassurance text,
+  // with no way to actually see or choose which hub would handle it. The
+  // seller's pick (if any) is sent as destinationSuperAgentId; leaving it
+  // unset falls back to the same auto-match-by-city behavior as before.
+  const [nearbyHubs, setNearbyHubs] = useState([]);
+  const [loadingHubs, setLoadingHubs] = useState(false);
+  const [selectedHubId, setSelectedHubId] = useState(null);
+
+  const fetchNearbyHubs = useCallback(async (city) => {
+    if (!city) { setNearbyHubs([]); return; }
+    try {
+      setLoadingHubs(true);
+      const res = await api.get(`/super-agents/hubs/${encodeURIComponent(city)}`);
+      setNearbyHubs(res.data || []);
+      setSelectedHubId(res.data?.length === 1 ? res.data[0].id : null);
+    } catch { setNearbyHubs([]); setSelectedHubId(null); }
+    finally { setLoadingHubs(false); }
+  }, []);
+
   const lookupRoute = useCallback(async (dest) => {
     if (!dest) { setRouteInfo(null); setIsSameCity(false); return; }
     const same = dest.toLowerCase() === (sellerCity || '').toLowerCase();
@@ -202,6 +222,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     set('destinationCity', city);
     set('transportMethod', 'super_agent'); // reset on city change
     lookupRoute(city);
+    fetchNearbyHubs(city);
   };
 
   // Drive the same city-change logic the LocationPicker itself would once we
@@ -331,6 +352,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         wardName:        destLocation.wardName || null,
         originCity:      sellerCity || 'Dar es Salaam',
         transportMethod: isSameCity ? 'boda' : form.transportMethod,
+        destinationSuperAgentId: (!isSameCity && form.transportMethod === 'super_agent') ? (selectedHubId || undefined) : undefined,
         busCompany:         form.busCompany      || null,
         busTicketNumber:    form.busTicketNumber  || null,
         busDeparture:       form.busDeparture     || null,
@@ -1035,7 +1057,39 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                           values={{ sellerCity, destCity: form.destinationCity, recipient: form.recipientName }}
                           components={{ strong: <strong /> }} />
                       </div>
-                      <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b' }}>
+
+                      {loadingHubs ? (
+                        <div style={{ fontSize: 12, color: '#64748b', padding: '8px 0' }}>
+                          ⏳ {t('seller_shipment.hubs_loading')}
+                        </div>
+                      ) : nearbyHubs.length > 0 ? (
+                        <>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 8 }}>
+                            {t('seller_shipment.hubs_choose_label', { city: form.destinationCity })}
+                          </div>
+                          {nearbyHubs.map(h => (
+                            <label key={h.id} onClick={() => setSelectedHubId(h.id)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 10,
+                                padding: '10px 12px', borderRadius: 10, marginBottom: 6, cursor: 'pointer',
+                                border: `2px solid ${selectedHubId === h.id ? '#1d4ed8' : '#e2e8f0'}`,
+                                backgroundColor: selectedHubId === h.id ? '#fff' : '#f8fafc' }}>
+                              <input type="radio" checked={selectedHubId === h.id} readOnly />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{h.businessName}</div>
+                                <div style={{ fontSize: 11, color: '#64748b' }}>
+                                  📍 {h.address || h.city}{h.rating ? ` · ⭐ ${Number(h.rating).toFixed(1)}` : ''}
+                                </div>
+                              </div>
+                            </label>
+                          ))}
+                        </>
+                      ) : (
+                        <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b' }}>
+                          {t('seller_shipment.hubs_none_found')}
+                        </div>
+                      )}
+
+                      <div style={{ backgroundColor: '#fff', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#64748b', marginTop: 8 }}>
                         {t('seller_shipment.super_agent_network_note')}
                       </div>
                     </div>

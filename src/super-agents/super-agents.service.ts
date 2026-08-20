@@ -1182,6 +1182,16 @@ export class SuperAgentsService {
 
     const parcels = [...parcelMap.values()];
 
+    // Live sum from the actual parcel records, not SuperAgent.totalEarnings
+    // — a separately-incremented counter that can (and, in production, did)
+    // drift from reality: it showed 4,300 for Bishoo's account when the
+    // real sum of every parcel's own recorded earnings was 3,600. Same
+    // computation getRevenueSummary() uses, so the two never disagree.
+    const liveTotalEarnings = parcels.reduce(
+      (sum, p) => sum + Number(p.superAgentEarnings || 0),
+      0,
+    );
+
     const stats = {
       pending: parcels.filter(
         (p) =>
@@ -1202,7 +1212,7 @@ export class SuperAgentsService {
       ).length,
       delivered: parcels.filter((p) => p.status === 'delivered').length,
       totalParcels: parcels.length,
-      totalEarnings: Number(agent.totalEarnings),
+      totalEarnings: liveTotalEarnings,
       pendingEarnings: Number(agent.pendingEarnings),
     };
 
@@ -1214,7 +1224,7 @@ export class SuperAgentsService {
         agentCode: agent.agentCode,
         status: agent.status,
         commissionRate: Number(agent.commissionRate),
-        totalEarnings: Number(agent.totalEarnings),
+        totalEarnings: liveTotalEarnings,
         pendingEarnings: Number(agent.pendingEarnings),
         rating: Number(agent.rating),
         billing: {
@@ -2810,6 +2820,11 @@ export class SuperAgentsService {
       buyerName?: string;
       buyerPhone?: string;
       paymentMethod?: string; // cash | mobile_money | bank | other
+      // Seller's explicit choice from the nearby-hubs picker — previously
+      // this method always silently auto-matched by exact city name with
+      // no way for the seller to see or choose WHICH Super Agent would
+      // actually handle it, or verify their location first.
+      destinationSuperAgentId?: number;
     },
   ) {
     // Billing applies only to actual sellers — an ADMIN/MANAGER/SUPER_AGENT
@@ -2884,13 +2899,26 @@ export class SuperAgentsService {
       expectedArrivalStr = arrival.toISOString().split('T')[0];
     }
 
+    // The seller's explicit pick wins when given (validated: must be a real,
+    // active hub) — falls back to the old auto-match-by-city only when no
+    // choice was made, so existing callers that never send this keep
+    // working exactly as before.
     const destAgent =
       dto.transportMethod === 'super_agent'
-        ? await this.superAgentRepo
-            .findOne({
-              where: { city: dto.destinationCity, status: 'active' as any },
-            })
-            .catch(() => null)
+        ? dto.destinationSuperAgentId
+          ? await this.superAgentRepo
+              .findOne({
+                where: {
+                  id: dto.destinationSuperAgentId,
+                  status: 'active' as any,
+                },
+              })
+              .catch(() => null)
+          : await this.superAgentRepo
+              .findOne({
+                where: { city: dto.destinationCity, status: 'active' as any },
+              })
+              .catch(() => null)
         : null;
 
     const order = (await this.orderRepo.save(
