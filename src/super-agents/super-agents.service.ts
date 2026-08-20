@@ -437,7 +437,16 @@ export class SuperAgentsService {
       platformFeeAmount: 0, // KenteXa commission tracked separately on parcel
       deliveryAmount: 0,
       paymentStatus: 'paid' as any,
-      status: 'preparing' as any,
+      // IN_TRANSIT, not the default 'preparing' a fresh unhandled order
+      // sits at — this order is already fully processed below (parcel
+      // created as RECEIVED_AT_HUB, payment already collected, earnings
+      // already recorded). Leaving it at 'preparing' made it
+      // indistinguishable from a genuine untouched seller order, so
+      // re-entering its number into "Agizo la KenteXa" later found it
+      // still "receivable" and showed the collect-cash-from-seller flow
+      // for a walk-in order that was never a seller's order at all and
+      // had nothing left to receive.
+      status: 'in_transit' as any,
       shippingMethod: 'agent',
       seller: null,
       notes: dto.notes || null,
