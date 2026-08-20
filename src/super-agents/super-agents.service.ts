@@ -16,11 +16,7 @@ import { IntercityRoute } from './entities/intercity-route.entity';
 import { TANZANIA_ROUTE_SEEDS } from '../database/seed-routes';
 import { Parcel, ParcelStatus, ParcelTracking } from './entities/parcel.entity';
 import { ShippingRate } from './entities/shipping-rate.entity';
-import {
-  BulkShipment,
-  BulkShipmentStatus,
-  BulkShipmentDeliveryMethod,
-} from './entities/bulk-shipment.entity';
+import { BulkShipment, BulkShipmentStatus } from './entities/bulk-shipment.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
@@ -2222,18 +2218,33 @@ export class SuperAgentsService {
     });
   }
 
-  // ── Consolidated shipment: many orders inside one physical box/bus package.
-  // Previously broken end-to-end — it wrote to entity fields that don't
-  // exist (parcelCount vs the real totalParcels, courierName/courierCost vs
-  // the real transportCompany/totalShippingCost — TypeORM silently drops
-  // unknown properties), never set the NOT-NULL originCity column at all
-  // (so every call actually threw a DB error), and never linked the
-  // tracking numbers it was given to the shipment it just created — the
-  // consolidation itself never happened.
+  // ── Consolidated shipment: many orders inside one physical box/bus package,
+  // filled up over the course of a day and handed off to a partner Super
+  // Agent as one batch — this is what "Hamisha" means for more than one
+  // parcel. The receiving agent gets exactly ONE message covering the whole
+  // batch (not one per parcel), sent when the origin agent finalizes with
+  // transport info; each BUYER still gets told immediately, individually,
+  // as their own parcel is added — those are two different audiences with
+  // two different reasons to be told, confirmed directly with the user.
+  //
+  // The last-mile agent/contact is resolved and locked in HERE, at creation
+  // — not at dispatch — because that's when the first buyer SMS needs to
+  // already know who to name. dispatchBulkShipment() below only ever adds
+  // transport details on top of an already-known destination.
+  //
+  // Previously broken end-to-end — wrote to entity fields that don't exist
+  // (parcelCount vs the real totalParcels, courierName/courierCost vs the
+  // real transportCompany/totalShippingCost), never set the NOT-NULL
+  // originCity column (every call threw a DB error), and never linked the
+  // tracking numbers it was given — the consolidation itself never happened.
   async createBulkShipment(
     user: User,
     dto: {
       destinationCity: string;
+      destinationSuperAgentId?: number;
+      manualContactName?: string;
+      manualContactPhone?: string;
+      manualContactCity?: string;
       trackingNumbers: string[];
       notes?: string;
     },
@@ -2246,6 +2257,8 @@ export class SuperAgentsService {
       throw new BadRequestException('At least one order/parcel is required');
     }
 
+    const { lastMileAgent, shipmentFields } = await this.resolveLastMile(dto);
+
     const shipment = await this.bulkRepo.save(
       this.bulkRepo.create({
         superAgent: agent,
@@ -2253,16 +2266,83 @@ export class SuperAgentsService {
         destinationCity: dto.destinationCity,
         notes: dto.notes || null,
         status: BulkShipmentStatus.OPEN,
+        ...shipmentFields,
       }),
     );
 
-    // Only parcels this agent actually owns (origin hub) can be folded into
-    // their own consolidated shipment — same ownership rule assertOwnsParcel
-    // enforces for single-parcel actions.
+    const result = await this.linkParcelsAndNotifyBuyers(
+      agent,
+      shipment,
+      dto.trackingNumbers,
+      lastMileAgent,
+    );
+
+    return { shipmentId: shipment.id, ...result };
+  }
+
+  // Add more parcels to an OPEN shipment later the same day — the actual
+  // feature being asked for: collect and pack all day, adding to the same
+  // batch as each parcel is ready, without re-picking the destination agent
+  // every time (already locked in at creation) and without sending the
+  // receiving agent a fresh SMS for every single addition.
+  async addParcelsToShipment(
+    user: User,
+    shipmentId: number,
+    dto: { trackingNumbers: string[] },
+  ) {
+    if (!dto.trackingNumbers?.length) {
+      throw new BadRequestException('At least one order/parcel is required');
+    }
+    const shipment = await this.bulkRepo.findOne({
+      where: { id: shipmentId },
+      relations: { superAgent: true, lastMileSuperAgent: true },
+    });
+    if (!shipment) throw new NotFoundException('Bulk shipment not found');
+    const agent = await this.assertOwnsBulkShipment(user, shipment);
+    if (shipment.status !== BulkShipmentStatus.OPEN) {
+      throw new BadRequestException(
+        'This shipment has already been dispatched — start a new one',
+      );
+    }
+
+    const result = await this.linkParcelsAndNotifyBuyers(
+      agent,
+      shipment,
+      dto.trackingNumbers,
+      (shipment as any).lastMileSuperAgent || null,
+    );
+    return { shipmentId: shipment.id, ...result };
+  }
+
+  // This agent's own OPEN shipments — lets the UI offer "add to the batch
+  // already headed to Iringa" instead of always starting a new one.
+  async getMyOpenBulkShipments(user: User) {
+    const agent = await this.superAgentRepo.findOne({
+      where: { user: { id: user.id } },
+    });
+    if (!agent) throw new BadRequestException('Super Agent profile not found');
+    return this.bulkRepo.find({
+      where: { superAgent: { id: agent.id }, status: BulkShipmentStatus.OPEN },
+      relations: { lastMileSuperAgent: true },
+      order: { createdAt: 'DESC' } as any,
+    });
+  }
+
+  // Shared by createBulkShipment (first parcels) and addParcelsToShipment
+  // (every later addition) — same linking + per-buyer-SMS behavior either
+  // way, so a parcel added at 5pm gets exactly the same treatment as one
+  // added at 9am.
+  private async linkParcelsAndNotifyBuyers(
+    agent: SuperAgent,
+    shipment: BulkShipment,
+    trackingNumbers: string[],
+    lastMileAgent: SuperAgent | null,
+  ) {
     const parcels = await this.parcelRepo.find({
       where: {
-        trackingNumber: In(dto.trackingNumbers),
+        trackingNumber: In(trackingNumbers),
         superAgent: { id: agent.id },
+        bulkShipmentId: IsNull(),
       },
     });
     if (parcels.length) {
@@ -2272,103 +2352,140 @@ export class SuperAgentsService {
       );
     }
 
-    const totalWeightKg = parcels.reduce(
+    const addedWeight = parcels.reduce(
       (sum, p) => sum + Number(p.weightKg || 0),
       0,
     );
     await this.bulkRepo.update(shipment.id, {
-      totalParcels: parcels.length,
-      totalWeightKg,
-    });
+      totalParcels: () => `"totalParcels" + ${parcels.length}` as any,
+      totalWeightKg: () =>
+        `"totalWeightKg" + ${addedWeight}` as any,
+    } as any);
 
-    const notFound = dto.trackingNumbers.filter(
+    const receiverName =
+      lastMileAgent?.businessName ||
+      (shipment as any).lastMileContactName ||
+      'Super Agent';
+    const receiverPhone =
+      lastMileAgent?.phone || (shipment as any).lastMileContactPhone || '';
+    const receiverCity =
+      lastMileAgent?.city || (shipment as any).lastMileContactCity || '';
+    const receiverAddress = lastMileAgent?.address || null;
+
+    let buyerSmsSentCount = 0;
+    for (const parcel of parcels) {
+      if (!(parcel as any).buyerPhone) continue;
+      try {
+        const sent = await this.smsService.sendSms(
+          (parcel as any).buyerPhone,
+          `${agent.businessName}\n\n` +
+            `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${parcel.trackingNumber}) kitapokelewa na ${receiverName}${receiverCity ? ` (${receiverCity})` : ''}.\n\n` +
+            `Simu: ${receiverPhone}\n` +
+            (receiverAddress ? `Mahali: ${receiverAddress}\n` : '') +
+            `\nFuatilia: ${FRONTEND_URL}/?track=${parcel.trackingNumber}\n\n` +
+            `Verified by Kentexa`,
+        );
+        if (sent) buyerSmsSentCount++;
+      } catch (e: any) {
+        console.warn('Shehena buyer SMS failed:', e?.message);
+      }
+    }
+
+    const notFound = trackingNumbers.filter(
       (tn) => !parcels.some((p) => p.trackingNumber === tn),
     );
-
     return {
-      shipmentId: shipment.id,
       linkedCount: parcels.length,
-      requestedCount: dto.trackingNumbers.length,
-      notFound, // tracking numbers that didn't match one of this agent's own parcels — surfaced so the UI can flag them instead of silently dropping
+      requestedCount: trackingNumbers.length,
+      buyerSmsSentCount,
+      notFound, // didn't match one of this agent's own unlinked parcels — surfaced so the UI can flag them instead of silently dropping
     };
   }
 
+  // Resolves the registered-vs-manual last-mile target once, shared by
+  // create and (implicitly, via the stored fields) every later add.
+  private async resolveLastMile(dto: {
+    destinationSuperAgentId?: number;
+    manualContactName?: string;
+    manualContactPhone?: string;
+    manualContactCity?: string;
+  }): Promise<{ lastMileAgent: SuperAgent | null; shipmentFields: any }> {
+    if (dto.destinationSuperAgentId) {
+      const lastMileAgent = await this.superAgentRepo.findOne({
+        where: { id: dto.destinationSuperAgentId, status: 'active' as any },
+      });
+      if (!lastMileAgent) {
+        throw new NotFoundException('Super Agent aliyechaguliwa hapatikani');
+      }
+      return {
+        lastMileAgent,
+        shipmentFields: { lastMileSuperAgent: { id: lastMileAgent.id } },
+      };
+    }
+    if (dto.manualContactName && dto.manualContactPhone) {
+      return {
+        lastMileAgent: null,
+        shipmentFields: {
+          lastMileContactName: dto.manualContactName,
+          lastMileContactPhone: dto.manualContactPhone,
+          lastMileContactCity: dto.manualContactCity || null,
+        },
+      };
+    }
+    throw new BadRequestException(
+      'Chagua Super Agent aliyesajiliwa au jaza jina na simu ya mshirika',
+    );
+  }
+
+  // Finalize — add transport details and hand the WHOLE batch off in one
+  // consolidated message to the receiving agent. No last-mile re-selection
+  // here; that was already locked in when the shipment was created.
   async dispatchBulkShipment(
     user: User,
     shipmentId: number,
     dto: {
-      deliveryMethod: BulkShipmentDeliveryMethod;
-      // Bus/transport fields — required only when deliveryMethod is BUS_TRANSPORT
       transportCompany?: string;
       transportRef?: string;
       totalShippingCost?: number;
       courierCostReceipt?: string;
-      // Last-mile Super Agent handoff — required only when deliveryMethod
-      // is SUPER_AGENT_HANDOFF. Exactly one of the two forms below.
-      lastMileSuperAgentId?: number;
-      lastMileContactName?: string;
-      lastMileContactPhone?: string;
-      lastMileContactCity?: string;
+      notes?: string;
     },
   ) {
     const shipment = await this.bulkRepo.findOne({
       where: { id: shipmentId },
-      relations: { superAgent: true },
+      relations: { superAgent: true, lastMileSuperAgent: true },
     });
     if (!shipment) throw new NotFoundException('Bulk shipment not found');
     const agent = await this.assertOwnsBulkShipment(user, shipment);
-
-    const updates: any = {
-      status: BulkShipmentStatus.DISPATCHED,
-      deliveryMethod: dto.deliveryMethod,
-      dispatchTime: new Date(),
-    };
-
-    let lastMileAgent: SuperAgent | null = null;
-    if (dto.deliveryMethod === BulkShipmentDeliveryMethod.BUS_TRANSPORT) {
-      if (!dto.transportCompany) {
-        throw new BadRequestException(
-          'transportCompany is required for a bus/transport shipment',
-        );
-      }
-      updates.transportCompany = dto.transportCompany;
-      updates.transportRef = dto.transportRef || null;
-      updates.totalShippingCost = dto.totalShippingCost || 0;
-      updates.courierCostReceipt = dto.courierCostReceipt || null;
-    } else if (
-      dto.deliveryMethod === BulkShipmentDeliveryMethod.SUPER_AGENT_HANDOFF
-    ) {
-      if (dto.lastMileSuperAgentId) {
-        lastMileAgent = await this.superAgentRepo.findOne({
-          where: { id: dto.lastMileSuperAgentId },
-        });
-        if (!lastMileAgent) {
-          throw new BadRequestException('Last-mile Super Agent not found');
-        }
-        updates.lastMileSuperAgent = { id: lastMileAgent.id };
-      } else if (dto.lastMileContactName) {
-        updates.lastMileContactName = dto.lastMileContactName;
-        updates.lastMileContactPhone = dto.lastMileContactPhone || null;
-        updates.lastMileContactCity = dto.lastMileContactCity || null;
-      } else {
-        throw new BadRequestException(
-          'Select a registered last-mile Super Agent or enter a contact',
-        );
-      }
-    } else {
-      throw new BadRequestException('deliveryMethod is required');
+    if (shipment.status !== BulkShipmentStatus.OPEN) {
+      throw new BadRequestException('This shipment has already been dispatched');
     }
 
-    await this.bulkRepo.update(shipmentId, updates);
-
-    // Bring every linked parcel forward in lockstep — the same status/
-    // tracking-event/SMS treatment a single dispatched parcel already gets,
-    // so a consolidated shipment never leaves its individual orders behind
-    // or out of sync with the shipment's own status.
     const parcels = await this.parcelRepo.find({
       where: { bulkShipmentId: shipmentId },
     });
-    let smsSentCount = 0;
+    if (!parcels.length) {
+      throw new BadRequestException(
+        'Add at least one parcel to this shipment before dispatching',
+      );
+    }
+
+    await this.bulkRepo.update(shipmentId, {
+      status: BulkShipmentStatus.DISPATCHED,
+      dispatchTime: new Date(),
+      transportCompany: dto.transportCompany || null,
+      transportRef: dto.transportRef || null,
+      totalShippingCost: dto.totalShippingCost || 0,
+      courierCostReceipt: dto.courierCostReceipt || null,
+      notes: dto.notes || shipment.notes,
+    });
+
+    const lastMileAgent = (shipment as any).lastMileSuperAgent as SuperAgent | null;
+    const receiverName =
+      lastMileAgent?.businessName || (shipment as any).lastMileContactName;
+    const receiverPhone =
+      lastMileAgent?.phone || (shipment as any).lastMileContactPhone;
+
     for (const parcel of parcels) {
       await this.parcelRepo.update(parcel.id, {
         status: ParcelStatus.DISPATCHED,
@@ -2378,9 +2495,7 @@ export class SuperAgentsService {
         parcel,
         ParcelStatus.DISPATCHED,
         shipment.originCity,
-        dto.deliveryMethod === BulkShipmentDeliveryMethod.BUS_TRANSPORT
-          ? `Imetumwa pamoja na vifurushi vingine via basi — ${dto.transportCompany}`
-          : `Imetumwa pamoja na vifurushi vingine kwenda kwa ${lastMileAgent?.businessName || dto.lastMileContactName}`,
+        `Imetumwa pamoja na vifurushi vingine kwenda kwa ${receiverName}${dto.transportCompany ? ` via ${dto.transportCompany}` : ''}`,
         agent?.businessName || user.name || '',
         {
           phone: agent?.phone || user.phone || undefined,
@@ -2388,27 +2503,55 @@ export class SuperAgentsService {
           type: 'super_agent',
         },
       );
+    }
 
-      const sent = await this.sendBulkDispatchSms(
-        parcel,
-        agent,
-        shipment,
-        dto,
-        lastMileAgent,
-      );
-      if (sent) smsSentCount++;
+    // ONE message to the receiving agent covering the whole batch — the
+    // actual gap being closed. A long tracking-number list gets truncated
+    // so the SMS stays a normal length; the dashboard has the full list.
+    let agentNotifySent = false;
+    const trackingList = parcels.map((p) => p.trackingNumber).filter(Boolean);
+    const listLine =
+      trackingList.length <= 8
+        ? trackingList.join(', ')
+        : `${trackingList.slice(0, 8).join(', ')} na vingine ${trackingList.length - 8}`;
+    if (receiverPhone) {
+      try {
+        agentNotifySent = await this.smsService.sendSms(
+          receiverPhone,
+          `KenteXa\n\n` +
+            `Habari ${receiverName}, ${agent?.businessName} amekukabidhi vifurushi ${parcels.length} vinavyokuja kwako.\n\n` +
+            `Vifurushi: ${listLine}\n` +
+            `Mtumaji: ${agent?.businessName} (${agent?.phone || user.phone || ''})\n` +
+            (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
+            `\nVerified by Kentexa`,
+        );
+      } catch (e: any) {
+        console.warn('Shehena dispatch agent-notify SMS failed:', e?.message);
+      }
+    }
+    if (lastMileAgent?.user?.id) {
+      this.inAppNotif
+        .notify({
+          userId: lastMileAgent.user.id,
+          type: 'shipment_created' as any,
+          title: '📦 Shehena Inakuja',
+          body: `${agent?.businessName} amekukabidhi vifurushi ${parcels.length}${dto.transportCompany ? ` via ${dto.transportCompany}` : ''}.`,
+          icon: '📦',
+          actionPage: 'SuperAgentDashboard',
+        })
+        .catch(() => {});
     }
 
     return {
       message: 'Bulk shipment dispatched',
       shipmentId,
       parcelsDispatched: parcels.length,
-      smsSentCount,
+      agentNotifySent,
     };
   }
 
   // Ownership check for bulk shipments, mirroring assertOwnsParcel — a
-  // Super Agent may only dispatch their own hub's consolidated shipments;
+  // Super Agent may only act on their own hub's consolidated shipments;
   // ADMIN may act on any.
   private async assertOwnsBulkShipment(user: User, shipment: BulkShipment) {
     if (user.role === UserRole.ADMIN) return shipment.superAgent || null;
@@ -2419,60 +2562,6 @@ export class SuperAgentsService {
       throw new ForbiddenException('Not your consolidated shipment');
     }
     return agent;
-  }
-
-  // Same conditional-line, never-fake-a-detail SMS style dispatchParcel()
-  // already uses for a single parcel — mirrored here rather than shared,
-  // to avoid touching that already-working method while fixing this one.
-  private async sendBulkDispatchSms(
-    parcel: Parcel,
-    agent: SuperAgent | null,
-    shipment: BulkShipment,
-    dto: {
-      deliveryMethod: BulkShipmentDeliveryMethod;
-      transportCompany?: string;
-      transportRef?: string;
-    },
-    lastMileAgent: SuperAgent | null,
-  ): Promise<boolean> {
-    if (!parcel.buyerPhone) return false;
-    const isBus = dto.deliveryMethod === BulkShipmentDeliveryMethod.BUS_TRANSPORT;
-    const transportLine = isBus && dto.transportCompany
-      ? `Usafiri: ${dto.transportCompany}`
-      : null;
-    const referenceLine = isBus && dto.transportRef
-      ? `Rejea: ${dto.transportRef}`
-      : null;
-    const lastMileLine = !isBus
-      ? `Kupitia: ${lastMileAgent?.businessName || 'wakala wa Kentexa'}`
-      : null;
-    const lastMilePhoneLine = !isBus && lastMileAgent?.phone
-      ? `Simu: ${lastMileAgent.phone}`
-      : null;
-
-    try {
-      const sent = await this.smsService.sendSms(
-        parcel.buyerPhone,
-        `${agent?.businessName || ''}\n\n` +
-          `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa kutoka ${shipment.originCity} kwenda ${shipment.destinationCity}.\n\n` +
-          `Kifurushi: ${parcel.trackingNumber}\n` +
-          [
-            transportLine,
-            referenceLine,
-            lastMileLine,
-            lastMilePhoneLine,
-            `Njia: ${shipment.originCity} → ${shipment.destinationCity}`,
-          ]
-            .filter(Boolean)
-            .join('\n') +
-          `\n\nFuatilia: ${FRONTEND_URL}/?track=${parcel.trackingNumber}\n\n` +
-          `Verified by Kentexa`,
-      );
-      return !!sent;
-    } catch (e: any) {
-      console.warn('Bulk dispatch receiver SMS failed:', e?.message);
-      return false;
-    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════

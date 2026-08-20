@@ -197,16 +197,33 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [dispatchParcel, setDispatchParcel] = useState(null);
 
   // ── Consolidated shipment (Shehena) state ──────────────────────────────
-  const [bulkStep, setBulkStep] = useState('select'); // 'select' | 'dispatch'
+  // 'open' = list of this agent's open batches (add to one, or start new)
+  // 'new'  = pick destination + last-mile agent + first parcels
+  // 'add'  = pick more parcels for an already-open batch
+  // 'dispatch' = finalize an open batch with transport info
+  const [bulkStep, setBulkStep] = useState('open');
+  const [bulkOpenShipments, setBulkOpenShipments] = useState([]);
+  const [bulkOpenLoading, setBulkOpenLoading] = useState(false);
+  const [bulkActiveShipment, setBulkActiveShipment] = useState(null);
+
   const [bulkDestCity, setBulkDestCity] = useState('');
   const [bulkCandidates, setBulkCandidates] = useState([]);
   const [bulkSelected, setBulkSelected] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [bulkShipmentId, setBulkShipmentId] = useState(null);
-  const [bulkDeliveryMethod, setBulkDeliveryMethod] = useState('super_agent_handoff');
+  const [bulkHubs, setBulkHubs] = useState([]);
+  const [bulkHubsLoading, setBulkHubsLoading] = useState(false);
   const [bulkLastMileAgentId, setBulkLastMileAgentId] = useState(null);
   const [bulkManualContact, setBulkManualContact] = useState({ name: '', phone: '', city: '' });
   const [bulkTransport, setBulkTransport] = useState({ transportCompany: '', transportRef: '', totalShippingCost: '' });
+
+  const fetchOpenShipments = async () => {
+    try {
+      setBulkOpenLoading(true);
+      const res = await api.get('/super-agents/bulk-shipments/open');
+      setBulkOpenShipments(res.data || []);
+    } catch { setBulkOpenShipments([]); }
+    finally { setBulkOpenLoading(false); }
+  };
 
   const fetchBulkCandidates = async (city) => {
     if (!city) { setBulkCandidates([]); return; }
@@ -219,49 +236,74 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     finally { setBulkLoading(false); }
   };
 
+  const fetchBulkHubs = async (city) => {
+    if (!city) { setBulkHubs([]); return; }
+    try {
+      setBulkHubsLoading(true);
+      const res = await api.get(`/super-agents/hubs/${encodeURIComponent(city)}`);
+      setBulkHubs(res.data || []);
+    } catch { setBulkHubs([]); }
+    finally { setBulkHubsLoading(false); }
+  };
+
+  const resetBulkForm = () => {
+    setBulkDestCity(''); setBulkCandidates([]); setBulkSelected(new Set());
+    setBulkHubs([]); setBulkLastMileAgentId(null);
+    setBulkManualContact({ name: '', phone: '', city: '' });
+    setBulkTransport({ transportCompany: '', transportRef: '', totalShippingCost: '' });
+    setBulkActiveShipment(null);
+  };
+
   const handleCreateBulkShipment = async () => {
     if (!bulkSelected.size) return;
+    if (!bulkLastMileAgentId && !bulkManualContact.name) {
+      setError('Chagua Super Agent aliyesajiliwa au jaza mawasiliano ya mshirika'); return;
+    }
     try {
       setActionLoading(true); setError('');
       const res = await api.post('/super-agents/bulk-shipments', {
         destinationCity: bulkDestCity,
+        destinationSuperAgentId: bulkLastMileAgentId || undefined,
+        manualContactName:  bulkLastMileAgentId ? undefined : bulkManualContact.name,
+        manualContactPhone: bulkLastMileAgentId ? undefined : bulkManualContact.phone,
+        manualContactCity:  bulkLastMileAgentId ? undefined : bulkManualContact.city,
         trackingNumbers: [...bulkSelected],
       });
-      setBulkShipmentId(res.data.shipmentId);
-      setBulkStep('dispatch');
-      fetchDestinationHubs(bulkDestCity);
+      setSuccess(`✅ Shehena imeundwa — vifurushi ${res.data.linkedCount} vimeongezwa, SMS kwa wanunuzi ${res.data.buyerSmsSentCount}`);
+      resetBulkForm();
+      setBulkStep('open'); fetchOpenShipments();
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kuunda shehena');
     } finally { setActionLoading(false); }
   };
 
-  const handleDispatchBulkShipment = async () => {
-    if (!bulkShipmentId) return;
+  const handleAddToShipment = async () => {
+    if (!bulkSelected.size || !bulkActiveShipment) return;
     try {
       setActionLoading(true); setError('');
-      const payload = { deliveryMethod: bulkDeliveryMethod };
-      if (bulkDeliveryMethod === 'bus_transport') {
-        Object.assign(payload, {
-          transportCompany: bulkTransport.transportCompany,
-          transportRef: bulkTransport.transportRef,
-          totalShippingCost: Number(bulkTransport.totalShippingCost) || 0,
-        });
-      } else if (bulkLastMileAgentId) {
-        payload.lastMileSuperAgentId = bulkLastMileAgentId;
-      } else {
-        Object.assign(payload, {
-          lastMileContactName: bulkManualContact.name,
-          lastMileContactPhone: bulkManualContact.phone,
-          lastMileContactCity: bulkManualContact.city,
-        });
-      }
-      const res = await api.patch(`/super-agents/bulk-shipments/${bulkShipmentId}/dispatch`, payload);
-      setSuccess(`✅ Shehena imetumwa — vifurushi ${res.data.parcelsDispatched}, SMS zimetumwa ${res.data.smsSentCount}`);
-      setBulkStep('select'); setBulkShipmentId(null); setBulkDestCity('');
-      setBulkCandidates([]); setBulkSelected(new Set());
-      setBulkLastMileAgentId(null); setBulkManualContact({ name: '', phone: '', city: '' });
-      setBulkTransport({ transportCompany: '', transportRef: '', totalShippingCost: '' });
-      setPokeaMode('list'); fetchAll();
+      const res = await api.post(`/super-agents/bulk-shipments/${bulkActiveShipment.id}/add-parcels`, {
+        trackingNumbers: [...bulkSelected],
+      });
+      setSuccess(`✅ Vifurushi ${res.data.linkedCount} vimeongezwa kwenye shehena, SMS kwa wanunuzi ${res.data.buyerSmsSentCount}`);
+      resetBulkForm();
+      setBulkStep('open'); fetchOpenShipments();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kuongeza vifurushi');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleDispatchBulkShipment = async () => {
+    if (!bulkActiveShipment) return;
+    try {
+      setActionLoading(true); setError('');
+      const res = await api.patch(`/super-agents/bulk-shipments/${bulkActiveShipment.id}/dispatch`, {
+        transportCompany: bulkTransport.transportCompany || undefined,
+        transportRef: bulkTransport.transportRef || undefined,
+        totalShippingCost: Number(bulkTransport.totalShippingCost) || undefined,
+      });
+      setSuccess(`✅ Shehena imetumwa — vifurushi ${res.data.parcelsDispatched}, ujumbe kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}`);
+      resetBulkForm();
+      setBulkStep('open'); setPokeaMode('list'); fetchAll();
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kutuma shehena');
     } finally { setActionLoading(false); }
@@ -883,7 +925,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                     <div style={{ fontSize: 18, marginBottom: 4 }}>🚌</div>
                     Imefika Hub
                   </button>
-                  <button onClick={() => { setPokeaMode('consolidated'); setBulkStep('select'); }}
+                  <button onClick={() => { setPokeaMode('consolidated'); setBulkStep('open'); fetchOpenShipments(); }}
                     style={{ backgroundColor: '#d97706', color: '#fff', border: 'none',
                       padding: '14px 6px', borderRadius: 12, cursor: 'pointer',
                       fontSize: 10, fontWeight: 800, textAlign: 'center' }}>
@@ -1349,27 +1391,113 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: 16 }}>
                   <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
-                    📦 Shehena ya Vifurushi Vingi
+                    📦 Shehena (Hamisha Vifurushi Vingi)
                   </div>
-                  <button onClick={() => setPokeaMode('list')}
+                  <button onClick={() => { setPokeaMode('list'); resetBulkForm(); setBulkStep('open'); }}
                     style={{ background: 'none', border: 'none', cursor: 'pointer',
                       fontSize: 20, color: '#64748b' }}>×</button>
                 </div>
 
-                {bulkStep === 'select' && (
+                {/* ── Open batches: add to one, or start new ── */}
+                {bulkStep === 'open' && (
                   <>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-                      Changanya vifurushi vingi kwenda mji mmoja ndani ya sanduku/basi moja —
-                      hutalazimika kuingiza taarifa za basi kwa kila kifurushi kimoja moja.
+                      Kusanya vifurushi siku nzima kwenye shehena moja — mshirika wako atapata
+                      ujumbe MMOJA ukiwa na vifurushi vyote, siyo mmoja kwa kila kifurushi.
                     </div>
+                    {bulkOpenLoading ? (
+                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳</div>
+                    ) : bulkOpenShipments.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>
+                          SHEHENA ZILIZO WAZI
+                        </div>
+                        {bulkOpenShipments.map(s => (
+                          <div key={s.id} style={{ backgroundColor: '#fff7ed', borderRadius: 10,
+                            padding: '12px 14px', marginBottom: 8, border: '1px solid #fed7aa' }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                              → {s.destinationCity} {s.lastMileSuperAgent?.businessName ? `(${s.lastMileSuperAgent.businessName})` : s.lastMileContactName ? `(${s.lastMileContactName})` : ''}
+                            </div>
+                            <div style={{ fontSize: 11, color: '#92400e', marginBottom: 8 }}>
+                              Vifurushi {s.totalParcels || 0}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button onClick={() => {
+                                setBulkActiveShipment(s); setBulkDestCity(s.destinationCity);
+                                setBulkStep('add'); fetchBulkCandidates(s.destinationCity);
+                              }}
+                                style={{ flex: 1, backgroundColor: '#fff', color: '#d97706', border: '1.5px solid #d97706',
+                                  borderRadius: 8, padding: '8px 0', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                                ➕ Ongeza Vifurushi
+                              </button>
+                              <button onClick={() => { setBulkActiveShipment(s); setBulkStep('dispatch'); }}
+                                style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff', border: 'none',
+                                  borderRadius: 8, padding: '8px 0', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                                ✅ Maliza na Tuma
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
+                    <button onClick={() => { resetBulkForm(); setBulkStep('new'); }}
+                      style={{ width: '100%', marginTop: 8, background: '#fff', color: '#d97706',
+                        border: '2px dashed #fdba74', padding: 12, borderRadius: 10,
+                        cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                      + Anzisha Shehena Mpya
+                    </button>
+                  </>
+                )}
+
+                {/* ── New batch: destination + last-mile agent + first parcels ── */}
+                {bulkStep === 'new' && (
+                  <>
                     <div style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                         display: 'block', marginBottom: 4 }}>Mji wa Kuelekea *</label>
                       <input type="text" placeholder="Mwanza" value={bulkDestCity}
-                        onChange={e => setBulkDestCity(e.target.value)}
-                        onBlur={() => fetchBulkCandidates(bulkDestCity)}
+                        onChange={e => { setBulkDestCity(e.target.value); setBulkLastMileAgentId(null); }}
+                        onBlur={() => { fetchBulkCandidates(bulkDestCity); fetchBulkHubs(bulkDestCity); }}
                         style={inp} />
                     </div>
+
+                    {bulkHubsLoading ? (
+                      <div style={{ fontSize: 12, color: '#94a3b8', padding: '8px 0' }}>⏳ Inatafuta Super Agent...</div>
+                    ) : bulkHubs.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#d97706', marginBottom: 8 }}>
+                          Super Agent aliyesajiliwa {bulkDestCity}
+                        </div>
+                        {bulkHubs.map(h => (
+                          <label key={h.id} onClick={() => setBulkLastMileAgentId(h.id)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+                              borderRadius: 10, marginBottom: 6, cursor: 'pointer',
+                              border: `2px solid ${bulkLastMileAgentId === h.id ? '#d97706' : '#e2e8f0'}`,
+                              backgroundColor: bulkLastMileAgentId === h.id ? '#fff7ed' : '#f8fafc' }}>
+                            <input type="radio" checked={bulkLastMileAgentId === h.id} readOnly />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{h.businessName}</div>
+                              <div style={{ fontSize: 11, color: '#64748b' }}>📍 {h.address || h.city}</div>
+                            </div>
+                          </label>
+                        ))}
+                      </>
+                    )}
+                    {!bulkLastMileAgentId && (
+                      <>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginTop: 8, marginBottom: 8 }}>
+                          AU JAZA MAWASILIANO YA MSHIRIKA (siyo Super Agent aliyesajiliwa)
+                        </div>
+                        <input type="text" placeholder="Jina la mshirika/biashara"
+                          value={bulkManualContact.name}
+                          onChange={e => setBulkManualContact(p => ({ ...p, name: e.target.value }))}
+                          style={{ ...inp, marginBottom: 8 }} />
+                        <input type="text" placeholder="Namba ya simu"
+                          value={bulkManualContact.phone}
+                          onChange={e => setBulkManualContact(p => ({ ...p, phone: e.target.value }))}
+                          style={{ ...inp, marginBottom: 8 }} />
+                      </>
+                    )}
 
                     {bulkLoading ? (
                       <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳</div>
@@ -1378,6 +1506,64 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                         Hakuna vifurushi vilivyopo hubuni kwa mji huu bado.
                       </div>
                     ) : bulkCandidates.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginTop: 10, marginBottom: 8 }}>
+                          Chagua vifurushi ({bulkSelected.size}/{bulkCandidates.length})
+                        </div>
+                        {bulkCandidates.map(p => (
+                          <label key={p.trackingNumber} style={{ display: 'flex', alignItems: 'center',
+                            gap: 10, padding: '10px 12px', borderRadius: 10, marginBottom: 6,
+                            backgroundColor: bulkSelected.has(p.trackingNumber) ? '#fef3c7' : '#f8fafc',
+                            cursor: 'pointer' }}>
+                            <input type="checkbox" checked={bulkSelected.has(p.trackingNumber)}
+                              onChange={e => setBulkSelected(prev => {
+                                const next = new Set(prev);
+                                if (e.target.checked) next.add(p.trackingNumber); else next.delete(p.trackingNumber);
+                                return next;
+                              })} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, fontFamily: 'monospace', color: '#1d4ed8' }}>
+                                {p.trackingNumber}
+                              </div>
+                              <div style={{ fontSize: 11, color: '#64748b' }}>
+                                {p.recipientName} — {p.description || 'Bidhaa'}
+                              </div>
+                            </div>
+                          </label>
+                        ))}
+                      </>
+                    )}
+                    <button onClick={handleCreateBulkShipment}
+                      disabled={actionLoading || !bulkSelected.size || (!bulkLastMileAgentId && !bulkManualContact.name)}
+                      style={{ width: '100%', marginTop: 10,
+                        backgroundColor: (!bulkSelected.size || (!bulkLastMileAgentId && !bulkManualContact.name)) ? '#94a3b8' : '#d97706',
+                        color: '#fff', border: 'none', padding: 14, borderRadius: 10,
+                        cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+                      {actionLoading ? '⏳' : `📦 Unda Shehena (${bulkSelected.size}) — SMS kwa Wanunuzi`}
+                    </button>
+                    <button onClick={() => { resetBulkForm(); setBulkStep('open'); }}
+                      style={{ width: '100%', marginTop: 8, background: '#fff', color: '#64748b',
+                        border: '2px solid #e2e8f0', padding: 10, borderRadius: 10,
+                        cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      Rudi
+                    </button>
+                  </>
+                )}
+
+                {/* ── Add more parcels to an already-open batch ── */}
+                {bulkStep === 'add' && bulkActiveShipment && (
+                  <>
+                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
+                      Kuongeza kwenye shehena → {bulkActiveShipment.destinationCity}
+                      {bulkActiveShipment.lastMileSuperAgent?.businessName ? ` (${bulkActiveShipment.lastMileSuperAgent.businessName})` : ''}
+                    </div>
+                    {bulkLoading ? (
+                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳</div>
+                    ) : bulkCandidates.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 12 }}>
+                        Hakuna vifurushi vingine vilivyopo hubuni kwa mji huu bado.
+                      </div>
+                    ) : (
                       <>
                         <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', marginBottom: 8 }}>
                           Chagua vifurushi ({bulkSelected.size}/{bulkCandidates.length})
@@ -1403,110 +1589,57 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                             </div>
                           </label>
                         ))}
-                        <button onClick={handleCreateBulkShipment}
-                          disabled={actionLoading || !bulkSelected.size}
-                          style={{ width: '100%', marginTop: 10, backgroundColor: !bulkSelected.size ? '#94a3b8' : '#d97706',
-                            color: '#fff', border: 'none', padding: 14, borderRadius: 10,
-                            cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
-                          {actionLoading ? '⏳' : `📦 Unda Shehena (${bulkSelected.size})`}
-                        </button>
                       </>
                     )}
+                    <button onClick={handleAddToShipment}
+                      disabled={actionLoading || !bulkSelected.size}
+                      style={{ width: '100%', marginTop: 10, backgroundColor: !bulkSelected.size ? '#94a3b8' : '#d97706',
+                        color: '#fff', border: 'none', padding: 14, borderRadius: 10,
+                        cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+                      {actionLoading ? '⏳' : `➕ Ongeza (${bulkSelected.size}) — SMS kwa Wanunuzi`}
+                    </button>
+                    <button onClick={() => { resetBulkForm(); setBulkStep('open'); fetchOpenShipments(); }}
+                      style={{ width: '100%', marginTop: 8, background: '#fff', color: '#64748b',
+                        border: '2px solid #e2e8f0', padding: 10, borderRadius: 10,
+                        cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      Rudi
+                    </button>
                   </>
                 )}
 
-                {bulkStep === 'dispatch' && (
+                {/* ── Finalize: transport info only, one consolidated agent SMS ── */}
+                {bulkStep === 'dispatch' && bulkActiveShipment && (
                   <>
                     <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
-                      Shehena #{bulkShipmentId} imeundwa. Chagua jinsi itakavyosafirishwa.
+                      Shehena → {bulkActiveShipment.destinationCity}
+                      {bulkActiveShipment.lastMileSuperAgent?.businessName ? ` (${bulkActiveShipment.lastMileSuperAgent.businessName})` : ''}.
+                      Taarifa za usafiri ni hiari — ujumbe MMOJA utatumwa kwa mshirika ukiwa na
+                      vifurushi vyote vya shehena hii.
                     </div>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-                      <button onClick={() => setBulkDeliveryMethod('super_agent_handoff')}
-                        style={{ flex: 1, padding: 10, borderRadius: 10, cursor: 'pointer',
-                          border: `2px solid ${bulkDeliveryMethod === 'super_agent_handoff' ? '#d97706' : '#e2e8f0'}`,
-                          backgroundColor: bulkDeliveryMethod === 'super_agent_handoff' ? '#fef3c7' : '#fff',
-                          fontSize: 12, fontWeight: 700, color: '#1e293b' }}>
-                        🤝 Super Agent Mwingine
-                      </button>
-                      <button onClick={() => setBulkDeliveryMethod('bus_transport')}
-                        style={{ flex: 1, padding: 10, borderRadius: 10, cursor: 'pointer',
-                          border: `2px solid ${bulkDeliveryMethod === 'bus_transport' ? '#d97706' : '#e2e8f0'}`,
-                          backgroundColor: bulkDeliveryMethod === 'bus_transport' ? '#fef3c7' : '#fff',
-                          fontSize: 12, fontWeight: 700, color: '#1e293b' }}>
-                        🚌 Basi / Usafiri
-                      </button>
-                    </div>
+                    <input type="text" placeholder="Kampuni ya usafiri (hiari — e.g. Shabiby Bus)"
+                      value={bulkTransport.transportCompany}
+                      onChange={e => setBulkTransport(p => ({ ...p, transportCompany: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
+                    <input type="text" placeholder="Namba ya Tiketi/Rejea (hiari)"
+                      value={bulkTransport.transportRef}
+                      onChange={e => setBulkTransport(p => ({ ...p, transportRef: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
+                    <input type="number" placeholder="Gharama ya Usafiri (TZS, hiari)"
+                      value={bulkTransport.totalShippingCost}
+                      onChange={e => setBulkTransport(p => ({ ...p, totalShippingCost: e.target.value }))}
+                      style={{ ...inp, marginBottom: 8 }} />
 
-                    {bulkDeliveryMethod === 'super_agent_handoff' ? (
-                      <>
-                        <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8 }}>
-                          Hakuna taarifa za basi/tiketi zinazohitajika kwa njia hii.
-                        </div>
-                        {loadingHubs ? (
-                          <div style={{ color: '#94a3b8', fontSize: 12 }}>⏳ Inatafuta Super Agent...</div>
-                        ) : destinationHubs.length > 0 ? (
-                          <div style={{ marginBottom: 12 }}>
-                            <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
-                              display: 'block', marginBottom: 4 }}>Super Agent wa Mwisho (aliyesajiliwa)</label>
-                            <select value={bulkLastMileAgentId || ''}
-                              onChange={e => setBulkLastMileAgentId(e.target.value ? Number(e.target.value) : null)}
-                              style={inp}>
-                              <option value="">— Chagua —</option>
-                              {destinationHubs.map(h => (
-                                <option key={h.id} value={h.id}>{h.businessName} — {h.address || h.city}</option>
-                              ))}
-                            </select>
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>
-                            Hakuna Super Agent aliyesajiliwa {bulkDestCity} bado — jaza mawasiliano chini.
-                          </div>
-                        )}
-                        {!bulkLastMileAgentId && (
-                          <>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6 }}>
-                              AU JAZA MAWASILIANO YA MTU (siyo Super Agent aliyesajiliwa)
-                            </div>
-                            <input type="text" placeholder="Jina la mtu/wakala"
-                              value={bulkManualContact.name}
-                              onChange={e => setBulkManualContact(p => ({ ...p, name: e.target.value }))}
-                              style={{ ...inp, marginBottom: 8 }} />
-                            <input type="text" placeholder="Namba ya simu"
-                              value={bulkManualContact.phone}
-                              onChange={e => setBulkManualContact(p => ({ ...p, phone: e.target.value }))}
-                              style={{ ...inp, marginBottom: 8 }} />
-                            <input type="text" placeholder="Mji"
-                              value={bulkManualContact.city}
-                              onChange={e => setBulkManualContact(p => ({ ...p, city: e.target.value }))}
-                              style={{ ...inp, marginBottom: 8 }} />
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <input type="text" placeholder="Kampuni ya Basi *"
-                          value={bulkTransport.transportCompany}
-                          onChange={e => setBulkTransport(p => ({ ...p, transportCompany: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="text" placeholder="Namba ya Tiketi/Rejea"
-                          value={bulkTransport.transportRef}
-                          onChange={e => setBulkTransport(p => ({ ...p, transportRef: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                        <input type="number" placeholder="Gharama ya Usafiri (TZS)"
-                          value={bulkTransport.totalShippingCost}
-                          onChange={e => setBulkTransport(p => ({ ...p, totalShippingCost: e.target.value }))}
-                          style={{ ...inp, marginBottom: 8 }} />
-                      </>
-                    )}
-
-                    <button onClick={handleDispatchBulkShipment}
-                      disabled={actionLoading ||
-                        (bulkDeliveryMethod === 'bus_transport' && !bulkTransport.transportCompany) ||
-                        (bulkDeliveryMethod === 'super_agent_handoff' && !bulkLastMileAgentId && !bulkManualContact.name)}
+                    <button onClick={handleDispatchBulkShipment} disabled={actionLoading}
                       style={{ width: '100%', marginTop: 10, backgroundColor: '#16a34a',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                         cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
-                      {actionLoading ? '⏳' : '✅ Tuma Shehena — SMS kwa Wapokeaji'}
+                      {actionLoading ? '⏳' : '✅ Tuma Shehena — Ujumbe kwa Mshirika'}
+                    </button>
+                    <button onClick={() => { resetBulkForm(); setBulkStep('open'); fetchOpenShipments(); }}
+                      style={{ width: '100%', marginTop: 8, background: '#fff', color: '#64748b',
+                        border: '2px solid #e2e8f0', padding: 10, borderRadius: 10,
+                        cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      Rudi
                     </button>
                   </>
                 )}

@@ -259,10 +259,29 @@ export class SuperAgentsController {
     return this.service.getBulkShipmentCandidates(req.user, destinationCity);
   }
 
+  // This agent's own OPEN shipments — so the UI can offer "add to the
+  // batch already headed to Iringa" instead of always starting a new one.
+  @UseGuards(JwtAuthGuard)
+  @Get('bulk-shipments/open')
+  getMyOpenBulkShipments(@Request() req) {
+    return this.service.getMyOpenBulkShipments(req.user);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('bulk-shipments')
   createBulkShipment(@Request() req, @Body() dto: any) {
     return this.service.createBulkShipment(req.user, dto);
+  }
+
+  // Add more parcels to an already-open shipment later the same day.
+  @UseGuards(JwtAuthGuard)
+  @Post('bulk-shipments/:id/add-parcels')
+  addParcelsToShipment(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() dto: any,
+  ) {
+    return this.service.addParcelsToShipment(req.user, Number(id), dto);
   }
 
   // Dispatch a sealed bulk shipment with courier cost + receipt
