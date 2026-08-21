@@ -39,6 +39,7 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
   const [releaseNote, setReleaseNote]           = useState('');
   const [releasing, setReleasing]               = useState(false);
   const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [settlingKey, setSettlingKey] = useState('');
 
   useEffect(() => { fetchPayouts(); }, []);
   useEffect(() => { if (tab === 'agents') fetchAgentLedger(); }, [tab]);
@@ -59,6 +60,18 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
       setAgentLedger(res.data || []);
     } catch { setAgentLedger([]); }
     finally { setLedgerLoading(false); }
+  };
+
+  const handleSettleCourierCost = async (item) => {
+    const key = `${item.type}:${item.id}`;
+    try {
+      setSettlingKey(key);
+      await api.patch(`/super-agents/admin/courier-cost/${item.type}/${item.id}/settle`);
+      showMsg(`✅ Gharama ya ${item.trackingNumber} imewekwa kama imelipwa`);
+      fetchAgentLedger();
+    } catch (err) {
+      showErr(err?.response?.data?.message || 'Imeshindwa kuweka kama imelipwa');
+    } finally { setSettlingKey(''); }
   };
 
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 4000); };
@@ -278,7 +291,9 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
           </>
         )}
 
-        {/* Agent Ledger tab */}
+        {/* Agent Ledger tab — one row per unsettled parcel/bulk courier
+            cost, grouped by agent for a subtotal, each with its own
+            Settle action (settling is per-item, not per-agent). */}
         {tab === 'agents' && (
           <div style={{ backgroundColor: '#fff', borderRadius: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', padding: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', marginBottom: 16 }}>🤝 Gharama za Usafirishaji — Super Agents</h3>
@@ -287,20 +302,48 @@ const Payouts = ({ activePage, onNavigate, onLogout }) => {
             ) : agentLedger.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Hakuna rekodi za gharama</div>
             ) : (
-              agentLedger.map((agent, i) => (
-                <div key={i} style={{ padding: '14px 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{agent.agentName || `Agent #${agent.agentId}`}</div>
-                      <div style={{ fontSize: 12, color: '#64748b' }}>{agent.city} · {agent.parcelCount} vifurushi</div>
+              Object.entries(
+                agentLedger.reduce((groups, item) => {
+                  const key = `${item.agentName || 'Bila Jina'}|${item.agentCity || '—'}`;
+                  (groups[key] = groups[key] || []).push(item);
+                  return groups;
+                }, {})
+              ).map(([key, items]) => {
+                const [agentName, agentCity] = key.split('|');
+                const subtotal = items.reduce((s, it) => s + Number(it.courierCost || 0), 0);
+                return (
+                  <div key={key} style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{agentName}</div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>{agentCity} · {items.length} {items.length === 1 ? 'kifurushi' : 'vifurushi'}</div>
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 900, color: '#dc2626' }}>TZS {subtotal.toLocaleString()}</div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 16, fontWeight: 900, color: '#dc2626' }}>TZS {Number(agent.totalOwed || 0).toLocaleString()}</div>
-                      <div style={{ fontSize: 11, color: '#94a3b8' }}>inahitajika kulipa</div>
-                    </div>
+                    {items.map(item => {
+                      const settleKey = `${item.type}:${item.id}`;
+                      return (
+                        <div key={settleKey} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', backgroundColor: '#f8fafc', borderRadius: 8, marginBottom: 6 }}>
+                          <div>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1e293b' }}>{item.trackingNumber}</div>
+                            <div style={{ fontSize: 11, color: '#64748b' }}>
+                              {item.courierName || '—'}{item.transportRef ? ` · ${item.transportRef}` : ''}
+                              {item.dispatchTime ? ` · ${new Date(item.dispatchTime).toLocaleDateString('sw-TZ')}` : ''}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a' }}>TZS {Number(item.courierCost || 0).toLocaleString()}</div>
+                            <button onClick={() => handleSettleCourierCost(item)} disabled={settlingKey === settleKey}
+                              style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: settlingKey === settleKey ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              {settlingKey === settleKey ? '⏳...' : '✅ Imelipwa'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         )}
