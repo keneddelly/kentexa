@@ -11,7 +11,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import {
   Conversation,
   ConversationStatus,
@@ -175,11 +175,38 @@ export class ConversationService {
     customerId: number,
     commerceProfileId?: number | null,
   ): Promise<Conversation> {
+    // Never trust a client-supplied commerceProfileId blindly — must
+    // actually belong to this seller, same authorization posture as
+    // FeedService.publish()/ClassifiedsService.create(). An id that
+    // doesn't check out is silently dropped rather than rejecting the
+    // whole message — the conversation still opens, just without a
+    // specific identity attached (same as messaging with no context).
+    // Verified up front (not just at creation time) because the lookup
+    // below must key on the same verified value, or a caller could smuggle
+    // an unverified id into matching/creating a thread it shouldn't.
+    let verifiedProfileId: number | null = null;
+    if (commerceProfileId) {
+      const profile = await this.commerceProfiles
+        .findById(commerceProfileId)
+        .catch(() => null);
+      if (profile && profile.ownerId === sellerId) {
+        verifiedProfileId = commerceProfileId;
+      }
+    }
+
+    // Was missing commerceProfileId here — the entity's own comment already
+    // documents the intent ("must land in two conversations that each show
+    // the correct identity"), but this lookup ignored it, so a buyer
+    // messaging the seller's personal profile and, separately, their
+    // business profile got silently merged into whichever conversation was
+    // already OPEN: messages meant for one identity showed up under the
+    // other's inbox.
     let convo = await this.convoRepo.findOne({
       where: {
         sellerId,
         customerId,
         status: ConversationStatus.OPEN,
+        commerceProfileId: verifiedProfileId === null ? IsNull() : verifiedProfileId,
       },
       // "seller" is needed so the buyer-side chat header can show the real
       // business name instead of a generic placeholder on first load.
@@ -192,22 +219,6 @@ export class ConversationService {
         relations: { seller: true },
       });
       if (!customer) throw new NotFoundException('Customer not found');
-
-      // Never trust a client-supplied commerceProfileId blindly — must
-      // actually belong to this seller, same authorization posture as
-      // FeedService.publish()/ClassifiedsService.create(). An id that
-      // doesn't check out is silently dropped rather than rejecting the
-      // whole message — the conversation still opens, just without a
-      // specific identity attached (same as messaging with no context).
-      let verifiedProfileId: number | null = null;
-      if (commerceProfileId) {
-        const profile = await this.commerceProfiles
-          .findById(commerceProfileId)
-          .catch(() => null);
-        if (profile && profile.ownerId === sellerId) {
-          verifiedProfileId = commerceProfileId;
-        }
-      }
 
       convo = this.convoRepo.create({
         sellerId,
