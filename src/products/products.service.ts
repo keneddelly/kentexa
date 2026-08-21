@@ -220,6 +220,26 @@ export class ProductsService {
     });
   }
 
+  // Barcode wins when both are given — a scan is unambiguous, a typed SKU
+  // is more likely to be a partial/fuzzy entry at a busy POS counter.
+  async findBySkuOrBarcode(
+    sellerId: number,
+    query: { sku?: string; barcode?: string },
+  ) {
+    if (query.barcode) {
+      const byBarcode = await this.repo.findOne({
+        where: { seller: { id: sellerId }, barcode: query.barcode },
+      });
+      if (byBarcode) return byBarcode;
+    }
+    if (query.sku) {
+      return this.repo.findOne({
+        where: { seller: { id: sellerId }, sku: query.sku },
+      });
+    }
+    return null;
+  }
+
   async findAllAdmin() {
     return this.repo.find({
       relations: { seller: true },
@@ -292,6 +312,12 @@ export class ProductsService {
       sellerCity: dto.sellerCity || 'Dar es Salaam',
       seller: seller || null,
       commerceProfileId,
+      sku: dto.sku || null,
+      barcode: dto.barcode || null,
+      costPrice: dto.costPrice ?? null,
+      minStockThreshold: dto.minStockThreshold || 0,
+      availableOnline: dto.availableOnline ?? true,
+      availableInStore: dto.availableInStore ?? true,
     } as any);
 
     const saved = (await this.repo.save(product)) as unknown as Product;

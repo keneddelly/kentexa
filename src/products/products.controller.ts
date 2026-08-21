@@ -97,6 +97,24 @@ export class ProductsController {
     return this.service.findMyProducts({ id: sellerId } as User);
   }
 
+  // Fast lookup for the POS/product-management screens — scoped to the
+  // caller's own seller, since sku/barcode are seller-defined and not
+  // unique across sellers (two BIS-like businesses may reuse the same
+  // manufacturer barcode for the same physical item).
+  @UseGuards(JwtAuthGuard)
+  @Get('my/lookup')
+  async lookupMyProduct(
+    @Request() req,
+    @Query('barcode') barcode?: string,
+    @Query('sku') sku?: string,
+  ) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.findBySkuOrBarcode(sellerId, { sku, barcode });
+  }
+
   // ── Kentexa AI: suggestion-only listing generation ───────────────────────
   // Never creates a product — the seller reviews/edits, then calls POST /products.
   @UseGuards(JwtAuthGuard)

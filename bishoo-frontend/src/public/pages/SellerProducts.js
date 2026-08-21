@@ -28,6 +28,8 @@ const EMPTY_FORM = {
   name: '', description: '', basePrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
   displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '',
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
+  sku: '', barcode: '', costPrice: '', minStockThreshold: '0',
+  availableOnline: true, availableInStore: true,
 };
 
 const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
@@ -225,6 +227,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         specs:        Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         features:     form.features?.length > 0 ? form.features : null,
         commerceProfileId: activeProfileId || undefined,
+        sku:          form.sku || undefined,
+        barcode:      form.barcode || undefined,
+        costPrice:    form.costPrice !== '' ? Number(form.costPrice) : undefined,
+        minStockThreshold: form.minStockThreshold !== '' ? Number(form.minStockThreshold) : undefined,
+        availableOnline:  form.availableOnline,
+        availableInStore: form.availableInStore,
       };
       if (editProduct) {
         await api.patch(`/products/${editProduct.id}`, payload);
@@ -258,6 +266,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       images:       product.images || [],
       isZipo:  product.isZipo,
       weightKg:     product.weightKg ? String(product.weightKg) : '',
+      sku:          product.sku || '',
+      barcode:      product.barcode || '',
+      costPrice:    product.costPrice != null ? String(product.costPrice) : '',
+      minStockThreshold: product.minStockThreshold != null ? String(product.minStockThreshold) : '0',
+      availableOnline:  product.availableOnline ?? true,
+      availableInStore: product.availableInStore ?? true,
     });
     setImagePreviews(product.images || []);
     setShowForm(true);
@@ -527,6 +541,50 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <label style={labelStyle}>{t('seller_products.stock')} *</label>
                 <input type="number" placeholder="e.g. 10" value={form.stock}
                   onChange={e => setForm({ ...form, stock: e.target.value })} style={inputStyle} />
+              </div>
+            </div>
+
+            {/* Unified inventory — the same stock number this product uses
+                across the local POS, Kentexa online, and manual sales. */}
+            <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`📦 ${t('seller_products.inventory_section')}`}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={labelStyle}>{t('seller_products.sku')}</label>
+                  <input type="text" placeholder={t('seller_products.sku_placeholder')} value={form.sku}
+                    onChange={e => setForm({ ...form, sku: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>{t('seller_products.barcode')}</label>
+                  <input type="text" placeholder={t('seller_products.barcode_placeholder')} value={form.barcode}
+                    onChange={e => setForm({ ...form, barcode: e.target.value })} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>{t('seller_products.cost_price')}</label>
+                  <input type="number" placeholder="e.g. 50000" value={form.costPrice}
+                    onChange={e => setForm({ ...form, costPrice: e.target.value })} style={inputStyle} />
+                  <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.cost_price_hint')}</p>
+                </div>
+                <div>
+                  <label style={labelStyle}>{t('seller_products.min_stock_threshold')}</label>
+                  <input type="number" placeholder="e.g. 3" value={form.minStockThreshold}
+                    onChange={e => setForm({ ...form, minStockThreshold: e.target.value })} style={inputStyle} />
+                  <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.min_stock_threshold_hint')}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 20 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#1e293b', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.availableOnline}
+                    onChange={e => setForm({ ...form, availableOnline: e.target.checked })}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                  {t('seller_products.available_online')}
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#1e293b', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.availableInStore}
+                    onChange={e => setForm({ ...form, availableInStore: e.target.checked })}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                  {t('seller_products.available_in_store')}
+                </label>
               </div>
             </div>
 

@@ -105,4 +105,31 @@ export class CreateProductDto {
   @IsOptional()
   @IsInt()
   commerceProfileId?: number;
+
+  // ── Unified inventory (BIS Local Shop POS) ──────────────────────────────
+  @IsOptional()
+  @IsString()
+  sku?: string;
+
+  @IsOptional()
+  @IsString()
+  barcode?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPrice?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  minStockThreshold?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  availableOnline?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  availableInStore?: boolean;
 }
