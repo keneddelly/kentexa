@@ -137,13 +137,6 @@ export class SuperAgentsController {
 
   // ── Parcel operations ─────────────────────────────────────────────────────
 
-  // Seller creates parcel (handover request)
-  @UseGuards(JwtAuthGuard)
-  @Post('parcels')
-  createParcel(@Request() req, @Body() dto: any) {
-    return this.service.createParcel(req.user, dto);
-  }
-
   // ── Seller: Offline intercity order — customer paid outside KenteXa ──────
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
@@ -167,17 +160,6 @@ export class SuperAgentsController {
   @Post('parcels/:trackingNumber/resend-receiver-sms')
   resendReceiverSms(@Request() req, @Param('trackingNumber') tn: string) {
     return this.service.resendReceiverSms(req.user, tn);
-  }
-
-  // Super agent receives parcel from seller
-  @UseGuards(JwtAuthGuard)
-  @Patch('parcels/:trackingNumber/receive')
-  receiveParcel(
-    @Request() req,
-    @Param('trackingNumber') tn: string,
-    @Body() dto: any,
-  ) {
-    return this.service.receiveParcel(req.user, tn, dto);
   }
 
   // Super agent dispatches parcel
