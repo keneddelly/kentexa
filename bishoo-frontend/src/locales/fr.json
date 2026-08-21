@@ -3474,6 +3474,7 @@
     "insufficient_payment": "Le montant payé est inférieur au total dû",
     "sale_failed": "Échec de la vente — veuillez réessayer",
     "discount": "Remise",
+    "ship_it": "Expédier (client absent)",
     "new_sale": "+ Nouvelle Vente"
   },
   "seller_dashboard": {
@@ -3628,6 +3629,7 @@
     "ship_another": "Expédier un Autre Article",
     "dashboard": "Tableau de Bord",
     "mission_reminder": "🎯 KenteXa suit chaque étape — votre client verra toujours où se trouve son article. Les détails d'expédition sont requis pour que le suivi fonctionne correctement.",
+    "already_paid_banner": "Déjà payé au comptoir — remplissez juste les détails de livraison ci-dessous.",
     "step1_title": "Articles que Vous Envoyez",
     "step1_subtitle": "Ajoutez un ou plusieurs articles — ils seront tous suivis ensemble",
     "items_count_summary": "{{count}} articles · {{pieces}} pièces",

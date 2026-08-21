@@ -102,6 +102,14 @@ export class Sale {
   @Column({ type: 'varchar', nullable: true })
   voidedReason: string | null;
 
+  // Set when this already-paid sale gets shipped instead of picked up in
+  // person — see SuperAgentsService.createSellerShipment()'s saleId
+  // handling. Lets the dashboard show "Sale #X — shipped, tracking Y"
+  // instead of the sale and the resulting parcel being invisible to
+  // each other.
+  @Column({ type: 'varchar', nullable: true })
+  shipmentTrackingNumber: string | null;
+
   // The cashier — distinct from `seller`, which is the business the sale
   // belongs to (an invited team member operates the POS on the seller's
   // behalf, same owner-vs-staff distinction as everywhere else in

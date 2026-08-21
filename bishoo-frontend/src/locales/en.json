@@ -3478,6 +3478,7 @@
     "insufficient_payment": "Amount paid is less than the total due",
     "sale_failed": "Sale failed — please try again",
     "discount": "Discount",
+    "ship_it": "Ship It (customer not here)",
     "new_sale": "+ New Sale"
   },
   "seller_dashboard": {
@@ -3632,6 +3633,7 @@
     "ship_another": "Ship Another Item",
     "dashboard": "Dashboard",
     "mission_reminder": "🎯 KenteXa tracks every step — your customer will always see where their item is. Shipping details are required for tracking to work properly.",
+    "already_paid_banner": "Already paid at the counter — just fill in delivery details below.",
     "step1_title": "Items You're Sending",
     "step1_subtitle": "Add one or more items — they'll all be tracked together",
     "items_count_summary": "{{count}} items · {{pieces}} pieces",

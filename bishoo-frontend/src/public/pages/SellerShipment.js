@@ -142,6 +142,20 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         wardName:     prefill.ward       || prev.wardName,
       }));
     }
+    // Coming from a completed POS/Manual sale ("Ship It") — seed the cart
+    // with what was actually sold instead of asking the seller to retype
+    // it, and skip straight past the "add item" step since the cart is
+    // already populated.
+    if (prefill.items?.length > 0) {
+      setItems(prefill.items.map((i, idx) => ({
+        id: Date.now() + idx,
+        name: i.name, qty: i.qty, price: i.price, weight: i.weight || 0,
+        source: i.source || 'product',
+        productId: i.productId || null,
+        classifiedId: i.classifiedId || null,
+      })));
+      setShowAddItem(false);
+    }
   }, [prefill]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -364,6 +378,9 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         buyerName:  form.buyerDiffersFromRecipient ? form.buyerName.trim()  || undefined : undefined,
         buyerPhone: form.buyerDiffersFromRecipient ? form.buyerPhone.trim() || undefined : undefined,
         paymentMethod: form.paymentMethod,
+        // Set only when this continues an already-paid POS/Manual sale
+        // ("Ship It") — the backend skips re-collecting payment for it.
+        saleId: prefill?.saleId || undefined,
       });
       setResult(res.data);
       // Tracking is active immediately — no separate upfront fee payment
@@ -590,6 +607,14 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
         <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1d4ed8' }}>
           {t('seller_shipment.mission_reminder')}
         </div>
+
+        {/* Continuing an already-paid POS/Manual sale ("Ship It") — payment
+            is not asked for again below; this is shipping logistics only. */}
+        {prefill?.saleId && (
+          <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#166534', fontWeight: 700 }}>
+            {`✅ ${t('seller_shipment.already_paid_banner')}`}
+          </div>
+        )}
 
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 14, fontSize: 13 }}>

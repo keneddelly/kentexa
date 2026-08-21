@@ -116,6 +116,22 @@ const POS = ({ onNavigate, currentUser }) => {
     searchRef.current?.focus();
   };
 
+  // Customer paid but isn't taking it in person — hand off to the shipping
+  // flow, pre-filled with what was actually sold so nothing gets retyped.
+  // Payment itself is already done; SellerShipment.js skips asking for it
+  // again once it sees saleId.
+  const handleShipIt = () => {
+    onNavigate('SellerShipment', {
+      name: receipt.customerName || '',
+      phone: receipt.customerPhone || '',
+      saleId: receipt.id,
+      items: (receipt.items || []).map(i => ({
+        name: i.productName, qty: i.quantity, price: Number(i.unitPrice),
+        weight: 0, productId: i.productId, classifiedId: null, source: 'product',
+      })),
+    });
+  };
+
   const handleConfirm = async () => {
     if (cart.length === 0) return;
     if (paid < total) { setError(t('pos.insufficient_payment')); return; }
@@ -316,7 +332,12 @@ const POS = ({ onNavigate, currentUser }) => {
               </div>
             )}
           </div>
-          <button onClick={resetSale} style={{ width: '100%', marginTop: 16, padding: '14px 0',
+          <button onClick={handleShipIt} style={{ width: '100%', marginTop: 16, padding: '14px 0',
+            background: WH, color: B, border: `2px solid ${B}`,
+            borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+            {`🚚 ${t('pos.ship_it')}`}
+          </button>
+          <button onClick={resetSale} style={{ width: '100%', marginTop: 10, padding: '14px 0',
             background: `linear-gradient(135deg,${B},#7C3AED)`, color: WH, border: 'none',
             borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
             {t('pos.new_sale')}

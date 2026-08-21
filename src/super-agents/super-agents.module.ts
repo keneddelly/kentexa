@@ -24,6 +24,7 @@ import { InvoicesModule } from '../invoices/invoices.module';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { Payment } from '../payments/entities/payment.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
+import { Sale } from '../sales/entities/sale.entity';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { SellerProfile } from '../seller/entities/seller-profile.entity';
       TransportAssignment,
       Payment,
       SellerProfile,
+      Sale,
     ]),
     AgentsModule,
     SmsModule,

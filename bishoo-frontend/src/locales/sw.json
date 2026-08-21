@@ -3324,6 +3324,7 @@
     "insufficient_payment": "Kiasi kilicholipwa ni kidogo kuliko jumla",
     "sale_failed": "Mauzo yameshindwa — jaribu tena",
     "discount": "Punguzo",
+    "ship_it": "Tuma Kwa Usafirishaji (mteja hayupo)",
     "new_sale": "+ Mauzo Mapya"
   },
   "seller_dashboard": {
@@ -3478,6 +3479,7 @@
     "ship_another": "Tuma Kingine",
     "dashboard": "Dashibodi",
     "mission_reminder": "🎯 KenteXa inafuatilia kila hatua — mteja wako ataona bidhaa yake iko wapi wakati wote. Maelezo ya usafirishaji yanahitajika ili ufuatiliaji ufanye kazi vizuri.",
+    "already_paid_banner": "Tayari imelipwa dukani — jaza tu maelezo ya utoaji hapa chini.",
     "step1_title": "Bidhaa Unazotuma",
     "step1_subtitle": "Ongeza bidhaa moja au nyingi — zote zitafuatiliwa pamoja",
     "items_count_summary": "{{count}} bidhaa · {{pieces}} vipande",

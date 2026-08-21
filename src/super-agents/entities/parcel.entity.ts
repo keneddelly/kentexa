@@ -175,6 +175,14 @@ export class Parcel {
   @Column({ type: 'int', nullable: true })
   classifiedId: number | null;
 
+  // Set when this parcel continues an already-completed POS/Manual sale
+  // (customer paid at the counter but wasn't there to take it) — see
+  // createSellerShipment()'s saleId handling. Plain nullable id, not a
+  // relation, same pattern as classifiedId above — Sale lives in a
+  // different module and this avoids a module import cycle.
+  @Column({ type: 'int', nullable: true })
+  saleId: number | null;
+
   // Transport method seller chose
   @Column({ type: 'varchar', nullable: true })
   transportMethod: string | null; // 'super_agent' | 'bus' | 'courier' | 'boda'
