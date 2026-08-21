@@ -27,7 +27,7 @@ const HowItWorks = ({ onNavigate }) => {
     },
     super_agent: {
       icon: '🏢', label: t('how_it_works.role_super_agent_label'), color: '#ea580c',
-      steps: buildSteps('super_agent', ['📋', '📦', '🔍', '🚚', '🛵', '💰']),
+      steps: buildSteps('super_agent', ['📋', '📦', '🗂️', '🚚', '🤝', '💰']),
     },
   };
 
