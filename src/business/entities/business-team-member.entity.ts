@@ -49,6 +49,8 @@ export class BusinessTeamMember {
     canViewRevenue?: boolean;
     canManageProducts?: boolean;
     canManageTeam?: boolean;
+    canOperatePOS?: boolean;
+    canManageInventory?: boolean;
   };
 
   @Column({ type: 'boolean', default: true })

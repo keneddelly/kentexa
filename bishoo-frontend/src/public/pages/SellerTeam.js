@@ -25,12 +25,14 @@ const getPerms = (t) => [
   { key: 'canViewRevenue',    label: t('seller_team.perm_view_revenue')    },
   { key: 'canManageProducts', label: t('seller_team.perm_manage_products') },
   { key: 'canManageTeam',     label: t('seller_team.perm_manage_team')     },
+  { key: 'canOperatePOS',       label: t('seller_team.perm_operate_pos')       },
+  { key: 'canManageInventory',  label: t('seller_team.perm_manage_inventory')  },
 ];
 
 const ROLE_DEFAULTS = {
-  sales:            { canViewOrders:true, canCreateOrders:true, canViewCustomers:true, canSendMessages:true },
+  sales:            { canViewOrders:true, canCreateOrders:true, canViewCustomers:true, canSendMessages:true, canOperatePOS:true },
   customer_support: { canViewOrders:true, canViewCustomers:true, canSendMessages:true },
-  inventory:        { canViewOrders:true, canManageProducts:true },
+  inventory:        { canViewOrders:true, canManageProducts:true, canManageInventory:true },
   delivery:         { canViewOrders:true, canViewCustomers:true },
 };
 

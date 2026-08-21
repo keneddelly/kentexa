@@ -14,6 +14,8 @@ import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { UploadModule } from './upload/upload.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { SalesModule } from './sales/sales.module';
 import { SellerModule } from './seller/seller.module';
 import { AgentsModule } from './agents/agents.module';
 import { AgentOrdersModule } from './agent-orders/agent-orders.module';
@@ -91,6 +93,8 @@ import { PoliciesModule } from './policies/policies.module';
     PaymentsModule,
     UploadModule,
     InvoicesModule,
+    InventoryModule,
+    SalesModule,
     SellerModule,
     AgentsModule,
     AgentOrdersModule,

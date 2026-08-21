@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { Product } from '../products/entities/products.entity';
 import {
   InventoryMovement,
@@ -33,11 +33,16 @@ export class InventoryService {
       referenceId?: number | null;
       note?: string | null;
       userId?: number | null;
+      // Pass an existing transaction's manager to make this adjustment part
+      // of it — used by SalesService so a multi-item sale (several
+      // adjustStock calls) commits or rolls back as one atomic unit instead
+      // of each line item being its own independent transaction.
+      manager?: EntityManager;
     } = {},
   ): Promise<Product> {
     if (!delta) return this.dataSource.getRepository(Product).findOneOrFail({ where: { id: productId } });
 
-    return this.dataSource.transaction(async (manager) => {
+    const run = async (manager: EntityManager) => {
       const productRepo = manager.getRepository(Product);
       const product = await productRepo
         .createQueryBuilder('p')
@@ -75,7 +80,9 @@ export class InventoryService {
       );
 
       return product;
-    });
+    };
+
+    return opts.manager ? run(opts.manager) : this.dataSource.transaction(run);
   }
 
   async getMovements(productId: number, limit = 50): Promise<InventoryMovement[]> {

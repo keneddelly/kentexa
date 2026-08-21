@@ -15,7 +15,9 @@ export type SellerPermission =
   | 'canSendMessages'
   | 'canViewRevenue'
   | 'canManageProducts'
-  | 'canManageTeam';
+  | 'canManageTeam'
+  | 'canOperatePOS' // create local-shop/manual sales
+  | 'canManageInventory'; // adjust stock, edit cost price, void/refund sales
 
 const OWNS_THEIR_OWN_BUSINESS = [
   UserRole.SELLER,

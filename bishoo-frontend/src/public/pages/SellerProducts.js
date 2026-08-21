@@ -307,9 +307,14 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <h1 style={{ fontSize: 20, fontWeight: 900, color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('seller_products.title')}</h1>
             <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', margin: 0 }}>{t('seller_products.products_in_store', { count: products.length })}</p>
           </div>
-          <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: '#fff', color: '#1d4ed8', border: 'none', padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-            {`+ ${t('seller_products.add')}`}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => onNavigate('POS')} style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+              {`🖥️ ${t('seller_products.open_pos')}`}
+            </button>
+            <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: '#fff', color: '#1d4ed8', border: 'none', padding: '10px 18px', borderRadius: 12, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
+              {`+ ${t('seller_products.add')}`}
+            </button>
+          </div>
         </div>
       </div>
 

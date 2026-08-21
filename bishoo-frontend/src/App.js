@@ -57,6 +57,7 @@ import Checkout from './public/pages/Checkout';
 import Search from './public/pages/Search';
 import VerifyReceipt from './public/pages/VerifyReceipt';
 import SellerProducts from './public/pages/SellerProducts';
+import POS from './public/pages/POS';
 import SellerClassifieds from './public/pages/SellerClassifieds';
 import SellerOrders from './public/pages/SellerOrders';
 import SellerInvoices from './public/pages/SellerInvoices';
@@ -595,6 +596,7 @@ function App() {
       case 'StoreSettings':     return requireLogin(<StoreSettings {...publicProps} userId={decodeToken(localStorage.getItem('token'))?.sub} />);
       case 'SellerDashboard':   return requireLogin(<SellerDashboard {...publicProps} />);
       case 'SellerProducts':    return requireLogin(<SellerProducts {...publicProps} />);
+      case 'POS':               return requireLogin(<POS {...publicProps} />);
       case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} />);
       case 'SellerOrders':      return requireLogin(<SellerOrders {...publicProps} />);
       case 'SellerShipping':    return requireLogin(<SellerShipping {...publicProps} />);
