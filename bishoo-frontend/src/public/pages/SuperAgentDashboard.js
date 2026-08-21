@@ -163,6 +163,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [activeTab, setActiveTab]       = useState('pokea');
   const [historiaSearch, setHistoriaSearch] = useState('');
   const [historyModal, setHistoryModal] = useState(null); // { trackingNumber, loading, data, error }
+  const [resendLoading, setResendLoading] = useState(''); // 'sender' | 'receiver' | ''
+  const [resendMsg, setResendMsg] = useState('');
   const [error, setError]               = useState('');
   const [success, setSuccess]           = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -639,12 +641,29 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
 
   const openParcelHistory = async (trackingNumber) => {
     setHistoryModal({ trackingNumber, loading: true, data: null, error: '' });
+    setResendMsg('');
     try {
       const res = await api.get(`/super-agents/track/${trackingNumber}`);
       setHistoryModal({ trackingNumber, loading: false, data: res.data, error: '' });
     } catch (err) {
       setHistoryModal({ trackingNumber, loading: false, data: null,
         error: err?.response?.data?.message || 'Imeshindwa kupata historia' });
+    }
+  };
+
+  const handleResendSms = async (which) => {
+    if (!historyModal?.trackingNumber) return;
+    try {
+      setResendLoading(which);
+      setResendMsg('');
+      const path = which === 'sender' ? 'resend-sender-sms' : 'resend-receiver-sms';
+      const res = await api.post(`/super-agents/parcels/${historyModal.trackingNumber}/${path}`);
+      const sent = which === 'sender' ? res.data?.senderSmsSent : res.data?.receiverSmsSent;
+      setResendMsg(sent ? '✅ SMS imetumwa upya' : '⚠️ SMS haikuweza kutumwa');
+    } catch (err) {
+      setResendMsg('❌ ' + (err?.response?.data?.message || 'Imeshindwa kutuma SMS'));
+    } finally {
+      setResendLoading('');
     }
   };
 
@@ -2248,6 +2267,26 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                     </div>
                   ))}
                 </div>
+
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <button onClick={() => handleResendSms('sender')} disabled={resendLoading !== ''}
+                    style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none',
+                      padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
+                      fontSize: 11.5, fontWeight: 700 }}>
+                    {resendLoading === 'sender' ? '⏳...' : '🔄 Tuma SMS ya Mtumaji'}
+                  </button>
+                  <button onClick={() => handleResendSms('receiver')} disabled={resendLoading !== ''}
+                    style={{ flex: 1, backgroundColor: '#f0fdf4', color: '#16a34a', border: 'none',
+                      padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
+                      fontSize: 11.5, fontWeight: 700 }}>
+                    {resendLoading === 'receiver' ? '⏳...' : '🔄 Tuma SMS ya Mpokeaji'}
+                  </button>
+                </div>
+                {resendMsg && (
+                  <div style={{ fontSize: 12, marginBottom: 14, color: resendMsg.startsWith('✅') ? '#16a34a' : '#b91c1c' }}>
+                    {resendMsg}
+                  </div>
+                )}
 
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8',
                   marginBottom: 8, textTransform: 'uppercase' }}>Matukio</div>

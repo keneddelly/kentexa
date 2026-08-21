@@ -110,6 +110,9 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   const [selectedHub, setSelectedHub]     = useState(null);
   const [superAgentHubs, setSuperAgentHubs] = useState([]);
   const [loadingHubs, setLoadingHubs]     = useState(false);
+  const [showHistory, setShowHistory]     = useState(false);
+  const [historyList, setHistoryList]     = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   useEffect(() => {
     if (!localStorage.getItem('token')) { onNavigate('PublicLogin'); return; }
@@ -129,6 +132,18 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
       setOrders(res.data.recentOrders || []);
     } catch { setError(t('seller_orders.load_failed')); }
     finally { setLoading(false); }
+  };
+
+  // Full manual-shipment history (not capped like seller/dashboard's
+  // recentOrders) — opened on demand from the "Historia Kamili" button.
+  const openHistory = async () => {
+    setShowHistory(true);
+    try {
+      setHistoryLoading(true);
+      const res = await api.get('/super-agents/shipments/my');
+      setHistoryList(res.data || []);
+    } catch { setHistoryList([]); }
+    finally { setHistoryLoading(false); }
   };
 
   const handleSaveTransport = async () => {
@@ -321,12 +336,46 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
         }
       />
 
-      <div style={{ padding: '8px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ padding: '8px 16px 0', maxWidth: 900, margin: '0 auto', width: '100%', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <button onClick={openHistory}
+          style={{ background: '#fff', color: '#1d4ed8', border: '2px solid #1d4ed8', padding: '9px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+          📜 Historia Kamili
+        </button>
         <button onClick={() => onNavigate('OfflineIntercityOrder')}
           style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
           {t('seller_orders.create_manual_order')}
         </button>
       </div>
+
+      {showHistory && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => setShowHistory(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 520, maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>📜 Historia Kamili ya Usafirishaji</h3>
+              <button onClick={() => setShowHistory(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
+            </div>
+            {historyLoading ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>⏳ Inapakia...</div>
+            ) : historyList.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>Hakuna rekodi za usafirishaji</div>
+            ) : (
+              historyList.map(p => (
+                <div key={p.trackingNumber} style={{ padding: '10px 0', borderBottom: '1px solid #f1f5f9' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 12.5, fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8' }}>{p.trackingNumber}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>{p.status?.replace(/_/g, ' ')}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>
+                    {p.originCity} → {p.destinationCity}
+                    {p.createdAt ? ` · ${new Date(p.createdAt).toLocaleDateString('sw-TZ')}` : ''}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       <div style={{ padding: '14px 16px 90px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
 

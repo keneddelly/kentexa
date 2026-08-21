@@ -72,6 +72,10 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
   const [result, setResult]               = useState(null);
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
+  const [showPhoneSearch, setShowPhoneSearch] = useState(false);
+  const [phoneResults, setPhoneResults]   = useState(null);
+  const [phoneLoading, setPhoneLoading]   = useState(false);
+  const [phoneError, setPhoneError]       = useState('');
 
   useEffect(() => {
     if (propTracking) handleTrack(propTracking);
@@ -182,6 +186,22 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
 
   // Keep handleTrack as alias for backward compat (used in useEffect)
   const handleTrack = (tn) => handleSearch(typeof tn === 'string' ? tn : null);
+
+  // Lookup by the logged-in user's own account phone — for a buyer who
+  // never got/kept their tracking number. Scoped server-side to the
+  // caller's own phone (no free-text phone input — that would let anyone
+  // look up a stranger's parcels).
+  const handlePhoneSearch = async () => {
+    setPhoneLoading(true); setPhoneError(''); setPhoneResults(null);
+    try {
+      const res = await api.get('/super-agents/shipments/buyer');
+      setPhoneResults(res.data || []);
+    } catch (err) {
+      setPhoneError(err?.response?.data?.message || t('track_parcel.error_generic'));
+    } finally {
+      setPhoneLoading(false);
+    }
+  };
   const handleTrackByOrderId = async (id) => {
     setLoading(true); setError(''); setResult(null);
     try {
@@ -238,6 +258,52 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
           {error && (
             <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginTop: 12, fontSize: 13 }}>
               ❌ {error}
+            </div>
+          )}
+
+          {isLoggedIn && (
+            <div style={{ marginTop: 12, textAlign: 'center' }}>
+              <button onClick={() => {
+                  const next = !showPhoneSearch;
+                  setShowPhoneSearch(next); setPhoneResults(null); setPhoneError('');
+                  if (next) handlePhoneSearch();
+                }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12.5, color: '#1d4ed8', fontWeight: 700 }}>
+                {showPhoneSearch ? '✕ Funga' : '📱 Sina namba ya ufuatiliaji — ona vifurushi vyangu'}
+              </button>
+            </div>
+          )}
+
+          {showPhoneSearch && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f1f5f9' }}>
+              {phoneLoading && (
+                <div style={{ textAlign: 'center', padding: '10px 0', color: '#64748b', fontSize: 13 }}>⏳ Inapakia...</div>
+              )}
+              {phoneError && (
+                <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, marginTop: 10, fontSize: 13 }}>
+                  ❌ {phoneError}
+                </div>
+              )}
+              {phoneResults && phoneResults.length === 0 && (
+                <div style={{ padding: '12px 0', color: '#94a3b8', fontSize: 13, textAlign: 'center' }}>
+                  Hakuna vifurushi vilivyopatikana kwa namba hii
+                </div>
+              )}
+              {phoneResults && phoneResults.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  {phoneResults.map(p => (
+                    <button key={p.trackingNumber}
+                      onClick={() => { setTrackingInput(p.trackingNumber); setShowPhoneSearch(false); handleSearch(p.trackingNumber); }}
+                      style={{ display: 'block', width: '100%', textAlign: 'left', backgroundColor: '#f8fafc', border: 'none', borderRadius: 8, padding: '10px 12px', marginBottom: 6, cursor: 'pointer' }}>
+                      <div style={{ fontSize: 12.5, fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8' }}>{p.trackingNumber}</div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                        {p.originCity} → {p.destinationCity} · {p.status?.replace(/_/g, ' ')}
+                        {p.senderName ? ` · kutoka ${p.senderName}` : ''}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

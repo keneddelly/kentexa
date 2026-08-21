@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 
-const CITIES = [
+// Fallback only — the real list is fetched from the backend's canonical
+// TANZANIA_CITIES (GET /super-agents/cities) so this page doesn't carry
+// its own copy that can drift out of sync.
+const FALLBACK_CITIES = [
   'Dar es Salaam','Mwanza','Arusha','Moshi','Dodoma','Mbeya','Tanga','Morogoro',
   'Kigoma','Tabora','Songea','Iringa','Zanzibar','Lindi','Mtwara','Shinyanga',
   'Singida','Musoma','Bukoba','Sumbawanga','Babati','Kibaha','Njombe','Kasulu',
@@ -27,6 +30,13 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
     businessName: '', city: '', address: '',
     phone: '', governmentId: '', governmentIdImage: '',
   });
+  const [cities, setCities] = useState(FALLBACK_CITIES);
+
+  useEffect(() => {
+    api.get('/super-agents/cities')
+      .then(res => { if (Array.isArray(res.data?.cities) && res.data.cities.length) setCities(res.data.cities); })
+      .catch(() => {});
+  }, []);
 
   // Pre-fill from profile — the platform already knows this person's
   // phone/city/store name if they've set them elsewhere; don't make them
@@ -205,7 +215,7 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
                 <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.city_label')}</label>
                 <select value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={inputStyle}>
                   <option value="">{t('become_super_agent_info.select_city_placeholder')}</option>
-                  {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
                   {t('become_super_agent_info.city_hint')}

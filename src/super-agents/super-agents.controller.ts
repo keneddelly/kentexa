@@ -533,10 +533,15 @@ export class SuperAgentsController {
     return this.service.getMyShipments(req.user);
   }
 
+  // Was any-phone-you-type — a logged-in user could look up any other
+  // phone number's parcels (sender name, delivery address, description)
+  // with zero ownership check. Restricted to the caller's own account
+  // phone, matching how every other "my X" endpoint on this controller
+  // already scopes to req.user.
   @UseGuards(JwtAuthGuard)
   @Get('shipments/buyer')
-  getBuyerParcels(@Query('phone') phone: string) {
-    return this.service.getBuyerParcels(phone);
+  getBuyerParcels(@Request() req) {
+    return this.service.getBuyerParcels(req.user.phone || '');
   }
 
   // ── Available agents for last-mile at destination city ───────────────────
