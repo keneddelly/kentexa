@@ -21,6 +21,8 @@ import { buildMultiTermLikeClause } from '../search/search-query.util';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { withPriceOverlay, formatPriceLabel } from '../feed/utils/price-overlay.util';
 import { SellerRankingService } from './seller-ranking.service';
+import { InventoryService } from '../inventory/inventory.service';
+import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 
 @Injectable()
 export class ProductsService {
@@ -39,6 +41,7 @@ export class ProductsService {
     private readonly profileScope: CommerceProfileScopeService,
     private readonly searchIndex: SearchIndexService,
     private readonly ranking: SellerRankingService,
+    private readonly inventory: InventoryService,
   ) {}
 
   // Batches verificationTier for a set of products' sellers in one query —
@@ -365,11 +368,23 @@ export class ProductsService {
     return { message: 'Product deleted successfully' };
   }
 
-  async decreaseStock(id: number, quantity: number) {
-    const product = await this.findOne(id);
-    product.stock -= quantity;
-    if (product.stock <= 0) product.isAvailable = false;
-    return this.repo.save(product);
+  // Delegates to InventoryService so every stock change — regardless of
+  // which channel triggered it — goes through the same transactional,
+  // row-locked mutation and gets one InventoryMovement audit row. `quantity`
+  // keeps its existing sign convention here (positive = decrease stock,
+  // negative = restore it, e.g. on order cancellation) for every existing
+  // caller; it's just inverted into InventoryService's delta convention.
+  async decreaseStock(
+    id: number,
+    quantity: number,
+    reason: InventoryMovementReason = InventoryMovementReason.MANUAL,
+    opts: {
+      referenceType?: 'order' | 'sale' | null;
+      referenceId?: number | null;
+      userId?: number | null;
+    } = {},
+  ) {
+    return this.inventory.adjustStock(id, -quantity, reason, opts);
   }
 
   // ── Social proof: track daily views ──────────────────────────────────────

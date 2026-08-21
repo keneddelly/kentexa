@@ -12,6 +12,7 @@ import { AiModule } from '../ai/ai.module';
 import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { SearchModule } from '../search/search.module';
+import { InventoryModule } from '../inventory/inventory.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { SearchModule } from '../search/search.module';
     BusinessModule,
     CommerceProfilesModule,
     SearchModule,
+    InventoryModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService, AiListingService, SellerRankingService],

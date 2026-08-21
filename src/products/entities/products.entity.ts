@@ -56,7 +56,36 @@ export class Product {
   displayPrice: number;
 
   @Column({ type: 'int', default: 0 })
-  stock: number;
+  stock: number; // the one shared inventory count — every sales channel
+
+  // ── Unified inventory (BIS Local Shop POS) ──
+  // sku/barcode: seller-defined, optional — no uniqueness constraint across
+  // sellers since two different sellers may reuse the same manufacturer
+  // barcode for the same physical product.
+  @Column({ type: 'varchar', nullable: true })
+  sku: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  barcode: string | null;
+
+  // What BIS paid for this unit — never shown to buyers, only used for the
+  // seller's own gross-profit reporting. Separate from basePrice/
+  // displayPrice, which are what the CUSTOMER pays.
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  costPrice: number | null;
+
+  // Below this, the product surfaces on the seller's low-stock dashboard.
+  @Column({ type: 'int', default: 0 })
+  minStockThreshold: number;
+
+  // Which channels this product is allowed to sell through — a POS-only
+  // product (e.g. something BIS doesn't want to ship) or an online-only
+  // one both need to exist without showing up where they shouldn't.
+  @Column({ default: true })
+  availableOnline: boolean;
+
+  @Column({ default: true })
+  availableInStore: boolean;
 
   // ── Category & Subcategory ──
   @Column({ type: 'text', nullable: true })

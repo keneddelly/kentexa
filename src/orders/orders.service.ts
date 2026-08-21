@@ -17,6 +17,7 @@ import {
 } from './entities/order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ProductsService } from '../products/products.service';
+import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { Payout } from '../payouts/entities/payout.entity';
@@ -193,7 +194,12 @@ export class OrdersService {
     await this.repo.update(saved.id, {
       trackingNumber: `KTX-ORD-${saved.id}`,
     });
-    await this.productsService.decreaseStock(product.id, dto.quantity);
+    await this.productsService.decreaseStock(
+      product.id,
+      dto.quantity,
+      InventoryMovementReason.KENTEXA_ONLINE,
+      { referenceType: 'order', referenceId: saved.id, userId: user.id },
+    );
 
     let invoiceNumber: string | null = null;
     try {
@@ -1935,6 +1941,8 @@ export class OrdersService {
         await this.productsService.decreaseStock(
           order.product.id,
           -order.quantity,
+          InventoryMovementReason.ORDER_CANCELLED,
+          { referenceType: 'order', referenceId: order.id, userId: user.id },
         );
     } catch (e) {
       console.error('Stock restoration on cancel failed:', e.message);
@@ -2165,7 +2173,12 @@ export class OrdersService {
     const saved = await this.repo.save(order as any);
 
     // Reduce stock
-    await this.productsService.decreaseStock(product.id, dto.quantity);
+    await this.productsService.decreaseStock(
+      product.id,
+      dto.quantity,
+      InventoryMovementReason.MANUAL,
+      { referenceType: 'order', referenceId: saved.id, userId: seller.id },
+    );
 
     // Generate tracking number
     const trackingNumber = `KTX-ORD-${saved.id}`;
