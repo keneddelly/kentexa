@@ -14,8 +14,21 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
   const [actionLoading, setActionLoading] = useState(false);
   const [detailAgent, setDetailAgent] = useState(null);
   const [suspendIsReject, setSuspendIsReject] = useState(false);
+  const [grantCount, setGrantCount] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState('');
 
   useEffect(() => { fetchAgents(); }, []);
+
+  useEffect(() => {
+    if (detailAgent) {
+      setGrantCount(String(detailAgent.freeOrdersGranted ?? 0));
+      setPaymentAmount('');
+      setBillingError('');
+    }
+  }, [detailAgent]);
 
   const fetchAgents = async () => {
     try {
@@ -56,6 +69,53 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
       setError(err?.response?.data?.message || `Failed to ${suspendIsReject ? 'reject' : 'suspend'}`);
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const silentRefresh = async (focusId) => {
+    try {
+      const res = await api.get('/super-agents');
+      setAgents(res.data);
+      if (focusId) {
+        const updated = res.data.find(a => a.id === focusId);
+        if (updated) setDetailAgent(updated);
+      }
+    } catch { /* table just keeps its last known values */ }
+  };
+
+  // Sets the agent's total free-order allowance (absolute, not additive).
+  // This is also the natural hook for a future coupon/promo-code system —
+  // redeeming a code would call this same endpoint with the code's bonus
+  // count instead of an admin typing a number by hand.
+  const handleGrantFreeOrders = async () => {
+    const count = Number(grantCount);
+    if (!Number.isFinite(count) || count < 0) { setBillingError('Enter a valid number'); return; }
+    try {
+      setBillingLoading(true);
+      setBillingError('');
+      await api.patch(`/super-agents/${detailAgent.id}/grant-free-orders`, { count });
+      setMessage(`Free orders granted set to ${count} for ${detailAgent.businessName}.`);
+      await silentRefresh(detailAgent.id);
+    } catch (err) {
+      setBillingError(err?.response?.data?.message || 'Failed to grant free orders');
+    } finally {
+      setBillingLoading(false);
+    }
+  };
+
+  const handleRecordPayment = async () => {
+    const amount = Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) { setBillingError('Enter a valid amount'); return; }
+    try {
+      setBillingLoading(true);
+      setBillingError('');
+      await api.post(`/super-agents/${detailAgent.id}/billing-payment`, { amount, paymentMethod });
+      setMessage(`Payment of TZS ${amount.toLocaleString()} recorded for ${detailAgent.businessName}.`);
+      await silentRefresh(detailAgent.id);
+    } catch (err) {
+      setBillingError(err?.response?.data?.message || 'Failed to record payment');
+    } finally {
+      setBillingLoading(false);
     }
   };
 
@@ -251,6 +311,75 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                   style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 8, border: '1px solid #e2e8f0' }} />
               </div>
             )}
+
+            {(() => {
+              const granted = Number(detailAgent.freeOrdersGranted || 0);
+              const used = Number(detailAgent.freeOrdersUsed || 0);
+              const remaining = Math.max(0, granted - used);
+              const balance = Number(detailAgent.outstandingBalance || 0);
+              const threshold = Number(detailAgent.billingThreshold || 0);
+              const isBlocked = threshold > 0 && balance >= threshold;
+              return (
+                <div style={{ marginBottom: 18, backgroundColor: '#f8fafc', borderRadius: 10, padding: 16, border: isBlocked ? '2px solid #dc2626' : '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>💳 Billing &amp; Free Orders</div>
+                  {[
+                    ['Free orders granted', granted],
+                    ['Free orders used', used],
+                    ['Free orders remaining', remaining],
+                    ['Paid orders (post-free)', detailAgent.paidOrders ?? 0],
+                    ['Fee per order', `TZS ${Number(detailAgent.platformFeePerOrder || 0).toLocaleString()}`],
+                    ['Fees waived (lifetime)', `TZS ${Number(detailAgent.totalPlatformFeesWaived || 0).toLocaleString()}`],
+                    ['Fees charged (lifetime)', `TZS ${Number(detailAgent.totalPlatformFeesCharged || 0).toLocaleString()}`],
+                  ].map(([l, v]) => (
+                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12.5, color: '#475569' }}>
+                      <span>{l}</span><span style={{ fontWeight: 700, color: '#0f172a' }}>{v}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 4px', marginTop: 4, borderTop: '1px solid #e2e8f0', fontSize: 13 }}>
+                    <span style={{ fontWeight: 700, color: '#475569' }}>Outstanding balance</span>
+                    <span style={{ fontWeight: 900, color: isBlocked ? '#dc2626' : '#0f172a' }}>
+                      TZS {balance.toLocaleString()} / {threshold.toLocaleString()}
+                    </span>
+                  </div>
+                  {isBlocked && (
+                    <div style={{ marginTop: 8, backgroundColor: '#fef2f2', borderRadius: 6, padding: '8px 10px', fontSize: 11.5, color: '#b91c1c', fontWeight: 700 }}>
+                      ⚠️ This agent is blocked from new registrations until the balance is paid down.
+                    </div>
+                  )}
+                  {billingError && <div style={{ marginTop: 8, fontSize: 12, color: '#dc2626', fontWeight: 700 }}>{billingError}</div>}
+
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Set free orders granted</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input type="number" min="0" value={grantCount} onChange={e => setGrantCount(e.target.value)}
+                        style={{ flex: 1, padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                      <button onClick={handleGrantFreeOrders} disabled={billingLoading}
+                        style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                        Save
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Record billing payment</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input type="number" min="0" placeholder="Amount (TZS)" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)}
+                        style={{ flex: 1, padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }} />
+                      <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}
+                        style={{ padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13 }}>
+                        <option value="cash">Cash</option>
+                        <option value="mobile_money">Mobile Money</option>
+                        <option value="bank">Bank</option>
+                      </select>
+                      <button onClick={handleRecordPayment} disabled={billingLoading || balance <= 0}
+                        style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                        Record
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               {detailAgent.status === 'pending' && (
