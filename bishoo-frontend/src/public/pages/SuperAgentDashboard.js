@@ -220,7 +220,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [bulkHubs, setBulkHubs] = useState([]);
   const [bulkHubsLoading, setBulkHubsLoading] = useState(false);
   const [bulkLastMileAgentId, setBulkLastMileAgentId] = useState(null);
-  const [bulkManualContact, setBulkManualContact] = useState({ name: '', phone: '', city: '' });
+  const [bulkManualContact, setBulkManualContact] = useState({ name: '', phone: '', city: '', address: '' });
   const [bulkTransport, setBulkTransport] = useState({ transportCompany: '', transportRef: '', totalShippingCost: '' });
 
   const fetchOpenShipments = async () => {
@@ -257,7 +257,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     setBulkDestCity(''); setBulkCandidates([]); setBulkSelected(new Set());
     setBulkHubs([]); setBulkLastMileAgentId(null);
     setBulkDestLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
-    setBulkManualContact({ name: '', phone: '', city: '' });
+    setBulkManualContact({ name: '', phone: '', city: '', address: '' });
     setBulkTransport({ transportCompany: '', transportRef: '', totalShippingCost: '' });
     setBulkActiveShipment(null);
   };
@@ -272,9 +272,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
       const res = await api.post('/super-agents/bulk-shipments', {
         destinationCity: bulkDestCity,
         destinationSuperAgentId: bulkLastMileAgentId || undefined,
-        manualContactName:  bulkLastMileAgentId ? undefined : bulkManualContact.name,
-        manualContactPhone: bulkLastMileAgentId ? undefined : bulkManualContact.phone,
-        manualContactCity:  bulkLastMileAgentId ? undefined : bulkManualContact.city,
+        manualContactName:    bulkLastMileAgentId ? undefined : bulkManualContact.name,
+        manualContactPhone:   bulkLastMileAgentId ? undefined : bulkManualContact.phone,
+        manualContactCity:    bulkLastMileAgentId ? undefined : bulkManualContact.city,
+        manualContactAddress: bulkLastMileAgentId ? undefined : bulkManualContact.address,
         trackingNumbers: [...bulkSelected],
       });
       setSuccess(`✅ Shehena imeundwa — vifurushi ${res.data.linkedCount} vimeongezwa, SMS kwa wanunuzi ${res.data.buyerSmsSentCount}`);
@@ -354,7 +355,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [transferModal, setTransferModal] = useState(null);
   const [transferForm, setTransferForm]   = useState({
     destinationCity: '', destinationSuperAgentId: null,
-    manualContactName: '', manualContactPhone: '',
+    manualContactName: '', manualContactPhone: '', manualContactAddress: '',
     transportCompany: '', note: '',
   });
   const [transferHubs, setTransferHubs] = useState([]);
@@ -798,15 +799,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     try {
       const res = await api.post('/super-agents/parcels/' + trackingNumber + '/transfer-hub', {
         destinationSuperAgentId: form.destinationSuperAgentId || undefined,
-        manualContactName:  form.destinationSuperAgentId ? undefined : form.manualContactName,
-        manualContactPhone: form.destinationSuperAgentId ? undefined : form.manualContactPhone,
-        manualContactCity:  form.destinationSuperAgentId ? undefined : form.destinationCity,
+        manualContactName:    form.destinationSuperAgentId ? undefined : form.manualContactName,
+        manualContactPhone:   form.destinationSuperAgentId ? undefined : form.manualContactPhone,
+        manualContactCity:    form.destinationSuperAgentId ? undefined : form.destinationCity,
+        manualContactAddress: form.destinationSuperAgentId ? undefined : form.manualContactAddress,
         transportCompany: form.transportCompany || undefined,
         note: form.note || undefined,
       });
       alert(`✅ Kimehamishiwa kwa ${res.data.receiverName}. Ujumbe umetumwa kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}, kwa mnunuzi: ${res.data.buyerSmsSent ? 'ndiyo' : 'hapana'}.`);
       setTransferModal(null);
-      setTransferForm({ destinationCity: '', destinationSuperAgentId: null, manualContactName: '', manualContactPhone: '', transportCompany: '', note: '' });
+      setTransferForm({ destinationCity: '', destinationSuperAgentId: null, manualContactName: '', manualContactPhone: '', manualContactAddress: '', transportCompany: '', note: '' });
       setTransferDestLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
       setTransferHubs([]);
       fetchAll();
@@ -1513,6 +1515,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                         <input type="text" placeholder="Namba ya simu"
                           value={bulkManualContact.phone}
                           onChange={e => setBulkManualContact(p => ({ ...p, phone: e.target.value }))}
+                          style={{ ...inp, marginBottom: 8 }} />
+                        <input type="text" placeholder="Mahali/Ofisi (e.g. China Plaza, Ofisi 23, Kariakoo)"
+                          value={bulkManualContact.address}
+                          onChange={e => setBulkManualContact(p => ({ ...p, address: e.target.value }))}
                           style={{ ...inp, marginBottom: 8 }} />
                       </>
                     )}
@@ -2531,6 +2537,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                   placeholder="Namba ya simu"
                   value={transferForm.manualContactPhone}
                   onChange={e => setTransferForm(f => ({ ...f, manualContactPhone: e.target.value }))} />
+                <input style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1px solid #e2e8f0',fontSize:14,marginBottom:10,boxSizing:'border-box',outline:'none' }}
+                  placeholder="Mahali/Ofisi (e.g. China Plaza, Ofisi 23, Kariakoo)"
+                  value={transferForm.manualContactAddress}
+                  onChange={e => setTransferForm(f => ({ ...f, manualContactAddress: e.target.value }))} />
               </>
             )}
 

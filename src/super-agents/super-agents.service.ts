@@ -1030,6 +1030,18 @@ export class SuperAgentsService {
       order: { createdAt: 'DESC' },
     });
 
+    // A parcel folded into a Shehena (consolidated) shipment carries its
+    // own transport/last-mile info on the BulkShipment, not on itself —
+    // tracking never looked there at all, so a Shehena-dispatched parcel's
+    // page showed no transport details and no last-mile contact whenever
+    // the receiving end was a manual contact (no destinationSuperAgent to
+    // fall back to).
+    const bulkShipment = (parcel as any).bulkShipmentId
+      ? await this.bulkRepo
+          .findOne({ where: { id: (parcel as any).bulkShipmentId } })
+          .catch(() => null)
+      : null;
+
     return {
       trackingNumber: parcel.trackingNumber,
       status: parcel.status,
@@ -1055,15 +1067,31 @@ export class SuperAgentsService {
       // Origin hub
       originAgent: parcel.superAgent?.businessName || null,
       originAgentPhone: parcel.superAgent?.user?.phone || null,
-      // Destination hub
-      destinationAgent: parcel.destinationSuperAgent?.businessName || null,
-      destinationAgentPhone: parcel.destinationSuperAgent?.user?.phone || null,
-      // Transport — from parcel directly (seller_shipment) or from order (online)
+      // Destination hub — registered agent first, then a Shehena manual
+      // contact (no Kentexa account, so no destinationSuperAgent to read).
+      destinationAgent:
+        parcel.destinationSuperAgent?.businessName ||
+        bulkShipment?.lastMileContactName ||
+        null,
+      destinationAgentPhone:
+        parcel.destinationSuperAgent?.user?.phone ||
+        bulkShipment?.lastMileContactPhone ||
+        null,
+      destinationAgentAddress:
+        parcel.destinationSuperAgent?.address ||
+        bulkShipment?.lastMileContactAddress ||
+        null,
+      // Transport — parcel directly (single-parcel dispatch/seller_shipment),
+      // the order (online), or the Shehena batch it was folded into.
       busCompany:
-        (parcel as any).busCompany || (parcel.order as any)?.busCompany || null,
+        (parcel as any).busCompany ||
+        (parcel.order as any)?.busCompany ||
+        bulkShipment?.transportCompany ||
+        null,
       busTicketNumber:
         (parcel as any).busTicketNumber ||
         (parcel.order as any)?.busTicketNumber ||
+        bulkShipment?.transportRef ||
         null,
       busDeparture: (parcel as any).busDeparture || null,
       courierName:
@@ -1082,7 +1110,7 @@ export class SuperAgentsService {
         ? (parcel.order.seller as any).storeName
         : null,
       // Dispatch info
-      dispatchTime: (parcel as any).dispatchTime || null,
+      dispatchTime: (parcel as any).dispatchTime || bulkShipment?.dispatchTime || null,
       arrivedAtHubTime: (parcel as any).arrivedAtHubTime || null,
       history: tracking.map((t) => ({
         status: t.status,
@@ -2245,6 +2273,7 @@ export class SuperAgentsService {
       manualContactName?: string;
       manualContactPhone?: string;
       manualContactCity?: string;
+      manualContactAddress?: string;
       trackingNumbers: string[];
       notes?: string;
     },
@@ -2347,9 +2376,16 @@ export class SuperAgentsService {
       },
     });
     if (parcels.length) {
+      const parcelUpdate: any = { bulkShipmentId: shipment.id };
+      // Without this, trackParcel() (and the buyer-facing tracking page)
+      // had no way to show who's actually receiving a Shehena-batched
+      // parcel — only the BulkShipment itself knew, never the parcel row
+      // tracking reads from. Same field the single-parcel Hamisha flow
+      // already sets.
+      if (lastMileAgent) parcelUpdate.destinationSuperAgent = { id: lastMileAgent.id };
       await this.parcelRepo.update(
         { id: In(parcels.map((p) => p.id)) },
-        { bulkShipmentId: shipment.id } as any,
+        parcelUpdate,
       );
     }
 
@@ -2371,7 +2407,8 @@ export class SuperAgentsService {
       lastMileAgent?.phone || (shipment as any).lastMileContactPhone || '';
     const receiverCity =
       lastMileAgent?.city || (shipment as any).lastMileContactCity || '';
-    const receiverAddress = lastMileAgent?.address || null;
+    const receiverAddress =
+      lastMileAgent?.address || (shipment as any).lastMileContactAddress || null;
 
     let buyerSmsSentCount = 0;
     for (const parcel of parcels) {
@@ -2410,6 +2447,7 @@ export class SuperAgentsService {
     manualContactName?: string;
     manualContactPhone?: string;
     manualContactCity?: string;
+    manualContactAddress?: string;
   }): Promise<{
     lastMileAgent: SuperAgent | null;
     shipmentFields: Partial<BulkShipment>;
@@ -2435,6 +2473,7 @@ export class SuperAgentsService {
           lastMileContactName: dto.manualContactName,
           lastMileContactPhone: dto.manualContactPhone,
           lastMileContactCity: dto.manualContactCity || null,
+          lastMileContactAddress: dto.manualContactAddress || null,
         },
       };
     }
@@ -2529,6 +2568,7 @@ export class SuperAgentsService {
             `Vifurushi: ${listLine}\n` +
             `Mtumaji: ${agent?.businessName} (${agent?.phone || user.phone || ''})\n` +
             (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
+            (dto.transportRef ? `Tiketi/Rejea: ${dto.transportRef}\n` : '') +
             `\nVerified by Kentexa`,
         );
       } catch (e: any) {
@@ -3718,6 +3758,7 @@ export class SuperAgentsService {
       manualContactName?: string;
       manualContactPhone?: string;
       manualContactCity?: string;
+      manualContactAddress?: string;
       transportCompany?: string;
       note?: string;
     },
@@ -3760,7 +3801,8 @@ export class SuperAgentsService {
     const receiverName = lastMileAgent?.businessName || dto.manualContactName!;
     const receiverPhone = lastMileAgent?.phone || dto.manualContactPhone!;
     const receiverCity = lastMileAgent?.city || dto.manualContactCity || '';
-    const receiverAddress = lastMileAgent?.address || null;
+    const receiverAddress =
+      lastMileAgent?.address || dto.manualContactAddress || null;
 
     const updates: any = {
       status: ParcelStatus.DISPATCHED,

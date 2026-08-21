@@ -101,6 +101,13 @@ export class BulkShipment {
   @Column({ type: 'varchar', nullable: true })
   lastMileContactCity: string | null;
 
+  // The findable office/location for a manual contact — a buyer told
+  // "collect from X" with no address is stuck the same way a vague
+  // registered-agent address is. Same idea as SuperAgent.address, just
+  // typed directly since there's no account to read it from.
+  @Column({ type: 'varchar', nullable: true })
+  lastMileContactAddress: string | null;
+
   @Column({ type: 'timestamp', nullable: true })
   dispatchTime: Date | null;
 
