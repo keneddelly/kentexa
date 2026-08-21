@@ -3264,6 +3264,8 @@
     "marked_unavailable": "Bidhaa imewekwa kama haipo",
     "hidden_badge": "❌ Zimefichwa",
     "stock_label": "Hisa: {{count}}",
+    "reserved_label": "{{count}} zimehifadhiwa",
+    "low_stock_badge": "Hisa Kidogo",
     "name_placeholder": "mf. Zimefichwa Camera 1080P",
     "description_placeholder": "Eleza bidhaa yako kwa undani — ni nini, kwa nani, na kwa nini inafaa kununuliwa...",
     "ai_description_button": "Tengeneza kwa AI",

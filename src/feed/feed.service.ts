@@ -636,6 +636,7 @@ export class FeedService {
         this.productRepo
           .createQueryBuilder('p')
           .where('p.isAvailable = true')
+          .andWhere('p.availableOnline = true')
           .orderBy('p.createdAt', 'DESC')
           .take(10)
           .getMany(),

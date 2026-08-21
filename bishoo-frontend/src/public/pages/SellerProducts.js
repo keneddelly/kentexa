@@ -381,7 +381,15 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                       {Object.entries(product.specs).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(' · ')}
                     </div>
                   )}
-                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>{t('seller_products.stock_label', { count: product.stock })}</div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
+                    {t('seller_products.stock_label', { count: product.stock })}
+                    {product.reservedStock > 0 && (
+                      <span style={{ color: '#ca8a04', fontWeight: 700 }}> · {t('seller_products.reserved_label', { count: product.reservedStock })}</span>
+                    )}
+                  </div>
+                  {product.minStockThreshold > 0 && product.stock <= product.minStockThreshold && (
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 6 }}>{`⚠️ ${t('seller_products.low_stock_badge')}`}</div>
+                  )}
                   <div style={{ display: 'flex', gap: 6 }}>
                     <button onClick={() => handleEdit(product)} style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>{`✏️ ${t('seller_products.edit')}`}</button>
                     <button onClick={() => handleToggleZipo(product)} style={{ flex: 1, backgroundColor: product.isZipo ? '#fee2e2' : '#dcfce7', color: product.isZipo ? '#dc2626' : '#16a34a', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>

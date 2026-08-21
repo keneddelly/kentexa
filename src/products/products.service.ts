@@ -19,6 +19,7 @@ import { SearchIndexService } from '../search/search-index.service';
 import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 import { buildMultiTermLikeClause } from '../search/search-query.util';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
+import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { withPriceOverlay, formatPriceLabel } from '../feed/utils/price-overlay.util';
 import { SellerRankingService } from './seller-ranking.service';
 import { InventoryService } from '../inventory/inventory.service';
@@ -35,6 +36,9 @@ export class ProductsService {
 
     @InjectRepository(SellerProfile)
     private sellerProfileRepo: Repository<SellerProfile>,
+
+    @InjectRepository(Order)
+    private orderRepo: Repository<Order>,
 
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
@@ -104,7 +108,8 @@ export class ProductsService {
         'seller.phone',
         'seller.role',
       ])
-      .where('p.isAvailable = :isAvailable', { isAvailable: true });
+      .where('p.isAvailable = :isAvailable', { isAvailable: true })
+      .andWhere('p.availableOnline = :availableOnline', { availableOnline: true });
     if (category) query.andWhere('p.category = :category', { category });
     const products = await query.orderBy('p.createdAt', 'DESC').getMany();
     return this.rankByRelevance(products);
@@ -136,7 +141,8 @@ export class ProductsService {
         'seller.phone',
         'seller.role',
       ])
-      .where('p.isAvailable = :isAvailable', { isAvailable: true });
+      .where('p.isAvailable = :isAvailable', { isAvailable: true })
+      .andWhere('p.availableOnline = :availableOnline', { availableOnline: true });
 
     // Query normalization layer — see search-term-normalizer.util.ts.
     // "kamera" now also matches products titled "camera" (and vice versa),
@@ -208,16 +214,40 @@ export class ProductsService {
 
   async findBySeller(sellerId: number) {
     return this.repo.find({
-      where: { seller: { id: sellerId }, isAvailable: true },
+      where: { seller: { id: sellerId }, isAvailable: true, availableOnline: true },
       order: { createdAt: 'DESC' },
     });
   }
 
   async findMyProducts(user: User) {
-    return this.repo.find({
+    const products = await this.repo.find({
       where: { seller: { id: user.id } },
       order: { createdAt: 'DESC' },
     });
+    return this.attachReservedStock(products);
+  }
+
+  // "Reserved" is derived, not a stored column (see the BIS POS plan) —
+  // Product.stock already IS available stock today, since online orders
+  // decrement it immediately at creation. Reserved is purely informational:
+  // how much of the seller's PHYSICAL stock (stock + reserved) is tied up
+  // in orders a buyer hasn't finished paying for yet.
+  private async attachReservedStock<T extends { id: number }>(
+    products: T[],
+  ): Promise<(T & { reservedStock: number })[]> {
+    if (products.length === 0) return [];
+    const ids = products.map((p) => p.id);
+    const rows = await this.orderRepo
+      .createQueryBuilder('o')
+      .innerJoin('o.product', 'p')
+      .select('p.id', 'productId')
+      .addSelect('SUM(o.quantity)', 'reserved')
+      .where('p.id IN (:...ids)', { ids })
+      .andWhere('o.status = :status', { status: OrderStatus.PENDING_PAYMENT })
+      .groupBy('p.id')
+      .getRawMany<{ productId: number; reserved: string }>();
+    const reservedMap = new Map(rows.map((r) => [r.productId, Number(r.reserved)]));
+    return products.map((p) => ({ ...p, reservedStock: reservedMap.get(p.id) || 0 }));
   }
 
   // Barcode wins when both are given — a scan is unambiguous, a typed SKU

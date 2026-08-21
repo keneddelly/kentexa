@@ -3418,6 +3418,8 @@
     "marked_unavailable": "Product marked as unavailable",
     "hidden_badge": "❌ Hidden",
     "stock_label": "Stock: {{count}}",
+    "reserved_label": "{{count}} reserved",
+    "low_stock_badge": "Low stock",
     "name_placeholder": "e.g. Hidden Camera 1080P",
     "description_placeholder": "Describe your product in detail — include what it does, who it's for, and why it's worth buying...",
     "ai_description_button": "Generate with AI",

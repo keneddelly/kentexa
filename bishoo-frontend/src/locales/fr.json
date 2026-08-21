@@ -3414,6 +3414,8 @@
     "marked_unavailable": "Produit marqué comme indisponible",
     "hidden_badge": "❌ Masqué",
     "stock_label": "Stock : {{count}}",
+    "reserved_label": "{{count}} réservés",
+    "low_stock_badge": "Stock Faible",
     "name_placeholder": "ex. Caméra cachée 1080P",
     "description_placeholder": "Décrivez votre produit en détail — ce qu'il fait, à qui il s'adresse, et pourquoi il vaut la peine d'être acheté...",
     "ai_description_button": "Générer avec l'IA",
