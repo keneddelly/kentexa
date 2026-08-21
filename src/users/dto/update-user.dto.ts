@@ -5,6 +5,7 @@ import {
   IsString,
   IsBoolean,
   IsArray,
+  IsObject,
   MinLength,
 } from 'class-validator';
 import { UserRole } from '../entities/user.entity';
@@ -51,6 +52,14 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   onboardingCompleted?: boolean;
+
+  // The Setup Wizard/feature-tour state blob — see User.onboardingState.
+  // Not deep-validated here (shape is owned/produced entirely by the
+  // frontend's onboarding context); just whitelisted so it isn't silently
+  // stripped the same way onboardingCompleted originally was, above.
+  @IsOptional()
+  @IsObject()
+  onboardingState?: Record<string, any>;
 
   @IsOptional()
   @IsString()

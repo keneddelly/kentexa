@@ -1,8 +1,13 @@
 /**
- * Onboarding.js — New user guided setup
+ * Onboarding.js — the first-time Kentexa Setup Wizard.
  * Place at: src/public/pages/Onboarding.js
  *
- * Steps (name is NOT asked here — Register.js already collects it):
+ * Step 0. "What do you want to do on Kentexa?" — branches by use case,
+ *         so a seller/Super Agent/transport provider is routed straight
+ *         into the right real flow instead of being forced through the
+ *         buyer-only steps below.
+ * Steps 1-3 (buyer path only; name is NOT asked here — Register.js
+ * already collects it):
  * 1. Location (city) — personalized greeting using the name from signup
  * 2. Interests (categories)
  * 3. Follow 3+ suggested businesses
@@ -11,6 +16,18 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import { useOnboarding } from '../../onboarding/OnboardingContext';
+
+const getUseCases = (t) => [
+  { key: 'sell',        icon: '🏪', label: t('onboarding.usecase_sell') },
+  { key: 'manage',      icon: '📊', label: t('onboarding.usecase_manage') },
+  { key: 'orders',      icon: '🧾', label: t('onboarding.usecase_orders') },
+  { key: 'ship',        icon: '📦', label: t('onboarding.usecase_ship') },
+  { key: 'super_agent', icon: '🏢', label: t('onboarding.usecase_super_agent') },
+  { key: 'transport',   icon: '🚚', label: t('onboarding.usecase_transport') },
+  { key: 'buy',         icon: '🛒', label: t('onboarding.usecase_buy') },
+  { key: 'ai',          icon: '✨', label: t('onboarding.usecase_ai') },
+];
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -41,8 +58,10 @@ const getInterests = (t) => [
 
 const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
   const { t } = useTranslation();
+  const { selectUseCase, completeOnboarding } = useOnboarding();
   const INTERESTS = getInterests(t);
-  const [step,        setStep]        = useState(1);
+  const USE_CASES = getUseCases(t);
+  const [step,        setStep]        = useState(0);
   const [name]        = useState(currentUser?.name || '');
   const [city,        setCity]        = useState(currentUser?.city || '');
   const [interests,   setInterests]   = useState([]);
@@ -77,6 +96,40 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
       await api.post(`/stores/${sellerId}/follow`);
       setFollowed(prev => new Set([...prev, sellerId]));
     } catch {}
+  };
+
+  // Step 0 branching — "buy" is the only use case that continues into the
+  // existing city/interests/follow steps below; every professional use
+  // case routes straight into the real flow for it (application page if
+  // the user doesn't have that role yet, their real dashboard if they
+  // already do — so a returning user picking their own role again isn't
+  // sent back through an application form).
+  const activeRoles = currentUser?.activeRoles || [];
+  const goTo = (targetPage) => {
+    completeOnboarding();
+    onNavigate(targetPage);
+  };
+  const handleUseCase = (key) => {
+    selectUseCase(key);
+    switch (key) {
+      case 'buy':      setStep(1); return;
+      case 'ai':       goTo('Search'); return;
+      case 'ship':     goTo('SendShipment'); return;
+      case 'sell':
+      case 'manage':
+        goTo(activeRoles.includes('seller') ? 'SellerProducts' : 'BecomeSeller');
+        return;
+      case 'orders':
+        goTo(activeRoles.includes('seller') ? 'SellerOrders' : 'BecomeSeller');
+        return;
+      case 'super_agent':
+        goTo(activeRoles.includes('super_agent') ? 'SuperAgentDashboard' : 'BecomeSuperAgentInfo');
+        return;
+      case 'transport':
+        goTo(activeRoles.includes('transport_provider') ? 'TransportProviderDashboard' : 'BecomeTransportProvider');
+        return;
+      default: setStep(1);
+    }
   };
 
   const handleFinish = async () => {
@@ -115,31 +168,68 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
       fontFamily: 'Manrope,Inter,-apple-system,sans-serif',
       display: 'flex', flexDirection: 'column' }}>
 
-      {/* Progress bar */}
-      <div style={{ height: 4, backgroundColor: '#E2E8F0' }}>
-        <div style={{ height: '100%', backgroundColor: B,
-          width: `${progress}%`, transition: 'width 0.4s ease',
-          borderRadius: '0 2px 2px 0' }} />
-      </div>
+      {/* Progress bar — hidden on step 0, the branch picker isn't part of
+          the buyer step count below it. */}
+      {step > 0 && (
+        <div style={{ height: 4, backgroundColor: '#E2E8F0' }}>
+          <div style={{ height: '100%', backgroundColor: B,
+            width: `${progress}%`, transition: 'width 0.4s ease',
+            borderRadius: '0 2px 2px 0' }} />
+        </div>
+      )}
 
       {/* Step indicator */}
-      <div style={{ padding: '16px 20px 0',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 12, color: GR, fontWeight: 700 }}>
-          {t('onboarding.step_indicator', { step, total: TOTAL_STEPS })}
+      {step > 0 && (
+        <div style={{ padding: '16px 20px 0',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 12, color: GR, fontWeight: 700 }}>
+            {t('onboarding.step_indicator', { step, total: TOTAL_STEPS })}
+          </div>
+          {step < TOTAL_STEPS && (
+            <button onClick={() => setStep(s => s + 1)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer',
+                color: GR, fontSize: 12, fontWeight: 700 }}>
+              {t('onboarding.skip')}
+            </button>
+          )}
         </div>
-        {step < TOTAL_STEPS && (
-          <button onClick={() => setStep(s => s + 1)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer',
-              color: GR, fontSize: 12, fontWeight: 700 }}>
-            {t('onboarding.skip')}
-          </button>
-        )}
-      </div>
+      )}
 
       {/* Content */}
       <div style={{ flex: 1, padding: '32px 20px 24px', maxWidth: 480,
         margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+
+        {/* ── STEP 0: What do you want to do on Kentexa? ── */}
+        {step === 0 && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <div style={{ fontSize: 32, marginBottom: 16 }}>👋</div>
+            <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
+              margin: '0 0 8px', lineHeight: 1.2 }}>
+              {t('onboarding.welcome_title', { name: currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : '' })}
+            </h1>
+            <p style={{ fontSize: 15, color: GR, margin: '0 0 24px', lineHeight: 1.6 }}>
+              {t('onboarding.usecase_desc')}
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {USE_CASES.map(u => (
+                <button key={u.key} onClick={() => handleUseCase(u.key)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '14px 16px', borderRadius: 14, cursor: 'pointer',
+                    border: '2px solid #E2E8F0', backgroundColor: WH,
+                    textAlign: 'left', transition: 'all 0.15s' }}>
+                  <span style={{ fontSize: 22 }}>{u.icon}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: DK }}>{u.label}</span>
+                  <span style={{ marginLeft: 'auto', color: GR, fontSize: 16 }}>→</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={() => goTo('Home')}
+              style={{ display: 'block', margin: '20px auto 0', background: 'none',
+                border: 'none', cursor: 'pointer', color: GR, fontSize: 12.5, fontWeight: 700 }}>
+              {t('onboarding.usecase_explore_link')}
+            </button>
+          </div>
+        )}
 
         {/* ── STEP 1: Location (personalized greeting — name already known from signup) ── */}
         {step === 1 && (
@@ -281,7 +371,8 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
         )}
       </div>
 
-      {/* Bottom CTA */}
+      {/* Bottom CTA — step 0's own cards navigate directly, no shared CTA needed */}
+      {step > 0 && (
       <div style={{ padding: '16px 20px 32px', maxWidth: 480,
         margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         <button
@@ -310,6 +401,7 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
           </button>
         )}
       </div>
+      )}
 
       <style>{`
         @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }

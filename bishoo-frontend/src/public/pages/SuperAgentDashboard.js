@@ -30,6 +30,9 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
+import FeatureTour from '../../onboarding/FeatureTour';
+import TourTrigger from '../../onboarding/TourTrigger';
+import SetupProgressCard from '../../onboarding/SetupProgressCard';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Full hub-operations dashboard (receive/dispatch/pricing/van) re-enabled —
@@ -811,6 +814,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
 
   // ── Main dashboard ────────────────────────────────────────────────────────
 
+  // Lets the generic FeatureTour engine drive this page's own tab/mode
+  // state before it measures a step's target — the engine itself knows
+  // nothing about "pokea"/"tuma"/pokeaMode, it just calls this with
+  // whatever a tour step's `requiresState` declares.
+  const handleTourStepChange = (requiredState) => {
+    if (requiredState.activeTab) setActiveTab(requiredState.activeTab);
+    if (requiredState.pokeaMode) setPokeaMode(requiredState.pokeaMode);
+  };
+
   const handleTransferHub = async (trackingNumber, form) => {
     if (!form.destinationSuperAgentId && !form.manualContactName) {
       alert('Chagua Super Agent aliyesajiliwa au jaza jina la mshirika'); return;
@@ -892,7 +904,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
               { key: 'bei',     label: '📋 BEI'     },
               ...(isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
             ].map(t => (
-              <button key={t.key} onClick={() => { setActiveTab(t.key); setPokeaMode('list'); }}
+              <button key={t.key} data-tour={`sa-tab-${t.key}`}
+                onClick={() => { setActiveTab(t.key); setPokeaMode('list'); }}
                 style={{ flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
                   fontSize: 10, fontWeight: 800, borderRadius: '6px 6px 0 0',
                   backgroundColor: activeTab === t.key ? '#f1f5f9' : 'transparent',
@@ -903,6 +916,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
           </div>
         </div>
       </div>
+
+      {/* Onboarding: first-parcel coach-mark tour (auto-launches once) +
+          a small badge to replay it anytime. FeatureTour renders nothing
+          when inactive, so this is always safe to mount. */}
+      <div style={{ position: 'fixed', top: 8, right: 12, zIndex: 500 }}>
+        <TourTrigger tourKey="super_agent_first_parcel" />
+      </div>
+      <FeatureTour tourKey="super_agent_first_parcel" onStepChange={handleTourStepChange} autoStart />
 
       {/* ── Content ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto',
@@ -933,9 +954,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
             {/* Sub-mode selector */}
             {pokeaMode === 'list' && (
               <>
+                <SetupProgressCard journeyKey="super_agent"
+                  context={{ profileStatus, dashData }} onNavigate={onNavigate} />
+
                 {/* Four action buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 20 }}>
-                  <button onClick={() => setPokeaMode('walk_in')}
+                  <button data-tour="sa-walkin-trigger" onClick={() => setPokeaMode('walk_in')}
                     style={{ backgroundColor: '#16a34a', color: '#fff', border: 'none',
                       padding: '14px 6px', borderRadius: 12, cursor: 'pointer',
                       fontSize: 10, fontWeight: 800, textAlign: 'center' }}>
@@ -1082,7 +1106,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                       </div>
                     ))}
 
-                    <div style={{ marginBottom: 10 }}>
+                    <div data-tour="sa-walkin-destination" style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 11, fontWeight: 700, color: '#475569',
                         display: 'block', marginBottom: 3 }}>Mji wa Mwisho *</label>
                       <LocationPicker
@@ -1200,7 +1224,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                       </div>
                     </div>
 
-                    <button onClick={handleWalkSubmit} disabled={actionLoading}
+                    <button data-tour="sa-walkin-submit" onClick={handleWalkSubmit} disabled={actionLoading}
                       style={{ width: '100%', backgroundColor: actionLoading ? '#94a3b8' : '#16a34a',
                         color: '#fff', border: 'none', padding: 14, borderRadius: 10,
                         cursor: 'pointer', fontSize: 14, fontWeight: 900, marginTop: 8 }}>

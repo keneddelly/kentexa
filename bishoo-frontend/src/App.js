@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usePWA, InstallBanner, subscribeToPush } from './public/hooks/usePWA';
 import api from './api/api';
 import { CartProvider } from './context/CartContext';
+import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
 import HomeFeed           from './public/pages/HomeFeed';
 import MyProfile          from './public/pages/MyProfile';
@@ -317,7 +318,11 @@ function App() {
         setNavParams(null);
         if (profile && !profile.avatarUrl) {
           setPage('AddProfilePhoto');
-        } else if (!decoded.onboardingCompleted && decoded.role === 'user') {
+        } else if (!decoded.onboardingCompleted) {
+          // Was role === 'user' only — the Setup Wizard is now the real
+          // first-time entry point for every role (it opens with "what do
+          // you want to do on Kentexa?" and branches from there), not just
+          // the buyer-only city/interests/follow flow it used to gate.
           setTimeout(() => setPage('Onboarding'), 100);
         } else {
           // Check if there's a stored intended destination (e.g. from + menu)
@@ -657,6 +662,7 @@ function App() {
   };
 
   return (
+    <OnboardingProvider currentUser={currentUser}>
     <CartProvider>
       {renderPage()}
 
@@ -738,6 +744,7 @@ function App() {
       )}
       {showInstallPrompt && <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} />}
     </CartProvider>
+    </OnboardingProvider>
   );
 }
 

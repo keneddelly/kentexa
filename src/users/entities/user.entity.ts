@@ -165,6 +165,20 @@ export class User {
   @Column({ type: 'boolean', default: false })
   onboardingCompleted: boolean; // guided setup done
 
+  // Richer onboarding state than the single boolean above — which use case
+  // the user picked in the Setup Wizard, per-journey step completion, and
+  // per-feature tour completion/skip status. Additive: onboardingCompleted
+  // keeps its existing meaning ("initial wizard done") and every existing
+  // consumer of it (JWT payload, login response) is untouched.
+  @Column({ type: 'jsonb', nullable: true })
+  onboardingState: {
+    selectedUseCase: string | null;
+    startedAt: string | null;
+    completedAt: string | null;
+    journeySteps: Record<string, string[]>; // journeyKey -> completed step ids
+    tours: Record<string, { status: 'completed' | 'skipped'; at: string }>;
+  } | null;
+
   @Column({ type: 'simple-array', nullable: true })
   interests: string[] | null; // ['electronics','fashion','food'...]
 
