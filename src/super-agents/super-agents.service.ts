@@ -3126,11 +3126,41 @@ export class SuperAgentsService {
       // would create a second Invoice and tell the customer "payment
       // received" a second time for the same money — reuse the sale's own
       // receipt instead of minting a new one.
+      //
+      // But the customer still needs SOME message here — neither
+      // SalesService.createSale() (the POS sale itself) nor this branch's
+      // skipped payment-confirmation block sends anything, so without an
+      // explicit SMS the customer gets zero communication between paying
+      // at the counter and their parcel arriving. This one confirms
+      // tracking is live, worded for "already paid, now shipping" instead
+      // of the payment-confirmation wording used below.
       buyerName = linkedSale.customerName || dto.recipientName;
       buyerPhone = linkedSale.customerPhone || dto.recipientPhone;
       orderAmount = Number(linkedSale.total);
       receiptNumber = linkedSale.receiptNumber;
       await this.saleRepo.update(linkedSale.id, { shipmentTrackingNumber: trackingNumber });
+
+      try {
+        buyerPaymentSmsSent = await this.smsService.sendSms(
+          buyerPhone,
+          `Habari ${buyerName}, ${senderDisplayName} ameanza kutuma bidhaa yako: ${dto.description} (Oda: ${trackingNumber}).\n\n` +
+            `Risiti: ${receiptNumber}\n\n` +
+            `Verified by Kentexa`,
+        );
+      } catch (e: any) {
+        console.warn('POS-linked shipment SMS failed:', e?.message);
+      }
+
+      await this.auditLog
+        .record({
+          actorId: seller.id,
+          actorRole: 'seller',
+          action: 'order.shipped_from_sale',
+          entityType: 'order',
+          entityId: order.id,
+          newValue: { saleId: linkedSale.id, receiptNumber, buyerPhone, buyerPaymentSmsSent },
+        })
+        .catch(() => {});
     } else {
       // ── Manual-order payment confirmation ───────────────────────────────
       // The customer already paid the seller directly (cash/WhatsApp/mobile
