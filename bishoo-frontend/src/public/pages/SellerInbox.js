@@ -360,7 +360,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
         </div>
       )}
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', maxWidth: 480,
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', maxWidth: 480,
         margin: '0 auto', width: '100%' }}>
 
         {/* Conversation list — hidden when active on mobile */}
@@ -411,11 +411,11 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
         {/* Chat window */}
         {active && (
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column',
-            height: '100%' }}>
+            height: '100%', minHeight: 0 }}>
             {/* Chat header */}
             <div style={{ backgroundColor: '#fff', padding: '12px 16px',
               borderBottom: '1px solid #f1f5f9', display: 'flex',
-              alignItems: 'center', gap: 12 }}>
+              alignItems: 'center', gap: 12, flexShrink: 0 }}>
               <button onClick={() => buyerDeepLink
                   ? onNavigate('back')
                   : (setActive(null), setMessages([]))}
@@ -445,8 +445,12 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
               )}
             </div>
 
-            {/* Messages */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px',
+            {/* Messages — minHeight:0 is required here: without it this
+                flex:1 scroll area sizes to its content instead of clamping
+                to the flex column, which pushes the input bar below out
+                of the visible viewport on mobile (looked like overlapping
+                content, and made the input impossible to reach/type in). */}
+            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 16px',
               backgroundColor: '#f8fafc' }}>
               {msgLoading ? (
                 <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>⏳</div>
@@ -542,21 +546,25 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
 
             {/* Input bar */}
             <div style={{ backgroundColor: '#fff', padding: '10px 12px',
-              borderTop: '1px solid #f1f5f9' }}>
-              {/* Action buttons — seller-only CRM tools, hidden for the buyer side */}
+              borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
+              {/* Action buttons — seller-only CRM tools, hidden for the buyer side.
+                  overflowX:'auto' + flexShrink:0 per button so all four stay
+                  reachable via horizontal scroll on narrow phones instead of
+                  the row silently clipping the last one or two off-screen. */}
               {active._mode !== 'buyer' && (
-              <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 8, overflowX: 'auto',
+                paddingBottom: 2, WebkitOverflowScrolling: 'touch' }}>
                 <button onClick={() => setShowProducts(!showProducts)}
                   title={t('seller_inbox.share_product_title')}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
+                  style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: showProducts ? '#eff6ff' : '#fff', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: '#1d4ed8' }}>
+                    fontSize: 11, fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
                   {t('seller_inbox.products_button')}
                 </button>
                 <button onClick={() => setShowOrderForm(!showOrderForm)}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
+                  style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: showOrderForm ? '#f0fdf4' : '#fff', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: '#16a34a' }}>
+                    fontSize: 11, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>
                   {t('seller_inbox.order_button')}
                 </button>
                 <button onClick={() => onNavigate('SellerShipment', {
@@ -570,15 +578,15 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                     wardId:     active?.customer?.wardId     || null,
                     ward:       active?.customer?.ward       || '',
                   })}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
+                  style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: '#fff', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: '#7c3aed' }}>
+                    fontSize: 11, fontWeight: 700, color: '#7c3aed', whiteSpace: 'nowrap' }}>
                   {t('seller_inbox.ship_button')}
                 </button>
                 <button onClick={() => setIsNote(!isNote)}
-                  style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
+                  style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: isNote ? '#fef3c7' : '#fff', cursor: 'pointer',
-                    fontSize: 11, fontWeight: 700, color: '#92400e' }}>
+                    fontSize: 11, fontWeight: 700, color: '#92400e', whiteSpace: 'nowrap' }}>
                   📝 {isNote ? t('seller_inbox.note_button_checked') : t('seller_inbox.note_button')}
                 </button>
               </div>
