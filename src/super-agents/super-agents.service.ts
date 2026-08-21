@@ -456,11 +456,18 @@ export class SuperAgentsService {
     const trackingNumber = `KTX-ORD-${savedOrder.id}`;
     await this.orderRepo.update(savedOrder.id, { trackingNumber });
 
-    // 2. Super agent earnings = commission % of fee collected
-    const commissionRate = Number(superAgent.commissionRate || 10);
-    const agentEarnings = parseFloat(
-      ((dto.shippingFeeCollected * commissionRate) / 100).toFixed(2),
-    );
+    // 2. Super agent earnings = the FULL cash they physically collected —
+    // not a commission. Kentexa never holds this money (unlike an online
+    // order, where escrow makes a commissionRate cut the correct model);
+    // the agent keeps 100% of what they collected at the counter, and
+    // Kentexa's own compensation is the separate flat platform fee
+    // tracked below (platformFeeCharged). This used to compute a 10%
+    // commission here — inconsistent with the other manual-order path
+    // (superAgentReceiveOrder's manual branch), which already correctly
+    // uses the full amount, and made "Mapato" show a number with no real
+    // money behind it (an agent who collected TZS 5,000 cash saw TZS 500
+    // "earned," 90% short of what was actually in their hand).
+    const agentEarnings = Number(dto.shippingFeeCollected) || 0;
 
     // 3. Find destination Super Agent and look up route for transit city
     const destAgent = await this.superAgentRepo.findOne({

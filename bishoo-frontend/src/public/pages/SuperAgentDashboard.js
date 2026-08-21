@@ -2083,6 +2083,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                     ⚠️ Huduma imesimamishwa hadi deni lilipwe. Wasiliana na Kentexa kulipa deni lako.
                   </div>
                 )}
+                {!dashData.agent.billing.billingBlocked && (
+                  <div style={{ marginTop: 10, backgroundColor: '#f0fdf4', borderRadius: 8,
+                    padding: '10px 12px', fontSize: 12, color: '#166534' }}>
+                    {dashData.agent.billing.freeOrdersRemaining > 0
+                      ? `ℹ️ Umebaki na maagizo ${dashData.agent.billing.freeOrdersRemaining} ya bure. Baada ya kumaliza, kila agizo jipya litatozwa TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}.`
+                      : `ℹ️ Umeshamaliza maagizo yako 50 ya bure. Sasa kila agizo jipya litatozwa TZS ${Number(dashData.agent.billing.platformFeePerOrder).toLocaleString()}.`}
+                  </div>
+                )}
               </div>
             )}
 
