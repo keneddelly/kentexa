@@ -427,7 +427,20 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   const handleAiSearch = useCallback(async (q, intent) => {
     const trimmed = (intent?.keywords || q || query).trim();
     const rawQ    = (q || query).trim();
-    const tabForDomain = AI_DOMAIN_TO_TAB[intent?.domain] || 'all';
+    // Only transport/people are genuinely domain-exclusive fetches (see the
+    // dedicated branches below — they never join the classifieds/products/
+    // services fan-out, so "all" would show nothing for them). For every
+    // other guessed domain, classifieds/products/services are ALWAYS
+    // searched together regardless of what the AI guessed (see the comment
+    // further down) — auto-switching to that one guessed tab was hiding
+    // real matches: e.g. the AI guesses "product" for a query whose only
+    // real match is a classified ad, so the classified never renders on
+    // the auto-selected Products/Store tab and looks like it "vanished"
+    // unless the user manually clicks back to All.
+    const tabForDomain =
+      intent?.domain === 'transport' || intent?.domain === 'people'
+        ? AI_DOMAIN_TO_TAB[intent.domain]
+        : 'all';
     setLoading(true);
     setSearched(true);
     setTab(tabForDomain);
