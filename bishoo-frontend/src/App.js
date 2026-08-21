@@ -672,7 +672,7 @@ function App() {
       {/* Hidden during Onboarding — a focused setup wizard shouldn't show
           tab navigation, and this also fixes the Continue button being
           hidden behind the nav bar on each step. */}
-      {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && (
+      {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS' && (
         <BottomNav
           currentPage={page}
           onNavigate={handleNavigate}
