@@ -140,6 +140,86 @@ const MenuRow = ({ icon, label, value, onClick, last }) => (
   </button>
 );
 
+// ── BIS Commerce Dashboard — merges Local POS + Manual (Sale) and Kentexa
+// Online (Order) data from GET /sales/dashboard. Renders nothing if the
+// seller has no POS/inventory activity yet, so it never adds noise for a
+// seller who only sells online. ─────────────────────────────────────────
+const CHANNEL_LABELS = { local_pos: '🖥️', kentexa_online: '🌐', manual: '📝' };
+const BisCommerceDashboard = ({ data, onNavigate, t }) => {
+  if (!data) return null;
+  const hasAnyChannelData = Object.values(data.today?.byChannel || {}).some(v => v > 0);
+  if (!hasAnyChannelData && data.inventory?.totalProducts === 0) return null;
+
+  return (
+    <div style={{ backgroundColor: WH, borderRadius: 16, padding: 20,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 14, fontWeight: 900, color: DK }}>🧾 {t('seller_dashboard.commerce_dashboard_title')}</div>
+        <button onClick={() => onNavigate('POS')} style={{ background: `linear-gradient(135deg,${B},${PU})`,
+          color: WH, border: 'none', padding: '6px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>
+          {`🖥️ ${t('seller_products.open_pos')}`}
+        </button>
+      </div>
+
+      {/* Today by channel */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
+        {['local_pos', 'kentexa_online', 'manual'].map(ch => (
+          <div key={ch} style={{ backgroundColor: '#F8FAFC', borderRadius: 12, padding: '10px 8px', textAlign: 'center' }}>
+            <div style={{ fontSize: 16 }}>{CHANNEL_LABELS[ch]}</div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: DK, marginTop: 2 }}>TZS {fmt(data.today?.byChannel?.[ch] || 0)}</div>
+            <div style={{ fontSize: 9, color: GR, fontWeight: 700, textTransform: 'uppercase' }}>{t(`seller_dashboard.channel_${ch}`)}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '10px 0', borderTop: '1px solid #F1F5F9', marginBottom: 14 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('seller_dashboard.today_total')}</span>
+        <span style={{ fontSize: 17, fontWeight: 900, color: GN }}>TZS {fmt(data.grossSales)}</span>
+      </div>
+
+      {/* Gross profit — only when cost prices are actually set on at least
+          one sold item, per the spec's "if cost prices are available". */}
+      {data.costOfGoods > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: GR, marginBottom: 4 }}>
+          <span>{t('seller_dashboard.cost_of_goods')}</span><span>TZS {fmt(data.costOfGoods)}</span>
+        </div>
+      )}
+      {data.costOfGoods > 0 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800, color: DK, marginBottom: 14 }}>
+          <span>{t('seller_dashboard.gross_profit')}</span><span>TZS {fmt(data.grossProfit)}</span>
+        </div>
+      )}
+
+      {/* Low stock */}
+      {data.lowStock?.length > 0 && (
+        <div style={{ backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: '#DC2626', marginBottom: 6 }}>
+            ⚠️ {t('seller_dashboard.low_stock_title', { count: data.lowStock.length })}
+          </div>
+          {data.lowStock.slice(0, 4).map(p => (
+            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#991B1B', padding: '2px 0' }}>
+              <span>{p.name}</span><span style={{ fontWeight: 700 }}>{t('seller_products.stock_label', { count: p.stock })}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Best sellers */}
+      {data.bestSellers?.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: DK, marginBottom: 6 }}>{t('seller_dashboard.best_sellers_title')}</div>
+          {data.bestSellers.slice(0, 5).map((p, i) => (
+            <div key={p.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: 12 }}>
+              <span style={{ color: DK }}>{i + 1}. {p.name}</span>
+              <span style={{ color: GR, fontWeight: 700 }}>{t('seller_dashboard.units_sold', { count: p.unitsSold })}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment, currentUser }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = LOCALE_MAP[i18n.language] || 'en-GB';
@@ -154,6 +234,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
   const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [invoiceMessage, setInvoiceMessage]   = useState('');
   const [vanStatus, setVanStatus]             = useState(null);
+  const [posDashboard, setPosDashboard]       = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -177,6 +258,10 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
           const vanRes = await api.get('/daily-batches/manifest/today');
           setVanStatus(vanRes.data);
         } catch { setVanStatus(null); }
+        try {
+          const posRes = await api.get('/sales/dashboard');
+          setPosDashboard(posRes.data);
+        } catch { setPosDashboard(null); }
       }
     } catch (err) {
       if (err?.response?.status === 404) setProfileStatus('not_applied');
@@ -369,6 +454,8 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
               </div>
 
               <RevenueChart orders={data.recentOrders} />
+
+              <BisCommerceDashboard data={posDashboard} onNavigate={onNavigate} t={t} />
 
               {data.recentOrders.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 28, color: '#94A3B8' }}>

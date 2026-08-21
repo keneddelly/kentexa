@@ -45,10 +45,10 @@ export class SalesController {
     });
   }
 
-  @Get('today-summary')
-  async todaySummary(@Request() req) {
+  @Get('dashboard')
+  async dashboard(@Request() req) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canViewRevenue');
-    return this.service.getTodaySummary(sellerId);
+    return this.service.getDashboard(sellerId);
   }
 
   @Get(':id')
