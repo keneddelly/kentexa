@@ -139,7 +139,7 @@ const POS = ({ onNavigate, currentUser }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F8FAFC', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
-      <BackBar title={t('pos.title')} onBack={() => step === 'cart' ? onNavigate('back') : setStep('cart')} />
+      <BackBar title={t('pos.title')} onBack={() => step === 'cart' ? onNavigate('back') : setStep('cart')} top={0} />
 
       {error && (
         <div style={{ backgroundColor: '#FEE2E2', color: '#DC2626', padding: '10px 16px', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
