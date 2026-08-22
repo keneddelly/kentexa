@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { KENTEXA_SUPPORT } from '../utils/whatsapp-link';
 
 const Footer = ({ onNavigate }) => {
   const { t } = useTranslation();
@@ -86,7 +87,7 @@ const Footer = ({ onNavigate }) => {
           <div style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>{t('footer.contact_company')}</div>
           {/* Social */}
           <div style={{ display: 'flex', gap: 10 }}>
-            <a href="https://wa.me/255788075633" target="_blank" rel="noreferrer"
+            <a href={`https://wa.me/${KENTEXA_SUPPORT}`} target="_blank" rel="noreferrer"
               style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, textDecoration: 'none' }}>💬</a>
             <a href="mailto:support@kentexa.com"
               style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, textDecoration: 'none' }}>📧</a>

@@ -14,7 +14,7 @@
  * Tone: conversational Swahili, warm, direct. No corporate language.
  */
 
-const KENTEXA_SUPPORT = '255788075633';
+export const KENTEXA_SUPPORT = '255747798612';
 const BASE_URL        = 'https://kentexa.com';
 
 const normalize = (raw) => {

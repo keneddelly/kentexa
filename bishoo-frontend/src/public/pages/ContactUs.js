@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import { KENTEXA_SUPPORT } from '../utils/whatsapp-link';
 
 const getFaqs = (t) => Array.from({ length: 7 }, (_, i) => ({
   q: t(`contact_us.faq${i + 1}_q`),
@@ -53,7 +54,7 @@ const ContactUs = ({ onNavigate, currentUser }) => {
       {/* Quick contact options */}
       <div style={{ padding: '16px 16px 0', maxWidth: 700, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
-          <a href="https://wa.me/255700000000" target="_blank" rel="noreferrer"
+          <a href={`https://wa.me/${KENTEXA_SUPPORT}`} target="_blank" rel="noreferrer"
             style={{ backgroundColor: '#dcfce7', borderRadius: 14, padding: '16px 12px', textAlign: 'center', textDecoration: 'none', display: 'block' }}>
             <div style={{ fontSize: 28, marginBottom: 6 }}>💬</div>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#16a34a' }}>{t('contact_us.whatsapp_label')}</div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
+import { buildBuyerInquiryMessage, KENTEXA_SUPPORT as KENTEXA_SUPPORT_WHATSAPP } from '../utils/whatsapp-link';
 import { hasAnyRole } from '../utils/roles';
 
 const CITY_TRANSIT_DAYS = {
@@ -588,12 +588,12 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
                 {t('track_parcel.seller_not_using_desc')}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <a href="https://kentexa.com/for-sellers" target="_blank" rel="noreferrer"
-                  style={{ flex: 1, backgroundColor: '#1d4ed8', color: '#fff', padding: '10px 8px',
-                    borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
+                <button onClick={() => onNavigate(isLoggedIn ? 'BecomeSeller' : 'PublicLogin')}
+                  style={{ flex: 1, backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 8px',
+                    borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
                   {t('track_parcel.register_seller_button')}
-                </a>
-                <a href={'https://wa.me/255788075633?text=' + encodeURIComponent('Habari! Nataka kujua zaidi kuhusu KenteXa kwa wauzaji')}
+                </button>
+                <a href={'https://wa.me/' + KENTEXA_SUPPORT_WHATSAPP + '?text=' + encodeURIComponent('Habari! Nataka kujua zaidi kuhusu KenteXa kwa wauzaji')}
                   target="_blank" rel="noreferrer"
                   style={{ flex: 1, backgroundColor: '#25D366', color: '#fff', padding: '10px 8px',
                     borderRadius: 8, textDecoration: 'none', fontSize: 11, fontWeight: 800, textAlign: 'center' }}>
