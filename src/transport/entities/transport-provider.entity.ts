@@ -173,6 +173,9 @@ export class TransportProvider {
   @Column({ type: 'decimal', precision: 3, scale: 2, default: 0 })
   rating: number; // Phase 1
 
+  @Column({ type: 'int', default: 0 })
+  totalRatings: number; // how many buyer ratings contributed to `rating` above
+
   // ── Verification (Phase 1) ───────────────────────────────────────────────
   @Column({ type: 'timestamp', nullable: true })
   verifiedAt: Date | null;

@@ -294,6 +294,10 @@ export class OrdersController {
       rating?: number;
       review?: string;
       reportNote?: string;
+      superAgentRating?: number;
+      superAgentReview?: string;
+      transportRating?: number;
+      transportReview?: string;
     },
   ) {
     if (!body.token) throw new BadRequestException('Token inahitajika');

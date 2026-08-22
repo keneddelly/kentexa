@@ -34,6 +34,8 @@ import {
   AgentTransactionStatus,
 } from '../agents/entities/agent-transaction.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
+import { TransportProvider } from '../transport/entities/transport-provider.entity';
 
 const CATEGORY_COMMISSION: Record<string, number> = {
   electronics: 10,
@@ -99,6 +101,10 @@ export class OrdersService {
     @InjectRepository(AgentTransaction)
     private agentTransactionRepo: Repository<AgentTransaction>,
     @InjectRepository(Review) private reviewRepo: Repository<Review>,
+    @InjectRepository(TransportAssignment)
+    private transportAssignmentRepo: Repository<TransportAssignment>,
+    @InjectRepository(TransportProvider)
+    private transportProviderRepo: Repository<TransportProvider>,
     private productsService: ProductsService,
     private invoicesService: InvoicesService,
     private notificationsService: NotificationsService,
@@ -1206,6 +1212,26 @@ export class OrdersService {
         order.seller?.phone || (order.seller as any)?.user?.phone || null,
       deliveredAt: (order as any).deliveredAt,
       source: (order as any).source,
+      ...(await this.getReviewableShippingParties(order.id)),
+    };
+  }
+
+  // Only surfaces a Super Agent / Transport Provider rating prompt when a
+  // real one is linked to this order — resolved from Parcel/
+  // TransportAssignment, never guessed from free-text bus/courier fields.
+  private async getReviewableShippingParties(orderId: number): Promise<{
+    superAgent: { id: number; businessName: string } | null;
+    transportProvider: { id: number; name: string } | null;
+  }> {
+    const { superAgent, transportProvider } =
+      await this.resolveShippingParties(orderId);
+    return {
+      superAgent: superAgent
+        ? { id: superAgent.id, businessName: (superAgent as any).businessName }
+        : null,
+      transportProvider: transportProvider
+        ? { id: transportProvider.id, name: transportProvider.name }
+        : null,
     };
   }
 
@@ -1252,6 +1278,77 @@ export class OrdersService {
     }
   }
 
+  // Resolves the Super Agent (hub) and Transport Provider that actually
+  // handled this order's delivery, if any — used both to decide which extra
+  // rating sections to show the buyer, and (in confirmViaToken) to know who
+  // to attribute a rating to. Always resolved server-side from the real
+  // Parcel/TransportAssignment links, never from client input.
+  private async resolveShippingParties(orderId: number): Promise<{
+    superAgent: SuperAgent | null;
+    transportProvider: TransportProvider | null;
+  }> {
+    const parcel = await this.parcelRepo.findOne({
+      where: { order: { id: orderId } },
+      relations: { superAgent: true, destinationSuperAgent: true },
+    });
+    if (!parcel) return { superAgent: null, transportProvider: null };
+
+    const superAgent = parcel.destinationSuperAgent || parcel.superAgent || null;
+
+    const assignment = await this.transportAssignmentRepo.findOne({
+      where: [
+        { parcelRefId: parcel.id },
+        { parcelId: parcel.id },
+        { orderRefId: orderId },
+        { orderId },
+      ],
+      relations: { provider: { user: true } },
+      order: { id: 'DESC' },
+    });
+
+    return { superAgent, transportProvider: assignment?.provider || null };
+  }
+
+  // Rolling-average rating + count on an entity that keeps its own
+  // rating/count columns (SuperAgent, TransportProvider) — same math as
+  // CommerceProfilesService.recordReview(), kept local since these two
+  // fields live on the party's own entity, not a CommerceProfile.
+  private async updateEntityRating(
+    repo: Repository<any>,
+    id: number,
+    currentRating: number,
+    currentCount: number,
+    newRating: number,
+  ): Promise<void> {
+    const count = (currentCount || 0) + 1;
+    const average = (Number(currentRating || 0) * (currentCount || 0) + newRating) / count;
+    await repo.update(id, {
+      rating: Number(average.toFixed(2)),
+      totalRatings: count,
+    });
+  }
+
+  // Best-effort dual-write into the type-agnostic CommerceProfile reputation
+  // aggregator, matching store.service.ts's submitReview() precedent. Never
+  // throws — a missing/unresolvable CommerceProfile shouldn't block delivery
+  // confirmation.
+  private async recordPartyReview(
+    userId: number | undefined,
+    type: CommerceProfileType,
+    rating: number,
+  ): Promise<void> {
+    if (!userId) return;
+    try {
+      const profile = await this.commerceProfiles.findForUserByType(
+        userId,
+        type,
+      );
+      if (profile) await this.commerceProfiles.recordReview(profile.id, rating);
+    } catch (e) {
+      console.error('recordPartyReview failed:', e.message);
+    }
+  }
+
   // ── Confirm delivery via token (public — no auth needed) ─────────────────
 
   async confirmViaToken(
@@ -1261,6 +1358,10 @@ export class OrdersService {
       rating?: number; // 1-5
       review?: string;
       reportNote?: string; // if not confirmed, what is the problem
+      superAgentRating?: number; // 1-5
+      superAgentReview?: string;
+      transportRating?: number; // 1-5
+      transportReview?: string;
     },
   ): Promise<{ success: boolean; message: string }> {
     const order = await this.repo.findOne({
@@ -1282,6 +1383,12 @@ export class OrdersService {
       const isOnlineOrder =
         (order as any).source === 'online' || order.paymentStatus === 'paid';
 
+      // Resolve who else the buyer can rate (Super Agent / Transport
+      // Provider) server-side from the real Parcel/TransportAssignment
+      // links — never trust client-supplied IDs for who gets rated.
+      const { superAgent, transportProvider } =
+        await this.resolveShippingParties(order.id);
+
       await this.repo.update(order.id, {
         status: OrderStatus.COMPLETED,
         buyerConfirmedAt: new Date(),
@@ -1290,6 +1397,18 @@ export class OrdersService {
         buyerRating: data.rating || null,
         buyerReview: data.review || null,
         reviewedAt: data.rating ? new Date() : null,
+        ...(superAgent
+          ? {
+              superAgentRating: data.superAgentRating || null,
+              superAgentReview: data.superAgentReview || null,
+            }
+          : {}),
+        ...(transportProvider
+          ? {
+              transportRating: data.transportRating || null,
+              transportReview: data.transportReview || null,
+            }
+          : {}),
         // Release escrow for online orders only
         ...(isOnlineOrder
           ? {
@@ -1370,6 +1489,46 @@ export class OrdersService {
       // ── Update seller's aggregate rating ──────────────────────────────────
       if (order.seller?.id) {
         await this.updateSellerCompletionStats(order.seller.id, data.rating);
+      }
+
+      // ── Dual-write into CommerceProfile.rating (type-agnostic reputation
+      // aggregator) for every party actually rated this round — seller,
+      // Super Agent, Transport Provider — mirroring store.service.ts's
+      // submitReview() precedent. Best-effort: never blocks confirmation.
+      if (order.seller?.id && data.rating) {
+        await this.recordPartyReview(
+          order.seller.id,
+          CommerceProfileType.BUSINESS,
+          data.rating,
+        );
+      }
+      if (superAgent && data.superAgentRating) {
+        await this.recordPartyReview(
+          superAgent.user?.id,
+          CommerceProfileType.HUB,
+          data.superAgentRating,
+        );
+        await this.updateEntityRating(
+          this.superAgentRepo,
+          superAgent.id,
+          superAgent.rating,
+          superAgent.totalRatings,
+          data.superAgentRating,
+        );
+      }
+      if (transportProvider && data.transportRating) {
+        await this.recordPartyReview(
+          transportProvider.user?.id,
+          CommerceProfileType.TRANSPORT_PROVIDER,
+          data.transportRating,
+        );
+        await this.updateEntityRating(
+          this.transportProviderRepo,
+          transportProvider.id,
+          transportProvider.rating,
+          transportProvider.totalRatings,
+          data.transportRating,
+        );
       }
 
       return {

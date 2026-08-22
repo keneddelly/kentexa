@@ -2371,6 +2371,8 @@
     "main_question": "Avez-vous reçu votre article ? 🤔",
     "main_subtitle": "Confirmez pour que le vendeur reçoive son paiement.",
     "rate_seller_label": "Évaluez le vendeur (facultatif)",
+    "rate_super_agent_label": "Évaluez le hub/agent (facultatif)",
+    "rate_transport_label": "Évaluez le transport (facultatif)",
     "rating_1": "Très mauvais 😞",
     "rating_2": "Pas terrible 😕",
     "rating_3": "Correct 😊",

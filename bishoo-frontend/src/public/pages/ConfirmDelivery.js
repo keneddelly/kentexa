@@ -9,13 +9,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-
-const Star = ({ filled, onClick }) => (
-  <span onClick={onClick} style={{
-    fontSize: 44, cursor: 'pointer', color: filled ? '#f59e0b' : '#e2e8f0',
-    transition: 'color 0.15s', userSelect: 'none',
-  }}>★</span>
-);
+import StarRating from '../components/StarRating';
 
 const ConfirmDelivery = ({ token, trackingNumber }) => {
   const { t } = useTranslation();
@@ -25,12 +19,14 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
   const [error,    setError]    = useState('');
   const [step,     setStep]     = useState('loading'); // loading|confirm|rate|done|problem|already
   const [rating,   setRating]   = useState(0);
-  // eslint-disable-next-line no-unused-vars
-  const [hover,    setHover]    = useState(0);
   const [review,       setReview]       = useState('');
   const [productRating, setProductRating] = useState(0);
   const [productReview, setProductReview] = useState('');
   const [hoverProduct,  setHoverProduct]  = useState(0);
+  const [superAgentRating, setSuperAgentRating] = useState(0);
+  const [superAgentReview, setSuperAgentReview] = useState('');
+  const [transportRating, setTransportRating] = useState(0);
+  const [transportReview, setTransportReview] = useState('');
   const [report,   setReport]   = useState('');
   const [saving,   setSaving]   = useState(false);
   // eslint-disable-next-line no-unused-vars
@@ -61,6 +57,10 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
         rating: confirmed ? rating || null : null,
         review: confirmed && review.trim() ? review.trim() : null,
         reportNote: !confirmed ? report : null,
+        superAgentRating: confirmed ? superAgentRating || null : null,
+        superAgentReview: confirmed && superAgentReview.trim() ? superAgentReview.trim() : null,
+        transportRating: confirmed ? transportRating || null : null,
+        transportReview: confirmed && transportReview.trim() ? transportReview.trim() : null,
       });
 
       // Also submit product review if product exists and rated
@@ -223,14 +223,7 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
           <div style={{ fontSize: 13, fontWeight: 700, color: '#475569', marginBottom: 10 }}>
             {t('confirm_delivery.rate_seller_label')}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 4 }}>
-            {[1,2,3,4,5].map(n => (
-              <Star key={n}
-                filled={n <= (hover || rating)}
-                onClick={() => setRating(n === rating ? 0 : n)}
-              />
-            ))}
-          </div>
+          <StarRating value={rating} onChange={setRating} />
           {rating > 0 && (
             <div style={{ fontSize: 13, color: '#f59e0b', fontWeight: 700, marginTop: 8 }}>
               {t(`confirm_delivery.rating_${rating}`)}
@@ -252,6 +245,46 @@ const ConfirmDelivery = ({ token, trackingNumber }) => {
           {saving ? t('confirm_delivery.saving_button') : t('confirm_delivery.confirm_received_button')}
         </button>
       </div>
+
+      {/* Super Agent (hub) rating — only shown when a real one handled this order */}
+      {step === 'confirm' && order?.superAgent && (
+        <div style={box}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>
+            {t('confirm_delivery.rate_super_agent_label')}
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+            {order.superAgent.businessName}
+          </div>
+          <StarRating value={superAgentRating} onChange={setSuperAgentRating} size={36} />
+          {superAgentRating > 0 && (
+            <textarea placeholder={t('confirm_delivery.review_placeholder')}
+              value={superAgentReview} onChange={e => setSuperAgentReview(e.target.value)}
+              rows={2} style={{ width: '100%', padding: '8px 12px', borderRadius: 10,
+                border: '1px solid #e2e8f0', fontSize: 13, resize: 'none',
+                boxSizing: 'border-box', outline: 'none', marginTop: 10 }} />
+          )}
+        </div>
+      )}
+
+      {/* Transport Provider rating — only shown when a real linked provider handled this order */}
+      {step === 'confirm' && order?.transportProvider && (
+        <div style={box}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 4 }}>
+            {t('confirm_delivery.rate_transport_label')}
+          </div>
+          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+            {order.transportProvider.name}
+          </div>
+          <StarRating value={transportRating} onChange={setTransportRating} size={36} />
+          {transportRating > 0 && (
+            <textarea placeholder={t('confirm_delivery.review_placeholder')}
+              value={transportReview} onChange={e => setTransportReview(e.target.value)}
+              rows={2} style={{ width: '100%', padding: '8px 12px', borderRadius: 10,
+                border: '1px solid #e2e8f0', fontSize: 13, resize: 'none',
+                boxSizing: 'border-box', outline: 'none', marginTop: 10 }} />
+          )}
+        </div>
+      )}
 
       {/* Product rating */}
       {step === 'confirm' && order?.productId && (

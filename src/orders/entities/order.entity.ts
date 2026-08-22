@@ -326,6 +326,21 @@ export class Order {
   @Column({ type: 'timestamp', nullable: true })
   reviewedAt: Date | null;
 
+  // Super Agent (hub) and Transport Provider ratings — collected in the same
+  // buyer-confirmation step as the seller rating, when a real Parcel/
+  // TransportAssignment links this order to one of them.
+  @Column({ type: 'int', nullable: true })
+  superAgentRating: number | null; // 1-5 stars
+
+  @Column({ type: 'text', nullable: true })
+  superAgentReview: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  transportRating: number | null; // 1-5 stars
+
+  @Column({ type: 'text', nullable: true })
+  transportReview: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

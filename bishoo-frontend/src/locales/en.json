@@ -2375,6 +2375,8 @@
     "main_question": "Have you received your item? 🤔",
     "main_subtitle": "Confirm so the seller can receive their payment.",
     "rate_seller_label": "Rate the seller (optional)",
+    "rate_super_agent_label": "Rate the hub/agent (optional)",
+    "rate_transport_label": "Rate the transport (optional)",
     "rating_1": "Very Bad 😞",
     "rating_2": "Not Great 😕",
     "rating_3": "Okay 😊",

@@ -20,6 +20,8 @@ import { SmsModule } from '../sms/sms.module';
 import { Review } from '../store/review.entity';
 import { WalletModule } from '../wallet/wallet.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
+import { TransportProvider } from '../transport/entities/transport-provider.entity';
 
 @Module({
   imports: [
@@ -33,6 +35,8 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
       AgentTransaction,
       User,
       Review,
+      TransportAssignment,
+      TransportProvider,
     ]),
     ProductsModule,
     InvoicesModule,
