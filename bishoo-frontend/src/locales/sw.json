@@ -2239,6 +2239,10 @@
     "report_problem_button": "⚠️ Ripoti Tatizo",
     "payment_safe_note": "KenteXa itashikilia malipo yako salama wakati hili linatatuliwa"
   },
+  "share": {
+    "button": "Shiriki",
+    "link_copied": "Kiungo kimenakiliwa!"
+  },
   "route_coverage_map": {
     "page_title": "🗺️ Ramani ya Usafiri",
     "loading": "⏳ Inapakia...",

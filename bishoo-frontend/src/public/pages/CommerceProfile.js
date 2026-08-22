@@ -231,6 +231,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   // their business/hub tabs and follower counts bleed in).
   const [activeProfile, setActiveProfile] = useState(null);
   const isOwnProfile = !!(activeProfile && currentUser && activeProfile.ownerId === currentUser.id);
+  const [shareMsg, setShareMsg] = useState('');
 
   const [profile,    setProfile]    = useState(null);
   const [rep,        setRep]        = useState(null);
@@ -469,6 +470,23 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     business: 'seller', agent: 'agent', hub: 'super_agent', transport_provider: 'transport_provider',
   }[activeProfile.type] || null;
 
+  // Links to the standalone /share backend route so a pasted link into
+  // WhatsApp/Facebook shows a real preview card — crawlers don't execute
+  // JS, so only a server-rendered response can carry this profile's actual
+  // name/photo. `transport` sources its preview copy from the transport
+  // provider's own public record instead of the generic seller one, since
+  // this account's business-seller fields wouldn't accurately describe them.
+  const handleShare = () => {
+    const url = `${api.defaults.baseURL}/share/${isTransportProfile ? 'transport' : 'store'}/${activeProfile.ownerId}`;
+    if (navigator.share) {
+      navigator.share({ title: displayName || 'KenteXa', url }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(url).catch(() => {});
+      setShareMsg(t('share.link_copied'));
+      setTimeout(() => setShareMsg(''), 3000);
+    }
+  };
+
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc', paddingBottom:100,
       fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
@@ -489,6 +507,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
           {displayName || t('commerce_profile.profile_fallback')}
         </div>
+        <button onClick={handleShare} title={t('share.button')}
+          style={{ background:'none', border:'none', cursor:'pointer', fontSize:17, color:DK, padding:'4px 8px' }}>
+          🔗
+        </button>
         {isOwnProfile && (
           <button onClick={() => onNavigate('MyProfile')}
             style={{ background:'none', border:'none', cursor:'pointer',
@@ -497,6 +519,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           </button>
         )}
       </div>
+
+      {shareMsg && (
+        <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 16px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+          ✅ {shareMsg}
+        </div>
+      )}
 
       {/* Cover */}
       <div style={{ position:'relative' }}>

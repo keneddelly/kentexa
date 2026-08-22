@@ -94,6 +94,22 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
     setTimeout(() => setMessage(''), 3000);
   };
 
+  // Shareable link to the standalone /share backend route (not the SPA path
+  // directly) so a pasted link into WhatsApp/Facebook shows a real preview
+  // card — social crawlers don't execute JS, so only a server-rendered
+  // response can carry the right og:title/og:image for this specific product.
+  const handleShare = () => {
+    if (!product) return;
+    const url = `${api.defaults.baseURL}/share/product/${product.id}`;
+    if (navigator.share) {
+      navigator.share({ title: product.name, url }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(url).catch(() => {});
+      setMessage(t('share.link_copied'));
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
   // One click — we already know the product, its image, and its title, so
   // there's nothing left for the user to fill in. No modal, just publish.
   const handleShareMoment = async () => {
@@ -242,6 +258,10 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" style={{ flexShrink:0 }}><polyline points="15,18 9,12 15,6"/></svg>
           <span style={{ fontSize:15, fontWeight:800, color:'#0F172A', overflow:'hidden',
             textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>{product.name}</span>
+        </button>
+        <button onClick={handleShare} title={t('share.button')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 17, color: '#0F172A', padding: '4px 8px', flexShrink:0, marginLeft:8 }}>
+          🔗
         </button>
         <button onClick={() => onNavigate('Cart')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#1d4ed8', padding: '4px 0', flexShrink:0, marginLeft:12 }}>

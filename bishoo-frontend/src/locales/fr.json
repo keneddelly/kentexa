@@ -2389,6 +2389,10 @@
     "report_problem_button": "⚠️ Signaler un problème",
     "payment_safe_note": "KenteXa conservera votre paiement en sécurité pendant la résolution de ce problème"
   },
+  "share": {
+    "button": "Partager",
+    "link_copied": "Lien copié !"
+  },
   "route_coverage_map": {
     "page_title": "🗺️ Carte de couverture du transport",
     "loading": "⏳ Chargement...",

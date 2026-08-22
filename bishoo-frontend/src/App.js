@@ -4,6 +4,7 @@ import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
+import { pageToPath, pathToPage } from './utils/urlSync';
 import HomeFeed           from './public/pages/HomeFeed';
 import MyProfile          from './public/pages/MyProfile';
 import RoleActivation     from './public/pages/RoleActivation';
@@ -164,6 +165,10 @@ function App() {
       const token   = params.get('token');
       if (confirm && token) return `ConfirmDelivery-${token}`;
       if (track) return `TrackParcel-${track}`;
+      // Real shareable paths (/product/42, /store/7, ...) — resolves
+      // synchronously from the URL alone, no network round trip needed.
+      const fromPath = pathToPage(window.location.pathname);
+      if (fromPath) return fromPath;
     } catch { /* SSR or no window — fall through */ }
     return 'Home';
   });
@@ -264,6 +269,14 @@ function App() {
   // eslint-disable-next-line no-unused-vars
   const [navHistory, setNavHistory] = useState([]);
 
+  // Syncs the visible browser URL for the 4 shareable content types
+  // (product/classified/service/store) — every other page intentionally
+  // leaves the URL untouched, matching today's behavior.
+  const syncUrl = (pageName) => {
+    const path = pageToPath(pageName);
+    if (path) window.history.pushState({ page: pageName }, '', path);
+  };
+
   const handleNavigate = (pageName, params = null) => {
     if (pageName === 'back') {
       // Pop the history stack
@@ -272,6 +285,7 @@ function App() {
         const destination = prev.pop() || roleHome();
         setNavParams(null);
         setPage(destination);
+        syncUrl(destination);
         window.scrollTo(0, 0);
         return prev;
       });
@@ -288,8 +302,25 @@ function App() {
     });
     setNavParams(params);
     setPage(pageName);
+    syncUrl(pageName);
     window.scrollTo(0, 0);
   };
+
+  // Browser back/forward — re-derive the page from the URL the user landed
+  // on. Only fires for real navigation events (not our own pushState calls,
+  // which don't trigger popstate), so this is purely additive to the
+  // existing in-app "back" button logic above.
+  useEffect(() => {
+    const onPopState = () => {
+      const next = pathToPage(window.location.pathname);
+      if (next) {
+        setNavParams(null);
+        setPage(next);
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const handleLoginSuccess = async (targetPage) => {
     try {

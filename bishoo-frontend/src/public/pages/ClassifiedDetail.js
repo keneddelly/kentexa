@@ -78,6 +78,22 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
       .catch(() => {});
   }, [classified?.category]); // eslint-disable-line
 
+  // Links to the standalone /share backend route so a pasted link into
+  // WhatsApp/Facebook shows a real preview card — crawlers don't execute
+  // JS, so only a server-rendered response can carry this listing's actual
+  // title/image.
+  const handleShare = () => {
+    if (!classified) return;
+    const url = `${api.defaults.baseURL}/share/classified/${classified.id}`;
+    if (navigator.share) {
+      navigator.share({ title: classified.title, url }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(url).catch(() => {});
+      setMessage(t('share.link_copied'));
+      setTimeout(() => setMessage(''), 3000);
+    }
+  };
+
   const fetchClassified = async () => {
     try {
       setLoading(true);
@@ -202,6 +218,10 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" style={{ flexShrink:0 }}><polyline points="15,18 9,12 15,6"/></svg>
           <span style={{ fontSize:15, fontWeight:800, color:'#0F172A', overflow:'hidden',
             textOverflow:'ellipsis', whiteSpace:'nowrap', textAlign:'left' }}>{classified.title}</span>
+        </button>
+        <button onClick={handleShare} title={t('share.button')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 17, color: '#0F172A', padding: '4px 8px', flexShrink:0, marginLeft:8 }}>
+          🔗
         </button>
         {isLoggedIn && currentUser?.id === classified.seller?.id && (
           <div style={{ position:'relative', flexShrink:0, marginLeft:8 }}>

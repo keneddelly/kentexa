@@ -34,6 +34,7 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
     description: '', jobLocation: '', preferredDate: '', preferredTime: '', buyerPhone: '',
   });
   const [error, setError] = useState('');
+  const [shareMsg, setShareMsg] = useState('');
 
   useEffect(() => {
     if (!serviceId) return;
@@ -116,6 +117,21 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
   );
 
   const whatsapp = ad.whatsappPhone || ad.provider?.phone || '';
+
+  // Links to the standalone /share backend route so a pasted link into
+  // WhatsApp/Facebook shows a real preview card — crawlers don't execute
+  // JS, so only a server-rendered response can carry this listing's actual
+  // title/image.
+  const handleShare = () => {
+    const url = `${api.defaults.baseURL}/share/service/${ad.id}`;
+    if (navigator.share) {
+      navigator.share({ title: ad.title, url }).catch(() => {});
+    } else {
+      navigator.clipboard?.writeText(url).catch(() => {});
+      setShareMsg(t('share.link_copied'));
+      setTimeout(() => setShareMsg(''), 3000);
+    }
+  };
   const waPhone  = whatsapp.replace(/^0/, '255').replace(/[^0-9]/g, '');
   const waMsg    = `Hi! I found your service "${ad.title}" on KenteXa. I need some help.`;
 
@@ -123,13 +139,24 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
       backgroundColor: '#f8fafc', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
       <div style={{ backgroundColor:'#fff', borderBottom:'1px solid #F1F5F9', padding:'14px 16px',
+        display:'flex', alignItems:'center', justifyContent:'space-between',
         position:'sticky', top:0, zIndex:100 }}>
         <button onClick={() => onNavigate('Services')} style={{ background:'none', border:'none', cursor:'pointer',
           display:'flex', alignItems:'center', gap:10 }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2.5" style={{ flexShrink:0 }}><polyline points="15,18 9,12 15,6"/></svg>
           <span style={{ fontSize:15, fontWeight:800, color:'#0F172A' }}>{t('service_detail.page_title')}</span>
         </button>
+        <button onClick={handleShare} title={t('share.button')}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 17, color: '#0F172A', padding: '4px 8px' }}>
+          🔗
+        </button>
       </div>
+
+      {shareMsg && (
+        <div style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '10px 16px', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+          ✅ {shareMsg}
+        </div>
+      )}
 
       <div style={{ flex: 1, maxWidth: 900, margin: '0 auto',
         padding: '16px 16px 90px', width: '100%', boxSizing: 'border-box' }}>
