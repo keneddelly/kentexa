@@ -415,13 +415,14 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
         {classified.status === 'active' && (
           <div style={{ padding: '0 0 16px' }}>
 
-            {isVerifiedSeller && (
-              <>
+            <>
                 <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: '12px 14px', marginBottom: 10, border: '1px solid #e2e8f0' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {[
                       { icon: '🛡️', text: t('classified_detail.kentexa_protection') },
-                      { icon: '✅', text: t('classified_detail.verified_store') },
+                      // Trust signal only — verification no longer gates
+                      // whether the invoice flow below is offered at all.
+                      ...(isVerifiedSeller ? [{ icon: '✅', text: t('classified_detail.verified_store') }] : []),
                       { icon: '↩️', text: t('classified_detail.return_policy') },
                       { icon: '🤝', text: t('classified_detail.pay_via_agent') },
                     ].map(b => (
@@ -490,15 +491,6 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                   </div>
                 )}
               </>
-            )}
-
-            {!isVerifiedSeller && (
-              <div style={{ backgroundColor: '#fef9c3', borderRadius: 14, padding: '12px 14px', marginBottom: 10, border: '1px solid #fde68a' }}>
-                <div style={{ fontSize: 12, color: '#92400e', fontWeight: 700 }}>
-                  ℹ️ {t('classified_detail.individual_seller_note')}
-                </div>
-              </div>
-            )}
 
             {!showContact ? (
               <button onClick={handleShowContact} disabled={loadingContact}

@@ -247,7 +247,14 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', padding: '20px 16px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
-            <button onClick={() => onNavigate('SellerDashboard')} style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', marginBottom: '10px', fontWeight: '600' }}>{t('seller_classifieds.back_dashboard')}</button>
+            <div style={{ display: 'flex', gap: 8, marginBottom: '10px', flexWrap: 'wrap' }}>
+              <button onClick={() => onNavigate('SellerDashboard')} style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>{t('seller_classifieds.back_dashboard')}</button>
+              {/* Reachable regardless of seller-application status — any
+                  listing owner can invoice a buyer on their own classified,
+                  independent of the (still legitimately gated) full
+                  business dashboard this button used to be the only door to. */}
+              <button onClick={() => onNavigate('SellerInvoices')} style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>{t('seller_classifieds.invoices_button')}</button>
+            </div>
             <h1 style={{ fontSize: '20px', fontWeight: '900', color: '#fff', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('seller_classifieds.page_title')}</h1>
             <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.85)', margin: 0 }}>{t('seller_classifieds.listings_count', { count: classifieds.length })}</p>
           </div>

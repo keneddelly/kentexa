@@ -4013,6 +4013,7 @@
   "seller_classifieds": {
     "page_title": "📋 Mes Annonces",
     "back_dashboard": "← Tableau de bord",
+    "invoices_button": "🧾 Factures",
     "listings_count": "{{count}} Annonces",
     "post_button": "+ Publier",
     "phone_required_confirm": "Vous avez besoin d'un numéro de téléphone pour que les acheteurs puissent vous contacter. L'ajouter maintenant dans votre profil ?",
