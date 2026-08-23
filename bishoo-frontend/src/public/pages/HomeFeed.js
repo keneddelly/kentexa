@@ -1558,9 +1558,9 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
 
       {/* ── Top bar ── */}
       <div style={{ position:'sticky', top:0, zIndex:200, backgroundColor:WH,
-        borderBottom:'1px solid #F1F5F9' }}>
+        borderBottom:'1px solid #F1F5F9', paddingTop:'env(safe-area-inset-top, 0px)' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
-          padding:'0 14px', height:50 }}>
+          padding:'0 14px', height:50, boxSizing:'border-box' }}>
           <button onClick={() => onNavigate('Home')}
             style={{ display:'flex', alignItems:'center', gap:8, background:'none',
               border:'none', cursor:'pointer', padding:0 }}>

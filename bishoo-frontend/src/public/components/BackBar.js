@@ -12,10 +12,14 @@ import { useTranslation } from 'react-i18next';
  */
 const BackBar = ({ onBack, title, right, top = 56 }) => {
   const { t } = useTranslation();
+  // Only pad for the device notch/status bar when this bar IS the physical
+  // top of the screen (top===0, no Navbar above it) — a top={56} bar already
+  // sits below Navbar, which owns its own inset handling.
+  const padTop = top === 0 ? 'env(safe-area-inset-top, 0px)' : '0px';
   return (
   <div style={{
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 14px', backgroundColor: '#fff',
+    padding: `calc(10px + ${padTop}) 14px 10px`, backgroundColor: '#fff',
     borderBottom: '1px solid #f1f5f9',
     position: 'sticky', top, zIndex: 90,
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
