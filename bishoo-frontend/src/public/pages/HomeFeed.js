@@ -1568,10 +1568,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               display:'flex', alignItems:'center', justifyContent:'center',
               boxShadow:'0 2px 8px rgba(29,78,216,0.4)', flexShrink:0 }}>
               <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
-                <path d="M3 3 L9 11 L3 19" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                <path d="M9 3 L3 11" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
-                <path d="M12 3 L19 11 L12 19" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                <path d="M19 3 L12 11" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+                <path d="M2 2 L7 8 L11 5 L11 20 L5 14 Z" fill="white"/>
+                <path d="M20 2 L15 8 L11 5 L11 20 L17 14 Z" fill="#60a5fa"/>
+                <circle cx="7.5" cy="9.5" r="1" fill="#0f172a"/>
+                <circle cx="14.5" cy="9.5" r="1" fill="#0f172a"/>
               </svg>
             </div>
             <div style={{ display:'flex', alignItems:'baseline', gap:0, lineHeight:1 }}>

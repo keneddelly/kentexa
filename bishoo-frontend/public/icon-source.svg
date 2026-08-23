@@ -3,8 +3,8 @@
     Kentexa app icon master source.
     Full-bleed background so OS-level icon masks (circle/squircle/rounded
     square on Android, rounded square on iOS) can crop it themselves without
-    a double-inset look — matches the same double-chevron mark already used
-    in Navbar.js's badge, scaled up and centered.
+    a double-inset look — matches the same two-tone fox-head mark used in
+    Navbar.js/HomeFeed.js/Welcome.js's badges, scaled up and centered.
 
     This is the SOURCE for native app icons/splash screens, not a drop-in
     manifest icon by itself: PWA/Capacitor tooling (e.g. `npx capacitor-assets
@@ -13,10 +13,10 @@
     this environment to produce those sizes directly.
   -->
   <rect width="512" height="512" fill="#1d4ed8"/>
-  <g transform="translate(256,256) scale(15) translate(-11,-11)" fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5">
-    <path d="M3 3 L9 11 L3 19" stroke="#ffffff"/>
-    <path d="M9 3 L3 11" stroke="#ffffff"/>
-    <path d="M12 3 L19 11 L12 19" stroke="#60a5fa"/>
-    <path d="M19 3 L12 11" stroke="#60a5fa"/>
+  <g transform="translate(256,256) scale(15) translate(-11,-11)">
+    <path d="M2 2 L7 8 L11 5 L11 20 L5 14 Z" fill="#ffffff"/>
+    <path d="M20 2 L15 8 L11 5 L11 20 L17 14 Z" fill="#60a5fa"/>
+    <circle cx="7.5" cy="9.5" r="1" fill="#0f172a"/>
+    <circle cx="14.5" cy="9.5" r="1" fill="#0f172a"/>
   </g>
 </svg>
