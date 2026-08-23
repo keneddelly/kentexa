@@ -6,6 +6,7 @@ import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
 import { pageToPath, pathToPage, pathToNavParams } from './utils/urlSync';
 import HomeFeed           from './public/pages/HomeFeed';
+import Welcome            from './public/pages/Welcome';
 import MyProfile          from './public/pages/MyProfile';
 import RoleActivation     from './public/pages/RoleActivation';
 import Onboarding          from './public/pages/Onboarding';
@@ -586,7 +587,7 @@ function App() {
     if (page === 'Listings')
       return <ListingsPage {...publicProps} />;
     switch (page) {
-      case 'Home':              return <HomeFeed {...publicProps} />;
+      case 'Home':              return isLoggedIn ? <HomeFeed {...publicProps} /> : <Welcome {...publicProps} />;
 
       case 'AboutUs':              return <AboutUs {...publicProps} />;
       case 'ContactUs':            return <ContactUs {...publicProps} />;

@@ -2243,6 +2243,13 @@
     "button": "Shiriki",
     "link_copied": "Kiungo kimenakiliwa!"
   },
+  "welcome": {
+    "headline": "Kentexa — njia ya kisasa ya kununua, kuuza na kuunganika",
+    "subheadline": "Mahali pamoja pa bidhaa, huduma, biashara na usafirishaji Tanzania nzima — imejengwa ikuhisi ni yako.",
+    "create_account_button": "Fungua Akaunti",
+    "log_in_button": "Ingia",
+    "made_in_tanzania": "🇹🇿 Imetengenezwa Tanzania"
+  },
   "route_coverage_map": {
     "page_title": "🗺️ Ramani ya Usafiri",
     "loading": "⏳ Inapakia...",

@@ -2393,6 +2393,13 @@
     "button": "Partager",
     "link_copied": "Lien copié !"
   },
+  "welcome": {
+    "headline": "Kentexa — la manière intelligente d'acheter, vendre et se connecter",
+    "subheadline": "Un seul endroit pour les produits, services, entreprises et livraisons partout en Tanzanie — pensé pour vous ressembler.",
+    "create_account_button": "Créer un compte",
+    "log_in_button": "Se connecter",
+    "made_in_tanzania": "🇹🇿 Fabriqué en Tanzanie"
+  },
   "route_coverage_map": {
     "page_title": "🗺️ Carte de couverture du transport",
     "loading": "⏳ Chargement...",

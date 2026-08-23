@@ -2397,6 +2397,13 @@
     "button": "Share",
     "link_copied": "Link copied!"
   },
+  "welcome": {
+    "headline": "Kentexa — the AI-powered way to buy, sell and connect",
+    "subheadline": "One place for products, services, businesses and delivery across Tanzania — built to feel like it's yours.",
+    "create_account_button": "Create Account",
+    "log_in_button": "Log In",
+    "made_in_tanzania": "🇹🇿 Made in Tanzania"
+  },
   "route_coverage_map": {
     "page_title": "🗺️ Transport Coverage Map",
     "loading": "⏳ Loading...",
