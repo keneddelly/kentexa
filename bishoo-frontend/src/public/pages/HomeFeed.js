@@ -1562,14 +1562,24 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'0 14px', height:50 }}>
           <button onClick={() => onNavigate('Home')}
-            style={{ display:'flex', alignItems:'center', gap:6, background:'none',
+            style={{ display:'flex', alignItems:'center', gap:8, background:'none',
               border:'none', cursor:'pointer', padding:0 }}>
-            <div style={{ width:26, height:26, borderRadius:7,
-              background:'linear-gradient(135deg,#2563EB,#7C3AED)',
+            <div style={{ width:30, height:30, backgroundColor:'#1d4ed8', borderRadius:8,
               display:'flex', alignItems:'center', justifyContent:'center',
-              fontSize:13, color:WH, fontWeight:900 }}>K</div>
-            <span style={{ fontSize:18, fontWeight:900, color:DK,
-              letterSpacing:-0.8, fontStyle:'italic' }}>KenteXa</span>
+              boxShadow:'0 2px 8px rgba(29,78,216,0.4)', flexShrink:0 }}>
+              <svg width="18" height="18" viewBox="0 0 22 22" fill="none">
+                <path d="M3 3 L9 11 L3 19" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <path d="M9 3 L3 11" stroke="white" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+                <path d="M12 3 L19 11 L12 19" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                <path d="M19 3 L12 11" stroke="#60a5fa" strokeWidth="2.5" strokeLinecap="round" fill="none"/>
+              </svg>
+            </div>
+            <div style={{ display:'flex', alignItems:'baseline', gap:0, lineHeight:1 }}>
+              <span style={{ fontSize:18, fontWeight:900, color:DK,
+                letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Kente</span>
+              <span style={{ fontSize:18, fontWeight:900, color:'#1d4ed8',
+                letterSpacing:-0.5, fontFamily:'Manrope,sans-serif' }}>Xa</span>
+            </div>
           </button>
           <div style={{ display:'flex', gap:2 }}>
             <button onClick={() => onNavigate('Search')}
