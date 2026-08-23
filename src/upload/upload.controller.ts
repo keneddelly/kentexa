@@ -27,7 +27,10 @@ export class UploadController {
     FilesInterceptor('files', 5, {
       storage: memoryStorage(), // store in memory then upload to Cloudinary
       fileFilter: (req, file, cb) => {
-        const allowed = /jpeg|jpg|png|webp/;
+        // heic/heif added for native camera captures (iOS shoots HEIC by
+        // default) — Cloudinary decodes it fine and fetch_format:'auto'
+        // below re-encodes to whatever's optimal for the requesting client.
+        const allowed = /jpeg|jpg|png|webp|heic|heif/;
         const valid = allowed.test(extname(file.originalname).toLowerCase());
         if (valid) {
           cb(null, true);
@@ -35,7 +38,9 @@ export class UploadController {
           cb(new BadRequestException('Only images allowed'), false);
         }
       },
-      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      // 15MB — modern phone camera photos (esp. native, uncompressed by a
+      // browser file picker) routinely exceed the old 5MB ceiling.
+      limits: { fileSize: 15 * 1024 * 1024 },
     }),
   )
   async uploadImages(@UploadedFiles() files: Express.Multer.File[]) {

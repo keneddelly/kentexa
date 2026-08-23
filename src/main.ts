@@ -40,6 +40,9 @@ async function bootstrap() {
       'https://earlyaccess.kentexa.com', // Kentexa Early Access Portal (prod custom domain — not yet set up)
       'https://kentexa-early-access.onrender.com', // Kentexa Early Access Portal (actual Render URL)
       'https://bishoo-frontend.onrender.com', // Main Kentexa app (actual Render URL)
+      'capacitor://localhost', // Native app WebView — Capacitor's default iOS origin
+      'http://localhost', // Native app WebView — Capacitor's default Android origin
+      'ionic://localhost', // Native app WebView — Capacitor's default iOS origin on older versions
     ],
     credentials: true,
   });
