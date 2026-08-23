@@ -88,6 +88,86 @@ export const TOURS = {
       },
     ],
   },
+
+  seller_dashboard_orientation: {
+    titleKey: 'tours.seller_dashboard_title',
+    role: 'seller',
+    page: 'SellerDashboard',
+    steps: [
+      {
+        id: 'intro',
+        titleKey: 'tours.sd_step_intro_title',
+        descKey: 'tours.sd_step_intro_desc',
+      },
+      {
+        id: 'commerce_header',
+        target: 'sd-commerce-header',
+        titleKey: 'tours.sd_step_commerce_title',
+        descKey: 'tours.sd_step_commerce_desc',
+      },
+      {
+        id: 'open_pos',
+        target: 'sd-open-pos',
+        titleKey: 'tours.sd_step_pos_title',
+        descKey: 'tours.sd_step_pos_desc',
+      },
+      {
+        id: 'products',
+        target: 'sd-menu-products',
+        titleKey: 'tours.sd_step_products_title',
+        descKey: 'tours.sd_step_products_desc',
+      },
+      {
+        id: 'listings',
+        target: 'sd-menu-listings',
+        titleKey: 'tours.sd_step_listings_title',
+        descKey: 'tours.sd_step_listings_desc',
+      },
+      {
+        id: 'orders',
+        target: 'sd-menu-orders',
+        titleKey: 'tours.sd_step_orders_title',
+        descKey: 'tours.sd_step_orders_desc',
+      },
+      {
+        id: 'invoices',
+        target: 'sd-menu-invoices',
+        titleKey: 'tours.sd_step_invoices_title',
+        descKey: 'tours.sd_step_invoices_desc',
+      },
+      {
+        id: 'cta_final',
+        titleKey: 'tours.sd_step_final_title',
+        descKey: 'tours.sd_step_final_desc',
+        isFinal: true,
+      },
+    ],
+  },
+
+  pos_first_sale: {
+    titleKey: 'tours.pos_title',
+    role: 'seller',
+    page: 'POS',
+    steps: [
+      {
+        id: 'intro',
+        titleKey: 'tours.pos_step_intro_title',
+        descKey: 'tours.pos_step_intro_desc',
+      },
+      {
+        id: 'search',
+        target: 'pos-search',
+        titleKey: 'tours.pos_step_search_title',
+        descKey: 'tours.pos_step_search_desc',
+      },
+      {
+        id: 'charge_explainer',
+        titleKey: 'tours.pos_step_charge_title',
+        descKey: 'tours.pos_step_charge_desc',
+        isFinal: true,
+      },
+    ],
+  },
 };
 
 export const getTour = (key) => TOURS[key] || null;

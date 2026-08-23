@@ -10,6 +10,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import FeatureTour from '../../onboarding/FeatureTour';
+import TourTrigger from '../../onboarding/TourTrigger';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -155,7 +157,9 @@ const POS = ({ onNavigate, currentUser }) => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F8FAFC', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
-      <BackBar title={t('pos.title')} onBack={() => step === 'cart' ? onNavigate('back') : setStep('cart')} top={0} />
+      <BackBar title={t('pos.title')} onBack={() => step === 'cart' ? onNavigate('back') : setStep('cart')} top={0}
+        right={<TourTrigger tourKey="pos_first_sale" />} />
+      <FeatureTour tourKey="pos_first_sale" autoStart />
 
       {error && (
         <div style={{ backgroundColor: '#FEE2E2', color: '#DC2626', padding: '10px 16px', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
@@ -168,7 +172,7 @@ const POS = ({ onNavigate, currentUser }) => {
         <div style={{ flex: 1, padding: 14, maxWidth: 560, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
           {/* Search / scan */}
           <div style={{ position: 'relative', marginBottom: 14 }}>
-            <input ref={searchRef} value={query} onChange={e => setQuery(e.target.value)}
+            <input ref={searchRef} data-tour="pos-search" value={query} onChange={e => setQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
               placeholder={t('pos.search_placeholder')}
               style={{ ...inputStyle, fontSize: 15, padding: '13px 14px' }} />

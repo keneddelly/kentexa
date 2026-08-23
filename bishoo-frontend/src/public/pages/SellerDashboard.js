@@ -4,6 +4,8 @@ import BackBar from '../components/BackBar';
 import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
 import ProfileCompletionBanner from '../components/ProfileCompletionBanner';
 import api from '../../api/api';
+import FeatureTour from '../../onboarding/FeatureTour';
+import TourTrigger from '../../onboarding/TourTrigger';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -123,8 +125,8 @@ const RevenueChart = ({ orders }) => {
 };
 
 // ── Menu row — icon, label, optional live value, chevron ──────────────────
-const MenuRow = ({ icon, label, value, onClick, last }) => (
-  <button onClick={onClick}
+const MenuRow = ({ icon, label, value, onClick, last, dataTour }) => (
+  <button onClick={onClick} data-tour={dataTour}
     style={{ width:'100%', display:'flex', alignItems:'center', gap:14,
       padding:'14px 16px', border:'none', background:'none', cursor:'pointer',
       borderBottom: last ? 'none' : '1px solid #F8FAFC', textAlign:'left' }}>
@@ -153,9 +155,9 @@ const BisCommerceDashboard = ({ data, onNavigate, t }) => {
   return (
     <div style={{ backgroundColor: WH, borderRadius: 16, padding: 20,
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+      <div data-tour="sd-commerce-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div style={{ fontSize: 14, fontWeight: 900, color: DK }}>🧾 {t('seller_dashboard.commerce_dashboard_title')}</div>
-        <button onClick={() => onNavigate('POS')} style={{ background: `linear-gradient(135deg,${B},${PU})`,
+        <button data-tour="sd-open-pos" onClick={() => onNavigate('POS')} style={{ background: `linear-gradient(135deg,${B},${PU})`,
           color: WH, border: 'none', padding: '6px 14px', borderRadius: 10, cursor: 'pointer', fontSize: 11, fontWeight: 800 }}>
           {`🖥️ ${t('seller_products.open_pos')}`}
         </button>
@@ -321,6 +323,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
       backgroundColor: '#F8FAFC', fontFamily: "'Inter','Segoe UI',sans-serif",
       paddingBottom: 90 }}>
       <BackBar onBack={() => onNavigate('MyProfile')} title={t('seller_dashboard.badge')} top={0} />
+      <FeatureTour tourKey="seller_dashboard_orientation" autoStart />
 
       {/* ── Identity header ── */}
       <div style={{ backgroundColor: WH, borderBottom: '1px solid #F1F5F9', padding: '18px 16px' }}>
@@ -344,6 +347,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                   fontSize: 11, fontWeight: 800 }}>
                 ✏️ {t('seller_dashboard.edit_store')}
               </button>
+              <TourTrigger tourKey="seller_dashboard_orientation" />
             </div>
           )}
         </div>
@@ -426,14 +430,14 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
             <div style={{ backgroundColor: WH, borderRadius: 16,
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden', marginBottom: 16 }}>
               <MenuRow icon="📸" label={t('seller_dashboard.share_moment')} onClick={() => onOpenMoment?.('selling')} />
-              <MenuRow icon="📦" label={t('seller_dashboard.my_products')} onClick={() => onNavigate('SellerProducts')} />
-              <MenuRow icon="🏷️" label={t('seller_dashboard.my_listings')} onClick={() => onNavigate('SellerClassifieds')} />
-              <MenuRow icon="🛒" label={t('seller_dashboard.orders')} onClick={() => onNavigate('SellerOrders')} />
+              <MenuRow icon="📦" label={t('seller_dashboard.my_products')} onClick={() => onNavigate('SellerProducts')} dataTour="sd-menu-products" />
+              <MenuRow icon="🏷️" label={t('seller_dashboard.my_listings')} onClick={() => onNavigate('SellerClassifieds')} dataTour="sd-menu-listings" />
+              <MenuRow icon="🛒" label={t('seller_dashboard.orders')} onClick={() => onNavigate('SellerOrders')} dataTour="sd-menu-orders" />
               <MenuRow icon="👥" label={t('seller_dashboard.customers')} onClick={() => onNavigate('SellerCustomers')} />
               <MenuRow icon="💬" label={t('seller_dashboard.inbox')} onClick={() => onNavigate('SellerInbox')} />
               <MenuRow icon="📦" label={t('seller_dashboard.ship_item')} onClick={() => onNavigate('SellerShipment')} />
               <MenuRow icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')} />
-              <MenuRow icon="🧾" label={t('seller_dashboard.invoices')} value={invoiceRequests.filter(r=>r.status==='pending').length > 0 ? t('seller_dashboard.pending_count', { count: invoiceRequests.filter(r=>r.status==='pending').length }) : null} onClick={() => onNavigate('SellerInvoices')} />
+              <MenuRow icon="🧾" label={t('seller_dashboard.invoices')} value={invoiceRequests.filter(r=>r.status==='pending').length > 0 ? t('seller_dashboard.pending_count', { count: invoiceRequests.filter(r=>r.status==='pending').length }) : null} onClick={() => onNavigate('SellerInvoices')} dataTour="sd-menu-invoices" />
               <MenuRow icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')} />
               <MenuRow icon="👛" label={t('seller_dashboard.wallet')} onClick={() => onNavigate('SellerWallet')} />
               <MenuRow icon="📊" label={t('seller_dashboard.analytics')} onClick={() => onNavigate('SellerAnalytics')} />
