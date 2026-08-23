@@ -5,6 +5,7 @@ import { ClassifiedsModule } from '../classifieds/classifieds.module';
 import { ServicesModule } from '../services/services.module';
 import { SellerModule } from '../seller/seller.module';
 import { TransportModule } from '../transport/transport.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { TransportModule } from '../transport/transport.module';
     ServicesModule,
     SellerModule,
     TransportModule,
+    CommerceProfilesModule,
   ],
   controllers: [ShareController],
 })

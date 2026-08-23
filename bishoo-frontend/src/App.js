@@ -4,7 +4,7 @@ import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
-import { pageToPath, pathToPage } from './utils/urlSync';
+import { pageToPath, pathToPage, pathToNavParams } from './utils/urlSync';
 import HomeFeed           from './public/pages/HomeFeed';
 import MyProfile          from './public/pages/MyProfile';
 import RoleActivation     from './public/pages/RoleActivation';
@@ -172,7 +172,14 @@ function App() {
     } catch { /* SSR or no window — fall through */ }
     return 'Home';
   });
-  const [navParams, setNavParams]   = useState(null);
+  const [navParams, setNavParams]   = useState(() => {
+    // Companion to the /store/:id?cp= boot-time deep-link above — carries
+    // WHICH of that account's profiles (personal/business/hub/transport)
+    // to show, since CommerceProfile.js can't tell from the bare id alone.
+    try {
+      return pathToNavParams(window.location.pathname, window.location.search);
+    } catch { return null; }
+  });
   // Show language picker only on first visit
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem('kentexa_lang'));
 
@@ -272,8 +279,8 @@ function App() {
   // Syncs the visible browser URL for the 4 shareable content types
   // (product/classified/service/store) — every other page intentionally
   // leaves the URL untouched, matching today's behavior.
-  const syncUrl = (pageName) => {
-    const path = pageToPath(pageName);
+  const syncUrl = (pageName, params) => {
+    const path = pageToPath(pageName, params);
     if (path) window.history.pushState({ page: pageName }, '', path);
   };
 
@@ -285,7 +292,7 @@ function App() {
         const destination = prev.pop() || roleHome();
         setNavParams(null);
         setPage(destination);
-        syncUrl(destination);
+        syncUrl(destination, null);
         window.scrollTo(0, 0);
         return prev;
       });
@@ -302,7 +309,7 @@ function App() {
     });
     setNavParams(params);
     setPage(pageName);
-    syncUrl(pageName);
+    syncUrl(pageName, params);
     window.scrollTo(0, 0);
   };
 
@@ -314,7 +321,7 @@ function App() {
     const onPopState = () => {
       const next = pathToPage(window.location.pathname);
       if (next) {
-        setNavParams(null);
+        setNavParams(pathToNavParams(window.location.pathname, window.location.search));
         setPage(next);
       }
     };

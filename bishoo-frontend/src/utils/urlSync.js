@@ -15,7 +15,13 @@ const SEGMENT_TO_PREFIX = Object.fromEntries(
 );
 
 // page -> path, or null if this page isn't one of the synced types.
-export const pageToPath = (page) => {
+// CommerceProfile.js can't tell WHICH of an account's profiles
+// (personal/business/hub/transport) to show from a bare user id alone —
+// it needs the explicit commerceProfileId every in-app link already passes
+// it (navParams.commerceProfileId), or it silently falls back to showing
+// the owner's PERSONAL profile. Carry it as ?cp= so a pushed/shared /store
+// URL reloads into the same specific profile instead of that fallback.
+export const pageToPath = (page, navParams) => {
   if (typeof page !== 'string') return null;
   for (const prefix of Object.keys(PREFIX_TO_SEGMENT)) {
     if (page.startsWith(`${prefix}-`)) {
@@ -24,7 +30,11 @@ export const pageToPath = (page) => {
       // — only the numeric id segment maps into the clean URL.
       const id = rest.split('-')[0];
       if (!/^\d+$/.test(id)) return null;
-      return `/${PREFIX_TO_SEGMENT[prefix]}/${id}`;
+      const path = `/${PREFIX_TO_SEGMENT[prefix]}/${id}`;
+      if (prefix === 'CommerceProfile' && navParams?.commerceProfileId) {
+        return `${path}?cp=${navParams.commerceProfileId}`;
+      }
+      return path;
     }
   }
   return null;
@@ -36,4 +46,11 @@ export const pathToPage = (pathname) => {
   if (!match) return null;
   const [, segment, id] = match;
   return `${SEGMENT_TO_PREFIX[segment]}-${id}`;
+};
+
+// Reads the ?cp= companion param for a /store/:id URL, if present.
+export const pathToNavParams = (pathname, search) => {
+  if (!/^\/store\/\d+$/.test(String(pathname || ''))) return null;
+  const cp = new URLSearchParams(search || '').get('cp');
+  return cp && /^\d+$/.test(cp) ? { commerceProfileId: Number(cp) } : null;
 };

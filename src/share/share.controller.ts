@@ -5,6 +5,8 @@ import { ClassifiedsService } from '../classifieds/classifieds.service';
 import { ServicesService } from '../services/services.service';
 import { SellerService } from '../seller/seller.service';
 import { TransportService } from '../transport/transport.service';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FRONTEND_URL, BACKEND_URL } from '../config/urls.config';
 
 // Social/search crawlers never execute JavaScript, so a pure client-side
@@ -64,6 +66,7 @@ export class ShareController {
     private servicesService: ServicesService,
     private sellerService: SellerService,
     private transportService: TransportService,
+    private commerceProfilesService: CommerceProfilesService,
   ) {}
 
   @Get(':type/:id')
@@ -74,13 +77,17 @@ export class ShareController {
     @Res() res: Response,
   ) {
     const numId = Number(id);
-    const path = this.pathFor(type, id);
-    const ua = req.headers['user-agent'] || '';
-    const isCrawler = CRAWLER_UA.test(ua);
-
-    if (!path || !Number.isFinite(numId)) {
+    if (!Number.isFinite(numId)) {
       return res.redirect(302, FRONTEND_URL);
     }
+
+    const path = await this.pathFor(type, numId);
+    if (!path) {
+      return res.redirect(302, FRONTEND_URL);
+    }
+
+    const ua = req.headers['user-agent'] || '';
+    const isCrawler = CRAWLER_UA.test(ua);
 
     if (!isCrawler) {
       return res.redirect(302, `${FRONTEND_URL}${path}`);
@@ -90,7 +97,15 @@ export class ShareController {
     res.type('html').send(this.renderHtml(payload));
   }
 
-  private pathFor(type: string, id: string): string | null {
+  // CommerceProfile.js can't tell WHICH of an account's profiles
+  // (personal/business/hub/transport) to show from a bare user id alone —
+  // every other in-app link to it passes an explicit commerceProfileId for
+  // exactly this reason; without one it silently falls back to showing the
+  // owner's PERSONAL profile instead of their store/transport identity.
+  // Resolving it here and carrying it as ?cp= keeps that contract intact
+  // for share links too, for both the crawler payload and the plain 302
+  // real visitors take (so a page reload on the landed page still works).
+  private async pathFor(type: string, id: number): Promise<string | null> {
     switch (type) {
       case 'product':
         return `/product/${id}`;
@@ -98,9 +113,18 @@ export class ShareController {
         return `/classified/${id}`;
       case 'service':
         return `/service/${id}`;
-      case 'store':
-      case 'transport':
-        return `/store/${id}`;
+      case 'store': {
+        const cp = await this.commerceProfilesService
+          .findForUserByType(id, CommerceProfileType.BUSINESS)
+          .catch(() => null);
+        return cp ? `/store/${id}?cp=${cp.id}` : `/store/${id}`;
+      }
+      case 'transport': {
+        const cp = await this.commerceProfilesService
+          .findForUserByType(id, CommerceProfileType.TRANSPORT_PROVIDER)
+          .catch(() => null);
+        return cp ? `/store/${id}?cp=${cp.id}` : `/store/${id}`;
+      }
       default:
         return null;
     }
