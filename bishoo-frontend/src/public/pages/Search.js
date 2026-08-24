@@ -46,6 +46,7 @@ const getTabs = t => [
   { key:'products',   label:t('search.tab_products')    },
   { key:'services',   label:t('search.tab_services')     },
   { key:'transport',  label:t('search.tab_transport')    },
+  { key:'hub',        label:t('search.tab_hub')          },
   { key:'people',     label:t('search.tab_people')       },
 ];
 
@@ -174,6 +175,42 @@ const TransportCard = ({ item, isLoggedIn, onNavigate }) => {
           {t('search.transport_no_contact')}
         </div>
       )}
+    </div>
+  );
+};
+
+// ── Super Agent hub card ─────────────────────────────────────────────────────
+const HubCard = ({ item, onNavigate }) => {
+  const { t } = useTranslation();
+  return (
+    <div onClick={() => item.userId && onNavigate(`CommerceProfile-${item.userId}-hub`)}
+      style={{ backgroundColor:WH, borderRadius:14, padding:14,
+        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor: item.userId ? 'pointer' : 'default' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+        <div style={{ width:34, height:34, borderRadius:10, backgroundColor:'#EFF6FF',
+          display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>
+          🏢
+        </div>
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontSize:13, fontWeight:800, color:DK,
+            overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {item.businessName}
+          </div>
+          <div style={{ fontSize:10, color:GR }}>
+            {item.city}{item.rating > 0 ? ` · ⭐ ${item.rating.toFixed(1)}` : ''}
+          </div>
+        </div>
+      </div>
+      {item.address && (
+        <div style={{ fontSize:10, color:GR, overflow:'hidden', textOverflow:'ellipsis',
+          whiteSpace:'nowrap', marginBottom:8 }}>
+          📍 {item.address}
+        </div>
+      )}
+      <div style={{ textAlign:'center', padding:'7px 0', borderRadius:8,
+        backgroundColor:'#EFF6FF', color:B, fontSize:11, fontWeight:800 }}>
+        {t('search.hub_view_button')}
+      </div>
     </div>
   );
 };
@@ -358,7 +395,7 @@ const rankResults = (list, semanticExtras, intent) => {
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', people: 'people', all: 'all' };
+const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', hub: 'hub', people: 'people', all: 'all' };
 
 const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIntent, track }) => {
   const { t } = useTranslation();
@@ -374,8 +411,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   const [products,    setProducts]    = useState([]);
   const [services,    setServices]    = useState([]);
   const [transports,  setTransports]  = useState([]);
+  const [hubs,        setHubs]        = useState([]);
   const [profiles,    setProfiles]    = useState([]);
   const [transportNeedsCities, setTransportNeedsCities] = useState(false);
+  const [hubNeedsCity, setHubNeedsCity] = useState(false);
 
   // AI's conversational summary of the results actually found (not the
   // routing step above — see search.controller.ts's /search/explain).
@@ -438,7 +477,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     // the auto-selected Products/Store tab and looks like it "vanished"
     // unless the user manually clicks back to All.
     const tabForDomain =
-      intent?.domain === 'transport' || intent?.domain === 'people'
+      intent?.domain === 'transport' || intent?.domain === 'people' || intent?.domain === 'hub'
         ? AI_DOMAIN_TO_TAB[intent.domain]
         : 'all';
     setLoading(true);
@@ -448,8 +487,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     setProducts([]);
     setServices([]);
     setTransports([]);
+    setHubs([]);
     setProfiles([]);
     setTransportNeedsCities(false);
+    setHubNeedsCity(false);
 
     // People/business name match — uses the raw query, not the AI-extracted
     // keywords (that extraction is tuned for listing search, not names).
@@ -562,6 +603,29 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       return;
     }
 
+    // Hub (Super Agent lookup) is the same shape as transport — a single
+    // structured fetch by city, never joining the classifieds/products/
+    // services fan-out below.
+    if (tabForDomain === 'hub') {
+      if (!intent?.location) {
+        setHubNeedsCity(true);
+        finish(0, { skipExplain: true });
+        return;
+      }
+      try {
+        const res = await api.get(`/super-agents/hubs/${encodeURIComponent(intent.location)}`);
+        const hubList = res.data || [];
+        setHubs(hubList);
+        finish(hubList.length, {
+          domainCounts: { hub: hubList.length },
+          topItems: hubList.slice(0, 3).map(h => ({
+            type: 'hub', name: h.businessName, subtitle: h.city,
+          })),
+        });
+      } catch { finish(0, { skipExplain: true }); }
+      return;
+    }
+
     // People is likewise a dedicated single-source domain — the fetch
     // above already covers it, nothing further to fan out to.
     if (tabForDomain === 'people') { finish(0); return; }
@@ -654,7 +718,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     await handleAiSearch(trimmed, intent);
   }, [query, handleAiSearch]);
 
-  const total = classifieds.length + products.length + services.length + transports.length + profiles.length;
+  const total = classifieds.length + products.length + services.length + transports.length + hubs.length + profiles.length;
 
   // Every item is tagged with _type so the render loop below picks the
   // right card regardless of whether it came via a single-domain tab or
@@ -671,6 +735,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     products:    products.map(p => ({...p, _type:'product'})),
     services:    services.map(s => ({...s, _type:'service'})),
     transport:   transports.map(tr => ({...tr, _type:'transport'})),
+    hub:         hubs.map(h => ({...h, _type:'hub'})),
     people:      profiles.map(p => ({...p, _type:'profile'})),
   };
 
@@ -791,6 +856,16 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                     {t('search.transport_needs_cities_desc')}
                   </div>
                 </div>
+              ) : hubNeedsCity ? (
+                <div style={{ textAlign:'center', padding:'60px 0' }}>
+                  <div style={{ fontSize:48, marginBottom:12 }}>🏢</div>
+                  <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
+                    {t('search.hub_needs_city_title')}
+                  </div>
+                  <div style={{ fontSize:13, color:GR }}>
+                    {t('search.hub_needs_city_desc')}
+                  </div>
+                </div>
               ) : total === 0 ? (
                 <div style={{ textAlign:'center', padding:'60px 0' }}>
                   <div style={{ fontSize:48, marginBottom:12 }}>🔍</div>
@@ -823,6 +898,9 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                           <TransportCard key={`t-${item.id}`} item={item}
                             isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
                         );
+                      }
+                      if (item._type === 'hub') {
+                        return <HubCard key={`h-${item.id}`} item={item} onNavigate={onNavigate} />;
                       }
                       if (item._type === 'profile') {
                         return <ProfileResultCard key={`pr-${item.id}`} item={item} onNavigate={onNavigate} />;

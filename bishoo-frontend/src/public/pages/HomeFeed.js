@@ -953,6 +953,61 @@ const TrendingCard = ({ icon, label, p, onNavigate, isLoggedIn }) => {
   );
 };
 
+// ── Super Agent work tray — this hub's own parcels needing action ──────────
+// Not a content-discovery rail like the ones below (those browse OTHER
+// people's listings) — this is the Super Agent's own actionable queue:
+// parcels sitting at their hub (received/verified/ready-to-dispatch) that
+// haven't moved yet. Reuses GET /super-agents/bulk-shipments/candidates,
+// which already scopes to "this agent's own hub, not yet dispatched or
+// bundled" — exactly "work waiting for you," no new backend concept.
+const PARCEL_STATUS_BADGE = {
+  received_at_hub:    { emoji: '📥', key: 'status_received_at_hub' },
+  verified:           { emoji: '✅', key: 'status_verified' },
+  ready_for_dispatch: { emoji: '📦', key: 'status_ready_for_dispatch' },
+};
+
+const SuperAgentWorkTray = ({ items, onNavigate }) => {
+  const { t } = useTranslation();
+  if (!items?.length) return null;
+
+  return (
+    <div style={{ backgroundColor:WH, borderBottom:'1px solid #F1F5F9', padding:'12px 0 10px' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px 10px' }}>
+        <div style={{ fontSize:13, fontWeight:800, color:DK }}>
+          🏢 {t('home_feed.super_agent_work_title')} ({items.length})
+        </div>
+        <button onClick={() => onNavigate('SuperAgentDashboard')}
+          style={{ background:'none', border:'none', cursor:'pointer', padding:0,
+            fontSize:12, fontWeight:700, color:B }}>
+          {t('home_feed.see_all')} →
+        </button>
+      </div>
+      <div style={{ display:'flex', gap:10, overflowX:'auto', padding:'0 14px', scrollbarWidth:'none' }}>
+        {items.slice(0, 10).map(p => {
+          const badge = PARCEL_STATUS_BADGE[p.status] || {};
+          return (
+            <div key={p.id} onClick={() => onNavigate('SuperAgentDashboard')}
+              style={{ flexShrink:0, width:140, cursor:'pointer', backgroundColor:'#FFFBEB',
+                border:'1px solid #FDE68A', borderRadius:12, padding:'10px 12px' }}>
+              <div style={{ fontSize:11, fontWeight:800, color:DK, marginBottom:4,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                {p.trackingNumber || `#${p.id}`}
+              </div>
+              <div style={{ fontSize:10, color:GR, marginBottom:6,
+                overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                📍 {p.destinationCity}
+              </div>
+              <div style={{ fontSize:10, fontWeight:700, color:'#B45309' }}>
+                {badge.emoji} {badge.key ? t(`home_feed.${badge.key}`) : p.status}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 // ── Discovery rail — small horizontal-scroll row interleaved between posts ──
 // A sample only — like an advertisement strip, not the full catalogue.
 // "See All" is how a user actually compares every option; each destination
@@ -1486,6 +1541,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
   const [unread,      setUnread]      = useState(0);
   const [moments,     setMoments]     = useState([]);
   const [viewingMoment,    setViewingMoment]    = useState(null);
+  const [pendingParcels,   setPendingParcels]   = useState([]);
 
   const loadPosts = useCallback(async (f, p = 1, append = false) => {
     if (p === 1) setLoading(true); else setLoadingMore(true);
@@ -1529,6 +1585,13 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
     });
     loadMoments();
   }, [isLoggedIn, loadMoments]);
+
+  useEffect(() => {
+    if (currentUser?.role !== 'super_agent') { setPendingParcels([]); return; }
+    api.get('/super-agents/bulk-shipments/candidates')
+      .then(r => setPendingParcels(r.data || []))
+      .catch(() => {});
+  }, [currentUser]);
 
   // Refresh stories + feed after a Moment is posted from anywhere in the app
   // (the modal itself now lives at the App.js level, not just on this page).
@@ -1642,6 +1705,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           ))}
         </div>
       </div>
+
+      {currentUser?.role === 'super_agent' && (
+        <SuperAgentWorkTray items={pendingParcels} onNavigate={onNavigate} />
+      )}
 
       {/* ── Stories ── */}
       {(moments.length > 0 || sellers.length > 0) && (

@@ -696,6 +696,7 @@ export class SuperAgentsService {
       .filter((a) => a.id !== excludeAgentId)
       .map((a) => ({
         id: a.id,
+        userId: a.user?.id,
         businessName: a.businessName,
         city: a.city,
         address: a.address,

@@ -11,6 +11,7 @@ export type SearchDomain =
   | 'service'
   | 'transport'
   | 'people'
+  | 'hub'
   | 'all';
 
 export interface ParsedSearchQuery {
