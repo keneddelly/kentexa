@@ -978,92 +978,90 @@ export class OrdersService {
       await this.productsService.incrementSalesCount(order.product.id);
     }
 
-    if (order.trackingNumber) {
-      try {
-        const parcel = await this.parcelRepo.findOne({
-          where: { trackingNumber: order.trackingNumber },
-        });
-        if (parcel && parcel.status !== ParcelStatus.DELIVERED) {
-          await this.parcelRepo.update(parcel.id, {
-            status: ParcelStatus.DELIVERED,
-            deliveredTime: new Date(),
-            buyerConfirmed: true,
-          });
-
-          await this.parcelTrackingRepo.save(
-            this.parcelTrackingRepo.create({
-              parcel,
-              status: ParcelStatus.DELIVERED,
-              city: parcel.destinationCity,
-              note: 'Buyer confirmed receipt on order page',
-              updatedBy: 'Buyer',
-            }),
-          );
-
-          if (parcel.localAgentId) {
-            const localAgent = await this.agentRepo.findOne({
-              where: { user: { id: Number(parcel.localAgentId) } },
-            });
-            if (localAgent) {
-              const alreadyCredited = await this.agentTransactionRepo.findOne({
-                where: {
-                  transactionReference: order.trackingNumber,
-                  paymentMethod: 'last_mile_delivery',
-                },
-              });
-              if (!alreadyCredited) {
-                const platformFee = Number(order.platformFeeAmount || 0);
-                if (platformFee > 0) {
-                  const commissionRate = Number(
-                    localAgent.commissionRate ?? 2.5,
-                  );
-                  const commission = parseFloat(
-                    ((platformFee * commissionRate) / 100).toFixed(2),
-                  );
-                  if (commission > 0) {
-                    await this.agentTransactionRepo.save(
-                      this.agentTransactionRepo.create({
-                        agent: localAgent,
-                        invoiceAmount: platformFee,
-                        commissionRate,
-                        commissionAmount: commission,
-                        transactionReference: order.trackingNumber,
-                        paymentMethod: 'last_mile_delivery',
-                        status: AgentTransactionStatus.CONFIRMED,
-                      } as any),
-                    );
-                    localAgent.totalEarnings =
-                      Number(localAgent.totalEarnings || 0) + commission;
-                    localAgent.totalTransactions =
-                      Number(localAgent.totalTransactions || 0) + 1;
-                    // Same commission event the super-agents.service.ts
-                    // self-report path credits — these two were previously
-                    // only updated there, never here, so the delivery
-                    // count/earnings breakdown undercounted whenever a
-                    // delivery was credited via this buyer-confirms path
-                    // instead of the agent self-reporting one.
-                    localAgent.totalDeliveriesCompleted =
-                      Number(localAgent.totalDeliveriesCompleted || 0) + 1;
-                    localAgent.totalEarningsDeliveries =
-                      Number(localAgent.totalEarningsDeliveries || 0) + commission;
-                    await this.agentRepo.save(localAgent);
-                  }
-                }
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.error(
-          'Failed to sync parcel status on buyer confirm:',
-          err.message,
-        );
-      }
-    }
+    await this.syncParcelDeliveredForOrder(order);
 
     return {
       message: 'Confirmed! Payment will be released to seller within 24 hours.',
     };
+  }
+
+  // Marks the linked Parcel (found by Order.trackingNumber) DELIVERED, logs
+  // a ParcelTracking entry, and credits the local agent's last-mile
+  // commission — the real work behind "buyer confirmed receipt." Used to
+  // live only inside buyerConfirm(), so a buyer confirming via the public
+  // token link (confirmViaToken — the WhatsApp/SMS "confirmation link")
+  // completed the Order but left the Parcel/tracking-page status stuck on
+  // whatever it was before (e.g. "in transit") and never credited the
+  // agent's commission. Extracted so every order-completion path that can
+  // mark a real delivery calls the same sync. Best-effort: never throws,
+  // since a tracking-sync failure shouldn't block order completion.
+  private async syncParcelDeliveredForOrder(order: Order): Promise<void> {
+    if (!order.trackingNumber) return;
+    try {
+      const parcel = await this.parcelRepo.findOne({
+        where: { trackingNumber: order.trackingNumber },
+      });
+      if (!parcel || parcel.status === ParcelStatus.DELIVERED) return;
+
+      await this.parcelRepo.update(parcel.id, {
+        status: ParcelStatus.DELIVERED,
+        deliveredTime: new Date(),
+        buyerConfirmed: true,
+      });
+
+      await this.parcelTrackingRepo.save(
+        this.parcelTrackingRepo.create({
+          parcel,
+          status: ParcelStatus.DELIVERED,
+          city: parcel.destinationCity,
+          note: 'Buyer confirmed receipt on order page',
+          updatedBy: 'Buyer',
+        }),
+      );
+
+      if (!parcel.localAgentId) return;
+      const localAgent = await this.agentRepo.findOne({
+        where: { user: { id: Number(parcel.localAgentId) } },
+      });
+      if (!localAgent) return;
+
+      const alreadyCredited = await this.agentTransactionRepo.findOne({
+        where: {
+          transactionReference: order.trackingNumber,
+          paymentMethod: 'last_mile_delivery',
+        },
+      });
+      if (alreadyCredited) return;
+
+      const platformFee = Number(order.platformFeeAmount || 0);
+      if (platformFee <= 0) return;
+      const commissionRate = Number(localAgent.commissionRate ?? 2.5);
+      const commission = parseFloat(
+        ((platformFee * commissionRate) / 100).toFixed(2),
+      );
+      if (commission <= 0) return;
+
+      await this.agentTransactionRepo.save(
+        this.agentTransactionRepo.create({
+          agent: localAgent,
+          invoiceAmount: platformFee,
+          commissionRate,
+          commissionAmount: commission,
+          transactionReference: order.trackingNumber,
+          paymentMethod: 'last_mile_delivery',
+          status: AgentTransactionStatus.CONFIRMED,
+        } as any),
+      );
+      localAgent.totalEarnings = Number(localAgent.totalEarnings || 0) + commission;
+      localAgent.totalTransactions = Number(localAgent.totalTransactions || 0) + 1;
+      localAgent.totalDeliveriesCompleted =
+        Number(localAgent.totalDeliveriesCompleted || 0) + 1;
+      localAgent.totalEarningsDeliveries =
+        Number(localAgent.totalEarningsDeliveries || 0) + commission;
+      await this.agentRepo.save(localAgent);
+    } catch (err) {
+      console.error('Failed to sync parcel status on order completion:', err.message);
+    }
   }
 
   // ── Generate confirmation token & send WhatsApp to buyer ─────────────────
@@ -1097,7 +1095,32 @@ export class OrdersService {
         (order.seller as any).id,
         'canCreateOrders',
       ));
-    if (!isSeller && !isAdmin && !isAuthorizedStaff)
+
+    // The Super Agent actually handling this order's parcel (received it at
+    // a hub, or is holding it as the destination hub) is often the one
+    // physically handing the package to the buyer — not the original
+    // seller — so they need to be able to send the same confirmation link.
+    // SuperAgentDashboard.js already has this button; it was 403ing because
+    // this check never recognized Super Agents at all.
+    let isHandlingSuperAgent = false;
+    if (!isSeller && !isAdmin && !isAuthorizedStaff && order.trackingNumber) {
+      const parcel = await this.parcelRepo.findOne({
+        where: { trackingNumber: order.trackingNumber },
+        relations: { superAgent: true, destinationSuperAgent: true },
+      });
+      if (parcel) {
+        const callerSuperAgent = await this.superAgentRepo.findOne({
+          where: { user: { id: seller.id } },
+        });
+        if (callerSuperAgent) {
+          isHandlingSuperAgent =
+            parcel.superAgent?.id === callerSuperAgent.id ||
+            parcel.destinationSuperAgent?.id === callerSuperAgent.id;
+        }
+      }
+    }
+
+    if (!isSeller && !isAdmin && !isAuthorizedStaff && !isHandlingSuperAgent)
       throw new ForbiddenException('Not your order');
 
     // Generate secure random token (24 chars)
@@ -1419,6 +1442,8 @@ export class OrdersService {
           : {}),
       });
 
+      await this.syncParcelDeliveredForOrder(order);
+
       // Notify seller
       const sellerPhone =
         order.seller?.phone || (order.seller as any)?.user?.phone;
@@ -1626,6 +1651,8 @@ export class OrdersService {
           // undercount was missing entirely.
           await this.updateSellerCompletionStats(order.seller.id).catch(() => {});
         }
+
+        await this.syncParcelDeliveredForOrder(order);
 
         // Notify seller
         const sellerPhone =
