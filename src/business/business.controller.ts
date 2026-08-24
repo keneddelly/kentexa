@@ -13,7 +13,8 @@ import {
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { BusinessCustomerService } from './business-customer.service';
 import { ConversationService } from './conversation.service';
-import { SellerScopeService } from './seller-scope.service';
+import { SellerScopeService, SellerPermission } from './seller-scope.service';
+import { User } from '../users/entities/user.entity';
 
 /**
  * BusinessController — Seller Business Platform API
@@ -29,6 +30,27 @@ export class BusinessController {
     private conversationService: ConversationService,
     private sellerScope: SellerScopeService,
   ) {}
+
+  // Customers/inbox are "communicate with buyers about my own listings" —
+  // the same category as classifieds, not a formal business capability.
+  // Mirrors classifieds.controller.ts's resolveClassifiedActorId(): try the
+  // normal business-delegation path first (so a seller or an active team
+  // member with the right permission keeps working exactly as before), and
+  // a plain, unverified user who owns no business simply falls back to
+  // managing their own customers/conversations under their own account id
+  // instead of being blocked entirely. Team-management actions (assigning
+  // a conversation to a teammate) deliberately do NOT use this — that's a
+  // genuinely multi-person business feature.
+  private async resolveSellerActorId(
+    user: User,
+    permission?: SellerPermission,
+  ): Promise<number> {
+    try {
+      return await this.sellerScope.resolve(user, permission);
+    } catch {
+      return user.id;
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // CUSTOMERS (CRM) — was JwtAuthGuard + a hard SELLER/ADMIN/MANAGER role
@@ -47,7 +69,7 @@ export class BusinessController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canViewCustomers',
     );
@@ -61,7 +83,7 @@ export class BusinessController {
 
   @Get('customers/stats')
   async getCustomerStats(@Request() req) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canViewCustomers',
     );
@@ -70,7 +92,7 @@ export class BusinessController {
 
   @Get('customers/:id')
   async getCustomer(@Request() req, @Param('id', ParseIntPipe) id: number) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canViewCustomers',
     );
@@ -79,7 +101,7 @@ export class BusinessController {
 
   @Post('customers/migrate')
   async migrateExistingOrders(@Request() req) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canViewCustomers',
     );
@@ -105,7 +127,7 @@ export class BusinessController {
       notes?: string;
     },
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canViewCustomers',
     );
@@ -118,7 +140,7 @@ export class BusinessController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: any,
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canViewCustomers',
     );
@@ -136,7 +158,7 @@ export class BusinessController {
     @Query('search') search?: string,
     @Query('page') page?: string,
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canSendMessages',
     );
@@ -152,7 +174,7 @@ export class BusinessController {
     @Request() req,
     @Body() body: { customerId: number },
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canSendMessages',
     );
@@ -164,7 +186,7 @@ export class BusinessController {
 
   @Get('inbox/:id/messages')
   async getMessages(@Request() req, @Param('id', ParseIntPipe) id: number) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canSendMessages',
     );
@@ -182,7 +204,7 @@ export class BusinessController {
       isNote?: boolean;
     },
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canSendMessages',
     );
@@ -199,7 +221,7 @@ export class BusinessController {
     @Body()
     product: { id: number; name: string; price: number; image?: string },
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canSendMessages',
     );
@@ -217,7 +239,7 @@ export class BusinessController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { status: string },
   ) {
-    const sellerId = await this.sellerScope.resolve(
+    const sellerId = await this.resolveSellerActorId(
       req.user,
       'canSendMessages',
     );

@@ -125,14 +125,23 @@ const RevenueChart = ({ orders }) => {
 };
 
 // ── Menu row — icon, label, optional live value, chevron ──────────────────
-const MenuRow = ({ icon, label, value, onClick, last, dataTour }) => (
-  <button onClick={onClick} data-tour={dataTour}
+// `locked` rows are never hidden (per the "don't hide selling tools, offer
+// an upgrade" principle) — they stay visible and tappable, just route to
+// the verification flow instead of the real page underneath.
+const MenuRow = ({ icon, label, value, onClick, last, dataTour, locked, onLockedClick, t }) => (
+  <button onClick={locked ? onLockedClick : onClick} data-tour={dataTour}
     style={{ width:'100%', display:'flex', alignItems:'center', gap:14,
       padding:'14px 16px', border:'none', background:'none', cursor:'pointer',
-      borderBottom: last ? 'none' : '1px solid #F8FAFC', textAlign:'left' }}>
+      borderBottom: last ? 'none' : '1px solid #F8FAFC', textAlign:'left',
+      opacity: locked ? 0.65 : 1 }}>
     <span style={{ fontSize:20, width:26, textAlign:'center', flexShrink:0 }}>{icon}</span>
     <span style={{ flex:1, fontSize:14, fontWeight:700, color:DK }}>{label}</span>
-    {value != null && (
+    {locked ? (
+      <span style={{ fontSize:10, fontWeight:800, color:'#7C3AED', backgroundColor:'#F5F3FF',
+        padding:'3px 8px', borderRadius:20, flexShrink:0 }}>
+        🔒 {t('seller_dashboard.verified_only')}
+      </span>
+    ) : value != null && (
       <span style={{ fontSize:12, fontWeight:700, color:GR, flexShrink:0 }}>{value}</span>
     )}
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -448,21 +457,35 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
             {/* ── Menu — vertical list, Instagram-Settings style ── */}
             <div style={{ backgroundColor: WH, borderRadius: 16,
               boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'hidden', marginBottom: 16 }}>
-              <MenuRow icon="📸" label={t('seller_dashboard.share_moment')} onClick={() => onOpenMoment?.('selling')} />
-              <MenuRow icon="📦" label={t('seller_dashboard.my_products')} onClick={() => onNavigate('SellerProducts')} dataTour="sd-menu-products" />
-              <MenuRow icon="🏷️" label={t('seller_dashboard.my_listings')} onClick={() => onNavigate('SellerClassifieds')} dataTour="sd-menu-listings" />
-              <MenuRow icon="🛒" label={t('seller_dashboard.orders')} onClick={() => onNavigate('SellerOrders')} dataTour="sd-menu-orders" />
-              <MenuRow icon="👥" label={t('seller_dashboard.customers')} onClick={() => onNavigate('SellerCustomers')} />
-              <MenuRow icon="💬" label={t('seller_dashboard.inbox')} onClick={() => onNavigate('SellerInbox')} />
-              <MenuRow icon="📦" label={t('seller_dashboard.ship_item')} onClick={() => onNavigate('SellerShipment')} />
-              <MenuRow icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')} />
-              <MenuRow icon="🧾" label={t('seller_dashboard.invoices')} value={invoiceRequests.filter(r=>r.status==='pending').length > 0 ? t('seller_dashboard.pending_count', { count: invoiceRequests.filter(r=>r.status==='pending').length }) : null} onClick={() => onNavigate('SellerInvoices')} dataTour="sd-menu-invoices" />
-              <MenuRow icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')} />
-              <MenuRow icon="👛" label={t('seller_dashboard.wallet')} onClick={() => onNavigate('SellerWallet')} />
-              <MenuRow icon="📊" label={t('seller_dashboard.analytics')} onClick={() => onNavigate('SellerAnalytics')} />
-              <MenuRow icon="👥" label={t('seller_dashboard.my_team')} onClick={() => onNavigate('SellerTeam')} />
-              <MenuRow icon="🌐" label={t('seller_dashboard.public_profile')} onClick={() => onNavigate('CommerceProfile')} />
-              <MenuRow icon="🏪" label={t('seller_dashboard.store_settings')} onClick={() => onNavigate('StoreSettings')} last />
+              {/* Universal — no verification required, matches classifieds'
+                  own access model (peer-to-peer selling, ownership-based). */}
+              <MenuRow t={t} icon="📸" label={t('seller_dashboard.share_moment')} onClick={() => onOpenMoment?.('selling')} />
+              <MenuRow t={t} icon="🏷️" label={t('seller_dashboard.my_listings')} onClick={() => onNavigate('SellerClassifieds')} dataTour="sd-menu-listings" />
+              <MenuRow t={t} icon="🛒" label={t('seller_dashboard.orders')} onClick={() => onNavigate('SellerOrders')} dataTour="sd-menu-orders" />
+              <MenuRow t={t} icon="👥" label={t('seller_dashboard.customers')} onClick={() => onNavigate('SellerCustomers')} />
+              <MenuRow t={t} icon="💬" label={t('seller_dashboard.inbox')} onClick={() => onNavigate('SellerInbox')} />
+              <MenuRow t={t} icon="📦" label={t('seller_dashboard.ship_item')} onClick={() => onNavigate('SellerShipment')} />
+              <MenuRow t={t} icon="🧾" label={t('seller_dashboard.invoices')} value={invoiceRequests.filter(r=>r.status==='pending').length > 0 ? t('seller_dashboard.pending_count', { count: invoiceRequests.filter(r=>r.status==='pending').length }) : null} onClick={() => onNavigate('SellerInvoices')} dataTour="sd-menu-invoices" />
+
+              {/* Verified-only — a formal product catalog, logistics and
+                  business tooling. Never hidden (per the "encourage upgrade,
+                  don't block" principle) — routes to Verify Now instead. */}
+              <MenuRow t={t} icon="📦" label={t('seller_dashboard.my_products')} onClick={() => onNavigate('SellerProducts')} dataTour="sd-menu-products"
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')}
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')}
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="👛" label={t('seller_dashboard.wallet')} onClick={() => onNavigate('SellerWallet')}
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="📊" label={t('seller_dashboard.analytics')} onClick={() => onNavigate('SellerAnalytics')}
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="👥" label={t('seller_dashboard.my_team')} onClick={() => onNavigate('SellerTeam')}
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="🌐" label={t('seller_dashboard.public_profile')} onClick={() => onNavigate('CommerceProfile')}
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="🏪" label={t('seller_dashboard.store_settings')} onClick={() => onNavigate('StoreSettings')} last
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
             </div>
 
             {/* Recent Orders */}

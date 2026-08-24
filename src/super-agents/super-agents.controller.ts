@@ -459,15 +459,18 @@ export class SuperAgentsController {
 
   // ══ Seller shipments ════════════════════════════════════════════════════
 
-  // Was JwtAuthGuard-only — any logged-in user (not just sellers) could hit
-  // this and create an order with themselves as the seller.
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(
-    UserRole.SELLER,
-    UserRole.SUPER_AGENT,
-    UserRole.ADMIN,
-    UserRole.MANAGER,
-  )
+  // Selling is universal (classifieds/products both create fine without a
+  // formal SellerProfile — see products/classifieds services) — shipping
+  // something you sold shouldn't require a role the plain listing itself
+  // never required. The role restriction here never actually added an
+  // ownership guarantee beyond what the service already enforces itself:
+  // createSellerShipment() already tolerates a caller with no SellerProfile
+  // (used today for ADMIN/MANAGER/SUPER_AGENT — billing simply doesn't
+  // apply), and its one real ownership check (dto.saleId must belong to
+  // `seller.id`) never depended on role either. JwtAuthGuard alone is
+  // enough; every caller — verified or not — is billed/gated identically
+  // to how an admin already is today.
+  @UseGuards(JwtAuthGuard)
   @Post('shipments')
   createSellerShipment(@Request() req, @Body() body: any) {
     return this.service.createSellerShipment(req.user, body);
