@@ -81,6 +81,7 @@ import Announcements from './admin/pages/Announcements';
 import Analytics from './admin/pages/Analytics';
 import Payments from './admin/pages/Payments';
 import Sellers from './admin/pages/Sellers';
+import IdentityVerifications from './admin/pages/IdentityVerifications';
 import Agents from './admin/pages/Agents';
 import SuperAgentDashboard from './public/pages/SuperAgentDashboard';
 import TrackParcel from './public/pages/TrackParcel';
@@ -659,6 +660,7 @@ function App() {
       case 'Orders':      return requireAdmin(<Orders activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
+      case 'IdentityVerifications': return requireAdmin(<IdentityVerifications activePage={page} {...adminProps} />);
       case 'Agents':      return requireAdmin(<Agents activePage={page} {...adminProps} />);
       case 'Profile':     return requireLogin(<Profile activePage={page} {...adminProps} />);
       case 'TrackParcel': return <TrackParcel {...publicProps} />;

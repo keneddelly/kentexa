@@ -17,6 +17,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SalesModule } from './sales/sales.module';
 import { SellerModule } from './seller/seller.module';
+import { IdentityModule } from './identity/identity.module';
 import { AgentsModule } from './agents/agents.module';
 import { AgentOrdersModule } from './agent-orders/agent-orders.module';
 import { PayoutsModule } from './payouts/payouts.module';
@@ -97,6 +98,7 @@ import { ShareModule } from './share/share.module';
     InventoryModule,
     SalesModule,
     SellerModule,
+    IdentityModule,
     AgentsModule,
     AgentOrdersModule,
     PayoutsModule,

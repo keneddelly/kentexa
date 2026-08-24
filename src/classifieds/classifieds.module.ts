@@ -14,6 +14,7 @@ import { AiModule } from '../ai/ai.module';
 import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { SearchModule } from '../search/search.module';
+import { IdentityModule } from '../identity/identity.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { SearchModule } from '../search/search.module';
     BusinessModule,
     CommerceProfilesModule,
     SearchModule,
+    IdentityModule,
   ],
   controllers: [ClassifiedsController],
   providers: [ClassifiedsService, PriceSuggestionService],

@@ -10,6 +10,7 @@ import {
   Request,
   Query,
   ParseIntPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ClassifiedsService } from './classifieds.service';
 import { PriceSuggestionService } from './price-suggestion.service';
@@ -24,6 +25,8 @@ import { AiListingDescriptionService } from '../ai/ai-listing-description.servic
 import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { resolveCategoryKey } from '../categories/categories.data';
+import { VerificationService } from '../identity/verification.service';
+import { Feature } from '../identity/verification.constants';
 
 @Controller('classifieds')
 export class ClassifiedsController {
@@ -33,6 +36,7 @@ export class ClassifiedsController {
     private readonly aiSearchParser: AiSearchParserService,
     private readonly aiDescription: AiListingDescriptionService,
     private readonly sellerScope: SellerScopeService,
+    private readonly verification: VerificationService,
   ) {}
 
   // Reads the seller's already-uploaded photo(s) + typed title and writes
@@ -239,6 +243,21 @@ export class ClassifiedsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() dto: CreateClassifiedDto, @Request() req) {
+    // Posting a classified is the spec's first real identity-verification
+    // trigger — everything before this point (browsing, search, saving)
+    // stays open at Level 0. See VerificationService for what "Level 1"
+    // actually requires.
+    const canPost = await this.verification.canUseFeature(
+      req.user.id,
+      Feature.POST_CLASSIFIED,
+    );
+    if (!canPost) {
+      throw new ForbiddenException({
+        code: 'VERIFICATION_REQUIRED',
+        requiredLevel: 1,
+        message: 'Verify your identity to post a listing on Kentexa',
+      });
+    }
     const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.create(dto, { id: sellerId } as User);
   }

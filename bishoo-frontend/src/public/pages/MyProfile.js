@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -98,6 +99,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [unread,     setUnread]     = useState(0);
   const [loading,    setLoading]    = useState(true); // eslint-disable-line no-unused-vars
   const [showQR,     setShowQR]     = useState(false);
+  const [identityStatus, setIdentityStatus] = useState(null);
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
 
   const role = userRole || profile?.role || 'user';
 
@@ -108,10 +111,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
       api.get('/auth/profile'),
       api.get('/reputation/my'),
       api.get('/notifications/unread-count'),
-    ]).then(([p, r, n]) => {
+      api.get('/identity/me'),
+    ]).then(([p, r, n, id]) => {
       if (p.status === 'fulfilled') setProfile(p.value.data);
       if (r.status === 'fulfilled') setRep(r.value.data);
       if (n.status === 'fulfilled') setUnread(n.value.data?.count || n.value.data || 0);
+      if (id.status === 'fulfilled') setIdentityStatus(id.value.data);
     }).finally(() => setLoading(false));
 
     // Eagerly load just the ONE role-relevant summary so the Quick Actions
@@ -614,6 +619,15 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             <SCard>
               <Row icon="🏪" label={t('my_profile.seller_center_label')}
                 onAction={() => onNavigate('SellerDashboard')} />
+              <Row icon="🪪" label={t('my_profile.identity_label')}
+                value={
+                  identityStatus?.status === 'verified' ? t('my_profile.identity_verified')
+                  : identityStatus?.status === 'pending' ? t('my_profile.identity_pending')
+                  : identityStatus?.status === 'rejected' ? t('my_profile.identity_rejected')
+                  : t('my_profile.identity_not_verified')
+                }
+                color={identityStatus?.status === 'verified' ? '#16a34a' : identityStatus?.status === 'pending' ? '#ca8a04' : GR}
+                onAction={identityStatus?.status === 'verified' ? undefined : () => setShowVerifyIdentity(true)} />
             </SCard>
 
             <SCard>
@@ -1049,6 +1063,16 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             </button>
           </div>
         </div>
+      )}
+
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => {
+            setShowVerifyIdentity(false);
+            api.get('/identity/me').then(r => setIdentityStatus(r.data)).catch(() => {});
+          }}
+        />
       )}
     </div>
   );

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
 // Categories fetched from GET /categories (src/categories/categories.data.ts
 // — the single source of truth). This used to be its own independently-
@@ -44,6 +45,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const [form, setForm]               = useState(EMPTY_FORM);
   const [userPhone, setUserPhone]     = useState('');
   const [descGenerating, setDescGenerating] = useState(false);
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
 
   // Derived
   const currentCat  = CATEGORIES[form.category] || CATEGORIES.general;
@@ -201,7 +203,16 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         setMessage(t('seller_classifieds.listing_posted'));
       }
       resetForm(); fetchMyClassifieds();
-    } catch (err) { setError(err?.response?.data?.message || t('seller_classifieds.save_failed')); }
+    } catch (err) {
+      // Posting requires Level 1 identity verification — show the inline
+      // "Verify Your Identity" flow instead of a plain error so the
+      // already-filled form is never lost or restarted (spec section 5).
+      if (err?.response?.data?.code === 'VERIFICATION_REQUIRED') {
+        setShowVerifyIdentity(true);
+        return;
+      }
+      setError(err?.response?.data?.message || t('seller_classifieds.save_failed'));
+    }
   };
 
   const handleEdit = (item) => {
@@ -625,6 +636,13 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
           </div>
         </div>
         </div>
+      )}
+
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
+        />
       )}
     </div>
   );

@@ -5,6 +5,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
     { icon: '📊', label: 'Dashboard',         page: 'Dashboard' },
     { icon: '👥', label: 'Users',             page: 'Users' },
     { icon: '🏪', label: 'Sellers',           page: 'Sellers' },
+    { icon: '🪪', label: 'Identity Verification', page: 'IdentityVerifications' },
     { icon: '🤝', label: 'Agents',            page: 'Agents' },
     { icon: '🏢', label: 'Super Agents',      page: 'SuperAgents' },
     { icon: '📊', label: 'Agent Performance', page: 'AgentPerformance' },
