@@ -2347,7 +2347,27 @@
     "pos_step_search_title": "Trouver un produit",
     "pos_step_search_desc": "Recherchez par nom ou scannez un code-barres. Appuyez sur un résultat pour l'ajouter au panier.",
     "pos_step_charge_title": "Encaisser le paiement",
-    "pos_step_charge_desc": "Une fois les articles ajoutés, appuyez sur Encaisser en bas pour prendre le paiement et obtenir un reçu."
+    "pos_step_charge_desc": "Une fois les articles ajoutés, appuyez sur Encaisser en bas pour prendre le paiement et obtenir un reçu.",
+
+    "buyer_home_title": "Trouver des articles sur Kentexa",
+    "bh_step_intro_title": "Bienvenue sur Kentexa",
+    "bh_step_intro_desc": "Produits, petites annonces, services et transport de toute la Tanzanie, dans un seul fil. Faire une visite rapide ?",
+    "bh_step_search_title": "Rechercher avec l'IA",
+    "bh_step_search_desc": "Tapez ce que vous cherchez en langage simple — l'IA Kentexa comprend des phrases comme \"téléphone pas cher à Mwanza\".",
+    "bh_step_filters_title": "Filtrez votre fil",
+    "bh_step_filters_desc": "Glissez pour voir les vendeurs que vous suivez, ce qui est à proximité, les tendances, ou juste les produits, services et transport.",
+
+    "agent_dashboard_title": "Votre tableau de bord Agent",
+    "ag_step_intro_title": "Votre rôle en tant qu'Agent",
+    "ag_step_intro_desc": "Vous aidez les acheteurs à payer en personne et gagnez une commission sur chaque paiement que vous traitez. Faire une visite rapide ?",
+    "ag_step_work_title": "Missions disponibles",
+    "ag_step_work_desc": "Travail affiche les missions à proximité que vous pouvez accepter.",
+    "ag_step_pay_title": "Encaisser un paiement",
+    "ag_step_pay_desc": "Payer est l'endroit où vous recherchez la facture d'un acheteur et encaissez son paiement en personne.",
+    "ag_step_invoice_title": "Rechercher la facture",
+    "ag_step_invoice_desc": "Saisissez le numéro de facture donné par l'acheteur, puis confirmez le montant et encaissez le paiement.",
+    "ag_step_earnings_title": "Suivez vos gains",
+    "ag_step_earnings_desc": "Gains affiche votre commission sur chaque paiement que vous avez encaissé."
   },
   "flash_sales": {
     "expired": "Terminé",

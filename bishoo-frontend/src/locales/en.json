@@ -2351,7 +2351,27 @@
     "pos_step_search_title": "Find a product",
     "pos_step_search_desc": "Search by name or scan a barcode. Tap a result to add it to the cart.",
     "pos_step_charge_title": "Collect payment",
-    "pos_step_charge_desc": "Once you've added items, tap Charge at the bottom to take payment and get a receipt."
+    "pos_step_charge_desc": "Once you've added items, tap Charge at the bottom to take payment and get a receipt.",
+
+    "buyer_home_title": "Finding Things on Kentexa",
+    "bh_step_intro_title": "Welcome to Kentexa",
+    "bh_step_intro_desc": "Products, classifieds, services and transport from across Tanzania, all in one feed. Quick tour?",
+    "bh_step_search_title": "Search with AI",
+    "bh_step_search_desc": "Type what you're looking for in plain language — Kentexa AI understands things like \"cheap phone in Mwanza\".",
+    "bh_step_filters_title": "Filter your feed",
+    "bh_step_filters_desc": "Swipe to see sellers you follow, what's nearby, trending items, or just products, services and transport.",
+
+    "agent_dashboard_title": "Your Agent Dashboard",
+    "ag_step_intro_title": "What you do as an Agent",
+    "ag_step_intro_desc": "You help buyers pay in person and collect a commission on every payment you process. Quick tour?",
+    "ag_step_work_title": "Available jobs",
+    "ag_step_work_desc": "Work shows nearby jobs you can pick up.",
+    "ag_step_pay_title": "Collect a payment",
+    "ag_step_pay_desc": "Pay is where you look up a buyer's invoice and collect their payment in person.",
+    "ag_step_invoice_title": "Look up the invoice",
+    "ag_step_invoice_desc": "Enter the invoice number the buyer gives you, then confirm the amount and collect payment.",
+    "ag_step_earnings_title": "Track your earnings",
+    "ag_step_earnings_desc": "Earnings shows your commission from every payment you've collected."
   },
   "flash_sales": {
     "expired": "Expired",

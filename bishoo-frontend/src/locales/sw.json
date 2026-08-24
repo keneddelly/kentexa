@@ -2197,7 +2197,27 @@
     "pos_step_search_title": "Tafuta bidhaa",
     "pos_step_search_desc": "Tafuta kwa jina au skani barcode. Bonyeza matokeo kuiweka kwenye kikapu.",
     "pos_step_charge_title": "Pokea malipo",
-    "pos_step_charge_desc": "Ukishaongeza bidhaa, bonyeza Toza chini ili kupokea malipo na kupata risiti."
+    "pos_step_charge_desc": "Ukishaongeza bidhaa, bonyeza Toza chini ili kupokea malipo na kupata risiti.",
+
+    "buyer_home_title": "Kutafuta Bidhaa Kentexa",
+    "bh_step_intro_title": "Karibu Kentexa",
+    "bh_step_intro_desc": "Bidhaa, matangazo, huduma na usafirishaji kutoka Tanzania nzima, vyote katika mtiririko mmoja. Tembelea haraka?",
+    "bh_step_search_title": "Tafuta kwa AI",
+    "bh_step_search_desc": "Andika unachotafuta kwa lugha ya kawaida — Kentexa AI inaelewa vitu kama \"simu rahisi Mwanza\".",
+    "bh_step_filters_title": "Chuja mtiririko wako",
+    "bh_step_filters_desc": "Telezesha kuona wauzaji unaowafuata, vilivyo karibu, vinavyovuma, au bidhaa, huduma na usafirishaji tu.",
+
+    "agent_dashboard_title": "Dashibodi Yako ya Wakala",
+    "ag_step_intro_title": "Unachofanya kama Wakala",
+    "ag_step_intro_desc": "Unasaidia wanunuzi kulipa ana kwa ana na kupata kamisheni kwa kila malipo unayoshughulikia. Tembelea haraka?",
+    "ag_step_work_title": "Kazi zinazopatikana",
+    "ag_step_work_desc": "Kazi inaonyesha kazi zilizo karibu unazoweza kuzichukua.",
+    "ag_step_pay_title": "Pokea malipo",
+    "ag_step_pay_desc": "Lipa ndipo unapotafuta ankara ya mnunuzi na kupokea malipo yake ana kwa ana.",
+    "ag_step_invoice_title": "Tafuta ankara",
+    "ag_step_invoice_desc": "Ingiza namba ya ankara aliyokupa mnunuzi, kisha thibitisha kiasi na kupokea malipo.",
+    "ag_step_earnings_title": "Fuatilia mapato yako",
+    "ag_step_earnings_desc": "Mapato inaonyesha kamisheni yako kutoka kwa kila malipo uliyopokea."
   },
   "flash_sales": {
     "expired": "Imekwisha",

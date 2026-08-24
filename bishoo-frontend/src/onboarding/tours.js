@@ -168,6 +168,74 @@ export const TOURS = {
       },
     ],
   },
+
+  buyer_home_orientation: {
+    titleKey: 'tours.buyer_home_title',
+    role: 'user',
+    page: 'Home',
+    steps: [
+      {
+        id: 'intro',
+        titleKey: 'tours.bh_step_intro_title',
+        descKey: 'tours.bh_step_intro_desc',
+      },
+      {
+        id: 'search',
+        target: 'hf-ai-search',
+        titleKey: 'tours.bh_step_search_title',
+        descKey: 'tours.bh_step_search_desc',
+      },
+      {
+        id: 'filters',
+        target: 'hf-filters',
+        titleKey: 'tours.bh_step_filters_title',
+        descKey: 'tours.bh_step_filters_desc',
+        isFinal: true,
+      },
+    ],
+  },
+
+  agent_dashboard_orientation: {
+    titleKey: 'tours.agent_dashboard_title',
+    role: 'agent',
+    page: 'AgentDashboard',
+    steps: [
+      {
+        id: 'intro',
+        titleKey: 'tours.ag_step_intro_title',
+        descKey: 'tours.ag_step_intro_desc',
+      },
+      {
+        id: 'work',
+        target: 'ag-tab-work',
+        requiresState: { tab: 'work' },
+        titleKey: 'tours.ag_step_work_title',
+        descKey: 'tours.ag_step_work_desc',
+      },
+      {
+        id: 'pay',
+        target: 'ag-tab-pay',
+        requiresState: { tab: 'pay' },
+        titleKey: 'tours.ag_step_pay_title',
+        descKey: 'tours.ag_step_pay_desc',
+      },
+      {
+        id: 'invoice_input',
+        target: 'ag-invoice-input',
+        requiresState: { tab: 'pay' },
+        titleKey: 'tours.ag_step_invoice_title',
+        descKey: 'tours.ag_step_invoice_desc',
+      },
+      {
+        id: 'earnings',
+        target: 'ag-tab-earnings',
+        requiresState: { tab: 'earnings' },
+        titleKey: 'tours.ag_step_earnings_title',
+        descKey: 'tours.ag_step_earnings_desc',
+        isFinal: true,
+      },
+    ],
+  },
 };
 
 export const getTour = (key) => TOURS[key] || null;

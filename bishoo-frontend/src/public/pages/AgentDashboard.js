@@ -21,6 +21,8 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import FeatureTour from '../../onboarding/FeatureTour';
+import TourTrigger from '../../onboarding/TourTrigger';
 
 // ── Status colours used across both order and parcel cards ────────────────
 const STATUS_COLOR = {
@@ -522,9 +524,17 @@ const AgentDashboard = ({ onNavigate, isLoggedIn }) => {
 
   const tier = TIER_STYLE[profile?.tier || 'basic'];
 
+  // Lets the generic FeatureTour engine switch this page's own tab before
+  // measuring a step's target — same pattern as SuperAgentDashboard.js.
+  const handleTourStepChange = (requiredState) => {
+    if (requiredState.tab) setTab(requiredState.tab);
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', paddingBottom: 90 }}>
-      <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} top={0} />
+      <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} top={0}
+        right={<TourTrigger tourKey="agent_dashboard_orientation" />} />
+      <FeatureTour tourKey="agent_dashboard_orientation" onStepChange={handleTourStepChange} autoStart />
 
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg,#2563EB,#7C3AED)', padding: '20px 16px' }}>
@@ -646,7 +656,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn }) => {
                 { key: 'pay',      label: t('agent_dashboard.tab_pay') },
                 { key: 'earnings', label: t('agent_dashboard.tab_earnings') },
               ].map(tabItem => (
-                <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
+                <button key={tabItem.key} data-tour={`ag-tab-${tabItem.key}`} onClick={() => setTab(tabItem.key)}
                   style={{ flex: 1, padding: '10px 8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
                     backgroundColor: tab === tabItem.key ? '#2563eb' : 'transparent',
                     color: tab === tabItem.key ? '#fff' : '#64748b' }}>
@@ -1077,7 +1087,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn }) => {
                 ) : (
                   <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                     <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>{t('agent_dashboard.invoice_number_field_label')}</label>
-                    <input type="text" placeholder="e.g. KNT-INV-2025-00001"
+                    <input data-tour="ag-invoice-input" type="text" placeholder="e.g. KNT-INV-2025-00001"
                       value={invoiceInput} onChange={e => setInvoiceInput(e.target.value)}
                       style={{ ...inputStyle, marginBottom: 10 }} />
                     <button onClick={handleLookupInvoice} disabled={lookupLoading || !invoiceInput.trim()}

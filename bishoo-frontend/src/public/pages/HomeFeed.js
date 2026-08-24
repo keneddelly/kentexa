@@ -17,6 +17,8 @@ import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import AiSearchBar from '../components/AiSearchBar';
 import api             from '../../api/api';
+import FeatureTour from '../../onboarding/FeatureTour';
+import TourTrigger from '../../onboarding/TourTrigger';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -1547,6 +1549,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         @keyframes slideUp { from{transform:translateY(100%);opacity:0} to{transform:translateY(0);opacity:1} }
         ::-webkit-scrollbar { display:none }
       `}</style>
+      <FeatureTour tourKey="buyer_home_orientation" autoStart />
 
       {/* Instagram-style desktop layout: the feed stays a fixed-width
           centered column against the gray backdrop instead of stretching
@@ -1618,12 +1621,15 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
         </div>
 
         {/* AI front door — the primary way to find anything on Kentexa */}
-        <div style={{ padding:'8px 14px' }}>
+        <div data-tour="hf-ai-search" style={{ padding:'8px 14px 0' }}>
           <AiSearchBar onNavigate={onNavigate} />
+        </div>
+        <div style={{ padding:'6px 14px 8px', display:'flex', justifyContent:'flex-end' }}>
+          <TourTrigger tourKey="buyer_home_orientation" />
         </div>
 
         {/* Feed filters */}
-        <div style={{ display:'flex', overflowX:'auto', scrollbarWidth:'none',
+        <div data-tour="hf-filters" style={{ display:'flex', overflowX:'auto', scrollbarWidth:'none',
           padding:'0 8px', borderTop:'1px solid #F8FAFC' }}>
           {FILTERS.map(f => (
             <button key={f.key} onClick={() => setFilter(f.key)}
