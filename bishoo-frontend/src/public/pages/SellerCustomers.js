@@ -14,7 +14,6 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
-import { hasAnyRole } from '../utils/roles';
 
 const fmt = (n) => Number(n || 0).toLocaleString();
 
@@ -84,7 +83,7 @@ const CustomerCard = ({ customer, onOpen, onMessage, t }) => {
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 
-const SellerCustomers = ({ onNavigate, userRole, currentUser }) => {
+const SellerCustomers = ({ onNavigate, currentUser }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const SEGMENTS = {
@@ -158,29 +157,11 @@ const SellerCustomers = ({ onNavigate, userRole, currentUser }) => {
     border: '1px solid #e2e8f0', fontSize: 13, outline: 'none',
     boxSizing: 'border-box', marginBottom: 10 };
 
-  // This is a seller CRM (auto-populated from order history) — meaningless
-  // for a plain buyer, who has no customers. Backend enforces this too
-  // (RolesGuard on /business/customers/*), this just avoids showing an
-  // empty "customer list" with an "Add Customer" form to everyone else.
-  if (!hasAnyRole(userRole, currentUser, ['seller', 'admin', 'manager'])) return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>
-      <BackBar title={t('seller_customers.title')} onBack={() => onNavigate('back')} />
-      <div style={{ padding: '48px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
-        <div style={{ fontSize: 44, marginBottom: 12 }}>👥</div>
-        <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
-          {t('seller_customers.sellers_only_title')}
-        </h2>
-        <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
-          {t('seller_customers.sellers_only_desc')}
-        </p>
-        <button onClick={() => onNavigate('BecomeSeller')}
-          style={{ background: '#1d4ed8', color: '#fff', border: 'none',
-            padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-          🚀 {t('seller_customers.become_seller_button')}
-        </button>
-      </div>
-    </div>
-  );
+  // Any authenticated user can build a customer list from their own order
+  // history now — GET/POST /business/customers* resolve the caller's own
+  // account id as a fallback rather than hard-403ing a plain user, so this
+  // page shouldn't gate on role either anymore. Someone with no customers
+  // yet simply sees an empty list, not a "Sellers Only" wall.
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc' }}>

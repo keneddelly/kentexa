@@ -20,7 +20,6 @@ import { useTranslation, Trans } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
-import { hasAnyRole } from '../utils/roles';
 
 
 const inputStyle = {
@@ -52,7 +51,7 @@ const SectionTitle = ({ icon, title, subtitle }) => (
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 
-const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = null, currentUser, activeProfileId }) => {
+const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, currentUser, activeProfileId }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [products, setProducts]       = useState([]);
@@ -414,31 +413,14 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     setError('');
   };
 
-  // ── Role gate ──────────────────────────────────────────────────────────────
-  // Creating a shipment means picking one of YOUR OWN products/classifieds to
-  // ship — meaningless (and previously reachable) for a plain buyer, who has
-  // none. Restrict to roles that actually sell/arrange transport; the
-  // backend enforces this too (POST /super-agents/shipments), this just
-  // avoids showing a broken "pick a product" form to everyone else.
-  if (!hasAnyRole(userRole, currentUser, ['seller', 'super_agent', 'admin', 'manager'])) return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
-      <BackBar onBack={() => onNavigate('back')} title={`📦 ${t('seller_shipment.title')}`} />
-      <div style={{ padding: '48px 24px', textAlign: 'center', maxWidth: 420, margin: '0 auto' }}>
-        <div style={{ fontSize: 44, marginBottom: 12 }}>🏪</div>
-        <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
-          {t('seller_shipment.sellers_only_title')}
-        </h2>
-        <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px', lineHeight: 1.6 }}>
-          {t('seller_shipment.sellers_only_desc')}
-        </p>
-        <button onClick={() => onNavigate('BecomeSeller')}
-          style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none',
-            padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-          🚀 {t('seller_shipment.become_seller_button')}
-        </button>
-      </div>
-    </div>
-  );
+  // Any authenticated user can ship a product or classified they actually
+  // own — creating a listing was already universal (POST /products,
+  // POST /classifieds only ever required JwtAuthGuard), and the backend
+  // shipment endpoint (POST /super-agents/shipments) no longer restricts
+  // by role either, so this page shouldn't gate on role anymore. A user
+  // with nothing to ship simply sees an empty item picker below, not a
+  // "Sellers Only" wall — a role check here used to block exactly the
+  // "I received an invoice for my classified, now let me ship it" flow.
 
   // ── Success screen ────────────────────────────────────────────────────────
   if (result) return (

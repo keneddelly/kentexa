@@ -144,17 +144,14 @@ export class ClassifiedsController {
     @Body() body: { shippingMethod: string; notes?: string },
     @Request() req,
   ) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canCreateOrders',
-    );
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.setShippingMethod(requestId, { id: sellerId } as User, body);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('invoices/seller-requests')
   async getSellerInvoiceRequests(@Request() req) {
-    const sellerId = await this.sellerScope.resolve(req.user, 'canViewOrders');
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.getSellerInvoiceRequests({ id: sellerId } as User);
   }
 
@@ -204,10 +201,7 @@ export class ClassifiedsController {
       dueDays?: number;
     },
   ) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canCreateOrders',
-    );
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.createManualInvoice({ id: sellerId } as User, body);
   }
 
@@ -224,10 +218,7 @@ export class ClassifiedsController {
       dueDays?: number;
     },
   ) {
-    const sellerId = await this.sellerScope.resolve(
-      req.user,
-      'canCreateOrders',
-    );
+    const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.createInvoiceForRequest(
       requestId,
       { id: sellerId } as User,
