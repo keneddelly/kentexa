@@ -243,31 +243,42 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
     fetchData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Verification status is a trust/privilege signal now, not a gate on
+  // reaching your own seller data — every fetch below runs for every user
+  // regardless of profileStatus, each independently error-handled so a
+  // brand-new account with no SellerProfile/no activity yet just sees
+  // zero-value stats instead of losing the whole page.
   const fetchData = async () => {
     try {
       setLoading(true);
-      const profileRes = await api.get('/seller/my-profile');
-      setProfile(profileRes.data);
-      setProfileStatus(profileRes.data.status);
-      if (profileRes.data.status === 'approved') {
+
+      try {
+        const profileRes = await api.get('/seller/my-profile');
+        setProfile(profileRes.data);
+        setProfileStatus(profileRes.data.status);
+      } catch (err) {
+        if (err?.response?.status === 404) setProfileStatus('not_applied');
+        else throw err;
+      }
+
+      try {
         const dashRes = await api.get('/seller/dashboard');
         setData(dashRes.data);
-        try {
-          const invoiceRes = await api.get('/classifieds/invoices/seller-requests');
-          setInvoiceRequests(invoiceRes.data);
-        } catch { setInvoiceRequests([]); }
-        try {
-          const vanRes = await api.get('/daily-batches/manifest/today');
-          setVanStatus(vanRes.data);
-        } catch { setVanStatus(null); }
-        try {
-          const posRes = await api.get('/sales/dashboard');
-          setPosDashboard(posRes.data);
-        } catch { setPosDashboard(null); }
-      }
+      } catch { setData(null); }
+      try {
+        const invoiceRes = await api.get('/classifieds/invoices/seller-requests');
+        setInvoiceRequests(invoiceRes.data);
+      } catch { setInvoiceRequests([]); }
+      try {
+        const vanRes = await api.get('/daily-batches/manifest/today');
+        setVanStatus(vanRes.data);
+      } catch { setVanStatus(null); }
+      try {
+        const posRes = await api.get('/sales/dashboard');
+        setPosDashboard(posRes.data);
+      } catch { setPosDashboard(null); }
     } catch (err) {
-      if (err?.response?.status === 404) setProfileStatus('not_applied');
-      else setError(t('seller_dashboard.could_not_load'));
+      setError(t('seller_dashboard.could_not_load'));
     } finally { setLoading(false); }
   };
 
@@ -297,7 +308,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
     approved:    { icon: '✅', title: t('seller_dashboard.status_approved_title'), desc: t('seller_dashboard.status_approved_desc'),                                              color: GN,        bg: '#DCFCE7' },
     rejected:    { icon: '❌', title: t('seller_dashboard.status_rejected_title'), desc: t('seller_dashboard.status_rejected_reason', { reason: profile?.rejectionReason || t('seller_dashboard.not_specified') }),                            color: '#DC2626',  bg: '#FEE2E2' },
     suspended:   { icon: '🚫', title: t('seller_dashboard.status_suspended_title'), desc: t('seller_dashboard.status_suspended_reason', { reason: profile?.rejectionReason || t('seller_dashboard.contact_support') }),                          color: '#DC2626',  bg: '#FEE2E2' },
-    not_applied: { icon: '🏪', title: t('seller_dashboard.status_not_applied_title'), desc: t('seller_dashboard.status_not_applied_desc'),                                  color: PU,         bg: '#EDE9FE' },
+    not_applied: { icon: '🏪', title: t('seller_dashboard.unlock_title'), desc: t('seller_dashboard.unlock_desc'),                                  color: PU,         bg: '#EDE9FE' },
   };
 
   const statusInfo  = statusConfig[profileStatus] || statusConfig['not_applied'];
@@ -363,23 +374,31 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
           </div>
         )}
 
+        {/* Verification is a trust/privilege upgrade, not a gate — this banner
+            sits ALONGSIDE the real dashboard below, never instead of it. */}
         {profileStatus !== 'approved' && (
-          <div style={{ backgroundColor: statusInfo.bg, borderRadius: 16, padding: '24px 16px',
-            marginBottom: 24, border: `2px solid ${statusInfo.color}20`, textAlign: 'center' }}>
-            <div style={{ fontSize: 44, marginBottom: 10 }}>{statusInfo.icon}</div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: statusInfo.color, margin: '0 0 6px' }}>{statusInfo.title}</h2>
-            <p style={{ fontSize: 13, color: GR, margin: '0 0 16px' }}>{statusInfo.desc}</p>
-            {profileStatus === 'not_applied' && (
-              <button onClick={() => onNavigate('BecomeSeller')}
-                style={{ background: `linear-gradient(135deg,${B},${PU})`, color: WH, border: 'none',
-                  padding: '12px 24px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                🚀 {t('seller_dashboard.apply_now')}
-              </button>
-            )}
+          <div style={{ backgroundColor: statusInfo.bg, borderRadius: 14, padding: '14px 16px',
+            marginBottom: 16, border: `1px solid ${statusInfo.color}30`,
+            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 26, flexShrink: 0 }}>{statusInfo.icon}</div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: statusInfo.color,
+                textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
+                {t('seller_dashboard.not_verified_badge')}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: DK, marginBottom: 2 }}>{statusInfo.title}</div>
+              <div style={{ fontSize: 12, color: GR, lineHeight: 1.5 }}>{statusInfo.desc}</div>
+            </div>
+            <button onClick={() => onNavigate('BecomeSeller')}
+              style={{ background: `linear-gradient(135deg,${B},${PU})`, color: WH, border: 'none',
+                padding: '9px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 800,
+                flexShrink: 0, whiteSpace: 'nowrap' }}>
+              {t('seller_dashboard.verify_now')}
+            </button>
           </div>
         )}
 
-        {profileStatus === 'approved' && data && (
+        {data && (
           <>
             {profile && !profile.phone && <PhoneNudgeBanner userId={currentUser?.id} onSaved={fetchData} />}
             <ProfileCompletionBanner profile={profile} onNavigate={onNavigate} />

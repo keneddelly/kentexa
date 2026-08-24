@@ -3,7 +3,6 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
-  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
@@ -320,14 +319,19 @@ export class SellerService {
   }
 
   // ── Seller dashboard stats ────────────────────────────────────────────────
+  // Selling is universal (see Classified/Product create() — neither
+  // requires an approved SellerProfile), so viewing your own basic seller
+  // stats is too: everything below is already scoped purely by user.id,
+  // never SellerProfile-specific data. A user with no activity yet just
+  // gets zero-value stats, not a 403 — verification is a trust upgrade,
+  // not a gate on this basic view.
   async getDashboardStats(user: User) {
-    const profile = await this.getMyProfile(user.id);
-
-    if (profile.status !== SellerStatus.APPROVED) {
-      throw new ForbiddenException(
-        `Your seller account is ${profile.status}. Please wait for approval.`,
-      );
-    }
+    // Tolerant lookup — unlike getMyProfile(), never throws for a user who
+    // hasn't applied yet; `profile` in the response below is simply null,
+    // same shape the frontend already treats as "not verified" elsewhere.
+    const profile = await this.profileRepo.findOne({
+      where: { user: { id: user.id } },
+    });
 
     const [myProducts, myClassifieds, myOrders] = await Promise.all([
       this.productRepo.find({ where: { seller: { id: user.id } } }),

@@ -602,6 +602,11 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         {section === 'commerce' && (
           <>
             <SCard>
+              <Row icon="🏪" label={t('my_profile.seller_center_label')}
+                onAction={() => onNavigate('SellerDashboard')} />
+            </SCard>
+
+            <SCard>
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.business_activity_title')}
               </div>
