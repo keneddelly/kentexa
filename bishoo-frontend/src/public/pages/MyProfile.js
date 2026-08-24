@@ -151,7 +151,11 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           api.get('/transport/my-profile').then(r => setTpData(r.data)).catch(()=>{});
         break;
       case 'businesses':
-        if (!sellerStats && ['seller','admin','manager'].includes(role))
+        // GET /seller/dashboard now works for any account, not just
+        // role='seller' (which only ever flips on formal approval) --
+        // fetch it universally so the Seller Center tile shows real
+        // numbers for a brand-new, not-yet-verified seller too.
+        if (!sellerStats)
           api.get('/seller/dashboard').then(r => setSellerStats(r.data)).catch(()=>{});
         if (!myServices.length)
           api.get('/services/my/ads').then(r => setMyServices(r.data || [])).catch(()=>{});
@@ -292,13 +296,19 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
       {/* ── Quick Actions (role-specific, list-home only) ── */}
       {!section && (() => {
         const actions = [];
+        // Selling is universal now (see SellerDashboard.js) -- every account
+        // gets a Seller Center tile here regardless of role/verification,
+        // not just accounts already promoted to role='seller'. That role
+        // gate was the exact same "verification as permission" bug already
+        // fixed on the dashboard itself; this is the other place it lived.
+        actions.push({
+          icon:'🏪', label:t('my_profile.seller_center_label'),
+          value: sellerStats?.stats?.pendingOrders > 0 ? String(sellerStats.stats.pendingOrders) : t('my_profile.manage_sales_sub'),
+          sub: sellerStats?.stats?.pendingOrders > 0 ? t('my_profile.tap_to_view') : t('my_profile.sell_on_kentexa_sub'),
+          color:B, bg:'#EFF6FF',
+          onAction:()=>onNavigate('SellerDashboard'),
+        });
         if (['seller','admin','manager'].some(r => roles.includes(r))) {
-          actions.push({
-            icon:'📦', label:t('my_profile.new_orders_label'),
-            value: sellerStats?.stats?.pendingOrders != null ? String(sellerStats.stats.pendingOrders) : '—',
-            sub:t('my_profile.tap_to_view'), color:B, bg:'#EFF6FF',
-            onAction:()=>onNavigate('SellerOrders'),
-          });
           actions.push({
             icon:'💰', label:t('my_profile.revenue_label'),
             value: sellerStats?.stats?.totalRevenue != null ? `TZS ${fmt(sellerStats.stats.totalRevenue)}` : '—',
