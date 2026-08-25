@@ -21,6 +21,7 @@ const emptyForm = {
   title: '', message: '', audience: 'all', priority: 'info',
   linkUrl: '', linkLabel: '', sendSms: false, expiresAt: '',
   targetUserId: null, targetUserName: '',
+  thresholdEntity: 'seller', thresholdOperator: 'gte', thresholdAmount: '',
 };
 
 const Announcements = ({ activePage, onNavigate, onLogout }) => {
@@ -31,7 +32,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
   const [saving, setSaving]     = useState(false);
   const [message, setMessage]   = useState('');
   const [error, setError]       = useState('');
-  const [targetMode, setTargetMode] = useState('broadcast'); // 'broadcast' | 'user'
+  const [targetMode, setTargetMode] = useState('broadcast'); // 'broadcast' | 'user' | 'threshold'
   const [allUsers, setAllUsers]     = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [usersLoaded, setUsersLoaded] = useState(false);
@@ -72,12 +73,18 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
     if (targetMode === 'user' && !form.targetUserId) {
       showErr('Chagua mtumiaji mahususi'); return;
     }
+    if (targetMode === 'threshold' && (!form.thresholdAmount || Number(form.thresholdAmount) < 0)) {
+      showErr('Weka kiasi sahihi cha deni'); return;
+    }
     try {
       setSaving(true);
       await api.post('/announcements/admin', {
         ...form,
         targetUserId: targetMode === 'user' ? form.targetUserId : undefined,
         targetUserName: targetMode === 'user' ? form.targetUserName : undefined,
+        thresholdEntity: targetMode === 'threshold' ? form.thresholdEntity : undefined,
+        thresholdOperator: targetMode === 'threshold' ? form.thresholdOperator : undefined,
+        thresholdAmount: targetMode === 'threshold' ? Number(form.thresholdAmount) : undefined,
         expiresAt: form.expiresAt || undefined,
         sendSms:   form.sendSms,
       });
@@ -164,6 +171,10 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                         <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: ps.bg, color: ps.color }}>{ps.label}</span>
                         {a.targetUserId ? (
                           <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>👤 {a.targetUserName || `User #${a.targetUserId}`}</span>
+                        ) : a.thresholdEntity ? (
+                          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>
+                            💰 {a.thresholdEntity === 'seller' ? 'Wauzaji' : 'Super Agents'} {a.thresholdOperator === 'gte' ? '≥' : '≤'} TZS {Number(a.thresholdAmount).toLocaleString()}
+                          </span>
                         ) : (
                           <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: as_.color }}>{as_.label}</span>
                         )}
@@ -210,15 +221,16 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                 style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
 
-            {/* Broadcast vs specific-user mode */}
+            {/* Broadcast vs specific-user vs threshold mode */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               {[
                 { key: 'broadcast', label: '📢 Broadcast' },
-                { key: 'user',      label: '👤 Mtumiaji Mahususi' },
+                { key: 'user',      label: '👤 Mtumiaji' },
+                { key: 'threshold', label: '💰 Kiwango cha Deni' },
               ].map(m => (
                 <button key={m.key} type="button"
                   onClick={() => { setTargetMode(m.key); if (m.key === 'user') loadUsersOnce(); }}
-                  style={{ flex: 1, padding: '9px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                  style={{ flex: 1, padding: '9px 4px', borderRadius: 8, cursor: 'pointer', fontSize: 11.5, fontWeight: 700,
                     border: targetMode === m.key ? '2px solid #6366f1' : '2px solid #e2e8f0',
                     backgroundColor: targetMode === m.key ? '#eef2ff' : '#fff',
                     color: targetMode === m.key ? '#4f46e5' : '#64748b' }}>
@@ -226,6 +238,30 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                 </button>
               ))}
             </div>
+
+            {targetMode === 'threshold' && (
+              <div style={{ marginBottom: 14, backgroundColor: '#f8fafc', borderRadius: 8, padding: 12 }}>
+                <label style={labelStyle}>Lenga Kwa Deni Lililobaki</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select value={form.thresholdEntity} onChange={e => setForm({...form, thresholdEntity: e.target.value})}
+                    style={{ ...inputStyle, flex: 1 }}>
+                    <option value="seller">🏪 Wauzaji</option>
+                    <option value="super_agent">⭐ Super Agents</option>
+                  </select>
+                  <select value={form.thresholdOperator} onChange={e => setForm({...form, thresholdOperator: e.target.value})}
+                    style={{ ...inputStyle, flex: '0 0 90px' }}>
+                    <option value="gte">≥ zaidi</option>
+                    <option value="lte">≤ chini</option>
+                  </select>
+                </div>
+                <input type="number" min="0" placeholder="Kiasi (TZS), e.g. 10000" value={form.thresholdAmount}
+                  onChange={e => setForm({...form, thresholdAmount: e.target.value})}
+                  style={{ ...inputStyle, marginTop: 8 }} />
+                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, marginBottom: 0 }}>
+                  Itamlenga kila {form.thresholdEntity === 'seller' ? 'muuzaji' : 'Super Agent'} ambaye deni lake (outstanding balance) ni {form.thresholdOperator === 'gte' ? 'kubwa kuliko au sawa na' : 'kidogo kuliko au sawa na'} kiasi hiki — inahesabiwa upya kila wakati, si picha ya zamani.
+                </p>
+              </div>
+            )}
 
             {targetMode === 'user' && (
               <div style={{ marginBottom: 14 }}>
@@ -272,7 +308,7 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                 style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: targetMode === 'user' ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: targetMode === 'broadcast' ? '1fr 1fr' : '1fr', gap: 12, marginBottom: 14 }}>
               {targetMode === 'broadcast' && (
                 <div>
                   <label style={labelStyle}>Walengwa</label>

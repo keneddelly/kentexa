@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Announcement } from './announcement.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { SellerProfile } from '../seller/entities/seller-profile.entity';
+import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { SmsService } from '../sms/sms.service';
 import { Logger } from '@nestjs/common';
 
@@ -13,6 +15,8 @@ export class AnnouncementsService {
   constructor(
     @InjectRepository(Announcement) private repo: Repository<Announcement>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(SellerProfile) private sellerProfileRepo: Repository<SellerProfile>,
+    @InjectRepository(SuperAgent) private superAgentRepo: Repository<SuperAgent>,
     private smsService: SmsService,
   ) {}
 
@@ -30,6 +34,9 @@ export class AnnouncementsService {
       expiresAt?: string;
       targetUserId?: number;
       targetUserName?: string;
+      thresholdEntity?: 'seller' | 'super_agent';
+      thresholdOperator?: 'gte' | 'lte';
+      thresholdAmount?: number;
     },
   ) {
     const announcement = new Announcement();
@@ -46,6 +53,17 @@ export class AnnouncementsService {
     announcement.readByUserIds = [];
     announcement.targetUserId = dto.targetUserId || null;
     announcement.targetUserName = dto.targetUserName || null;
+    // Threshold targeting is ignored entirely when a single user is
+    // targeted -- the two modes are mutually exclusive.
+    if (!dto.targetUserId && dto.thresholdEntity && dto.thresholdOperator && dto.thresholdAmount != null) {
+      announcement.thresholdEntity = dto.thresholdEntity;
+      announcement.thresholdOperator = dto.thresholdOperator;
+      announcement.thresholdAmount = dto.thresholdAmount;
+    } else {
+      announcement.thresholdEntity = null;
+      announcement.thresholdOperator = null;
+      announcement.thresholdAmount = null;
+    }
 
     const saved = await this.repo.save(announcement);
 
@@ -59,17 +77,58 @@ export class AnnouncementsService {
     return saved;
   }
 
+  // Resolves which User rows currently match a threshold-targeted
+  // announcement's condition -- e.g. every SellerProfile/SuperAgent whose
+  // outstandingBalance is >= or <= the configured amount, mapped to their
+  // linked User. Shared by sendSmsBlast() (at send time) and getForUser()
+  // (evaluated live per recipient, so it never freezes a stale snapshot).
+  private async resolveThresholdUsers(
+    announcement: Announcement,
+  ): Promise<{ id: number; phone: string | null; name: string | null }[]> {
+    if (!announcement.thresholdEntity || !announcement.thresholdOperator || announcement.thresholdAmount == null) {
+      return [];
+    }
+    const op = announcement.thresholdOperator === 'gte' ? '>=' : '<=';
+    const amount = Number(announcement.thresholdAmount);
+
+    if (announcement.thresholdEntity === 'seller') {
+      const profiles = await this.sellerProfileRepo
+        .createQueryBuilder('sp')
+        .leftJoinAndSelect('sp.user', 'u')
+        .where(`sp.outstandingBalance ${op} :amount`, { amount })
+        .getMany();
+      return profiles.filter((p) => p.user).map((p) => ({
+        id: p.user.id,
+        phone: p.user.phone,
+        name: p.user.name,
+      }));
+    }
+
+    const agents = await this.superAgentRepo
+      .createQueryBuilder('sa')
+      .leftJoinAndSelect('sa.user', 'u')
+      .where(`sa.outstandingBalance ${op} :amount`, { amount })
+      .getMany();
+    return agents.filter((a) => a.user).map((a) => ({
+      id: a.user.id,
+      phone: a.user.phone,
+      name: a.user.name,
+    }));
+  }
+
   // ── Send SMS to targeted users ───────────────────────────────────────────
   private async sendSmsBlast(announcement: Announcement) {
-    let users: User[];
+    let users: { id: number; phone: string | null; name: string | null }[];
 
     if (announcement.targetUserId) {
-      // Single-user announcement -- audience is ignored entirely.
+      // Single-user announcement -- audience/threshold are ignored entirely.
       const target = await this.userRepo.findOne({
         where: { id: announcement.targetUserId },
         select: { id: true, phone: true, name: true },
       });
       users = target ? [target] : [];
+    } else if (announcement.thresholdEntity) {
+      users = await this.resolveThresholdUsers(announcement);
     } else {
       // Build user query based on audience
       const roleMap: Record<string, UserRole[]> = {
@@ -126,17 +185,41 @@ export class AnnouncementsService {
     };
     const audiences = audienceMap[user.role as string] || ['all'];
 
-    const announcements = await this.repo
+    const candidates = await this.repo
       .createQueryBuilder('a')
       .where('a.isActive = true')
       .andWhere(
-        '(a.targetUserId = :userId OR (a.targetUserId IS NULL AND a.audience IN (:...audiences)))',
+        `(a.targetUserId = :userId
+          OR (a.targetUserId IS NULL AND a.thresholdEntity IS NULL AND a.audience IN (:...audiences))
+          OR a.thresholdEntity IS NOT NULL)`,
         { userId: user.id, audiences },
       )
       .andWhere('(a.expiresAt IS NULL OR a.expiresAt > :now)', { now })
       .orderBy('a.createdAt', 'DESC')
       .limit(20)
       .getMany();
+
+    // Threshold-targeted candidates need a live per-recipient check --
+    // evaluated fresh every read (never a frozen snapshot), so a seller
+    // who pays down their balance naturally stops seeing the reminder.
+    const [sellerProfile, superAgent] = await Promise.all([
+      this.sellerProfileRepo.findOne({ where: { user: { id: user.id } } }),
+      this.superAgentRepo.findOne({ where: { user: { id: user.id } } }),
+    ]);
+    const matchesThreshold = (a: Announcement): boolean => {
+      if (!a.thresholdEntity) return true;
+      const balance =
+        a.thresholdEntity === 'seller'
+          ? sellerProfile?.outstandingBalance
+          : superAgent?.outstandingBalance;
+      if (balance == null) return false;
+      const amount = Number(a.thresholdAmount);
+      return a.thresholdOperator === 'gte'
+        ? Number(balance) >= amount
+        : Number(balance) <= amount;
+    };
+
+    const announcements = candidates.filter(matchesThreshold);
 
     // Filter out ones user already read
     return announcements

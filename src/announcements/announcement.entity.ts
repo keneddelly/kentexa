@@ -32,6 +32,21 @@ export class Announcement {
   @Column({ type: 'varchar', nullable: true })
   targetUserName: string | null;
 
+  // Dynamic balance-threshold targeting -- e.g. "every seller who owes
+  // more than 10,000 TZS." Ignored when targetUserId is set. Evaluated
+  // live (both at send time and whenever a recipient's feed is read), so
+  // an account that later pays down its balance naturally stops seeing
+  // it -- the same "recompute fresh, never freeze a snapshot" approach
+  // the plain audience buckets already use.
+  @Column({ type: 'varchar', nullable: true })
+  thresholdEntity: 'seller' | 'super_agent' | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  thresholdOperator: 'gte' | 'lte' | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  thresholdAmount: number | null;
+
   @Column({ type: 'varchar', default: 'info' })
   priority: string;
 
