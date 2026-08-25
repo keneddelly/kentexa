@@ -13,6 +13,7 @@ import { MailModule } from '../mail/mail.module';
 import { ProfileModule } from '../profile/profile.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { PoliciesModule } from '../policies/policies.module';
+import { IdentityModule } from '../identity/identity.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PoliciesModule } from '../policies/policies.module';
     ProfileModule,
     CommerceProfilesModule,
     PoliciesModule,
+    IdentityModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -111,6 +111,20 @@ export class SuperAgentsController {
     return this.service.getMyProfile(req.user);
   }
 
+  // Referral program (Phase 4) — own code, balance, and referral history
+  @UseGuards(JwtAuthGuard)
+  @Get('my-referrals')
+  async myReferrals(@Request() req) {
+    const agent = await this.service.getMyProfile(req.user);
+    const referrals = await this.verification.getMyReferrals(agent.id);
+    return {
+      referralCode: agent.referralCode,
+      freeOrdersGranted: agent.freeOrdersGranted,
+      freeOrdersUsed: agent.freeOrdersUsed,
+      referrals,
+    };
+  }
+
   // ── Public: hub info for viewing any super agent's profile ───────────────
   @Get('public/:userId')
   getPublicProfile(@Param('userId', ParseIntPipe) userId: number) {
@@ -599,5 +613,13 @@ export class SuperAgentsController {
   @Roles(UserRole.ADMIN)
   adminHubSummary() {
     return this.service.adminGetHubSummary();
+  }
+
+  // Referral program (Phase 4) — admin audit visibility
+  @Get('admin/referrals')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  adminReferrals() {
+    return this.verification.getAllReferrals();
   }
 }

@@ -12,6 +12,10 @@ export class RegisterPhoneDto {
   @IsString()
   @MinLength(2)
   name: string;
+
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }
 
 export class RegisterEmailDto {
@@ -25,6 +29,10 @@ export class RegisterEmailDto {
   @IsString()
   @MinLength(2)
   name: string;
+
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }
 
 // Legacy /auth/register — accepts either identifier, matching

@@ -2799,6 +2799,7 @@
     "method_phone": "Phone",
     "method_email": "Email",
     "subtitle_create": "Join Tanzania's #1 marketplace",
+    "referral_invited": "You were invited by a Kentexa Super Agent!",
     "subtitle_code_sent": "Code sent to {{identifier}}",
     "full_name_label": "👤 Full Name *",
     "full_name_placeholder": "e.g. John Mwangi",

@@ -14,6 +14,8 @@ import {
   SellerVerificationTier,
 } from '../seller/entities/seller-profile.entity';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import { Referral, ReferralStatus } from './entities/referral.entity';
+import { ReferralReward } from './entities/referral-reward.entity';
 import { Feature, FEATURE_REQUIREMENTS } from './verification.constants';
 import type { IdentityVerificationProvider } from './providers/identity-verification-provider.interface';
 import { IDENTITY_VERIFICATION_PROVIDER } from './identity.tokens';
@@ -39,6 +41,10 @@ export class VerificationService {
     private superAgentRepo: Repository<SuperAgent>,
     @InjectRepository(BusinessDocument)
     private businessDocRepo: Repository<BusinessDocument>,
+    @InjectRepository(Referral)
+    private referralRepo: Repository<Referral>,
+    @InjectRepository(ReferralReward)
+    private referralRewardRepo: Repository<ReferralReward>,
     @Inject(IDENTITY_VERIFICATION_PROVIDER)
     private provider: IdentityVerificationProvider,
   ) {}
@@ -293,5 +299,124 @@ export class VerificationService {
       where: { sellerType: 'business' } as any,
       order: { updatedAt: 'DESC' } as any,
     });
+  }
+
+  // ── Referral program (Phase 4) ─────────────────────────────────────────
+
+  async resolveReferralCode(code: string): Promise<SuperAgent | null> {
+    if (!code) return null;
+    return this.superAgentRepo.findOne({
+      where: { referralCode: code, status: SuperAgentStatus.ACTIVE },
+    });
+  }
+
+  // Called at registration only, when a valid referral code was used. The
+  // Referral row's unique index on referredUser means this can only ever
+  // succeed once per person — best-effort so a race/duplicate never blocks
+  // registration itself.
+  async recordReferralRegistration(
+    referrer: SuperAgent,
+    referredUser: User,
+  ): Promise<void> {
+    try {
+      await this.referralRepo.save(
+        this.referralRepo.create({
+          referrerSuperAgent: referrer,
+          referredUser,
+          referralCodeUsed: referrer.referralCode || '',
+          status: ReferralStatus.REGISTERED,
+        }),
+      );
+    } catch {
+      // Unique-violation or similar — never block registration over this.
+    }
+  }
+
+  async generateReferralCodeIfMissing(superAgent: SuperAgent): Promise<void> {
+    if (superAgent.referralCode) return;
+    superAgent.referralCode = `KTX-SA-${superAgent.id}`;
+    await this.superAgentRepo.save(superAgent);
+  }
+
+  // Called from SuperAgentsService.approve() right after a Super Agent
+  // application goes ACTIVE — the real end of the qualification pipeline
+  // (register -> identity verified -> apply -> approved -> active), all of
+  // which already existed as separate steps before this phase; this is
+  // just the hook at the last one. Best-effort/non-fatal: a referral
+  // processing failure must never block the agent's own approval.
+  async processReferralQualification(superAgent: SuperAgent): Promise<void> {
+    try {
+      const referredUserId = superAgent.user?.id;
+      if (!referredUserId) return;
+      const referredBySuperAgentId = superAgent.user.referredBySuperAgentId;
+      if (!referredBySuperAgentId) return;
+
+      const existing = await this.referralRepo.findOne({
+        where: { referredUser: { id: referredUserId } },
+      });
+      if (!existing || existing.status !== ReferralStatus.REGISTERED) return;
+
+      const referrerSuperAgent = await this.superAgentRepo.findOne({
+        where: { id: referredBySuperAgentId },
+      });
+      if (!referrerSuperAgent) return;
+
+      const [referredIdentity, referrerIdentity] = await Promise.all([
+        this.getIdentityProfile(referredUserId),
+        this.getIdentityProfile(referrerSuperAgent.user.id),
+      ]);
+
+      // Real money-equivalent value is granted here, so require an actual
+      // admin-verified identity -- a stricter bar than the Level-1
+      // feature-gate's "pending counts" rule used elsewhere.
+      if (referredIdentity?.status !== IdentityVerificationStatus.VERIFIED) {
+        return;
+      }
+
+      const isSelfReferral =
+        !!referredIdentity.nidaNumber &&
+        referredIdentity.nidaNumber === referrerIdentity?.nidaNumber;
+
+      await this.referralRepo.manager.transaction(async (manager) => {
+        const referralRepo = manager.getRepository(Referral);
+        const rewardRepo = manager.getRepository(ReferralReward);
+        const agentRepo = manager.getRepository(SuperAgent);
+
+        if (isSelfReferral) {
+          existing.status = ReferralStatus.REJECTED_FRAUD;
+          await referralRepo.save(existing);
+          return;
+        }
+
+        existing.status = ReferralStatus.QUALIFIED;
+        existing.qualifiedAt = new Date();
+        await referralRepo.save(existing);
+
+        await rewardRepo.save(
+          rewardRepo.create({
+            referral: existing,
+            superAgent: referrerSuperAgent,
+            freeOrdersGranted: 10,
+          }),
+        );
+
+        await agentRepo.update(referrerSuperAgent.id, {
+          freeOrdersGranted: () => '"freeOrdersGranted" + 10',
+        } as any);
+      });
+    } catch (err: any) {
+      console.error('processReferralQualification failed:', err?.message);
+    }
+  }
+
+  async getMyReferrals(superAgentId: number): Promise<Referral[]> {
+    return this.referralRepo.find({
+      where: { referrerSuperAgent: { id: superAgentId } },
+      order: { createdAt: 'DESC' } as any,
+    });
+  }
+
+  async getAllReferrals(): Promise<Referral[]> {
+    return this.referralRepo.find({ order: { createdAt: 'DESC' } as any });
   }
 }

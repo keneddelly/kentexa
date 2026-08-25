@@ -16,6 +16,10 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
   const [resendTimer, setResendTimer]     = useState(0);
   const [error, setError]   = useState('');
 
+  // Referral program (Phase 4) — same window.location.search pattern
+  // App.js already uses for other deep-link params (track/confirm/token).
+  const [referralCode] = useState(() => new URLSearchParams(window.location.search).get('ref') || '');
+
   // Step 3 — mandatory profile photo, verified account/JWT already exist
   // by this point (token stashed in handleVerify below), just not
   // considered "done" registering until this completes.
@@ -55,6 +59,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       const payload  = method === 'phone'
         ? { phone: identifier.trim(), password, name: name.trim() }
         : { email: identifier.trim(), password, name: name.trim() };
+      if (referralCode) payload.referralCode = referralCode;
 
       await api.post(endpoint, payload);
       setStep(2);
@@ -162,6 +167,12 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
                 : t('register.add_photo_subtitle')}
             </p>
           </div>
+
+          {referralCode && step === 1 && (
+            <div style={{ backgroundColor:'#eff6ff', color:'#1d4ed8', padding:'10px 14px', borderRadius:10, marginBottom:16, fontSize:12.5, fontWeight:600 }}>
+              🎉 {t('register.referral_invited')}
+            </div>
+          )}
 
           {/* Error */}
           {error && (

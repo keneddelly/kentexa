@@ -2795,6 +2795,7 @@
     "method_phone": "téléphone",
     "method_email": "e-mail",
     "subtitle_create": "Rejoignez le marché n°1 de Tanzanie",
+    "referral_invited": "Vous avez été invité par un Super Agent Kentexa !",
     "subtitle_code_sent": "Code envoyé à {{identifier}}",
     "full_name_label": "👤 Nom complet *",
     "full_name_placeholder": "ex. John Mwangi",

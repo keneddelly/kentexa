@@ -172,6 +172,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [error, setError]               = useState('');
   const [identityStatus, setIdentityStatus] = useState(null);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
+  const [referralData, setReferralData] = useState(null);
+  const [refLinkCopied, setRefLinkCopied] = useState(false);
   const [success, setSuccess]           = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -407,6 +409,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
         setRevenue(revenueRes.data);
         setRates(ratesRes.data || []);
         setLocalAgents(agentsRes.data || []);
+        api.get('/super-agents/my-referrals').then(r => setReferralData(r.data)).catch(() => {});
       }
     } catch (err) {
       if (err?.response?.status === 404) setProfileStatus('not_applied');
@@ -2084,6 +2087,56 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                 </div>
               ))}
             </div>
+
+            {/* Referral program (Phase 4) */}
+            {referralData && (
+              <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
+                  🎁 Referral — Wape Wenzako Waje
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                  <div style={{ flex: 1, backgroundColor: '#f8fafc', borderRadius: 8, padding: '10px 12px',
+                    fontSize: 13, fontWeight: 800, color: '#1d4ed8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {referralData.referralCode || '—'}
+                  </div>
+                  <button
+                    onClick={() => {
+                      const link = `https://kentexa.com/?ref=${referralData.referralCode}`;
+                      navigator.clipboard?.writeText(link).then(() => {
+                        setRefLinkCopied(true);
+                        setTimeout(() => setRefLinkCopied(false), 2000);
+                      });
+                    }}
+                    disabled={!referralData.referralCode}
+                    style={{ backgroundColor: refLinkCopied ? '#16a34a' : '#1d4ed8', color: '#fff', border: 'none',
+                      padding: '10px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                    {refLinkCopied ? '✅ Copied' : '🔗 Copy Link'}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0',
+                  borderTop: '1px solid #f1f5f9', fontSize: 13 }}>
+                  <span style={{ color: '#64748b' }}>📦 Free Orders Available</span>
+                  <span style={{ fontWeight: 900, color: '#16a34a' }}>
+                    {Math.max(0, Number(referralData.freeOrdersGranted || 0) - Number(referralData.freeOrdersUsed || 0))}
+                  </span>
+                </div>
+                {referralData.referrals?.length > 0 && (
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f1f5f9' }}>
+                    {referralData.referrals.map(r => {
+                      const badge = { registered: ['⏳', '#ca8a04'], qualified: ['✅', '#16a34a'], rejected_fraud: ['❌', '#dc2626'] }[r.status] || ['?', '#64748b'];
+                      return (
+                        <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between',
+                          padding: '5px 0', fontSize: 12 }}>
+                          <span style={{ color: '#475569' }}>{r.referredUser?.name || '—'}</span>
+                          <span style={{ color: badge[1], fontWeight: 700 }}>{badge[0]} {r.status}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {revenue?.monthly?.length > 0 && (
               <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,

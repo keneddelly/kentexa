@@ -171,6 +171,13 @@ export class SuperAgent {
   @Column({ type: 'varchar', nullable: true })
   agentCode: string | null; // Unique code e.g. SA-DAR-001
 
+  // ── Referral program (Phase 4) ─────────────────────────────────────────
+  // Generated once at approve() time, format KTX-SA-{id} — deliberately
+  // distinct from agentCode (a shipping/business identifier already used
+  // in labels) since this is a shareable invite code, a different concept.
+  @Column({ type: 'varchar', unique: true, nullable: true })
+  referralCode: string | null;
+
   // ── Standard new-Super-Agent free-order allowance ──
   // Every new Super Agent account starts with 50 free orders (the column
   // default below) — this is a standard onboarding benefit, not a one-off

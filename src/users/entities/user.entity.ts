@@ -146,6 +146,14 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   kycLevel: string | null; // 'none' | 'phone' | 'id_document' | 'business'
 
+  // ── Referral program (Phase 4) ─────────────────────────────────────────
+  // Set exactly once, at registration (see AuthService.registerWithPhone/
+  // Email) — never mutated by any other code path, which is what makes it
+  // "locked after registration" per the referral spec, without needing a
+  // separate immutability check anywhere.
+  @Column({ type: 'int', nullable: true })
+  referredBySuperAgentId: number | null;
+
   // Which Terms of Service version was active when this account signed up
   // (see src/policies/). Null only for accounts created before this field
   // existed — never backfilled, since we have no record of what version,

@@ -16,6 +16,7 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { PolicyVersionService } from '../policies/policy-version.service';
 import { PolicyType } from '../policies/entities/policy-version.entity';
 import { normalizeTzPhone } from '../common/utils/phone.util';
+import { VerificationService } from '../identity/verification.service';
 
 @Injectable()
 export class AuthService {
@@ -27,6 +28,7 @@ export class AuthService {
     private mailService: MailService,
     private commerceProfiles: CommerceProfilesService,
     private policyVersions: PolicyVersionService,
+    private verification: VerificationService,
   ) {}
 
   // Stamps whatever Terms of Service version is currently active at the
@@ -59,6 +61,7 @@ export class AuthService {
     phone: string;
     password: string;
     name: string;
+    referralCode?: string;
   }) {
     const phone = normalizeTzPhone(dto.phone);
     const existing = await this.userRepo.findOne({
@@ -73,6 +76,11 @@ export class AuthService {
     const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const terms = await this.currentTermsAcceptance();
+    // An unknown/invalid code is silently ignored -- never blocks
+    // registration (spec: keep buyer onboarding fast).
+    const referrer = dto.referralCode
+      ? await this.verification.resolveReferralCode(dto.referralCode).catch(() => null)
+      : null;
 
     const user = this.userRepo.create({
       phone,
@@ -82,10 +90,14 @@ export class AuthService {
       otpExpiry,
       isVerified: false,
       otpAttempts: 0,
+      referredBySuperAgentId: referrer?.id ?? null,
       ...terms,
     } as any);
 
     await this.userRepo.save(user);
+    if (referrer) {
+      await this.verification.recordReferralRegistration(referrer, user as unknown as User).catch(() => {});
+    }
     const sent = await this.smsService.sendOtp(phone, otp);
 
     return {
@@ -102,6 +114,7 @@ export class AuthService {
     email: string;
     password: string;
     name: string;
+    referralCode?: string;
   }) {
     dto.email = dto.email.toLowerCase().trim();
     const existing = await this.userRepo.findOne({
@@ -116,6 +129,9 @@ export class AuthService {
     const otp = this.smsService.generateOtp();
     const otpExpiry = new Date(Date.now() + 10 * 60 * 1000);
     const terms = await this.currentTermsAcceptance();
+    const referrer = dto.referralCode
+      ? await this.verification.resolveReferralCode(dto.referralCode).catch(() => null)
+      : null;
 
     const user = this.userRepo.create({
       email: dto.email,
@@ -125,10 +141,14 @@ export class AuthService {
       otpExpiry,
       isVerified: false,
       otpAttempts: 0,
+      referredBySuperAgentId: referrer?.id ?? null,
       ...terms,
     } as any);
 
     await this.userRepo.save(user);
+    if (referrer) {
+      await this.verification.recordReferralRegistration(referrer, user as unknown as User).catch(() => {});
+    }
 
     // ✅ Actually send the email now
     const sent = await this.mailService.sendOtp(dto.email, otp, dto.name);

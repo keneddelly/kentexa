@@ -43,6 +43,7 @@ import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
 import { FRONTEND_URL } from '../config/urls.config';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Sale, SaleStatus } from '../sales/entities/sale.entity';
+import { VerificationService } from '../identity/verification.service';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -105,6 +106,7 @@ export class SuperAgentsService {
     private profileScope: CommerceProfileScopeService,
     private invoicesService: InvoicesService,
     private auditLog: AuditLogService,
+    private verification: VerificationService,
   ) {}
 
   // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
@@ -941,6 +943,13 @@ export class SuperAgentsService {
     await this.commerceProfiles
       .syncStatusByLink('superAgentId', id, CommerceProfileStatus.ACTIVE)
       .catch(() => {});
+
+    // Referral program (Phase 4) -- this is the real end of the
+    // register -> identity verified -> apply -> approved -> active
+    // pipeline. Both steps are best-effort and never block approval.
+    await this.verification.generateReferralCodeIfMissing(saved).catch(() => {});
+    await this.verification.processReferralQualification(saved).catch(() => {});
+
     return saved;
   }
 

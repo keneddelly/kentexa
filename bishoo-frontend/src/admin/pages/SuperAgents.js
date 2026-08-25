@@ -20,6 +20,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState('');
   const [applicantIdentity, setApplicantIdentity] = useState(null);
+  const [agentReferrals, setAgentReferrals] = useState([]);
 
   useEffect(() => { fetchAgents(); }, []);
 
@@ -29,12 +30,16 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
       setPaymentAmount('');
       setBillingError('');
       setApplicantIdentity(null);
+      setAgentReferrals([]);
       const userId = detailAgent.user?.id;
       if (userId) {
         api.get(`/identity/admin/by-user/${userId}`)
           .then(r => setApplicantIdentity(r.data))
           .catch(() => {});
       }
+      api.get('/super-agents/admin/referrals')
+        .then(r => setAgentReferrals((r.data || []).filter(ref => ref.referrerSuperAgent?.id === detailAgent.id)))
+        .catch(() => {});
     }
   }, [detailAgent]);
 
@@ -352,6 +357,27 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                 </>
               )}
             </div>
+
+            {/* Referral program (Phase 4) — audit visibility only */}
+            {detailAgent.referralCode && (
+              <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>🎁 Referrals</div>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>Code: <strong>{detailAgent.referralCode}</strong></div>
+                {agentReferrals.length === 0 ? (
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>No referrals yet</div>
+                ) : (
+                  agentReferrals.map(r => {
+                    const badge = { registered: ['⏳', '#ca8a04'], qualified: ['✅', '#16a34a'], rejected_fraud: ['❌', '#dc2626'] }[r.status] || ['?', '#64748b'];
+                    return (
+                      <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12 }}>
+                        <span style={{ color: '#475569' }}>{r.referredUser?.name || '—'}</span>
+                        <span style={{ color: badge[1], fontWeight: 700 }}>{badge[0]} {r.status}</span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
 
             {(() => {
               const granted = Number(detailAgent.freeOrdersGranted || 0);
