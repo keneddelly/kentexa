@@ -2719,7 +2719,17 @@
     "service_provider_perk4": "Compte de paiement",
     "service_provider_need1": "Type de service",
     "service_provider_need2": "Zone de travail",
-    "service_provider_need3": "Prix ou type de tarification"
+    "service_provider_need3": "Prix ou type de tarification",
+    "business_title": "Entreprise",
+    "business_tagline": "Créez une présence de marque, sans obligation de vendre",
+    "business_desc": "Créez un profil public pour votre entreprise — abonnés, avis et messages — sans ouvrir de boutique.",
+    "business_perk1": "Page de marque publique",
+    "business_perk2": "Abonnés et avis",
+    "business_perk3": "Messages directs des clients",
+    "business_perk4": "Activez Vendeur à tout moment plus tard",
+    "business_need1": "Nom de l'entreprise ou de la marque",
+    "business_need2": "Catégorie",
+    "business_need3": "Emplacement"
   },
   "category_page": {
     "cat_electronics": "Électronique",
@@ -4912,6 +4922,52 @@
     "phone_required": "Entrez le numéro de téléphone",
     "address_required": "Entrez l'adresse de l'entreprise",
     "submit_failed": "Échec de l'envoi de la demande"
+  },
+  "become_business": {
+    "page_title": "Créer une entreprise",
+    "hero_title": "Créez le profil de votre entreprise",
+    "hero_desc": "Une présence publique sur KenteXa — aucune vente requise",
+
+    "already_have_title": "Vous avez déjà une entreprise",
+    "go_to_dashboard_button": "🏢 Aller au tableau de bord de l'entreprise",
+
+    "benefits_title": "💼 Ce que vous obtenez",
+    "benefit1_title": "Page de marque publique",
+    "benefit1_desc": "Un profil que les clients peuvent trouver et suivre",
+    "benefit2_title": "Abonnés et avis",
+    "benefit2_desc": "Construisez votre réputation sur KenteXa au fil du temps",
+    "benefit3_title": "Messages directs",
+    "benefit3_desc": "Les clients peuvent vous contacter sans avoir besoin d'une boutique",
+    "benefit4_title": "Activez Vendeur à tout moment",
+    "benefit4_desc": "Commencez à vendre plus tard sans créer un nouveau profil",
+
+    "done_title": "Entreprise créée !",
+    "done_desc": "Le profil de votre entreprise est en ligne. Vous pouvez le modifier à tout moment depuis votre tableau de bord.",
+
+    "form_title": "📝 Détails de l'entreprise",
+    "legal_name_label": "Nom légal de l'entreprise *",
+    "legal_name_placeholder": "ex. Geita Manufacturing Ltd",
+    "trading_name_label": "Nom commercial / de marque",
+    "trading_name_placeholder": "ex. Geita Foods",
+    "category_label": "Catégorie",
+    "description_label": "Description",
+    "description_placeholder": "Que fait votre entreprise ?",
+    "location_label": "Emplacement",
+    "address_label": "Adresse",
+    "address_placeholder": "ex. Rue Uhuru, près du marché",
+    "phone_label": "Numéro de téléphone * (255XXXXXXXXX)",
+    "email_label": "E-mail",
+
+    "login_required_pre": "Vous devez",
+    "login_required_link": "vous connecter",
+    "login_required_post": "d'abord pour créer une entreprise",
+
+    "submit_button": "🚀 Créer l'entreprise",
+    "submitting": "⏳ Création...",
+
+    "legal_name_required": "Entrez le nom légal de l'entreprise",
+    "phone_required": "Entrez un numéro de téléphone",
+    "submit_failed": "Échec de la création de l'entreprise"
   },
   "send_shipment": {
     "title": "Envoyer un Colis",

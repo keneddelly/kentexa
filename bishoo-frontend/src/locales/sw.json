@@ -2569,7 +2569,17 @@
     "service_provider_perk4": "Akaunti ya malipo",
     "service_provider_need1": "Aina ya huduma",
     "service_provider_need2": "Eneo unalofanya kazi",
-    "service_provider_need3": "Bei au aina ya bei"
+    "service_provider_need3": "Bei au aina ya bei",
+    "business_title": "Biashara",
+    "business_tagline": "Unda uwepo wa chapa, bila kuhitaji kuuza",
+    "business_desc": "Jenga wasifu wa umma kwa kampuni yako — wafuasi, ukadiriaji, na ujumbe — bila kufungua duka.",
+    "business_perk1": "Ukurasa wa chapa wa umma",
+    "business_perk2": "Wafuasi na ukadiriaji",
+    "business_perk3": "Ujumbe wa moja kwa moja kutoka kwa wateja",
+    "business_perk4": "Washa Muuzaji wakati wowote baadaye",
+    "business_need1": "Jina la biashara au chapa",
+    "business_need2": "Aina ya biashara",
+    "business_need3": "Eneo"
   },
   "category_page": {
     "cat_electronics": "Elektroniki",
@@ -4807,6 +4817,52 @@
     "phone_required": "Weka namba ya simu",
     "address_required": "Weka anwani ya biashara",
     "submit_failed": "Imeshindwa kutuma ombi"
+  },
+  "become_business": {
+    "page_title": "Unda Biashara",
+    "hero_title": "Unda Wasifu wa Biashara Yako",
+    "hero_desc": "Uwepo wa umma kwenye KenteXa — hakuna haja ya kuuza",
+
+    "already_have_title": "Tayari Una Biashara",
+    "go_to_dashboard_button": "🏢 Nenda Dashibodi ya Biashara",
+
+    "benefits_title": "💼 Utakachopata",
+    "benefit1_title": "Ukurasa wa Chapa wa Umma",
+    "benefit1_desc": "Wasifu ambao wateja wanaweza kuupata na kuufuata",
+    "benefit2_title": "Wafuasi na Ukadiriaji",
+    "benefit2_desc": "Jenga sifa yako KenteXa kwa muda",
+    "benefit3_title": "Ujumbe wa Moja kwa Moja",
+    "benefit3_desc": "Wateja wanaweza kukufikia bila kuhitaji duka",
+    "benefit4_title": "Washa Muuzaji Wakati Wowote",
+    "benefit4_desc": "Anza kuuza baadaye bila kuunda wasifu mpya",
+
+    "done_title": "Biashara Imeundwa!",
+    "done_desc": "Wasifu wa biashara yako uko hewani. Unaweza kuuhariri wakati wowote kutoka dashibodi yako.",
+
+    "form_title": "📝 Maelezo ya Biashara",
+    "legal_name_label": "Jina Rasmi la Biashara *",
+    "legal_name_placeholder": "mf. Geita Manufacturing Ltd",
+    "trading_name_label": "Jina la Chapa / Biashara",
+    "trading_name_placeholder": "mf. Geita Foods",
+    "category_label": "Aina ya Biashara",
+    "description_label": "Maelezo",
+    "description_placeholder": "Biashara yako inafanya nini?",
+    "location_label": "Eneo",
+    "address_label": "Anwani ya Mtaa",
+    "address_placeholder": "mf. Mtaa wa Uhuru, karibu na soko",
+    "phone_label": "Namba ya Simu * (255XXXXXXXXX)",
+    "email_label": "Barua Pepe",
+
+    "login_required_pre": "Unahitaji",
+    "login_required_link": "kuingia",
+    "login_required_post": "kwanza ili kuunda biashara",
+
+    "submit_button": "🚀 Unda Biashara",
+    "submitting": "⏳ Inaunda...",
+
+    "legal_name_required": "Weka jina rasmi la biashara",
+    "phone_required": "Weka namba ya simu",
+    "submit_failed": "Imeshindwa kuunda biashara"
   },
   "send_shipment": {
     "title": "Tuma Kitu",

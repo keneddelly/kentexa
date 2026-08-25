@@ -2723,7 +2723,17 @@
     "service_provider_perk4": "Payment account",
     "service_provider_need1": "Service type",
     "service_provider_need2": "Area you work in",
-    "service_provider_need3": "Price or pricing type"
+    "service_provider_need3": "Price or pricing type",
+    "business_title": "Business",
+    "business_tagline": "Create a brand presence, no selling required",
+    "business_desc": "Build a public profile for your company — followers, ratings, and messages — without opening a store.",
+    "business_perk1": "Public brand page",
+    "business_perk2": "Followers & ratings",
+    "business_perk3": "Direct customer messages",
+    "business_perk4": "Activate Seller anytime later",
+    "business_need1": "Business or brand name",
+    "business_need2": "Category",
+    "business_need3": "Location"
   },
   "category_page": {
     "cat_electronics": "Electronics",
@@ -4916,6 +4926,52 @@
     "phone_required": "Enter the phone number",
     "address_required": "Enter the business address",
     "submit_failed": "Failed to submit application"
+  },
+  "become_business": {
+    "page_title": "Create a Business",
+    "hero_title": "Create Your Business Profile",
+    "hero_desc": "A public presence on KenteXa — no selling required",
+
+    "already_have_title": "You Already Have a Business",
+    "go_to_dashboard_button": "🏢 Go to Business Dashboard",
+
+    "benefits_title": "💼 What You Get",
+    "benefit1_title": "Public Brand Page",
+    "benefit1_desc": "A profile customers can find and follow",
+    "benefit2_title": "Followers & Ratings",
+    "benefit2_desc": "Build a reputation on KenteXa over time",
+    "benefit3_title": "Direct Messages",
+    "benefit3_desc": "Customers can reach you without needing a store",
+    "benefit4_title": "Activate Seller Anytime",
+    "benefit4_desc": "Start selling later without creating a new profile",
+
+    "done_title": "Business Created!",
+    "done_desc": "Your business profile is live. You can edit it anytime from your dashboard.",
+
+    "form_title": "📝 Business Details",
+    "legal_name_label": "Legal Business Name *",
+    "legal_name_placeholder": "e.g. Geita Manufacturing Ltd",
+    "trading_name_label": "Trading / Brand Name",
+    "trading_name_placeholder": "e.g. Geita Foods",
+    "category_label": "Category",
+    "description_label": "Description",
+    "description_placeholder": "What does your business do?",
+    "location_label": "Location",
+    "address_label": "Street Address",
+    "address_placeholder": "e.g. Uhuru Street, near the market",
+    "phone_label": "Phone Number * (255XXXXXXXXX)",
+    "email_label": "Email",
+
+    "login_required_pre": "You need to",
+    "login_required_link": "log in",
+    "login_required_post": "first to create a business",
+
+    "submit_button": "🚀 Create Business",
+    "submitting": "⏳ Creating...",
+
+    "legal_name_required": "Enter the business's legal name",
+    "phone_required": "Enter a phone number",
+    "submit_failed": "Failed to create business"
   },
   "send_shipment": {
     "title": "Send Something",

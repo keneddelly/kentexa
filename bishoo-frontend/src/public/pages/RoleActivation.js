@@ -5,9 +5,10 @@
  * Every user starts as Buyer. This page guides them to activate:
  * Seller, Agent, Super Agent, or Transport Provider.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
+import api from '../../api/api';
 
 const B = '#2563EB';
 
@@ -22,6 +23,17 @@ const getRoles = (t) => [
     needs:    [t('role_activation.seller_need1'), t('role_activation.seller_need2'), t('role_activation.seller_need3')],
     page:     'BecomeSellerInfo',
     color:    '#EFF6FF', accent: B,
+  },
+  {
+    key:      'business',
+    icon:     '🏢',
+    title:    t('role_activation.business_title'),
+    tagline:  t('role_activation.business_tagline'),
+    desc:     t('role_activation.business_desc'),
+    perks:    [t('role_activation.business_perk1'), t('role_activation.business_perk2'), t('role_activation.business_perk3'), t('role_activation.business_perk4')],
+    needs:    [t('role_activation.business_need1'), t('role_activation.business_need2'), t('role_activation.business_need3')],
+    page:     'BecomeBusiness',
+    color:    '#F5F3FF', accent: '#7C3AED',
   },
   {
     key:      'agent',
@@ -73,6 +85,17 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
   const { t } = useTranslation();
   const ROLES = getRoles(t);
   const [selected, setSelected] = useState(null);
+  const [hasBusiness, setHasBusiness] = useState(false);
+
+  // Business isn't tracked on User.activeRoles — it's its own entity
+  // (multi-role architecture Phase 1) — so its "already have it" state
+  // is derived from a lightweight lookup instead.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    api.get('/business/mine')
+      .then(res => setHasBusiness(!!res.data))
+      .catch(() => {});
+  }, [isLoggedIn]);
 
   const role  = selected ? ROLES.find(r => r.key === selected) : null;
   const activeRoles = currentUser?.activeRoles || [currentUser?.role || 'user'];
@@ -120,7 +143,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
               {t('role_activation.choose_role')}
             </div>
             {ROLES.map(r => {
-              const isActive = activeRoles.includes(r.key);
+              const isActive = r.key === 'business' ? hasBusiness : activeRoles.includes(r.key);
               return (
                 <div key={r.key}
                   onClick={() => !isActive && setSelected(r.key)}

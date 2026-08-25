@@ -53,6 +53,7 @@ import CustomerProfile from './public/pages/CustomerProfile';
 import BecomeSeller from './public/pages/BecomeSeller';
 import SellerDashboard from './public/pages/SellerDashboard';
 import BusinessDashboard from './public/pages/BusinessDashboard';
+import BecomeBusiness from './public/pages/BecomeBusiness';
 import BecomeAgent from './public/pages/BecomeAgent';
 import AgentDashboard from './public/pages/AgentDashboard';
 import Cart from './public/pages/Cart';
@@ -644,6 +645,7 @@ function App() {
       case 'StoreSettings':     return requireLogin(<StoreSettings {...publicProps} userId={decodeToken(localStorage.getItem('token'))?.sub} />);
       case 'SellerDashboard':   return requireLogin(<SellerDashboard {...publicProps} />);
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
+      case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
       case 'SellerProducts':    return requireLogin(<SellerProducts {...publicProps} />);
       case 'POS':               return requireLogin(<POS {...publicProps} />);
       case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} />);
