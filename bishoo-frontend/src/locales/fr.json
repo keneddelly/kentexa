@@ -5073,6 +5073,16 @@
     "field_description": "Description",
     "saving": "Enregistrement...",
     "save_button": "Enregistrer",
-    "save_failed": "Impossible d'enregistrer — réessayez."
+    "save_failed": "Impossible d'enregistrer — réessayez.",
+    "today_title": "Intelligence Kentexa du Jour",
+    "today_commerce_label": "COMMERCE",
+    "today_orders": "Commandes",
+    "today_payments": "Paiements",
+    "today_pending_invoices": "Factures en Attente",
+    "today_customer_activity_label": "ACTIVITÉ CLIENT",
+    "today_profile_visits": "Visites du Profil",
+    "today_product_views": "Vues des Produits",
+    "today_new_followers": "Nouveaux Abonnés",
+    "today_reviews": "Avis"
   }
 }

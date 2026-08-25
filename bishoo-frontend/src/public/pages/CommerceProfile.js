@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
+import { trackProfileView } from '../hooks/useAnalytics';
 import ProfileCompletion from '../components/ProfileCompletion';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import api             from '../../api/api';
@@ -207,7 +208,7 @@ const tabs = (profileType, isOwn, t) => {
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
 const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
-  currentUser, pageParam, commerceProfileId, activeProfileId: viewerActiveProfileId }) => {
+  currentUser, pageParam, commerceProfileId, activeProfileId: viewerActiveProfileId, track }) => {
   const { t } = useTranslation();
   const TIERS = getTiers(t);
   const getTier = s => TIERS.find(tier => Number(s||0) >= tier.min) || TIERS[4];
@@ -303,6 +304,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     if (!activeProfile) return;
     const uid = activeProfile.ownerId;
     const own = currentUser && uid === currentUser.id;
+
+    // "Profile visits" only becomes a real per-business number once views
+    // are actually tracked with the target profile's id — mirrors
+    // trackProductView (ProductDetail.js). Never counts a self-view.
+    if (!own && track) trackProfileView(track, activeProfile);
 
     Promise.allSettled([
       api.get(`/seller/public/${uid}`).catch(() => ({ data: null })),

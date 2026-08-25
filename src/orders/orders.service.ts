@@ -203,11 +203,20 @@ export class OrdersService {
     await this.repo.update(saved.id, {
       trackingNumber: `KTX-ORD-${saved.id}`,
     });
+    // Resolve the seller's CommerceProfile so this event is aggregatable by
+    // business identity (Phase 2 of the intelligence architecture) — Order
+    // has no direct CommerceProfile link, only a seller User relation.
+    const sellerProfile = product.seller
+      ? await this.commerceProfiles
+          .findForUserByType(product.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
     this.activityEvents.record({
       eventType: 'ORDER_CREATED',
       category: ActivityCategory.COMMERCE,
       actorId: user.id,
       actorType: 'buyer',
+      businessId: sellerProfile?.id ?? null,
       relatedUserId: product.seller?.id ?? null,
       targetType: 'order',
       targetId: saved.id,
@@ -940,11 +949,17 @@ export class OrdersService {
       escrowStatus: EscrowStatus.RELEASED,
       fundsReleasedAt: new Date(),
     });
+    const completedSellerProfile = order.seller
+      ? await this.commerceProfiles
+          .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
     this.activityEvents.record({
       eventType: 'ORDER_COMPLETED',
       category: ActivityCategory.COMMERCE,
       actorId: buyer.id,
       actorType: 'buyer',
+      businessId: completedSellerProfile?.id ?? null,
       relatedUserId: order.seller?.id ?? null,
       targetType: 'order',
       targetId: order.id,
@@ -2145,11 +2160,17 @@ export class OrdersService {
       throw new BadRequestException('Only pending orders can be cancelled');
     order.status = OrderStatus.CANCELLED;
     await this.repo.save(order);
+    const cancelledSellerProfile = order.seller
+      ? await this.commerceProfiles
+          .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
     this.activityEvents.record({
       eventType: 'ORDER_CANCELLED',
       category: ActivityCategory.COMMERCE,
       actorId: user.id,
       actorType: user.role === UserRole.ADMIN ? 'admin' : 'buyer',
+      businessId: cancelledSellerProfile?.id ?? null,
       relatedUserId: order.seller?.id ?? null,
       targetType: 'order',
       targetId: order.id,

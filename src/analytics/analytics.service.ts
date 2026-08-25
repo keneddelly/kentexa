@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual } from 'typeorm';
+import { Repository, MoreThanOrEqual, In } from 'typeorm';
 import { AnalyticsSession } from './analytics-session.entity';
 import { AnalyticsEvent } from './analytics-event.entity';
 import { UAParser } from 'ua-parser-js';
@@ -329,5 +329,30 @@ export class AnalyticsService {
       order: { createdAt: 'ASC' },
     });
     return { session, events };
+  }
+
+  // Layer 2 building block for the business intelligence report
+  // (BusinessService.getTodayIntelligence()) — deterministic count of a
+  // specific frontend event type since a given time, optionally scoped to
+  // one target (a single profile view count) or a set of targets (view
+  // counts across every product a seller owns). Kept here rather than
+  // exposing the raw AnalyticsEvent repo to other modules.
+  async countEventsSince(params: {
+    eventType: string;
+    since: Date;
+    targetType?: string;
+    targetId?: string;
+    targetIdIn?: string[];
+  }): Promise<number> {
+    if (params.targetIdIn && params.targetIdIn.length === 0) return 0;
+    return this.eventRepo.count({
+      where: {
+        eventType: params.eventType,
+        createdAt: MoreThanOrEqual(params.since),
+        ...(params.targetType ? { targetType: params.targetType } : {}),
+        ...(params.targetId ? { targetId: params.targetId } : {}),
+        ...(params.targetIdIn ? { targetId: In(params.targetIdIn) } : {}),
+      },
+    });
   }
 }

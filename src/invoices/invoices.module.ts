@@ -8,12 +8,14 @@ import { Order } from '../orders/entities/order.entity';
 import { InvoicesService } from './invoices.service';
 import { InvoicesController } from './invoices.controller';
 import { ActivityModule } from '../activity/activity.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Invoice, InvoiceCounter, ReceiptCounter, Order]),
     ScheduleModule.forRoot(),
     ActivityModule,
+    CommerceProfilesModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],

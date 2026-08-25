@@ -66,6 +66,11 @@ export class BusinessController {
     return this.businessService.getDashboard(id, req.user);
   }
 
+  @Get(':id/today')
+  getTodayIntelligence(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.businessService.getTodayIntelligence(id, req.user);
+  }
+
   @Post('admin/backfill')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

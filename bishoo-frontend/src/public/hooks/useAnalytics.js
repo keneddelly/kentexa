@@ -265,6 +265,15 @@ export const trackProductView = (track, product) => {
   });
 };
 
+export const trackProfileView = (track, profile) => {
+  track('profile_view', {
+    eventCategory: 'profile',
+    targetId:      String(profile.id),
+    targetType:    'profile',
+    targetName:    profile.displayName,
+  });
+};
+
 export const trackSearch = (track, query, resultCount, extraMetadata = {}) => {
   track('search', {
     eventCategory: 'search',

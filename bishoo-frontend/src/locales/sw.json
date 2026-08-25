@@ -4968,6 +4968,16 @@
     "field_description": "Maelezo",
     "saving": "Inahifadhi...",
     "save_button": "Hifadhi Mabadiliko",
-    "save_failed": "Imeshindwa kuhifadhi — jaribu tena."
+    "save_failed": "Imeshindwa kuhifadhi — jaribu tena.",
+    "today_title": "Akili ya Kentexa ya Leo",
+    "today_commerce_label": "BIASHARA",
+    "today_orders": "Maagizo",
+    "today_payments": "Malipo",
+    "today_pending_invoices": "Ankara Zinazosubiri",
+    "today_customer_activity_label": "SHUGHULI ZA WATEJA",
+    "today_profile_visits": "Watembeleaji wa Wasifu",
+    "today_product_views": "Mionekano ya Bidhaa",
+    "today_new_followers": "Wafuasi Wapya",
+    "today_reviews": "Tathmini"
   }
 }

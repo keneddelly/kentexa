@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { Business, BusinessStatus } from './entities/business.entity';
 import { User } from '../users/entities/user.entity';
 import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
@@ -11,6 +11,9 @@ import {
 } from '../commerce-profiles/entities/commerce-profile.entity';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { Invoice, InvoiceStatus } from '../invoices/entities/invoice.entity';
+import { Product } from '../products/entities/products.entity';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 // Phase 1 of the multi-role architecture: Business as a real entity,
 // independent of Seller. See seller.service.ts's apply() for the existing
@@ -23,8 +26,11 @@ export class BusinessService {
   constructor(
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(SellerProfile) private sellerProfileRepo: Repository<SellerProfile>,
+    @InjectRepository(Invoice) private invoiceRepo: Repository<Invoice>,
+    @InjectRepository(Product) private productRepo: Repository<Product>,
     private commerceProfiles: CommerceProfilesService,
     private activityEvents: ActivityEventService,
+    private analytics: AnalyticsService,
   ) {}
 
   async findMine(userId: number): Promise<Business | null> {
@@ -58,6 +64,90 @@ export class BusinessService {
       reputationScore: commerceProfile?.reputationScore || 0,
       leadsCount: 0,
       unreadMessagesCount: 0,
+    };
+  }
+
+  // ── Layer 2 of CLAUDE.md's Internal AI Intelligence architecture:
+  // deterministic analytics over the ActivityEvent bus (Phase 1), no AI
+  // reasoning here. "Current state" (pending invoices) is read straight
+  // from Invoice, never derived from the event log — the event log stays
+  // an honest record of things that happened, not a shadow copy of state
+  // that could drift from it. Only genuinely time-boxed activity ("how
+  // many orders came in today") is read from ActivityEvent/AnalyticsEvent.
+  // No Moments/engagement section — that feature doesn't exist yet, and
+  // fabricating it would violate CLAUDE.md's "never invent activity" rule.
+  async getTodayIntelligence(businessId: number, user: User) {
+    const business = await this.findById(businessId);
+    if (business.user.id !== user.id) {
+      throw new NotFoundException('Business not found');
+    }
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const profile = await this.commerceProfiles.findForUserByType(
+      user.id,
+      CommerceProfileType.BUSINESS,
+    );
+    const profileId = profile?.id ?? null;
+
+    const countToday = (eventType: string) =>
+      profileId
+        ? this.activityEvents.countSince(profileId, eventType, startOfToday)
+        : Promise.resolve(0);
+
+    const [
+      ordersToday,
+      paymentsCompletedToday,
+      newFollowersToday,
+      reviewsToday,
+      pendingInvoicesCount,
+      myProducts,
+    ] = await Promise.all([
+      countToday('ORDER_CREATED'),
+      countToday('INVOICE_PAID'),
+      countToday('PROFILE_FOLLOWED'),
+      countToday('REVIEW_CREATED'),
+      this.invoiceRepo.count({
+        where: {
+          order: { seller: { id: user.id } },
+          status: In([
+            InvoiceStatus.AWAITING_PAYMENT,
+            InvoiceStatus.PAYMENT_PROCESSING,
+          ]),
+        },
+      }),
+      this.productRepo.find({
+        where: { seller: { id: user.id } },
+        select: { id: true },
+      }),
+    ]);
+
+    const productIds = myProducts.map((p) => String(p.id));
+    const [profileVisitsToday, productViewsToday] = await Promise.all([
+      profileId
+        ? this.analytics.countEventsSince({
+            eventType: 'profile_view',
+            targetType: 'profile',
+            targetId: String(profileId),
+            since: startOfToday,
+          })
+        : 0,
+      this.analytics.countEventsSince({
+        eventType: 'product_view',
+        targetIdIn: productIds,
+        since: startOfToday,
+      }),
+    ]);
+
+    return {
+      commerce: { ordersToday, paymentsCompletedToday, pendingInvoicesCount },
+      customerActivity: {
+        profileVisitsToday,
+        productViewsToday,
+        newFollowersToday,
+        reviewsToday,
+      },
     };
   }
 

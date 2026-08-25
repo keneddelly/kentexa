@@ -5077,6 +5077,16 @@
     "field_description": "Description",
     "saving": "Saving...",
     "save_button": "Save Changes",
-    "save_failed": "Could not save — try again."
+    "save_failed": "Could not save — try again.",
+    "today_title": "Today's Kentexa Intelligence",
+    "today_commerce_label": "COMMERCE",
+    "today_orders": "Orders",
+    "today_payments": "Payments",
+    "today_pending_invoices": "Pending Invoices",
+    "today_customer_activity_label": "CUSTOMER ACTIVITY",
+    "today_profile_visits": "Profile Visits",
+    "today_product_views": "Product Views",
+    "today_new_followers": "New Followers",
+    "today_reviews": "Reviews"
   }
 }

@@ -14,6 +14,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class InvoicesService {
@@ -28,6 +30,7 @@ export class InvoicesService {
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     private dataSource: DataSource,
     private activityEvents: ActivityEventService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   async generateInvoiceNumber(): Promise<string> {
@@ -70,11 +73,17 @@ export class InvoicesService {
     const saved = (await this.invoiceRepo.save(
       invoice,
     )) as unknown as Invoice;
+    const createSellerProfile = order.seller
+      ? await this.commerceProfiles
+          .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
     this.activityEvents.record({
       eventType: 'INVOICE_CREATED',
       category: ActivityCategory.INVOICE,
       actorId: order.buyer?.id ?? null,
       actorType: 'buyer',
+      businessId: createSellerProfile?.id ?? null,
       relatedUserId: order.seller?.id ?? null,
       targetType: 'invoice',
       targetId: saved.id,
@@ -223,11 +232,17 @@ export class InvoicesService {
     this.logger.log(
       `Invoice ${invoiceNumber} PAID & Order auto-confirmed. Receipt: ${receiptNumber}`,
     );
+    const paidSellerProfile = invoice.order?.seller
+      ? await this.commerceProfiles
+          .findForUserByType(invoice.order.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
     this.activityEvents.record({
       eventType: 'INVOICE_PAID',
       category: ActivityCategory.PAYMENT,
       actorId: invoice.buyer?.id ?? null,
       actorType: 'buyer',
+      businessId: paidSellerProfile?.id ?? null,
       relatedUserId: invoice.order?.seller?.id ?? null,
       targetType: 'invoice',
       targetId: saved.id,

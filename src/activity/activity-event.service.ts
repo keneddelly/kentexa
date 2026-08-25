@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThanOrEqual } from 'typeorm';
 import { ActivityEvent, ActivityCategory } from './entities/activity-event.entity';
 
 export interface RecordActivityParams {
@@ -66,6 +66,20 @@ export class ActivityEventService {
     return this.repo.find({
       order: { createdAt: 'DESC' },
       take: limit,
+    });
+  }
+
+  // Layer 2 building block — deterministic count of a specific event type
+  // for one business identity since a given time. Used by
+  // BusinessService.getTodayIntelligence() rather than exposing the raw
+  // repo to other modules, keeping ActivityEvent access centralized here.
+  async countSince(
+    businessId: number,
+    eventType: string,
+    since: Date,
+  ): Promise<number> {
+    return this.repo.count({
+      where: { businessId, eventType, createdAt: MoreThanOrEqual(since) },
     });
   }
 }

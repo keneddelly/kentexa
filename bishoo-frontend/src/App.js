@@ -545,10 +545,10 @@ function App() {
     // page as everywhere else, so there is only ever ONE seller-profile
     // implementation (and therefore only one source of truth for follow state).
     if (page.startsWith('Store-'))
-      return <CommerceProfile {...publicProps} pageParam={page.split('Store-')[1]} />;
+      return <CommerceProfile {...publicProps} pageParam={page.split('Store-')[1]} track={track} />;
     if (page.startsWith('CommerceProfile-')) {
       const pid = page.split('CommerceProfile-')[1];
-      return <CommerceProfile {...publicProps} pageParam={pid} commerceProfileId={navParams?.commerceProfileId} />;
+      return <CommerceProfile {...publicProps} pageParam={pid} commerceProfileId={navParams?.commerceProfileId} track={track} />;
     }
     // Order-lifecycle notifications (orderPlaced, orderPaid, disputeRaised,
     // payoutReleased, ...) carry actionPage + orderId as actionParam. Without
@@ -620,7 +620,7 @@ function App() {
       case 'AddProfilePhoto':   return requireLogin(<AddProfilePhoto {...publicProps} />);
       case 'RouteCoverageMap':   return <RouteCoverageMap {...publicProps} />;
       case 'MyProfile':         return requireLogin(<MyProfile {...publicProps} />);
-      case 'CommerceProfile':     return requireLogin(<CommerceProfile {...publicProps} pageParam={null} />);
+      case 'CommerceProfile':     return requireLogin(<CommerceProfile {...publicProps} pageParam={null} track={track} />);
       case 'Store':
       case 'Stores':            return <Stores {...publicProps} />;
       case 'ClassifiedsPublic': return <ClassifiedsPublic {...publicProps} />;

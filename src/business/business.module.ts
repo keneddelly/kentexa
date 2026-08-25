@@ -8,6 +8,8 @@ import { Business } from './entities/business.entity';
 import { Order } from '../orders/entities/order.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
+import { Invoice } from '../invoices/entities/invoice.entity';
+import { Product } from '../products/entities/products.entity';
 import { BusinessCustomerService } from './business-customer.service';
 import { ConversationService } from './conversation.service';
 import { SellerScopeService } from './seller-scope.service';
@@ -17,6 +19,7 @@ import { BusinessController } from './business.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { ActivityModule } from '../activity/activity.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
   imports: [
@@ -29,10 +32,13 @@ import { ActivityModule } from '../activity/activity.module';
       Order,
       SellerProfile,
       CommerceProfile,
+      Invoice,
+      Product,
     ]),
     NotificationsModule,
     CommerceProfilesModule,
     ActivityModule,
+    AnalyticsModule,
   ],
   controllers: [BusinessController],
   providers: [

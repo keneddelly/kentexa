@@ -52,6 +52,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
   const [business, setBusiness] = useState(null);
   const [dash, setDash] = useState(null);
+  const [today, setToday] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showEdit, setShowEdit] = useState(false);
@@ -70,8 +71,12 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
       const mine = await api.get('/business/mine');
       if (!mine.data) { setError(t('business_dashboard.no_business')); return; }
       setBusiness(mine.data);
-      const dashRes = await api.get(`/business/${mine.data.id}/dashboard`).catch(() => null);
+      const [dashRes, todayRes] = await Promise.all([
+        api.get(`/business/${mine.data.id}/dashboard`).catch(() => null),
+        api.get(`/business/${mine.data.id}/today`).catch(() => null),
+      ]);
       if (dashRes) setDash(dashRes.data);
+      if (todayRes) setToday(todayRes.data);
     } catch {
       setError(t('business_dashboard.load_failed'));
     } finally { setLoading(false); }
@@ -148,6 +153,50 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
             </div>
           </div>
         </SCard>
+
+        {/* Today's Kentexa Intelligence — Layer 2 (deterministic counts) of
+            the Internal AI Intelligence architecture. Real numbers only:
+            no AI-generated insight/recommendation text (that's a later
+            phase) and no Moments section (that feature doesn't exist yet,
+            so it's omitted rather than faked). */}
+        {today && (
+          <SCard>
+            <div style={{ fontSize: 13, fontWeight: 800, color: DK, marginBottom: 12 }}>
+              📊 {t('business_dashboard.today_title')}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: GR, marginBottom: 8, letterSpacing: 0.4 }}>
+              {t('business_dashboard.today_commerce_label')}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 16 }}>
+              {[
+                [t('business_dashboard.today_orders'), today.commerce?.ordersToday ?? 0],
+                [t('business_dashboard.today_payments'), today.commerce?.paymentsCompletedToday ?? 0],
+                [t('business_dashboard.today_pending_invoices'), today.commerce?.pendingInvoicesCount ?? 0],
+              ].map(([label, value]) => (
+                <div key={label} style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: B }}>{value}</div>
+                  <div style={{ fontSize: 10, color: GR, marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: GR, marginBottom: 8, letterSpacing: 0.4 }}>
+              {t('business_dashboard.today_customer_activity_label')}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+              {[
+                [t('business_dashboard.today_profile_visits'), today.customerActivity?.profileVisitsToday ?? 0],
+                [t('business_dashboard.today_product_views'), today.customerActivity?.productViewsToday ?? 0],
+                [t('business_dashboard.today_new_followers'), today.customerActivity?.newFollowersToday ?? 0],
+                [t('business_dashboard.today_reviews'), today.customerActivity?.reviewsToday ?? 0],
+              ].map(([label, value]) => (
+                <div key={label} style={{ backgroundColor: '#F8FAFC', borderRadius: 10, padding: '10px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: DK }}>{value}</div>
+                  <div style={{ fontSize: 10, color: GR, marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </SCard>
+        )}
 
         {/* Business menu — Profile/Brand/Followers/Analytics/Messages only.
             Deliberately no Products/Inventory/Orders/Ship Item here. */}
