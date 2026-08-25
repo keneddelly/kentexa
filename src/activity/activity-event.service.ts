@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThanOrEqual } from 'typeorm';
+import { Repository, MoreThanOrEqual, In } from 'typeorm';
 import { ActivityEvent, ActivityCategory } from './entities/activity-event.entity';
 
 export interface RecordActivityParams {
@@ -62,8 +62,9 @@ export class ActivityEventService {
     }
   }
 
-  async findRecent(limit = 50): Promise<ActivityEvent[]> {
+  async findRecent(limit = 50, category?: ActivityCategory): Promise<ActivityEvent[]> {
     return this.repo.find({
+      where: category ? { category } : {},
       order: { createdAt: 'DESC' },
       take: limit,
     });
@@ -105,5 +106,28 @@ export class ActivityEventService {
       businessId: Number(r.businessId),
       count: Number(r.count),
     }));
+  }
+
+  // AI audit trail (CLAUDE.md section 14) building block — the honest
+  // source for an AI_EVENT's sourceEventIds: the real ActivityEvent rows
+  // that actually fed a given AI-generated recommendation, never
+  // fabricated. Bounded and ordered newest-first; empty array if none.
+  async idsSince(
+    businessId: number,
+    eventTypes: string[],
+    since: Date,
+    limit = 20,
+  ): Promise<number[]> {
+    const rows = await this.repo.find({
+      where: {
+        businessId,
+        eventType: In(eventTypes),
+        createdAt: MoreThanOrEqual(since),
+      },
+      select: { id: true },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+    return rows.map((r) => r.id);
   }
 }

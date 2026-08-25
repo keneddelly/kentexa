@@ -249,14 +249,20 @@ export class AiPromptTemplateService {
         'today") instead of manufacturing enthusiasm or a false insight — an honest "insufficient ' +
         'activity" beats an invented one.\n\n' +
         'LANGUAGE: respond entirely in the language given by the language field — "en" is English, ' +
-        '"sw" is Swahili, "fr" is French. Do not mix languages and do not explain your language choice.',
+        '"sw" is Swahili, "fr" is French. Do not mix languages and do not explain your language choice.\n\n' +
+        'CONFIDENCE: also return a confidence score from 0.0 to 1.0 for your own insight — how much ' +
+        'real signal these numbers actually contain. Near-zero or very sparse/ambiguous numbers ' +
+        '(e.g. all zeros, or just one or two nonzero counts) should score low (0.1-0.3); numbers with ' +
+        'a clear, unambiguous pattern across multiple counts should score higher (0.6-0.9). Never ' +
+        'return exactly 1.0 — some uncertainty always remains.',
       schema: {
         type: 'object',
         properties: {
           insight: { type: 'string' },
           recommendation: { type: ['string', 'null'] },
+          confidence: { type: 'number' },
         },
-        required: ['insight', 'recommendation'],
+        required: ['insight', 'recommendation', 'confidence'],
         additionalProperties: false,
       },
       schemaName: 'business_today_insight',

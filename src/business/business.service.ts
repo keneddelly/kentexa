@@ -170,11 +170,55 @@ export class BusinessService {
     if (business.user.id !== user.id) {
       throw new NotFoundException('Business not found');
     }
+    let result: {
+      insight: string;
+      recommendation: string | null;
+      confidence?: number;
+    };
     try {
-      return await this.aiInsight.generate(today, language || 'en');
+      result = await this.aiInsight.generate(today, language || 'en');
     } catch {
       return { insight: '', recommendation: null };
     }
+
+    // AI audit trail (CLAUDE.md section 14) — every AI-generated
+    // recommendation logs its own AI_EVENT, same accountability as any
+    // other actor on the platform. Never blocks the response above:
+    // record() already fails open (Phase 1), and this runs after result
+    // is already computed, so a logging failure here can't lose the
+    // insight the user is waiting on.
+    const profile = await this.commerceProfiles
+      .findForUserByType(user.id, CommerceProfileType.BUSINESS)
+      .catch(() => null);
+    if (profile) {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const sourceEventIds = await this.activityEvents
+        .idsSince(
+          profile.id,
+          ['ORDER_CREATED', 'INVOICE_PAID', 'PROFILE_FOLLOWED', 'REVIEW_CREATED'],
+          startOfToday,
+        )
+        .catch(() => []);
+      this.activityEvents.record({
+        eventType: 'AI_RECOMMENDATION_GENERATED',
+        category: ActivityCategory.AI,
+        businessId: profile.id,
+        targetType: 'business_insight',
+        targetId: businessId,
+        visibility: 'system',
+        metadata: {
+          type: 'RECOMMENDATION',
+          sourceEventIds,
+          reason: result.insight,
+          confidence: result.confidence ?? null,
+          action: result.recommendation,
+          status: 'PENDING',
+        },
+      });
+    }
+
+    return { insight: result.insight, recommendation: result.recommendation };
   }
 
   // ── Create a Business with no Seller (spec section 7: a manufacturer

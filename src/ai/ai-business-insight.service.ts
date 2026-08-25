@@ -5,6 +5,7 @@ import { AiPromptTemplateService } from './ai-prompt-templates.service';
 export interface BusinessInsight {
   insight: string;
   recommendation: string | null;
+  confidence: number;
 }
 
 // Layer 4 of CLAUDE.md's Internal AI Intelligence architecture — real AI
