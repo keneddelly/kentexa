@@ -17,6 +17,7 @@ import { ProfileModule } from '../profile/profile.module';
 import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { IdentityModule } from '../identity/identity.module';
+import { SellingCapabilityModule } from '../selling-capability/selling-capability.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { IdentityModule } from '../identity/identity.module';
     BusinessModule,
     CommerceProfilesModule,
     IdentityModule,
+    SellingCapabilityModule,
   ],
   controllers: [SellerController],
   providers: [SellerService],

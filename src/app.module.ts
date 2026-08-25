@@ -50,6 +50,7 @@ import { ShipmentsModule } from './shipments/shipments.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { ActivityModule } from './activity/activity.module';
 import { AdminIntelligenceModule } from './admin-intelligence/admin-intelligence.module';
+import { SellingCapabilityModule } from './selling-capability/selling-capability.module';
 import { PoliciesModule } from './policies/policies.module';
 import { ShareModule } from './share/share.module';
 
@@ -131,6 +132,7 @@ import { ShareModule } from './share/share.module';
     AuditLogModule,
     ActivityModule,
     AdminIntelligenceModule,
+    SellingCapabilityModule,
     PoliciesModule,
     ShareModule,
     // Blanket default rate limit — most controllers had none at all (only

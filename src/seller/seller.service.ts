@@ -25,6 +25,11 @@ import {
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
 import { VerificationService } from '../identity/verification.service';
+import { SellingCapabilityService } from '../selling-capability/selling-capability.service';
+import {
+  SellingCapabilityType,
+  SellingCapabilityVerificationLevel,
+} from '../selling-capability/entities/selling-capability.entity';
 
 @Injectable()
 export class SellerService {
@@ -44,6 +49,7 @@ export class SellerService {
     private profileService: ProfileService,
     private commerceProfiles: CommerceProfilesService,
     private verification: VerificationService,
+    private sellingCapability: SellingCapabilityService,
   ) {}
 
   // ── Public: all approved sellers (raw profiles) ──────────────────────────
@@ -603,6 +609,23 @@ export class SellerService {
     await this.commerceProfiles
       .syncStatusByLink('sellerProfileId', profile.id, CommerceProfileStatus.ACTIVE)
       .catch(() => {});
+
+    // Layer 1 audit follow-up: every newly-approved seller gets a real
+    // SellingCapability grant going forward (pre-existing sellers are
+    // covered once by SellingCapabilityBackfillService). Not yet the
+    // actual enforcement point for product creation/payments — that
+    // cutover is a deliberately separate, later phase.
+    await this.sellingCapability
+      .grant(
+        profile.user.id,
+        SellingCapabilityType.SELL_PHYSICAL,
+        profile.sellerType === 'business'
+          ? SellingCapabilityVerificationLevel.BUSINESS
+          : SellingCapabilityVerificationLevel.INDIVIDUAL,
+        null,
+      )
+      .catch(() => {});
+
     return this.profileRepo.save(profile);
   }
 

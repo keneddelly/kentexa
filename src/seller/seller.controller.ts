@@ -9,6 +9,7 @@ import {
   Request,
   Param,
   ParseIntPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { SellerService } from './seller.service';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
@@ -18,12 +19,15 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { SellerScopeService } from '../business/seller-scope.service';
+import { VerificationService } from '../identity/verification.service';
+import { Feature } from '../identity/verification.constants';
 
 @Controller('seller')
 export class SellerController {
   constructor(
     private sellerService: SellerService,
     private sellerScope: SellerScopeService,
+    private verification: VerificationService,
   ) {}
 
   // Public: Get all approved sellers (for Home/Stores cards)
@@ -39,10 +43,27 @@ export class SellerController {
     return this.sellerService.findByUserId(userId);
   }
 
-  // Apply to become seller
+  // Apply to become seller — Layer 1 audit finding: this endpoint had NO
+  // identity gate at all (unlike POST /classifieds, which has enforced
+  // this same Level 1 requirement since the identity work). CREATE_STORE
+  // was already declared at Level 1 in FEATURE_REQUIREMENTS, just never
+  // actually checked. Same VERIFICATION_REQUIRED error shape classifieds
+  // already uses, so the frontend's existing VerifyIdentityModal handling
+  // works unchanged.
   @UseGuards(JwtAuthGuard)
   @Post('apply')
-  apply(@Body() dto: CreateSellerProfileDto, @Request() req) {
+  async apply(@Body() dto: CreateSellerProfileDto, @Request() req) {
+    const canApply = await this.verification.canUseFeature(
+      req.user.id,
+      Feature.CREATE_STORE,
+    );
+    if (!canApply) {
+      throw new ForbiddenException({
+        code: 'VERIFICATION_REQUIRED',
+        requiredLevel: 1,
+        message: 'Verify your identity before applying to sell on Kentexa',
+      });
+    }
     return this.sellerService.apply(dto, req.user);
   }
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import LocationPicker from '../components/LocationPicker';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import api from '../../api/api';
 
 const inputStyle = {
@@ -39,6 +40,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
 
   // ── Business verification (Phase 2) ─────────────────────────────────────
   const [sellerType, setSellerType] = useState('individual');
@@ -105,6 +107,12 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
       });
       setMessage(t('become_seller.apply_success'));
     } catch (err) {
+      // Applying requires Level 1 identity verification — show the inline
+      // flow instead of a plain error so the filled-in form is never lost.
+      if (err?.response?.data?.code === 'VERIFICATION_REQUIRED') {
+        setShowVerifyIdentity(true);
+        return;
+      }
       setError(err?.response?.data?.message || t('become_seller.apply_failed'));
     } finally {
       setLoading(false);
@@ -398,6 +406,13 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
           </div>
         )}
       </div>
+
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
+        />
+      )}
     </div>
   );
 };

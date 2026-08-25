@@ -33,6 +33,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
   const [showBusinessRejectModal, setShowBusinessRejectModal] = useState(false);
   const [businessRejectReason, setBusinessRejectReason] = useState('');
   const [backfillLoading, setBackfillLoading] = useState(false);
+  const [capabilityBackfillLoading, setCapabilityBackfillLoading] = useState(false);
 
   useEffect(() => { fetchSellers(); }, []);
 
@@ -77,6 +78,24 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
     } catch (err) {
       showErr(err?.response?.data?.message || 'Backfill imeshindwa');
     } finally { setBackfillLoading(false); }
+  };
+
+  // Layer 1 seller verification audit — one-time (idempotent, safe to
+  // re-run) catch-up: grants a real SellingCapability(SELL_PHYSICAL) row
+  // for every already-APPROVED seller, so the capability model has real
+  // data for existing sellers before it becomes an actual enforcement
+  // point in a later phase.
+  const handleRunCapabilityBackfill = async () => {
+    if (!window.confirm('Endesha Selling Capability backfill? Hii itatoa ruhusa ya SELL_PHYSICAL kwa wauzaji wote walioidhinishwa ambao bado hawana ruhusa hiyo.')) return;
+    try {
+      setCapabilityBackfillLoading(true);
+      const res = await api.post('/selling-capability/admin/backfill');
+      const r = res.data || {};
+      setMessage(`✅ Backfill imekamilika: ruhusa ${r.granted} zimetolewa (${r.skippedAlreadyGranted} tayari zilikuwepo, ${r.skippedNotApproved} si wauzaji walioidhinishwa)`);
+      setTimeout(() => setMessage(''), 12000);
+    } catch (err) {
+      showErr(err?.response?.data?.message || 'Backfill imeshindwa');
+    } finally { setCapabilityBackfillLoading(false); }
   };
 
   const handleApprove = async (id, tier) => {
@@ -225,6 +244,11 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               title="Unda Business kwa wauzaji wote wenye sellerType=business ambao bado hawajaunganishwa"
               style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: backfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
               {backfillLoading ? '⏳...' : '🏢 Business Backfill'}
+            </button>
+            <button onClick={handleRunCapabilityBackfill} disabled={capabilityBackfillLoading}
+              title="Toa ruhusa ya SELL_PHYSICAL kwa wauzaji wote walioidhinishwa ambao bado hawana ruhusa hiyo"
+              style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: capabilityBackfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
+              {capabilityBackfillLoading ? '⏳...' : '🎯 Selling Capability Backfill'}
             </button>
             <button onClick={fetchSellers}
               style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
