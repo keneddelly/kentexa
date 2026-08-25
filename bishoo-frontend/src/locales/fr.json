@@ -4714,6 +4714,7 @@
   },
   "super_agent_dashboard": {
     "load_failed": "Échec du chargement du tableau de bord",
+    "identity_prompt": "Complétez votre vérification d'identité pour garder votre hub fiable sur Kentexa — appuyez pour vérifier",
     "apply_title": "Devenir Super Agent",
     "apply_desc": "Ouvrez votre hub — recevez des colis via le réseau KenteXa",
     "field_business_name_label": "Nom de l'entreprise *",

@@ -4564,6 +4564,7 @@
   },
   "super_agent_dashboard": {
     "load_failed": "Imeshindwa kupakia dashibodi",
+    "identity_prompt": "Kamilisha uthibitisho wa utambulisho wako ili kuweka hub yako ya kuaminika Kentexa — gusa kuthibitisha",
     "apply_title": "Kuwa Super Agent",
     "apply_desc": "Fungua hub yako — pata vifurushi kupitia KenteXa network",
     "field_business_name_label": "Jina la Biashara *",

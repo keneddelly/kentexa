@@ -4718,6 +4718,7 @@
   },
   "super_agent_dashboard": {
     "load_failed": "Failed to load dashboard",
+    "identity_prompt": "Complete your identity verification to keep your hub trusted on Kentexa — tap to verify",
     "apply_title": "Become a Super Agent",
     "apply_desc": "Open your hub — receive parcels through the KenteXa network",
     "field_business_name_label": "Business Name *",

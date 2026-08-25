@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
 // Fallback only — the real list is fetched from the backend's canonical
 // TANZANIA_CITIES (GET /super-agents/cities) so this page doesn't carry
@@ -27,10 +28,10 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
   const [loading, setLoading]             = useState(false);
   const [error, setError]                 = useState('');
   const [form, setForm] = useState({
-    businessName: '', city: '', address: '',
-    phone: '', governmentId: '', governmentIdImage: '',
+    businessName: '', city: '', address: '', phone: '',
   });
   const [cities, setCities] = useState(FALLBACK_CITIES);
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
 
   useEffect(() => {
     api.get('/super-agents/cities')
@@ -75,6 +76,12 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
       await api.post('/super-agents/apply', form);
       setStep('done');
     } catch (err) {
+      // Applying requires Level 1 identity verification — show the inline
+      // flow instead of a plain error so the filled-in form is never lost.
+      if (err?.response?.data?.code === 'VERIFICATION_REQUIRED') {
+        setShowVerifyIdentity(true);
+        return;
+      }
       setError(err?.response?.data?.message || t('become_super_agent_info.submit_failed'));
     } finally { setLoading(false); }
   };
@@ -236,13 +243,6 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
                   style={inputStyle} />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 5 }}>{t('become_super_agent_info.gov_id_label')}</label>
-                <input type="text" placeholder={t('become_super_agent_info.gov_id_placeholder')}
-                  value={form.governmentId} onChange={e => setForm({ ...form, governmentId: e.target.value })}
-                  style={inputStyle} />
-              </div>
-
               {!isLoggedIn && (
                 <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#92400e' }}>
                   💡 {t('become_super_agent_info.login_required_pre')}{' '}
@@ -262,6 +262,13 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
           </div>
         ) : null}
       </div>
+
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
+        />
+      )}
     </div>
   );
 };

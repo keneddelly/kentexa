@@ -19,6 +19,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState('');
+  const [applicantIdentity, setApplicantIdentity] = useState(null);
 
   useEffect(() => { fetchAgents(); }, []);
 
@@ -27,6 +28,13 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
       setGrantCount(String(detailAgent.freeOrdersGranted ?? 0));
       setPaymentAmount('');
       setBillingError('');
+      setApplicantIdentity(null);
+      const userId = detailAgent.user?.id;
+      if (userId) {
+        api.get(`/identity/admin/by-user/${userId}`)
+          .then(r => setApplicantIdentity(r.data))
+          .catch(() => {});
+      }
     }
   }, [detailAgent]);
 
@@ -306,11 +314,44 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
 
             {detailAgent.governmentIdImage && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Government ID Photo</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 6 }}>Government ID Photo (legacy)</div>
                 <img src={detailAgent.governmentIdImage} alt="Government ID"
                   style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 8, border: '1px solid #e2e8f0' }} />
               </div>
             )}
+
+            {/* Identity Verification (Phase 3) — the applicant's centralized
+                IdentityProfile, replacing the old text-only governmentId
+                field for applications submitted after this phase. */}
+            <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>🪪 Identity Verification</div>
+                {applicantIdentity && (
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                    backgroundColor: { not_submitted: '#f1f5f9', pending: '#fef9c3', verified: '#dcfce7', rejected: '#fee2e2' }[applicantIdentity.status] || '#f1f5f9',
+                    color: { not_submitted: '#64748b', pending: '#ca8a04', verified: '#16a34a', rejected: '#dc2626' }[applicantIdentity.status] || '#64748b' }}>
+                    {applicantIdentity.status}
+                  </span>
+                )}
+              </div>
+              {!applicantIdentity ? (
+                <div style={{ textAlign: 'center', padding: 16, color: '#94a3b8', fontSize: 12 }}>
+                  No identity submission on file for this account
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>Legal Name: <strong>{applicantIdentity.legalName}</strong></div>
+                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>Date of Birth: <strong>{applicantIdentity.dateOfBirth}</strong></div>
+                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>NIDA: <strong>{applicantIdentity.nidaNumber}</strong></div>
+                  {applicantIdentity.idDocumentImageUrl && (
+                    <a href={applicantIdentity.idDocumentImageUrl} target="_blank" rel="noreferrer">
+                      <img src={applicantIdentity.idDocumentImageUrl} alt="ID Document"
+                        style={{ width: '100%', maxHeight: 260, objectFit: 'contain', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer' }} />
+                    </a>
+                  )}
+                </>
+              )}
+            </div>
 
             {(() => {
               const granted = Number(detailAgent.freeOrdersGranted || 0);

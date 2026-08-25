@@ -10,6 +10,7 @@ import {
   Request,
   Query,
   ParseIntPipe,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AgentsService } from '../agents/agents.service';
 import { SuperAgentsService } from './super-agents.service';
@@ -18,12 +19,15 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { ParcelStatus } from './entities/parcel.entity';
+import { VerificationService } from '../identity/verification.service';
+import { Feature } from '../identity/verification.constants';
 
 @Controller('super-agents')
 export class SuperAgentsController {
   constructor(
     private service: SuperAgentsService,
     private agentsService: AgentsService,
+    private verification: VerificationService,
   ) {}
 
   // ── Public ────────────────────────────────────────────────────────────────
@@ -80,10 +84,23 @@ export class SuperAgentsController {
 
   // ── Authenticated ─────────────────────────────────────────────────────────
 
-  // Apply to become super agent
+  // Apply to become super agent — requires Level 1 identity verification
+  // first (spec: "Do not allow an unverified identity to become an active
+  // Super Agent"), same gate pattern as classifieds.controller.ts's create().
   @UseGuards(JwtAuthGuard)
   @Post('apply')
-  apply(@Request() req, @Body() dto: any) {
+  async apply(@Request() req, @Body() dto: any) {
+    const canApply = await this.verification.canUseFeature(
+      req.user.id,
+      Feature.BECOME_SUPER_AGENT,
+    );
+    if (!canApply) {
+      throw new ForbiddenException({
+        code: 'VERIFICATION_REQUIRED',
+        requiredLevel: 1,
+        message: 'Verify your identity to apply as a Super Agent on Kentexa',
+      });
+    }
     return this.service.apply(req.user, dto);
   }
 

@@ -68,6 +68,16 @@ export class IdentityController {
     return status === 'all' ? this.verification.getAll() : this.verification.getPending();
   }
 
+  // Lets other admin review screens (e.g. Super Agent applications) show
+  // the applicant's centralized identity record instead of duplicating
+  // their own identity-collection UI.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/by-user/:userId')
+  async byUser(@Param('userId') userId: string) {
+    return this.verification.getIdentityProfile(Number(userId));
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch('admin/:id/review')

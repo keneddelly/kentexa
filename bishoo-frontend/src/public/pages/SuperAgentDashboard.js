@@ -33,6 +33,7 @@ import LocationPicker from '../components/LocationPicker';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import SetupProgressCard from '../../onboarding/SetupProgressCard';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Full hub-operations dashboard (receive/dispatch/pricing/van) re-enabled —
@@ -169,6 +170,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const [resendLoading, setResendLoading] = useState(''); // 'sender' | 'receiver' | ''
   const [resendMsg, setResendMsg] = useState('');
   const [error, setError]               = useState('');
+  const [identityStatus, setIdentityStatus] = useState(null);
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [success, setSuccess]           = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -384,6 +387,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
+      api.get('/identity/me').then(r => setIdentityStatus(r.data)).catch(() => {});
       const profileRes = await api.get('/super-agents/my-profile').catch(() => null);
       if (!profileRes?.data || profileRes.data.status === 'not_applied') {
         setProfileStatus('not_applied'); return;
@@ -853,6 +857,18 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column',
       backgroundColor: '#f1f5f9' }}>
       <BackBar onBack={() => onNavigate('back')} title={t('super_agent_dashboard.header_title', 'Hub Dashboard')} top={0} />
+
+      {/* Non-blocking identity prompt — existing active agents from before
+          Phase 3 never had to complete Level 1 identity; this never
+          restricts anything they can already do, it's purely informational
+          (spec: "do not remove existing Super Agents automatically"). */}
+      {identityStatus && identityStatus.level < 1 && (
+        <div onClick={() => setShowVerifyIdentity(true)}
+          style={{ backgroundColor: '#fef9c3', padding: '10px 16px', fontSize: 12,
+            color: '#92400e', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
+          🪪 {t('super_agent_dashboard.identity_prompt')}
+        </div>
+      )}
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', padding: '16px 16px 0' }}>
@@ -2638,6 +2654,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
         </div>
       )}
 
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => {
+            setShowVerifyIdentity(false);
+            api.get('/identity/me').then(r => setIdentityStatus(r.data)).catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 };
