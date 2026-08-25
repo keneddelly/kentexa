@@ -3,10 +3,11 @@ import {
   Post,
   UseInterceptors,
   UploadedFiles,
+  UploadedFile,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -73,5 +74,55 @@ export class UploadController {
     }
 
     return { urls };
+  }
+
+  // Digital products (Layer 1 seller verification) — uploads as a
+  // private, non-public Cloudinary raw asset (type: 'private'), unlike
+  // uploadImages() above which uploads publicly. The returned publicId is
+  // meaningless without a signed URL, generated on demand by
+  // ProductsService.getDownloadUrl() only after a real purchase is
+  // verified — never served or stored as a plain URL anywhere.
+  @UseGuards(JwtAuthGuard)
+  @Post('digital-file')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (req, file, cb) => {
+        const allowed = /pdf|epub|zip/;
+        const valid = allowed.test(extname(file.originalname).toLowerCase());
+        if (valid) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Only PDF, EPUB, or ZIP files allowed'), false);
+        }
+      },
+      limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+    }),
+  )
+  async uploadDigitalFile(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('No file uploaded');
+
+    const format = extname(file.originalname).toLowerCase().replace('.', '');
+
+    const result = await new Promise<{ public_id: string }>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'kentexa/digital-products',
+          resource_type: 'raw',
+          type: 'private',
+        },
+        (error, uploadResult) => {
+          if (error) return reject(error);
+          resolve(uploadResult as { public_id: string });
+        },
+      );
+      stream.end(file.buffer);
+    });
+
+    return {
+      publicId: result.public_id,
+      format,
+      sizeBytes: file.size,
+    };
   }
 }

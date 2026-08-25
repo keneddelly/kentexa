@@ -181,6 +181,14 @@ export class ProductsController {
     return this.service.addReview(id, dto, req.user);
   }
 
+  // Layer 1 seller verification — digital products. Purchase-gated: the
+  // service verifies a real completed Order before ever generating a URL.
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/download')
+  getDownloadUrl(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.service.getDownloadUrl(id, req.user);
+  }
+
   // ── :id routes LAST ─────────────────────────────────────────────────────
 
   @Get(':id')

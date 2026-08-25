@@ -2,11 +2,14 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
+import { v2 as cloudinary } from 'cloudinary';
 import { Product } from './entities/products.entity';
 import { ProductReview } from './entities/product-review.entity';
+import { DigitalProductAsset } from './entities/digital-product-asset.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
@@ -41,6 +44,9 @@ export class ProductsService {
 
     @InjectRepository(Order)
     private orderRepo: Repository<Order>,
+
+    @InjectRepository(DigitalProductAsset)
+    private digitalAssetRepo: Repository<DigitalProductAsset>,
 
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
@@ -300,8 +306,21 @@ export class ProductsService {
   }
 
   async create(dto: CreateProductDto, seller?: User): Promise<Product> {
+    const isDigital = dto.productType === 'digital';
+
+    // Layer 1 seller verification's one hard gate for digital products:
+    // no eBook/PDF without an explicit self-declared ownership claim.
+    // This replaces demanding BRELA registration just to sell a file.
+    if (isDigital && !dto.digitalAsset?.copyrightDeclared) {
+      throw new BadRequestException(
+        'You must declare that you own the rights to this file before selling it.',
+      );
+    }
+
     const basePrice = Number(dto.basePrice || 0);
-    const deliveryFee = Number(dto.deliveryFee || 0);
+    // Digital goods are never shipped — never carry a delivery fee,
+    // regardless of what was computed/passed for a physical listing.
+    const deliveryFee = isDigital ? 0 : Number(dto.deliveryFee || 0);
     const displayPrice = basePrice + deliveryFee;
 
     // Attributes the product to whichever profile was active when it was
@@ -328,7 +347,11 @@ export class ProductsService {
       basePrice,
       deliveryFee,
       displayPrice,
-      stock: dto.stock || 0,
+      // Digital goods are never out of stock — a large sentinel rather
+      // than trusting/validating a client-sent stock count that means
+      // nothing for a file.
+      stock: isDigital ? 999999 : dto.stock || 0,
+      productType: isDigital ? 'digital' : 'physical',
       category: dto.category || 'general',
       subcategory: dto.subcategory || null,
       model: dto.model || null,
@@ -354,6 +377,28 @@ export class ProductsService {
     } as any);
 
     const saved = (await this.repo.save(product)) as unknown as Product;
+
+    if (isDigital && dto.digitalAsset) {
+      await this.digitalAssetRepo.save(
+        this.digitalAssetRepo.create({
+          product: saved,
+          cloudinaryPublicId: dto.digitalAsset.cloudinaryPublicId,
+          format: dto.digitalAsset.format,
+          fileSizeBytes: dto.digitalAsset.fileSizeBytes,
+          licenseType: dto.digitalAsset.licenseType || null,
+          copyrightDeclaredAt: new Date(),
+        }),
+      );
+      this.activityEvents.record({
+        eventType: 'DIGITAL_PRODUCT_CREATED',
+        category: ActivityCategory.COMMERCE,
+        actorId: seller?.id ?? null,
+        actorType: 'seller',
+        targetType: 'product',
+        targetId: saved.id,
+        metadata: { format: dto.digitalAsset.format, fileSizeBytes: dto.digitalAsset.fileSizeBytes },
+      });
+    }
 
     // Auto-share as a Moment — fire-and-forget, never blocks product creation.
     // Price + category burned into the shared image (see price-overlay.util)
@@ -597,5 +642,60 @@ export class ProductsService {
       metadata: { rating: dto.rating },
     });
     return saved;
+  }
+
+  // Layer 1 seller verification — purchase-gated digital delivery. Never
+  // trusts a client-supplied "I bought this" claim: verifies a real
+  // completed Order exists for this exact (product, buyer) pair before
+  // generating anything. The returned URL is a short-lived Cloudinary
+  // signed download link, never the stored publicId itself — the file
+  // stays private (type: 'private') regardless of this URL leaking or
+  // expiring.
+  async getDownloadUrl(
+    productId: number,
+    user: User,
+  ): Promise<{ downloadUrl: string; expiresAt: number }> {
+    const product = await this.repo.findOne({ where: { id: productId } });
+    if (!product) throw new NotFoundException('Product not found');
+    if (product.productType !== 'digital') {
+      throw new ForbiddenException('This product is not a digital download');
+    }
+
+    const asset = await this.digitalAssetRepo.findOne({
+      where: { product: { id: productId } },
+    });
+    if (!asset) throw new NotFoundException('Digital file not found');
+
+    const purchase = await this.orderRepo.findOne({
+      where: {
+        product: { id: productId },
+        buyer: { id: user.id },
+        status: In([OrderStatus.PAID, OrderStatus.COMPLETED]),
+      },
+    });
+    if (!purchase) {
+      throw new ForbiddenException(
+        'You must purchase this product before downloading it',
+      );
+    }
+
+    const expiresAt = Math.floor(Date.now() / 1000) + 5 * 60; // 5 minutes
+    const downloadUrl = cloudinary.utils.private_download_url(
+      asset.cloudinaryPublicId,
+      asset.format,
+      { resource_type: 'raw', type: 'private', expires_at: expiresAt },
+    );
+
+    this.activityEvents.record({
+      eventType: 'DIGITAL_PRODUCT_DELIVERED',
+      category: ActivityCategory.COMMERCE,
+      actorId: user.id,
+      actorType: 'buyer',
+      targetType: 'product',
+      targetId: productId,
+      metadata: { orderId: purchase.id },
+    });
+
+    return { downloadUrl, expiresAt };
   }
 }

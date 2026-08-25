@@ -5,6 +5,7 @@ import { ProductsService } from './products.service';
 import { AiListingService } from './ai-listing.service';
 import { Product } from './entities/products.entity';
 import { ProductReview } from './entities/product-review.entity';
+import { DigitalProductAsset } from './entities/digital-product-asset.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Order } from '../orders/entities/order.entity';
 import { SellerRankingService } from './seller-ranking.service';
@@ -18,7 +19,7 @@ import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product, ProductReview, SellerProfile, Order]),
+    TypeOrmModule.forFeature([Product, ProductReview, DigitalProductAsset, SellerProfile, Order]),
     FeedModule,
     AiModule,
     BusinessModule,

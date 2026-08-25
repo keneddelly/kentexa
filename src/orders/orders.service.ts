@@ -154,9 +154,14 @@ export class OrdersService {
       deliveryFee = Number(product.deliveryFee || 0);
     }
 
+    // Layer 1 seller verification — digital products (eBooks/PDFs/etc)
+    // have nothing to ship, so nothing to charge or collect for.
+    const isDigitalProduct = (product as any).productType === 'digital';
+    if (isDigitalProduct) deliveryFee = 0;
+
     // ── Collection fee — added to total when seller requests agent pickup ────
     // Buyer pays this as part of delivery, seller not penalised for rural area.
-    const needsCollection = Boolean((dto as any).needsCollection);
+    const needsCollection = !isDigitalProduct && Boolean((dto as any).needsCollection);
     const isRuralCollection = Boolean((dto as any).isRuralCollection);
     const collectionFee = needsCollection
       ? Number((dto as any).collectionFee || (isRuralCollection ? 3000 : 1500))

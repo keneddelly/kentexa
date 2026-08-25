@@ -9,12 +9,36 @@ import {
   IsString,
   Min,
   IsObject,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { CATEGORY_KEYS } from '../../categories/categories.data';
 
 export enum ShippingMethod {
   DIRECT = 'direct',
   AGENT = 'agent',
+}
+
+// Layer 1 seller verification — digital products (eBooks/PDFs/etc). Kept
+// as a small nested object rather than flattening onto CreateProductDto
+// so its fields only ever apply when productType === 'digital'.
+export class DigitalAssetDto {
+  @IsString()
+  cloudinaryPublicId: string;
+
+  @IsString()
+  format: string;
+
+  @IsNumber()
+  @Min(0)
+  fileSizeBytes: number;
+
+  @IsOptional()
+  @IsString()
+  licenseType?: string;
+
+  @IsBoolean()
+  copyrightDeclared: boolean;
 }
 
 export class CreateProductDto {
@@ -132,4 +156,14 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   availableInStore?: boolean;
+
+  // ── Digital products (Layer 1 seller verification) ─────────────────────
+  @IsOptional()
+  @IsIn(['physical', 'digital'])
+  productType?: 'physical' | 'digital';
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => DigitalAssetDto)
+  digitalAsset?: DigitalAssetDto;
 }

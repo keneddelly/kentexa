@@ -9,7 +9,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { InvoiceCounter } from './entities/invoice-counter.entity';
 import { ReceiptCounter } from './entities/receipt-counter.entity';
-import { Order } from '../orders/entities/order.entity';
+import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
 import { ActivityEventService } from '../activity/activity-event.service';
@@ -228,6 +228,22 @@ export class InvoicesService {
       paymentStatus: 'paid' as any,
       status: 'paid' as any,
     });
+
+    // Layer 1 seller verification — a digital product (eBook/PDF/etc) has
+    // nothing to ship, so it skips the entire physical fulfillment chain
+    // (shipping/agent/buyer-confirms) and completes the moment payment
+    // clears. Additive and isolated: never touches the physical-order
+    // path above, and a failure here can never block the payment
+    // confirmation the buyer is waiting on.
+    if ((invoice.order?.product as any)?.productType === 'digital') {
+      try {
+        await this.orderRepo.update(invoice.order.id, {
+          status: OrderStatus.COMPLETED,
+        });
+      } catch (err) {
+        this.logger.warn(`Digital order auto-complete failed: ${err.message}`);
+      }
+    }
 
     this.logger.log(
       `Invoice ${invoiceNumber} PAID & Order auto-confirmed. Receipt: ${receiptNumber}`,

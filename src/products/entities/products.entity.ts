@@ -139,6 +139,14 @@ export class Product {
   // isNewArrival aren't stored at all — they're derived at read time in
   // profile.service.ts from salesCount/createdAt, which are always
   // up to date and need no admin upkeep.
+  // ── Digital products (Layer 1 seller verification) ─────────────────────
+  // 'physical' by default -- zero behavior/data change for every product
+  // that exists today. A 'digital' product has no shipping/stock scarcity
+  // (see ProductsService.create()) and its file lives in a linked
+  // DigitalProductAsset row, never on this entity directly.
+  @Column({ type: 'varchar', default: 'physical' })
+  productType: 'physical' | 'digital';
+
   @Column({ default: false })
   isFeatured: boolean;
 
