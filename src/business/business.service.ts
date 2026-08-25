@@ -34,6 +34,30 @@ export class BusinessService {
     return business;
   }
 
+  // Own dashboard stats -- only what this Business genuinely has data for
+  // today. Leads/Messages are honest empty placeholders, not real backing
+  // data yet (see Phase 2 plan's "explicitly not in this phase").
+  async getDashboard(businessId: number, user: User) {
+    const business = await this.findById(businessId);
+    if (business.user.id !== user.id) {
+      throw new NotFoundException('Business not found');
+    }
+    const [sellerProfile, commerceProfile] = await Promise.all([
+      this.sellerProfileRepo.findOne({ where: { businessId: business.id } }),
+      this.commerceProfiles.findForUserByType(user.id, CommerceProfileType.BUSINESS),
+    ]);
+    return {
+      business,
+      hasSeller: !!sellerProfile,
+      followersCount: commerceProfile?.followersCount || 0,
+      rating: commerceProfile?.rating || 0,
+      reviewsCount: commerceProfile?.reviewsCount || 0,
+      reputationScore: commerceProfile?.reputationScore || 0,
+      leadsCount: 0,
+      unreadMessagesCount: 0,
+    };
+  }
+
   // ── Create a Business with no Seller (spec section 7: a manufacturer
   // that only wants a digital presence) ─────────────────────────────────
   async create(
@@ -84,6 +108,48 @@ export class BusinessService {
         businessId: saved.id,
       });
     } catch {}
+
+    return saved;
+  }
+
+  async update(
+    businessId: number,
+    user: User,
+    dto: Partial<{
+      legalName: string;
+      tradingName: string;
+      description: string;
+      category: string;
+      logo: string;
+      coverImage: string;
+      address: string;
+      phone: string;
+      email: string;
+    }>,
+  ): Promise<Business> {
+    const business = await this.findById(businessId);
+    if (business.user.id !== user.id) {
+      throw new NotFoundException('Business not found');
+    }
+    await this.businessRepo.update(businessId, dto);
+    const saved = await this.findById(businessId);
+
+    // Keep the public CommerceProfile in sync -- same fields it was
+    // seeded from at create() time. Best-effort: never blocks the save.
+    const commerceProfile = await this.commerceProfiles.findForUserByType(
+      user.id,
+      CommerceProfileType.BUSINESS,
+    );
+    if (commerceProfile) {
+      await this.commerceProfiles
+        .updatePublicFields(commerceProfile.id, {
+          displayName: saved.tradingName || saved.legalName,
+          photoUrl: saved.logo,
+          coverImage: saved.coverImage,
+          bio: saved.description,
+        })
+        .catch(() => {});
+    }
 
     return saved;
   }

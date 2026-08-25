@@ -52,6 +52,7 @@ import MyOrders from './public/pages/MyOrders';
 import CustomerProfile from './public/pages/CustomerProfile';
 import BecomeSeller from './public/pages/BecomeSeller';
 import SellerDashboard from './public/pages/SellerDashboard';
+import BusinessDashboard from './public/pages/BusinessDashboard';
 import BecomeAgent from './public/pages/BecomeAgent';
 import AgentDashboard from './public/pages/AgentDashboard';
 import Cart from './public/pages/Cart';
@@ -244,7 +245,14 @@ function App() {
     setActiveProfileId(profileId);
     setShowProfileSwitcher(false);
     const p = myProfiles.find(x => x.id === profileId);
-    handleNavigate(DASHBOARD_BY_TYPE[p?.type] || 'Home');
+    // Multi-role architecture Phase 2: a BUSINESS-type profile only goes
+    // to SellerDashboard once it has actually activated Seller -- same
+    // sellerProfileId check BottomNav.js uses, so switching profiles
+    // never hands a Business-only account a path to Ship Item/Products.
+    const dest = p?.type === 'business' && !p?.sellerProfileId
+      ? 'BusinessDashboard'
+      : DASHBOARD_BY_TYPE[p?.type] || 'Home';
+    handleNavigate(dest);
   };
 
   // Analytics — tracks every page, click, scroll automatically
@@ -635,6 +643,7 @@ function App() {
       case 'Checkout':          return requireLogin(<Checkout {...publicProps} />);
       case 'StoreSettings':     return requireLogin(<StoreSettings {...publicProps} userId={decodeToken(localStorage.getItem('token'))?.sub} />);
       case 'SellerDashboard':   return requireLogin(<SellerDashboard {...publicProps} />);
+      case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
       case 'SellerProducts':    return requireLogin(<SellerProducts {...publicProps} />);
       case 'POS':               return requireLogin(<POS {...publicProps} />);
       case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} />);

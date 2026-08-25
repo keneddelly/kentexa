@@ -51,9 +51,19 @@ export class BusinessController {
     return this.businessService.create(req.user, dto);
   }
 
+  @Patch(':id')
+  update(@Param('id', ParseIntPipe) id: number, @Request() req, @Body() dto: any) {
+    return this.businessService.update(id, req.user, dto);
+  }
+
   @Post(':id/activate-seller')
   activateSeller(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.businessService.activateSeller(id, req.user);
+  }
+
+  @Get(':id/dashboard')
+  getDashboard(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.businessService.getDashboard(id, req.user);
   }
 
   @Post('admin/backfill')

@@ -97,7 +97,21 @@ const TYPE_TABS = (t) => {
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,
   activeProfile, onOpenSwitcher, myProfiles }) => {
   const { t } = useTranslation();
-  const cfg = TYPE_TABS(t)[activeProfile?.type] || TYPE_TABS(t).personal;
+  let cfg = TYPE_TABS(t)[activeProfile?.type] || TYPE_TABS(t).personal;
+
+  // Multi-role architecture Phase 2: a BUSINESS-type profile only gets the
+  // Seller dashboard/inbox tabs once it has actually activated Seller
+  // (activeProfile.sellerProfileId set) -- a Business created via
+  // POST /business/create with no Seller must never get a one-tap path to
+  // Ship Item/Products/Payouts just for being a Business (spec: "Ship
+  // Product must never appear merely because someone is a Business").
+  if (activeProfile?.type === 'business' && !activeProfile?.sellerProfileId) {
+    cfg = {
+      ...cfg,
+      second: { page: 'BusinessDashboard', icon: emojiIcon('🏢'), label: t('bottom_nav.dashboard') },
+      fourth: { page: 'BusinessDashboard', icon: emojiIcon('💬'), label: t('bottom_nav.messages') },
+    };
+  }
 
   const tabs = [
     { key: cfg.first.page,  icon: cfg.first.icon,  label: cfg.first.label },
