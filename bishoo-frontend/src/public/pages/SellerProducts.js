@@ -30,6 +30,8 @@ const EMPTY_FORM = {
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
   sku: '', barcode: '', costPrice: '', minStockThreshold: '0',
   availableOnline: true, availableInStore: true,
+  // ── Digital products (Layer 1 seller verification) ─────────────────────
+  productType: 'physical', digitalFile: null, licenseType: '', copyrightDeclared: false,
 };
 
 const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
@@ -42,6 +44,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [showForm, setShowForm]       = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [uploading, setUploading]     = useState(false);
+  const [uploadingDigitalFile, setUploadingDigitalFile] = useState(false);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [form, setForm]               = useState(EMPTY_FORM);
   const [productLocation, setProductLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
@@ -171,6 +174,29 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     finally { setUploading(false); }
   };
 
+  // Digital products (Layer 1 seller verification) — uploads to the
+  // private, non-public path (POST /upload/digital-file), distinct from
+  // handleImageUpload above which uploads publicly. Never a public URL:
+  // the response is just an opaque publicId, meaningless without a
+  // purchase-gated signed download link (see products.service.ts's
+  // getDownloadUrl()).
+  const handleDigitalFileUpload = async (file) => {
+    if (!file) return;
+    try {
+      setUploadingDigitalFile(true);
+      setError('');
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/upload/digital-file', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setForm(prev => ({
+        ...prev,
+        digitalFile: { publicId: res.data.publicId, format: res.data.format, sizeBytes: res.data.sizeBytes, fileName: file.name },
+      }));
+    } catch (err) {
+      setError(err?.response?.data?.message || t('seller_products.digital_file_upload_failed'));
+    } finally { setUploadingDigitalFile(false); }
+  };
+
   const removeImage = (i) => {
     setImagePreviews(prev => prev.filter((_, idx) => idx !== i));
     setForm(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
@@ -201,7 +227,15 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   };
 
   const handleSubmit = async () => {
-    if (!form.name || !form.basePrice || !form.stock) { setError(t('seller_products.name_required')); return; }
+    const isDigital = form.productType === 'digital';
+    if (!form.name || !form.basePrice || (!isDigital && !form.stock)) { setError(t('seller_products.name_required')); return; }
+    // Digital products (Layer 1 seller verification) — fast client-side
+    // feedback before the network round-trip; the backend enforces the
+    // same copyright-declaration requirement independently.
+    if (isDigital && !editProduct) {
+      if (!form.digitalFile) { setError(t('seller_products.digital_file_required')); return; }
+      if (!form.copyrightDeclared) { setError(t('seller_products.copyright_declaration_required')); return; }
+    }
     try {
       const base = Number(form.basePrice) || 0;
       const delivery = Number(form.deliveryFee) || 0;
@@ -222,7 +256,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         sellerCity:   form.sellerCity || 'Dar es Salaam',
         displayPrice: base + delivery,
         price:        base + delivery,
-        stock:        Number(form.stock),
+        stock:        isDigital ? 0 : Number(form.stock),
         weightKg:     form.weightKg ? Number(form.weightKg) : null,
         specs:        Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         features:     form.features?.length > 0 ? form.features : null,
@@ -233,6 +267,16 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         minStockThreshold: form.minStockThreshold !== '' ? Number(form.minStockThreshold) : undefined,
         availableOnline:  form.availableOnline,
         availableInStore: form.availableInStore,
+        ...(isDigital && !editProduct ? {
+          productType: 'digital',
+          digitalAsset: {
+            cloudinaryPublicId: form.digitalFile.publicId,
+            format: form.digitalFile.format,
+            fileSizeBytes: form.digitalFile.sizeBytes,
+            licenseType: form.licenseType || undefined,
+            copyrightDeclared: true,
+          },
+        } : {}),
       };
       if (editProduct) {
         await api.patch(`/products/${editProduct.id}`, payload);
@@ -272,6 +316,14 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       minStockThreshold: product.minStockThreshold != null ? String(product.minStockThreshold) : '0',
       availableOnline:  product.availableOnline ?? true,
       availableInStore: product.availableInStore ?? true,
+      // Digital products (Layer 1 seller verification) — the underlying
+      // file is immutable once uploaded (no replace endpoint exists), so
+      // editing only ever shows it read-only; digitalFile/copyrightDeclared
+      // stay null/false here since there's nothing to re-upload or re-ask.
+      productType:  product.productType || 'physical',
+      digitalFile:  null,
+      licenseType:  '',
+      copyrightDeclared: false,
     });
     setImagePreviews(product.images || []);
     setShowForm(true);
@@ -414,6 +466,33 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               {editProduct ? `✏️ ${t('seller_products.edit_modal_title')}` : `+ ${t('seller_products.add_modal_title')}`}
             </h2>
 
+            {/* Product Type */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>{t('seller_products.product_type')}</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" disabled={!!editProduct}
+                  onClick={() => setForm({ ...form, productType: 'physical' })}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: 8, cursor: editProduct ? 'default' : 'pointer', fontSize: 13, fontWeight: 700,
+                    border: form.productType === 'physical' ? '2px solid #1d4ed8' : '1px solid #e2e8f0',
+                    backgroundColor: form.productType === 'physical' ? '#eff6ff' : '#fff',
+                    color: form.productType === 'physical' ? '#1d4ed8' : '#64748b',
+                  }}>
+                  {`📦 ${t('seller_products.product_type_physical')}`}
+                </button>
+                <button type="button" disabled={!!editProduct}
+                  onClick={() => setForm({ ...form, productType: 'digital' })}
+                  style={{
+                    flex: 1, padding: '10px 12px', borderRadius: 8, cursor: editProduct ? 'default' : 'pointer', fontSize: 13, fontWeight: 700,
+                    border: form.productType === 'digital' ? '2px solid #7c3aed' : '1px solid #e2e8f0',
+                    backgroundColor: form.productType === 'digital' ? '#faf5ff' : '#fff',
+                    color: form.productType === 'digital' ? '#7c3aed' : '#64748b',
+                  }}>
+                  {`💾 ${t('seller_products.product_type_digital')}`}
+                </button>
+              </div>
+            </div>
+
             {/* Images */}
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>{t('seller_products.images')}</label>
@@ -551,12 +630,60 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   onChange={e => updatePrices('basePrice', e.target.value)} style={inputStyle} />
               </div>
               <div>
-                <label style={labelStyle}>{t('seller_products.stock')} *</label>
-                <input type="number" placeholder="e.g. 10" value={form.stock}
-                  onChange={e => setForm({ ...form, stock: e.target.value })} style={inputStyle} />
+                <label style={labelStyle}>{t('seller_products.stock')} {form.productType === 'physical' && '*'}</label>
+                {form.productType === 'digital' ? (
+                  <div style={{ ...inputStyle, display: 'flex', alignItems: 'center', color: '#7c3aed', fontWeight: 700 }}>
+                    {t('seller_products.unlimited_digital')}
+                  </div>
+                ) : (
+                  <input type="number" placeholder="e.g. 10" value={form.stock}
+                    onChange={e => setForm({ ...form, stock: e.target.value })} style={inputStyle} />
+                )}
               </div>
             </div>
 
+            {form.productType === 'digital' && (
+              <div style={{ backgroundColor: '#faf5ff', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e9d5ff' }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`💾 ${t('seller_products.digital_file_section')}`}</div>
+
+                {editProduct ? (
+                  <div style={{ fontSize: 12, color: '#7c3aed', backgroundColor: '#fff', borderRadius: 8, padding: 10, border: '1px solid #e9d5ff' }}>
+                    {`🔒 ${t('seller_products.digital_file_locked')}`}
+                  </div>
+                ) : (
+                  <>
+                    <input type="file" accept=".pdf,.epub,.zip" id="digitalFile" style={{ display: 'none' }}
+                      onChange={e => handleDigitalFileUpload(e.target.files?.[0])} />
+                    <label htmlFor="digitalFile" style={{ display: 'inline-block', background: 'linear-gradient(135deg,#7c3aed,#a855f7)', color: '#fff', padding: '8px 16px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      {uploadingDigitalFile ? `⏳ ${t('seller_products.uploading')}` : `📎 ${t('seller_products.choose_digital_file')}`}
+                    </label>
+                    {form.digitalFile && (
+                      <div style={{ fontSize: 11, color: '#16a34a', marginTop: 8, fontWeight: 600 }}>
+                        {`✅ ${form.digitalFile.fileName} (${(form.digitalFile.sizeBytes / 1024 / 1024).toFixed(2)} MB)`}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <div style={{ marginTop: 12 }}>
+                  <label style={labelStyle}>{t('seller_products.license_type')}</label>
+                  <input type="text" placeholder={t('seller_products.license_type_placeholder')} value={form.licenseType}
+                    onChange={e => setForm({ ...form, licenseType: e.target.value })} style={inputStyle} />
+                </div>
+
+                {!editProduct && (
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 14, padding: '10px 12px', backgroundColor: '#fff', borderRadius: 8, border: form.copyrightDeclared ? '2px solid #16a34a' : '2px solid #f59e0b', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={form.copyrightDeclared}
+                      onChange={e => setForm({ ...form, copyrightDeclared: e.target.checked })}
+                      style={{ width: 16, height: 16, marginTop: 1, cursor: 'pointer' }} />
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>{t('seller_products.copyright_declaration')}</span>
+                  </label>
+                )}
+              </div>
+            )}
+
+            {form.productType === 'physical' && (
+            <>
             {/* Unified inventory — the same stock number this product uses
                 across the local POS, Kentexa online, and manual sales. */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
@@ -723,6 +850,8 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 )}
               </div>
             </div>
+            </>
+            )}
 
             {/* Buyer price preview */}
             {(Number(form.basePrice) > 0 || Number(form.deliveryFee) > 0) && (

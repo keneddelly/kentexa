@@ -16,6 +16,21 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
   const [activeTab, setActiveTab] = useState('orders');
   const [cancellingId, setCancellingId] = useState(null);
   const [message, setMessage] = useState('');
+  const [downloadingOrderId, setDownloadingOrderId] = useState(null);
+
+  const handleDownload = async (order) => {
+    if (!order.product?.id) return;
+    try {
+      setDownloadingOrderId(order.id);
+      setError(null);
+      const res = await api.get(`/products/${order.product.id}/download`);
+      window.open(res.data.downloadUrl, '_blank');
+    } catch (err) {
+      setError(err?.response?.data?.message || t('my_orders.download_failed'));
+    } finally {
+      setDownloadingOrderId(null);
+    }
+  };
 
   // ── Pay Now modal state ────────────────────────────────────────────────
   const [payModalOrder, setPayModalOrder]     = useState(null); // order being paid
@@ -427,9 +442,11 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 4px' }}>
                           {t('my_orders.qty_price_label', { qty: order.quantity, price: Number(order.product?.price || 0).toLocaleString() })}
                         </p>
-                        <div style={{ fontSize: '13px', color: '#64748b' }}>
-                          📍 {order.deliveryAddress || '—'}
-                        </div>
+                        {order.product?.productType !== 'digital' && (
+                          <div style={{ fontSize: '13px', color: '#64748b' }}>
+                            📍 {order.deliveryAddress || '—'}
+                          </div>
+                        )}
                         {order.seller && (
                           <div style={{ fontSize: '12px', color: '#7c3aed', marginTop: '4px' }}>
                             🏪 {t('my_orders.seller_label', { name: order.seller?.storeName || order.seller?.businessName || order.seller?.name || '—' })}
@@ -459,6 +476,22 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           style={{ backgroundColor: '#fff', color: '#1d4ed8', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '800', whiteSpace: 'nowrap' }}
                         >
                           {t('my_orders.pay_now')}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Download — paid digital product orders */}
+                    {order.product?.productType === 'digital' && order.paymentStatus === 'paid' && (
+                      <div style={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ fontSize: '13px', color: '#fff' }}>
+                          {t('my_orders.digital_file_ready')}
+                        </div>
+                        <button
+                          onClick={() => handleDownload(order)}
+                          disabled={downloadingOrderId === order.id}
+                          style={{ backgroundColor: '#fff', color: '#7c3aed', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: downloadingOrderId === order.id ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: '800', whiteSpace: 'nowrap' }}
+                        >
+                          {downloadingOrderId === order.id ? t('my_orders.downloading') : `📥 ${t('my_orders.download_file')}`}
                         </button>
                       </div>
                     )}
