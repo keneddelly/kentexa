@@ -7,6 +7,7 @@ import {
   IdentityVerificationStatus,
 } from './entities/identity-profile.entity';
 import { IdentityVerificationAudit } from './entities/identity-verification-audit.entity';
+import { BusinessDocument } from './entities/business-document.entity';
 import {
   SellerProfile,
   SellerStatus,
@@ -36,6 +37,8 @@ export class VerificationService {
     private sellerProfileRepo: Repository<SellerProfile>,
     @InjectRepository(SuperAgent)
     private superAgentRepo: Repository<SuperAgent>,
+    @InjectRepository(BusinessDocument)
+    private businessDocRepo: Repository<BusinessDocument>,
     @Inject(IDENTITY_VERIFICATION_PROVIDER)
     private provider: IdentityVerificationProvider,
   ) {}
@@ -66,8 +69,12 @@ export class VerificationService {
     const level2 = sellerProfile?.status === SellerStatus.APPROVED;
     if (!level2) return 1;
 
+    // Real business-document review (Phase 2), not the admin's old free-
+    // text verificationTier choice — that field is now just a synced
+    // display value (see reviewBusinessDocuments below), never the gate.
     const level3 =
-      sellerProfile?.verificationTier === SellerVerificationTier.VERIFIED_BUSINESS;
+      sellerProfile?.sellerType === 'business' &&
+      sellerProfile?.businessDocumentsStatus === IdentityVerificationStatus.VERIFIED;
     if (level3) return 3;
 
     return 2;
@@ -185,5 +192,106 @@ export class VerificationService {
 
   async getAll(): Promise<IdentityProfile[]> {
     return this.identityRepo.find({ order: { createdAt: 'DESC' } as any });
+  }
+
+  // ── Business verification (Phase 2) ────────────────────────────────────
+
+  async submitBusinessDocuments(
+    sellerProfile: SellerProfile,
+    data: {
+      tinNumber?: string;
+      businessLicenseNumber?: string;
+      documents: { type: 'brela' | 'tin' | 'license' | 'other'; url: string }[];
+    },
+  ): Promise<void> {
+    const previousStatus = sellerProfile.businessDocumentsStatus || IdentityVerificationStatus.NOT_SUBMITTED;
+
+    sellerProfile.tinNumber = data.tinNumber || sellerProfile.tinNumber;
+    sellerProfile.businessLicenseNumber =
+      data.businessLicenseNumber || sellerProfile.businessLicenseNumber;
+    sellerProfile.businessDocumentsStatus = IdentityVerificationStatus.PENDING;
+    await this.sellerProfileRepo.save(sellerProfile);
+
+    if (data.documents?.length) {
+      await this.businessDocRepo.save(
+        data.documents.map((d) =>
+          this.businessDocRepo.create({
+            sellerProfile,
+            documentType: d.type,
+            url: d.url,
+          }),
+        ),
+      );
+    }
+
+    await this.auditRepo.save(
+      this.auditRepo.create({
+        user: sellerProfile.user,
+        verificationType: 'business',
+        previousStatus,
+        newStatus: IdentityVerificationStatus.PENDING,
+        reviewedBy: null,
+        reason: null,
+      }),
+    );
+  }
+
+  async reviewBusinessDocuments(
+    sellerProfileId: number,
+    admin: User,
+    approve: boolean,
+    reason?: string,
+  ): Promise<SellerProfile> {
+    const sellerProfile = await this.sellerProfileRepo.findOne({
+      where: { id: sellerProfileId },
+      relations: { user: true },
+    });
+    if (!sellerProfile) throw new ConflictException('Seller profile not found');
+
+    const previousStatus = sellerProfile.businessDocumentsStatus;
+    sellerProfile.businessDocumentsStatus = approve
+      ? IdentityVerificationStatus.VERIFIED
+      : IdentityVerificationStatus.REJECTED;
+    if (approve) {
+      // Keeps every existing consumer of verificationTier (admin badges,
+      // public seller API responses) accurate — it's a synced display
+      // value now, not what getLevel() actually gates on.
+      sellerProfile.verificationTier = SellerVerificationTier.VERIFIED_BUSINESS;
+    }
+    const saved = await this.sellerProfileRepo.save(sellerProfile);
+
+    await this.auditRepo.save(
+      this.auditRepo.create({
+        user: sellerProfile.user,
+        verificationType: 'business',
+        previousStatus,
+        newStatus: saved.businessDocumentsStatus,
+        reviewedBy: admin.id,
+        reason: reason || null,
+      }),
+    );
+
+    return saved;
+  }
+
+  async getBusinessDocuments(sellerProfileId: number): Promise<BusinessDocument[]> {
+    return this.businessDocRepo.find({
+      where: { sellerProfile: { id: sellerProfileId } },
+      order: { createdAt: 'ASC' } as any,
+    });
+  }
+
+  async getPendingBusinessReviews(): Promise<SellerProfile[]> {
+    return this.sellerProfileRepo.find({
+      where: { businessDocumentsStatus: IdentityVerificationStatus.PENDING },
+      order: { updatedAt: 'ASC' } as any,
+    });
+  }
+
+  async getAllBusinessReviews(): Promise<SellerProfile[]> {
+    return this.sellerProfileRepo.find({
+      where: { sellerType: 'business' } as any,
+      order: { updatedAt: 'DESC' } as any,
+    });
   }
 }

@@ -16,6 +16,7 @@ import { BusinessTeamMember } from '../business/entities/business-team-member.en
 import { ProfileModule } from '../profile/profile.module';
 import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { IdentityModule } from '../identity/identity.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
     ProfileModule,
     BusinessModule,
     CommerceProfilesModule,
+    IdentityModule,
   ],
   controllers: [SellerController],
   providers: [SellerService],

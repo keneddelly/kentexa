@@ -24,6 +24,7 @@ import {
   CommerceProfileType,
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
+import { VerificationService } from '../identity/verification.service';
 
 @Injectable()
 export class SellerService {
@@ -42,6 +43,7 @@ export class SellerService {
     private teamRepo: Repository<BusinessTeamMember>,
     private profileService: ProfileService,
     private commerceProfiles: CommerceProfilesService,
+    private verification: VerificationService,
   ) {}
 
   // ── Public: all approved sellers (raw profiles) ──────────────────────────
@@ -246,12 +248,27 @@ export class SellerService {
     if (existing)
       throw new ConflictException('You already have a seller application');
 
+    // businessDocuments isn't a SellerProfile column — it becomes
+    // BusinessDocument rows via submitBusinessDocuments() below, once the
+    // profile (and its id) exists.
+    const { businessDocuments, ...profileFields } = dto;
+
     const profile = this.profileRepo.create({
-      ...dto,
+      ...profileFields,
       user,
       status: SellerStatus.PENDING,
     });
     const saved = await this.profileRepo.save(profile);
+
+    if (dto.sellerType === 'business' && (businessDocuments?.length || dto.tinNumber || dto.businessLicenseNumber)) {
+      await this.verification
+        .submitBusinessDocuments(saved, {
+          tinNumber: dto.tinNumber,
+          businessLicenseNumber: dto.businessLicenseNumber,
+          documents: businessDocuments || [],
+        })
+        .catch(() => {});
+    }
 
     // Creates the business's Commerce Profile alongside the application —
     // starts PENDING, mirrors the SellerProfile's own status exactly.

@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { IdentityVerificationStatus } from '../../identity/entities/identity-profile.entity';
 
 export enum SellerStatus {
   PENDING = 'pending',
@@ -93,7 +94,27 @@ export class SellerProfile {
   businessCity: string | null;
 
   @Column({ type: 'varchar', nullable: true })
-  registrationNumber: string | null;
+  registrationNumber: string | null; // BRELA registration number
+
+  // ── Business verification (Phase 2) ────────────────────────────────────
+  // Set once at application time — determines whether the extra business
+  // document flow (TIN/license/BRELA docs) applies at all. Individual
+  // sellers never touch businessDocumentsStatus; it stays NOT_SUBMITTED.
+  @Column({ type: 'varchar', nullable: true })
+  sellerType: 'individual' | 'business' | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  tinNumber: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  businessLicenseNumber: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: IdentityVerificationStatus,
+    default: IdentityVerificationStatus.NOT_SUBMITTED,
+  })
+  businessDocumentsStatus: IdentityVerificationStatus;
 
   // ── Manual-shipment platform-fee billing ──────────────────────────────
   // Same model as SuperAgent's founding-pilot billing: every new seller

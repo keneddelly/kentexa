@@ -1,4 +1,12 @@
-import { IsInt, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
+
+class BusinessDocumentInputDto {
+  @IsIn(['brela', 'tin', 'license', 'other'])
+  type: 'brela' | 'tin' | 'license' | 'other';
+
+  @IsString()
+  url: string;
+}
 
 export class CreateSellerProfileDto {
   @IsString()
@@ -48,4 +56,21 @@ export class CreateSellerProfileDto {
   @IsOptional()
   @IsString()
   businessCity?: string;
+
+  // ── Business verification (Phase 2) ────────────────────────────────────
+  @IsOptional()
+  @IsIn(['individual', 'business'])
+  sellerType?: 'individual' | 'business';
+
+  @IsOptional()
+  @IsString()
+  tinNumber?: string;
+
+  @IsOptional()
+  @IsString()
+  businessLicenseNumber?: string;
+
+  @IsOptional()
+  @IsArray()
+  businessDocuments?: BusinessDocumentInputDto[];
 }

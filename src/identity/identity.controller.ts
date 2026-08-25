@@ -78,4 +78,38 @@ export class IdentityController {
   ) {
     return this.verification.review(Number(id), req.user, !!body.approve, body.reason);
   }
+
+  // ── Business verification (Phase 2) ────────────────────────────────────
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('business/admin/list')
+  async businessList(@Query('status') status?: string) {
+    return status === 'all'
+      ? this.verification.getAllBusinessReviews()
+      : this.verification.getPendingBusinessReviews();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('business/admin/:sellerProfileId/documents')
+  async businessDocuments(@Param('sellerProfileId') sellerProfileId: string) {
+    return this.verification.getBusinessDocuments(Number(sellerProfileId));
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('business/admin/:sellerProfileId/review')
+  async businessReview(
+    @Request() req,
+    @Param('sellerProfileId') sellerProfileId: string,
+    @Body() body: { approve: boolean; reason?: string },
+  ) {
+    return this.verification.reviewBusinessDocuments(
+      Number(sellerProfileId),
+      req.user,
+      !!body.approve,
+      body.reason,
+    );
+  }
 }

@@ -28,6 +28,10 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState('');
+  const [businessDocs, setBusinessDocs] = useState([]);
+  const [businessActionLoading, setBusinessActionLoading] = useState(false);
+  const [showBusinessRejectModal, setShowBusinessRejectModal] = useState(false);
+  const [businessRejectReason, setBusinessRejectReason] = useState('');
 
   useEffect(() => { fetchSellers(); }, []);
 
@@ -36,6 +40,12 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       setGrantCount(String(selected.freeOrdersGranted ?? 0));
       setPaymentAmount('');
       setBillingError('');
+      setBusinessDocs([]);
+      if (selected.sellerType === 'business') {
+        api.get(`/identity/business/admin/${selected.id}/documents`)
+          .then(r => setBusinessDocs(r.data || []))
+          .catch(() => {});
+      }
     }
   }, [selected]);
 
@@ -88,6 +98,29 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       fetchSellers();
     } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
     finally { setActionLoading(false); }
+  };
+
+  const handleVerifyBusiness = async (sellerProfileId) => {
+    try {
+      setBusinessActionLoading(true);
+      await api.patch(`/identity/business/admin/${sellerProfileId}/review`, { approve: true });
+      showMsg('✅ Business documents verified');
+      await silentRefresh(sellerProfileId);
+    } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
+    finally { setBusinessActionLoading(false); }
+  };
+
+  const handleRejectBusiness = async (sellerProfileId) => {
+    if (!businessRejectReason.trim()) { showErr('Weka sababu ya kukataa'); return; }
+    try {
+      setBusinessActionLoading(true);
+      await api.patch(`/identity/business/admin/${sellerProfileId}/review`, { approve: false, reason: businessRejectReason });
+      showMsg('❌ Business documents rejected');
+      setShowBusinessRejectModal(false);
+      setBusinessRejectReason('');
+      await silentRefresh(sellerProfileId);
+    } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa'); }
+    finally { setBusinessActionLoading(false); }
   };
 
   const silentRefresh = async (focusId) => {
@@ -305,7 +338,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
       </main>
 
       {/* Detail drawer */}
-      {selected && !showRejectModal && !showSuspendModal && (
+      {selected && !showRejectModal && !showSuspendModal && !showBusinessRejectModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 9998, display: 'flex', justifyContent: 'flex-end' }}
           onClick={() => setSelected(null)}>
           <div style={{ width: 420, backgroundColor: '#fff', height: '100%', overflowY: 'auto', padding: 28, boxShadow: '-4px 0 24px rgba(0,0,0,0.12)' }}
@@ -394,6 +427,57 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                 </div>
               )}
             </div>
+
+            {/* Business Documents (Phase 2) — only for sellerType='business' */}
+            {selected.sellerType === 'business' && (
+              <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 16,
+                border: selected.businessDocumentsStatus === 'pending' ? '2px solid #ca8a04' : '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>🏢 Business Documents</div>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+                    backgroundColor: { not_submitted: '#f1f5f9', pending: '#fef9c3', verified: '#dcfce7', rejected: '#fee2e2' }[selected.businessDocumentsStatus] || '#f1f5f9',
+                    color: { not_submitted: '#64748b', pending: '#ca8a04', verified: '#16a34a', rejected: '#dc2626' }[selected.businessDocumentsStatus] || '#64748b' }}>
+                    {selected.businessDocumentsStatus || 'not_submitted'}
+                  </span>
+                </div>
+                {selected.tinNumber && (
+                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>TIN: <strong>{selected.tinNumber}</strong></div>
+                )}
+                {selected.businessLicenseNumber && (
+                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>License: <strong>{selected.businessLicenseNumber}</strong></div>
+                )}
+                {businessDocs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 16, color: '#94a3b8' }}>
+                    <div style={{ fontSize: 12 }}>No documents uploaded yet</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                    {businessDocs.map(doc => (
+                      <a key={doc.id} href={doc.url} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
+                        <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', fontWeight: 700 }}>{doc.documentType}</div>
+                        <img src={doc.url} alt={doc.documentType}
+                          style={{ width: '100%', borderRadius: 8, border: '2px solid #e2e8f0', cursor: 'pointer' }} />
+                      </a>
+                    ))}
+                  </div>
+                )}
+                {selected.businessDocumentsStatus === 'pending' && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button onClick={() => handleVerifyBusiness(selected.id)} disabled={businessActionLoading}
+                      style={{ flex: 1, backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      ✅ Verify Business
+                    </button>
+                    <button onClick={() => setShowBusinessRejectModal(true)}
+                      style={{ flex: 1, backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      ❌ Reject
+                    </button>
+                  </div>
+                )}
+                {selected.businessDocumentsStatus === 'rejected' && selected.rejectionReason && (
+                  <div style={{ marginTop: 8, fontSize: 11, color: '#dc2626' }}>Reason: {selected.rejectionReason}</div>
+                )}
+              </div>
+            )}
 
             {/* Billing & Free Orders */}
             {(() => {
@@ -551,6 +635,32 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
               <button onClick={() => handleSuspend(selected.id)} disabled={actionLoading}
                 style={{ flex: 2, background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: actionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
                 {actionLoading ? '⏳...' : '🚫 Simamisha'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject business documents modal */}
+      {showBusinessRejectModal && selected && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 28, width: '100%', maxWidth: 440 }}>
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>❌ Reject Business Documents</h3>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 18px' }}>
+              <strong>{selected.businessName}</strong>'s business documents will be rejected with this reason.
+            </p>
+            <label style={{ display: 'block', fontSize: 12, color: '#64748b', fontWeight: 600, marginBottom: 6 }}>Rejection Reason *</label>
+            <textarea value={businessRejectReason} onChange={e => setBusinessRejectReason(e.target.value)} rows={4}
+              placeholder="e.g. BRELA certificate unreadable, please resubmit..."
+              style={{ ...inputStyle, resize: 'none' }} />
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+              <button onClick={() => { setShowBusinessRejectModal(false); setBusinessRejectReason(''); }}
+                style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
+                Cancel
+              </button>
+              <button onClick={() => handleRejectBusiness(selected.id)} disabled={businessActionLoading}
+                style={{ flex: 2, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: '#fff', border: 'none', padding: 12, borderRadius: 10, cursor: businessActionLoading ? 'not-allowed' : 'pointer', fontWeight: 800 }}>
+                {businessActionLoading ? '⏳...' : '❌ Reject'}
               </button>
             </div>
           </div>

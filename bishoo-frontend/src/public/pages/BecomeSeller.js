@@ -40,6 +40,26 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
+  // ── Business verification (Phase 2) ─────────────────────────────────────
+  const [sellerType, setSellerType] = useState('individual');
+  const [tinNumber, setTinNumber] = useState('');
+  const [businessLicenseNumber, setBusinessLicenseNumber] = useState('');
+  const [businessDocs, setBusinessDocs] = useState({ brela: null, tin: null, license: null });
+  const [uploadingDoc, setUploadingDoc] = useState(null); // which doc type is uploading, or null
+
+  const handleBusinessDocUpload = async (docType, file) => {
+    if (!file) return;
+    try {
+      setUploadingDoc(docType);
+      setError('');
+      const formData = new FormData();
+      formData.append('files', file);
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setBusinessDocs(prev => ({ ...prev, [docType]: res.data.urls[0] }));
+    } catch { setError(t('become_seller.document_upload_failed')); }
+    finally { setUploadingDoc(null); }
+  };
+
   // Pre-fill from profile — Kentexa already knows these once you're logged
   // in, no reason to make you retype them. businessName stays blank: it's a
   // new choice, not something Kentexa already has on file.
@@ -62,9 +82,16 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
       onNavigate('PublicLogin');
       return;
     }
+    if (sellerType === 'business' && (!businessDocs.brela || !businessDocs.tin)) {
+      setError(t('become_seller.business_documents_required'));
+      return;
+    }
     try {
       setLoading(true);
       setError('');
+      const businessDocuments = Object.entries(businessDocs)
+        .filter(([, url]) => url)
+        .map(([type, url]) => ({ type, url }));
       await api.post('/seller/apply', {
         ...form,
         regionId: location.regionId || undefined,
@@ -73,6 +100,8 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
         businessDistrict: location.districtName || undefined,
         wardId: location.wardId || undefined,
         businessCity: location.wardName || undefined,
+        sellerType,
+        ...(sellerType === 'business' ? { tinNumber, businessLicenseNumber, businessDocuments } : {}),
       });
       setMessage(t('become_seller.apply_success'));
     } catch (err) {
@@ -124,6 +153,28 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}>
           <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 16 }}>
             {t('become_seller.apply_title')}
+          </div>
+
+          {/* Seller type — determines whether business docs are collected */}
+          <div style={{ marginBottom: 18 }}>
+            <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 8, fontWeight: 600 }}>
+              {t('become_seller.seller_type_label')}
+            </label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {[
+                { key: 'individual', icon: '👤', title: t('become_seller.seller_type_individual_title'), desc: t('become_seller.seller_type_individual_desc') },
+                { key: 'business',   icon: '🏢', title: t('become_seller.seller_type_business_title'),   desc: t('become_seller.seller_type_business_desc') },
+              ].map(opt => (
+                <button key={opt.key} type="button" onClick={() => setSellerType(opt.key)}
+                  style={{ flex: 1, textAlign: 'left', padding: 12, borderRadius: 12, cursor: 'pointer',
+                    border: sellerType === opt.key ? '2px solid #7c3aed' : '2px solid #e2e8f0',
+                    backgroundColor: sellerType === opt.key ? '#f5f3ff' : '#fff' }}>
+                  <div style={{ fontSize: 18, marginBottom: 4 }}>{opt.icon}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: sellerType === opt.key ? '#7c3aed' : '#1e293b' }}>{opt.title}</div>
+                  <div style={{ fontSize: 11, color: '#64748b', marginTop: 2, lineHeight: 1.4 }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
           {message && (
@@ -214,6 +265,56 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
                 style={inputStyle}
               />
             </div>
+
+            {/* Business verification (Phase 2) — TIN, license, and document
+                uploads, only collected when selling as a registered business */}
+            {sellerType === 'business' && (
+              <>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
+                    {t('become_seller.field_tin_label')}
+                  </label>
+                  <input type="text" placeholder={t('become_seller.field_tin_placeholder')}
+                    value={tinNumber} onChange={e => setTinNumber(e.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
+                    {t('become_seller.field_license_label')}
+                  </label>
+                  <input type="text" placeholder={t('become_seller.field_license_placeholder')}
+                    value={businessLicenseNumber} onChange={e => setBusinessLicenseNumber(e.target.value)} style={inputStyle} />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 8, fontWeight: 600 }}>
+                    {t('become_seller.business_documents_label')}
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[
+                      { key: 'brela',   label: t('become_seller.doc_brela_label') },
+                      { key: 'tin',     label: t('become_seller.doc_tin_label') },
+                      { key: 'license', label: t('become_seller.doc_license_label') },
+                    ].map(doc => (
+                      <div key={doc.key} style={{ display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                        <span style={{ fontSize: 12, color: '#475569', flex: 1 }}>{doc.label}</span>
+                        {businessDocs[doc.key] && <span style={{ fontSize: 14, color: '#16a34a' }}>✅</span>}
+                        <input type="file" accept="image/*" style={{ display: 'none' }} id={`doc-${doc.key}`}
+                          onChange={e => handleBusinessDocUpload(doc.key, e.target.files?.[0])} />
+                        <label htmlFor={`doc-${doc.key}`}
+                          style={{ background: '#f5f3ff', color: '#7c3aed', padding: '6px 12px', borderRadius: 6,
+                            cursor: 'pointer', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {uploadingDoc === doc.key ? t('become_seller.uploading')
+                            : businessDocs[doc.key] ? t('become_seller.doc_change') : t('become_seller.doc_choose')}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                  <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>{t('become_seller.business_documents_hint')}</p>
+                </div>
+              </>
+            )}
           </div>
 
           <button

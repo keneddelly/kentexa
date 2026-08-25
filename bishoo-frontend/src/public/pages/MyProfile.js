@@ -101,6 +101,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [showQR,     setShowQR]     = useState(false);
   const [identityStatus, setIdentityStatus] = useState(null);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
+  const [sellerProfile, setSellerProfile] = useState(null);
 
   const role = userRole || profile?.role || 'user';
 
@@ -112,11 +113,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
       api.get('/reputation/my'),
       api.get('/notifications/unread-count'),
       api.get('/identity/me'),
-    ]).then(([p, r, n, id]) => {
+      api.get('/seller/my-profile'),
+    ]).then(([p, r, n, id, sp]) => {
       if (p.status === 'fulfilled') setProfile(p.value.data);
       if (r.status === 'fulfilled') setRep(r.value.data);
       if (n.status === 'fulfilled') setUnread(n.value.data?.count || n.value.data || 0);
       if (id.status === 'fulfilled') setIdentityStatus(id.value.data);
+      if (sp.status === 'fulfilled') setSellerProfile(sp.value.data);
     }).finally(() => setLoading(false));
 
     // Eagerly load just the ONE role-relevant summary so the Quick Actions
@@ -628,6 +631,16 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 }
                 color={identityStatus?.status === 'verified' ? '#16a34a' : identityStatus?.status === 'pending' ? '#ca8a04' : GR}
                 onAction={identityStatus?.status === 'verified' ? undefined : () => setShowVerifyIdentity(true)} />
+              {sellerProfile?.sellerType === 'business' && (
+                <Row icon="🏢" label={t('my_profile.business_verification_label')}
+                  value={
+                    sellerProfile.businessDocumentsStatus === 'verified' ? t('my_profile.identity_verified')
+                    : sellerProfile.businessDocumentsStatus === 'pending' ? t('my_profile.identity_pending')
+                    : sellerProfile.businessDocumentsStatus === 'rejected' ? t('my_profile.identity_rejected')
+                    : t('my_profile.identity_not_verified')
+                  }
+                  color={sellerProfile.businessDocumentsStatus === 'verified' ? '#16a34a' : sellerProfile.businessDocumentsStatus === 'pending' ? '#ca8a04' : GR} />
+              )}
             </SCard>
 
             <SCard>
