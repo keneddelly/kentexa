@@ -96,6 +96,17 @@ export class SellerProfile {
   @Column({ type: 'varchar', nullable: true })
   registrationNumber: string | null; // BRELA registration number
 
+  // ── Multi-role architecture ─────────────────────────────────────────────
+  // Points at the real Business entity when this seller is backed by one
+  // (a company that activated Seller) -- null for an individual seller
+  // with no registered business (spec: don't require BRELA for someone
+  // selling a personal item). businessName/businessDescription/etc. below
+  // stay populated as denormalized display copies either way, so nothing
+  // already reading them breaks; new code should prefer Business's own
+  // fields once businessId is set.
+  @Column({ type: 'int', nullable: true })
+  businessId: number | null;
+
   // ── Business verification (Phase 2) ────────────────────────────────────
   // Set once at application time — determines whether the extra business
   // document flow (TIN/license/BRELA docs) applies at all. Individual

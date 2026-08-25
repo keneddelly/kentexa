@@ -215,6 +215,7 @@ export class CommerceProfilesService {
     category?: string | null;
     status?: CommerceProfileStatus;
     sellerProfileId?: number;
+    businessId?: number;
     transportProviderId?: number;
     agentId?: number;
     superAgentId?: number;
@@ -232,6 +233,7 @@ export class CommerceProfilesService {
         category: params.category || null,
         status: params.status || CommerceProfileStatus.ACTIVE,
         sellerProfileId: params.sellerProfileId ?? null,
+        businessId: params.businessId ?? null,
         transportProviderId: params.transportProviderId ?? null,
         agentId: params.agentId ?? null,
         superAgentId: params.superAgentId ?? null,

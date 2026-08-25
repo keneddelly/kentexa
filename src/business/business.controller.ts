@@ -11,10 +11,14 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { BusinessCustomerService } from './business-customer.service';
 import { ConversationService } from './conversation.service';
 import { SellerScopeService, SellerPermission } from './seller-scope.service';
-import { User } from '../users/entities/user.entity';
+import { BusinessService } from './business.service';
+import { BusinessBackfillService } from './business-backfill.service';
+import { User, UserRole } from '../users/entities/user.entity';
 
 /**
  * BusinessController — Seller Business Platform API
@@ -29,7 +33,35 @@ export class BusinessController {
     private customerService: BusinessCustomerService,
     private conversationService: ConversationService,
     private sellerScope: SellerScopeService,
+    private businessService: BusinessService,
+    private businessBackfill: BusinessBackfillService,
   ) {}
+
+  // ── Multi-role architecture: Business as its own entity ─────────────────
+  // Separate from Seller entirely -- a Business created here has no
+  // SellerProfile unless/until it explicitly activates Seller below.
+
+  @Get('mine')
+  getMine(@Request() req) {
+    return this.businessService.findMine(req.user.id);
+  }
+
+  @Post('create')
+  create(@Request() req, @Body() dto: any) {
+    return this.businessService.create(req.user, dto);
+  }
+
+  @Post(':id/activate-seller')
+  activateSeller(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.businessService.activateSeller(id, req.user);
+  }
+
+  @Post('admin/backfill')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  runBackfill() {
+    return this.businessBackfill.run();
+  }
 
   // Customers/inbox are "communicate with buyers about my own listings" —
   // the same category as classifieds, not a formal business capability.

@@ -114,6 +114,13 @@ export class CommerceProfile {
   @Column({ type: 'int', nullable: true })
   sellerProfileId: number | null;
 
+  // Multi-role architecture: the real Business entity, when this profile's
+  // BUSINESS type is backed by one instead of (or in addition to)
+  // sellerProfileId. Additive -- sellerProfileId stays for anything still
+  // reading it.
+  @Column({ type: 'int', nullable: true })
+  businessId: number | null;
+
   @Column({ type: 'int', nullable: true })
   transportProviderId: number | null;
 
