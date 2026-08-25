@@ -48,6 +48,7 @@ import { EarlyAccessModule } from './early-access/early-access.module';
 import { SearchModule } from './search/search.module';
 import { ShipmentsModule } from './shipments/shipments.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
+import { ActivityModule } from './activity/activity.module';
 import { PoliciesModule } from './policies/policies.module';
 import { ShareModule } from './share/share.module';
 
@@ -127,6 +128,7 @@ import { ShareModule } from './share/share.module';
     SearchModule,
     ShipmentsModule,
     AuditLogModule,
+    ActivityModule,
     PoliciesModule,
     ShareModule,
     // Blanket default rate limit — most controllers had none at all (only

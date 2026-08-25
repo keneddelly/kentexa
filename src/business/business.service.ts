@@ -9,6 +9,8 @@ import {
   CommerceProfileType,
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 // Phase 1 of the multi-role architecture: Business as a real entity,
 // independent of Seller. See seller.service.ts's apply() for the existing
@@ -22,6 +24,7 @@ export class BusinessService {
     @InjectRepository(Business) private businessRepo: Repository<Business>,
     @InjectRepository(SellerProfile) private sellerProfileRepo: Repository<SellerProfile>,
     private commerceProfiles: CommerceProfilesService,
+    private activityEvents: ActivityEventService,
   ) {}
 
   async findMine(userId: number): Promise<Business | null> {
@@ -95,8 +98,9 @@ export class BusinessService {
     // Public presence alongside the operational record, same pattern
     // SellerService.apply() and CommerceProfilesBackfillService already
     // use for every other role type. Non-fatal.
+    let profileId: number | null = null;
     try {
-      await this.commerceProfiles.createProfile({
+      const profile = await this.commerceProfiles.createProfile({
         ownerId: user.id,
         type: CommerceProfileType.BUSINESS,
         displayName: saved.tradingName || saved.legalName,
@@ -107,7 +111,22 @@ export class BusinessService {
         status: CommerceProfileStatus.ACTIVE,
         businessId: saved.id,
       });
+      profileId = profile.id;
     } catch {}
+
+    // createProfile() above already emits its own PROFILE_CREATED event;
+    // this is the more specific BUSINESS_CREATED event, distinct because
+    // Business (spec section 7: a Business with no Seller) is its own
+    // identity concept, not just "a profile got created".
+    this.activityEvents.record({
+      eventType: 'BUSINESS_CREATED',
+      category: ActivityCategory.BUSINESS,
+      actorId: user.id,
+      actorType: 'user',
+      businessId: profileId,
+      targetType: 'business',
+      targetId: saved.id,
+    });
 
     return saved;
   }

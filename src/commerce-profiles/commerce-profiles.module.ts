@@ -19,6 +19,7 @@ import { CommerceProfilesController } from './commerce-profiles.controller';
 import { SearchModule } from '../search/search.module';
 import { AiModule } from '../ai/ai.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     SearchModule,
     AiModule,
     NotificationsModule,
+    ActivityModule,
   ],
   controllers: [CommerceProfilesController],
   providers: [

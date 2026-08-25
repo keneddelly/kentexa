@@ -16,6 +16,7 @@ import { BusinessBackfillService } from './business-backfill.service';
 import { BusinessController } from './business.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
     ]),
     NotificationsModule,
     CommerceProfilesModule,
+    ActivityModule,
   ],
   controllers: [BusinessController],
   providers: [

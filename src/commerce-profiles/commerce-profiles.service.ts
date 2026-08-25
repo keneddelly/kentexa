@@ -17,6 +17,8 @@ import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 import { buildMultiTermLikeClause } from '../search/search-query.util';
 import { AiSellerEnrichmentService } from '../ai/ai-seller-enrichment.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 const RESERVED_USERNAMES = new Set([
   'admin',
@@ -54,6 +56,7 @@ export class CommerceProfilesService {
     private readonly searchIndex: SearchIndexService,
     private readonly aiEnrichment: AiSellerEnrichmentService,
     private readonly notifService: InAppNotificationService,
+    private readonly activityEvents: ActivityEventService,
   ) {}
 
   // Shared by createProfile()/updatePublicFields() — runs the AI enrichment
@@ -262,6 +265,16 @@ export class CommerceProfilesService {
     // business's declared "Seller of Hidden Camera, Voice Recorder and GPS"
     // now becomes part of what semantic search can actually match against.
     this.enrichAndIndex(saved).catch(() => {});
+    this.activityEvents.record({
+      eventType: 'PROFILE_CREATED',
+      category: ActivityCategory.BUSINESS,
+      actorId: params.ownerId,
+      actorType: 'user',
+      businessId: saved.id,
+      targetType: 'commerce_profile',
+      targetId: saved.id,
+      metadata: { profileType: params.type },
+    });
     return saved;
   }
 
@@ -349,6 +362,17 @@ export class CommerceProfilesService {
         : this.notifService.newFollower(profile.ownerId, followerName, followerId);
       notify.catch(() => {});
     }
+
+    this.activityEvents.record({
+      eventType: existing ? 'PROFILE_UNFOLLOWED' : 'PROFILE_FOLLOWED',
+      category: ActivityCategory.SOCIAL,
+      actorId: followerId,
+      actorType: 'user',
+      businessId: commerceProfileId,
+      relatedUserId: profile.ownerId ?? null,
+      targetType: 'commerce_profile',
+      targetId: commerceProfileId,
+    });
 
     return { following: !existing, followersCount: profile.followersCount };
   }

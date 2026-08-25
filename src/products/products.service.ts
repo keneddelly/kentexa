@@ -24,6 +24,8 @@ import { withPriceOverlay, formatPriceLabel } from '../feed/utils/price-overlay.
 import { SellerRankingService } from './seller-ranking.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 @Injectable()
 export class ProductsService {
@@ -46,6 +48,7 @@ export class ProductsService {
     private readonly searchIndex: SearchIndexService,
     private readonly ranking: SellerRankingService,
     private readonly inventory: InventoryService,
+    private readonly activityEvents: ActivityEventService,
   ) {}
 
   // Batches verificationTier for a set of products' sellers in one query —
@@ -582,6 +585,17 @@ export class ProductsService {
         .recordReview(businessProfile.id, dto.rating)
         .catch(() => {});
     }
+    this.activityEvents.record({
+      eventType: 'REVIEW_CREATED',
+      category: ActivityCategory.REPUTATION,
+      actorId: userId,
+      actorType: 'buyer',
+      businessId: businessProfile?.id ?? null,
+      relatedUserId: product.seller?.id ?? null,
+      targetType: 'product',
+      targetId: productId,
+      metadata: { rating: dto.rating },
+    });
     return saved;
   }
 }

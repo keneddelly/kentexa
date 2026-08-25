@@ -12,6 +12,8 @@ import { ReceiptCounter } from './entities/receipt-counter.entity';
 import { Order } from '../orders/entities/order.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 @Injectable()
 export class InvoicesService {
@@ -25,6 +27,7 @@ export class InvoicesService {
     private receiptCounterRepo: Repository<ReceiptCounter>,
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     private dataSource: DataSource,
+    private activityEvents: ActivityEventService,
   ) {}
 
   async generateInvoiceNumber(): Promise<string> {
@@ -64,7 +67,20 @@ export class InvoicesService {
       status: InvoiceStatus.AWAITING_PAYMENT,
       dueDate,
     } as any);
-    return this.invoiceRepo.save(invoice) as unknown as Promise<Invoice>;
+    const saved = (await this.invoiceRepo.save(
+      invoice,
+    )) as unknown as Invoice;
+    this.activityEvents.record({
+      eventType: 'INVOICE_CREATED',
+      category: ActivityCategory.INVOICE,
+      actorId: order.buyer?.id ?? null,
+      actorType: 'buyer',
+      relatedUserId: order.seller?.id ?? null,
+      targetType: 'invoice',
+      targetId: saved.id,
+      metadata: { orderId: order.id, amount: order.totalAmount },
+    });
+    return saved;
   }
 
   // For a payment collected outside the online provider pipeline — e.g. a
@@ -207,6 +223,16 @@ export class InvoicesService {
     this.logger.log(
       `Invoice ${invoiceNumber} PAID & Order auto-confirmed. Receipt: ${receiptNumber}`,
     );
+    this.activityEvents.record({
+      eventType: 'INVOICE_PAID',
+      category: ActivityCategory.PAYMENT,
+      actorId: invoice.buyer?.id ?? null,
+      actorType: 'buyer',
+      relatedUserId: invoice.order?.seller?.id ?? null,
+      targetType: 'invoice',
+      targetId: saved.id,
+      metadata: { orderId: invoice.order?.id, amount: saved.amount },
+    });
     return saved;
   }
 

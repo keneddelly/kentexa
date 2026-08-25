@@ -14,6 +14,7 @@ import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { SearchModule } from '../search/search.module';
 import { InventoryModule } from '../inventory/inventory.module';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { InventoryModule } from '../inventory/inventory.module';
     CommerceProfilesModule,
     SearchModule,
     InventoryModule,
+    ActivityModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService, AiListingService, SellerRankingService],

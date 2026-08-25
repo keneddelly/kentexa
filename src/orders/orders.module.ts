@@ -22,6 +22,7 @@ import { WalletModule } from '../wallet/wallet.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { TransportProvider } from '../transport/entities/transport-provider.enti
     WalletModule,
     CommerceProfilesModule,
     ScheduleModule.forRoot(),
+    ActivityModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

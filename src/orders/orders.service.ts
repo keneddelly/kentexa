@@ -36,6 +36,8 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 const CATEGORY_COMMISSION: Record<string, number> = {
   electronics: 10,
@@ -117,6 +119,7 @@ export class OrdersService {
     private walletService: WalletService,
     private commerceProfiles: CommerceProfilesService,
     private profileScope: CommerceProfileScopeService,
+    private activityEvents: ActivityEventService,
   ) {}
 
   // ── Create Order ──────────────────────────────────────────────────────────
@@ -199,6 +202,16 @@ export class OrdersService {
     // Set permanent tracking number immediately — KTX-ORD-{id} is the single source of truth
     await this.repo.update(saved.id, {
       trackingNumber: `KTX-ORD-${saved.id}`,
+    });
+    this.activityEvents.record({
+      eventType: 'ORDER_CREATED',
+      category: ActivityCategory.COMMERCE,
+      actorId: user.id,
+      actorType: 'buyer',
+      relatedUserId: product.seller?.id ?? null,
+      targetType: 'order',
+      targetId: saved.id,
+      metadata: { productId: product.id, quantity: dto.quantity, totalAmount },
     });
     await this.productsService.decreaseStock(
       product.id,
@@ -926,6 +939,16 @@ export class OrdersService {
       payoutStatus: 'released',
       escrowStatus: EscrowStatus.RELEASED,
       fundsReleasedAt: new Date(),
+    });
+    this.activityEvents.record({
+      eventType: 'ORDER_COMPLETED',
+      category: ActivityCategory.COMMERCE,
+      actorId: buyer.id,
+      actorType: 'buyer',
+      relatedUserId: order.seller?.id ?? null,
+      targetType: 'order',
+      targetId: order.id,
+      metadata: { totalAmount: order.totalAmount },
     });
 
     // Order completed — email only (3rd SMS slot already used at "delivered" stage)
@@ -2122,6 +2145,15 @@ export class OrdersService {
       throw new BadRequestException('Only pending orders can be cancelled');
     order.status = OrderStatus.CANCELLED;
     await this.repo.save(order);
+    this.activityEvents.record({
+      eventType: 'ORDER_CANCELLED',
+      category: ActivityCategory.COMMERCE,
+      actorId: user.id,
+      actorType: user.role === UserRole.ADMIN ? 'admin' : 'buyer',
+      relatedUserId: order.seller?.id ?? null,
+      targetType: 'order',
+      targetId: order.id,
+    });
     try {
       if (order.product)
         await this.productsService.decreaseStock(
