@@ -82,4 +82,28 @@ export class ActivityEventService {
       where: { businessId, eventType, createdAt: MoreThanOrEqual(since) },
     });
   }
+
+  // Layer 2 building block for AdminIntelligenceService's "fast-growing
+  // businesses" — the query that could not exist before this event bus:
+  // which identities had the most activity in a period, across every
+  // category (commerce, logistics, agent, social...) at once.
+  async topBusinessesSince(
+    since: Date,
+    limit = 5,
+  ): Promise<{ businessId: number; count: number }[]> {
+    const rows = await this.repo
+      .createQueryBuilder('e')
+      .select('e."businessId"', 'businessId')
+      .addSelect('COUNT(*)', 'count')
+      .where('e."businessId" IS NOT NULL')
+      .andWhere('e."createdAt" >= :since', { since })
+      .groupBy('e."businessId"')
+      .orderBy('count', 'DESC')
+      .limit(limit)
+      .getRawMany();
+    return rows.map((r) => ({
+      businessId: Number(r.businessId),
+      count: Number(r.count),
+    }));
+  }
 }

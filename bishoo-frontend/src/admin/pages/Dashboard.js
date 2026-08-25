@@ -7,12 +7,18 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
     products: 0, orders: 0, payments: 0,
     classifieds: 0, users: 0, revenue: 0,
   });
+  const [platform, setPlatform] = useState(null);
+  const [network, setNetwork]   = useState(null);
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading]           = useState(true);
   const [batchStatus, setBatchStatus]   = useState(null);
 
-  useEffect(() => { fetchStats(); fetchBatchStatus(); }, []);
+  useEffect(() => { fetchStats(); fetchPlatformIntelligence(); fetchBatchStatus(); }, []);
 
+  // All-time totals for the classic stat cards — still one real count
+  // query each, not a full-list fetch (see fetchPlatformIntelligence()
+  // below for the "new this week" + Network Intelligence numbers, which
+  // is what actually needed a real aggregate endpoint).
   const fetchStats = async () => {
     try {
       setLoading(true);
@@ -37,6 +43,18 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
       console.error('Failed to load stats', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Internal AI Intelligence, Layer 2 (CLAUDE.md) — real server-side
+  // aggregation instead of fetching full lists to count them client-side.
+  const fetchPlatformIntelligence = async () => {
+    try {
+      const res = await api.get('/admin-intelligence/platform?days=7');
+      setPlatform(res.data.platformActivity);
+      setNetwork(res.data.networkIntelligence);
+    } catch (err) {
+      console.error('Failed to load platform intelligence', err);
     }
   };
 
@@ -120,6 +138,77 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
                 <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#0f172a' }}>{stat.value}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Platform Activity (last 7 days) — Kentexa Internal AI Intelligence,
+            Layer 2. Real server-side counts, no AI reasoning. */}
+        {platform && (
+          <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#0f172a', margin: '0 0 16px' }}>
+              📊 Platform Activity — Last 7 Days
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
+              {[
+                { label: 'New Users',        value: platform.newUsers,        icon: '👤' },
+                { label: 'New Businesses',   value: platform.newBusinesses,   icon: '🏢' },
+                { label: 'New Sellers',      value: platform.newSellers,      icon: '🏪' },
+                { label: 'New Agents',       value: platform.newAgents,       icon: '🏍️' },
+                { label: 'New Transporters', value: platform.newTransporters, icon: '🚌' },
+                { label: 'New Listings',     value: platform.newListings,     icon: '📋' },
+                { label: 'Orders',           value: platform.orders,          icon: '🛒' },
+                { label: 'Payments',         value: platform.payments,        icon: '💳' },
+                { label: 'Shipments',        value: platform.shipments,       icon: '📦' },
+              ].map(item => (
+                <div key={item.label} style={{ backgroundColor: '#f8fafc', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', marginBottom: '4px' }}>{item.icon}</div>
+                  <div style={{ fontSize: '20px', fontWeight: '900', color: '#0f172a' }}>{item.value}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>{item.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Network Intelligence — the piece that actually needed the
+            ActivityEvent bus (Phases 1-4): fast-growing businesses is a
+            GROUP BY businessId query over real activity, not just a
+            simple entity count. */}
+        {network && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px', marginBottom: '24px' }}>
+            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0f172a', margin: '0 0 14px' }}>🔥 Fast-Growing Businesses</h2>
+              {network.fastGrowingBusinesses.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontSize: '13px' }}>No activity yet this period.</p>
+              ) : network.fastGrowingBusinesses.map(b => (
+                <div key={b.businessId} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }}>
+                  <span style={{ color: '#0f172a', fontWeight: 600 }}>{b.displayName || `Profile #${b.businessId}`}</span>
+                  <span style={{ color: '#6366f1', fontWeight: 700 }}>{b.activityCount} activities</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0f172a', margin: '0 0 14px' }}>📂 Popular Categories</h2>
+              {network.popularCategories.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontSize: '13px' }}>No listings yet this period.</p>
+              ) : network.popularCategories.map(c => (
+                <div key={c.category} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }}>
+                  <span style={{ color: '#0f172a', fontWeight: 600, textTransform: 'capitalize' }}>{c.category}</span>
+                  <span style={{ color: '#16a34a', fontWeight: 700 }}>{c.count}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: '15px', fontWeight: '600', color: '#0f172a', margin: '0 0 14px' }}>📍 Popular Locations</h2>
+              {network.popularLocations.length === 0 ? (
+                <p style={{ color: '#94a3b8', fontSize: '13px' }}>No listings yet this period.</p>
+              ) : network.popularLocations.map(l => (
+                <div key={l.location} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: '13px' }}>
+                  <span style={{ color: '#0f172a', fontWeight: 600 }}>{l.location}</span>
+                  <span style={{ color: '#d97706', fontWeight: 700 }}>{l.count}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
