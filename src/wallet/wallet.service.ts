@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -11,6 +12,8 @@ import {
   WalletTransactionType,
   WalletTransactionStatus,
 } from './entities/wallet-transaction.entity';
+import { User } from '../users/entities/user.entity';
+import { VerificationService } from '../identity/verification.service';
 
 @Injectable()
 export class WalletService {
@@ -18,6 +21,8 @@ export class WalletService {
     @InjectRepository(Wallet) private walletRepo: Repository<Wallet>,
     @InjectRepository(WalletTransaction)
     private txRepo: Repository<WalletTransaction>,
+    @InjectRepository(User) private userRepo: Repository<User>,
+    private verification: VerificationService,
   ) {}
 
   async getOrCreateWallet(userId: number): Promise<Wallet> {
@@ -71,12 +76,35 @@ export class WalletService {
     return { wallet, transactions };
   }
 
+  // Layer 1 seller verification — this endpoint previously had NO check
+  // at all before moving money out: not identity level, not even that a
+  // payout destination was set. Reuses existing data rather than a new
+  // "verified" table: real payout details (used for display in the admin
+  // Payouts page today, never validated as complete) + real identity
+  // level (VerificationService.getLevel(), the same source of truth
+  // every other gate this session uses).
   async requestWithdrawal(
     userId: number,
     amount: number,
   ): Promise<WalletTransaction> {
     if (!amount || amount <= 0)
       throw new BadRequestException('Invalid withdrawal amount');
+
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user?.payoutMethod || !user?.payoutAccountName || !user?.payoutAccountNumber) {
+      throw new BadRequestException(
+        'Add your payout details (method, account name, account number) before requesting a withdrawal.',
+      );
+    }
+    const level = await this.verification.getLevel(userId);
+    if (level < 1) {
+      throw new ForbiddenException({
+        code: 'VERIFICATION_REQUIRED',
+        requiredLevel: 1,
+        message: 'Verify your identity before withdrawing earnings',
+      });
+    }
+
     const wallet = await this.getOrCreateWallet(userId);
     if (Number(wallet.balance) < amount)
       throw new BadRequestException('Insufficient wallet balance');
