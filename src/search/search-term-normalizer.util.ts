@@ -65,6 +65,12 @@ const NOISE_PATTERNS: RegExp[] = [
 const STOPWORDS = new Set([
   'ya', 'cha', 'kwa', 'na', 'wa', 'la', 'ajili', 'kwa ajili ya',
   'of', 'for', 'in', 'at', 'the', 'a', 'an', 'is', 'are', 'to',
+  // "camera shop" / "duka la kamera" / "who sells fish" — the shop/seller
+  // word itself carries no product-search meaning; stripping it leaves
+  // just "camera"/"kamera"/"fish" as the real search term, which is what
+  // actually needs to match a business's category/bio/aiKeywords.
+  'shop', 'shops', 'store', 'stores', 'duka', 'maduka',
+  'seller', 'sellers', 'muuzaji', 'wauzaji', 'who', 'sells', 'sell',
 ]);
 
 function stripNoise(rawQuery: string): string {

@@ -13,6 +13,8 @@ import { Review } from '../store/review.entity';
 import { Follow } from '../store/follow.entity';
 import { ProductReview } from '../products/entities/product-review.entity';
 import { SearchIndexService } from '../search/search-index.service';
+import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
+import { buildMultiTermLikeClause } from '../search/search-query.util';
 import { AiSellerEnrichmentService } from '../ai/ai-seller-enrichment.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 
@@ -123,15 +125,32 @@ export class CommerceProfilesService {
   // that was missing entirely (only an exact-username lookup existed
   // before), which is why searching a person's or business's name used to
   // return nothing no matter how the query was classified.
+  //
+  // Also matches category/bio/aiKeywords (not just name) — the fix for
+  // "camera shop" / "duka la kamera" finding nothing: a shop-intent query
+  // is never going to literally match a business's displayName, but
+  // AiSellerEnrichmentService already writes exactly this kind of term
+  // into aiKeywords on every profile save (enrichAndIndex() above). Reuses
+  // the same normalizeSearchQuery + buildMultiTermLikeClause pipeline
+  // products/classifieds search already use, so "kamera"/"camera" synonym
+  // expansion and shop/duka/seller stopword-stripping (see
+  // search-term-normalizer.util.ts) apply here too.
   async search(q: string, limit = 15): Promise<CommerceProfile[]> {
     const query = q?.trim();
     if (!query) return [];
+    const { patterns } = normalizeSearchQuery(query);
+    const { clause: keywordClause, params: keywordParams } =
+      buildMultiTermLikeClause(
+        ['LOWER(p.category)', 'LOWER(p.bio)', 'LOWER(p.aiKeywords)'],
+        patterns,
+        'kw',
+      );
     return this.repo
       .createQueryBuilder('p')
       .where('p.status = :status', { status: CommerceProfileStatus.ACTIVE })
       .andWhere(
-        '(LOWER(p.displayName) LIKE :q OR LOWER(p.username) LIKE :q)',
-        { q: `%${query.toLowerCase()}%` },
+        `((LOWER(p.displayName) LIKE :q OR LOWER(p.username) LIKE :q) OR ${keywordClause})`,
+        { q: `%${query.toLowerCase()}%`, ...keywordParams },
       )
       .orderBy('p.isVerified', 'DESC')
       .addOrderBy('p.followersCount', 'DESC')

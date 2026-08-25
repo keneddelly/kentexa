@@ -200,8 +200,15 @@ export class AiPromptTemplateService {
         'that is not in the provided summary. Then suggest up to 3 short, concrete follow-up ' +
         'search queries (each under 6 words, phrased as something the user could type or tap — ' +
         'e.g. "cheaper hidden cameras", "search Mwanza too") that are genuinely useful given what ' +
-        'was and wasn\'t found — omit suggestions entirely if none would help. Respond in the same ' +
-        'language the query was written in.',
+        'was and wasn\'t found — omit suggestions entirely if none would help.\n\n' +
+        'LANGUAGE (critical, check this last before responding): first identify the language the ' +
+        'user\'s query itself is written in. If the query is in English, your entire response — ' +
+        'the summary AND every suggestion — MUST be in English. If the query is in Swahili, respond ' +
+        'entirely in Swahili. If it mixes both, mirror whichever language dominates the query. Do ' +
+        'NOT default to Swahili just because Kentexa is a Tanzanian marketplace — matching the ' +
+        'language the user actually typed in matters more than the marketplace\'s usual language. ' +
+        'For example, the query "cheap phones in Dar" is English, so the summary and suggestions ' +
+        'must all be in English, even though the item names/cities involved are Tanzanian.',
       schema: {
         type: 'object',
         properties: {
