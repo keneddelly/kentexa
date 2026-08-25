@@ -20,6 +20,7 @@ const PRIORITY_LABELS = {
 const emptyForm = {
   title: '', message: '', audience: 'all', priority: 'info',
   linkUrl: '', linkLabel: '', sendSms: false, expiresAt: '',
+  targetUserId: null, targetUserName: '',
 };
 
 const Announcements = ({ activePage, onNavigate, onLogout }) => {
@@ -30,8 +31,27 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
   const [saving, setSaving]     = useState(false);
   const [message, setMessage]   = useState('');
   const [error, setError]       = useState('');
+  const [targetMode, setTargetMode] = useState('broadcast'); // 'broadcast' | 'user'
+  const [allUsers, setAllUsers]     = useState([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [usersLoaded, setUsersLoaded] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
+
+  const loadUsersOnce = async () => {
+    if (usersLoaded) return;
+    try {
+      const res = await api.get('/users');
+      setAllUsers(res.data || []);
+      setUsersLoaded(true);
+    } catch { /* search list just stays empty */ }
+  };
+
+  const matchingUsers = userSearch.trim().length < 2 ? [] : allUsers.filter(u => {
+    const q = userSearch.toLowerCase();
+    return u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q) ||
+      u.phone?.toLowerCase().includes(q) || String(u.id).includes(q);
+  }).slice(0, 8);
 
   const fetchAll = async () => {
     try {
@@ -49,16 +69,23 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
     if (!form.title.trim() || !form.message.trim()) {
       showErr('Weka kichwa na ujumbe'); return;
     }
+    if (targetMode === 'user' && !form.targetUserId) {
+      showErr('Chagua mtumiaji mahususi'); return;
+    }
     try {
       setSaving(true);
       await api.post('/announcements/admin', {
         ...form,
+        targetUserId: targetMode === 'user' ? form.targetUserId : undefined,
+        targetUserName: targetMode === 'user' ? form.targetUserName : undefined,
         expiresAt: form.expiresAt || undefined,
         sendSms:   form.sendSms,
       });
       showMsg(`✅ Tangazo limetumwa${form.sendSms ? ' + SMS' : ''}`);
       setShowForm(false);
       setForm(emptyForm);
+      setTargetMode('broadcast');
+      setUserSearch('');
       fetchAll();
     } catch (err) {
       showErr(err?.response?.data?.message || 'Imeshindwa kutuma');
@@ -135,7 +162,11 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 6 }}>
                         <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: ps.bg, color: ps.color }}>{ps.label}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: as_.color }}>{as_.label}</span>
+                        {a.targetUserId ? (
+                          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: '#0f172a' }}>👤 {a.targetUserName || `User #${a.targetUserId}`}</span>
+                        ) : (
+                          <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 20, backgroundColor: '#f1f5f9', color: as_.color }}>{as_.label}</span>
+                        )}
                         {!a.isActive && <span style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>IMEZIMWA</span>}
                         {a.smsSent && <span style={{ fontSize: 11, fontWeight: 700, color: '#ca8a04' }}>📱 SMS Imetumwa</span>}
                       </div>
@@ -175,9 +206,58 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ width: 480, backgroundColor: '#fff', height: '100%', overflowY: 'auto', padding: 28, boxShadow: '-4px 0 24px rgba(0,0,0,0.15)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
               <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>📢 Tangazo Jipya</h2>
-              <button onClick={() => { setShowForm(false); setForm(emptyForm); }}
+              <button onClick={() => { setShowForm(false); setForm(emptyForm); setTargetMode('broadcast'); setUserSearch(''); }}
                 style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#94a3b8' }}>×</button>
             </div>
+
+            {/* Broadcast vs specific-user mode */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {[
+                { key: 'broadcast', label: '📢 Broadcast' },
+                { key: 'user',      label: '👤 Mtumiaji Mahususi' },
+              ].map(m => (
+                <button key={m.key} type="button"
+                  onClick={() => { setTargetMode(m.key); if (m.key === 'user') loadUsersOnce(); }}
+                  style={{ flex: 1, padding: '9px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                    border: targetMode === m.key ? '2px solid #6366f1' : '2px solid #e2e8f0',
+                    backgroundColor: targetMode === m.key ? '#eef2ff' : '#fff',
+                    color: targetMode === m.key ? '#4f46e5' : '#64748b' }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {targetMode === 'user' && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Tafuta Mtumiaji *</label>
+                {form.targetUserId ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    backgroundColor: '#eef2ff', borderRadius: 8, padding: '10px 12px' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#4f46e5' }}>👤 {form.targetUserName}</span>
+                    <button onClick={() => { setForm({...form, targetUserId: null, targetUserName: ''}); setUserSearch(''); }}
+                      style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      Badilisha
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input placeholder="Tafuta kwa jina, simu, email..." value={userSearch}
+                      onChange={e => setUserSearch(e.target.value)} style={inputStyle} />
+                    {matchingUsers.length > 0 && (
+                      <div style={{ marginTop: 6, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+                        {matchingUsers.map(u => (
+                          <div key={u.id} onClick={() => { setForm({...form, targetUserId: u.id, targetUserName: u.name || u.phone || u.email}); }}
+                            style={{ padding: '9px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: 12 }}>
+                            <div style={{ fontWeight: 700, color: '#1e293b' }}>{u.name || '—'}</div>
+                            <div style={{ color: '#94a3b8' }}>{u.phone || u.email} · {u.role}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Kichwa *</label>
@@ -192,15 +272,17 @@ const Announcements = ({ activePage, onNavigate, onLogout }) => {
                 style={{ ...inputStyle, resize: 'vertical' }} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <div>
-                <label style={labelStyle}>Walengwa</label>
-                <select value={form.audience} onChange={e => setForm({...form, audience: e.target.value})} style={inputStyle}>
-                  {Object.entries(AUDIENCE_LABELS).map(([k, v]) => (
-                    <option key={k} value={k}>{v.label}</option>
-                  ))}
-                </select>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: targetMode === 'user' ? '1fr' : '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              {targetMode === 'broadcast' && (
+                <div>
+                  <label style={labelStyle}>Walengwa</label>
+                  <select value={form.audience} onChange={e => setForm({...form, audience: e.target.value})} style={inputStyle}>
+                    {Object.entries(AUDIENCE_LABELS).map(([k, v]) => (
+                      <option key={k} value={k}>{v.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div>
                 <label style={labelStyle}>Aina</label>
                 <select value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} style={inputStyle}>

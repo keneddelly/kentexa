@@ -28,6 +28,8 @@ export class AnnouncementsService {
       linkLabel?: string;
       sendSms?: boolean;
       expiresAt?: string;
+      targetUserId?: number;
+      targetUserName?: string;
     },
   ) {
     const announcement = new Announcement();
@@ -42,6 +44,8 @@ export class AnnouncementsService {
     announcement.createdBy = admin;
     announcement.isActive = true;
     announcement.readByUserIds = [];
+    announcement.targetUserId = dto.targetUserId || null;
+    announcement.targetUserName = dto.targetUserName || null;
 
     const saved = await this.repo.save(announcement);
 
@@ -57,24 +61,35 @@ export class AnnouncementsService {
 
   // ── Send SMS to targeted users ───────────────────────────────────────────
   private async sendSmsBlast(announcement: Announcement) {
-    // Build user query based on audience
-    const roleMap: Record<string, UserRole[]> = {
-      all: ['user', 'seller', 'agent', 'super_agent'] as any[],
-      sellers: ['seller'] as any[],
-      agents: ['agent'] as any[],
-      super_agents: ['super_agent'] as any[],
-      buyers: ['user'] as any[],
-    };
+    let users: User[];
 
-    const roles = roleMap[announcement.audience] || roleMap.all;
+    if (announcement.targetUserId) {
+      // Single-user announcement -- audience is ignored entirely.
+      const target = await this.userRepo.findOne({
+        where: { id: announcement.targetUserId },
+        select: { id: true, phone: true, name: true },
+      });
+      users = target ? [target] : [];
+    } else {
+      // Build user query based on audience
+      const roleMap: Record<string, UserRole[]> = {
+        all: ['user', 'seller', 'agent', 'super_agent'] as any[],
+        sellers: ['seller'] as any[],
+        agents: ['agent'] as any[],
+        super_agents: ['super_agent'] as any[],
+        buyers: ['user'] as any[],
+      };
 
-    // Get all users with phones in target audience
-    const users = await this.userRepo
-      .createQueryBuilder('u')
-      .select(['u.id', 'u.phone', 'u.name'])
-      .where('u.role IN (:...roles)', { roles })
-      .andWhere('u.phone IS NOT NULL')
-      .getMany();
+      const roles = roleMap[announcement.audience] || roleMap.all;
+
+      // Get all users with phones in target audience
+      users = await this.userRepo
+        .createQueryBuilder('u')
+        .select(['u.id', 'u.phone', 'u.name'])
+        .where('u.role IN (:...roles)', { roles })
+        .andWhere('u.phone IS NOT NULL')
+        .getMany();
+    }
 
     let sent = 0;
     const msg = `KenteXa: ${announcement.title}\n${announcement.message}${announcement.linkUrl ? '\n' + announcement.linkUrl : ''}`;
@@ -114,7 +129,10 @@ export class AnnouncementsService {
     const announcements = await this.repo
       .createQueryBuilder('a')
       .where('a.isActive = true')
-      .andWhere('a.audience IN (:...audiences)', { audiences })
+      .andWhere(
+        '(a.targetUserId = :userId OR (a.targetUserId IS NULL AND a.audience IN (:...audiences)))',
+        { userId: user.id, audiences },
+      )
       .andWhere('(a.expiresAt IS NULL OR a.expiresAt > :now)', { now })
       .orderBy('a.createdAt', 'DESC')
       .limit(20)

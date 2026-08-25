@@ -21,6 +21,17 @@ export class Announcement {
   @Column({ type: 'varchar', default: 'all' })
   audience: string;
 
+  // When set, this announcement is scoped to exactly this one account
+  // instead of a role-wide audience bucket -- e.g. "you posted this
+  // listing in the wrong category, please fix it." `audience` is ignored
+  // when this is set. targetUserName is denormalized purely for the
+  // admin's own sent-history list, so it never needs a join/lookup.
+  @Column({ type: 'int', nullable: true })
+  targetUserId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  targetUserName: string | null;
+
   @Column({ type: 'varchar', default: 'info' })
   priority: string;
 
