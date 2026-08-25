@@ -26,6 +26,7 @@ import { Payment } from '../payments/entities/payment.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Sale } from '../sales/entities/sale.entity';
 import { IdentityModule } from '../identity/identity.module';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { IdentityModule } from '../identity/identity.module';
     InvoicesModule,
     AuditLogModule,
     IdentityModule,
+    ActivityModule,
   ],
   controllers: [SuperAgentsController],
   providers: [SuperAgentsService],

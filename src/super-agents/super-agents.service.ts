@@ -44,6 +44,8 @@ import { FRONTEND_URL } from '../config/urls.config';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Sale, SaleStatus } from '../sales/entities/sale.entity';
 import { VerificationService } from '../identity/verification.service';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -72,6 +74,21 @@ const DESTINATION_ONLY_STATUSES = new Set([
   ParcelStatus.OUT_FOR_DELIVERY,
   ParcelStatus.DELIVERED,
 ]);
+
+// Internal AI Intelligence architecture (CLAUDE.md) — only the Logistics
+// milestones it actually names get an ActivityEvent, not every one of
+// ParcelStatus's ~15 operational states. Emitting all of them per parcel
+// would be noise, not intelligence; intermediate states (VERIFIED,
+// READY_FOR_DISPATCH, ARRIVED_AT_HUB, AWAITING_BUYER, OUT_FOR_DELIVERY,
+// etc.) are deliberately left out.
+const TRACKING_STATUS_TO_EVENT_TYPE: Partial<Record<ParcelStatus, string>> = {
+  [ParcelStatus.RECEIVED_AT_HUB]: 'PARCEL_RECEIVED',
+  [ParcelStatus.DISPATCHED]: 'PARCEL_TRANSFERRED',
+  [ParcelStatus.TRANSFERRED_HUB]: 'PARCEL_TRANSFERRED',
+  [ParcelStatus.DELIVERED]: 'PARCEL_DELIVERED',
+  [ParcelStatus.SELF_PICKUP]: 'PARCEL_DELIVERED',
+  [ParcelStatus.RETURNED]: 'PARCEL_DELIVERY_FAILED',
+};
 
 @Injectable()
 export class SuperAgentsService {
@@ -107,6 +124,7 @@ export class SuperAgentsService {
     private invoicesService: InvoicesService,
     private auditLog: AuditLogService,
     private verification: VerificationService,
+    private activityEvents: ActivityEventService,
   ) {}
 
   // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
@@ -153,6 +171,30 @@ export class SuperAgentsService {
         } as any),
       )
       .catch((e) => console.warn('Tracking event save failed:', e.message));
+
+    // Internal AI Intelligence — one choke point covers every parcel's
+    // status lifecycle regardless of which of the several places created
+    // it (orders/super-agents/shipments/daily-batches), since they all
+    // funnel status changes through this shared method.
+    const eventType = TRACKING_STATUS_TO_EVENT_TYPE[status];
+    if (eventType) {
+      const sellerId = parcel.seller?.id ?? parcel.order?.seller?.id ?? null;
+      const sellerProfile = sellerId
+        ? await this.commerceProfiles
+            .findForUserByType(sellerId, CommerceProfileType.BUSINESS)
+            .catch(() => null)
+        : null;
+      this.activityEvents.record({
+        eventType,
+        category: ActivityCategory.LOGISTICS,
+        actorType: handlerInfo?.type || 'system',
+        businessId: sellerProfile?.id ?? null,
+        relatedUserId: sellerId,
+        targetType: 'parcel',
+        targetId: parcel.id,
+        metadata: { trackingNumber: parcel.trackingNumber, status, city },
+      });
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
