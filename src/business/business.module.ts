@@ -20,6 +20,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { ActivityModule } from '../activity/activity.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
     CommerceProfilesModule,
     ActivityModule,
     AnalyticsModule,
+    AiModule,
   ],
   controllers: [BusinessController],
   providers: [

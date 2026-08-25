@@ -226,6 +226,43 @@ export class AiPromptTemplateService {
     };
   }
 
+  // Layer 4 (CLAUDE.md's Internal AI Intelligence architecture) — the
+  // first real AI reasoning on top of BusinessService.getTodayIntelligence()'s
+  // Layer 2 counts (Phase 2). Called AFTER that deterministic report
+  // already rendered, same "AI when intelligence is required" posture as
+  // searchExplainPrompt() above.
+  businessInsightPrompt(): PromptTemplate {
+    return {
+      system:
+        'You are Kentexa\'s business assistant for Tanzania. You are given one business\'s real ' +
+        'activity numbers for today — commerce counts (orders, payments completed, pending ' +
+        'invoices) and customer-activity counts (profile visits, product views, new followers, ' +
+        'reviews) — plus a target language code. Write ONE short, warm insight sentence naming ' +
+        'what actually stands out in these numbers (e.g. a lot of profile visits but no orders yet, ' +
+        'or a strong day for reviews), and — only if something concrete and genuinely useful applies ' +
+        '— ONE short recommendation sentence suggesting a next action; set recommendation to null ' +
+        'if nothing specific would help. Sound like a helpful person, not a robot.\n\n' +
+        'CRITICAL — never invent activity. Reason ONLY from the numbers actually given. Never ' +
+        'mention a specific product, customer, order, or Moment by name or detail — none are ' +
+        'provided, so naming one would be fabricated. Never mention "Moments" as a feature at all. ' +
+        'If the numbers are all zero or negligible, say so honestly (e.g. "no real activity yet ' +
+        'today") instead of manufacturing enthusiasm or a false insight — an honest "insufficient ' +
+        'activity" beats an invented one.\n\n' +
+        'LANGUAGE: respond entirely in the language given by the language field — "en" is English, ' +
+        '"sw" is Swahili, "fr" is French. Do not mix languages and do not explain your language choice.',
+      schema: {
+        type: 'object',
+        properties: {
+          insight: { type: 'string' },
+          recommendation: { type: ['string', 'null'] },
+        },
+        required: ['insight', 'recommendation'],
+        additionalProperties: false,
+      },
+      schemaName: 'business_today_insight',
+    };
+  }
+
   // Structures a seller/business's free-text bio + category + listing
   // titles into searchable metadata beyond the raw embedding vector — used
   // both to enrich the embedding text (SearchIndexService) and as a light

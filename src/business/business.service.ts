@@ -14,6 +14,7 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { Invoice, InvoiceStatus } from '../invoices/entities/invoice.entity';
 import { Product } from '../products/entities/products.entity';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { AiBusinessInsightService } from '../ai/ai-business-insight.service';
 
 // Phase 1 of the multi-role architecture: Business as a real entity,
 // independent of Seller. See seller.service.ts's apply() for the existing
@@ -31,6 +32,7 @@ export class BusinessService {
     private commerceProfiles: CommerceProfilesService,
     private activityEvents: ActivityEventService,
     private analytics: AnalyticsService,
+    private aiInsight: AiBusinessInsightService,
   ) {}
 
   async findMine(userId: number): Promise<Business | null> {
@@ -149,6 +151,30 @@ export class BusinessService {
         reviewsToday,
       },
     };
+  }
+
+  // Layer 4 — real AI reasoning on top of getTodayIntelligence()'s Layer 2
+  // counts, called separately by the frontend AFTER that deterministic
+  // report already rendered (never a dependency of it). `today` is the
+  // exact object the frontend already got back from getTodayIntelligence()
+  // — passed in rather than refetched, same reasoning AiSearchExplainerService
+  // takes an already-fetched resultSummary instead of re-running search.
+  // Fails open: an AI outage must never break or block the report itself.
+  async getTodayInsight(
+    businessId: number,
+    user: User,
+    today: Record<string, any>,
+    language: string,
+  ): Promise<{ insight: string; recommendation: string | null }> {
+    const business = await this.findById(businessId);
+    if (business.user.id !== user.id) {
+      throw new NotFoundException('Business not found');
+    }
+    try {
+      return await this.aiInsight.generate(today, language || 'en');
+    } catch {
+      return { insight: '', recommendation: null };
+    }
   }
 
   // ── Create a Business with no Seller (spec section 7: a manufacturer

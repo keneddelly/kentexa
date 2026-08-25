@@ -49,10 +49,12 @@ const Row = ({ icon, label, value, onAction, color = DK, sub, locked }) => (
 );
 
 const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [business, setBusiness] = useState(null);
   const [dash, setDash] = useState(null);
   const [today, setToday] = useState(null);
+  const [insight, setInsight] = useState(null);
+  const [insightLoading, setInsightLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showEdit, setShowEdit] = useState(false);
@@ -76,10 +78,31 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
         api.get(`/business/${mine.data.id}/today`).catch(() => null),
       ]);
       if (dashRes) setDash(dashRes.data);
-      if (todayRes) setToday(todayRes.data);
+      if (todayRes) {
+        setToday(todayRes.data);
+        fetchInsight(mine.data.id, todayRes.data);
+      }
     } catch {
       setError(t('business_dashboard.load_failed'));
     } finally { setLoading(false); }
+  };
+
+  // Layer 4 — a separate, non-blocking call made only after Today's
+  // Intelligence (Layer 2) has already rendered from real counts. An AI
+  // outage here must never show as an error on this page — it just means
+  // the insight block never appears, same fail-open posture as
+  // Search.js's AI summary.
+  const fetchInsight = async (businessId, todayData) => {
+    try {
+      setInsightLoading(true);
+      const res = await api.post(`/business/${businessId}/today/insight`, {
+        today: todayData,
+        language: i18n.language,
+      });
+      setInsight(res.data?.insight ? res.data : null);
+    } catch {
+      setInsight(null);
+    } finally { setInsightLoading(false); }
   };
 
   const openEdit = () => {
@@ -195,6 +218,35 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
                 </div>
               ))}
             </div>
+
+            {/* AI Insight — Layer 4, real reasoning over the counts above.
+                Same visual language as Search.js's AI summary banner
+                (#F5F3FF / #DDD6FE / sparkle) so it reads as one feature. */}
+            {(insightLoading || insight) && (
+              <div style={{ display: 'flex', gap: 10, backgroundColor: '#F5F3FF',
+                border: '1px solid #DDD6FE', borderRadius: 14, padding: '12px 14px',
+                marginTop: 16 }}>
+                <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1 }}>✨</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {!insight ? (
+                    <div style={{ fontSize: 12, color: GR, fontStyle: 'italic' }}>
+                      {t('business_dashboard.insight_thinking')}
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 13, color: DK, fontWeight: 600, lineHeight: 1.5 }}>
+                        {insight.insight}
+                      </div>
+                      {insight.recommendation && (
+                        <div style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, marginTop: 6 }}>
+                          💡 {insight.recommendation}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </SCard>
         )}
 

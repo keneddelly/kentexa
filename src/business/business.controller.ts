@@ -71,6 +71,26 @@ export class BusinessController {
     return this.businessService.getTodayIntelligence(id, req.user);
   }
 
+  // Layer 4 — separate, non-blocking call the frontend makes after
+  // GET :id/today already rendered. `today` is that same response, passed
+  // back rather than refetched. getTodayInsight() itself fails open around
+  // the AI call only (never a 500 from an AI outage) while still letting a
+  // real ownership failure 404 normally — no outer catch here that would
+  // otherwise mask a legitimate "not your business" as a fake 200.
+  @Post(':id/today/insight')
+  getTodayInsight(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @Body() body: { today: Record<string, any>; language?: string },
+  ) {
+    return this.businessService.getTodayInsight(
+      id,
+      req.user,
+      body?.today || {},
+      body?.language || 'en',
+    );
+  }
+
   @Post('admin/backfill')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)

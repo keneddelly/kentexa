@@ -14,7 +14,8 @@ export type AiTask =
   | 'search-parse'
   | 'search-explain'
   | 'seller-profile-enrich'
-  | 'listing-description';
+  | 'listing-description'
+  | 'business-insight';
 
 export type AiTier = 'simple' | 'reasoning' | 'coding';
 
@@ -28,6 +29,7 @@ const TASK_TIER: Record<AiTask, AiTier> = {
   'product-listing': 'simple',
   'search-parse': 'simple',
   'search-explain': 'simple',
+  'business-insight': 'simple',
   'seller-profile-enrich': 'simple',
   // Vision — needs a multimodal-capable model. 'simple' defaults to
   // DeepSeek, which is text-only, so this is the first task to actually
