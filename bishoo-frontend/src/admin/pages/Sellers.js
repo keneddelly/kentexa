@@ -32,6 +32,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
   const [businessActionLoading, setBusinessActionLoading] = useState(false);
   const [showBusinessRejectModal, setShowBusinessRejectModal] = useState(false);
   const [businessRejectReason, setBusinessRejectReason] = useState('');
+  const [backfillLoading, setBackfillLoading] = useState(false);
 
   useEffect(() => { fetchSellers(); }, []);
 
@@ -60,6 +61,23 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
 
   const showMsg = (m) => { setMessage(m); setTimeout(() => setMessage(''), 4000); };
   const showErr = (m) => { setError(m);   setTimeout(() => setError(''),   4000); };
+
+  // Multi-role architecture Phase 1 — one-time (idempotent, safe to
+  // re-run) catch-up: creates a real Business row for every SellerProfile
+  // already marked sellerType='business', same pattern as the existing
+  // /profiles/admin/backfill.
+  const handleRunBusinessBackfill = async () => {
+    if (!window.confirm('Endesha Business backfill? Hii itaunda rekodi za Business kwa wauzaji wote wenye sellerType="business" ambao bado hawajaunganishwa.')) return;
+    try {
+      setBackfillLoading(true);
+      const res = await api.post('/business/admin/backfill');
+      const r = res.data || {};
+      setMessage(`✅ Backfill imekamilika: ${r.businessCreated} Business zimeundwa, ${r.sellerProfilesLinked} SellerProfile zimeunganishwa, ${r.commerceProfilesLinked} CommerceProfile zimeunganishwa (${r.skippedAlreadyExisted} tayari zilikuwepo, ${r.skippedNotBusinessType} si aina ya biashara)`);
+      setTimeout(() => setMessage(''), 12000);
+    } catch (err) {
+      showErr(err?.response?.data?.message || 'Backfill imeshindwa');
+    } finally { setBackfillLoading(false); }
+  };
 
   const handleApprove = async (id, tier) => {
     try {
@@ -202,10 +220,17 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
             <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>🏪 Wauzaji</h1>
             <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Simamia maombi ya wauzaji na akaunti zao</p>
           </div>
-          <button onClick={fetchSellers}
-            style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-            🔄 Onyesha Upya
-          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={handleRunBusinessBackfill} disabled={backfillLoading}
+              title="Unda Business kwa wauzaji wote wenye sellerType=business ambao bado hawajaunganishwa"
+              style={{ backgroundColor: '#f8fafc', color: '#4f46e5', border: '1px solid #e2e8f0', padding: '9px 16px', borderRadius: 8, cursor: backfillLoading ? 'wait' : 'pointer', fontSize: 12, fontWeight: 700 }}>
+              {backfillLoading ? '⏳...' : '🏢 Business Backfill'}
+            </button>
+            <button onClick={fetchSellers}
+              style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+              🔄 Onyesha Upya
+            </button>
+          </div>
         </div>
 
         {/* Flash messages */}
