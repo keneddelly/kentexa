@@ -34,6 +34,10 @@ import { IPaymentProvider } from './providers/payment-provider.interface';
 import { MockAgentService } from './providers/mock/mock-agent.service';
 import { ClickPesaService } from './providers/clickpesa/clickpesa.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 
 const USE_INDIVIDUAL_NETWORKS = false;
 
@@ -73,6 +77,8 @@ export class PaymentsService {
     private clickPesaService: ClickPesaService,
     private notificationsService: NotificationsService,
     private invoicesService: InvoicesService,
+    private activityEvents: ActivityEventService,
+    private commerceProfiles: CommerceProfilesService,
   ) {}
 
   private getProvider(provider: string): IPaymentProvider {
@@ -367,6 +373,17 @@ export class PaymentsService {
         status: AgentTransactionStatus.CONFIRMED,
       }),
     );
+    const paymentAgentProfile = await this.commerceProfiles
+      .findForUserByType(agent.user.id, CommerceProfileType.AGENT)
+      .catch(() => null);
+    this.activityEvents.record({
+      eventType: 'COMMISSION_EARNED',
+      category: ActivityCategory.AGENT,
+      businessId: paymentAgentProfile?.id ?? null,
+      relatedUserId: agent.user.id,
+      targetType: 'agent_transaction',
+      metadata: { commissionAmount: commission, source: paymentMethod, orderId: orderId ?? null },
+    });
 
     agent.totalEarnings = Number(agent.totalEarnings) + commission;
     agent.totalTransactions = Number(agent.totalTransactions) + 1;

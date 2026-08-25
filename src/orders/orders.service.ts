@@ -1057,6 +1057,28 @@ export class OrdersService {
         }),
       );
 
+      // This path bypasses SuperAgentsService.addTrackingEvent() (writes
+      // straight to parcelTrackingRepo above), so Phase 3's PARCEL_DELIVERED
+      // event would otherwise never fire when a buyer confirms receipt
+      // themselves on the order page — only on Super-Agent-driven status
+      // changes. Same resolution pattern the existing ORDER_COMPLETED
+      // emission in this file already uses.
+      const deliverySellerProfile = order.seller
+        ? await this.commerceProfiles
+            .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)
+            .catch(() => null)
+        : null;
+      this.activityEvents.record({
+        eventType: 'PARCEL_DELIVERED',
+        category: ActivityCategory.LOGISTICS,
+        actorType: 'buyer',
+        businessId: deliverySellerProfile?.id ?? null,
+        relatedUserId: order.seller?.id ?? null,
+        targetType: 'parcel',
+        targetId: parcel.id,
+        metadata: { trackingNumber: parcel.trackingNumber, source: 'buyer_confirmed' },
+      });
+
       if (!parcel.localAgentId) return;
       const localAgent = await this.agentRepo.findOne({
         where: { user: { id: Number(parcel.localAgentId) } },
@@ -1090,6 +1112,17 @@ export class OrdersService {
           status: AgentTransactionStatus.CONFIRMED,
         } as any),
       );
+      const commissionAgentProfile = await this.commerceProfiles
+        .findForUserByType(localAgent.user.id, CommerceProfileType.AGENT)
+        .catch(() => null);
+      this.activityEvents.record({
+        eventType: 'COMMISSION_EARNED',
+        category: ActivityCategory.AGENT,
+        businessId: commissionAgentProfile?.id ?? null,
+        relatedUserId: localAgent.user.id,
+        targetType: 'agent_transaction',
+        metadata: { commissionAmount: commission, source: 'last_mile_delivery' },
+      });
       localAgent.totalEarnings = Number(localAgent.totalEarnings || 0) + commission;
       localAgent.totalTransactions = Number(localAgent.totalTransactions || 0) + 1;
       localAgent.totalDeliveriesCompleted =

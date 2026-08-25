@@ -19,6 +19,8 @@ import { ReferralReward } from './entities/referral-reward.entity';
 import { Feature, FEATURE_REQUIREMENTS } from './verification.constants';
 import type { IdentityVerificationProvider } from './providers/identity-verification-provider.interface';
 import { IDENTITY_VERIFICATION_PROVIDER } from './identity.tokens';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 const LEVEL_LABEL: Record<number, string> = {
   0: 'Basic Account',
@@ -47,6 +49,7 @@ export class VerificationService {
     private referralRewardRepo: Repository<ReferralReward>,
     @Inject(IDENTITY_VERIFICATION_PROVIDER)
     private provider: IdentityVerificationProvider,
+    private activityEvents: ActivityEventService,
   ) {}
 
   async getIdentityProfile(userId: number): Promise<IdentityProfile | null> {
@@ -404,6 +407,28 @@ export class VerificationService {
           freeOrdersGranted: () => '"freeOrdersGranted" + 10',
         } as any);
       });
+
+      this.activityEvents.record(
+        isSelfReferral
+          ? {
+              eventType: 'REFERRAL_REJECTED_FRAUD',
+              category: ActivityCategory.SECURITY,
+              severity: 'warning',
+              actorId: referredUserId,
+              relatedUserId: referrerSuperAgent.user.id,
+              targetType: 'super_agent',
+              targetId: referrerSuperAgent.id,
+            }
+          : {
+              eventType: 'REFERRAL_QUALIFIED',
+              category: ActivityCategory.AGENT,
+              actorId: referredUserId,
+              relatedUserId: referrerSuperAgent.user.id,
+              targetType: 'super_agent',
+              targetId: referrerSuperAgent.id,
+              metadata: { freeOrdersGranted: 10 },
+            },
+      );
     } catch (err: any) {
       console.error('processReferralQualification failed:', err?.message);
     }

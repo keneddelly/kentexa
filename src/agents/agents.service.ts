@@ -19,6 +19,8 @@ import {
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FRONTEND_URL } from '../config/urls.config';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 @Injectable()
 export class AgentsService {
@@ -29,6 +31,7 @@ export class AgentsService {
     private agentTransactionRepo: Repository<AgentTransaction>,
     private smsService: SmsService,
     private commerceProfiles: CommerceProfilesService,
+    private activityEvents: ActivityEventService,
   ) {}
 
   // ── Agent: register ────────────────────────────────────────────────────────
@@ -414,6 +417,19 @@ export class AgentsService {
         status: AgentTransactionStatus.CONFIRMED,
       }),
     );
+    const releaseAgentProfile = await this.commerceProfiles
+      .findForUserByType(agent.user.id, CommerceProfileType.AGENT)
+      .catch(() => null);
+    this.activityEvents.record({
+      eventType: 'EARNINGS_RELEASED',
+      category: ActivityCategory.PAYMENT,
+      actorId: admin.id,
+      actorType: 'admin',
+      businessId: releaseAgentProfile?.id ?? null,
+      relatedUserId: agent.user.id,
+      targetType: 'agent_transaction',
+      metadata: { amount: release, note: note || null },
+    });
 
     const phone = agent.phone || agent.user?.phone;
     if (phone) {

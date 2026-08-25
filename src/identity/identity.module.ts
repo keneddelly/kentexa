@@ -11,6 +11,7 @@ import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { ManualReviewProvider } from './providers/manual-review.provider';
 import { IDENTITY_VERIFICATION_PROVIDER } from './identity.tokens';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { IDENTITY_VERIFICATION_PROVIDER } from './identity.tokens';
       SellerProfile,
       SuperAgent,
     ]),
+    ActivityModule,
   ],
   controllers: [IdentityController],
   providers: [

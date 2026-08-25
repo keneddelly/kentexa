@@ -16,6 +16,8 @@ import { MockAgentService } from './providers/mock/mock-agent.service';
 import { ClickPesaService } from './providers/clickpesa/clickpesa.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { InvoicesModule } from '../invoices/invoices.module';
+import { ActivityModule } from '../activity/activity.module';
+import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { InvoicesModule } from '../invoices/invoices.module';
     ]),
     NotificationsModule,
     InvoicesModule,
+    ActivityModule,
+    CommerceProfilesModule,
   ],
   controllers: [PaymentsController],
   providers: [
