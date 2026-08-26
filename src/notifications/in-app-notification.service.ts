@@ -79,6 +79,7 @@ export class InAppNotificationService {
     seller: NotifyTarget,
     orderId: number,
     productName: string,
+    sellerCommerceProfileId?: number | null,
   ) {
     const buyerUser = await this.getUserByPhone(buyer.phone);
     const sellerUser = await this.getUserByPhone(seller.phone);
@@ -103,6 +104,7 @@ export class InAppNotificationService {
         body: `${buyer.name || 'Mnunuzi'} amenunua "${productName}". Tuma haraka!`,
         actionPage: 'SellerOrders',
         actionParam: String(orderId),
+        actionCommerceProfileId: sellerCommerceProfileId || undefined,
         orderId,
         icon: '🛒',
       });
@@ -114,6 +116,7 @@ export class InAppNotificationService {
     seller: NotifyTarget,
     orderId: number,
     amount: number,
+    sellerCommerceProfileId?: number | null,
   ) {
     const sellerUser = await this.getUserByPhone(seller.phone);
     if (sellerUser) {
@@ -124,6 +127,7 @@ export class InAppNotificationService {
         body: `TZS ${Number(amount).toLocaleString()} imewekwa kwenye escrow. Tuma bidhaa.`,
         actionPage: 'SellerOrders',
         actionParam: String(orderId),
+        actionCommerceProfileId: sellerCommerceProfileId || undefined,
         orderId,
         icon: '💰',
       });
@@ -135,6 +139,7 @@ export class InAppNotificationService {
     buyer: NotifyTarget,
     orderId: number,
     sellerAmount: number,
+    sellerCommerceProfileId?: number | null,
   ) {
     const sellerUser = await this.getUserByPhone(seller.phone);
     const buyerUser = await this.getUserByPhone(buyer.phone);
@@ -147,6 +152,7 @@ export class InAppNotificationService {
         body: `Mnunuzi amethibitisha utoaji. TZS ${Number(sellerAmount).toLocaleString()} itatolewa hivi karibuni.`,
         actionPage: 'SellerPayouts',
         actionParam: String(orderId),
+        actionCommerceProfileId: sellerCommerceProfileId || undefined,
         orderId,
         icon: '🎉',
       });
@@ -186,7 +192,12 @@ export class InAppNotificationService {
     }
   }
 
-  async payoutReleased(seller: NotifyTarget, orderId: number, amount: number) {
+  async payoutReleased(
+    seller: NotifyTarget,
+    orderId: number,
+    amount: number,
+    sellerCommerceProfileId?: number | null,
+  ) {
     const sellerUser = await this.getUserByPhone(seller.phone);
     if (sellerUser) {
       await this.notify({
@@ -196,6 +207,7 @@ export class InAppNotificationService {
         body: `TZS ${Number(amount).toLocaleString()} inatumwa kwenye akaunti yako.`,
         actionPage: 'SellerPayouts',
         actionParam: String(orderId),
+        actionCommerceProfileId: sellerCommerceProfileId || undefined,
         orderId,
         icon: '💸',
       });
@@ -226,6 +238,7 @@ export class InAppNotificationService {
     seller: NotifyTarget,
     buyer: NotifyTarget,
     orderId: number,
+    sellerCommerceProfileId?: number | null,
   ) {
     const sellerUser = await this.getUserByPhone(seller.phone);
     if (sellerUser) {
@@ -236,6 +249,7 @@ export class InAppNotificationService {
         body: 'Mnunuzi amefungua shauri. Toa maelezo yako haraka.',
         actionPage: 'SellerOrders',
         actionParam: String(orderId),
+        actionCommerceProfileId: sellerCommerceProfileId || undefined,
         orderId,
         icon: '⚠️',
       });
@@ -338,6 +352,7 @@ export class InAppNotificationService {
     productName: string,
     rating?: number,
     review?: string,
+    sellerCommerceProfileId?: number | null,
   ) {
     await this.notify({
       userId: sellerId,
@@ -350,6 +365,7 @@ export class InAppNotificationService {
         : `Mnunuzi amethibitisha utoaji wa "${productName}". Pata malipo yako!`,
       actionPage: 'SellerOrders',
       actionParam: String(orderId),
+      actionCommerceProfileId: sellerCommerceProfileId || undefined,
       orderId,
       icon: rating ? '⭐' : '🎉',
     });
@@ -363,6 +379,7 @@ export class InAppNotificationService {
     orderId: number,
     trackingNumber: string,
     productName: string,
+    sellerCommerceProfileId?: number | null,
   ) {
     await this.notify({
       userId: sellerId,
@@ -371,6 +388,7 @@ export class InAppNotificationService {
       body: `Agizo jipya la "${productName}" limepokelewa. Nambari: ${trackingNumber}`,
       actionPage: 'SellerOrders',
       actionParam: String(orderId),
+      actionCommerceProfileId: sellerCommerceProfileId || undefined,
       orderId,
       icon: '🛒',
     });
@@ -381,6 +399,7 @@ export class InAppNotificationService {
     sellerId: number,
     orderId: number,
     trackingNumber: string,
+    sellerCommerceProfileId?: number | null,
   ) {
     await this.notify({
       userId: sellerId,
@@ -389,13 +408,19 @@ export class InAppNotificationService {
       body: `Mnunuzi amefungua shauri kwa agizo ${trackingNumber}. Toa maelezo yako haraka.`,
       actionPage: 'SellerOrders',
       actionParam: String(orderId),
+      actionCommerceProfileId: sellerCommerceProfileId || undefined,
       orderId,
       icon: '⚠️',
     });
   }
 
   // Old: payoutReleased(sellerId, amount, orderId)
-  async payoutReleasedById(sellerId: number, amount: number, orderId: number) {
+  async payoutReleasedById(
+    sellerId: number,
+    amount: number,
+    orderId: number,
+    sellerCommerceProfileId?: number | null,
+  ) {
     await this.notify({
       userId: sellerId,
       type: NotificationType.ORDER_CONFIRMED,
@@ -403,6 +428,7 @@ export class InAppNotificationService {
       body: `TZS ${Number(amount).toLocaleString()} inatumwa kwenye akaunti yako.`,
       actionPage: 'SellerPayouts',
       actionParam: String(orderId),
+      actionCommerceProfileId: sellerCommerceProfileId || undefined,
       orderId,
       icon: '💸',
     });

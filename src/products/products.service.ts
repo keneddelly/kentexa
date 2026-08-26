@@ -193,18 +193,20 @@ export class ProductsService {
     });
     if (!product) throw new NotFoundException('Product not found');
 
-    // "Sold by" must point at the seller's BUSINESS identity, not their
-    // personal one — this is the exact bug CommerceProfile.js's header
-    // had before Stage 1 (a visitor seeing the owner's personal name/
-    // follower count instead of the store's), just one layer deeper: the
-    // product page's seller card was still doing it. commerceProfile is
-    // null when the seller has no business profile yet (shouldn't happen
-    // for anyone who can list a product, but stay defensive).
-    const commerceProfile = product.seller
-      ? await this.commerceProfiles
-          .findForUserByType(product.seller.id, CommerceProfileType.BUSINESS)
-          .catch(() => null)
-      : null;
+    // Prefer the SPECIFIC profile this product was actually posted as
+    // (stored at creation time — see create()). Only products that predate
+    // the commerceProfileId column fall back to "the account's business
+    // identity," matching the original behavior for those. This was
+    // previously hardcoded to always resolve BUSINESS regardless of which
+    // profile actually posted it — the same fix already applied to
+    // ClassifiedsService.findOne() (profile-architecture-audit-2026-08).
+    const commerceProfile = product.commerceProfileId
+      ? await this.commerceProfiles.findById(product.commerceProfileId).catch(() => null)
+      : product.seller
+        ? await this.commerceProfiles
+            .findForUserByType(product.seller.id, CommerceProfileType.BUSINESS)
+            .catch(() => null)
+        : null;
 
     return {
       ...product,
@@ -226,6 +228,41 @@ export class ProductsService {
       where: { seller: { id: sellerId }, isAvailable: true, availableOnline: true },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  // findBySeller() above returns every product the ACCOUNT has ever
+  // listed — personal and business mixed together, since it only filters
+  // by seller.id. This scopes to the exact profile that was active when
+  // each product was posted, same fallback rule findOne() applies: a
+  // BUSINESS profile's tab also shows legacy products (posted before
+  // commerceProfileId existed) since those defaulted to the business
+  // identity anyway; a PERSONAL profile's tab only shows products
+  // explicitly tagged to it. Mirrors
+  // ClassifiedsService.findByCommerceProfile() exactly
+  // (profile-architecture-audit-2026-08).
+  async findByCommerceProfile(commerceProfileId: number) {
+    const profile = await this.commerceProfiles
+      .findById(commerceProfileId)
+      .catch(() => null);
+    if (!profile) return [];
+
+    const qb = this.repo
+      .createQueryBuilder('p')
+      .where('p."isAvailable" = true')
+      .andWhere('p."availableOnline" = true');
+
+    if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
+      qb.andWhere(
+        '(p."commerceProfileId" = :commerceProfileId OR (p."commerceProfileId" IS NULL AND p."sellerId" = :ownerId))',
+        { commerceProfileId, ownerId: profile.ownerId },
+      );
+    } else {
+      qb.andWhere('p."commerceProfileId" = :commerceProfileId', {
+        commerceProfileId,
+      });
+    }
+
+    return qb.orderBy('p.createdAt', 'DESC').getMany();
   }
 
   async findMyProducts(user: User) {

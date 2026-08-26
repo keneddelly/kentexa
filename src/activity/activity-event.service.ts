@@ -8,6 +8,12 @@ export interface RecordActivityParams {
   category: ActivityCategory;
   actorId?: number | null;
   actorType?: string | null;
+  // Which CommerceProfile the actor was operating as — see the entity's
+  // own comment. Optional and mostly unpopulated today (profile-
+  // architecture-audit-2026-08); declared so callers that DO know it have
+  // somewhere to put it without a later migration.
+  actorProfileId?: number | null;
+  actorProfileType?: string | null;
   businessId?: number | null;
   targetType?: string | null;
   targetId?: number | null;
@@ -43,6 +49,8 @@ export class ActivityEventService {
           category: params.category,
           actorId: params.actorId ?? null,
           actorType: params.actorType ?? null,
+          actorProfileId: params.actorProfileId ?? null,
+          actorProfileType: params.actorProfileType ?? null,
           businessId: params.businessId ?? null,
           targetType: params.targetType ?? null,
           targetId: params.targetId ?? null,

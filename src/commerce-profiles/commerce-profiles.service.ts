@@ -418,6 +418,15 @@ export class CommerceProfilesService {
   // Seller (account) ids that `followerId` follows through EITHER system —
   // legacy account-level follows, plus the owning account of any profile
   // they follow directly.
+  //
+  // Kept for callers that only need "does this account's content show up
+  // at all" (e.g. isFollowingSeller's legacy branch) — NOT for filtering
+  // feed content by profile identity. Use getFollowedProfiles() for that;
+  // this method collapses profile-level follows down to the owning
+  // account id, which is exactly the bug profile-architecture-audit-2026-08
+  // found: following only someone's Personal profile still surfaced their
+  // Business Moments in the Following feed, since the profile distinction
+  // was discarded here before feed.service.ts ever saw it.
   async getFollowedSellerIds(followerId: number): Promise<number[]> {
     const [legacyRows, profileFollowRows] = await Promise.all([
       this.legacyFollowRepo.find({
@@ -436,6 +445,47 @@ export class CommerceProfilesService {
         .filter((id): id is number => !!id);
     }
     return [...new Set([...legacyIds, ...profileOwnerIds])];
+  }
+
+  // Profile-granular version for feed filtering — mirrors
+  // getPostNotificationAudience()'s existing rule instead of discarding it:
+  // a legacy account-level follow, or a direct follow of the account's
+  // BUSINESS profile, means "show me everything this business posts"
+  // (businessScopedIds, matched against BusinessFeedItem.businessId alone,
+  // same as before — including legacy posts with no commerceProfileId).
+  // Following any OTHER specific profile (e.g. Personal) means "show me
+  // only that exact profile's posts" (profileScopedIds, matched against
+  // BusinessFeedItem.commerceProfileId alone) — it must never also surface
+  // that same account's Business Moments just because they share an owner.
+  async getFollowedProfiles(
+    followerId: number,
+  ): Promise<{ businessScopedIds: number[]; profileScopedIds: number[] }> {
+    const [legacyRows, profileFollowRows] = await Promise.all([
+      this.legacyFollowRepo.find({
+        where: { follower: { id: followerId } },
+        relations: { seller: true },
+      }),
+      this.followRepo.find({ where: { followerId } }),
+    ]);
+    const legacyIds = legacyRows.map((r) => r.seller.id);
+
+    const profileIds = profileFollowRows.map((r) => r.commerceProfileId);
+    const businessScopedIds = new Set<number>(legacyIds);
+    const profileScopedIds = new Set<number>();
+    if (profileIds.length > 0) {
+      const profiles = await this.repo.find({ where: { id: In(profileIds) } });
+      for (const p of profiles) {
+        if (p.type === CommerceProfileType.BUSINESS && p.ownerId) {
+          businessScopedIds.add(p.ownerId);
+        } else {
+          profileScopedIds.add(p.id);
+        }
+      }
+    }
+    return {
+      businessScopedIds: [...businessScopedIds],
+      profileScopedIds: [...profileScopedIds],
+    };
   }
 
   // Audience (User ids) for a new post published under `postCommerceProfileId`

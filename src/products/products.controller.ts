@@ -158,6 +158,17 @@ export class ProductsController {
     return this.service.findBySeller(sellerId);
   }
 
+  // Scoped to one commerce profile — use this instead of seller/:sellerId
+  // when rendering a specific profile's own products tab (a personal and
+  // a business profile on the same account must not show each other's
+  // products). Mirrors ClassifiedsController's equivalent route.
+  @Get('profile/:commerceProfileId')
+  findByCommerceProfile(
+    @Param('commerceProfileId', ParseIntPipe) commerceProfileId: number,
+  ) {
+    return this.service.findByCommerceProfile(commerceProfileId);
+  }
+
   // ── Social proof: track daily views — public, fire-and-forget ─────────
   @Post(':id/view')
   trackView(@Param('id', ParseIntPipe) id: number) {

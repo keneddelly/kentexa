@@ -77,26 +77,41 @@ export class ProfileService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) return null;
 
-    const [roleEntities, products, reviews] = await Promise.all([
+    const [roleEntities, reviews, isFollowing, businessProfile] = await Promise.all([
       this.getRoleEntities(userId),
-      this.productRepo.find({
-        where: { seller: { id: userId } },
-        order: { createdAt: 'DESC' },
-      }),
       this.reviewRepo.find({
         where: { seller: { id: userId } },
         relations: { buyer: true },
         order: { createdAt: 'DESC' },
         take: 20,
       }),
-    ]);
-
-    const [isFollowing, businessProfile] = await Promise.all([
       this.commerceProfiles.isFollowingSeller(viewerId, userId).catch(() => false),
       this.commerceProfiles
         .findForUserByType(userId, CommerceProfileType.BUSINESS)
         .catch(() => null),
     ]);
+
+    // This storefront is unambiguously the account's BUSINESS identity
+    // (matches StoreService.toggleFollow's same always-resolve-to-BUSINESS
+    // behavior) — so products are scoped to that specific CommerceProfile,
+    // not every product the raw account has ever listed. Without this, a
+    // product posted under a Personal profile would still show up on the
+    // Business storefront (profile-architecture-audit-2026-08). Legacy
+    // products (posted before commerceProfileId existed) keep resolving
+    // here via the NULL fallback, same rule as findOne()/findByCommerceProfile().
+    const products = businessProfile
+      ? await this.productRepo
+          .createQueryBuilder('p')
+          .where(
+            '(p."commerceProfileId" = :commerceProfileId OR (p."commerceProfileId" IS NULL AND p."sellerId" = :userId))',
+            { commerceProfileId: businessProfile.id, userId },
+          )
+          .orderBy('p.createdAt', 'DESC')
+          .getMany()
+      : await this.productRepo.find({
+          where: { seller: { id: userId } },
+          order: { createdAt: 'DESC' },
+        });
 
     const { password, otp, otpExpiry, otpAttempts, ...safeUser } =
       user as any;

@@ -300,6 +300,17 @@ export class Order {
   @JoinColumn()
   seller: User | null;
 
+  // Which specific CommerceProfile (personal vs a specific business) the
+  // seller was operating as when this order was placed against their
+  // product/listing — plain nullable id (not a relation), same additive
+  // pattern as Product/Classified.commerceProfileId. Null on orders placed
+  // before this column existed, or where the underlying product itself has
+  // no commerceProfileId — those keep resolving to the seller's business
+  // identity as before. An account running two separate businesses has no
+  // other way to tell which one a given order belongs to.
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
   // ── Buyer Confirmation Token (magic link — no login needed) ─────────────
   // Generated when seller marks order as DELIVERED
   // Sent to buyer via WhatsApp as a one-click confirmation link

@@ -185,6 +185,12 @@ export class OrdersService {
       buyer: user,
       product,
       seller: product.seller ?? null,
+      // Inherits the purchased product's own CommerceProfile context —
+      // an order is about whichever profile the product was actually
+      // listed under, not something the buyer selects. Null for products
+      // that predate Product.commerceProfileId (profile-architecture-
+      // audit-2026-08), same legacy-fallback convention as elsewhere.
+      commerceProfileId: (product as any).commerceProfileId ?? null,
       quantity: dto.quantity,
       totalAmount,
       baseAmount,
@@ -419,6 +425,7 @@ export class OrdersService {
           saved.id,
           saved.trackingNumber || `KTX-ORD-${saved.id}`,
           saved.product?.name || (saved as any).manualProductName || 'Bidhaa',
+          (saved as any).commerceProfileId ?? null,
         );
       }
     } catch {
@@ -1545,18 +1552,21 @@ export class OrdersService {
       }
       // In-app notification
       if (sellerId) {
+        const orderCommerceProfileId = (order as any).commerceProfileId ?? null;
         await this.inAppNotif.orderConfirmed(
           sellerId,
           order.id,
           productName,
           data.rating || undefined,
           data.review || undefined,
+          orderCommerceProfileId,
         );
         if (isOnlineOrder) {
           await this.inAppNotif.payoutReleasedById(
             sellerId,
             Number(order.sellerAmount || 0),
             order.id,
+            orderCommerceProfileId,
           );
         }
         if (data.rating) {
@@ -1565,6 +1575,7 @@ export class OrdersService {
             data.rating,
             productName,
             order.product?.id,
+            orderCommerceProfileId,
           );
         }
       }
@@ -1661,6 +1672,7 @@ export class OrdersService {
           sellerIdD,
           order.id,
           order.trackingNumber || String(order.id),
+          (order as any).commerceProfileId ?? null,
         );
       }
       const sellerPhone = sellerPhoneD;

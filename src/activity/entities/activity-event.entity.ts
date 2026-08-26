@@ -65,6 +65,22 @@ export class ActivityEvent {
   @Column({ type: 'varchar', nullable: true })
   actorType: string | null;
 
+  // Which CommerceProfile the actor was operating AS when they performed
+  // this action — distinct from actorId (the raw account). An account
+  // running both a Personal profile and a Business has one actorId either
+  // way; without this, the AI intelligence layer can't tell "Kennedy
+  // personally did X" from "Bishoo Intelligence Systems did X." Null for
+  // events emitted before this column existed, or where the emitting call
+  // site doesn't yet know which profile was active (most don't yet —
+  // profile-architecture-audit-2026-08 flagged this as a real gap, not
+  // wired up broadly, just declared here so later phases don't need a
+  // migration to add it).
+  @Column({ type: 'int', nullable: true })
+  actorProfileId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  actorProfileType: string | null;
+
   // The CommerceProfile/Business identity this activity belongs to — the
   // aggregation key CLAUDE.md section 9 asks for ("Business X received 43
   // customer interactions", not per-product noise).

@@ -4,7 +4,7 @@
  */
 import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In } from 'typeorm';
+import { Repository, IsNull, In, Brackets } from 'typeorm';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 import {
   PostEngagement,
@@ -394,16 +394,36 @@ export class FeedService {
 
       case 'following': {
         if (!userId) return { items: [], total: 0 };
-        const followedSellerIds = await this.commerceProfiles
-          .getFollowedSellerIds(userId)
-          .catch(() => []);
-        if (followedSellerIds.length === 0) return { items: [], total: 0 };
-        const posts = await this.feedRepo
+        const { businessScopedIds, profileScopedIds } = await this.commerceProfiles
+          .getFollowedProfiles(userId)
+          .catch(() => ({ businessScopedIds: [], profileScopedIds: [] }));
+        if (businessScopedIds.length === 0 && profileScopedIds.length === 0) {
+          return { items: [], total: 0 };
+        }
+        const qb = this.feedRepo
           .createQueryBuilder('f')
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
-          .andWhere('f."businessId" IN (:...ids)', { ids: followedSellerIds })
-          .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
+          .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
+        // Following someone's Business profile (or a legacy account-level
+        // follow) surfaces everything under that businessId; following any
+        // OTHER specific profile (e.g. Personal) surfaces only that exact
+        // profile's posts — never the same account's other profiles.
+        qb.andWhere(
+          new Brackets((sub) => {
+            if (businessScopedIds.length > 0) {
+              sub.orWhere('f."businessId" IN (:...businessIds)', {
+                businessIds: businessScopedIds,
+              });
+            }
+            if (profileScopedIds.length > 0) {
+              sub.orWhere('f."commerceProfileId" IN (:...profileIds)', {
+                profileIds: profileScopedIds,
+              });
+            }
+          }),
+        );
+        const posts = await qb
           .orderBy('f.createdAt', 'DESC')
           .skip(offset)
           .take(limit)
@@ -490,18 +510,34 @@ export class FeedService {
       case 'for_you':
       default: {
         // Mix: followed posts + nearby + trending + recent
-        const forYouFollowedSellerIds = userId
-          ? await this.commerceProfiles.getFollowedSellerIds(userId).catch(() => [])
-          : [];
+        const forYouFollowed = userId
+          ? await this.commerceProfiles
+              .getFollowedProfiles(userId)
+              .catch(() => ({ businessScopedIds: [], profileScopedIds: [] }))
+          : { businessScopedIds: [], profileScopedIds: [] };
+        const hasFollows =
+          forYouFollowed.businessScopedIds.length > 0 ||
+          forYouFollowed.profileScopedIds.length > 0;
         const [followed, trending, recent] = await Promise.all([
-          forYouFollowedSellerIds.length > 0
+          hasFollows
             ? this.feedRepo
                 .createQueryBuilder('f')
                 .leftJoinAndSelect('f.business', 'b')
                 .where('f.isActive = true')
-                .andWhere('f."businessId" IN (:...ids)', {
-                  ids: forYouFollowedSellerIds,
-                })
+                .andWhere(
+                  new Brackets((sub) => {
+                    if (forYouFollowed.businessScopedIds.length > 0) {
+                      sub.orWhere('f."businessId" IN (:...businessIds)', {
+                        businessIds: forYouFollowed.businessScopedIds,
+                      });
+                    }
+                    if (forYouFollowed.profileScopedIds.length > 0) {
+                      sub.orWhere('f."commerceProfileId" IN (:...profileIds)', {
+                        profileIds: forYouFollowed.profileScopedIds,
+                      });
+                    }
+                  }),
+                )
                 .orderBy('f.createdAt', 'DESC')
                 .take(6)
                 .getMany()
@@ -774,21 +810,32 @@ export class FeedService {
     let followedSellerIds = new Set<number>();
 
     if (userId) {
-      const ids = await this.commerceProfiles
-        .getFollowedSellerIds(userId)
-        .catch(() => []);
-      followedSellerIds = new Set(ids);
+      const { businessScopedIds, profileScopedIds } = await this.commerceProfiles
+        .getFollowedProfiles(userId)
+        .catch(() => ({ businessScopedIds: [], profileScopedIds: [] }));
+      followedSellerIds = new Set(businessScopedIds);
 
-      if (followedSellerIds.size > 0) {
-        const followed = await this.feedRepo
+      if (businessScopedIds.length > 0 || profileScopedIds.length > 0) {
+        const qb = this.feedRepo
           .createQueryBuilder('f')
           .leftJoinAndSelect('f.business', 'b')
           .where('f.isActive = true')
-          .andWhere('f."businessId" IN (:...ids)', { ids })
-          .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
-          .orderBy('f.createdAt', 'DESC')
-          .take(20)
-          .getMany();
+          .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
+        qb.andWhere(
+          new Brackets((sub) => {
+            if (businessScopedIds.length > 0) {
+              sub.orWhere('f."businessId" IN (:...businessIds)', {
+                businessIds: businessScopedIds,
+              });
+            }
+            if (profileScopedIds.length > 0) {
+              sub.orWhere('f."commerceProfileId" IN (:...profileIds)', {
+                profileIds: profileScopedIds,
+              });
+            }
+          }),
+        );
+        const followed = await qb.orderBy('f.createdAt', 'DESC').take(20).getMany();
 
         followedFeed = await this.formatPosts(followed, 'business_post');
       }
