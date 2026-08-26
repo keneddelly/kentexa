@@ -9,7 +9,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, IsNull } from 'typeorm';
 import { ServiceAd, ServiceStatus } from './entities/service-ad.entity';
 import { JobRequest, JobStatus } from './entities/job-request.entity';
 import { User } from '../users/entities/user.entity';
@@ -144,9 +144,20 @@ export class ServicesService {
     this.searchIndex.remove('service', ad.id).catch(() => {});
   }
 
-  async getMyAds(userId: number): Promise<ServiceAd[]> {
+  // commerceProfileId optional and NULL-fallback-scoped, matching the
+  // pattern used everywhere else this session (Products/Classifieds) —
+  // an ad tagged to one profile (or predating this column entirely) still
+  // resolves for its owner; a Personal and Business profile on the same
+  // account stop sharing each other's ads only once a caller actually
+  // passes commerceProfileId.
+  async getMyAds(userId: number, commerceProfileId?: number): Promise<ServiceAd[]> {
     return this.adRepo.find({
-      where: { providerId: userId },
+      where: commerceProfileId
+        ? [
+            { providerId: userId, commerceProfileId },
+            { providerId: userId, commerceProfileId: IsNull() },
+          ]
+        : { providerId: userId },
       order: { createdAt: 'DESC' },
     });
   }

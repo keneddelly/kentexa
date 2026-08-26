@@ -56,10 +56,28 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
   useEffect(() => {
     const uid = currentUser?.id;
     if (!uid) { setLoadingItems(false); return; }
+    // Scoped to the ACTIVE profile when one is known — Kened's Personal
+    // profile must only ever see Kened's own classifieds here, never Bishoo
+    // Intelligence Systems' products just because they share an account,
+    // and vice versa when Bishoo is active. Falls back to the old
+    // account-wide endpoints only if activeProfileId is somehow unset
+    // (shouldn't happen for a logged-in user, but keeps this from breaking
+    // if it ever is). `/services/my` was also just a dead 404 before this —
+    // the real route is `/services/my/ads`, so service ads never actually
+    // loaded into this picker at all.
+    const productsCall = activeProfileId
+      ? api.get(`/products/profile/${activeProfileId}`)
+      : api.get(`/products/seller/${uid}`);
+    const classifiedsCall = activeProfileId
+      ? api.get(`/classifieds/profile/${activeProfileId}`)
+      : api.get(`/classifieds/seller/${uid}`);
+    const servicesCall = api.get('/services/my/ads', {
+      params: activeProfileId ? { commerceProfileId: activeProfileId } : undefined,
+    });
     Promise.allSettled([
-      api.get(`/classifieds/seller/${uid}`),
-      api.get(`/products/seller/${uid}`),
-      api.get('/services/my'),
+      classifiedsCall,
+      productsCall,
+      servicesCall,
       api.get('/transport/routes'),
     ]).then(([cl, pr, sv, rt]) => {
       const items = [];
@@ -85,7 +103,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       }
       setMyItems(items);
     }).finally(() => setLoadingItems(false));
-  }, [currentUser?.id, t]);
+  }, [currentUser?.id, activeProfileId, t]);
 
   const handlePickFile = (e) => {
     const f = e.target.files?.[0];

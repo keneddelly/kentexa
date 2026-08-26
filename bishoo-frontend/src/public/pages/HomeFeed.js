@@ -200,11 +200,19 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
     const uid = currentUser?.id;
     if (!uid) return;
     setLoadingItems(true);
-    Promise.allSettled([
-      api.get(`/classifieds/seller/${uid}`),
-      api.get(`/products/seller/${uid}`),
-      api.get('/services/my'),
-    ]).then(([cl, pr, sv]) => {
+    // Scoped to the active profile — see CreateMomentModal.js's identical
+    // fix for why (Kened's Personal profile must not offer Bishoo
+    // Intelligence Systems' products, and vice versa).
+    const productsCall = activeProfileId
+      ? api.get(`/products/profile/${activeProfileId}`)
+      : api.get(`/products/seller/${uid}`);
+    const classifiedsCall = activeProfileId
+      ? api.get(`/classifieds/profile/${activeProfileId}`)
+      : api.get(`/classifieds/seller/${uid}`);
+    const servicesCall = api.get('/services/my/ads', {
+      params: activeProfileId ? { commerceProfileId: activeProfileId } : undefined,
+    });
+    Promise.allSettled([classifiedsCall, productsCall, servicesCall]).then(([cl, pr, sv]) => {
       const items = [];
       if (cl.status === 'fulfilled') {
         (cl.value.data || []).forEach(c => items.push({
@@ -1205,7 +1213,7 @@ const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
 
 // ── Create a Moment — photo + tag one listing + optional caption ─────────────
 // ── View a Moment — full-screen, tap CTA to jump to the tagged listing ───────
-const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser }) => {
+const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser, activeProfileId }) => {
   const { t } = useTranslation();
   const ago = getAgo(t);
   const [saved, setSaved] = useState(false);
@@ -1255,11 +1263,19 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
     const uid = currentUser?.id;
     if (!uid) return;
     setLoadingItems(true);
-    Promise.allSettled([
-      api.get(`/classifieds/seller/${uid}`),
-      api.get(`/products/seller/${uid}`),
-      api.get('/services/my'),
-    ]).then(([cl, pr, sv]) => {
+    // Scoped to the active profile — see CreateMomentModal.js's identical
+    // fix for why (Kened's Personal profile must not offer Bishoo
+    // Intelligence Systems' products, and vice versa).
+    const productsCall = activeProfileId
+      ? api.get(`/products/profile/${activeProfileId}`)
+      : api.get(`/products/seller/${uid}`);
+    const classifiedsCall = activeProfileId
+      ? api.get(`/classifieds/profile/${activeProfileId}`)
+      : api.get(`/classifieds/seller/${uid}`);
+    const servicesCall = api.get('/services/my/ads', {
+      params: activeProfileId ? { commerceProfileId: activeProfileId } : undefined,
+    });
+    Promise.allSettled([classifiedsCall, productsCall, servicesCall]).then(([cl, pr, sv]) => {
       const items = [];
       if (cl.status === 'fulfilled') {
         (cl.value.data || []).forEach(c => items.push({
@@ -1287,6 +1303,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser 
       await api.post(`/feed/${moment.momentId}/comments`, {
         body: `I have this — ${replyItem.title}`,
         offer: { entityType: replyItem.type, entityId: replyItem.id },
+        commerceProfileId: activeProfileId || undefined,
       });
       setReplySent(true);
       setShowReply(false);
@@ -1811,6 +1828,7 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           onNavigate={onNavigate}
           isLoggedIn={isLoggedIn}
           currentUser={currentUser}
+          activeProfileId={activeProfileId}
         />
       )}
 

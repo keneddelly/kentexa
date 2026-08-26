@@ -99,8 +99,11 @@ export class ServicesController {
 
   @Get('my/ads')
   @UseGuards(JwtAuthGuard)
-  getMyAds(@Request() req) {
-    return this.svc.getMyAds(req.user.id);
+  getMyAds(@Request() req, @Query('commerceProfileId') commerceProfileId?: string) {
+    return this.svc.getMyAds(
+      req.user.id,
+      commerceProfileId ? Number(commerceProfileId) : undefined,
+    );
   }
 
   @Patch('my/ads/:id')
