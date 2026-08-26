@@ -93,6 +93,8 @@
     "delivery_address": "Anwani ya Utoaji",
     "address_placeholder": "e.g. Dar es Salaam, Kinondoni, Street 5",
     "address_hint": "Mfumo: Jiji, Wilaya, Mtaa",
+    "contact_info": "Taarifa za Mawasiliano",
+    "digital_instant_delivery": "Bidhaa ya dijitali — hakuna usafirishaji unaohitajika. Utapata ufikiaji papo hapo baada ya malipo.",
     "phone": "Nambari ya Simu * (255XXXXXXXXX)",
     "items": "Bidhaa",
     "delivery": "Usafirishaji",

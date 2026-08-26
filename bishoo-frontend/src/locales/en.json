@@ -72,6 +72,8 @@
     "delivery_address": "Delivery Address",
     "address_placeholder": "e.g. Dar es Salaam, Kinondoni, Street 5",
     "address_hint": "Format: City, District, Street",
+    "contact_info": "Contact Info",
+    "digital_instant_delivery": "Digital product — no shipping needed. You'll get instant access after payment.",
     "phone": "Phone Number * (255XXXXXXXXX)",
     "items": "Items",
     "delivery": "Delivery",
