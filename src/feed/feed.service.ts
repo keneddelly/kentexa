@@ -5,7 +5,12 @@
 import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, Brackets } from 'typeorm';
-import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
+import {
+  BusinessFeedItem,
+  FeedItemType,
+  MomentIntent,
+  MomentStatus,
+} from '../business/entities/business-feed-item.entity';
 import {
   PostEngagement,
   EngagementType,
@@ -24,6 +29,8 @@ import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profi
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { ProviderStatus } from '../transport/entities/transport-provider.entity';
 import { SellerStatus } from '../seller/entities/seller-profile.entity';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 export type FeedFilter =
   | 'for_you'
@@ -34,6 +41,31 @@ export type FeedFilter =
   | 'transport'
   | 'businesses'
   | 'trending';
+
+// Moment spec (2026-08) — every row created before `intent` existed (and
+// any new row whose creator didn't pick one explicitly) still needs a
+// sensible intent for the frontend to branch on. Pure mapping, never
+// written back to old rows — applied at read time in formatPosts() and
+// getMomentStories() below, and used at publish() time when the caller
+// doesn't send an explicit intent.
+export function deriveIntent(type: FeedItemType): MomentIntent {
+  switch (type) {
+    case FeedItemType.NEW_PRODUCT:
+    case FeedItemType.RESTOCK:
+    case FeedItemType.NEW_SERVICE:
+      return MomentIntent.SELL_AVAILABLE;
+    case FeedItemType.DISCOUNT:
+      return MomentIntent.OFFER;
+    case FeedItemType.ANNOUNCEMENT:
+    case FeedItemType.DELIVERY_INFO:
+      return MomentIntent.ANNOUNCEMENT;
+    case FeedItemType.LOOKING_FOR:
+      return MomentIntent.NEED;
+    case FeedItemType.MOMENT:
+    default:
+      return MomentIntent.UPDATE;
+  }
+}
 
 @Injectable()
 export class FeedService {
@@ -59,6 +91,7 @@ export class FeedService {
     private readonly notifService: InAppNotificationService,
     private readonly profileScope: CommerceProfileScopeService,
     private readonly commerceProfiles: CommerceProfilesService,
+    private readonly activityEvents: ActivityEventService,
   ) {}
 
   // ── Publish a post ────────────────────────────────────────────────────────
@@ -75,24 +108,48 @@ export class FeedService {
       expiresAt?: string;
       category?: string;
       commerceProfileId?: number;
+      intent?: string;
+      actionType?: string;
+      urgencyLevel?: string;
+      availabilityStatus?: string;
+      startsAt?: string;
+      locationRegion?: string;
+      locationDistrict?: string;
+      locationWard?: string;
+      locationLabel?: string;
+      visibility?: string;
     },
   ): Promise<BusinessFeedItem> {
+    const intent =
+      (dto.intent as MomentIntent) || deriveIntent(dto.type as FeedItemType);
+
     // Attributes the post to whichever profile was active when it was
     // published, so Kened's personal posts and Bishoo Intelligence
     // Systems' posts stop sharing one feed. Authorization is never
-    // trusted from the client — owner or an active team member with
-    // canManageProducts (posting on a business's behalf is presentation,
-    // the same bucket product listings live in).
+    // trusted from the client. Which check applies depends on intent
+    // (Moment spec section 16-17): a commerce-flavored post (OFFER,
+    // SELL_AVAILABLE) still requires canManageProducts — the same
+    // permission product listings live behind, since it's presenting the
+    // profile's stock/pricing. Everything else (UPDATE, NEED, REQUEST,
+    // ANNOUNCEMENT, ACHIEVEMENT) only needs to confirm the caller is
+    // actually authorized to act as this profile at all (owner or active
+    // team member) — posting "we're open today" or "looking for a
+    // supplier" was never a commerce-management action and shouldn't
+    // need that specific permission, or the SELL capability, to say so.
     let commerceProfileId: number | null = null;
     if (dto.commerceProfileId) {
+      const isCommerceIntent =
+        intent === MomentIntent.OFFER || intent === MomentIntent.SELL_AVAILABLE;
       const authorized = await this.profileScope.isAuthorizedFor(
         sellerId,
         dto.commerceProfileId,
-        'canManageProducts',
+        isCommerceIntent ? 'canManageProducts' : undefined,
       );
       if (!authorized) {
         throw new ForbiddenException(
-          'You do not manage this commerce profile',
+          isCommerceIntent
+            ? 'You do not manage this commerce profile'
+            : 'You are not authorized to post as this profile',
         );
       }
       commerceProfileId = dto.commerceProfileId;
@@ -100,6 +157,17 @@ export class FeedService {
 
     const item = await this.feedRepo.save(
       this.feedRepo.create({
+        intent,
+        actionType: (dto.actionType as any) || null,
+        urgencyLevel: (dto.urgencyLevel as any) || null,
+        availabilityStatus: dto.availabilityStatus || null,
+        startsAt: dto.startsAt ? new Date(dto.startsAt) : null,
+        locationRegion: dto.locationRegion || null,
+        locationDistrict: dto.locationDistrict || null,
+        locationWard: dto.locationWard || null,
+        locationLabel: dto.locationLabel || null,
+        visibility: (dto.visibility as any) || undefined,
+        status: MomentStatus.PUBLISHED,
         businessId: sellerId,
         commerceProfileId,
         type: dto.type as any,
@@ -124,6 +192,20 @@ export class FeedService {
     this.notifyFollowers(sellerId, item).catch((err) =>
       this.logger.warn('Feed notify failed:' + err),
     );
+
+    // Layer 1 of CLAUDE.md's intelligence architecture — record the raw
+    // fact, nothing else. record() itself never throws.
+    this.activityEvents.record({
+      eventType: 'MOMENT_CREATED',
+      category: ActivityCategory.CONTENT,
+      actorId: sellerId,
+      actorProfileId: commerceProfileId,
+      actorProfileType: null,
+      businessId: sellerId,
+      targetType: 'moment',
+      targetId: item.id,
+      metadata: { type: item.type, intent, urgencyLevel: item.urgencyLevel },
+    });
 
     return item;
   }
@@ -195,6 +277,29 @@ export class FeedService {
         .catch(() => {});
     }
 
+    // Only a genuine new SAVE/VIEW/SHARE (not an un-save, not a repeat
+    // VIEW/COMMENT/PURCHASE row) becomes an event — COMMENT already gets
+    // its own MOMENT_COMMENTED from addComment(), and PURCHASE/SHIPMENT
+    // are commerce facts already covered by the Order event trail.
+    const momentEventType: Record<string, string> = {
+      [EngagementType.VIEW]: 'MOMENT_VIEWED',
+      [EngagementType.SAVE]: 'MOMENT_SAVED',
+      [EngagementType.SHARE]: 'MOMENT_SHARED',
+    };
+    if (toggled && momentEventType[type]) {
+      this.activityEvents.record({
+        eventType: momentEventType[type],
+        category: ActivityCategory.CONTENT,
+        actorId: userId,
+        businessId: post.businessId,
+        actorProfileId: null,
+        targetType: 'moment',
+        targetId: postId,
+        relatedBusinessId: post.businessId,
+        metadata: { commerceProfileId: (post as any).commerceProfileId || null },
+      });
+    }
+
     return { toggled, cvsScore: Number(post.cvsScore) };
   }
 
@@ -227,11 +332,16 @@ export class FeedService {
       .orderBy('f.createdAt', 'DESC')
       .getMany();
 
-    // One story per user — keep their most recent post (either flavor) only
-    const seen = new Set<number>();
+    // One story per PROFILE, not per user — Kened's Personal and Bishoo
+    // Intelligence Systems' Business profile posting within the same 48h
+    // window are two different identities and each deserves its own story
+    // ring slot; keying on raw businessId silently dropped whichever
+    // posted less recently.
+    const seen = new Set<string>();
     const unique = moments.filter((m) => {
-      if (seen.has(m.businessId)) return false;
-      seen.add(m.businessId);
+      const key = `${m.businessId}:${(m as any).commerceProfileId || 0}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
       return true;
     });
 
@@ -266,6 +376,7 @@ export class FeedService {
       return {
         momentId: m.id,
         postType: m.type, // 'moment' | 'looking_for'
+        intent: (m as any).intent || deriveIntent(m.type),
         imageUrl: m.imageUrl,
         caption: m.body,
         category: m.category,
@@ -330,6 +441,17 @@ export class FeedService {
         })
         .catch(() => {});
     }
+
+    this.activityEvents.record({
+      eventType: 'MOMENT_COMMENTED',
+      category: ActivityCategory.CONTENT,
+      actorId: userId,
+      businessId: post?.businessId ?? null,
+      targetType: 'moment',
+      targetId: postId,
+      relatedBusinessId: post?.businessId ?? null,
+      metadata: { commentId: comment.id },
+    });
 
     return comment;
   }
@@ -897,10 +1019,21 @@ export class FeedService {
   }
 
   async deletePost(sellerId: number, postId: number): Promise<void> {
-    await this.feedRepo.update(
+    const result = await this.feedRepo.update(
       { id: postId, businessId: sellerId },
-      { isActive: false },
+      { isActive: false, status: MomentStatus.ARCHIVED },
     );
+    if (result.affected) {
+      this.activityEvents.record({
+        eventType: 'MOMENT_STATUS_CHANGED',
+        category: ActivityCategory.CONTENT,
+        actorId: sellerId,
+        businessId: sellerId,
+        targetType: 'moment',
+        targetId: postId,
+        metadata: { status: MomentStatus.ARCHIVED },
+      });
+    }
   }
 
   // ── Format helpers ────────────────────────────────────────────────────────
@@ -950,7 +1083,15 @@ export class FeedService {
         id: 'feed-' + f.id,
         feedType,
         createdAt: f.createdAt,
-        data: f,
+        // Old rows predate `intent`/`status` (both nullable/defaulted at the
+        // column level, but a pre-migration row still resolved with `intent:
+        // null` until now) — derive rather than backfill so every post the
+        // frontend ever sees carries a usable intent without a data migration.
+        data: {
+          ...f,
+          intent: f.intent || deriveIntent(f.type),
+          status: f.status || MomentStatus.PUBLISHED,
+        },
         business,
         cvsScore: f.cvsScore,
         saveCount: f.saveCount,
