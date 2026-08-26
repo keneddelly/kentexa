@@ -9,13 +9,16 @@ import { Repository, DataSource } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { InvoiceCounter } from './entities/invoice-counter.entity';
 import { ReceiptCounter } from './entities/receipt-counter.entity';
-import { Order, OrderStatus } from '../orders/entities/order.entity';
+import { Order, OrderStatus, EscrowStatus } from '../orders/entities/order.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { WalletService } from '../wallet/wallet.service';
+import { ReputationService } from '../reputation/reputation.service';
+import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 
 @Injectable()
 export class InvoicesService {
@@ -31,6 +34,8 @@ export class InvoicesService {
     private dataSource: DataSource,
     private activityEvents: ActivityEventService,
     private commerceProfiles: CommerceProfilesService,
+    private walletService: WalletService,
+    private reputationService: ReputationService,
   ) {}
 
   async generateInvoiceNumber(): Promise<string> {
@@ -237,9 +242,40 @@ export class InvoicesService {
     // confirmation the buyer is waiting on.
     if ((invoice.order?.product as any)?.productType === 'digital') {
       try {
+        const now = new Date();
         await this.orderRepo.update(invoice.order.id, {
           status: OrderStatus.COMPLETED,
-        });
+          deliveredAt: now,
+          completedAt: now,
+          payoutStatus: 'released',
+          escrowStatus: EscrowStatus.RELEASED,
+          fundsReleasedAt: now,
+        } as any);
+        if (invoice.order.seller?.id) {
+          await this.walletService
+            .creditFromEscrowRelease(
+              invoice.order.seller.id,
+              invoice.order.id,
+              Number(invoice.order.sellerAmount || 0),
+            )
+            .catch(() => {});
+        }
+        if (invoice.buyer?.id) {
+          await this.reputationService
+            .award(invoice.buyer.id, ReputationEventType.ORDER_COMPLETED, {
+              sourceEntityType: 'order',
+              sourceEntityId: invoice.order.id,
+            })
+            .catch(() => {});
+        }
+        if (invoice.order.seller?.id) {
+          await this.reputationService
+            .award(invoice.order.seller.id, ReputationEventType.ORDER_COMPLETED, {
+              sourceEntityType: 'order',
+              sourceEntityId: invoice.order.id,
+            })
+            .catch(() => {});
+        }
       } catch (err) {
         this.logger.warn(`Digital order auto-complete failed: ${err.message}`);
       }

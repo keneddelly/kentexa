@@ -9,6 +9,8 @@ import { InvoicesService } from './invoices.service';
 import { InvoicesController } from './invoices.controller';
 import { ActivityModule } from '../activity/activity.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { WalletModule } from '../wallet/wallet.module';
+import { ReputationModule } from '../reputation/reputation.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
     ScheduleModule.forRoot(),
     ActivityModule,
     CommerceProfilesModule,
+    WalletModule,
+    ReputationModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],

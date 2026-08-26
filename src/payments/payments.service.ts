@@ -38,6 +38,10 @@ import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { WalletService } from '../wallet/wallet.service';
+import { ReputationService } from '../reputation/reputation.service';
+import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
+import { OrderStatus } from '../orders/entities/order.entity';
 
 const USE_INDIVIDUAL_NETWORKS = false;
 
@@ -79,6 +83,8 @@ export class PaymentsService {
     private invoicesService: InvoicesService,
     private activityEvents: ActivityEventService,
     private commerceProfiles: CommerceProfilesService,
+    private walletService: WalletService,
+    private reputationService: ReputationService,
   ) {}
 
   private getProvider(provider: string): IPaymentProvider {
@@ -117,6 +123,24 @@ export class PaymentsService {
 
   // ── Auto-confirm order after payment + send notifications ─────────────────
   private async autoConfirmOrder(orderId: number): Promise<void> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: { buyer: true, seller: true, product: true },
+    });
+    if (!order) return;
+
+    // Payment webhooks can retry — never re-process a completed order.
+    if (order.status === OrderStatus.COMPLETED) return;
+
+    // Digital products (Layer 1 seller verification) have nothing to ship —
+    // this path (direct online payment, not invoice) previously left them
+    // stuck at status 'paid' forever, since only the invoice-payment path
+    // (invoices.service.ts's markPaid) auto-completed digital orders.
+    if ((order.product as any)?.productType === 'digital') {
+      await this.completeDigitalOrder(order);
+      return;
+    }
+
     await this.orderRepo.update(orderId, {
       paymentStatus: 'paid' as any,
       status: 'paid' as any,
@@ -125,32 +149,113 @@ export class PaymentsService {
 
     // 📱 SMS (1 of 3 allowed) + 📧 Email — to BOTH buyer and seller
     try {
-      const order = await this.orderRepo.findOne({
-        where: { id: orderId },
-        relations: { buyer: true, seller: true, product: true },
-      });
-      if (order) {
-        await this.notificationsService.orderPaid(
-          {
-            email: order.buyer?.email,
-            phone: order.buyer?.phone,
-            name: order.buyer?.name,
-          },
-          {
-            email: order.seller?.email,
-            phone: order.seller?.phone,
-            name: order.seller?.name,
-          },
-          order.id,
-          order.product?.name || 'Product',
-          Number(order.totalAmount || 0),
-        );
-      }
+      await this.notificationsService.orderPaid(
+        {
+          email: order.buyer?.email,
+          phone: order.buyer?.phone,
+          name: order.buyer?.name,
+        },
+        {
+          email: order.seller?.email,
+          phone: order.seller?.phone,
+          name: order.seller?.name,
+        },
+        order.id,
+        order.product?.name || 'Product',
+        Number(order.totalAmount || 0),
+      );
     } catch (err) {
       this.logger.warn(
         `Failed to send orderPaid notifications for order #${orderId}: ${err.message}`,
       );
     }
+  }
+
+  // ── Digital products complete atomically on payment — no shipment, no
+  // buyer-confirms-delivery step. Escrow releases immediately (mirrors
+  // OrdersService.buyerConfirm()'s completion side effects: wallet credit,
+  // reputation, activity event) since there's no physical delivery signal
+  // to hold funds against — disputes/refunds handle the exception case
+  // after the fact via the existing DisputesService.
+  private async completeDigitalOrder(order: Order): Promise<void> {
+    const now = new Date();
+    await this.orderRepo.update(order.id, {
+      paymentStatus: OrderPaymentStatus.PAID,
+      status: OrderStatus.COMPLETED,
+      deliveredAt: now,
+      completedAt: now,
+      payoutStatus: 'released',
+      escrowStatus: EscrowStatus.RELEASED,
+      fundsReleasedAt: now,
+    } as any);
+    this.logger.log(`Digital order #${order.id} auto-completed after payment`);
+
+    if (order.seller?.id) {
+      await this.walletService
+        .creditFromEscrowRelease(
+          order.seller.id,
+          order.id,
+          Number(order.sellerAmount || 0),
+        )
+        .catch(() => {});
+    }
+
+    try {
+      if (order.buyer?.id) {
+        await this.reputationService.award(
+          order.buyer.id,
+          ReputationEventType.ORDER_COMPLETED,
+          { sourceEntityType: 'order', sourceEntityId: order.id },
+        );
+      }
+      if (order.seller?.id) {
+        await this.reputationService.award(
+          order.seller.id,
+          ReputationEventType.ORDER_COMPLETED,
+          { sourceEntityType: 'order', sourceEntityId: order.id },
+        );
+      }
+    } catch {
+      /* non-critical */
+    }
+
+    try {
+      await this.notificationsService.orderCompleted(
+        {
+          email: order.seller?.email,
+          phone: order.seller?.phone,
+          name: order.seller?.name,
+        },
+        {
+          email: order.buyer?.email,
+          phone: order.buyer?.phone,
+          name: order.buyer?.name,
+        },
+        order.id,
+        Number(order.sellerAmount || 0),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Failed to send orderCompleted notifications for order #${order.id}: ${err.message}`,
+      );
+    }
+
+    const sellerProfile = order.seller?.id
+      ? await this.commerceProfiles
+          .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)
+          .catch(() => null)
+      : null;
+    this.activityEvents.record({
+      eventType: 'ORDER_COMPLETED',
+      category: ActivityCategory.COMMERCE,
+      actorId: order.buyer?.id ?? null,
+      actorType: 'buyer',
+      businessId: sellerProfile?.id ?? null,
+      relatedUserId: order.seller?.id ?? null,
+      targetType: 'order',
+      targetId: order.id,
+      metadata: { totalAmount: order.totalAmount, digital: true },
+    });
   }
 
   // ── Escrow release (admin triggers) ─────────────────────────────────────

@@ -18,6 +18,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { ActivityModule } from '../activity/activity.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
+import { WalletModule } from '../wallet/wallet.module';
+import { ReputationModule } from '../reputation/reputation.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
     InvoicesModule,
     ActivityModule,
     CommerceProfilesModule,
+    WalletModule,
+    ReputationModule,
   ],
   controllers: [PaymentsController],
   providers: [

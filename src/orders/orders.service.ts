@@ -55,6 +55,13 @@ const CATEGORY_COMMISSION: Record<string, number> = {
   general: 10,
   property: 0,
   services: 0,
+  // ── Digital goods ──
+  ebooks: 10,
+  software: 10,
+  online_courses: 10,
+  digital_services: 0,
+  music_media: 10,
+  digital_general: 10,
 };
 
 const getCommissionRate = (category: string): number =>
