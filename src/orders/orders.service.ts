@@ -999,10 +999,18 @@ export class OrdersService {
           { sourceEntityType: 'order', sourceEntityId: orderId },
         );
       if (ord?.seller?.id)
+        // Seller's trust for completing this sale belongs to the specific
+        // profile that made it, not the account overall (profile-
+        // architecture-audit-2026-08) — buyer side stays account-level,
+        // since buying isn't a profile-scoped act the way selling is.
         await this.reputationService.award(
           ord.seller.id,
           ReputationEventType.ORDER_COMPLETED,
-          { sourceEntityType: 'order', sourceEntityId: orderId },
+          {
+            sourceEntityType: 'order',
+            sourceEntityId: orderId,
+            commerceProfileId: (ord as any).commerceProfileId ?? null,
+          },
         );
     } catch {
       /* non-critical */

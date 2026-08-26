@@ -273,6 +273,7 @@ export class InvoicesService {
             .award(invoice.order.seller.id, ReputationEventType.ORDER_COMPLETED, {
               sourceEntityType: 'order',
               sourceEntityId: invoice.order.id,
+              commerceProfileId: (invoice.order as any).commerceProfileId ?? null,
             })
             .catch(() => {});
         }

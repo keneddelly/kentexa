@@ -15,6 +15,7 @@ import {
   getTier,
 } from './entities/reputation-event.entity';
 import { User } from '../users/entities/user.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Injectable()
 export class ReputationService {
@@ -25,10 +26,19 @@ export class ReputationService {
     private eventRepo: Repository<ReputationEvent>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    @InjectRepository(CommerceProfile)
+    private commerceProfileRepo: Repository<CommerceProfile>,
   ) {}
 
   // ── Add a reputation event ────────────────────────────────────────────────
-
+  // Pass opts.commerceProfileId for any commerce-transaction-driven event
+  // (order completed, delivery timing, ratings, disputes, response time) —
+  // points apply to that specific CommerceProfile's own reputationScore,
+  // independent of any other profile the same account runs, per
+  // profile-architecture-audit-2026-08. Omit it for identity/tenure
+  // events (verified phone/ID/business, year active — see bootstrap()) —
+  // those are facts about the person and stay on User.reputationScore.
+  // userId is always recorded either way, for accountability/audit.
   async award(
     userId: number,
     eventType: ReputationEventType,
@@ -36,15 +46,24 @@ export class ReputationService {
       sourceEntityType?: string;
       sourceEntityId?: number;
       note?: string;
+      commerceProfileId?: number | null;
     },
   ): Promise<{ score: number; tier: ReturnType<typeof getTier> }> {
     const points = REPUTATION_POINTS[eventType];
+    const commerceProfileId = opts?.commerceProfileId || null;
 
-    // Get current score
-    const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) return { score: 0, tier: getTier(0) };
-
-    const currentScore: number = (user as any).reputationScore || 0;
+    let currentScore: number;
+    if (commerceProfileId) {
+      const profile = await this.commerceProfileRepo.findOne({
+        where: { id: commerceProfileId },
+      });
+      if (!profile) return { score: 0, tier: getTier(0) };
+      currentScore = (profile as any).reputationScore || 0;
+    } else {
+      const user = await this.userRepo.findOne({ where: { id: userId } });
+      if (!user) return { score: 0, tier: getTier(0) };
+      currentScore = (user as any).reputationScore || 0;
+    }
 
     // Floor: score can't go below 10% of peak (resilience principle)
     const newScore = Math.max(
@@ -57,6 +76,7 @@ export class ReputationService {
     await this.eventRepo.save(
       this.eventRepo.create({
         userId,
+        commerceProfileId,
         eventType,
         points,
         scoreAfter: clampedScore,
@@ -66,14 +86,20 @@ export class ReputationService {
       }),
     );
 
-    // Update user score
-    await this.userRepo.update(userId, {
-      reputationScore: clampedScore,
-    });
+    // Update the score on whichever entity actually owns it
+    if (commerceProfileId) {
+      await this.commerceProfileRepo.update(commerceProfileId, {
+        reputationScore: clampedScore,
+      } as any);
+    } else {
+      await this.userRepo.update(userId, {
+        reputationScore: clampedScore,
+      });
+    }
 
     const tier = getTier(clampedScore);
     this.logger.log(
-      `User ${userId} | ${eventType} | ${points > 0 ? '+' : ''}${points} → ${clampedScore} (${tier.name})`,
+      `${commerceProfileId ? `Profile ${commerceProfileId}` : `User ${userId}`} | ${eventType} | ${points > 0 ? '+' : ''}${points} → ${clampedScore} (${tier.name})`,
     );
 
     return { score: clampedScore, tier };
@@ -128,6 +154,54 @@ export class ReputationService {
       .getCount();
 
     return { score, tier, history, breakdown, rank: higher + 1 };
+  }
+
+  // ── Get reputation profile for a specific CommerceProfile ─────────────────
+  // Same shape as getProfile(userId), scoped to one profile's own commerce
+  // history instead of the account's identity trust — a Business's rating
+  // page should show only what THAT business earned, never mixed with the
+  // owner's Personal profile or any other business they run.
+  async getProfileForCommerceProfile(commerceProfileId: number): Promise<{
+    score: number;
+    tier: ReturnType<typeof getTier>;
+    history: ReputationEvent[];
+    breakdown: Record<string, number>;
+  }> {
+    const profile = await this.commerceProfileRepo.findOne({
+      where: { id: commerceProfileId },
+    });
+    const score: number = (profile as any)?.reputationScore || 0;
+    const tier = getTier(score);
+
+    const history = await this.eventRepo.find({
+      where: { commerceProfileId },
+      order: { createdAt: 'DESC' },
+      take: 20,
+    });
+
+    const breakdown: Record<string, number> = {
+      orders: 0,
+      deliveries: 0,
+      ratings: 0,
+      trust: 0,
+      other: 0,
+    };
+    const allEvents = await this.eventRepo.find({ where: { commerceProfileId } });
+    for (const e of allEvents) {
+      if (e.eventType.includes('order')) breakdown.orders += e.points;
+      else if (
+        e.eventType.includes('delivery') ||
+        e.eventType.includes('transport')
+      )
+        breakdown.deliveries += e.points;
+      else if (e.eventType.includes('rating') || e.eventType.includes('star'))
+        breakdown.ratings += e.points;
+      else if (e.eventType.includes('verified') || e.eventType.includes('year'))
+        breakdown.trust += e.points;
+      else breakdown.other += e.points;
+    }
+
+    return { score, tier, history, breakdown };
   }
 
   // ── Bootstrap: compute scores from existing data ──────────────────────────

@@ -212,7 +212,11 @@ export class PaymentsService {
         await this.reputationService.award(
           order.seller.id,
           ReputationEventType.ORDER_COMPLETED,
-          { sourceEntityType: 'order', sourceEntityId: order.id },
+          {
+            sourceEntityType: 'order',
+            sourceEntityId: order.id,
+            commerceProfileId: (order as any).commerceProfileId ?? null,
+          },
         );
       }
     } catch {

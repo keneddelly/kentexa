@@ -99,6 +99,18 @@ export class ReputationEvent {
   @Column({ type: 'int' })
   userId: number;
 
+  // Set only for commerce-transaction-driven events (order completed,
+  // delivery timing, ratings, disputes, response time) — these belong to
+  // whichever profile actually transacted, not the account, per
+  // profile-architecture-audit-2026-08's "commerce activities always
+  // belong to the active profile" principle. Null for identity/tenure
+  // events (verified phone/ID/business, year active) — those are facts
+  // about the PERSON, not a specific profile, and stay account-level.
+  // When set, points apply to CommerceProfile.reputationScore instead of
+  // User.reputationScore — see ReputationService.award().
+  @Column({ type: 'int', nullable: true })
+  commerceProfileId: number | null;
+
   @Column({ type: 'enum', enum: ReputationEventType })
   eventType: ReputationEventType;
 

@@ -9,9 +9,10 @@ import { ReputationEvent } from './entities/reputation-event.entity';
 import { ReputationService } from './reputation.service';
 import { ReputationController } from './reputation.controller';
 import { User } from '../users/entities/user.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ReputationEvent, User])],
+  imports: [TypeOrmModule.forFeature([ReputationEvent, User, CommerceProfile])],
   controllers: [ReputationController],
   providers: [ReputationService],
   exports: [ReputationService],
