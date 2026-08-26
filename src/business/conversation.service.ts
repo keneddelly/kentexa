@@ -27,6 +27,7 @@ import { User } from '../users/entities/user.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { ConversationGateway } from './conversation.gateway';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class ConversationService {
@@ -43,6 +44,7 @@ export class ConversationService {
     private notifService: InAppNotificationService,
     private gateway: ConversationGateway,
     private whatsappService: WhatsappService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // ── Get all conversations for seller ─────────────────────────────────────
@@ -282,6 +284,13 @@ export class ConversationService {
       isNote: dto.isNote || false,
     });
     await this.msgRepo.save(msg);
+
+    this.eventEmitter.emit('message.sent', {
+      conversationId,
+      sellerId,
+      senderId: sender.id,
+      isNote: !!dto.isNote,
+    });
 
     // Update conversation — internal notes aren't visible to the buyer, so
     // they don't touch lastMessage*/buyerUnreadCount, only messageCount.

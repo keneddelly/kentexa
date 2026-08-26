@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../users/entities/user.entity';
 import { SmsService } from '../sms/sms.service';
 import { MailService } from '../mail/mail.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class AuthService {
@@ -20,6 +21,7 @@ export class AuthService {
     private jwtService: JwtService,
     private smsService: SmsService,
     private mailService: MailService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   private signToken(user: User) {
@@ -144,6 +146,11 @@ export class AuthService {
       otp: null,
       otpExpiry: null,
       otpAttempts: 0,
+    });
+
+    this.eventEmitter.emit('user.registered', {
+      userId: user.id,
+      role: user.role,
     });
 
     // Send welcome messages

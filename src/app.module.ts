@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ClassifiedsModule } from './classifieds/classifieds.module';
@@ -37,11 +38,13 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { BodaRatesModule } from './boda-rates/boda-rates.module';
 import { ContactModule } from './contact/contact.module';
+import { ActivityModule } from './activity/activity.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -91,6 +94,7 @@ import { ContactModule } from './contact/contact.module';
     AnnouncementsModule,
     BodaRatesModule,
     ContactModule,
+    ActivityModule,
   ],
 })
 export class AppModule {}

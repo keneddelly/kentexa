@@ -18,6 +18,7 @@ import {
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { BusinessTeamMember } from '../business/entities/business-team-member.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class SellerService {
@@ -34,6 +35,7 @@ export class SellerService {
     private productRepo: Repository<Product>,
     @InjectRepository(BusinessTeamMember)
     private teamRepo: Repository<BusinessTeamMember>,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // ── Public: all approved sellers (raw profiles) ──────────────────────────
@@ -461,6 +463,12 @@ export class SellerService {
     if (!profile) throw new NotFoundException('Seller profile not found');
     profile.status = SellerStatus.APPROVED;
     await this.userRepo.update(profile.user.id, { role: UserRole.SELLER });
+
+    this.eventEmitter.emit('business.verified', {
+      businessId: profile.user.id,
+      sellerProfileId: profileId,
+    });
+
     return this.profileRepo.save(profile);
   }
 
