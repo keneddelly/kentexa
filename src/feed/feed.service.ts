@@ -207,7 +207,79 @@ export class FeedService {
       metadata: { type: item.type, intent, urgencyLevel: item.urgencyLevel },
     });
 
+    // NEED-matching — the one genuinely new piece of business logic here,
+    // deliberately isolated in its own method behind its own try/catch so
+    // it can be disabled or reworked without touching publish() itself.
+    if (intent === MomentIntent.NEED) {
+      this.matchNeedToSellers(item).catch((err) =>
+        this.logger.warn('NEED-match failed:' + err),
+      );
+    }
+
     return item;
+  }
+
+  // ── NEED-matching (Moment spec Stage 6) ─────────────────────────────────
+  // Proactively tells sellers whose CommerceProfile.category matches a fresh
+  // NEED/LOOKING_FOR post that a customer wants what they offer — today a
+  // NEED post only converts if a seller happens to scroll past it. Matching
+  // is deliberately simple (exact category equality, case-insensitive) —
+  // this is a first pass, not the AI-keyword-aware matching CLAUDE.md
+  // describes as the eventual goal; it can be swapped for that without
+  // touching anything that calls this method. Rate-limited per RECIPIENT
+  // (not per NEED post) so a category with many open NEEDs can't flood one
+  // seller's notifications.
+  private async matchNeedToSellers(item: BusinessFeedItem): Promise<void> {
+    if (!item.category) return;
+
+    const MAX_MATCHES = 10;
+    const RATE_LIMIT_PER_DAY = 5;
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const candidates = await this.commerceProfileRepo
+      .createQueryBuilder('p')
+      .where('LOWER(p.category) = LOWER(:category)', { category: item.category })
+      .andWhere('p.ownerId != :posterId', { posterId: item.businessId })
+      .orderBy('p.reputationScore', 'DESC')
+      .addOrderBy('p.rating', 'DESC')
+      .take(MAX_MATCHES)
+      .getMany();
+
+    for (const profile of candidates) {
+      const recentMatches = await this.activityEvents.countSince(
+        profile.ownerId,
+        'MOMENT_NEED_MATCHED',
+        since,
+      );
+      if (recentMatches >= RATE_LIMIT_PER_DAY) continue;
+
+      this.notifService
+        .notify({
+          userId: profile.ownerId,
+          type: 'need_match',
+          title: '🙋 A customer is looking for what you offer',
+          body: `"${item.title}" matches your ${item.category} category`,
+          icon: '🙋',
+          actionPage: 'CommerceProfile',
+          actionParam: `${item.businessId}-feed-${item.id}`,
+          actionCommerceProfileId: profile.id,
+        })
+        .catch(() => {});
+
+      // businessId carries the RECIPIENT here (not the poster, unlike
+      // MOMENT_CREATED) — this is the fact "profile.ownerId was matched
+      // to a NEED," which is what the rate-limit check above and any
+      // future "NEEDs matched to you" intelligence report needs to query.
+      this.activityEvents.record({
+        eventType: 'MOMENT_NEED_MATCHED',
+        category: ActivityCategory.CONTENT,
+        businessId: profile.ownerId,
+        relatedBusinessId: item.businessId,
+        targetType: 'moment',
+        targetId: item.id,
+        metadata: { commerceProfileId: profile.id, category: item.category },
+      });
+    }
   }
 
   // ── Record engagement + update CVS ───────────────────────────────────────
@@ -275,29 +347,6 @@ export class FeedService {
           actionCommerceProfileId: (post as any).commerceProfileId || undefined,
         })
         .catch(() => {});
-    }
-
-    // Only a genuine new SAVE/VIEW/SHARE (not an un-save, not a repeat
-    // VIEW/COMMENT/PURCHASE row) becomes an event — COMMENT already gets
-    // its own MOMENT_COMMENTED from addComment(), and PURCHASE/SHIPMENT
-    // are commerce facts already covered by the Order event trail.
-    const momentEventType: Record<string, string> = {
-      [EngagementType.VIEW]: 'MOMENT_VIEWED',
-      [EngagementType.SAVE]: 'MOMENT_SAVED',
-      [EngagementType.SHARE]: 'MOMENT_SHARED',
-    };
-    if (toggled && momentEventType[type]) {
-      this.activityEvents.record({
-        eventType: momentEventType[type],
-        category: ActivityCategory.CONTENT,
-        actorId: userId,
-        businessId: post.businessId,
-        actorProfileId: null,
-        targetType: 'moment',
-        targetId: postId,
-        relatedBusinessId: post.businessId,
-        metadata: { commerceProfileId: (post as any).commerceProfileId || null },
-      });
     }
 
     return { toggled, cvsScore: Number(post.cvsScore) };
@@ -441,17 +490,6 @@ export class FeedService {
         })
         .catch(() => {});
     }
-
-    this.activityEvents.record({
-      eventType: 'MOMENT_COMMENTED',
-      category: ActivityCategory.CONTENT,
-      actorId: userId,
-      businessId: post?.businessId ?? null,
-      targetType: 'moment',
-      targetId: postId,
-      relatedBusinessId: post?.businessId ?? null,
-      metadata: { commentId: comment.id },
-    });
 
     return comment;
   }

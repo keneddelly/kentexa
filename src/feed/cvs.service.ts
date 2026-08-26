@@ -31,6 +31,8 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { EntityOwnerResolver } from './engagements.controller';
 import { PurchaseVerificationService } from './comment-support.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 @Injectable()
 export class CvsService {
@@ -57,6 +59,7 @@ export class CvsService {
     private readonly owners: EntityOwnerResolver,
     private readonly purchaseVerification: PurchaseVerificationService,
     private readonly commerceProfiles: CommerceProfilesService,
+    private readonly activityEvents: ActivityEventService,
   ) {}
 
   // ── Record engagement + update CVS ───────────────────────────────────────
@@ -95,6 +98,29 @@ export class CvsService {
     // Notify the post owner on a brand-new save (not on unsave)
     if (toggled && type === EngagementType.SAVE) {
       this.notifyOwnerOfPost(userId, postId, 'save').catch(() => {});
+    }
+
+    // Layer 1 activity trail — a genuine new SAVE/SHARE only, never an
+    // un-save/un-share. VIEW is deliberately excluded: every call creates
+    // a fresh PostEngagement row (no dedup), so it's already a deterministic
+    // counter (`post.viewCount`, Layer 2) — logging one CONTENT event per
+    // view would just be noise at any real traffic volume. COMMENT is
+    // covered by addComment()'s own event; PURCHASE/SHIPMENT are commerce
+    // facts already in the Order event trail.
+    if (toggled && (type === EngagementType.SAVE || type === EngagementType.SHARE)) {
+      const post = await this.feedRepo.findOne({ where: { id: postId } });
+      if (post) {
+        this.activityEvents.record({
+          eventType: type === EngagementType.SAVE ? 'MOMENT_SAVED' : 'MOMENT_SHARED',
+          category: ActivityCategory.CONTENT,
+          actorId: userId,
+          businessId: post.businessId,
+          targetType: 'moment',
+          targetId: postId,
+          relatedBusinessId: post.businessId,
+          metadata: { commerceProfileId: (post as any).commerceProfileId || null },
+        });
+      }
     }
 
     return { toggled, newCvs };
@@ -207,6 +233,26 @@ export class CvsService {
     } else {
       this.notifyOwnerOfPost(userId, postId, 'comment', body, commerceProfileId).catch(() => {});
     }
+
+    // Layer 1 activity trail. An offer reply (tagging one of the replier's
+    // own listings against a NEED/LOOKING_FOR post) is a materially
+    // different fact than a plain comment — the moment a NEED gets a real
+    // answer — so it gets its own event type rather than folding into
+    // MOMENT_COMMENTED.
+    this.activityEvents.record({
+      eventType: offerEntityType ? 'MOMENT_OFFER_SENT' : 'MOMENT_COMMENTED',
+      category: ActivityCategory.CONTENT,
+      actorId: userId,
+      actorProfileId: commerceProfileId || null,
+      businessId: post?.businessId ?? null,
+      targetType: 'moment',
+      targetId: postId,
+      relatedBusinessId: post?.businessId ?? null,
+      metadata: {
+        commentId: comment.id,
+        ...(offerEntityType ? { offerEntityType, offerEntityId } : {}),
+      },
+    });
 
     const saved = (await this.commentRepo.findOne({
       where: { id: comment.id },
