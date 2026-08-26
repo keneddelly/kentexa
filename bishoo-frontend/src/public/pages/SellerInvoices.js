@@ -5,7 +5,7 @@ import api from '../../api/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
-const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected }) => {
+const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, activeProfileId }) => {
   const { t } = useTranslation();
   const [requests, setRequests]           = useState([]);
   const [loading, setLoading]             = useState(true);
@@ -58,7 +58,11 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected }) =>
   const fetchMyClassifieds = async () => {
     try {
       setLoadingClassifieds(true);
-      const res = await api.get('/classifieds/user/mine');
+      // Scoped to the active profile — see SellerProducts.js's identical fix
+      // (profile-architecture-audit-2026-08).
+      const res = await api.get('/classifieds/user/mine', {
+        params: activeProfileId ? { commerceProfileId: activeProfileId } : {},
+      });
       setMyClassifieds(res.data);
     } catch { setMyClassifieds([]); }
     finally { setLoadingClassifieds(false); }

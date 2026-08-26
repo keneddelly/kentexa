@@ -99,8 +99,9 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
     fetchMyClassifieds();
     // Check if user has a phone number — required for classified contact
     api.get('/auth/profile').then(res => setUserPhone(res.data?.phone || '')).catch(() => {});
+  // Re-fetch when the active profile changes, same reasoning as SellerProducts.js.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeProfileId]);
 
   // Deep-linked straight into editing one listing (e.g. from its Classified
   // Detail page's ••• menu) — open the edit form the moment it's loaded.
@@ -127,7 +128,11 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const fetchMyClassifieds = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/classifieds/user/mine');
+      // Scoped to the active profile — see SellerProducts.js's identical fix
+      // (profile-architecture-audit-2026-08).
+      const res = await api.get('/classifieds/user/mine', {
+        params: activeProfileId ? { commerceProfileId: activeProfileId } : {},
+      });
       setClassifieds(res.data);
     } catch { setError(t('seller_classifieds.load_failed')); }
     finally { setLoading(false); }

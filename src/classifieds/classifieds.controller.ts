@@ -161,9 +161,15 @@ export class ClassifiedsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('user/mine')
-  async findMine(@Request() req) {
+  async findMine(
+    @Request() req,
+    @Query('commerceProfileId') commerceProfileId?: string,
+  ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
-    return this.service.findMine({ id: sellerId } as User);
+    return this.service.findMine(
+      { id: sellerId } as User,
+      commerceProfileId ? Number(commerceProfileId) : undefined,
+    );
   }
 
   // ─── Admin endpoints ──────────────────────────────────────────────────────

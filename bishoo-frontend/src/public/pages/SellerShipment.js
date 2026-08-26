@@ -160,14 +160,17 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     loadData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadData = async () => {
     try {
+      // Scoped to the active profile — see SellerProducts.js's identical fix
+      // (profile-architecture-audit-2026-08).
+      const profileScopeParams = activeProfileId ? { commerceProfileId: activeProfileId } : {};
       const [profileRes, productsRes, classifiedsRes] = await Promise.all([
         api.get('/store/profile').catch(() => null),
-        api.get('/products/my/products').catch(() => ({ data: [] })),
-        api.get('/classifieds/user/mine').catch(() => ({ data: [] })),
+        api.get('/products/my/products', { params: profileScopeParams }).catch(() => ({ data: [] })),
+        api.get('/classifieds/user/mine', { params: profileScopeParams }).catch(() => ({ data: [] })),
       ]);
       const loc = profileRes?.data?.businessLocation || 'Dar es Salaam';
       setSellerCity(loc.split(',')[0].trim());

@@ -181,11 +181,26 @@ export class ClassifiedsService {
   }
 
   // ─── Find mine ────────────────────────────────────────────────────────────
-  async findMine(user: User) {
-    return this.repo.find({
-      where: { seller: { id: user.id } },
-      order: { createdAt: 'DESC' },
-    });
+  // commerceProfileId scopes this to whichever profile is currently
+  // active, unfiltered by status (unlike findByCommerceProfile, which is
+  // the public-facing "browse this profile's active listings" view) — a
+  // seller managing their own classifieds needs to see expired/inactive
+  // ones too, just only the ones under the active profile. Omitting it
+  // keeps the old account-wide behavior for any caller that doesn't send
+  // it yet (profile-architecture-audit-2026-08, closing the last
+  // remaining item).
+  async findMine(user: User, commerceProfileId?: number) {
+    const qb = this.repo
+      .createQueryBuilder('c')
+      .where('c."sellerId" = :sid', { sid: user.id })
+      .orderBy('c.createdAt', 'DESC');
+    if (commerceProfileId) {
+      qb.andWhere(
+        '(c."commerceProfileId" = :cpid OR c."commerceProfileId" IS NULL)',
+        { cpid: commerceProfileId },
+      );
+    }
+    return qb.getMany();
   }
 
   // ─── Find by seller ───────────────────────────────────────────────────────
