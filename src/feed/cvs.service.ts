@@ -889,6 +889,13 @@ export class CvsService {
     };
   }
 
+  // ── Gravity-decayed score — a post's rank fades smoothly with age instead
+  // of camping at the top forever once it accumulates engagement. HN-style:
+  // score / (ageHours + 2)^1.5.
+  private cvsDecayExpr(alias = 'f'): string {
+    return `${alias}."cvsScore" / POWER(EXTRACT(EPOCH FROM (NOW() - ${alias}."createdAt"))/3600.0 + 2, 1.5)`;
+  }
+
   // ── Get feed by filter with CVS ranking ──────────────────────────────────
   async getFilteredFeed(params: {
     filter: string;
@@ -921,6 +928,18 @@ export class CvsService {
       .where('f.isActive = true')
       .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())');
 
+    // Once a user has genuinely viewed a post, it drops out of the
+    // algorithmic feed for good — that's what actually fixes "one engaged
+    // post stays at top forever" instead of just decaying its score.
+    // 'following' stays exempt: it's a chronological timeline of people you
+    // chose to follow, not a discovery surface that needs to rotate.
+    if (userId && filter !== 'following') {
+      qb.andWhere(
+        `NOT EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view')`,
+        { uid: userId },
+      );
+    }
+
     switch (filter) {
       case 'following':
         if (!userId) {
@@ -942,17 +961,22 @@ export class CvsService {
             city: `%${city.split(',')[0].trim()}%`,
           });
         }
-        qb.orderBy('f.cvsScore', 'DESC').addOrderBy('f.createdAt', 'DESC');
+        qb.addSelect(this.cvsDecayExpr(), 'decay_score')
+          .orderBy('decay_score', 'DESC')
+          .addOrderBy('f.createdAt', 'DESC');
         break;
 
       case 'products':
         qb.andWhere("f.type IN ('new_product','discount','restock')")
-          .orderBy('f.cvsScore', 'DESC')
+          .addSelect(this.cvsDecayExpr(), 'decay_score')
+          .orderBy('decay_score', 'DESC')
           .addOrderBy('f.purchaseCount', 'DESC');
         break;
 
       case 'services':
-        qb.andWhere("f.type = 'new_service'").orderBy('f.cvsScore', 'DESC');
+        qb.andWhere("f.type = 'new_service'")
+          .addSelect(this.cvsDecayExpr(), 'decay_score')
+          .orderBy('decay_score', 'DESC');
         break;
 
       case 'transport':
@@ -963,23 +987,35 @@ export class CvsService {
 
       case 'businesses':
         qb.andWhere("f.type IN ('announcement','new_service')")
+          .addSelect(this.cvsDecayExpr(), 'decay_score')
           .orderBy('b.followersCount', 'DESC')
-          .addOrderBy('f.cvsScore', 'DESC');
+          .addOrderBy('decay_score', 'DESC');
         break;
 
       case 'trending':
-        qb.orderBy('f.cvsScore', 'DESC')
+        qb.addSelect(this.cvsDecayExpr(), 'decay_score')
+          .orderBy('decay_score', 'DESC')
           .addOrderBy('f.purchaseCount', 'DESC')
           .addOrderBy('f.saveCount', 'DESC');
         break;
 
-      default:
-        // Weighted: CVS 40% + recency 30% + city match 20% + following 10%.
-        // No qb.orderBy here — the blended score below needs per-row values
-        // (recency, city match against THIS viewer, follow membership) that
-        // don't reduce to a single SQL ORDER BY, so it's computed after a
-        // bounded candidate fetch instead. See isForYou below.
+      default: {
+        // for_you: decayed CVS × city-match boost (15%) × follow boost (30%),
+        // ranked and paginated entirely in SQL — no candidate-window ceiling.
+        const followedArr = [...followedSellerIds];
+        const followBoost = followedArr.length
+          ? `CASE WHEN f."businessId" = ANY(:followedIds) THEN 0.3 ELSE 0 END`
+          : `0`;
+        const cityNeedle = city ? `%${city.split(',')[0].trim()}%` : null;
+        qb.addSelect(
+          `(${this.cvsDecayExpr()}) * (1 + CASE WHEN :cityNeedle::text IS NOT NULL AND b."businessLocation" ILIKE :cityNeedle THEN 0.15 ELSE 0 END) * (1 + ${followBoost})`,
+          'rank_score',
+        )
+          .orderBy('rank_score', 'DESC')
+          .setParameter('cityNeedle', cityNeedle);
+        if (followedArr.length) qb.setParameter('followedIds', followedArr);
         break;
+      }
     }
 
     const isForYou = ![
@@ -995,48 +1031,58 @@ export class CvsService {
     let items: BusinessFeedItem[];
     let total: number;
 
-    if (isForYou) {
-      // Bounded candidate window ranked by cvsScore, then blend-scored in
-      // application code, then paginated from the sorted result.
-      const CANDIDATE_WINDOW = 200;
-      const candidates = await qb
-        .orderBy('f.cvsScore', 'DESC')
-        .take(CANDIDATE_WINDOW)
+    [items, total] = await qb.skip(offset).take(limit).getManyAndCount();
+
+    // ── Explore mix — for_you only, early pages only: splice in a few
+    // random qualifying posts so new/lower-engagement content and smaller
+    // sellers can actually surface, instead of the ranked list always
+    // winning outright. Bonus mix-in, not a separate paginated stream —
+    // `total` stays the primary query's real count.
+    if (isForYou && userId && page <= 3 && items.length > 0) {
+      const EXPLORE_COUNT = 3;
+      const primaryIds = items.map((i) => i.id);
+      const exploreQb = this.feedRepo
+        .createQueryBuilder('f')
+        .leftJoin('f.business', 'b')
+        .addSelect([
+          'b.id',
+          'b.name',
+          'b.storeName',
+          'b.logo',
+          'b.businessLocation',
+          'b.reputationScore',
+          'b.followersCount',
+          'b.isVerified',
+          'b.isOfficialStore',
+          'b.storeWhatsApp',
+          'b.phone',
+          'b.role',
+        ])
+        .where('f.isActive = true')
+        .andWhere('(f.expiresAt IS NULL OR f.expiresAt > NOW())')
+        .andWhere(`f.createdAt > NOW() - INTERVAL '14 days'`)
+        .andWhere(
+          `NOT EXISTS (SELECT 1 FROM post_engagement pe WHERE pe."postId" = f.id AND pe."userId" = :uid AND pe.type = 'view')`,
+          { uid: userId },
+        );
+      if (primaryIds.length) {
+        exploreQb.andWhere('f.id NOT IN (:...primaryIds)', { primaryIds });
+      }
+      const explorePosts = await exploreQb
+        .addSelect('RANDOM()', 'rnd')
+        .orderBy('rnd')
+        .take(EXPLORE_COUNT)
         .getMany();
 
-      const scores = candidates.map((c) => c.cvsScore || 0);
-      const minScore = Math.min(...scores, 0);
-      const maxScore = Math.max(...scores, 0);
-      const scoreRange = maxScore - minScore || 1;
-
-      const nowMs = Date.now();
-      const cityNeedle = city ? city.split(',')[0].trim().toLowerCase() : null;
-
-      const ranked = candidates
-        .map((item) => {
-          const cvsNorm = ((item.cvsScore || 0) - minScore) / scoreRange;
-          const ageDays =
-            (nowMs - new Date(item.createdAt).getTime()) / 86400000;
-          const recency = Math.max(0, 1 - ageDays / 14);
-          const business = (item as any).business;
-          const cityMatch =
-            cityNeedle && business?.businessLocation
-              ? business.businessLocation.toLowerCase().includes(cityNeedle)
-                ? 1
-                : 0
-              : 0;
-          const followBoost =
-            business?.id && followedSellerIds.has(business.id) ? 1 : 0;
-          const blended =
-            cvsNorm * 0.4 + recency * 0.3 + cityMatch * 0.2 + followBoost * 0.1;
-          return { item, blended };
-        })
-        .sort((a, b) => b.blended - a.blended);
-
-      items = ranked.slice(offset, offset + limit).map((r) => r.item);
-      total = ranked.length;
-    } else {
-      [items, total] = await qb.skip(offset).take(limit).getManyAndCount();
+      if (explorePosts.length) {
+        const spliceAt = [3, 8, 12].slice(0, explorePosts.length);
+        spliceAt.forEach((pos, i) => {
+          if (explorePosts[i] && pos < items.length) {
+            items.splice(pos, 0, explorePosts[i]);
+          }
+        });
+        items = items.slice(0, limit);
+      }
     }
 
     const savedIds = userId ? await this.getSavedPostIds(userId) : [];

@@ -16,6 +16,7 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { User } from '../users/entities/user.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 export type FeedFilter =
   | 'for_you'
@@ -42,6 +43,7 @@ export class FeedService {
     private classifiedRepo: Repository<Classified>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
     private readonly notifService: InAppNotificationService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   // ── Publish a post ────────────────────────────────────────────────────────
@@ -70,7 +72,11 @@ export class FeedService {
         linkedEntityId: dto.linkedEntityId || null,
         ctaLabel: dto.ctaLabel || null,
         category: dto.category || null,
-        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        // Default freshness window when the caller doesn't set one — Moments
+        // represent "what's happening now," not a permanent listing.
+        expiresAt: dto.expiresAt
+          ? new Date(dto.expiresAt)
+          : new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
         isActive: true,
         cvsScore: 0,
       }),
@@ -80,6 +86,13 @@ export class FeedService {
     this.notifyFollowers(sellerId, item).catch((err) =>
       this.logger.warn('Feed notify failed:' + err),
     );
+
+    this.eventEmitter.emit('feed.post_created', {
+      postId: item.id,
+      sellerId,
+      type: dto.type,
+    });
+
     return item;
   }
 

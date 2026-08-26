@@ -485,6 +485,36 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   useEffect(() => { setSaved(savedIds?.includes(post.id)); }, [savedIds, post.id]);
   useEffect(() => { setFollowed(!!post.business?.isFollowing); }, [post.business?.isFollowing]);
 
+  // ── Impression tracking — mark a post "seen" once it's actually been
+  // scrolled into view (not just opened), so the feed can rotate it out
+  // instead of re-serving the same top post forever.
+  const cardRef = useRef(null);
+  const hasTrackedView = useRef(false);
+  useEffect(() => {
+    if (!isLoggedIn || hasTrackedView.current || !cardRef.current) return;
+    const el = cardRef.current;
+    let timer = null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          timer = setTimeout(() => {
+            if (!hasTrackedView.current) {
+              hasTrackedView.current = true;
+              Engagement.track(post.id, entityType, entityId, 'view', isLoggedIn, onNavigate);
+            }
+            observer.disconnect();
+          }, 800);
+        } else if (timer) {
+          clearTimeout(timer);
+          timer = null;
+        }
+      },
+      { threshold: 0.6 },
+    );
+    observer.observe(el);
+    return () => { if (timer) clearTimeout(timer); observer.disconnect(); };
+  }, [isLoggedIn, post.id, entityType, entityId, onNavigate]);
+
   const handleSave = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     const res = await Engagement.track(
@@ -535,7 +565,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   };
 
   return (
-    <article style={{ backgroundColor:WH, marginBottom:2,
+    <article ref={cardRef} style={{ backgroundColor:WH, marginBottom:2,
       borderTop:'1px solid #F1F5F9', borderBottom:'1px solid #F1F5F9' }}>
 
       {/* ── Header ── */}
