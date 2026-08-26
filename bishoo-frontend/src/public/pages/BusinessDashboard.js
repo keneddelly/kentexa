@@ -262,12 +262,20 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
             sub={t('business_dashboard.analytics_sub', { count: dash?.reviewsCount || 0 })} />
           <Row icon="💬" label={t('business_dashboard.messages_label')}
             onAction={() => onNavigate('SellerInbox')} />
+          {/* Leads has no real backing feature anywhere in the app yet --
+              stays locked regardless of Seller status, and never routes an
+              already-approved seller to BecomeSeller for a feature that
+              doesn't exist either way. */}
           <Row icon="📥" label={t('business_dashboard.leads_label')}
             sub={t('business_dashboard.leads_sub')} locked
-            onAction={() => onNavigate(`BecomeSeller`)} />
+            onAction={dash?.hasSeller ? undefined : () => onNavigate('BecomeSeller')} />
+          {/* Team management genuinely works once Seller is active
+              (SellerScopeService.resolve() already recognizes it) -- this
+              was hardcoded locked regardless of hasSeller, which kept
+              sending already-approved sellers back into BecomeSeller. */}
           <Row icon="👔" label={t('business_dashboard.team_label')}
-            sub={t('business_dashboard.team_sub')} locked
-            onAction={() => onNavigate(`BecomeSeller`)} />
+            sub={t('business_dashboard.team_sub')} locked={!dash?.hasSeller}
+            onAction={dash?.hasSeller ? () => onNavigate('SellerTeam') : () => onNavigate('BecomeSeller')} />
         </SCard>
 
         {/* Activate Seller — the sanctioned way a Business gains selling
