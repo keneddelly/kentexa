@@ -208,7 +208,7 @@ const tabs = (profileType, isOwn, t) => {
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
 const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
-  currentUser, pageParam, commerceProfileId, activeProfileId: viewerActiveProfileId, track }) => {
+  currentUser, pageParam, commerceProfileId, activeProfileId: viewerActiveProfileId, track, onOpenMoment }) => {
   const { t } = useTranslation();
   const TIERS = getTiers(t);
   const getTier = s => TIERS.find(tier => Number(s||0) >= tier.min) || TIERS[4];
@@ -252,11 +252,6 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [tab,        setTab]        = useState('posts');
   const [following,  setFollowing]  = useState(false);
   const [isFollowedBy, setIsFollowedBy] = useState(false);
-  const [publishing, setPublishing] = useState(false);
-  const [showPost,   setShowPost]   = useState(false);
-  const [postForm,   setPostForm]   = useState({
-    type:'new_product', title:'', body:'', ctaLabel:''
-  });
 
   // Step 1 — resolve exactly which profile this page is for.
   useEffect(() => {
@@ -279,14 +274,29 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     // arrived correctly, but the page underneath was always the person's
     // own personal profile, which usually doesn't even have that tab.
     const TAB_TYPE_HINT = { transport: 'transport_provider', hub: 'hub', jobs: 'agent' };
+    // "My own profile, no more specific target" (MyProfile.js's various
+    // quick-action links, the bottom nav's Profile tab landing on
+    // CommerceProfile — App.js always passes pageParam={null} here) used
+    // to always fall through to `personal` below, regardless of which
+    // profile the app shell currently has active. Since Moments are
+    // profile-scoped, posting one as Business/Agent/Hub and then tapping
+    // "my profile" silently showed Personal's empty feed instead — the
+    // Moment wasn't missing, the page was just showing the wrong identity.
+    // A THIRD PARTY opening a bare-user-id link still correctly defaults
+    // to Personal (they have no "active profile" of someone else's account
+    // to prefer), so this only kicks in when the viewer IS the account.
+    const isSelfLookup = !targetId && !!currentUser && uid === currentUser.id;
     const resolve = commerceProfileId
       ? api.get(`/profiles/${commerceProfileId}`)
       : api.get(`/profiles/for-user/${uid}`).then(r => {
           const list = r.data || [];
           const hintedType = TAB_TYPE_HINT[deepLinkTab];
           const hinted = hintedType ? list.find(p => p.type === hintedType) : null;
+          const active = isSelfLookup && viewerActiveProfileId
+            ? list.find(p => p.id === viewerActiveProfileId)
+            : null;
           const personal = list.find(p => p.type === 'personal');
-          return { data: hinted || personal || list[0] || null };
+          return { data: hinted || active || personal || list[0] || null };
         });
 
     resolve.then(res => {
@@ -294,7 +304,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       setFollowing(!!res.data?.isFollowing);
       setIsFollowedBy(!!res.data?.isFollowedBy);
     }).catch(() => setActiveProfile(null));
-  }, [targetId, commerceProfileId]); // eslint-disable-line
+  }, [targetId, commerceProfileId, viewerActiveProfileId]); // eslint-disable-line
 
   // Step 2 — once the specific profile is known, load everything that
   // hangs off it: shared buyer-facing content (feed/products/classifieds),
@@ -402,18 +412,6 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       setFollowing(res.data.following);
       setActiveProfile(p => p ? { ...p, followersCount: res.data.followersCount } : p);
     } catch {}
-  };
-
-  const handlePublish = async () => {
-    if (!postForm.title.trim()) return;
-    try {
-      setPublishing(true);
-      const res = await api.post('/feed/publish', { ...postForm, commerceProfileId: activeProfile?.id });
-      setFeed(prev => [res.data, ...prev]);
-      setShowPost(false);
-      setPostForm({ type:'new_product', title:'', body:'', ctaLabel:'' });
-    } catch {}
-    finally { setPublishing(false); }
   };
 
   if (loading) return (
@@ -883,74 +881,27 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
         )}
 
         {/* Feed / Posts — viewing is open to everyone (a follower needs to
-            be able to see a moment they were just notified about); only
-            the compose button is owner-gated, and business-only, since
-            "new_product/discount/restock" are store concepts that don't
-            apply to a personal/agent/hub/transport profile. */}
+            be able to see a moment they were just notified about). The
+            compose entry point used to be a separate mini-form here,
+            business-only, posting straight to /feed/publish with its own
+            new_product/discount/announcement/restock type picker — a whole
+            second way to create a Moment, redundant with (and out of sync
+            with) the real Moment composer every profile type already
+            reaches via the bottom nav's + button. Kentexa has exactly one
+            way to post a Moment now; this just opens that same composer,
+            open to any own profile type rather than business only. */}
         {tab==='feed' && (
           <div>
-            {isOwnProfile && activeProfile.type === 'business' && (
+            {isOwnProfile && (
               <div style={{ marginBottom:16 }}>
-                {!showPost ? (
-                  <button onClick={() => setShowPost(true)}
-                    style={{ width:'100%', backgroundColor:WH,
-                      border:'1.5px dashed #93c5fd', borderRadius:14,
-                      padding:16, cursor:'pointer', fontSize:14,
-                      fontWeight:700, color:B,
-                      boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
-                    {t('commerce_profile.post_listing_button')}
-                  </button>
-                ) : (
-                  <div style={{ backgroundColor:WH, borderRadius:16, padding:20,
-                    boxShadow:'0 4px 20px rgba(0,0,0,0.08)' }}>
-                    <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:14 }}>
-                      {t('commerce_profile.new_listing_title')}
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr',
-                      gap:8, marginBottom:12 }}>
-                      {[
-                        {value:'new_product',  label:t('commerce_profile.type_new_product')},
-                        {value:'discount',     label:t('commerce_profile.type_discount')},
-                        {value:'announcement', label:t('commerce_profile.type_announcement')},
-                        {value:'restock',      label:t('commerce_profile.type_restock')},
-                      ].map(opt => (
-                        <label key={opt.value}
-                          style={{ display:'flex', alignItems:'center', gap:8,
-                            padding:'10px 12px', borderRadius:10, cursor:'pointer',
-                            border:`2px solid ${postForm.type===opt.value?B:'#e2e8f0'}`,
-                            backgroundColor:postForm.type===opt.value?'#eff6ff':WH }}>
-                          <input type="radio" name="ft" value={opt.value}
-                            checked={postForm.type===opt.value}
-                            onChange={e=>setPostForm(f=>({...f,type:e.target.value}))} />
-                          <span style={{ fontSize:12, fontWeight:700 }}>{opt.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <input style={inputSt} placeholder={t('commerce_profile.title_placeholder')}
-                      value={postForm.title}
-                      onChange={e=>setPostForm(f=>({...f,title:e.target.value}))} />
-                    <textarea style={{...inputSt, minHeight:80, resize:'vertical',
-                      display:'block', marginBottom:10}}
-                      placeholder={t('commerce_profile.body_placeholder')}
-                      value={postForm.body}
-                      onChange={e=>setPostForm(f=>({...f,body:e.target.value}))} />
-                    <div style={{ display:'flex', gap:10 }}>
-                      <button onClick={()=>setShowPost(false)}
-                        style={{ flex:1, backgroundColor:'#f1f5f9', color:GR,
-                          border:'none', borderRadius:10, padding:'11px 0',
-                          cursor:'pointer', fontSize:14, fontWeight:700 }}>
-                        {t('commerce_profile.close_button')}
-                      </button>
-                      <button onClick={handlePublish} disabled={publishing}
-                        style={{ flex:2, background:'linear-gradient(135deg,#1d4ed8,#7c3aed)',
-                          color:WH, border:'none', borderRadius:10, padding:'11px 0',
-                          cursor:publishing?'not-allowed':'pointer',
-                          fontSize:14, fontWeight:800 }}>
-                        {publishing ? t('commerce_profile.posting_button') : t('commerce_profile.post_button')}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <button onClick={() => onOpenMoment?.()}
+                  style={{ width:'100%', backgroundColor:WH,
+                    border:'1.5px dashed #93c5fd', borderRadius:14,
+                    padding:16, cursor:'pointer', fontSize:14,
+                    fontWeight:700, color:B,
+                    boxShadow:'0 2px 8px rgba(0,0,0,0.04)' }}>
+                  {t('commerce_profile.share_moment_button')}
+                </button>
               </div>
             )}
             {feed.length === 0
@@ -1487,13 +1438,6 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       </div>
     </div>
   );
-};
-
-const inputSt = {
-  width:'100%', padding:'10px 12px', borderRadius:10,
-  border:'1px solid #e2e8f0', fontSize:14, outline:'none',
-  fontFamily:'inherit', marginBottom:10, boxSizing:'border-box',
-  display:'block',
 };
 
 const Empty = ({ icon, text, action, onAction }) => (
