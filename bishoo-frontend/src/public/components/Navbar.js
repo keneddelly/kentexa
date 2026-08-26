@@ -6,9 +6,8 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
   const [searchQuery, setSearchQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
-  const [sellMenu, setSellMenu] = useState(false);
   const { cartCount } = useCart();
-  const { i18n, t } = useTranslation();
+  const { i18n } = useTranslation();
 
   const languages = [
     { code: 'en', label: 'EN', flag: '🇬🇧' },
@@ -31,22 +30,6 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
       setMenuOpen(false);
     }
   };
-
-  const getRoleTab = () => {
-    if (!isLoggedIn) return { icon: '🛒', label: 'Orders', page: 'MyOrders' };
-    if (userRole === 'super_agent') return { icon: '🏢', label: 'Hub', page: 'SuperAgentDashboard' };
-    if (userRole === 'seller' || userRole === 'admin' || userRole === 'manager') return { icon: '🏪', label: 'Seller', page: 'SellerDashboard' };
-    if (userRole === 'agent') return { icon: '🤝', label: 'Agent', page: 'AgentDashboard' };
-    return { icon: '🛒', label: 'Orders', page: 'MyOrders' };
-  };
-
-  const bottomTabs = [
-    { icon: '🏠', label: 'Home',     page: 'Home' },
-    { icon: '📋', label: 'Listings', page: 'Listings' },
-    { icon: '➕', label: 'Sell',     page: '__sell_menu__', highlight: true },
-    getRoleTab(),
-    { icon: '👤', label: 'Profile',  page: isLoggedIn ? 'CustomerProfile' : 'PublicLogin' },
-  ];
 
   const getMenuItems = () => {
     const common = [
@@ -139,53 +122,6 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
         }
         .kx-lang-opt:hover { background: #334155; }
         .kx-lang-opt.active { color: #60a5fa; background: rgba(29,78,216,0.2); }
-
-        /* Bottom tab bar */
-        .kx-bottom {
-          position: fixed; bottom: 0; left: 0; right: 0;
-          background: #ffffff;
-          border-top: 2px solid #e2e8f0;
-          display: flex; z-index: 150;
-          box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
-          padding-bottom: env(safe-area-inset-bottom);
-        }
-        .kx-bottom-hidden { display: none !important; }
-        .kx-tab {
-          flex: 1; display: flex; flex-direction: column;
-          align-items: center; justify-content: center;
-          padding: 7px 2px 5px;
-          background: none; border: none; cursor: pointer; gap: 3px;
-          min-width: 0;
-        }
-        .kx-tab-icon {
-          font-size: 21px;
-          line-height: 1;
-        }
-        .kx-tab-label {
-          font-size: 9px; font-weight: 700;
-          letter-spacing: 0.3px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          width: 100%;
-          text-align: center;
-          color: #1e293b;
-        }
-        .kx-tab-label.active {
-          color: #1d4ed8;
-        }
-        .kx-tab-highlight {
-          width: 44px; height: 44px;
-          background: linear-gradient(135deg,#1d4ed8,#2563eb);
-          border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          font-size: 22px; margin-top: -20px;
-          box-shadow: 0 4px 20px rgba(29,78,216,0.5);
-          border: 3px solid #ffffff;
-        }
-
-        /* spacer at bottom so content not hidden behind tab bar */
-        .kx-bottom-spacer { height: 62px; }
       `}</style>
 
       <div className="kx-nav-root">
@@ -287,98 +223,6 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
             )}
           </div>
         </div>
-      )}
-
-      {/* Bottom Tab Bar */}
-      <div className="kx-bottom">
-        {bottomTabs.map(tab => (
-          <button key={tab.label} className="kx-tab" onClick={() => {
-              if (tab.page === '__sell_menu__') { setSellMenu(s => !s); return; }
-              onNavigate(tab.page);
-            }}>
-            {tab.highlight ? (
-              <>
-                <div className="kx-tab-highlight">{tab.icon}</div>
-                <span className="kx-tab-label" style={{ color: '#60a5fa' }}>{tab.label}</span>
-              </>
-            ) : (
-              <>
-                <div className="kx-tab-icon" style={{ opacity: currentPage === tab.page ? 1 : 0.45 }}>{tab.icon}</div>
-                <span className={`kx-tab-label${currentPage === tab.page ? ' active' : ''}`}>{tab.label}</span>
-              </>
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="kx-bottom-spacer" />
-
-      {/* ── SELL QUICK MENU ── */}
-      {sellMenu && (
-        <>
-          <div onClick={() => setSellMenu(false)}
-            style={{ position: 'fixed', inset: 0, zIndex: 140, backgroundColor: 'rgba(0,0,0,0.4)' }} />
-          <div style={{ position: 'fixed', bottom: 72, left: '50%', transform: 'translateX(-50%)', backgroundColor: '#fff', borderRadius: 20, padding: '16px 12px', zIndex: 141, width: 280, boxShadow: '0 -4px 32px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 4 }}>
-              {t('sell_menu.title')}
-            </div>
-
-            <button onClick={() => { setSellMenu(false); if (!isLoggedIn) { localStorage.setItem('kentexa_after_login', 'SellerClassifieds'); onNavigate('PublicLogin'); } else { onNavigate('SellerClassifieds'); } }}
-              style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', cursor: 'pointer', textAlign: 'left' }}>
-              <span style={{ fontSize: 24 }}>📋</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{t('sell_menu.post_ad')}</div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>{t('sell_menu.post_ad_desc')}</div>
-              </div>
-            </button>
-
-            {(userRole === 'seller' || userRole === 'admin' || userRole === 'manager') ? (
-              <>
-                <button onClick={() => { setSellMenu(false); onNavigate('SellerProducts'); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: '2px solid #dbeafe', backgroundColor: '#eff6ff', cursor: 'pointer', textAlign: 'left' }}>
-                  <span style={{ fontSize: 24 }}>🏪</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8' }}>Add Product</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>List a new product in your store</div>
-                  </div>
-                </button>
-                <button onClick={() => { setSellMenu(false); onNavigate('SellerDashboard'); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: '2px solid #e2e8f0', backgroundColor: '#fff', cursor: 'pointer', textAlign: 'left' }}>
-                  <span style={{ fontSize: 24 }}>📊</span>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Seller Dashboard</div>
-                    <div style={{ fontSize: 11, color: '#64748b' }}>Manage your store and orders</div>
-                  </div>
-                </button>
-              </>
-            ) : isLoggedIn ? (
-              <button onClick={() => { setSellMenu(false); onNavigate('BecomeSeller'); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: '2px solid #dcfce7', backgroundColor: '#f0fdf4', cursor: 'pointer', textAlign: 'left' }}>
-                <span style={{ fontSize: 24 }}>🚀</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#16a34a' }}>Open Your Store</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Start selling products — free to apply</div>
-                </div>
-              </button>
-            ) : null}
-
-            {(!userRole || userRole === 'user') && isLoggedIn && (
-              <button onClick={() => { setSellMenu(false); onNavigate('BecomeAgent'); }}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: '2px solid #e2e8f0', backgroundColor: '#fff', cursor: 'pointer', textAlign: 'left' }}>
-                <span style={{ fontSize: 24 }}>🤝</span>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>Become an Agent</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Earn commission near you</div>
-                </div>
-              </button>
-            )}
-
-            <button onClick={() => setSellMenu(false)}
-              style={{ padding: 10, borderRadius: 10, border: 'none', backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'pointer', fontSize: 13, fontWeight: 700, marginTop: 2 }}>
-              {t('sell_menu.cancel')}
-            </button>
-          </div>
-        </>
       )}
     </>
   );
