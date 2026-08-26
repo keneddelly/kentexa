@@ -135,6 +135,43 @@ const CATEGORIES = {
       other: { label: 'Other', specs: ['Brand','Model','Condition','Color'] },
     },
   },
+  // ── Digital goods — no shipping, delivered via a link/instructions ──
+  ebooks: {
+    label: 'E-books', icon: '📖',
+    subcategories: {
+      general: { label: 'E-book', specs: ['Author','Format','Language','Pages'] },
+    },
+  },
+  software: {
+    label: 'Software', icon: '💾',
+    subcategories: {
+      general: { label: 'Software/App', specs: ['Platform','Version','License Type'] },
+    },
+  },
+  online_courses: {
+    label: 'Online Courses', icon: '🎓',
+    subcategories: {
+      general: { label: 'Course', specs: ['Instructor','Duration','Language','Level'] },
+    },
+  },
+  digital_services: {
+    label: 'Digital Services', icon: '🛠️',
+    subcategories: {
+      general: { label: 'Service', specs: ['Delivery Time','Revisions'] },
+    },
+  },
+  music_media: {
+    label: 'Music & Media', icon: '🎵',
+    subcategories: {
+      general: { label: 'Digital Media', specs: ['Format','Duration','Language'] },
+    },
+  },
+  digital_general: {
+    label: 'Other Digital', icon: '⚡',
+    subcategories: {
+      general: { label: 'Other Digital Product', specs: ['Format'] },
+    },
+  },
 };
 
 const labelStyle = { display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' };
@@ -145,6 +182,7 @@ const EMPTY_FORM = {
   displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '',
   specs: {}, features: [], images: [], isAvailable: true, weightKg: '',
   isFlashSale: false, flashSalePrice: '', flashSaleEndsAt: '', flashSaleQuantity: '',
+  deliveryType: 'physical', digitalDeliveryUrl: '',
 };
 
 const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProductId }) => {
@@ -292,6 +330,8 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
         subcategory:  form.subcategory,
         model:        form.model,
         isAvailable:  form.isAvailable,
+        deliveryType: form.deliveryType,
+        digitalDeliveryUrl: form.deliveryType === 'digital' ? form.digitalDeliveryUrl : null,
         shippingMethod: form.shippingMethod,
         estimatedDelivery: form.estimatedDelivery,
         shippingNotes: form.shippingNotes,
@@ -351,6 +391,8 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
       flashSalePrice: product.flashSalePrice ? String(product.flashSalePrice) : '',
       flashSaleEndsAt: product.flashSaleEndsAt ? product.flashSaleEndsAt.slice(0, 16) : '',
       flashSaleQuantity: product.flashSaleQuantity ? String(product.flashSaleQuantity) : '',
+      deliveryType: product.deliveryType || 'physical',
+      digitalDeliveryUrl: product.digitalDeliveryUrl || '',
     });
     setImagePreviews(product.images || []);
     setShowForm(true);
@@ -550,6 +592,41 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
               </div>
             </div>
 
+            {/* Delivery Type — physical (ships) vs digital (link/instructions only) */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>Delivery Type</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { key: 'physical', label: '📦 Physical — ships to buyer' },
+                  { key: 'digital', label: '⚡ Digital — instant delivery, no shipping' },
+                ].map(opt => (
+                  <button key={opt.key} type="button"
+                    onClick={() => setForm({ ...form, deliveryType: opt.key })}
+                    style={{
+                      flex: 1, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                      border: form.deliveryType === opt.key ? '2px solid #1d4ed8' : '2px solid #e2e8f0',
+                      backgroundColor: form.deliveryType === opt.key ? '#eff6ff' : '#fff',
+                      color: form.deliveryType === opt.key ? '#1d4ed8' : '#64748b',
+                    }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {form.deliveryType === 'digital' && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Digital Delivery Link / Instructions</label>
+                <input type="text" placeholder="e.g. https://drive.google.com/... or license key instructions"
+                  value={form.digitalDeliveryUrl}
+                  onChange={e => setForm({ ...form, digitalDeliveryUrl: e.target.value })}
+                  style={inputStyle} />
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                  Only shown to the buyer after payment succeeds.
+                </div>
+              </div>
+            )}
+
             {/* Model */}
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>{t('seller_products.model_label')}</label>
@@ -679,7 +756,8 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
               )}
             </div>
 
-            {/* Shipping calculator */}
+            {/* Shipping calculator — not applicable to digital products */}
+            {form.deliveryType !== 'digital' && (
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`📦 ${t('seller_products.shipping_calc')}`}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 10 }}>
@@ -799,6 +877,7 @@ const SellerProducts = ({ onNavigate, isLoggedIn, onLogout, userRole, editProduc
                 </select>
               </div>
             </div>
+            )}
 
             {/* Buyer price preview */}
             {(Number(form.basePrice) > 0 || Number(form.deliveryFee) > 0) && (

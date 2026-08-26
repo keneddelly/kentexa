@@ -14,6 +14,11 @@ export enum ShippingMethod {
   AGENT = 'agent',
 }
 
+export enum ProductDeliveryType {
+  PHYSICAL = 'physical',
+  DIGITAL = 'digital',
+}
+
 @Entity()
 export class Product {
   @PrimaryGeneratedColumn()
@@ -96,6 +101,19 @@ export class Product {
 
   @Column({ type: 'text', nullable: true })
   shippingNotes: string | null;
+
+  // ── Digital delivery ──
+  @Column({
+    type: 'enum',
+    enum: ProductDeliveryType,
+    default: ProductDeliveryType.PHYSICAL,
+  })
+  deliveryType: ProductDeliveryType;
+
+  // Link/instructions revealed to the buyer after payment — only meaningful
+  // when deliveryType is DIGITAL.
+  @Column({ type: 'text', nullable: true })
+  digitalDeliveryUrl: string | null;
 
   // ── Store badges ──
   @Column({ default: false })

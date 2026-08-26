@@ -397,8 +397,8 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       </div>
                     </div>
 
-                    {/* Order Progress */}
-                    {order.status !== 'cancelled' && (
+                    {/* Order Progress — not applicable to digital products (no shipment stages) */}
+                    {order.status !== 'cancelled' && order.product?.deliveryType !== 'digital' && (
                       <div style={{ marginBottom: '16px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           {['pending', 'confirmed', 'processing', 'shipped', 'delivered'].map((step, index) => {
@@ -425,6 +425,11 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         </div>
                       </div>
                     )}
+                    {order.status !== 'cancelled' && order.product?.deliveryType === 'digital' && (
+                      <div style={{ marginBottom: '16px', backgroundColor: '#f0fdf4', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#16a34a', fontWeight: 700 }}>
+                        ⚡ {order.status === 'completed' ? 'Ready — your digital product is available below' : 'Instant digital delivery — waiting on payment'}
+                      </div>
+                    )}
 
                     {/* Product Info */}
                     <div style={{ display: 'flex', gap: '16px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '10px', marginBottom: '16px', alignItems: 'center' }}>
@@ -443,7 +448,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           {t('my_orders.qty_price_label', { qty: order.quantity, price: Number(order.product?.price || 0).toLocaleString() })}
                         </p>
                         <div style={{ fontSize: '13px', color: '#64748b' }}>
-                          📍 {order.deliveryAddress || '—'}
+                          {order.product?.deliveryType === 'digital' ? '⚡ Digital delivery' : `📍 ${order.deliveryAddress || '—'}`}
                         </div>
                         {order.seller && (
                           <div style={{ fontSize: '12px', color: '#7c3aed', marginTop: '4px' }}>
@@ -489,12 +494,25 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           {cancellingId === order.id ? t('my_orders.cancelling_label') : t('my_orders.cancel_button')}
                         </button>
                       )}
-                      <button
-                        onClick={() => onNavigate(`TrackParcel-KTX-ORD-${order.id}`)}
-                        style={{ backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
-                      >
-                        {t('my_orders.track_button')}
-                      </button>
+                      {order.product?.deliveryType === 'digital' ? (
+                        order.status === 'completed' && order.product?.digitalDeliveryUrl && (
+                          <a
+                            href={order.product.digitalDeliveryUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '2px solid #86efac', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '800', textDecoration: 'none' }}
+                          >
+                            ✅ Get your product
+                          </a>
+                        )
+                      ) : (
+                        <button
+                          onClick={() => onNavigate(`TrackParcel-KTX-ORD-${order.id}`)}
+                          style={{ backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
+                        >
+                          {t('my_orders.track_button')}
+                        </button>
+                      )}
                       {/* Confirm Delivery button - shown when delivered */}
                       {['delivered','in_transit'].includes(order.status) && order.trackingNumber && (
                         <button

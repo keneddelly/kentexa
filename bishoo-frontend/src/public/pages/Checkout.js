@@ -12,6 +12,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
   const getItemPrice = (item) => Number(item.displayPrice || item.basePrice || item.price || 0);
   const cartTotal    = cart.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
+  // Digital products (e-books, software, courses) never ship — no address needed.
+  const hasPhysicalItem = cart.some(item => item.deliveryType !== 'digital');
 
   const [form, setForm]                     = useState({ deliveryAddress: '', phone: '', recipientName: '' });
   const [deliveryLocation, setDeliveryLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
@@ -102,7 +104,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   };
 
   const handleCheckout = async () => {
-    if (!form.deliveryAddress.trim() || !form.phone.trim()) {
+    if ((hasPhysicalItem && !form.deliveryAddress.trim()) || !form.phone.trim()) {
       setError(t('checkout.err_fill_address'));
       return;
     }
@@ -439,30 +441,34 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           )}
         </div>
 
-        {/* Delivery Details */}
+        {/* Delivery Details — address/location skipped for a fully-digital cart; phone always stays (payment/receipt contact) */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span> {t('checkout.delivery_address')}</h2>
-          <LocationPicker
-                label={t('checkout.region_ward_label')}
-                value={deliveryLocation}
-                onChange={loc => {
-                  setDeliveryLocation(loc);
-                  // Pre-fill address with structured location
-                  const locationStr = [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', ');
-                  if (locationStr && !form.deliveryAddress) {
-                    handleAddressChange(locationStr);
-                  }
-                }}
-                required
-                style={{ marginBottom: 10 }}
-              />
-              <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>{t('checkout.delivery_address')} *</label>
-            <input placeholder={t('checkout.address_placeholder')}
-              value={form.deliveryAddress} onChange={e => handleAddressChange(e.target.value)}
-              style={inputStyle} />
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{t('checkout.address_hint')}</div>
-          </div>
+          <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>2</span> {hasPhysicalItem ? t('checkout.delivery_address') : t('checkout.your_phone')}</h2>
+          {hasPhysicalItem && (
+            <>
+              <LocationPicker
+                    label={t('checkout.region_ward_label')}
+                    value={deliveryLocation}
+                    onChange={loc => {
+                      setDeliveryLocation(loc);
+                      // Pre-fill address with structured location
+                      const locationStr = [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', ');
+                      if (locationStr && !form.deliveryAddress) {
+                        handleAddressChange(locationStr);
+                      }
+                    }}
+                    required
+                    style={{ marginBottom: 10 }}
+                  />
+                  <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>{t('checkout.delivery_address')} *</label>
+                <input placeholder={t('checkout.address_placeholder')}
+                  value={form.deliveryAddress} onChange={e => handleAddressChange(e.target.value)}
+                  style={inputStyle} />
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{t('checkout.address_hint')}</div>
+              </div>
+            </>
+          )}
           <div>
             <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 }}>
               {forSomeoneElse ? t('checkout.recipient_phone') : t('checkout.your_phone')}

@@ -15,6 +15,8 @@ import { SelcomService } from './providers/selcom/selcom.service';
 import { MockAgentService } from './providers/mock/mock-agent.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { InvoicesModule } from '../invoices/invoices.module';
+import { ProductsModule } from '../products/products.module';
+import { ReputationModule } from '../reputation/reputation.module';
 
 @Module({
   imports: [
@@ -29,6 +31,8 @@ import { InvoicesModule } from '../invoices/invoices.module';
     ]),
     NotificationsModule,
     InvoicesModule,
+    ProductsModule,
+    ReputationModule,
   ],
   controllers: [PaymentsController],
   providers: [

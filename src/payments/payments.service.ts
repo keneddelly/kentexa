@@ -9,8 +9,14 @@ import { Repository } from 'typeorm';
 import { Payment, PaymentStatus } from './entities/payment.entity';
 import {
   Order,
+  OrderStatus,
   PaymentStatus as OrderPaymentStatus,
+  EscrowStatus,
 } from '../orders/entities/order.entity';
+import { ProductDeliveryType } from '../products/entities/products.entity';
+import { ProductsService } from '../products/products.service';
+import { ReputationService } from '../reputation/reputation.service';
+import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { Invoice, InvoiceStatus } from '../invoices/entities/invoice.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import {
@@ -31,6 +37,7 @@ import { SelcomService } from './providers/selcom/selcom.service';
 import { IPaymentProvider } from './providers/payment-provider.interface';
 import { MockAgentService } from './providers/mock/mock-agent.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 const USE_INDIVIDUAL_NETWORKS = false;
 
@@ -69,6 +76,9 @@ export class PaymentsService {
     private mockAgentService: MockAgentService,
     private notificationsService: NotificationsService,
     private invoicesService: InvoicesService,
+    private eventEmitter: EventEmitter2,
+    private productsService: ProductsService,
+    private reputationService: ReputationService,
   ) {}
 
   private getProvider(provider: string): IPaymentProvider {
@@ -99,6 +109,22 @@ export class PaymentsService {
 
   // ── Auto-confirm order after payment + send notifications ─────────────────
   private async autoConfirmOrder(orderId: number): Promise<void> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: { buyer: true, seller: true, product: true },
+    });
+    if (!order) return;
+
+    // Payment webhooks can retry — never re-process a completed order.
+    if (order.status === OrderStatus.COMPLETED) return;
+
+    const isDigital = order.product?.deliveryType === ProductDeliveryType.DIGITAL;
+
+    if (isDigital) {
+      await this.completeDigitalOrder(order);
+      return;
+    }
+
     await this.orderRepo.update(orderId, {
       paymentStatus: 'paid' as any,
       status: 'paid' as any,
@@ -107,10 +133,6 @@ export class PaymentsService {
 
     // 📱 SMS (1 of 3 allowed) + 📧 Email — to BOTH buyer and seller
     try {
-      const order = await this.orderRepo.findOne({
-        where: { id: orderId },
-        relations: { buyer: true, seller: true, product: true },
-      });
       if (order) {
         await this.notificationsService.orderPaid(
           {
@@ -132,6 +154,67 @@ export class PaymentsService {
       this.logger.warn(
         `Failed to send orderPaid notifications for order #${orderId}: ${err.message}`,
       );
+    }
+  }
+
+  // ── Digital products complete atomically on payment — no shipment, no
+  // buyer-confirms-delivery step. Escrow releases immediately: there's no
+  // physical delivery signal to hold funds against, so disputes/refunds
+  // handle the exception case after the fact via the existing DisputesService.
+  private async completeDigitalOrder(order: Order): Promise<void> {
+    const now = new Date();
+    await this.orderRepo.update(order.id, {
+      paymentStatus: OrderPaymentStatus.PAID,
+      status: OrderStatus.COMPLETED,
+      deliveredAt: now,
+      completedAt: now,
+      payoutStatus: 'released',
+      escrowStatus: EscrowStatus.RELEASED,
+      fundsReleasedAt: now,
+    });
+    this.logger.log(`Digital order #${order.id} auto-completed after payment`);
+
+    try {
+      if (order.buyer?.id) {
+        await this.reputationService.award(
+          order.buyer.id,
+          ReputationEventType.ORDER_COMPLETED,
+          { sourceEntityType: 'order', sourceEntityId: order.id },
+        );
+      }
+      if (order.seller?.id) {
+        await this.reputationService.award(
+          order.seller.id,
+          ReputationEventType.ORDER_COMPLETED,
+          { sourceEntityType: 'order', sourceEntityId: order.id },
+        );
+      }
+    } catch {
+      /* non-critical */
+    }
+
+    try {
+      await this.notificationsService.orderCompleted(
+        { email: order.seller?.email, name: order.seller?.name },
+        { email: order.buyer?.email, name: order.buyer?.name },
+        order.id,
+        Number(order.sellerAmount || 0),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Failed to send orderCompleted notifications for order #${order.id}: ${err.message}`,
+      );
+    }
+
+    this.eventEmitter.emit('order.completed', {
+      orderId: order.id,
+      buyerId: order.buyer?.id ?? null,
+      sellerId: order.seller?.id ?? null,
+      amount: Number(order.sellerAmount || 0),
+    });
+
+    if (order.product?.id) {
+      await this.productsService.incrementSalesCount(order.product.id);
     }
   }
 
@@ -421,10 +504,23 @@ export class PaymentsService {
       if (payment.order) {
         await this.autoConfirmOrder(payment.order.id);
       }
+      this.eventEmitter.emit('payment.succeeded', {
+        paymentId: payment.id,
+        orderId: payment.order?.id ?? null,
+        amount: Number(payment.amount || 0),
+        provider: providerName,
+      });
     } else {
       payment.status = PaymentStatus.FAILED;
       payment.failureReason = result.failureReason ?? null;
       await this.paymentRepo.save(payment);
+      this.eventEmitter.emit('payment.failed', {
+        paymentId: payment.id,
+        orderId: payment.order?.id ?? null,
+        amount: Number(payment.amount || 0),
+        provider: providerName,
+        failureReason: payment.failureReason,
+      });
     }
     return { message: 'OK' };
   }

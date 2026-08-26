@@ -12,6 +12,8 @@ const CATEGORIES = {
   health_beauty: { icon: '💄' }, food: { icon: '🍎' }, baby_kids: { icon: '🧸' },
   sports: { icon: '⚽' }, agriculture: { icon: '🌾' }, security: { icon: '🔒' },
   vehicles: { icon: '🚗' }, books: { icon: '📚' }, arts: { icon: '🎨' }, general: { icon: '📦' },
+  ebooks: { icon: '📖' }, software: { icon: '💾' }, online_courses: { icon: '🎓' },
+  digital_services: { icon: '🛠️' }, music_media: { icon: '🎵' }, digital_general: { icon: '⚡' },
 };
 
 const Stars = ({ rating, size = 12, interactive = false, onRate }) => (
@@ -347,9 +349,15 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                 {discount > 0 && <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>TZS {originalPrice.toLocaleString()}</span>}
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🚚 {t('product_detail.free_delivery')}</span>
-                {product.estimatedDelivery && (
-                  <span style={{ backgroundColor: '#f8fafc', color: '#64748b', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>⏱ {product.estimatedDelivery}</span>
+                {product.deliveryType === 'digital' ? (
+                  <span style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>⚡ Instant digital delivery</span>
+                ) : (
+                  <>
+                    <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🚚 {t('product_detail.free_delivery')}</span>
+                    {product.estimatedDelivery && (
+                      <span style={{ backgroundColor: '#f8fafc', color: '#64748b', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>⏱ {product.estimatedDelivery}</span>
+                    )}
+                  </>
                 )}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

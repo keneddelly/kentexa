@@ -16,6 +16,7 @@ import {
 } from './entities/order.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ProductsService } from '../products/products.service';
+import { ProductDeliveryType } from '../products/entities/products.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { Payout } from '../payouts/entities/payout.entity';
@@ -32,6 +33,7 @@ import {
   AgentTransactionStatus,
 } from '../agents/entities/agent-transaction.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 const CATEGORY_COMMISSION: Record<string, number> = {
   electronics: 10,
@@ -49,6 +51,13 @@ const CATEGORY_COMMISSION: Record<string, number> = {
   general: 10,
   property: 0,
   services: 0,
+  // ── Digital goods ──
+  ebooks: 10,
+  software: 10,
+  online_courses: 10,
+  digital_services: 0,
+  music_media: 10,
+  digital_general: 10,
 };
 
 const getCommissionRate = (category: string): number =>
@@ -99,6 +108,7 @@ export class OrdersService {
     private smsService: SmsService,
     private businessCustomerService: BusinessCustomerService,
     private inAppNotif: InAppNotificationService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   // ── Seller creates a real online order on a registered buyer's behalf ─────
@@ -129,8 +139,14 @@ export class OrdersService {
     const basePrice = flashSaleActive
       ? Number(product.flashSalePrice)
       : Number(product.basePrice || 0);
-    const chosenMethod =
-      (dto as any).shippingMethod || product.shippingMethod || 'agent';
+
+    // Digital products skip the entire physical-logistics pipeline below —
+    // no delivery fee, no collection request, no Super Agent/batch assignment.
+    const isDigital = product.deliveryType === ProductDeliveryType.DIGITAL;
+
+    const chosenMethod = isDigital
+      ? 'digital'
+      : (dto as any).shippingMethod || product.shippingMethod || 'agent';
 
     // Pricing logic:
     // - Dar intra-city (boda/kentexa_delivery): basePrice + bodaFee or flat van fee
@@ -139,7 +155,9 @@ export class OrdersService {
     const BATCH_FEE = 3000;
 
     let deliveryFee: number;
-    if (chosenMethod === 'boda') {
+    if (isDigital) {
+      deliveryFee = 0;
+    } else if (chosenMethod === 'boda') {
       // Use bodaFee from DTO if provided (checkout sends it), else product bodaFee
       deliveryFee =
         (dto as any).deliveryFee !== undefined
@@ -154,8 +172,9 @@ export class OrdersService {
 
     // ── Collection fee — added to total when seller requests agent pickup ────
     // Buyer pays this as part of delivery, seller not penalised for rural area.
-    const needsCollection = Boolean((dto as any).needsCollection);
-    const isRuralCollection = Boolean((dto as any).isRuralCollection);
+    // Never applies to digital products — there's nothing to physically collect.
+    const needsCollection = !isDigital && Boolean((dto as any).needsCollection);
+    const isRuralCollection = !isDigital && Boolean((dto as any).isRuralCollection);
     const collectionFee = needsCollection
       ? Number((dto as any).collectionFee || (isRuralCollection ? 3000 : 1500))
       : 0;
@@ -179,9 +198,9 @@ export class OrdersService {
       platformFeeAmount: commission.platformFee,
       agentCommissionAmount: 0,
       sellerAmount: commission.sellerAmount,
-      deliveryAddress: dto.deliveryAddress,
+      deliveryAddress: isDigital ? null : dto.deliveryAddress,
       phone: dto.phone,
-      recipientName: dto.recipientName || null,
+      recipientName: isDigital ? null : dto.recipientName || null,
       shippingMethod: chosenMethod,
       status: OrderStatus.PENDING_PAYMENT,
       paymentStatus: PaymentStatus.PENDING,
@@ -250,6 +269,14 @@ export class OrdersService {
       product.name,
       totalAmount,
     );
+
+    this.eventEmitter.emit('order.placed', {
+      orderId: saved.id,
+      buyerId: user.id,
+      sellerId: product.seller?.id ?? null,
+      amount: totalAmount,
+      productId: product.id,
+    });
 
     // Auto-assign to daily batch if buyer chose KenteXa delivery
     let batchInfo: any = null;
@@ -413,6 +440,9 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order not found');
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
+    if (order.product?.deliveryType === ProductDeliveryType.DIGITAL) {
+      throw new BadRequestException('Digital products do not require shipping');
+    }
     if (![OrderStatus.PAID, OrderStatus.PREPARING].includes(order.status)) {
       throw new BadRequestException('Order must be paid before shipping');
     }
@@ -468,11 +498,14 @@ export class OrdersService {
   async markShipped(orderId: number, seller: User) {
     const order = await this.repo.findOne({
       where: { id: orderId },
-      relations: { seller: true, buyer: true },
+      relations: { seller: true, buyer: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
+    if (order.product?.deliveryType === ProductDeliveryType.DIGITAL) {
+      throw new BadRequestException('Digital products do not require shipping');
+    }
     if (order.status !== OrderStatus.PREPARING)
       throw new BadRequestException('Upload shipping proof first');
 
@@ -912,6 +945,13 @@ export class OrdersService {
       orderId,
       Number(order.sellerAmount || 0),
     );
+
+    this.eventEmitter.emit('order.completed', {
+      orderId,
+      buyerId: order.buyer?.id ?? null,
+      sellerId: order.seller?.id ?? null,
+      amount: Number(order.sellerAmount || 0),
+    });
 
     // 📈 Social proof — increment product's sales count
     if (order.product?.id) {

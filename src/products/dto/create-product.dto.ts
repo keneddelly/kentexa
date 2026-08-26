@@ -10,6 +10,8 @@ import {
   IsDateString,
 } from 'class-validator';
 
+import { ProductDeliveryType } from '../entities/products.entity';
+
 export enum ShippingMethod {
   DIRECT = 'direct',
   AGENT = 'agent',
@@ -84,6 +86,15 @@ export class CreateProductDto {
   @IsNumber()
   @Min(0)
   weightKg?: number;
+
+  // ── Digital delivery ─────────────────────────────────────────────────────
+  @IsOptional()
+  @IsEnum(ProductDeliveryType)
+  deliveryType?: ProductDeliveryType;
+
+  @IsOptional()
+  @IsString()
+  digitalDeliveryUrl?: string;
 
   // ── Flash Sale ───────────────────────────────────────────────────────────
   @IsOptional()
