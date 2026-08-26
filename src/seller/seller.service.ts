@@ -615,16 +615,30 @@ export class SellerService {
     // covered once by SellingCapabilityBackfillService). Not yet the
     // actual enforcement point for product creation/payments — that
     // cutover is a deliberately separate, later phase.
-    await this.sellingCapability
-      .grant(
-        profile.user.id,
-        SellingCapabilityType.SELL_PHYSICAL,
-        profile.sellerType === 'business'
-          ? SellingCapabilityVerificationLevel.BUSINESS
-          : SellingCapabilityVerificationLevel.INDIVIDUAL,
-        null,
-      )
-      .catch(() => {});
+    //
+    // Granted to the account's BUSINESS CommerceProfile specifically, not
+    // the raw account — eligibility (this SellerProfile being approved)
+    // is a user-level fact, but SELL capability belongs to whichever
+    // profile is acting (profile-architecture-audit-2026-08). apply()
+    // creates this profile at application time; skip silently if it's
+    // somehow missing (e.g. that creation failed) rather than granting a
+    // capability with nothing to attach it to.
+    const businessProfileForCapability = await this.commerceProfiles
+      .findForUserByType(profile.user.id, CommerceProfileType.BUSINESS)
+      .catch(() => null);
+    if (businessProfileForCapability) {
+      await this.sellingCapability
+        .grant(
+          businessProfileForCapability.id,
+          profile.user.id,
+          SellingCapabilityType.SELL_PHYSICAL,
+          profile.sellerType === 'business'
+            ? SellingCapabilityVerificationLevel.BUSINESS
+            : SellingCapabilityVerificationLevel.INDIVIDUAL,
+          null,
+        )
+        .catch(() => {});
+    }
 
     return this.profileRepo.save(profile);
   }
