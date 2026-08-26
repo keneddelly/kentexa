@@ -11,6 +11,7 @@ export class CategoriesController {
       key,
       label: def.label,
       icon: def.icon,
+      isDigital: !!def.isDigital,
       subcategories: Object.entries(def.subcategories).map(
         ([subKey, subDef]) => ({
           key: subKey,

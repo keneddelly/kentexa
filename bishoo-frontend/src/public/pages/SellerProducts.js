@@ -19,6 +19,7 @@ const TZ_CITIES = [
 // before that fetch resolves.
 const FALLBACK_CATEGORIES = {
   general: { label: 'General', icon: '📦', subcategories: { other: { label: 'Other', specs: ['Brand', 'Model', 'Condition', 'Color'] } } },
+  digital_general: { label: 'Digital — Other', icon: '🗂️', isDigital: true, subcategories: { other: { label: 'Other Digital' } } },
 };
 
 const labelStyle = { display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' };
@@ -73,6 +74,30 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const currentSub    = currentCat.subcategories[form.subcategory];
   const specFields    = currentSub?.specs || [];
 
+  // Categories shown in the dropdown depend on the Product Type toggle —
+  // a digital seller should only ever see digital-goods categories
+  // (ebooks, software, etc.), never the physical taxonomy and vice versa.
+  const visibleCategories = Object.entries(CATEGORIES).filter(
+    ([, cat]) => !!cat.isDigital === (form.productType === 'digital'),
+  );
+
+  const handleProductTypeChange = (type) => {
+    // Switching type invalidates whatever category was picked for the
+    // other type — reset to the first category valid for the new type,
+    // matching the subcategory reset handleCategoryChange already does.
+    const firstValid = Object.entries(CATEGORIES).find(
+      ([, cat]) => !!cat.isDigital === (type === 'digital'),
+    )?.[0] || (type === 'digital' ? 'digital_general' : 'general');
+    const firstSub = Object.keys(CATEGORIES[firstValid]?.subcategories || {})[0] || '';
+    setForm(prev => ({
+      ...prev,
+      productType: type,
+      category: firstValid,
+      subcategory: firstSub,
+      specs: {},
+    }));
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { onNavigate('PublicLogin'); return; }
@@ -90,7 +115,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         (cat.subcategories || []).forEach(sub => {
           subcategories[sub.key] = { label: sub.label, specs: sub.specs || [] };
         });
-        tree[cat.key] = { label: cat.label, icon: cat.icon, subcategories };
+        tree[cat.key] = { label: cat.label, icon: cat.icon, isDigital: !!cat.isDigital, subcategories };
       });
       if (Object.keys(tree).length) setCategories(tree);
     }).catch(() => {});
@@ -471,7 +496,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               <label style={labelStyle}>{t('seller_products.product_type')}</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="button" disabled={!!editProduct}
-                  onClick={() => setForm({ ...form, productType: 'physical' })}
+                  onClick={() => handleProductTypeChange('physical')}
                   style={{
                     flex: 1, padding: '10px 12px', borderRadius: 8, cursor: editProduct ? 'default' : 'pointer', fontSize: 13, fontWeight: 700,
                     border: form.productType === 'physical' ? '2px solid #1d4ed8' : '1px solid #e2e8f0',
@@ -481,7 +506,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   {`📦 ${t('seller_products.product_type_physical')}`}
                 </button>
                 <button type="button" disabled={!!editProduct}
-                  onClick={() => setForm({ ...form, productType: 'digital' })}
+                  onClick={() => handleProductTypeChange('digital')}
                   style={{
                     flex: 1, padding: '10px 12px', borderRadius: 8, cursor: editProduct ? 'default' : 'pointer', fontSize: 13, fontWeight: 700,
                     border: form.productType === 'digital' ? '2px solid #7c3aed' : '1px solid #e2e8f0',
@@ -529,7 +554,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               <div>
                 <label style={labelStyle}>{t('seller_products.category')}</label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
-                  {Object.entries(CATEGORIES).map(([key, cat]) => (
+                  {visibleCategories.map(([key, cat]) => (
                     <option key={key} value={key}>{cat.icon} {cat.label}</option>
                   ))}
                 </select>

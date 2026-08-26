@@ -20,6 +20,11 @@ export interface CategoryDef {
   // to this category (see resolveCategoryKey below).
   synonyms?: string[];
   subcategories: Record<string, SubcategoryDef>;
+  // Digital-goods category (ebooks, software, etc.) — the seller-side
+  // Product Type toggle (physical/digital) filters this list by the flag
+  // instead of maintaining a second, separate category tree. Keys here
+  // must match orders.service.ts's CATEGORY_COMMISSION digital-goods keys.
+  isDigital?: boolean;
 }
 
 export const CATEGORIES: Record<string, CategoryDef> = {
@@ -212,6 +217,66 @@ export const CATEGORIES: Record<string, CategoryDef> = {
     label: 'General', icon: '📦',
     subcategories: {
       other: { label: 'Other', specs: ['Brand', 'Model', 'Condition', 'Color'] },
+    },
+  },
+  // ── Digital goods — shown only when the seller toggles Product Type to
+  // Digital; keys match orders.service.ts's CATEGORY_COMMISSION map. ──
+  ebooks: {
+    label: 'eBooks', icon: '📖', isDigital: true,
+    synonyms: ['ebook', 'e-book', 'book pdf'],
+    subcategories: {
+      fiction:     { label: 'Fiction' },
+      non_fiction: { label: 'Non-Fiction' },
+      educational: { label: 'Educational' },
+      comics:      { label: 'Comics & Graphic Novels' },
+    },
+  },
+  software: {
+    label: 'Software', icon: '💻', isDigital: true,
+    synonyms: ['app', 'apps', 'plugin', 'plugins'],
+    subcategories: {
+      apps:      { label: 'Apps & Tools' },
+      games:     { label: 'Games' },
+      plugins:   { label: 'Plugins & Extensions' },
+      templates: { label: 'Templates & Themes' },
+    },
+  },
+  online_courses: {
+    label: 'Online Courses', icon: '🎓', isDigital: true,
+    synonyms: ['course', 'courses', 'tutorial', 'training'],
+    subcategories: {
+      business:      { label: 'Business & Finance' },
+      technology:    { label: 'Technology' },
+      health_fitness:{ label: 'Health & Fitness' },
+      arts_crafts:   { label: 'Arts & Crafts' },
+      language:      { label: 'Language Learning' },
+    },
+  },
+  digital_services: {
+    label: 'Digital Services', icon: '🛠️', isDigital: true,
+    synonyms: ['freelance', 'gig'],
+    subcategories: {
+      design:     { label: 'Design' },
+      writing:    { label: 'Writing & Translation' },
+      consulting: { label: 'Consulting' },
+      marketing:  { label: 'Marketing' },
+    },
+  },
+  music_media: {
+    label: 'Music & Media', icon: '🎵', isDigital: true,
+    synonyms: ['music', 'audio', 'video', 'podcast'],
+    subcategories: {
+      music:         { label: 'Music' },
+      video:         { label: 'Video' },
+      podcasts:      { label: 'Podcasts' },
+      sound_effects: { label: 'Sound Effects' },
+    },
+  },
+  digital_general: {
+    label: 'Digital — Other', icon: '🗂️', isDigital: true,
+    subcategories: {
+      templates: { label: 'Templates & Presets' },
+      other:     { label: 'Other Digital' },
     },
   },
 };
