@@ -105,15 +105,26 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
   // POST /business/create with no Seller must never get a one-tap path to
   // Ship Item/Products/Payouts just for being a Business (spec: "Ship
   // Product must never appear merely because someone is a Business").
+  // Tab 4 routes to SellerInbox — the same page BusinessDashboard.js's own
+  // Messages row uses — not back to BusinessDashboard itself. It used to
+  // duplicate `second`'s destination, which produced two tabs sharing one
+  // React key (the exact "must never have two tabs with the same key"
+  // regression this component now guards against below) and made the
+  // messages tab visibly do nothing when tapped from the dashboard.
   if (activeProfile?.type === 'business' && !activeProfile?.sellerProfileId) {
     cfg = {
       ...cfg,
       second: { page: 'BusinessDashboard', icon: emojiIcon('🏢'), label: t('bottom_nav.dashboard') },
-      fourth: { page: 'BusinessDashboard', icon: emojiIcon('💬'), label: t('bottom_nav.messages') },
+      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.messages') },
     };
   }
 
-  const tabs = [
+  // Built fresh from `cfg` (itself freshly selected from activeProfile.type
+  // above) on every render — no useState, no accumulation possible by
+  // construction. The dedupe pass below is a defensive safeguard only, in
+  // case a future edit to TYPE_TABS/the override above reintroduces a
+  // collision like the BusinessDashboard one just fixed.
+  const rawTabs = [
     { key: cfg.first.page,  icon: cfg.first.icon,  label: cfg.first.label },
     { key: cfg.second.page, icon: cfg.second.icon, label: cfg.second.label },
     {
@@ -155,6 +166,13 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
       label: t('nav.profile'),
     },
   ];
+
+  const seenKeys = new Set();
+  const tabs = rawTabs.filter(tab => {
+    if (seenKeys.has(tab.key)) return false;
+    seenKeys.add(tab.key);
+    return true;
+  });
 
   // Active-profile pill — the switcher's ONLY entry point, so it must show
   // whenever there's actually something to switch BETWEEN, regardless of

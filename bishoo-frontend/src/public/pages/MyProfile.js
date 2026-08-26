@@ -78,7 +78,7 @@ const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => 
 );
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment }) => {
+const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment, activeProfile }) => {
   const { t } = useTranslation();
   const TIERS = getTiers(t);
   const ROLE_META = getRoleMeta(t);
@@ -127,13 +127,24 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
     const r = userRole;
     if (['seller','admin','manager'].includes(r))
       api.get('/seller/dashboard').then(res => setSellerStats(res.data)).catch(()=>{});
-    if (r === 'agent')
-      api.get('/agents/my-profile').then(res => setAgentData(res.data)).catch(()=>{});
-    if (r === 'super_agent')
-      api.get('/super-agents/my-profile').then(res => setSaData(res.data)).catch(()=>{});
-    if (r === 'transport_provider')
-      api.get('/transport/my-profile').then(res => setTpData(res.data)).catch(()=>{});
   }, [isLoggedIn]); // eslint-disable-line
+
+  // Agent/Super Agent/Transport Provider stat fetches are keyed on the
+  // ACTIVE profile's type, separately from the effect above — the Quick
+  // Actions tiles below only render for the matching activeProfile.type,
+  // and `myProfiles` (so `activeProfile`) can still be loading when this
+  // page first mounts right after login, arriving a render or two after
+  // `isLoggedIn` flips true. Depending on `activeProfile?.type` here means
+  // the right summary loads whenever it actually becomes known, instead of
+  // being decided once against a possibly-still-null activeProfile.
+  useEffect(() => {
+    if (activeProfile?.type === 'agent')
+      api.get('/agents/my-profile').then(res => setAgentData(res.data)).catch(()=>{});
+    if (activeProfile?.type === 'hub')
+      api.get('/super-agents/my-profile').then(res => setSaData(res.data)).catch(()=>{});
+    if (activeProfile?.type === 'transport_provider')
+      api.get('/transport/my-profile').then(res => setTpData(res.data)).catch(()=>{});
+  }, [activeProfile?.type]);
 
   // Lazy load section data
   useEffect(() => {
@@ -324,7 +335,20 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             onAction:()=>onNavigate('SellerAnalytics'),
           });
         }
-        if (roles.includes('agent')) {
+        // These three are gated on the ACTIVE profile's type, not the
+        // account-wide `roles` list — an account approved as both Agent and
+        // Super Agent must not show both dashboards' tiles at once just
+        // because it holds both roles. `roles.includes(...)` here used to
+        // mean "this account has ever been approved for X," so a multi-role
+        // account permanently accumulated every role's tile regardless of
+        // which identity was actually active — the exact bug the profile-
+        // switching spec calls out ("Business Dashboard and Agent Dashboard
+        // must never appear together"). Seller Center/Revenue above stay
+        // account-wide by original deliberate design (selling capability
+        // isn't tied to a single profile the way Agent/Super Agent/Transport
+        // Provider dashboards are); Admin Panel below stays role-based since
+        // admin isn't a CommerceProfile type you switch into at all.
+        if (activeProfile?.type === 'agent') {
           actions.push({
             icon:'🏍️', label:t('my_profile.my_jobs_label'),
             value:'View', sub:t('my_profile.available_near_you'), color:'#A21CAF', bg:'#FDF2F8',
@@ -337,14 +361,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             onAction:()=>onNavigate('AgentEarnings'),
           });
         }
-        if (roles.includes('super_agent')) {
+        if (activeProfile?.type === 'hub') {
           actions.push({
             icon:'📦', label:t('my_profile.hub_parcels_label'),
             value:'View', sub: saData?.city || t('my_profile.your_hub_fallback'), color:'#7C3AED', bg:'#F5F3FF',
             onAction:()=>onNavigate('SuperAgentDashboard'),
           });
         }
-        if (roles.includes('transport_provider')) {
+        if (activeProfile?.type === 'transport_provider') {
           actions.push({
             icon:'🚌', label:t('my_profile.todays_routes_label'),
             value:'View', sub:t('my_profile.assignments_sub'), color:'#D97706', bg:'#FEF3C7',

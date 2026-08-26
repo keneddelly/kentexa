@@ -726,6 +726,16 @@ function App() {
           hidden behind the nav bar on each step. */}
       {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS' && (
         <BottomNav
+          // Remount protection (profile-switch architecture spec): a stable
+          // profile-context key forces React to tear down and rebuild this
+          // subtree on every profile switch rather than patch it in place.
+          // BottomNav itself holds no internal state that could go stale —
+          // its tabs are already fully re-derived from activeProfile on
+          // every render — but this makes "one active profile = one fresh
+          // navigation instance" true structurally, not just by convention,
+          // so a future change that DOES add local nav state can't
+          // reintroduce the leak-across-switches bug this key guards against.
+          key={activeProfile ? `${activeProfile.type}-${activeProfile.id}` : 'no-profile'}
           currentPage={page}
           onNavigate={handleNavigate}
           isLoggedIn={isLoggedIn}
