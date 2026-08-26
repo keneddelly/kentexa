@@ -110,7 +110,11 @@ export class FeedService {
         linkedEntityId: dto.linkedEntityId || null,
         ctaLabel: dto.ctaLabel || null,
         category: dto.category || null,
-        expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
+        // Default freshness window when the caller doesn't set one — Moments
+        // represent "what's happening now," not a permanent listing.
+        expiresAt: dto.expiresAt
+          ? new Date(dto.expiresAt)
+          : new Date(Date.now() + 45 * 24 * 60 * 60 * 1000),
         isActive: true,
         cvsScore: 0,
       }),
@@ -120,6 +124,7 @@ export class FeedService {
     this.notifyFollowers(sellerId, item).catch((err) =>
       this.logger.warn('Feed notify failed:' + err),
     );
+
     return item;
   }
 

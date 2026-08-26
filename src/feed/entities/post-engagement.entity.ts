@@ -47,8 +47,8 @@ export const ENTITY_PREFIX: Record<string, string> = {
 };
 
 @Entity('post_engagement')
-@Index(['postId', 'userId', 'type'])
-@Index(['entityType', 'entityId', 'userId', 'type'])
+@Index(['postId', 'userId', 'type'], { unique: true })
+@Index(['entityType', 'entityId', 'userId', 'type'], { unique: true })
 export class PostEngagement {
   @PrimaryGeneratedColumn()
   id: number;
