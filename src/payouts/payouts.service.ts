@@ -130,12 +130,27 @@ export class PayoutsService {
   }
 
   // ─── Seller: Get my payouts ───────────────────────────────────────────────
-  async getMyPayouts(user: User) {
-    const payouts = await this.payoutRepo.find({
-      where: { seller: { id: user.id } },
-      order: { createdAt: 'DESC' },
-      relations: { order: { product: true, buyer: true } },
-    });
+  // commerceProfileId scopes payouts to one specific business — otherwise
+  // (the default) an account running more than one business sees every
+  // payout across all of them merged together (profile-architecture-
+  // audit-2026-08 Stage 6). Legacy orders with no commerceProfileId of
+  // their own still show up, same NULL-fallback rule used everywhere else.
+  async getMyPayouts(user: User, commerceProfileId?: number) {
+    const qb = this.payoutRepo
+      .createQueryBuilder('payout')
+      .leftJoinAndSelect('payout.seller', 'seller')
+      .leftJoinAndSelect('payout.order', 'order')
+      .leftJoinAndSelect('order.product', 'product')
+      .leftJoinAndSelect('order.buyer', 'buyer')
+      .where('payout."sellerId" = :sid', { sid: user.id })
+      .orderBy('payout.createdAt', 'DESC');
+    if (commerceProfileId) {
+      qb.andWhere(
+        '(order."commerceProfileId" = :cpid OR order."commerceProfileId" IS NULL)',
+        { cpid: commerceProfileId },
+      );
+    }
+    const payouts = await qb.getMany();
 
     const totalEarned = payouts
       .filter((p) => p.status === PayoutStatus.PAID)

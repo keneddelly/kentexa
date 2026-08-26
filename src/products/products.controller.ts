@@ -89,12 +89,18 @@ export class ProductsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('my/products')
-  async getMyProducts(@Request() req) {
+  async getMyProducts(
+    @Request() req,
+    @Query('commerceProfileId') commerceProfileId?: string,
+  ) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canManageProducts',
     );
-    return this.service.findMyProducts({ id: sellerId } as User);
+    return this.service.findMyProducts(
+      { id: sellerId } as User,
+      commerceProfileId ? Number(commerceProfileId) : undefined,
+    );
   }
 
   // Fast lookup for the POS/product-management screens — scoped to the

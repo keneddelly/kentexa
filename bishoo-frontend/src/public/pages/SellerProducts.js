@@ -104,8 +104,9 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     fetchMyProducts();
     const saved = localStorage.getItem('sellerOriginCity');
     if (saved) setOriginCity(saved);
+  // Re-fetch when the active profile changes, same reasoning as SellerDashboard.js.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeProfileId]);
 
   useEffect(() => {
     api.get('/categories').then(res => {
@@ -174,7 +175,13 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const fetchMyProducts = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/products/my/products');
+      // Scopes the list to whichever profile is currently active — without
+      // this, an account running more than one business always saw every
+      // business's products merged together (profile-architecture-audit-
+      // 2026-08 Stage 6).
+      const res = await api.get('/products/my/products', {
+        params: activeProfileId ? { commerceProfileId: activeProfileId } : {},
+      });
       setProducts(res.data);
     } catch { setError(t('seller_products.load_failed')); }
     finally { setLoading(false); }

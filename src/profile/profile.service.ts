@@ -77,19 +77,37 @@ export class ProfileService {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) return null;
 
-    const [roleEntities, reviews, isFollowing, businessProfile] = await Promise.all([
+    const [roleEntities, isFollowing, businessProfile] = await Promise.all([
       this.getRoleEntities(userId),
-      this.reviewRepo.find({
-        where: { seller: { id: userId } },
-        relations: { buyer: true },
-        order: { createdAt: 'DESC' },
-        take: 20,
-      }),
       this.commerceProfiles.isFollowingSeller(viewerId, userId).catch(() => false),
       this.commerceProfiles
         .findForUserByType(userId, CommerceProfileType.BUSINESS)
         .catch(() => null),
     ]);
+
+    // Same scoping as products below — a review left for a Personal-profile
+    // sale must not inflate the Business storefront's review list, even
+    // though Review.commerceProfileId already correctly rolls into
+    // CommerceProfile.reviewsCount/rating (commerce-profiles.service.ts's
+    // recordReview()); this was the one place still listing them by raw
+    // seller id regardless (profile-architecture-audit-2026-08).
+    const reviews = businessProfile
+      ? await this.reviewRepo
+          .createQueryBuilder('r')
+          .leftJoinAndSelect('r.buyer', 'buyer')
+          .where(
+            '(r."commerceProfileId" = :commerceProfileId OR (r."commerceProfileId" IS NULL AND r."sellerId" = :userId))',
+            { commerceProfileId: businessProfile.id, userId },
+          )
+          .orderBy('r.createdAt', 'DESC')
+          .take(20)
+          .getMany()
+      : await this.reviewRepo.find({
+          where: { seller: { id: userId } },
+          relations: { buyer: true },
+          order: { createdAt: 'DESC' },
+          take: 20,
+        });
 
     // This storefront is unambiguously the account's BUSINESS identity
     // (matches StoreService.toggleFollow's same always-resolve-to-BUSINESS

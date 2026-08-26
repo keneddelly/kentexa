@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, Brackets } from 'typeorm';
 import { SellerProfile, SellerStatus } from './entities/seller-profile.entity';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -348,7 +348,15 @@ export class SellerService {
   // never SellerProfile-specific data. A user with no activity yet just
   // gets zero-value stats, not a 403 — verification is a trust upgrade,
   // not a gate on this basic view.
-  async getDashboardStats(user: User) {
+  // commerceProfileId scopes every stat to one specific business the
+  // account runs — without it (the account-wide default, unchanged for
+  // any caller that doesn't send it yet), stats merge every business an
+  // account owns into one dashboard, which was the actual bug once an
+  // account could run more than one (profile-architecture-audit-2026-08
+  // Stage 6). Legacy rows with no commerceProfileId of their own still
+  // resolve here, same NULL-fallback rule used everywhere else this
+  // session — a business's dashboard isn't missing pre-migration data.
+  async getDashboardStats(user: User, commerceProfileId?: number) {
     // Tolerant lookup — unlike getMyProfile(), never throws for a user who
     // hasn't applied yet; `profile` in the response below is simply null,
     // same shape the frontend already treats as "not verified" elsewhere.
@@ -356,36 +364,94 @@ export class SellerService {
       where: { user: { id: user.id } },
     });
 
+    const productScope = commerceProfileId
+      ? new Brackets((qb) =>
+          qb
+            .where('p."commerceProfileId" = :cpid', { cpid: commerceProfileId })
+            .orWhere(
+              new Brackets((qb2) =>
+                qb2
+                  .where('p."commerceProfileId" IS NULL')
+                  .andWhere('p."sellerId" = :sid', { sid: user.id }),
+              ),
+            ),
+        )
+      : null;
+    const classifiedScope = commerceProfileId
+      ? new Brackets((qb) =>
+          qb
+            .where('c."commerceProfileId" = :cpid', { cpid: commerceProfileId })
+            .orWhere(
+              new Brackets((qb2) =>
+                qb2
+                  .where('c."commerceProfileId" IS NULL')
+                  .andWhere('c."sellerId" = :sid', { sid: user.id }),
+              ),
+            ),
+        )
+      : null;
+    const orderScope = commerceProfileId
+      ? new Brackets((qb) =>
+          qb
+            .where('o."commerceProfileId" = :cpid', { cpid: commerceProfileId })
+            .orWhere(
+              new Brackets((qb2) =>
+                qb2
+                  .where('o."commerceProfileId" IS NULL')
+                  .andWhere('o."sellerId" = :sid', { sid: user.id }),
+              ),
+            ),
+        )
+      : null;
+
     const [myProducts, myClassifieds, myOrders] = await Promise.all([
-      this.productRepo.find({ where: { seller: { id: user.id } } }),
-      this.classifiedRepo.find({ where: { seller: { id: user.id } } }),
+      (() => {
+        const qb = this.productRepo
+          .createQueryBuilder('p')
+          .where('p."sellerId" = :sid', { sid: user.id });
+        if (productScope) qb.andWhere(productScope);
+        return qb.getMany();
+      })(),
+      (() => {
+        const qb = this.classifiedRepo
+          .createQueryBuilder('c')
+          .where('c."sellerId" = :sid', { sid: user.id });
+        if (classifiedScope) qb.andWhere(classifiedScope);
+        return qb.getMany();
+      })(),
       // Fetch both online orders (via product) and manual shipments (direct seller)
       Promise.all([
-        this.orderRepo
-          .createQueryBuilder('o')
-          .leftJoinAndSelect('o.product', 'p')
-          .leftJoin('o.seller', 's')
-          .addSelect(['s.id', 's.name', 's.storeName'])
-          .leftJoin('o.buyer', 'b')
-          .addSelect(['b.id', 'b.name', 'b.phone'])
-          .where('p.seller = :sid', { sid: user.id })
-          .orderBy('o.createdAt', 'DESC')
-          .take(30)
-          .getMany(),
-        this.orderRepo
-          .createQueryBuilder('o')
-          .leftJoinAndSelect('o.product', 'p')
-          .leftJoin('o.seller', 's')
-          .addSelect(['s.id', 's.name', 's.storeName'])
-          .leftJoin('o.buyer', 'b')
-          .addSelect(['b.id', 'b.name', 'b.phone'])
-          .where('o.seller = :sid', { sid: user.id })
-          .andWhere(
-            "o.source IN ('seller_shipment', 'offline', 'offline_intercity')",
-          )
-          .orderBy('o.createdAt', 'DESC')
-          .take(30)
-          .getMany(),
+        (() => {
+          const qb = this.orderRepo
+            .createQueryBuilder('o')
+            .leftJoinAndSelect('o.product', 'p')
+            .leftJoin('o.seller', 's')
+            .addSelect(['s.id', 's.name', 's.storeName'])
+            .leftJoin('o.buyer', 'b')
+            .addSelect(['b.id', 'b.name', 'b.phone'])
+            .where('p.seller = :sid', { sid: user.id })
+            .orderBy('o.createdAt', 'DESC')
+            .take(30);
+          if (orderScope) qb.andWhere(orderScope);
+          return qb.getMany();
+        })(),
+        (() => {
+          const qb = this.orderRepo
+            .createQueryBuilder('o')
+            .leftJoinAndSelect('o.product', 'p')
+            .leftJoin('o.seller', 's')
+            .addSelect(['s.id', 's.name', 's.storeName'])
+            .leftJoin('o.buyer', 'b')
+            .addSelect(['b.id', 'b.name', 'b.phone'])
+            .where('o.seller = :sid', { sid: user.id })
+            .andWhere(
+              "o.source IN ('seller_shipment', 'offline', 'offline_intercity')",
+            )
+            .orderBy('o.createdAt', 'DESC')
+            .take(30);
+          if (orderScope) qb.andWhere(orderScope);
+          return qb.getMany();
+        })(),
       ]).then(([onlineOrders, manualOrders]) => {
         // Merge and deduplicate by id
         const seen = new Set<number>();
@@ -525,17 +591,27 @@ export class SellerService {
   }
 
   // ── Seller: payout history ────────────────────────────────────────────────
-  async getMyPayouts(userId: number) {
-    // Get all orders where this seller has earned money
-    const orders = await this.orderRepo
+  async getMyPayouts(userId: number, commerceProfileId?: number) {
+    // Get all orders where this seller has earned money — commerceProfileId
+    // scopes this to one specific business, otherwise (the default) an
+    // account running more than one sees every business's payouts merged
+    // together (profile-architecture-audit-2026-08 Stage 6). Legacy orders
+    // with no commerceProfileId of their own still show up.
+    const ordersQb = this.orderRepo
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.product', 'p')
       .leftJoinAndSelect('o.buyer', 'b')
       .where('(p.sellerId = :uid OR o.createdByUserId = :uid)', { uid: userId })
       .andWhere('o.status NOT IN (:...skip)', { skip: ['cancelled'] })
       .orderBy('o.createdAt', 'DESC')
-      .take(50)
-      .getMany();
+      .take(50);
+    if (commerceProfileId) {
+      ordersQb.andWhere(
+        '(o."commerceProfileId" = :cpid OR o."commerceProfileId" IS NULL)',
+        { cpid: commerceProfileId },
+      );
+    }
+    const orders = await ordersQb.getMany();
 
     const released = orders.filter(
       (o) => (o as any).payoutStatus === 'released',

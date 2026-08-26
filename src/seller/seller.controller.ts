@@ -8,6 +8,7 @@ import {
   UseGuards,
   Request,
   Param,
+  Query,
   ParseIntPipe,
   ForbiddenException,
 } from '@nestjs/common';
@@ -102,16 +103,28 @@ export class SellerController {
   // permission error.
   @UseGuards(JwtAuthGuard)
   @Get('dashboard')
-  async getDashboard(@Request() req) {
+  async getDashboard(
+    @Request() req,
+    @Query('commerceProfileId') commerceProfileId?: string,
+  ) {
     const sellerId = await this.resolveOrSelf(req.user, 'canViewOrders');
-    return this.sellerService.getDashboardStats({ id: sellerId } as User);
+    return this.sellerService.getDashboardStats(
+      { id: sellerId } as User,
+      commerceProfileId ? Number(commerceProfileId) : undefined,
+    );
   }
 
   @Get('my-payouts')
   @UseGuards(JwtAuthGuard)
-  async getMyPayouts(@Request() req) {
+  async getMyPayouts(
+    @Request() req,
+    @Query('commerceProfileId') commerceProfileId?: string,
+  ) {
     const sellerId = await this.resolveOrSelf(req.user, 'canViewRevenue');
-    return this.sellerService.getMyPayouts(sellerId);
+    return this.sellerService.getMyPayouts(
+      sellerId,
+      commerceProfileId ? Number(commerceProfileId) : undefined,
+    );
   }
 
   private async resolveOrSelf(

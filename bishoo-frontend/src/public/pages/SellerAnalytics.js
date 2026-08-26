@@ -62,18 +62,21 @@ const StatCard = ({ icon, label, value, sub, color = '#1d4ed8', bg = '#eff6ff' }
   </div>
 );
 
-const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole }) => {
+const SellerAnalytics = ({ onNavigate, isLoggedIn, onLogout, userRole, activeProfileId }) => {
   const { t } = useTranslation();
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('overview');
 
   useEffect(() => {
-    api.get('/seller/dashboard')
+    // Scoped to the active profile — see SellerDashboard.js's identical fix.
+    api.get('/seller/dashboard', {
+      params: activeProfileId ? { commerceProfileId: activeProfileId } : {},
+    })
       .then(r => setData(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeProfileId]);
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9', display: 'flex', flexDirection: 'column' }}>

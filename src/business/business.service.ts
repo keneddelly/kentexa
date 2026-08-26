@@ -64,7 +64,12 @@ export class BusinessService {
       // whose profile predates this Business record saw "Activate Seller"
       // here despite already being one.
       this.sellerProfileRepo.findOne({ where: { user: { id: user.id } } }),
-      this.commerceProfiles.findForUserByType(user.id, CommerceProfileType.BUSINESS),
+      // By businessId link, not just "the account's business profile" — an
+      // account running more than one Business must each show their own
+      // followers/rating/reputation, not whichever business profile
+      // findForUserByType happens to resolve first (profile-architecture-
+      // audit-2026-08 Stage 6).
+      this.commerceProfiles.findByBusinessId(user.id, businessId),
     ]);
     return {
       business,
@@ -96,9 +101,12 @@ export class BusinessService {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    const profile = await this.commerceProfiles.findForUserByType(
+    // Resolved by the businessId link, not just "the account's business
+    // profile" — an account running more than one Business must never have
+    // their stats merged (profile-architecture-audit-2026-08 Stage 6).
+    const profile = await this.commerceProfiles.findByBusinessId(
       user.id,
-      CommerceProfileType.BUSINESS,
+      businessId,
     );
     const profileId = profile?.id ?? null;
 
@@ -119,19 +127,45 @@ export class BusinessService {
       countToday('INVOICE_PAID'),
       countToday('PROFILE_FOLLOWED'),
       countToday('REVIEW_CREATED'),
-      this.invoiceRepo.count({
-        where: {
-          order: { seller: { id: user.id } },
-          status: In([
-            InvoiceStatus.AWAITING_PAYMENT,
-            InvoiceStatus.PAYMENT_PROCESSING,
-          ]),
-        },
-      }),
-      this.productRepo.find({
-        where: { seller: { id: user.id } },
-        select: { id: true },
-      }),
+      profileId
+        ? this.invoiceRepo
+            .createQueryBuilder('i')
+            .leftJoin('i.order', 'o')
+            .where('o."sellerId" = :sid', { sid: user.id })
+            .andWhere(
+              '(o."commerceProfileId" = :pid OR o."commerceProfileId" IS NULL)',
+              { pid: profileId },
+            )
+            .andWhere('i.status IN (:...statuses)', {
+              statuses: [
+                InvoiceStatus.AWAITING_PAYMENT,
+                InvoiceStatus.PAYMENT_PROCESSING,
+              ],
+            })
+            .getCount()
+        : this.invoiceRepo.count({
+            where: {
+              order: { seller: { id: user.id } },
+              status: In([
+                InvoiceStatus.AWAITING_PAYMENT,
+                InvoiceStatus.PAYMENT_PROCESSING,
+              ]),
+            },
+          }),
+      profileId
+        ? this.productRepo
+            .createQueryBuilder('p')
+            .select('p.id')
+            .where('p."sellerId" = :sid', { sid: user.id })
+            .andWhere(
+              '(p."commerceProfileId" = :pid OR p."commerceProfileId" IS NULL)',
+              { pid: profileId },
+            )
+            .getMany()
+        : this.productRepo.find({
+            where: { seller: { id: user.id } },
+            select: { id: true },
+          }),
     ]);
 
     const productIds = myProducts.map((p) => String(p.id));

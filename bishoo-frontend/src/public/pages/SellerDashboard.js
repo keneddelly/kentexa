@@ -231,7 +231,7 @@ const BisCommerceDashboard = ({ data, onNavigate, t }) => {
   );
 };
 
-const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment, currentUser }) => {
+const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment, currentUser, activeProfileId }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = LOCALE_MAP[i18n.language] || 'en-GB';
   const [data, setData]                       = useState(null);
@@ -250,7 +250,10 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     fetchData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // Re-fetch when the active profile changes — otherwise switching from
+    // Business A to Business B while already on this page keeps showing
+    // Business A's stats until a manual reload.
+  }, [activeProfileId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Verification status is a trust/privilege signal now, not a gate on
   // reaching your own seller data — every fetch below runs for every user
@@ -271,7 +274,13 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
       }
 
       try {
-        const dashRes = await api.get('/seller/dashboard');
+        // Scopes stats to whichever profile is currently active — without
+        // this, an account running more than one business always saw every
+        // business's data merged together (profile-architecture-audit-
+        // 2026-08 Stage 6).
+        const dashRes = await api.get('/seller/dashboard', {
+          params: activeProfileId ? { commerceProfileId: activeProfileId } : {},
+        });
         setData(dashRes.data);
       } catch { setData(null); }
       try {

@@ -2472,6 +2472,11 @@ export class OrdersService {
       busCompany: dto.busCompany || null,
       busTicketNumber: dto.busTicketNumber || null,
       externalTrackingRef: dto.externalTrackingRef || null,
+      // Authorized above (isAuthorizedFor) but was only ever used for
+      // senderDisplayName — never actually persisted, so this manual sale
+      // had no way to be attributed to a specific business afterward
+      // (profile-architecture-audit-2026-08 Stage 6).
+      commerceProfileId: dto.commerceProfileId ?? (product as any).commerceProfileId ?? null,
     } as any);
 
     const saved = await this.repo.save(order as any);

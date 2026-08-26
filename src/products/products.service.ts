@@ -265,11 +265,25 @@ export class ProductsService {
     return qb.orderBy('p.createdAt', 'DESC').getMany();
   }
 
-  async findMyProducts(user: User) {
-    const products = await this.repo.find({
-      where: { seller: { id: user.id } },
-      order: { createdAt: 'DESC' },
-    });
+  // commerceProfileId scopes this to whichever profile is currently
+  // active, unfiltered by availability (unlike findByCommerceProfile,
+  // which is the public-facing "browse this profile's storefront" view) —
+  // a seller managing their own catalog needs to see unavailable/hidden
+  // products too, just only the ones under the active profile. Omitting
+  // it keeps the old account-wide behavior for any caller that doesn't
+  // send it yet (profile-architecture-audit-2026-08 Stage 6).
+  async findMyProducts(user: User, commerceProfileId?: number) {
+    const qb = this.repo
+      .createQueryBuilder('p')
+      .where('p."sellerId" = :sid', { sid: user.id })
+      .orderBy('p.createdAt', 'DESC');
+    if (commerceProfileId) {
+      qb.andWhere(
+        '(p."commerceProfileId" = :cpid OR p."commerceProfileId" IS NULL)',
+        { cpid: commerceProfileId },
+      );
+    }
+    const products = await qb.getMany();
     return this.attachReservedStock(products);
   }
 

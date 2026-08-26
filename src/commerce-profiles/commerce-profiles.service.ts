@@ -206,6 +206,21 @@ export class CommerceProfilesService {
     return this.repo.findOne({ where: { ownerId, type } });
   }
 
+  // The specific CommerceProfile linked to one Business entity — more
+  // precise than findForUserByType(ownerId, BUSINESS) once an account can
+  // run more than one Business (profile-architecture-audit-2026-08): that
+  // lookup just grabs "the account's business profile," ambiguous the
+  // moment there's more than one. Falls back to findForUserByType for
+  // Business rows that predate the businessId link.
+  async findByBusinessId(
+    ownerId: number,
+    businessId: number,
+  ): Promise<CommerceProfile | null> {
+    const linked = await this.repo.findOne({ where: { businessId } });
+    if (linked) return linked;
+    return this.findForUserByType(ownerId, CommerceProfileType.BUSINESS);
+  }
+
   // Batch version of findForUserByType — for list endpoints (search
   // results, trending rails, discover feed) that need to attach each row's
   // own commerceProfileId without an N+1 query per row. Returns a Map

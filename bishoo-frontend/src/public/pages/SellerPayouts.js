@@ -95,7 +95,7 @@ const PayoutCard = ({ order, highlighted, cardRef, t, dateLocale }) => {
   );
 };
 
-const SellerPayouts = ({ onNavigate, highlightOrderId }) => {
+const SellerPayouts = ({ onNavigate, highlightOrderId, activeProfileId }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'en-GB';
   const [data,    setData]    = useState(null);
@@ -104,11 +104,14 @@ const SellerPayouts = ({ onNavigate, highlightOrderId }) => {
   const highlightRef = React.useRef(null);
 
   useEffect(() => {
-    api.get('/seller/my-payouts')
+    // Scoped to the active profile — see SellerDashboard.js's identical fix.
+    api.get('/seller/my-payouts', {
+      params: activeProfileId ? { commerceProfileId: activeProfileId } : {},
+    })
       .then(r => setData(r.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [activeProfileId]);
 
   // Deep-linked from a notification — scroll to and highlight that order.
   useEffect(() => {

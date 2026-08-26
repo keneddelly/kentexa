@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Param,
+  Query,
   ParseIntPipe,
   UseGuards,
   Request,
@@ -89,7 +90,13 @@ export class PayoutsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('my-payouts')
-  getMyPayouts(@Request() req) {
-    return this.payoutsService.getMyPayouts(req.user);
+  getMyPayouts(
+    @Request() req,
+    @Query('commerceProfileId') commerceProfileId?: string,
+  ) {
+    return this.payoutsService.getMyPayouts(
+      req.user,
+      commerceProfileId ? Number(commerceProfileId) : undefined,
+    );
   }
 }
