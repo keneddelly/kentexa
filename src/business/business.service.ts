@@ -54,7 +54,16 @@ export class BusinessService {
       throw new NotFoundException('Business not found');
     }
     const [sellerProfile, commerceProfile] = await Promise.all([
-      this.sellerProfileRepo.findOne({ where: { businessId: business.id } }),
+      // By user, not businessId: a SellerProfile created through the
+      // original individual/business application flow (SellerService.apply)
+      // has businessId null — it was never linked to this Business entity,
+      // even though it's the same person's real, approved seller account.
+      // activateSeller()'s own existingSeller check (below) already treats
+      // "by user.id" as authoritative for this; this lookup was the one
+      // place still checking businessId instead, so an approved seller
+      // whose profile predates this Business record saw "Activate Seller"
+      // here despite already being one.
+      this.sellerProfileRepo.findOne({ where: { user: { id: user.id } } }),
       this.commerceProfiles.findForUserByType(user.id, CommerceProfileType.BUSINESS),
     ]);
     return {
