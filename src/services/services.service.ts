@@ -538,4 +538,22 @@ export class ServicesService {
       .take(20)
       .getMany();
   }
+
+  // ── Admin: every service ad regardless of status ──────────────────────────
+  // browse()/search() only ever return status='active' ads, so there was no
+  // way for an admin to see the full picture (paused/inactive ads included)
+  // — mirrors ProductsService.findAllAdmin()'s exact same reasoning.
+  async findAllAdmin(): Promise<ServiceAd[]> {
+    return this.adRepo.find({
+      relations: { provider: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async setStatusAdmin(id: number, status: ServiceStatus): Promise<ServiceAd> {
+    const ad = await this.adRepo.findOne({ where: { id } });
+    if (!ad) throw new NotFoundException('Huduma haijapatikana');
+    ad.status = status;
+    return this.adRepo.save(ad);
+  }
 }

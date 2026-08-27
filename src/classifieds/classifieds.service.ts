@@ -128,6 +128,21 @@ export class ClassifiedsService {
     return query.orderBy('c.createdAt', 'DESC').getMany();
   }
 
+  // ── Admin: manual classified invoices (seller-sent, not the online-order
+  // Invoice entity) ────────────────────────────────────────────────────────
+  // Buyer/seller each already had their own scoped view
+  // (invoices/my-requests, invoices/seller-requests) but nothing showed
+  // these to admin at all — the admin Invoices page only ever queried the
+  // Order-backed Invoice table, never ClassifiedInvoiceRequest.
+  async findAllInvoiceRequestsAdmin(
+    status?: string,
+  ): Promise<ClassifiedInvoiceRequest[]> {
+    return this.invoiceRequestRepo.find({
+      where: status ? { status: status as any } : {},
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async findAll(category?: string, location?: string) {
     const query = this.repo
       .createQueryBuilder('c')

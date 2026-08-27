@@ -16,6 +16,9 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 import { ServicesService } from './services.service';
 import { JobStatus } from './entities/job-request.entity';
 import { CreateServiceAdDto } from './dto/create-service-ad.dto';
@@ -170,5 +173,26 @@ export class ServicesController {
     @Body() dto: { rating: number; review: string },
   ) {
     return this.svc.reviewJob(req.user.id, id, dto.rating, dto.review);
+  }
+
+  // ── Admin ──────────────────────────────────────────────────────────────────
+  // Nothing in the admin panel showed service ads at all before this —
+  // browse()/search() above only ever return status='active' ads, and there
+  // was no endpoint that returned every ad regardless of status.
+  @Get('admin/all')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  findAllAdmin() {
+    return this.svc.findAllAdmin();
+  }
+
+  @Patch('admin/:id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  setStatusAdmin(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { status: 'active' | 'paused' | 'inactive' },
+  ) {
+    return this.svc.setStatusAdmin(id, dto.status as any);
   }
 }

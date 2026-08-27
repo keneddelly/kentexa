@@ -32,7 +32,23 @@ const STATUS = {
   cancelled:          { bg: '#f1f5f9', color: '#64748b', label: 'Imefutwa' },
 };
 
+// Manual classified invoices use their own status set (no "expired" —
+// a seller-composed invoice for a classified ad, not an auto-generated
+// online-order one).
+const CLS_STATUS = {
+  pending:   { bg: '#fef9c3', color: '#ca8a04', label: 'Inasubiri' },
+  sent:      { bg: '#dbeafe', color: '#2563eb', label: 'Imetumwa' },
+  paid:      { bg: '#dcfce7', color: '#16a34a', label: '✅ Imelipwa' },
+  cancelled: { bg: '#f1f5f9', color: '#64748b', label: 'Imefutwa' },
+};
+
 const Invoices = ({ activePage, onNavigate, onLogout }) => {
+  // "order" = the existing Order-backed Invoice table (unchanged below).
+  // "classified" = ClassifiedInvoiceRequest — a seller-composed manual
+  // invoice for a classified ad, previously invisible to admin entirely:
+  // no endpoint returned these outside each party's own scoped view.
+  const [tab, setTab] = useState('order');
+
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -40,7 +56,14 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
   const [filter, setFilter]     = useState('all');
   const [selected, setSelected] = useState(null);
 
-  useEffect(() => { fetchInvoices(); }, []);
+  const [clsInvoices, setClsInvoices] = useState([]);
+  const [clsLoading,  setClsLoading]  = useState(true);
+  const [clsError,    setClsError]    = useState('');
+  const [clsSearch,   setClsSearch]   = useState('');
+  const [clsFilter,   setClsFilter]   = useState('all');
+  const [clsSelected, setClsSelected] = useState(null);
+
+  useEffect(() => { fetchInvoices(); fetchClassifiedInvoices(); }, []);
 
   const fetchInvoices = async () => {
     try {
@@ -51,6 +74,29 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
       setError('Imeshindwa kupakia ankara');
     } finally { setLoading(false); }
   };
+
+  const fetchClassifiedInvoices = async () => {
+    try {
+      setClsLoading(true);
+      const res = await api.get('/classifieds/admin/invoices');
+      setClsInvoices(res.data || []);
+    } catch {
+      setClsError('Imeshindwa kupakia ankara za tangazo');
+    } finally { setClsLoading(false); }
+  };
+
+  const filteredCls = clsInvoices.filter(inv => {
+    const q = clsSearch.toLowerCase();
+    const matchSearch = !q ||
+      inv.invoiceNumber?.toLowerCase().includes(q) ||
+      inv.classified?.title?.toLowerCase().includes(q) ||
+      inv.buyer?.name?.toLowerCase().includes(q) ||
+      inv.buyer?.phone?.includes(q) ||
+      inv.seller?.name?.toLowerCase().includes(q) ||
+      inv.seller?.storeName?.toLowerCase().includes(q);
+    const matchFilter = clsFilter === 'all' || inv.status === clsFilter;
+    return matchSearch && matchFilter;
+  });
 
   const filtered = invoices.filter(inv => {
     const q = search.toLowerCase();
@@ -75,20 +121,41 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0 }}>🧾 Ankara</h1>
             <p style={{ color: '#64748b', marginTop: 4, fontSize: 14 }}>
-              {invoices.length} ankara zote
+              {tab === 'order' ? `${invoices.length} ankara za agizo` : `${clsInvoices.length} ankara za matangazo`}
             </p>
           </div>
-          <button onClick={fetchInvoices}
+          <button onClick={tab === 'order' ? fetchInvoices : fetchClassifiedInvoices}
             style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
               padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
             🔄 Onyesha Upya
           </button>
         </div>
 
+        {/* Tabs — order invoices (Order-backed) vs manual classified
+            invoices (ClassifiedInvoiceRequest, seller-composed for a
+            classified ad) — separate datasets, separate shapes. */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {[
+            { key: 'order',      label: `🧾 Ankara za Agizo (${invoices.length})` },
+            { key: 'classified', label: `📋 Ankara za Tangazo (${clsInvoices.length})` },
+          ].map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              style={{ padding: '10px 18px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: 700,
+                backgroundColor: tab === t.key ? '#1d4ed8' : '#fff',
+                color: tab === t.key ? '#fff' : '#64748b',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'order' && (
+        <>
         {error && (
           <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px',
             borderRadius: 8, marginBottom: 20 }}>❌ {error}</div>
@@ -318,6 +385,201 @@ const Invoices = ({ activePage, onNavigate, onLogout }) => {
               </button>
             </div>
           </div>
+        )}
+        </>
+        )}
+
+        {tab === 'classified' && (
+        <>
+        {clsError && (
+          <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '12px 16px',
+            borderRadius: 8, marginBottom: 20 }}>❌ {clsError}</div>
+        )}
+
+        {/* Search & Filter */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+          <input type="text" placeholder="🔍 Tafuta ankara, tangazo, mteja, muuzaji..."
+            value={clsSearch} onChange={e => setClsSearch(e.target.value)}
+            style={{ flex: 1, padding: '10px 14px', borderRadius: 8,
+              border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }} />
+          <select value={clsFilter} onChange={e => setClsFilter(e.target.value)}
+            style={{ padding: '10px 14px', borderRadius: 8,
+              border: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }}>
+            <option value="all">Hali Zote</option>
+            <option value="pending">Inasubiri</option>
+            <option value="sent">Imetumwa</option>
+            <option value="paid">Imelipwa</option>
+            <option value="cancelled">Imefutwa</option>
+          </select>
+        </div>
+
+        {clsLoading ? (
+          <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>⏳ Inapakia...</div>
+        ) : (
+          <div style={{ backgroundColor: '#fff', borderRadius: 12,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  {['Ankara #','Tangazo','Muuzaji','Mnunuzi / Simu','Kiasi','Hali','Tarehe'].map(h => (
+                    <th key={h} style={{ padding: '14px 16px', textAlign: 'left',
+                      backgroundColor: '#f1f5f9', color: '#64748b',
+                      fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCls.length === 0 ? (
+                  <tr><td colSpan="7" style={{ padding: 32, textAlign: 'center', color: '#94a3b8' }}>
+                    Hakuna ankara za tangazo
+                  </td></tr>
+                ) : filteredCls.map(inv => {
+                  const sc = CLS_STATUS[inv.status] || { bg: '#f1f5f9', color: '#64748b', label: inv.status };
+                  return (
+                    <tr key={inv.id}
+                      onClick={() => setClsSelected(inv)}
+                      style={{ borderTop: '1px solid #f1f5f9', cursor: 'pointer' }}>
+                      <td style={{ padding: '12px 16px', fontFamily: 'monospace',
+                        fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
+                        {inv.invoiceNumber || '—'}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: 13, color: '#0f172a',
+                        maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {inv.classified?.title || `#${inv.linkedOrderId || '—'}`}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                          {inv.seller?.storeName || inv.seller?.name || '—'}
+                        </div>
+                        <PhoneCell phone={inv.seller?.phone} />
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                          {inv.buyer?.name || '—'}
+                        </div>
+                        <PhoneCell phone={inv.buyer?.phone} />
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: 14,
+                        fontWeight: 900, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                        TZS {Number(inv.amount || 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11,
+                          fontWeight: 700, backgroundColor: sc.bg, color: sc.color,
+                          whiteSpace: 'nowrap' }}>
+                          {sc.label}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontSize: 12, color: '#64748b',
+                        whiteSpace: 'nowrap' }}>
+                        {new Date(inv.createdAt).toLocaleDateString('sw-TZ')}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Classified invoice detail drawer */}
+        {clsSelected && (
+          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)',
+            zIndex: 9998, display: 'flex', justifyContent: 'flex-end' }}
+            onClick={() => setClsSelected(null)}>
+            <div style={{ width: 440, backgroundColor: '#fff', height: '100%',
+              overflowY: 'auto', padding: 28, boxShadow: '-4px 0 24px rgba(0,0,0,0.12)' }}
+              onClick={e => e.stopPropagation()}>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between',
+                alignItems: 'center', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 900, color: '#0f172a' }}>
+                    {clsSelected.invoiceNumber || 'Ankara ya Tangazo'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>
+                    {clsSelected.classified?.title || `Agizo #${clsSelected.linkedOrderId || '—'}`}
+                  </div>
+                </div>
+                <button onClick={() => setClsSelected(null)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer',
+                    fontSize: 20, color: '#94a3b8' }}>✕</button>
+              </div>
+
+              {(() => {
+                const sc = CLS_STATUS[clsSelected.status] || { bg: '#f1f5f9', color: '#64748b', label: clsSelected.status };
+                return (
+                  <div style={{ backgroundColor: sc.bg, color: sc.color, padding: '10px 14px',
+                    borderRadius: 10, fontSize: 13, fontWeight: 800, marginBottom: 16 }}>
+                    {sc.label}
+                  </div>
+                );
+              })()}
+
+              <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#1d4ed8',
+                  marginBottom: 8, letterSpacing: 0.5 }}>🏪 MUUZAJI</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
+                  {clsSelected.seller?.storeName || clsSelected.seller?.name || '—'}
+                </div>
+                <PhoneCell phone={clsSelected.seller?.phone} />
+                {clsSelected.seller?.email && (
+                  <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                    ✉️ {clsSelected.seller.email}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ backgroundColor: '#f0fdf4', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#16a34a',
+                  marginBottom: 8, letterSpacing: 0.5 }}>👤 MNUNUZI</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
+                  {clsSelected.buyer?.name || '—'}
+                </div>
+                <PhoneCell phone={clsSelected.buyer?.phone} />
+                {clsSelected.buyerMessage && (
+                  <div style={{ fontSize: 12, color: '#475569', marginTop: 6, fontStyle: 'italic' }}>
+                    "{clsSelected.buyerMessage}"
+                  </div>
+                )}
+              </div>
+
+              <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b',
+                  marginBottom: 8, letterSpacing: 0.5 }}>📋 MAELEZO</div>
+                {[
+                  ['Tangazo',    clsSelected.classified?.title || '—'],
+                  ['Kiasi',      `TZS ${Number(clsSelected.amount || 0).toLocaleString()}`],
+                  ['Maelezo',    clsSelected.invoiceDescription || '—'],
+                  ['Njia ya Malipo', clsSelected.paymentMethod || '—'],
+                  ['Njia ya Usafirishaji', clsSelected.shippingMethod || '—'],
+                  ['Rejeleo',    clsSelected.transactionReference || '—'],
+                  ['Ada ya Jukwaa', clsSelected.platformFee != null ? `TZS ${Number(clsSelected.platformFee).toLocaleString()}` : '—'],
+                  ['Kiasi cha Muuzaji', clsSelected.sellerAmount != null ? `TZS ${Number(clsSelected.sellerAmount).toLocaleString()}` : '—'],
+                  ['Tarehe ya Kulipa', clsSelected.paidAt ? new Date(clsSelected.paidAt).toLocaleString('sw-TZ') : '—'],
+                  ['Muda wa Mwisho', clsSelected.dueDate ? new Date(clsSelected.dueDate).toLocaleDateString('sw-TZ') : '—'],
+                  ['Maoni ya Muuzaji', clsSelected.sellerNotes || '—'],
+                ].map(([l, v]) => (
+                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
+                    padding: '6px 0', borderBottom: '1px solid #f1f5f9', fontSize: 13 }}>
+                    <span style={{ color: '#64748b' }}>{l}</span>
+                    <span style={{ fontWeight: 700, color: '#1e293b', textAlign: 'right', marginLeft: 12 }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              {clsSelected.linkedOrderId && (
+                <button onClick={() => onNavigate(`TrackParcel-KTX-ORD-${clsSelected.linkedOrderId}`)}
+                  style={{ width: '100%', backgroundColor: '#eff6ff', color: '#1d4ed8',
+                    border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer',
+                    fontSize: 13, fontWeight: 700 }}>
+                  📍 Fuatilia Agizo
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        </>
         )}
       </main>
     </div>

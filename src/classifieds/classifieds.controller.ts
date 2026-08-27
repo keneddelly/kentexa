@@ -180,6 +180,16 @@ export class ClassifiedsController {
     return this.service.findAllAdmin(status);
   }
 
+  // Manual classified invoices (seller-sent, not the online-order Invoice
+  // entity) — was completely invisible to admin, no endpoint returned them
+  // at all outside each party's own scoped view.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('admin/invoices')
+  findAllInvoiceRequestsAdmin(@Query('status') status?: string) {
+    return this.service.findAllInvoiceRequestsAdmin(status);
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch(':id/status')
