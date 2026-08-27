@@ -261,6 +261,13 @@ export class SellerService {
 
     const profile = this.profileRepo.create({
       ...profileFields,
+      // businessName is only actually required (DTO-validated) for
+      // sellerType === 'business' — an individual seller who left it blank
+      // gets their own account name here instead. This column still means
+      // "this seller's display name" for every downstream reader
+      // (dashboards, storefront cards, admin lists), it just isn't
+      // literally a business's name for an individual.
+      businessName: profileFields.businessName?.trim() || user.name || `Seller ${user.id}`,
       user,
       status: SellerStatus.PENDING,
     });
@@ -276,27 +283,44 @@ export class SellerService {
         .catch(() => {});
     }
 
-    // Creates the business's Commerce Profile alongside the application —
-    // starts PENDING, mirrors the SellerProfile's own status exactly.
+    // Attaches selling eligibility to the right identity. A genuine
+    // business (sellerType === 'business') gets its own new Business-type
+    // CommerceProfile — a distinct identity from the person, same as
+    // before. An individual seller reuses their EXISTING Personal
+    // CommerceProfile (created at registration, auth.service.ts) instead
+    // of spawning a redundant second identity — this was the actual root
+    // cause of "choosing Sell forces business onboarding": every
+    // applicant, individual or business, used to get a Business-type
+    // profile created here unconditionally.
     // Non-fatal: the admin backfill catches anything that slips through.
     try {
-      await this.commerceProfiles.createProfile({
-        ownerId: user.id,
-        type: CommerceProfileType.BUSINESS,
-        displayName: saved.businessName,
-        usernameSeed: saved.businessName,
-        // User.logo is the field store-branding actually writes to (Store
-        // Settings, search cards, etc.) — SellerProfile.logo is essentially
-        // never populated. Reading only saved.logo here left the business's
-        // CommerceProfile.photoUrl null even when the seller had a real
-        // logo showing everywhere else. Matches the backfill service's
-        // already-correct sp.user.logo || sp.logo fallback order.
-        photoUrl: user.logo || saved.logo,
-        bio: saved.businessDescription,
-        location: saved.address,
-        status: CommerceProfileStatus.PENDING,
-        sellerProfileId: saved.id,
-      });
+      if (dto.sellerType === 'business') {
+        await this.commerceProfiles.createProfile({
+          ownerId: user.id,
+          type: CommerceProfileType.BUSINESS,
+          displayName: saved.businessName,
+          usernameSeed: saved.businessName,
+          // User.logo is the field store-branding actually writes to (Store
+          // Settings, search cards, etc.) — SellerProfile.logo is essentially
+          // never populated. Reading only saved.logo here left the business's
+          // CommerceProfile.photoUrl null even when the seller had a real
+          // logo showing everywhere else. Matches the backfill service's
+          // already-correct sp.user.logo || sp.logo fallback order.
+          photoUrl: user.logo || saved.logo,
+          bio: saved.businessDescription,
+          location: saved.address,
+          status: CommerceProfileStatus.PENDING,
+          sellerProfileId: saved.id,
+        });
+      } else {
+        const personalProfile = await this.commerceProfiles.findForUserByType(
+          user.id,
+          CommerceProfileType.PERSONAL,
+        );
+        if (personalProfile) {
+          await this.commerceProfiles.linkSellerProfile(personalProfile.id, saved.id);
+        }
+      }
     } catch {}
 
     return saved;
@@ -692,20 +716,28 @@ export class SellerService {
     // actual enforcement point for product creation/payments — that
     // cutover is a deliberately separate, later phase.
     //
-    // Granted to the account's BUSINESS CommerceProfile specifically, not
-    // the raw account — eligibility (this SellerProfile being approved)
-    // is a user-level fact, but SELL capability belongs to whichever
-    // profile is acting (profile-architecture-audit-2026-08). apply()
-    // creates this profile at application time; skip silently if it's
-    // somehow missing (e.g. that creation failed) rather than granting a
-    // capability with nothing to attach it to.
-    const businessProfileForCapability = await this.commerceProfiles
-      .findForUserByType(profile.user.id, CommerceProfileType.BUSINESS)
+    // Granted to whichever CommerceProfile apply() actually attached this
+    // application to — the account's Business profile for
+    // sellerType==='business', or the account's existing Personal profile
+    // for an individual seller (apply() no longer creates a redundant
+    // Business-type profile for individuals — see the "Sell intent forced
+    // business onboarding" fix). Eligibility (this SellerProfile being
+    // approved) is a user-level fact, but SELL capability belongs to
+    // whichever profile is acting (profile-architecture-audit-2026-08).
+    // Skip silently if the expected profile is somehow missing (e.g. its
+    // creation/lookup failed) rather than granting a capability with
+    // nothing to attach it to.
+    const profileTypeForCapability =
+      profile.sellerType === 'business'
+        ? CommerceProfileType.BUSINESS
+        : CommerceProfileType.PERSONAL;
+    const targetProfileForCapability = await this.commerceProfiles
+      .findForUserByType(profile.user.id, profileTypeForCapability)
       .catch(() => null);
-    if (businessProfileForCapability) {
+    if (targetProfileForCapability) {
       await this.sellingCapability
         .grant(
-          businessProfileForCapability.id,
+          targetProfileForCapability.id,
           profile.user.id,
           SellingCapabilityType.SELL_PHYSICAL,
           profile.sellerType === 'business'

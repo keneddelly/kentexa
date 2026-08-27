@@ -4685,8 +4685,17 @@
     "apply_success": "Ombi limewasilishwa! Tutapitia na kuidhinisha akaunti yako.",
     "apply_failed": "Imeshindwa kuwasilisha ombi",
 
+    "identity_required_title": "🪪 Thibitisha Utambulisho Wako Kwanza",
+    "identity_required_desc": "Ili kuamilisha Kiwango cha 1 cha Muuzaji na kufikia zana za muuzaji za Kentexa, tafadhali thibitisha utambulisho wako kwa kutumia NIDA, leseni ya udereva, pasipoti, au kitambulisho cha mpiga kura.",
+    "identity_rejected_title": "Uthibitisho wa Utambulisho Umekataliwa",
+    "identity_rejected_desc": "Uwasilishaji wako wa awali wa utambulisho ulikataliwa. Tafadhali pitia sababu hapa chini na uwasilishe tena taarifa zako.",
+    "identity_rejected_reason": "Sababu: {{reason}}",
+    "identity_verify_button": "Thibitisha Utambulisho Wangu",
+
     "field_business_name_label": "Jina la Biashara *",
     "field_business_name_placeholder": "mf. Dar Tech Solutions",
+    "field_display_name_label": "Jina la Kuonyesha (hiari)",
+    "field_display_name_placeholder": "mf. jina lako au jina la duka",
     "field_phone_label": "Namba ya Simu",
     "field_phone_placeholder": "255XXXXXXXXX",
     "field_address_label": "Anwani ya Biashara",

@@ -1,4 +1,4 @@
-import { IsArray, IsIn, IsInt, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsOptional, IsString, MinLength, ValidateIf } from 'class-validator';
 
 class BusinessDocumentInputDto {
   @IsIn(['brela', 'tin', 'license', 'other'])
@@ -9,9 +9,17 @@ class BusinessDocumentInputDto {
 }
 
 export class CreateSellerProfileDto {
+  // Required only for sellerType === 'business' — a registered business
+  // genuinely needs a name to operate under. An individual selling
+  // personal items has no such requirement (SellerService.apply()
+  // defaults it from the account's own name when omitted); forcing
+  // "Business Name" on everyone regardless of sellerType was the exact
+  // bug this DTO existed to fix nowhere near — see
+  // project_sell_intent_business_onboarding_2026_08 memory.
+  @ValidateIf((o) => o.sellerType === 'business')
   @IsString()
   @MinLength(3)
-  businessName: string;
+  businessName?: string;
 
   @IsOptional()
   @IsString()

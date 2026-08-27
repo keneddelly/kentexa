@@ -4794,8 +4794,17 @@
     "apply_success": "Application submitted! We will review and approve your account.",
     "apply_failed": "Failed to submit application",
 
+    "identity_required_title": "🪪 Verify Your Identity First",
+    "identity_required_desc": "To activate Seller Level 1 and access Kentexa seller tools, please verify your identity using your NIDA, driver's license, passport, or voter ID.",
+    "identity_rejected_title": "Identity Verification Rejected",
+    "identity_rejected_desc": "Your previous identity submission was rejected. Please review the reason below and resubmit your details.",
+    "identity_rejected_reason": "Reason: {{reason}}",
+    "identity_verify_button": "Verify My Identity",
+
     "field_business_name_label": "Business Name *",
     "field_business_name_placeholder": "e.g. Dar Tech Solutions",
+    "field_display_name_label": "Display Name (optional)",
+    "field_display_name_placeholder": "e.g. your name or shop name",
     "field_phone_label": "Phone Number",
     "field_phone_placeholder": "255XXXXXXXXX",
     "field_address_label": "Business Address",

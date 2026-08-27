@@ -300,6 +300,20 @@ export class CommerceProfilesService {
     await this.repo.update(id, { status });
   }
 
+  // Attaches an existing SellerProfile to an existing CommerceProfile
+  // without creating a new one — for an individual seller applying via
+  // SellerService.apply(), whose selling eligibility belongs on their
+  // ALREADY-EXISTING Personal profile (created at registration), not a
+  // freshly spawned Business-type identity. Business-type sellers still
+  // get sellerProfileId set at creation time via createProfile(); this is
+  // the equivalent for reusing rather than creating.
+  async linkSellerProfile(
+    commerceProfileId: number,
+    sellerProfileId: number,
+  ): Promise<void> {
+    await this.repo.update(commerceProfileId, { sellerProfileId });
+  }
+
   // Used by every approve/reject/suspend flow (seller, transport, agent,
   // super-agent) to keep the linked CommerceProfile's status mirroring the
   // operational entity's own status, without each service needing to know

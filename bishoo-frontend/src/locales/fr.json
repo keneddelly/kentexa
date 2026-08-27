@@ -4790,8 +4790,17 @@
     "apply_success": "Demande soumise ! Nous allons examiner et approuver votre compte.",
     "apply_failed": "Échec de l'envoi de la demande",
 
+    "identity_required_title": "🪪 Vérifiez d'abord votre identité",
+    "identity_required_desc": "Pour activer le Niveau 1 Vendeur et accéder aux outils vendeur de Kentexa, veuillez vérifier votre identité avec votre NIDA, permis de conduire, passeport ou carte d'électeur.",
+    "identity_rejected_title": "Vérification d'Identité Rejetée",
+    "identity_rejected_desc": "Votre précédente soumission d'identité a été rejetée. Veuillez consulter la raison ci-dessous et soumettre à nouveau vos informations.",
+    "identity_rejected_reason": "Raison : {{reason}}",
+    "identity_verify_button": "Vérifier Mon Identité",
+
     "field_business_name_label": "Nom de l'entreprise *",
     "field_business_name_placeholder": "ex. Dar Tech Solutions",
+    "field_display_name_label": "Nom d'affichage (facultatif)",
+    "field_display_name_placeholder": "ex. votre nom ou nom de boutique",
     "field_phone_label": "Numéro de téléphone",
     "field_phone_placeholder": "255XXXXXXXXX",
     "field_address_label": "Adresse de l'entreprise",

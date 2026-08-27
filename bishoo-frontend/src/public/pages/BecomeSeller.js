@@ -41,6 +41,25 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
+  // Choosing "Sell" is an intent, not proof of identity — check verification
+  // status up front so an unverified user sees the required identity step
+  // BEFORE the application form, instead of discovering it reactively after
+  // filling everything in. null = still loading; a 'not_submitted'/'rejected'
+  // status gates the form below. 'pending' and 'verified' both already
+  // satisfy Level 1 (see VerificationService.getLevel()'s own "pending
+  // counts" policy) — never re-ask in either of those states.
+  const [identityStatus, setIdentityStatus] = useState(null);
+  React.useEffect(() => {
+    if (!isLoggedIn) { setIdentityStatus({ status: 'not_submitted', level: 0 }); return; }
+    api.get('/identity/me').then(r => setIdentityStatus(r.data)).catch(() => setIdentityStatus({ status: 'not_submitted', level: 0 }));
+  }, [isLoggedIn]);
+  const needsIdentityVerification = identityStatus && identityStatus.level === 0;
+  // Distinguishes the two ways the identity modal can open: proactively
+  // (the "Verify Now" gate below, before any form exists to submit) vs
+  // reactively (a 403 from an already-filled-in form, handled in
+  // handleSubmit's catch below) — only the latter should auto-retry
+  // submission once verification succeeds.
+  const [retrySubmitAfterVerify, setRetrySubmitAfterVerify] = useState(false);
 
   // ── Business verification (Phase 2) ─────────────────────────────────────
   const [sellerType, setSellerType] = useState('individual');
@@ -75,7 +94,11 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
   }, [currentUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async () => {
-    if (!form.businessName) {
+    // Business Name is only mandatory for an actual registered business —
+    // an individual seller (selling personal/classified items) has no
+    // "business" to name; SellerService.apply() defaults it server-side
+    // from the account's own name when left blank.
+    if (sellerType === 'business' && !form.businessName) {
       setError(t('become_seller.business_name_required'));
       return;
     }
@@ -109,7 +132,11 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
     } catch (err) {
       // Applying requires Level 1 identity verification — show the inline
       // flow instead of a plain error so the filled-in form is never lost.
+      // Should be rare now that the proactive gate below catches this
+      // before the form even renders, but stays as a defensive fallback
+      // (e.g. a stale identityStatus read at mount).
       if (err?.response?.data?.code === 'VERIFICATION_REQUIRED') {
+        setRetrySubmitAfterVerify(true);
         setShowVerifyIdentity(true);
         return;
       }
@@ -157,7 +184,45 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
           ))}
         </div>
 
-        {/* Application Form */}
+        {/* Identity verification gate — shown BEFORE the application form,
+            not discovered reactively after filling it in. "Sell" is an
+            intent; Seller Level 1 requires proving identity first, per
+            Kentexa's verification architecture (VerificationService). This
+            never re-asks once status is 'pending' or 'verified' — both
+            already satisfy Level 1. */}
+        {needsIdentityVerification && isLoggedIn && (
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 10 }}>🪪</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
+              {identityStatus?.status === 'rejected'
+                ? t('become_seller.identity_rejected_title')
+                : t('become_seller.identity_required_title')}
+            </div>
+            <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: identityStatus?.rejectionReason ? 8 : 18 }}>
+              {identityStatus?.status === 'rejected'
+                ? t('become_seller.identity_rejected_desc')
+                : t('become_seller.identity_required_desc')}
+            </div>
+            {identityStatus?.status === 'rejected' && identityStatus?.rejectionReason && (
+              <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, marginBottom: 18, fontSize: 12.5, textAlign: 'left' }}>
+                {t('become_seller.identity_rejected_reason', { reason: identityStatus.rejectionReason })}
+              </div>
+            )}
+            <button
+              onClick={() => setShowVerifyIdentity(true)}
+              style={{ background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', border: 'none',
+                padding: '13px 28px', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 800,
+                boxShadow: '0 4px 12px rgba(102,126,234,0.4)' }}
+            >
+              {t('become_seller.identity_verify_button')}
+            </button>
+          </div>
+        )}
+
+        {/* Application Form — hidden until identity verification clears,
+            so choosing "Sell" never shows business-shaped fields before
+            the user has even proven who they are. */}
+        {!needsIdentityVerification && (
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}>
           <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginBottom: 16 }}>
             {t('become_seller.apply_title')}
@@ -198,8 +263,31 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Only a genuine business needs a business name — an
+                individual seller has no such requirement (spec: "Level 1
+                should not ask for Business name as a mandatory
+                requirement"). Left visible-but-optional for individual so
+                someone who WANTS a distinct store name still can, prefilled
+                from nothing (SellerService.apply() defaults it from their
+                account name server-side if they skip it). */}
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
+                {sellerType === 'business'
+                  ? t('become_seller.field_business_name_label')
+                  : t('become_seller.field_display_name_label')}
+              </label>
+              <input
+                type="text"
+                placeholder={sellerType === 'business'
+                  ? t('become_seller.field_business_name_placeholder')
+                  : t('become_seller.field_display_name_placeholder')}
+                value={form.businessName}
+                onChange={e => setForm({ ...form, businessName: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+
             {[
-              { label: t('become_seller.field_business_name_label'), key: 'businessName', placeholder: t('become_seller.field_business_name_placeholder'), type: 'text' },
               { label: t('become_seller.field_phone_label'), key: 'phone', placeholder: t('become_seller.field_phone_placeholder'), type: 'tel' },
               { label: t('become_seller.field_address_label'), key: 'address', placeholder: t('become_seller.field_address_placeholder'), type: 'text' },
             ].map(field => (
@@ -261,18 +349,23 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
               onChange={setLocation}
             />
 
-            <div>
-              <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
-                {t('become_seller.field_registration_number_label')}
-              </label>
-              <input
-                type="text"
-                placeholder={t('become_seller.field_registration_number_placeholder')}
-                value={form.registrationNumber}
-                onChange={e => setForm({ ...form, registrationNumber: e.target.value })}
-                style={inputStyle}
-              />
-            </div>
+            {/* BRELA registration number is a business-only concept — an
+                individual selling personal items must never be asked for
+                one (spec: "Level 1 should not ask for ... BRELA number"). */}
+            {sellerType === 'business' && (
+              <div>
+                <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>
+                  {t('become_seller.field_registration_number_label')}
+                </label>
+                <input
+                  type="text"
+                  placeholder={t('become_seller.field_registration_number_placeholder')}
+                  value={form.registrationNumber}
+                  onChange={e => setForm({ ...form, registrationNumber: e.target.value })}
+                  style={inputStyle}
+                />
+              </div>
+            )}
 
             {/* Business verification (Phase 2) — TIN, license, and document
                 uploads, only collected when selling as a registered business */}
@@ -351,6 +444,7 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
             </p>
           )}
         </div>
+        )}
 
         {/* How it works */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.06)', marginBottom: 16 }}>
@@ -410,7 +504,18 @@ const BecomeSeller = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole 
       {showVerifyIdentity && (
         <VerifyIdentityModal
           onClose={() => setShowVerifyIdentity(false)}
-          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
+          onVerified={() => {
+            setShowVerifyIdentity(false);
+            // Submitting already grants Level 1 immediately — pending
+            // counts (VerificationService.getLevel()'s own policy) — so
+            // reveal the application form right away rather than
+            // re-fetching and waiting on a network round trip.
+            setIdentityStatus(prev => ({ ...(prev || {}), status: 'pending', level: 1 }));
+            if (retrySubmitAfterVerify) {
+              setRetrySubmitAfterVerify(false);
+              handleSubmit();
+            }
+          }}
         />
       )}
     </div>
