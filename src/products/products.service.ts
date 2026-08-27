@@ -23,7 +23,6 @@ import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 import { buildMultiTermLikeClause } from '../search/search-query.util';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
-import { withPriceOverlay, formatPriceLabel } from '../feed/utils/price-overlay.util';
 import { SellerRankingService } from './seller-ranking.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
@@ -452,21 +451,20 @@ export class ProductsService {
     }
 
     // Auto-share as a Moment — fire-and-forget, never blocks product creation.
-    // Price + category burned into the shared image (see price-overlay.util)
-    // so a viewer scrolling the feed has something to act on immediately,
-    // instead of a bare photo.
+    // price is passed as real data (not burned into the image pixels — see
+    // the removed price-overlay.util) so HomeFeed.js's existing clean price
+    // badge, already used for the classifieds/products/services fallback
+    // mix, renders for this too instead of a cluttered on-image banner.
     if (seller?.id) {
       this.feedService
         .publish(seller.id, {
           type: 'moment',
           title: saved.name,
-          imageUrl: withPriceOverlay(saved.images?.[0], {
-            priceLabel: formatPriceLabel(saved.displayPrice),
-            category: saved.category,
-          }),
+          imageUrl: saved.images?.[0],
           linkedEntityType: 'product',
           linkedEntityId: saved.id,
           category: saved.category || undefined,
+          price: Number(saved.displayPrice) || undefined,
           commerceProfileId: commerceProfileId || undefined,
         })
         .catch(() => {});

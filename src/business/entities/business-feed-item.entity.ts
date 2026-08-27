@@ -130,6 +130,16 @@ export class BusinessFeedItem {
   @Column({ type: 'varchar', nullable: true })
   category: string | null;
 
+  // Set when this Moment was auto-shared from a priced listing (product/
+  // classified/service) so the feed card can show a real price badge
+  // (HomeFeed.js's "Price + primary action" block, the same clean UI
+  // already used for the classifieds/products/services fallback mix) —
+  // previously the price was burned as pixels directly into the shared
+  // image instead (see the now-removed price-overlay.util.ts), which
+  // looked cluttered and gave the frontend no actual number to read.
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  price: number | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 

@@ -20,7 +20,6 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { SearchIndexService } from '../search/search-index.service';
 import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 import { buildMultiTermLikeClause } from '../search/search-query.util';
-import { withPriceOverlay, formatServicePriceLabel } from '../feed/utils/price-overlay.util';
 
 @Injectable()
 export class ServicesService {
@@ -65,26 +64,26 @@ export class ServicesService {
     );
 
     // Auto-share as a Moment — fire-and-forget, never blocks ad creation.
-    // Price + category burned into the shared image (see price-overlay.util)
-    // so a viewer scrolling the feed has something to act on immediately.
-    // No price line at all for negotiate/free-quote ads — there's no fixed
-    // number to show.
+    // price is passed as real data (not burned into the image pixels — see
+    // the removed price-overlay.util) so HomeFeed.js's existing clean price
+    // badge renders for this instead of a cluttered on-image banner.
+    // No price at all for negotiate/free-quote ads — there's no fixed
+    // number to show (the badge only ever renders a plain number, never a
+    // range/unit label, so a negotiated price has nothing accurate to show).
+    const hasFixedPrice =
+      saved.priceType !== 'negotiate' &&
+      saved.priceType !== 'free_quote' &&
+      Number(saved.price) > 0;
     if (user?.id) {
       this.feedService
         .publish(user.id, {
           type: 'moment',
           title: saved.title,
-          imageUrl: withPriceOverlay(saved.images?.[0], {
-            priceLabel: formatServicePriceLabel(
-              saved.priceType,
-              saved.price,
-              saved.priceMax,
-            ),
-            category: saved.category,
-          }),
+          imageUrl: saved.images?.[0],
           linkedEntityType: 'service',
           linkedEntityId: saved.id,
           category: saved.category || undefined,
+          price: hasFixedPrice ? Number(saved.price) : undefined,
           commerceProfileId: commerceProfileId || undefined,
         })
         .catch(() => {});

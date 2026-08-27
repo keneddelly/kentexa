@@ -1542,6 +1542,17 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef
   const [showComments, setShowComments] = useState(false);
   const isTagged = !!(f.linkedEntityType && f.linkedEntityId);
 
+  // Was completely unclickable — tapping the photo/title did nothing except
+  // the explicit comment/CTA buttons. Tagged posts (product/service/
+  // classified) have a real detail page to land on; a plain untagged
+  // announcement has nothing to navigate to, so it correctly stays inert.
+  const goToDetail = () => {
+    if (!isTagged) return;
+    if (f.linkedEntityType === 'product') onNavigate(`ProductDetail-${f.linkedEntityId}`);
+    else if (f.linkedEntityType === 'service') onNavigate(`ServiceDetail-${f.linkedEntityId}`);
+    else onNavigate(`ClassifiedDetail-${f.linkedEntityId}`);
+  };
+
   return (
     <div ref={postRef} style={{ backgroundColor:WH, borderRadius:14, padding:16,
       marginBottom:12,
@@ -1558,11 +1569,20 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef
           {new Date(f.createdAt).toLocaleDateString('en-GB')}
         </span>
       </div>
-      <div style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:4 }}>{f.title}</div>
+      <div onClick={goToDetail}
+        style={{ fontSize:14, fontWeight:800, color:DK, marginBottom:4,
+          cursor: isTagged ? 'pointer' : 'default' }}>{f.title}</div>
       {f.body && <div style={{ fontSize:12, color:'#475569', lineHeight:1.5 }}>{f.body}</div>}
       {f.imageUrl && (
-        <img src={f.imageUrl} alt="" style={{ width:'100%', borderRadius:10,
-          marginTop:10, maxHeight:200, objectFit:'cover' }} />
+        // maxHeight was 200 — aggressively cropped any portrait photo (the
+        // common case for a phone-camera product shot) since objectFit:cover
+        // forces that height regardless of the image's real aspect ratio.
+        // Matches HomeFeed.js's own feed-image treatment (maxHeight:420) so
+        // the same photo doesn't get cropped differently in the two places
+        // it appears.
+        <img src={f.imageUrl} alt="" onClick={goToDetail} style={{ width:'100%', borderRadius:10,
+          marginTop:10, maxHeight:420, objectFit:'cover',
+          cursor: isTagged ? 'pointer' : 'default' }} />
       )}
       {((f.saveCount||0) > 0 || (f.commentCount||0) > 0) && (
         <div style={{ fontSize:12, fontWeight:700, color:DK, marginTop:10 }}>

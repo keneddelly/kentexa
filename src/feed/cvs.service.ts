@@ -1301,42 +1301,62 @@ export class CvsService {
           'classified',
           followedClassifieds.map((c) => c.id),
         );
-        const virtualPosts = followedClassifieds.map((c) => ({
-          id: `cls-${c.id}`,
-          entityType: 'classified',
-          entityId: c.id,
-          feedType: 'classified',
-          type: 'new_product',
-          title: c.title,
-          body: c.description,
-          imageUrl: c.images?.[0] || null,
-          linkedEntityId: c.id,
-          linkedEntityType: 'classified',
-          price: c.flashSalePrice || c.price,
-          isNegotiable: c.isNegotiable,
-          isFlashSale: c.isFlashSale,
-          location: c.location,
-          createdAt: c.createdAt,
-          cvsScore: 0,
-          saveCount: counts.get(c.id)?.saves || 0,
-          commentCount: counts.get(c.id)?.comments || 0,
-          shareCount: 0,
-          purchaseCount: 0,
-          isSaved: savedIds.includes(`cls-${c.id}`),
-          business: {
-            id: c.seller?.id,
-            name: c.seller?.name,
-            storeName: c.seller?.storeName,
-            logo: c.seller?.logo,
-            businessLocation: c.seller?.businessLocation,
-            storeWhatsApp: c.seller?.storeWhatsApp,
-            phone: c.seller?.phone,
-            reputationScore: (c.seller as any)?.reputationScore || 0,
-            isVerified: c.seller?.isVerified,
-            isFollowing: true,
-          },
-          data: c,
-        }));
+        // Same identity-resolution fix as the main virtualPosts fallback
+        // below — a followed seller's classified posted under their
+        // Personal profile must show that identity, not their account's
+        // legacy business storeName.
+        const followedIds2 = [
+          ...new Set(
+            followedClassifieds
+              .map((c) => (c as any).commerceProfileId)
+              .filter((id): id is number => !!id),
+          ),
+        ];
+        const followedProfiles = followedIds2.length
+          ? await this.commerceProfileRepo.find({ where: { id: In(followedIds2) } })
+          : [];
+        const followedProfileMap = new Map(followedProfiles.map((p) => [p.id, p]));
+        const virtualPosts = followedClassifieds.map((c) => {
+          const profile = (c as any).commerceProfileId
+            ? followedProfileMap.get((c as any).commerceProfileId)
+            : null;
+          return {
+            id: `cls-${c.id}`,
+            entityType: 'classified',
+            entityId: c.id,
+            feedType: 'classified',
+            type: 'new_product',
+            title: c.title,
+            body: c.description,
+            imageUrl: c.images?.[0] || null,
+            linkedEntityId: c.id,
+            linkedEntityType: 'classified',
+            price: c.flashSalePrice || c.price,
+            isNegotiable: c.isNegotiable,
+            isFlashSale: c.isFlashSale,
+            location: c.location,
+            createdAt: c.createdAt,
+            cvsScore: 0,
+            saveCount: counts.get(c.id)?.saves || 0,
+            commentCount: counts.get(c.id)?.comments || 0,
+            shareCount: 0,
+            purchaseCount: 0,
+            isSaved: savedIds.includes(`cls-${c.id}`),
+            business: {
+              id: c.seller?.id,
+              name: profile?.displayName || c.seller?.name,
+              storeName: profile?.displayName || c.seller?.storeName,
+              logo: profile?.photoUrl || c.seller?.logo,
+              businessLocation: c.seller?.businessLocation,
+              storeWhatsApp: c.seller?.storeWhatsApp,
+              phone: c.seller?.phone,
+              reputationScore: (c.seller as any)?.reputationScore || 0,
+              isVerified: profile?.isVerified ?? c.seller?.isVerified,
+              isFollowing: true,
+            },
+            data: c,
+          };
+        });
         return { items: virtualPosts, total: followedClassifieds.length };
       }
       return { items: [], total: 0 };
@@ -1346,19 +1366,48 @@ export class CvsService {
     if (items.length === 0 && page === 1 && filter !== 'following') {
       const virtualPosts: any[] = [];
 
-      // Helper to map seller to business shape
-      const toBiz = (seller: any) => ({
-        id: seller?.id,
-        name: seller?.name,
-        storeName: seller?.storeName,
-        logo: seller?.logo,
-        businessLocation: seller?.businessLocation || seller?.sellerCity,
-        storeWhatsApp: seller?.storeWhatsApp,
-        phone: seller?.phone,
-        reputationScore: seller?.reputationScore || 0,
-        isVerified: seller?.isVerified,
-        isFollowing: seller?.id ? followedSellerIds.has(seller.id) : false,
-      });
+      // Helper to map seller to business shape — the caller passes the
+      // ENTITY's own commerceProfileId (product/classified/service each
+      // carry one) plus a batch-resolved profile map, and a matched
+      // profile's displayName/photoUrl/isVerified win over the raw
+      // account's fields. Without this, this fallback mix (used whenever
+      // the real Moment feed has nothing new left to show — see the
+      // seen-post exclusion above) showed every one of a multi-profile
+      // account's listings under that account's single legacy
+      // storeName, regardless of which profile actually created them —
+      // e.g. Kened's Personal-profile listings still announcing
+      // themselves as "Bishoo Intelligence Systems". Same fix already
+      // applied to the real-Moment path below (getFilteredFeed's own
+      // items.map()); this fallback branch predates that fix.
+      const toBiz = (
+        seller: any,
+        commerceProfileId: number | null | undefined,
+        profileMap: Map<number, any>,
+      ) => {
+        const profile = commerceProfileId
+          ? profileMap.get(commerceProfileId)
+          : null;
+        return {
+          id: seller?.id,
+          name: profile?.displayName || seller?.name,
+          storeName: profile?.displayName || seller?.storeName,
+          logo: profile?.photoUrl || seller?.logo,
+          businessLocation: seller?.businessLocation || seller?.sellerCity,
+          storeWhatsApp: seller?.storeWhatsApp,
+          phone: seller?.phone,
+          reputationScore: seller?.reputationScore || 0,
+          isVerified: profile?.isVerified ?? seller?.isVerified,
+          isFollowing: seller?.id ? followedSellerIds.has(seller.id) : false,
+        };
+      };
+      const profilesFor = async (ids: Array<number | null | undefined>) => {
+        const unique = [...new Set(ids.filter((id): id is number => !!id))];
+        if (!unique.length) return new Map<number, any>();
+        const profiles = await this.commerceProfileRepo.find({
+          where: { id: In(unique) },
+        });
+        return new Map(profiles.map((p) => [p.id, p]));
+      };
 
       // 1. Classifieds (ads — contact only, no buy now)
       if (filter !== 'services' && filter !== 'transport') {
@@ -1377,6 +1426,9 @@ export class CvsService {
         const clsCounts = await this.getEntityCounts(
           'classified',
           classifieds.map((c) => c.id),
+        );
+        const clsProfiles = await profilesFor(
+          classifieds.map((c) => (c as any).commerceProfileId),
         );
 
         classifieds.forEach((c) =>
@@ -1402,7 +1454,7 @@ export class CvsService {
             purchaseCount: 0,
             isSaved: savedIds.includes(`cls-${c.id}`),
             location: c.location,
-            business: toBiz(c.seller),
+            business: toBiz(c.seller, (c as any).commerceProfileId, clsProfiles),
             data: c,
           }),
         );
@@ -1421,6 +1473,9 @@ export class CvsService {
         const prdCounts = await this.getEntityCounts(
           'product',
           products.map((p) => p.id),
+        );
+        const prdProfiles = await profilesFor(
+          products.map((p) => (p as any).commerceProfileId),
         );
 
         products.forEach((p) =>
@@ -1444,7 +1499,7 @@ export class CvsService {
             shareCount: 0,
             purchaseCount: 0,
             isSaved: savedIds.includes(`prd-${p.id}`),
-            business: toBiz(p.seller),
+            business: toBiz(p.seller, (p as any).commerceProfileId, prdProfiles),
             data: p,
           }),
         );
@@ -1462,6 +1517,9 @@ export class CvsService {
         const svcCounts = await this.getEntityCounts(
           'service',
           services.map((s) => s.id),
+        );
+        const svcProfiles = await profilesFor(
+          services.map((s) => (s as any).commerceProfileId),
         );
 
         services.forEach((s) =>
@@ -1485,7 +1543,7 @@ export class CvsService {
             shareCount: 0,
             purchaseCount: 0,
             isSaved: savedIds.includes(`svc-${s.id}`),
-            business: toBiz(s.provider),
+            business: toBiz(s.provider, (s as any).commerceProfileId, svcProfiles),
             data: s,
           }),
         );

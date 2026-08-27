@@ -107,6 +107,7 @@ export class FeedService {
       ctaLabel?: string;
       expiresAt?: string;
       category?: string;
+      price?: number;
       commerceProfileId?: number;
       intent?: string;
       actionType?: string;
@@ -178,6 +179,7 @@ export class FeedService {
         linkedEntityId: dto.linkedEntityId || null,
         ctaLabel: dto.ctaLabel || null,
         category: dto.category || null,
+        price: dto.price || null,
         // Default freshness window when the caller doesn't set one — Moments
         // represent "what's happening now," not a permanent listing.
         expiresAt: dto.expiresAt
@@ -1051,7 +1053,14 @@ export class FeedService {
             { businessId: sellerId, isActive: true, commerceProfileId: IsNull() },
           ]
         : { businessId: sellerId, isActive: true },
-      order: { cvsScore: 'DESC', createdAt: 'DESC' },
+      // A profile's own Posts tab is a chronological timeline of what THIS
+      // identity has shared — like any social app's own-profile grid — not
+      // an algorithmically-ranked discovery surface. Sorting by cvsScore
+      // first (as HomeFeed's discovery feed correctly does) put an old
+      // post with accumulated engagement above a brand-new one with none,
+      // which read as "new posts sink to the bottom" from the profile
+      // owner's own page.
+      order: { createdAt: 'DESC' },
       take: 20,
     });
   }

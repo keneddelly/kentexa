@@ -30,7 +30,6 @@ import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profi
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
 import { FRONTEND_URL } from '../config/urls.config';
-import { withPriceOverlay, formatPriceLabel } from '../feed/utils/price-overlay.util';
 
 @Injectable()
 export class ClassifiedsService {
@@ -80,22 +79,21 @@ export class ClassifiedsService {
     const saved = await this.repo.save(listing);
 
     // Auto-share as a Moment — fire-and-forget, never blocks listing creation.
-    // Price + category burned into the shared image (see price-overlay.util)
-    // so a viewer scrolling the feed has something to act on immediately.
+    // price is passed as real data (not burned into the image pixels — see
+    // the removed price-overlay.util) so HomeFeed.js's existing clean price
+    // badge renders for this instead of a cluttered on-image banner.
     // Prefers the discounted flashSalePrice, if one's active, over price.
     if (user?.id) {
       this.feedService
         .publish(user.id, {
           type: 'moment',
           title: saved.title,
-          imageUrl: withPriceOverlay(saved.images?.[0], {
-            priceLabel: formatPriceLabel(saved.flashSalePrice || saved.price),
-            category: saved.category,
-          }),
+          imageUrl: saved.images?.[0],
           linkedEntityType: 'classified',
           linkedEntityId: saved.id,
           commerceProfileId: commerceProfileId || undefined,
           category: saved.category || undefined,
+          price: Number(saved.flashSalePrice || saved.price) || undefined,
         })
         .catch(() => {});
     }
