@@ -16,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { VerificationService } from './verification.service';
 import { Feature } from './verification.constants';
+import { IdentityDocumentType } from './entities/identity-profile.entity';
 
 @Controller('identity')
 export class IdentityController {
@@ -27,14 +28,22 @@ export class IdentityController {
     @Request() req,
     @Body()
     body: {
-      nidaNumber: string;
+      idType: IdentityDocumentType;
+      idNumber: string;
       legalName: string;
       dateOfBirth: string;
       idDocumentImageUrl: string;
     },
   ) {
-    if (!body.nidaNumber || !body.legalName || !body.dateOfBirth || !body.idDocumentImageUrl) {
-      throw new BadRequestException('All identity fields are required');
+    if (
+      !body.idType ||
+      !Object.values(IdentityDocumentType).includes(body.idType) ||
+      !body.idNumber ||
+      !body.legalName ||
+      !body.dateOfBirth ||
+      !body.idDocumentImageUrl
+    ) {
+      throw new BadRequestException('All identity fields (including a valid ID type) are required');
     }
     return this.verification.submit(req.user, body);
   }

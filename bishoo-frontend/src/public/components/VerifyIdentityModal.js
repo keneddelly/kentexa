@@ -24,11 +24,17 @@ const sheetStyle = {
 const labelStyle = { display: 'block', fontSize: 12, color: '#64748b', marginBottom: 6, fontWeight: 600 };
 const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', outline: 'none' };
 
+// Kept in sync with IdentityDocumentType on the backend
+// (src/identity/entities/identity-profile.entity.ts) — adding a new
+// accepted document there means adding one entry here too.
+const ID_TYPES = ['nida', 'drivers_license', 'passport', 'voter_id'];
+
 const VerifyIdentityModal = ({ onClose, onVerified }) => {
   const { t } = useTranslation();
+  const [idType, setIdType]         = useState('nida');
   const [legalName, setLegalName]   = useState('');
   const [dateOfBirth, setDob]       = useState('');
-  const [nidaNumber, setNida]       = useState('');
+  const [idNumber, setIdNumber]     = useState('');
   const [idPhoto, setIdPhoto]       = useState(null);
   const [idPhotoPreview, setPreview] = useState(null);
   const [uploading, setUploading]   = useState(false);
@@ -53,7 +59,7 @@ const VerifyIdentityModal = ({ onClose, onVerified }) => {
   };
 
   const handleSubmit = async () => {
-    if (!legalName.trim() || !dateOfBirth || !nidaNumber.trim() || !idPhoto) {
+    if (!legalName.trim() || !dateOfBirth || !idNumber.trim() || !idPhoto) {
       setError(t('verify_identity.all_fields_required'));
       return;
     }
@@ -61,9 +67,10 @@ const VerifyIdentityModal = ({ onClose, onVerified }) => {
       setSubmitting(true);
       setError('');
       await api.post('/identity/submit', {
+        idType,
         legalName: legalName.trim(),
         dateOfBirth,
-        nidaNumber: nidaNumber.trim(),
+        idNumber: idNumber.trim(),
         idDocumentImageUrl: idPhoto,
       });
       onVerified();
@@ -104,9 +111,18 @@ const VerifyIdentityModal = ({ onClose, onVerified }) => {
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>{t('verify_identity.nida_label')}</label>
-          <input type="text" value={nidaNumber} onChange={e => setNida(e.target.value)}
-            placeholder={t('verify_identity.nida_placeholder')} style={inputStyle} />
+          <label style={labelStyle}>{t('verify_identity.id_type_label')}</label>
+          <select value={idType} onChange={e => setIdType(e.target.value)} style={inputStyle}>
+            {ID_TYPES.map(type => (
+              <option key={type} value={type}>{t(`verify_identity.id_type_${type}`)}</option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <label style={labelStyle}>{t('verify_identity.id_number_label')}</label>
+          <input type="text" value={idNumber} onChange={e => setIdNumber(e.target.value)}
+            placeholder={t(`verify_identity.id_number_placeholder_${idType}`)} style={inputStyle} />
         </div>
 
         <div style={{ marginBottom: 18 }}>

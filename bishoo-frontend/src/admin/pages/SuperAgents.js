@@ -347,7 +347,8 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
                 <>
                   <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>Legal Name: <strong>{applicantIdentity.legalName}</strong></div>
                   <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>Date of Birth: <strong>{applicantIdentity.dateOfBirth}</strong></div>
-                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>NIDA: <strong>{applicantIdentity.nidaNumber}</strong></div>
+                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 4 }}>ID Type: <strong>{({ nida: 'NIDA', drivers_license: "Driver's License", passport: 'Passport', voter_id: 'Voter ID' })[applicantIdentity.idType] || applicantIdentity.idType}</strong></div>
+                  <div style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>ID Number: <strong>{applicantIdentity.idNumber}</strong></div>
                   {applicantIdentity.idDocumentImageUrl && (
                     <a href={applicantIdentity.idDocumentImageUrl} target="_blank" rel="noreferrer">
                       <img src={applicantIdentity.idDocumentImageUrl} alt="ID Document"

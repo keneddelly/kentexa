@@ -9,6 +9,13 @@ const STATUS_STYLE = {
   rejected:      { bg: '#fee2e2', color: '#dc2626', label: '❌ Rejected' },
 };
 
+const ID_TYPE_LABEL = {
+  nida: 'NIDA',
+  drivers_license: "Driver's License",
+  passport: 'Passport',
+  voter_id: 'Voter ID',
+};
+
 const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
   const [profiles, setProfiles]     = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -109,7 +116,7 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #f1f5f9' }}>
-                  {['Legal Name', 'Account', 'NIDA', 'Status', 'Submitted', 'Actions'].map(h => (
+                  {['Legal Name', 'Account', 'ID Type', 'ID Number', 'Status', 'Submitted', 'Actions'].map(h => (
                     <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 1 }}>{h}</th>
                   ))}
                 </tr>
@@ -126,7 +133,8 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
                         <div style={{ fontSize: 12, color: '#475569' }}>{p.user?.name || '—'}</div>
                         <div style={{ fontSize: 12, color: '#94a3b8' }}>{p.user?.phone || p.user?.email || '—'}</div>
                       </td>
-                      <td style={{ padding: '14px 16px', fontSize: 12, color: '#64748b' }}>{p.nidaNumber || '—'}</td>
+                      <td style={{ padding: '14px 16px', fontSize: 12, color: '#64748b' }}>{ID_TYPE_LABEL[p.idType] || '—'}</td>
+                      <td style={{ padding: '14px 16px', fontSize: 12, color: '#64748b' }}>{p.idNumber || '—'}</td>
                       <td style={{ padding: '14px 16px' }}>
                         <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: ss.bg, color: ss.color }}>{ss.label}</span>
                       </td>
@@ -177,7 +185,8 @@ const IdentityVerifications = ({ activePage, onNavigate, onLogout }) => {
             {[
               { label: 'Legal Name',    value: selected.legalName },
               { label: 'Date of Birth', value: selected.dateOfBirth },
-              { label: 'NIDA Number',   value: selected.nidaNumber },
+              { label: 'ID Type',       value: ID_TYPE_LABEL[selected.idType] || selected.idType },
+              { label: 'ID Number',     value: selected.idNumber },
               { label: 'Account Name',  value: selected.user?.name },
               { label: 'Phone',         value: selected.user?.phone },
               { label: 'Email',         value: selected.user?.email },

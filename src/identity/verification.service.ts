@@ -5,6 +5,7 @@ import { User } from '../users/entities/user.entity';
 import {
   IdentityProfile,
   IdentityVerificationStatus,
+  IdentityDocumentType,
 } from './entities/identity-profile.entity';
 import { IdentityVerificationAudit } from './entities/identity-verification-audit.entity';
 import { BusinessDocument } from './entities/business-document.entity';
@@ -176,7 +177,13 @@ export class VerificationService {
 
   async submit(
     user: User,
-    data: { nidaNumber: string; legalName: string; dateOfBirth: string; idDocumentImageUrl: string },
+    data: {
+      idType: IdentityDocumentType;
+      idNumber: string;
+      legalName: string;
+      dateOfBirth: string;
+      idDocumentImageUrl: string;
+    },
   ): Promise<IdentityProfile> {
     let profile = await this.identityRepo.findOne({ where: { user: { id: user.id } } });
     const previousStatus = profile?.status || IdentityVerificationStatus.NOT_SUBMITTED;
@@ -188,7 +195,8 @@ export class VerificationService {
     }
     profile.legalName = data.legalName;
     profile.dateOfBirth = data.dateOfBirth;
-    profile.nidaNumber = data.nidaNumber;
+    profile.idType = data.idType;
+    profile.idNumber = data.idNumber;
     profile.idDocumentImageUrl = data.idDocumentImageUrl;
     profile.status = result.status;
     profile.rejectionReason = null;
@@ -196,7 +204,7 @@ export class VerificationService {
     try {
       profile = await this.identityRepo.save(profile);
     } catch (err: any) {
-      // Postgres unique_violation on nidaNumber — never reveal which
+      // Postgres unique_violation on idNumber — never reveal which
       // account already holds it (spec section 9).
       if (err?.code === '23505') {
         throw new ConflictException(
@@ -440,8 +448,8 @@ export class VerificationService {
       }
 
       const isSelfReferral =
-        !!referredIdentity.nidaNumber &&
-        referredIdentity.nidaNumber === referrerIdentity?.nidaNumber;
+        !!referredIdentity.idNumber &&
+        referredIdentity.idNumber === referrerIdentity?.idNumber;
 
       await this.referralRepo.manager.transaction(async (manager) => {
         const referralRepo = manager.getRepository(Referral);
