@@ -70,7 +70,20 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       <Sidebar activePage={activePage} onNavigate={onNavigate} />
-      <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
+      {/* marginLeft was missing — the sidebar is position:fixed (no layout
+          space of its own), so without this the left 250px of the provider
+          list sat directly underneath it, hidden, on every screen size —
+          worse on a phone where 250px is a large share of the whole
+          viewport. The list+detail split below stacks on narrow screens
+          too (see the <style> block), since a fixed 360px detail panel
+          next to the list would otherwise force horizontal overflow. */}
+      <style>{`
+        @media (max-width: 700px) {
+          .transport-admin-split { flex-direction: column !important; }
+          .transport-admin-detail { width: 100% !important; }
+        }
+      `}</style>
+      <div className="admin-content" style={{ flex: 1, padding: 24, overflow: 'auto', marginLeft: 250, boxSizing: 'border-box' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between',
@@ -97,7 +110,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+        <div className="transport-admin-split" style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
 
           {/* List */}
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -155,7 +168,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
 
           {/* Detail panel */}
           {selected && (
-            <div style={{ width: 360, flexShrink: 0, backgroundColor: '#fff',
+            <div className="transport-admin-detail" style={{ width: 360, flexShrink: 0, backgroundColor: '#fff',
               borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
               overflow: 'hidden' }}>
 

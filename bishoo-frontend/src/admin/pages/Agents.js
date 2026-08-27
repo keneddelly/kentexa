@@ -151,7 +151,10 @@ const Agents = ({ onNavigate }) => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       <Sidebar onNavigate={onNavigate} activeItem="Agents" />
-      <div style={{ flex: 1, padding: 24 }}>
+      {/* marginLeft was missing — the sidebar is position:fixed (no layout
+          space of its own), so without this the left 250px of content sat
+          directly underneath it, hidden, on every screen size. */}
+      <div className="admin-content" style={{ flex: 1, padding: 24, marginLeft: 250, boxSizing: 'border-box' }}>
 
         {/* Header */}
         <div style={{ marginBottom: 20 }}>

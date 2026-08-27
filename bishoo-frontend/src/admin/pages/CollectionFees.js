@@ -77,7 +77,12 @@ const CollectionFees = ({ onNavigate }) => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       <Sidebar onNavigate={onNavigate} activeItem="CollectionFees" />
-      <div style={{ flex: 1, padding: 24, maxWidth: 900, margin: '0 auto' }}>
+      {/* margin:'0 auto' centered this across the FULL window including the
+          250px the fixed sidebar sits on top of — meaning the content was
+          both partly hidden AND off-center from what was actually visible.
+          marginLeft:250 replaces the auto-centering with the same
+          left-aligned-after-the-sidebar convention every other admin page uses. */}
+      <div className="admin-content" style={{ flex: 1, padding: 24, maxWidth: 900, marginLeft: 250, boxSizing: 'border-box' }}>
 
         <div style={{ marginBottom: 20 }}>
           <h1 style={{ fontSize: 22, fontWeight: 900, color: '#0f172a', margin: 0 }}>🚴 Ada za Kukusanya kwa Mji</h1>

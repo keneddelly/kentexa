@@ -91,7 +91,10 @@ const Disputes = ({ onNavigate, activePage }) => {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
       <Sidebar activePage={activePage} onNavigate={onNavigate} />
-      <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
+      {/* marginLeft was missing — the sidebar is position:fixed (no layout
+          space of its own), so without this the left 250px of content sat
+          directly underneath it, hidden, on every screen size. */}
+      <div className="admin-content" style={{ flex: 1, padding: 24, overflow: 'auto', marginLeft: 250, boxSizing: 'border-box' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
