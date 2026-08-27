@@ -33,6 +33,7 @@ import { PurchaseVerificationService } from './comment-support.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 
 @Injectable()
 export class CvsService {
@@ -1709,7 +1710,12 @@ export class CvsService {
                 : {}),
             }
           : rawBiz;
-        return { ...f, isSaved: savedIds.includes(f.id), business };
+        return {
+          ...f,
+          imageUrl: stripLegacyPriceOverlay(f.imageUrl),
+          isSaved: savedIds.includes(f.id),
+          business,
+        };
       }),
       total,
     };

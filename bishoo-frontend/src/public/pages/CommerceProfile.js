@@ -237,6 +237,10 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [profile,    setProfile]    = useState(null);
   const [rep,        setRep]        = useState(null);
   const [feed,       setFeed]       = useState([]);
+  // Instagram-style profile grid: tapping a thumbnail opens the full post
+  // (image/caption/comments/CTA — everything FeedPost already rendered
+  // inline) in an overlay instead of losing that content to a thumbnail.
+  const [openPostId, setOpenPostId] = useState(null);
   const [orders,     setOrders]     = useState([]);
   const [services,   setServices]   = useState([]);
   const [classifieds,setClassifieds]= useState([]);
@@ -394,11 +398,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       .catch(() => setSiblingProfiles([]));
   }, [activeProfile]); // eslint-disable-line
 
-  // Deep-linked from a "New save"/"New comment" notification — scroll to and
-  // highlight that specific post once it's loaded into the Feed tab.
+  // Deep-linked from a "New save"/"New comment" notification — the Feed
+  // tab is now a thumbnail grid, so "scroll to it" doesn't show much;
+  // opening it directly in the post overlay actually lands the viewer on
+  // what the notification was about.
   useEffect(() => {
-    if (!highlightPostId || tab !== 'feed' || !feed.length || !highlightPostRef.current) return;
-    highlightPostRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!highlightPostId || tab !== 'feed' || !feed.length) return;
+    setOpenPostId(highlightPostId);
   }, [feed, tab, highlightPostId]);
 
 
@@ -904,17 +910,73 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 </button>
               </div>
             )}
+            {/* Instagram-style grid — 3 square thumbnails per row, not one
+                full-width card per row. Tapping a tile opens the full post
+                (image, caption, comments, CTA — everything FeedPost already
+                rendered inline) in the overlay below instead of losing that
+                content to a thumbnail. */}
             {feed.length === 0
               ? <Empty icon="📢" text={t('commerce_profile.no_announcements')} />
-              : feed.map(f => (
-                  <FeedPost key={f.id} f={f} onNavigate={onNavigate}
-                    isLoggedIn={isLoggedIn} currentUser={currentUser}
-                    activeProfileId={viewerActiveProfileId}
-                    highlighted={highlightPostId === f.id}
-                    postRef={highlightPostId === f.id ? highlightPostRef : null} />
-                ))}
+              : (
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:2 }}>
+                  {feed.map(f => (
+                    <div key={f.id} onClick={() => setOpenPostId(f.id)}
+                      ref={highlightPostId === f.id ? highlightPostRef : null}
+                      style={{ position:'relative', aspectRatio:'1', cursor:'pointer',
+                        overflow:'hidden', backgroundColor:'#EFF6FF',
+                        outline: highlightPostId === f.id ? '3px solid #2563EB' : 'none',
+                        outlineOffset: -3 }}>
+                      {f.imageUrl
+                        ? <img src={f.imageUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                        : (
+                          <div style={{ width:'100%', height:'100%', padding:8, boxSizing:'border-box',
+                            display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <span style={{ fontSize:11, fontWeight:700, color:B, textAlign:'center',
+                              overflow:'hidden', display:'-webkit-box', WebkitLineClamp:4,
+                              WebkitBoxOrient:'vertical' }}>
+                              {f.title}
+                            </span>
+                          </div>
+                        )}
+                      {(f.commentCount||0) > 0 && (
+                        <div style={{ position:'absolute', bottom:4, right:4,
+                          backgroundColor:'rgba(0,0,0,0.55)', color:'#fff', fontSize:10,
+                          fontWeight:700, padding:'2px 6px', borderRadius:100 }}>
+                          💬 {f.commentCount}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
         )}
+
+        {/* Post overlay — opened from a grid tile tap, or a deep-linked
+            notification (see the highlightPostId effect above). */}
+        {openPostId != null && (() => {
+          const openPost = feed.find(f => f.id === openPostId);
+          if (!openPost) return null;
+          return (
+            <div onClick={() => setOpenPostId(null)}
+              style={{ position:'fixed', inset:0, backgroundColor:'rgba(15,23,42,0.6)',
+                zIndex:4000, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+              <div onClick={e => e.stopPropagation()}
+                style={{ backgroundColor:WH, borderRadius:'20px 20px 0 0', width:'100%',
+                  maxWidth:480, maxHeight:'88vh', overflowY:'auto', padding:'8px 16px 16px',
+                  boxSizing:'border-box' }}>
+                <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                  <button onClick={() => setOpenPostId(null)}
+                    style={{ background:'none', border:'none', cursor:'pointer', fontSize:24,
+                      color:GR, padding:4 }}>×</button>
+                </div>
+                <FeedPost f={openPost} onNavigate={onNavigate}
+                  isLoggedIn={isLoggedIn} currentUser={currentUser}
+                  activeProfileId={viewerActiveProfileId} />
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Orders */}
         {tab==='orders' && (
@@ -1537,7 +1599,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate, activeProfileId }) => {
   );
 };
 
-const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef, activeProfileId }) => {
+const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId }) => {
   const { t } = useTranslation();
   const [showComments, setShowComments] = useState(false);
   const isTagged = !!(f.linkedEntityType && f.linkedEntityId);
@@ -1554,9 +1616,8 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, highlighted, postRef
   };
 
   return (
-    <div ref={postRef} style={{ backgroundColor:WH, borderRadius:14, padding:16,
-      marginBottom:12,
-      boxShadow: highlighted ? '0 0 0 3px #2563EB, 0 2px 8px rgba(0,0,0,0.06)' : '0 2px 8px rgba(0,0,0,0.06)' }}>
+    <div style={{ backgroundColor:WH, borderRadius:14, padding:16,
+      marginBottom:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
       <div style={{ display:'flex', justifyContent:'space-between',
         marginBottom:8 }}>
         <span style={{ fontSize:10, fontWeight:800, color:B,

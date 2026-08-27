@@ -31,6 +31,7 @@ import { ProviderStatus } from '../transport/entities/transport-provider.entity'
 import { SellerStatus } from '../seller/entities/seller-profile.entity';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
 
 export type FeedFilter =
   | 'for_you'
@@ -428,7 +429,7 @@ export class FeedService {
         momentId: m.id,
         postType: m.type, // 'moment' | 'looking_for'
         intent: (m as any).intent || deriveIntent(m.type),
-        imageUrl: m.imageUrl,
+        imageUrl: stripLegacyPriceOverlay(m.imageUrl),
         caption: m.body,
         category: m.category,
         createdAt: m.createdAt,
@@ -1046,7 +1047,7 @@ export class FeedService {
     sellerId: number,
     commerceProfileId?: number,
   ): Promise<BusinessFeedItem[]> {
-    return this.feedRepo.find({
+    const items = await this.feedRepo.find({
       where: commerceProfileId
         ? [
             { businessId: sellerId, isActive: true, commerceProfileId },
@@ -1063,6 +1064,13 @@ export class FeedService {
       order: { createdAt: 'DESC' },
       take: 20,
     });
+    // Strips the old burned-in price+category banner from any Moment
+    // created before that overlay was removed — read-time only, no data
+    // migration, see strip-legacy-overlay.util.ts.
+    return items.map((f) => ({
+      ...f,
+      imageUrl: stripLegacyPriceOverlay(f.imageUrl),
+    })) as BusinessFeedItem[];
   }
 
   async deletePost(sellerId: number, postId: number): Promise<void> {
@@ -1138,6 +1146,7 @@ export class FeedService {
           ...f,
           intent: f.intent || deriveIntent(f.type),
           status: f.status || MomentStatus.PUBLISHED,
+          imageUrl: stripLegacyPriceOverlay(f.imageUrl),
         },
         business,
         cvsScore: f.cvsScore,
