@@ -8,11 +8,13 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { io } from 'socket.io-client';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { hasAnyRole } from '../utils/roles';
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
+const SOCKET_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
 const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
   const STATUS_COLORS = {
@@ -294,6 +296,72 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   useEffect(() => {
     api.get('/seller/products').then(r => setProducts(r.data?.products || [])).catch(() => {});
   }, []);
+
+  // ── Real-time — purely additive over the REST calls above. If the socket
+  // never connects (offline, blocked, server restart), every send/receive
+  // still works exactly as before this existed: fetch-on-open, fetch-on-
+  // reopen. This component is always rendered behind requireLogin() in
+  // App.js, so a token is guaranteed to exist whenever this mounts.
+  const socketRef = useRef(null);
+  // The socket effect below mounts once ([] deps) so it can't read `active`
+  // fresh via closure — this ref is the live pointer it reads instead.
+  const activeRef = useRef(null);
+  useEffect(() => { activeRef.current = active; }, [active]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    const socket = io(SOCKET_URL, { auth: { token } });
+    socketRef.current = socket;
+
+    socket.on('newMessage', ({ conversationId, message }) => {
+      if (activeRef.current?.id === conversationId) {
+        setMessages(prev =>
+          // Dedupe against the sender's own optimistic append in
+          // handleSend() — the REST response and this socket event
+          // deliver the same persisted row.
+          prev.some(m => m.id === message.id) ? prev : [...prev, message]
+        );
+      }
+      // Bump the relevant conversation's own preview/unread in the LIST too,
+      // even when it isn't the open thread — mirrors what a fresh
+      // fetchInbox() would show, without a full refetch. Only counts as
+      // "unread" when it's from the OTHER side of this specific view
+      // (a seller's own outgoing message never marks their own list unread)
+      // and the thread isn't the one currently open (that case is already
+      // handled by the open-thread branch above, which appends but doesn't
+      // need a badge).
+      setConversations(prev => prev.map(c => {
+        if (c.id !== conversationId) return c;
+        const isFromOtherSide = c._mode === 'buyer'
+          ? message.senderType === 'seller'
+          : message.senderType === 'customer';
+        const shouldBumpUnread = isFromOtherSide && c.id !== activeRef.current?.id;
+        return {
+          ...c,
+          lastMessageAt: message.createdAt,
+          lastMessagePreview: message.content || (message.imageUrl ? '📷 Picha' : c.lastMessagePreview),
+          ...(shouldBumpUnread
+            ? (c._mode === 'buyer'
+                ? { buyerUnreadCount: (c.buyerUnreadCount || 0) + 1 }
+                : { unreadCount: (c.unreadCount || 0) + 1 })
+            : {}),
+        };
+      }));
+    });
+
+    return () => socket.disconnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Joins/leaves the conversation:{id} room as the open thread changes —
+  // the server re-verifies participation on every join, so this can't be
+  // used to eavesdrop by guessing ids.
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !active?.id) return;
+    socket.emit('joinConversation', active.id);
+    return () => socket.emit('leaveConversation', active.id);
+  }, [active?.id]);
 
   const handleCreateOrder = async () => {
     if (!active || !orderForm.productName.trim()) return;

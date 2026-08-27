@@ -27,6 +27,7 @@ import { BusinessCustomerService } from './business-customer.service';
 import { User } from '../users/entities/user.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
+import { ConversationGateway } from './conversation.gateway';
 
 @Injectable()
 export class ConversationService {
@@ -42,6 +43,7 @@ export class ConversationService {
     private customerService: BusinessCustomerService,
     private notifService: InAppNotificationService,
     private commerceProfiles: CommerceProfilesService,
+    private gateway: ConversationGateway,
   ) {}
 
   // Batched — resolves whatever distinct commerceProfileIds appear among a
@@ -476,6 +478,22 @@ export class ConversationService {
         .catch(() => {});
     }
 
+    // Live push — purely additive, the message is already durably
+    // persisted above regardless of whether anyone is connected to receive
+    // this. Never awaited/blocking: a socket hiccup must never affect the
+    // REST response the caller is waiting on.
+    try {
+      this.gateway.emitNewMessage({
+        conversationId,
+        sellerId,
+        buyerUserId: convo.customer?.userId ?? null,
+        message: msg,
+        isNote: !!dto.isNote,
+      });
+    } catch {
+      // Non-critical — the message is already durably persisted above.
+    }
+
     return msg;
   }
 
@@ -529,6 +547,18 @@ export class ConversationService {
         actionParam: String(convo.customer.id),
       })
       .catch(() => {});
+
+    try {
+      this.gateway.emitNewMessage({
+        conversationId,
+        sellerId: convo.sellerId,
+        buyerUserId: userId,
+        message: msg,
+        isNote: false,
+      });
+    } catch {
+      // Non-critical — the message is already durably persisted above.
+    }
 
     return msg;
   }
