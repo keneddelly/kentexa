@@ -29,12 +29,6 @@ const SearchIcon = (active) => (
     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
   </svg>
 );
-const ActivityIcon = (active) => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill={active ? B : 'none'}
-    stroke={active ? B : '#64748b'} strokeWidth="2">
-    <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
-  </svg>
-);
 const emojiIcon = (emoji) => (active) => (
   <span style={{ fontSize: 21, opacity: active ? 1 : 0.55 }}>{emoji}</span>
 );
@@ -55,8 +49,14 @@ const TYPE_TABS = (t) => {
   return {
     personal: {
       first,
-      second: { page: 'Search',   icon: SearchIcon,   label: t('common.search') },
-      fourth: { page: 'Activity', icon: ActivityIcon, label: t('bottom_nav.activity') },
+      second: { page: 'Search',     icon: SearchIcon,   label: t('common.search') },
+      // Was Activity (notifications) — HomeFeed.js's own header already has
+      // a bell icon with the same unread badge routing to the same page
+      // (and MyProfile.js has its own links to it too), so notifications
+      // didn't actually need a dedicated bottom-nav slot; Inbox did, since
+      // even a Personal profile can be a buyer messaging sellers or an
+      // individual seller with their own conversations.
+      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
     },
     business: {
       first,
@@ -78,16 +78,20 @@ const TYPE_TABS = (t) => {
     transport_provider: {
       first,
       second: { page: 'TransportProviderDashboard', icon: emojiIcon('🚌'), label: t('bottom_nav.dashboard') },
-      // RouteCoverageMap (the routes network map) used to sit in this slot
-      // before tab 2 became the Dashboard — it was silently dropped, not
-      // reachable from the bottom nav at all otherwise, and generic Search
-      // defaults to showing marketplace classifieds, not transport routes.
-      fourth: { page: 'RouteCoverageMap', icon: emojiIcon('🗺️'), label: t('bottom_nav.routes') },
+      // Was RouteCoverageMap — same Inbox-earns-the-slot reasoning as hub
+      // above. RouteCoverageMap moved to an in-page 🗺️ shortcut inside
+      // TransportProviderDashboard's own header (next to ⚙️/💬) so it isn't
+      // silently dropped again the way it was the first time this slot
+      // pointed elsewhere (see the git history of this exact line).
+      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
     },
     agent: {
       first,
       second: { page: 'AgentDashboard', icon: emojiIcon('🏍️'), label: t('bottom_nav.dashboard') },
-      fourth: { page: 'AgentEarnings',  icon: emojiIcon('💰'), label: t('bottom_nav.earnings') },
+      // Was AgentEarnings — same reasoning; AgentEarnings already has its
+      // own in-page link inside AgentDashboard.js (a pre-existing button,
+      // not something this change needed to add), so nothing is stranded.
+      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
     },
     // No dedicated service-provider dashboard/inbox page exists yet (no
     // operational entity behind this type — see services.service.ts) —
@@ -96,7 +100,9 @@ const TYPE_TABS = (t) => {
     service_provider: {
       first,
       second: { page: 'MyServices', icon: emojiIcon('🔧'), label: t('bottom_nav.my_services') },
-      fourth: { page: 'Activity',   icon: ActivityIcon,    label: t('bottom_nav.activity') },
+      // Was Activity — same reasoning as `personal` above (Home's own bell
+      // icon already covers notifications).
+      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
     },
   };
 };

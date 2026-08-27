@@ -291,6 +291,14 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                   </span>
                 )}
               </button>
+              {/* Bottom nav's 4th slot now points to Inbox instead of this
+                  (see BottomNav.js) — the route-coverage map needs its own
+                  path here so it isn't silently unreachable again, the exact
+                  bug that slot's own git history already had once before. */}
+              <button onClick={() => onNavigate('RouteCoverageMap')} title={t('bottom_nav.routes')}
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none',
+                  borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+                  color: '#fff', fontSize: 15 }}>🗺️</button>
               <button onClick={() => onNavigate('TransportProviderSettings')}
                 style={{ background: 'rgba(255,255,255,0.1)', border: 'none',
                   borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
