@@ -8,6 +8,18 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
+// Same decode App.js's own login-time gate uses to decide Onboarding vs
+// Home — kept local (not exported/shared) to match how App.js already
+// keeps this private rather than introducing a shared utils module for
+// one small function.
+const decodeToken = (token) => {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+};
+
 const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
   const { t } = useTranslation();
   const [photoUrl, setPhotoUrl]             = useState('');
@@ -39,7 +51,15 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
       setError('');
       await api.patch(`/users/${currentUser?.id}`, { avatarUrl: photoUrl });
       onUserUpdated?.({ ...currentUser, avatarUrl: photoUrl });
-      onNavigate('Home');
+      // App.js's own login-time gate sends a brand-new account here FIRST
+      // (no avatarUrl yet) and only checks onboardingCompleted afterward —
+      // so this page is genuinely the first stop for every new signup, not
+      // just the "closed the app mid-Register" recovery case the comment
+      // above describes. Finishing here used to always land on Home,
+      // which silently skipped the entire Onboarding flow (city/interests/
+      // follow-suggested-accounts) for every new account, every time.
+      const decoded = decodeToken(localStorage.getItem('token'));
+      onNavigate(decoded?.onboardingCompleted ? 'Home' : 'Onboarding');
     } catch (err) {
       setError(err?.response?.data?.message || t('register.photo_upload_failed'));
     } finally {
