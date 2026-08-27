@@ -1,4 +1,4 @@
-import { Injectable, Inject, ConflictException } from '@nestjs/common';
+import { Injectable, Inject, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
@@ -92,6 +92,69 @@ export class VerificationService {
   async canUseFeature(userId: number, feature: Feature): Promise<boolean> {
     const level = await this.getLevel(userId);
     return level >= FEATURE_REQUIREMENTS[feature];
+  }
+
+  // Centralizes the check-then-throw pattern every gated controller needs
+  // (classifieds/create, seller/apply, super-agents/apply, wallet/withdraw
+  // each used to inline their own copy of this). Differentiates WHY a
+  // caller is blocked so the frontend can route them correctly instead of
+  // always showing "verify your identity": NOT_SUBMITTED/REJECTED are
+  // genuinely an identity problem the VerifyIdentityModal flow fixes;
+  // PENDING is never a reason to block on its own (it already satisfies
+  // Level 1 — see getLevel()'s comment, a deliberate "pending counts"
+  // policy, not an oversight); a level-1-clear user still short of a
+  // HIGHER requirement (e.g. CREATE_PRODUCT needs an approved seller
+  // application too) is missing something resubmitting NIDA can't fix, so
+  // that gets its own distinct code rather than a misleading identity
+  // prompt.
+  async requireFeature(userId: number, feature: Feature): Promise<void> {
+    const level = await this.getLevel(userId);
+    const requiredLevel = FEATURE_REQUIREMENTS[feature];
+    if (level >= requiredLevel) return;
+
+    if (level === 0) {
+      const identity = await this.getIdentityProfile(userId);
+      if (identity?.status === IdentityVerificationStatus.REJECTED) {
+        throw new ForbiddenException({
+          code: 'VERIFICATION_REJECTED',
+          requiredLevel,
+          rejectionReason: identity.rejectionReason || null,
+          message:
+            'Your identity verification was rejected. Please resubmit your NIDA details.',
+        });
+      }
+      throw new ForbiddenException({
+        code: 'VERIFICATION_REQUIRED',
+        requiredLevel,
+        message: 'Verify your identity before continuing on Kentexa.',
+      });
+    }
+
+    // Identity itself is fine — the missing piece is an approved seller
+    // application. Two genuinely different situations share this branch:
+    // never applied at all (e.g. reached SellerProducts.js's create form
+    // without ever going through /seller/apply — the dashboard itself is
+    // intentionally ungated as a discovery surface) vs applied and still
+    // awaiting admin review. Conflating them as one "pending approval"
+    // message would be actively wrong for the first case.
+    const sellerProfile = await this.sellerProfileRepo.findOne({
+      where: { user: { id: userId } },
+    });
+    if (!sellerProfile) {
+      throw new ForbiddenException({
+        code: 'SELLER_APPLICATION_REQUIRED',
+        requiredLevel,
+        currentLevel: level,
+        message: 'Apply to become a seller before continuing.',
+      });
+    }
+    throw new ForbiddenException({
+      code: 'SELLER_APPROVAL_PENDING',
+      requiredLevel,
+      currentLevel: level,
+      sellerStatus: sellerProfile.status,
+      message: 'Your seller application is still pending approval.',
+    });
   }
 
   async getMissingRequirements(

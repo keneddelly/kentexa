@@ -3453,6 +3453,7 @@
     "availability_updated": "Disponibilité mise à jour",
     "load_failed": "Échec du chargement",
     "save_failed": "Échec de la sauvegarde",
+    "seller_approval_pending": "Votre candidature de vendeur est toujours en attente d'approbation par un administrateur — vous pourrez ajouter des produits une fois approuvée.",
     "delete_failed": "Échec de la suppression",
     "delete_confirm": "Supprimer ce produit?",
     "name_required": "Nom, prix et stock requis",

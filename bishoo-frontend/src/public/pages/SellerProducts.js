@@ -3,6 +3,7 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { useTranslation } from 'react-i18next';
 import LocationPicker from '../components/LocationPicker';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
 const TZ_CITIES = [
   'Dar es Salaam','Mwanza','Arusha','Dodoma','Mbeya','Tanga','Zanzibar',
@@ -42,6 +43,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState('');
   const [message, setMessage]         = useState('');
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [showForm, setShowForm]       = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [uploading, setUploading]     = useState(false);
@@ -319,6 +321,26 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       }
       resetForm(); fetchMyProducts();
     } catch (err) {
+      // Creating a product requires Level 2 identity verification (an
+      // approved seller application on top of NIDA) — show the same
+      // inline verification flow BecomeSeller.js uses instead of a raw
+      // error, so the filled-in form isn't lost. SELLER_APPROVAL_PENDING
+      // means identity is already fine but the seller application itself
+      // is still awaiting admin approval — resubmitting NIDA wouldn't
+      // help, so that gets its own message rather than the identity modal.
+      const code = err?.response?.data?.code;
+      if (code === 'VERIFICATION_REQUIRED' || code === 'VERIFICATION_REJECTED') {
+        setShowVerifyIdentity(true);
+        return;
+      }
+      if (code === 'SELLER_APPLICATION_REQUIRED') {
+        onNavigate('BecomeSeller');
+        return;
+      }
+      if (code === 'SELLER_APPROVAL_PENDING') {
+        setError(t('seller_products.seller_approval_pending'));
+        return;
+      }
       setError(err?.response?.data?.message || t('seller_products.save_failed'));
     }
   };
@@ -920,6 +942,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           </div>
         </div>
         </div>
+      )}
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
+        />
       )}
     </div>
   );

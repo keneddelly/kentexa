@@ -16,6 +16,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
 import { SearchModule } from '../search/search.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { ActivityModule } from '../activity/activity.module';
+import { IdentityModule } from '../identity/identity.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ActivityModule } from '../activity/activity.module';
     SearchModule,
     InventoryModule,
     ActivityModule,
+    IdentityModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService, AiListingService, SellerRankingService],

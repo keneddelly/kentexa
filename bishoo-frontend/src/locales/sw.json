@@ -3303,6 +3303,7 @@
     "availability_updated": "Upatikanaji umesasishwa",
     "load_failed": "Imeshindwa kupakia bidhaa",
     "save_failed": "Imeshindwa kuhifadhi bidhaa",
+    "seller_approval_pending": "Ombi lako la kuwa muuzaji bado linasubiri idhini ya msimamizi — utaweza kuongeza bidhaa mara litakapoidhinishwa.",
     "delete_failed": "Imeshindwa kufuta bidhaa",
     "delete_confirm": "Futa bidhaa hii?",
     "name_required": "Jina, bei na hisa zinahitajika",

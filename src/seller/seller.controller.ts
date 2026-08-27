@@ -10,7 +10,6 @@ import {
   Param,
   Query,
   ParseIntPipe,
-  ForbiddenException,
 } from '@nestjs/common';
 import { SellerService } from './seller.service';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
@@ -54,17 +53,7 @@ export class SellerController {
   @UseGuards(JwtAuthGuard)
   @Post('apply')
   async apply(@Body() dto: CreateSellerProfileDto, @Request() req) {
-    const canApply = await this.verification.canUseFeature(
-      req.user.id,
-      Feature.CREATE_STORE,
-    );
-    if (!canApply) {
-      throw new ForbiddenException({
-        code: 'VERIFICATION_REQUIRED',
-        requiredLevel: 1,
-        message: 'Verify your identity before applying to sell on Kentexa',
-      });
-    }
+    await this.verification.requireFeature(req.user.id, Feature.CREATE_STORE);
     return this.sellerService.apply(dto, req.user);
   }
 

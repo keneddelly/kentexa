@@ -10,7 +10,6 @@ import {
   Request,
   Query,
   ParseIntPipe,
-  ForbiddenException,
 } from '@nestjs/common';
 import { ClassifiedsService } from './classifieds.service';
 import { PriceSuggestionService } from './price-suggestion.service';
@@ -253,17 +252,7 @@ export class ClassifiedsController {
     // trigger — everything before this point (browsing, search, saving)
     // stays open at Level 0. See VerificationService for what "Level 1"
     // actually requires.
-    const canPost = await this.verification.canUseFeature(
-      req.user.id,
-      Feature.POST_CLASSIFIED,
-    );
-    if (!canPost) {
-      throw new ForbiddenException({
-        code: 'VERIFICATION_REQUIRED',
-        requiredLevel: 1,
-        message: 'Verify your identity to post a listing on Kentexa',
-      });
-    }
+    await this.verification.requireFeature(req.user.id, Feature.POST_CLASSIFIED);
     const sellerId = await this.resolveClassifiedActorId(req.user);
     return this.service.create(dto, { id: sellerId } as User);
   }

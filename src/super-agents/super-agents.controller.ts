@@ -10,7 +10,6 @@ import {
   Request,
   Query,
   ParseIntPipe,
-  ForbiddenException,
 } from '@nestjs/common';
 import { AgentsService } from '../agents/agents.service';
 import { SuperAgentsService } from './super-agents.service';
@@ -90,17 +89,7 @@ export class SuperAgentsController {
   @UseGuards(JwtAuthGuard)
   @Post('apply')
   async apply(@Request() req, @Body() dto: any) {
-    const canApply = await this.verification.canUseFeature(
-      req.user.id,
-      Feature.BECOME_SUPER_AGENT,
-    );
-    if (!canApply) {
-      throw new ForbiddenException({
-        code: 'VERIFICATION_REQUIRED',
-        requiredLevel: 1,
-        message: 'Verify your identity to apply as a Super Agent on Kentexa',
-      });
-    }
+    await this.verification.requireFeature(req.user.id, Feature.BECOME_SUPER_AGENT);
     return this.service.apply(req.user, dto);
   }
 

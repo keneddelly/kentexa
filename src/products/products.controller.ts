@@ -26,6 +26,8 @@ import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
 import { resolveCategoryKey } from '../categories/categories.data';
 import { SellerScopeService } from '../business/seller-scope.service';
+import { VerificationService } from '../identity/verification.service';
+import { Feature } from '../identity/verification.constants';
 
 @Controller('products')
 export class ProductsController {
@@ -35,6 +37,7 @@ export class ProductsController {
     private aiDescription: AiListingDescriptionService,
     private aiSearchParser: AiSearchParserService,
     private sellerScope: SellerScopeService,
+    private verification: VerificationService,
   ) {}
 
   // ── Public ─────────────────────────────────────────────────────────────
@@ -213,6 +216,17 @@ export class ProductsController {
     return this.service.findOne(id);
   }
 
+  // Layer 1/2 seller verification gate — CREATE_PRODUCT was declared at
+  // Level 2 in verification.constants.ts (identity verified + seller
+  // application approved) since that table was first built, but never
+  // actually checked here. sellerScope.resolve() only answers "is this
+  // caller authorized to act for THIS business" (owner or a permissioned
+  // team member) — it says nothing about whether that business has cleared
+  // identity verification, so a brand-new unverified account could create
+  // products the moment it somehow acquired role='seller'/'admin'/'manager'
+  // or team membership. The check runs against `sellerId` (the resolved
+  // business owner), not the caller, so a staff member submitting on an
+  // employer's behalf is gated on the EMPLOYER's verification, not their own.
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() dto: CreateProductDto, @Request() req) {
@@ -220,6 +234,7 @@ export class ProductsController {
       req.user,
       'canManageProducts',
     );
+    await this.verification.requireFeature(sellerId, Feature.CREATE_PRODUCT);
     return this.service.create(dto, { id: sellerId } as User);
   }
 
