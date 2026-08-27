@@ -897,7 +897,18 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
               value={destLocation}
               onChange={loc => {
                 setDestLocation(loc);
-                const cityStr = loc.districtName || loc.regionName || '';
+                // Region, not district — Super Agents register their `city`
+                // against the fixed TANZANIA_CITIES list (region names:
+                // "Dar es Salaam", "Mwanza", ...; see super-agent.entity.ts),
+                // never a district. This fed handleCityChange() a district
+                // name instead (e.g. "Kinondoni"), which never matches any
+                // real Super Agent's city — the "nearby hubs" picker below
+                // silently returned empty for every destination inside a
+                // region that already has real, active hubs registered.
+                // fetchPriceEstimate right below already got this correct
+                // (loc.regionName first) — this brings the other caller in
+                // this same handler in line with it, not a new convention.
+                const cityStr = loc.regionName || loc.districtName || '';
                 handleCityChange(cityStr);
                 fetchPriceEstimate(
                   loc.regionName || cityStr,

@@ -1157,7 +1157,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         value={walkDestLocation}
                         onChange={async loc => {
                           setWalkDestLocation(loc);
-                          const cityStr = loc.districtName || loc.regionName || '';
+                          // Region, not district — Super Agents register
+                          // `city` against the fixed TANZANIA_CITIES region
+                          // list (see super-agent.entity.ts); a district
+                          // name here never matches, so the destination hub
+                          // auto-match inside createOfflineIntercityOrder
+                          // silently found nothing even when a real active
+                          // hub existed for the region.
+                          const cityStr = loc.regionName || loc.districtName || '';
                           setWalkForm(p => ({ ...p, destinationCity: cityStr }));
                           lookupWalkRoute(cityStr);
                           // Fetch price estimate
@@ -1565,7 +1572,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         onChange={loc => {
                           setBulkDestLocation(loc);
                           setBulkLastMileAgentId(null);
-                          const cityStr = loc.districtName || loc.regionName || '';
+                          // Region, not district — see the walk-in form's
+                          // identical fix above (TANZANIA_CITIES is a
+                          // region list; a district never matches a real
+                          // Super Agent's registered city).
+                          const cityStr = loc.regionName || loc.districtName || '';
                           setBulkDestCity(cityStr);
                           fetchBulkCandidates(cityStr);
                           fetchBulkHubs(cityStr);
@@ -2664,7 +2675,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 value={transferDestLocation}
                 onChange={loc => {
                   setTransferDestLocation(loc);
-                  const cityStr = loc.districtName || loc.regionName || '';
+                  // Region, not district — see the walk-in form's identical
+                  // fix above.
+                  const cityStr = loc.regionName || loc.districtName || '';
                   setTransferForm(f => ({ ...f, destinationCity: cityStr, destinationSuperAgentId: null }));
                   fetchTransferHubs(cityStr);
                 }}

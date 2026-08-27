@@ -317,7 +317,11 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
               value={recipientLocation}
               onChange={loc => {
                 setRecipientLocation(loc);
-                setForm(f => ({ ...f, destinationCity: loc.districtName || loc.regionName || '' }));
+                // Region, not district — Super Agents register `city`
+                // against the fixed TANZANIA_CITIES region list (see
+                // super-agent.entity.ts), so a district name here never
+                // matches a real hub's registered city.
+                setForm(f => ({ ...f, destinationCity: loc.regionName || loc.districtName || '' }));
               }}
               required
             />

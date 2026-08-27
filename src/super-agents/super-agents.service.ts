@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, In, IsNull } from 'typeorm';
+import { Repository, DataSource, In, IsNull, ILike } from 'typeorm';
 import {
   SuperAgent,
   SuperAgentStatus,
@@ -530,9 +530,10 @@ export class SuperAgentsService {
     // "earned," 90% short of what was actually in their hand).
     const agentEarnings = Number(dto.shippingFeeCollected) || 0;
 
-    // 3. Find destination Super Agent and look up route for transit city
+    // 3. Find destination Super Agent and look up route for transit city.
+    // Case-insensitive — same reasoning as findAllActiveByCity().
     const destAgent = await this.superAgentRepo.findOne({
-      where: { city: destinationCity, status: SuperAgentStatus.ACTIVE },
+      where: { city: ILike(destinationCity), status: SuperAgentStatus.ACTIVE },
     });
 
     // Check if route has a transit city (e.g. Dar→Mbinga via Songea)
@@ -767,8 +768,11 @@ export class SuperAgentsService {
    * best-ranked auto-assignment above. Public-safe fields only.
    */
   async findAllActiveByCity(city: string, excludeAgentId?: number) {
+    // Case-insensitive — the caller's city string doesn't always land in
+    // the exact case a Super Agent registered under (found while tracing
+    // why this returned empty for a real active hub's own region).
     const agents = await this.superAgentRepo.find({
-      where: { status: SuperAgentStatus.ACTIVE, city },
+      where: { status: SuperAgentStatus.ACTIVE, city: ILike(city) },
       order: { rating: 'DESC' } as any,
     });
     return agents
@@ -3105,7 +3109,10 @@ export class SuperAgentsService {
               .catch(() => null)
           : await this.superAgentRepo
               .findOne({
-                where: { city: dto.destinationCity, status: 'active' as any },
+                // Case-insensitive fallback for when the seller didn't
+                // explicitly pick a hub — same reasoning as
+                // findAllActiveByCity().
+                where: { city: ILike(dto.destinationCity), status: 'active' as any },
               })
               .catch(() => null)
         : null;
