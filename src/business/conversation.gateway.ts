@@ -76,22 +76,23 @@ export class ConversationGateway implements OnGatewayConnection {
         (client.handshake.auth?.token as string) ||
         (client.handshake.query?.token as string);
       if (!token) {
-        this.logger.warn(`connect rejected: no token (${client.id})`);
         client.disconnect();
         return;
       }
       const payload = this.jwtService.verify(token);
       const userId = payload?.sub;
       if (!userId) {
-        this.logger.warn(`connect rejected: no sub in payload (${client.id})`);
         client.disconnect();
         return;
       }
       (client.data as any).userId = userId;
       client.join(`user:${userId}`);
-      this.logger.log(`connected userId=${userId} socket=${client.id}`);
     } catch (err: any) {
-      this.logger.warn(`connect rejected: ${err?.message} (${client.id})`);
+      // Worth keeping visible in prod logs (expired/forged tokens, clock
+      // skew) without logging every successful connect/join/emit — those
+      // were only ever needed for the one-time live round-trip
+      // verification this file went through when it was first built.
+      this.logger.warn(`Socket auth rejected: ${err?.message}`);
       client.disconnect();
     }
   }
@@ -102,22 +103,15 @@ export class ConversationGateway implements OnGatewayConnection {
     @MessageBody() conversationId: number,
   ) {
     const userId = (client.data as any).userId;
-    this.logger.log(`joinConversation request: userId=${userId} conversationId=${conversationId} (type=${typeof conversationId})`);
-    if (!userId || !conversationId) {
-      this.logger.warn(`joinConversation aborted early: missing userId or conversationId`);
-      return;
-    }
+    if (!userId || !conversationId) return;
 
     const convo = await this.convoRepo
       .findOne({
         where: { id: Number(conversationId) },
         relations: { customer: true },
       })
-      .catch((e) => { this.logger.warn(`joinConversation query failed: ${e?.message}`); return null; });
-    if (!convo) {
-      this.logger.warn(`joinConversation: conversation ${conversationId} not found`);
-      return;
-    }
+      .catch(() => null);
+    if (!convo) return;
 
     const isBuyer = convo.customer?.userId === userId;
     // isAuthorizedFor only ever reads user.id off this object for the
@@ -133,18 +127,12 @@ export class ConversationGateway implements OnGatewayConnection {
         )
         .catch(() => false));
 
-    this.logger.log(`joinConversation check: isBuyer=${isBuyer} isSeller=${isSeller} convo.customer.userId=${convo.customer?.userId} convo.sellerId=${convo.sellerId}`);
-
     // Never confirm or deny a conversation's existence to a non-participant
     // — just silently decline to join, same as the REST 404-for-anyone-not-
     // authorized pattern.
-    if (!isBuyer && !isSeller) {
-      this.logger.warn(`joinConversation denied: userId=${userId} is not a participant of ${conversationId}`);
-      return;
-    }
+    if (!isBuyer && !isSeller) return;
 
     client.join(`conversation:${conversationId}`);
-    this.logger.log(`joinConversation success: userId=${userId} joined conversation:${conversationId}`);
   }
 
   @SubscribeMessage('leaveConversation')
@@ -165,9 +153,6 @@ export class ConversationGateway implements OnGatewayConnection {
     message: ConversationMessage;
     isNote: boolean;
   }): void {
-    this.logger.log(
-      `emitNewMessage: conversationId=${params.conversationId} sellerId=${params.sellerId} buyerUserId=${params.buyerUserId} isNote=${params.isNote} roomSize=${this.server?.sockets?.adapter?.rooms?.get(`conversation:${params.conversationId}`)?.size ?? 'n/a'}`,
-    );
     const payload = {
       conversationId: params.conversationId,
       message: params.message,
