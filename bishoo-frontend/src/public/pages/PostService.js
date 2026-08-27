@@ -122,6 +122,10 @@ const PostService = ({ onNavigate, activeProfileId }) => {
     if (!form.description.trim()) return setError(t('post_service.description_required'));
     if (!form.category)           return setError(t('post_service.category_required'));
     if (!form.coverageCity.trim()) return setError(t('post_service.city_required'));
+    // images.length was only ever checked as a guard on the AI-description
+    // button above, never here — a service could be posted with zero
+    // photos. Now required, matching the backend DTO's own ArrayMinSize(1).
+    if (!form.images.length)      return setError(t('post_service.image_required'));
     try {
       setSaving(true); setError('');
       const payload = {
@@ -314,7 +318,11 @@ const PostService = ({ onNavigate, activeProfileId }) => {
                 placeholder="08:00 - 18:00"
                 onChange={e => set('workingHours', e.target.value)} />
             </div>
-            <button onClick={() => { if (!form.title.trim() || !form.description.trim()) return setError(t('post_service.fill_required_fields')); setError(''); setStep(3); }}
+            <button onClick={() => {
+                if (!form.title.trim() || !form.description.trim()) return setError(t('post_service.fill_required_fields'));
+                if (!form.images.length) return setError(t('post_service.image_required'));
+                setError(''); setStep(3);
+              }}
               style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff',
                 border: 'none', borderRadius: 12, padding: '14px 0',
                 cursor: 'pointer', fontSize: 15, fontWeight: 800 }}>

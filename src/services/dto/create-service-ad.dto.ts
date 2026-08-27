@@ -1,4 +1,5 @@
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsEnum,
@@ -64,9 +65,15 @@ export class CreateServiceAdDto {
   @IsBoolean()
   isAvailableNow?: boolean;
 
-  @IsOptional()
+  // Required, not optional — a service ad with no photo gave a viewer
+  // nothing to actually look at (unlike a product, which at least has a
+  // name/price to go on). PostService.js had an images.length check
+  // guarding its AI-description button, but never on the actual submit —
+  // a service could be posted with zero images. Enforced here too, not
+  // just client-side, since a direct API call bypasses any frontend check.
   @IsArray()
-  images?: string[];
+  @ArrayMinSize(1)
+  images: string[];
 
   @IsOptional()
   @IsString()

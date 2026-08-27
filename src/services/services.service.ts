@@ -105,6 +105,13 @@ export class ServicesService {
       where: { id: adId, providerId: userId },
     });
     if (!ad) throw new NotFoundException('Tangazo halijapatikana');
+    // images is required at creation (CreateServiceAdDto) — an update that
+    // explicitly sends an empty array must not be allowed to null it back
+    // out. A field simply absent from the update payload is untouched,
+    // same as every other field here.
+    if (dto.images?.length === 0) {
+      throw new BadRequestException('Huduma lazima iwe na picha angalau moja');
+    }
     const allowed = [
       'title',
       'description',
