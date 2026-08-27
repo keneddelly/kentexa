@@ -16,7 +16,7 @@ import { hasAnyRole } from '../utils/roles';
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
 const SOCKET_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
-const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
+const ConversationItem = ({ convo, isActive, onClick, t, dateLocale, menuOpen, onOpenMenu, onCloseMenu, onPin, onMute, onArchive }) => {
   const STATUS_COLORS = {
     open:     { bg: '#dbeafe', color: '#1d4ed8', label: t('seller_inbox.status_open') },
     pending:  { bg: '#fef9c3', color: '#ca8a04', label: t('seller_inbox.status_pending') },
@@ -38,6 +38,8 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
   const photo = isBuyerSide ? convo.commerceProfile?.photoUrl : null;
   const initial = name[0].toUpperCase();
   const unread = isBuyerSide ? convo.buyerUnreadCount : convo.unreadCount;
+  const pinned = isBuyerSide ? convo.buyerPinned : convo.sellerPinned;
+  const muted = isBuyerSide ? convo.buyerMuted : convo.sellerMuted;
   const time = convo.lastMessageAt
     ? new Date(convo.lastMessageAt).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' })
     : '';
@@ -45,8 +47,8 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
   return (
     <div onClick={onClick}
       style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex',
-        gap: 12, alignItems: 'flex-start',
-        backgroundColor: isActive ? '#eff6ff' : '#fff',
+        gap: 12, alignItems: 'flex-start', position: 'relative',
+        backgroundColor: pinned ? '#fafaf5' : isActive ? '#eff6ff' : '#fff',
         borderBottom: '1px solid #f1f5f9',
         borderLeft: isActive ? '3px solid #1d4ed8' : '3px solid transparent' }}>
       <div style={{ width: 42, height: 42, borderRadius: '50%', flexShrink: 0,
@@ -65,9 +67,13 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
         )}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>{name}</div>
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>{time}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+            {pinned && <span style={{ fontSize: 11 }}>📌</span>}
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+            {muted && <span style={{ fontSize: 11, color: '#94a3b8' }}>🔕</span>}
+          </div>
+          <div style={{ fontSize: 10, color: '#94a3b8', flexShrink: 0 }}>{time}</div>
         </div>
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2,
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -79,11 +85,35 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale }) => {
           {sc.label}
         </span>
       </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); menuOpen ? onCloseMenu() : onOpenMenu(); }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8',
+          fontSize: 18, padding: '2px 6px', flexShrink: 0, alignSelf: 'flex-start' }}>
+        ⋮
+      </button>
+      {menuOpen && (
+        <div onClick={(e) => e.stopPropagation()}
+          style={{ position: 'absolute', top: 38, right: 12, backgroundColor: '#fff',
+            borderRadius: 10, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', zIndex: 10,
+            minWidth: 150, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+          {[
+            { label: pinned ? t('seller_inbox.unpin_action') : t('seller_inbox.pin_action'), onClick: onPin },
+            { label: muted ? t('seller_inbox.unmute_action') : t('seller_inbox.mute_action'), onClick: onMute },
+            { label: t('seller_inbox.archive_action'), onClick: onArchive },
+          ].map(item => (
+            <div key={item.label} onClick={item.onClick}
+              style={{ padding: '10px 14px', fontSize: 12.5, fontWeight: 600, color: '#1e293b',
+                cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
-const MessageBubble = ({ msg, mode, t }) => {
+const MessageBubble = ({ msg, mode, t, onRetry }) => {
   // "Mine" = my own outgoing messages, aligned right — flips depending on
   // which side of the conversation the current viewer is on.
   const isMine = mode === 'buyer'
@@ -141,21 +171,44 @@ const MessageBubble = ({ msg, mode, t }) => {
     );
   }
 
+  const isSending = msg._status === 'sending';
+  const isFailed  = msg._status === 'failed';
+
   return (
-    <div style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start',
-      margin: '4px 0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column',
+      alignItems: isMine ? 'flex-end' : 'flex-start', margin: '4px 0' }}>
       <div style={{
         maxWidth: '78%',
         backgroundColor: isNote ? '#fef3c7' : isMine ? '#1d4ed8' : '#f1f5f9',
         color: isNote ? '#92400e' : isMine ? '#fff' : '#1e293b',
-        padding: '9px 14px', borderRadius: 16,
+        padding: msg.imageUrl && !msg.content ? 4 : '9px 14px', borderRadius: 16,
         borderBottomRightRadius: isMine ? 4 : 16,
         borderBottomLeftRadius:  isMine ? 16 : 4,
         fontSize: 13, lineHeight: 1.5,
+        opacity: isSending ? 0.6 : isFailed ? 0.85 : 1,
       }}>
         {isNote && <div style={{ fontSize: 10, fontWeight: 800, marginBottom: 4 }}>📝 {t('seller_inbox.internal_note_label')}</div>}
+        {msg.imageUrl && (
+          <img src={msg.imageUrl} alt="" style={{ maxWidth: '100%', borderRadius: 12, display: 'block',
+            marginBottom: msg.content ? 6 : 0 }} />
+        )}
         {msg.content}
       </div>
+      {(isSending || isFailed) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, fontSize: 10 }}>
+          {isSending && <span style={{ color: '#94a3b8' }}>{t('seller_inbox.status_sending')}</span>}
+          {isFailed && (
+            <>
+              <span style={{ color: '#dc2626' }}>{t('seller_inbox.status_failed')}</span>
+              <button onClick={() => onRetry?.(msg)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer',
+                  color: '#1d4ed8', fontWeight: 700, fontSize: 10, textDecoration: 'underline' }}>
+                {t('seller_inbox.retry_button')}
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -181,10 +234,23 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   const [error,         setError]           = useState('');
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [loadingMore,     setLoadingMore]     = useState(false);
+  const [search,        setSearch]          = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [menuForId,     setMenuForId]       = useState(null); // which conversation's ⋮ menu is open
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   // Deep-linked straight into a chat with one specific seller (MessageSeller-{id}).
   const buyerDeepLink = !!sellerId;
+
+  // Debounced — a search endpoint that hits the DB per keystroke doesn't
+  // scale, and it doesn't need to: conversation lists are small, a 300ms
+  // pause after the user stops typing is imperceptible.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const fetchInbox = useCallback(async () => {
     try {
@@ -232,9 +298,10 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       }
 
       // ── Bare inbox — merge both sides: my conversations as seller AND as buyer ──
+      const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
       const [sellerRes, buyerRes] = await Promise.allSettled([
-        api.get(`/business/inbox?status=${filter}&limit=30`),
-        api.get('/business/my-conversations?limit=30'),
+        api.get(`/business/inbox?status=${filter}&limit=30${searchParam}`),
+        api.get(`/business/my-conversations?limit=30${searchParam}`),
       ]);
       const sellerList = sellerRes.status === 'fulfilled'
         ? (sellerRes.value.data.conversations || []).map(c => ({ ...c, _mode: 'seller' }))
@@ -242,13 +309,21 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       const buyerList = buyerRes.status === 'fulfilled'
         ? (buyerRes.value.data.conversations || []).map(c => ({ ...c, _mode: 'buyer' }))
         : [];
-      const merged = [...sellerList, ...buyerList].sort((a, b) =>
-        new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt)
-      );
+      // Each side arrives already pin-sorted from the backend; merging by
+      // date alone would flatten that (a pinned older thread on one side
+      // could land below an unpinned newer one from the other side) — pin
+      // status wins first, exactly matching what a single-side view already
+      // shows, before falling back to recency.
+      const merged = [...sellerList, ...buyerList].sort((a, b) => {
+        const aPinned = a._mode === 'buyer' ? a.buyerPinned : a.sellerPinned;
+        const bPinned = b._mode === 'buyer' ? b.buyerPinned : b.sellerPinned;
+        if (aPinned !== bPinned) return aPinned ? -1 : 1;
+        return new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt);
+      });
       setConversations(merged);
     } catch {} finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, initialCustomerId, sellerId, messageCommerceProfileId]);
+  }, [filter, initialCustomerId, sellerId, messageCommerceProfileId, debouncedSearch]);
 
   const fetchMessages = async (convo) => {
     try {
@@ -400,21 +475,89 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
     } finally { setCreatingOrder(false); }
   };
 
-  const handleSend = async () => {
-    if (!text.trim() || !active) return;
+  // Optimistic send with a real failed/retry state — a prior version just
+  // silently swallowed a failed POST (catch {}), losing the typed message
+  // with no indication anything went wrong. `retryMsg` re-sends an existing
+  // failed bubble in place rather than appending a second one. Temp ids are
+  // strings ("temp-...") specifically so they can never collide with a real
+  // numeric message id — the socket's own dedup-by-id logic depends on that.
+  const handleSend = async (retryMsg) => {
+    const content = retryMsg ? retryMsg.content : text.trim();
+    if (!content || !active) return;
+    const tempId = retryMsg ? retryMsg.id : `temp-${Date.now()}`;
+    const noteFlag = retryMsg ? retryMsg.isNote : isNote;
+
+    if (retryMsg) {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, _status: 'sending' } : m));
+    } else {
+      setMessages(prev => [...prev, {
+        id: tempId,
+        conversationId: active.id,
+        senderType: active._mode === 'buyer' ? 'customer' : 'seller',
+        type: 'text',
+        content,
+        imageUrl: null,
+        isNote: noteFlag,
+        createdAt: new Date().toISOString(),
+        _status: 'sending',
+      }]);
+      setText(''); setIsNote(false);
+    }
+
     setSending(true);
     try {
       const res = active._mode === 'buyer'
-        ? await api.post(`/business/my-conversations/${active.id}/messages`, {
-            content: text.trim(),
-          })
-        : await api.post(`/business/inbox/${active.id}/messages`, {
-            content: text.trim(), isNote,
-          });
-      setMessages(prev => [...prev, res.data]);
-      setText(''); setIsNote(false);
-    } catch {} finally { setSending(false); }
+        ? await api.post(`/business/my-conversations/${active.id}/messages`, { content })
+        : await api.post(`/business/inbox/${active.id}/messages`, { content, isNote: noteFlag });
+      setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
+    } catch {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, _status: 'failed' } : m));
+    } finally { setSending(false); }
   };
+
+  // Image attach — the upload step (to Cloudinary via /upload/images) and
+  // the message-send step are separate requests; either can fail
+  // independently, so both need to be retryable together. The original
+  // File object is kept on the optimistic bubble (`_file`, JS-memory only,
+  // never sent to the server) specifically so a retry can redo the actual
+  // upload instead of resending a local-only blob: preview URL that would
+  // be meaningless outside this browser tab.
+  const handleAttachImage = async (file, existingTempId) => {
+    if (!file || !active) return;
+    const tempId = existingTempId || `temp-${Date.now()}`;
+    if (existingTempId) {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, _status: 'sending' } : m));
+    } else {
+      setMessages(prev => [...prev, {
+        id: tempId,
+        conversationId: active.id,
+        senderType: active._mode === 'buyer' ? 'customer' : 'seller',
+        type: 'text',
+        content: null,
+        imageUrl: URL.createObjectURL(file),
+        isNote: false,
+        createdAt: new Date().toISOString(),
+        _status: 'sending',
+        _file: file,
+      }]);
+    }
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('files', file);
+      const up = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const imageUrl = up.data?.urls?.[0];
+      if (!imageUrl) throw new Error('upload failed');
+      const res = active._mode === 'buyer'
+        ? await api.post(`/business/my-conversations/${active.id}/messages`, { imageUrl })
+        : await api.post(`/business/inbox/${active.id}/messages`, { imageUrl, isNote: false });
+      setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
+    } catch {
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...m, _status: 'failed' } : m));
+    } finally { setUploadingImage(false); }
+  };
+
+  const handleRetry = (msg) => msg._file ? handleAttachImage(msg._file, msg.id) : handleSend(msg);
 
   const handleShareProduct = async (product) => {
     if (!active) return;
@@ -438,6 +581,49 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
     ));
   };
 
+  // Pin/mute — one conversation object serves both list rows (buyer-mode
+  // and seller-mode), so which field to flip/read (sellerPinned vs
+  // buyerPinned) depends on which side THIS row is being viewed as, not on
+  // any single flag — matches how unreadCount/buyerUnreadCount already work
+  // on the same object.
+  const handleTogglePin = async (convo) => {
+    setMenuForId(null);
+    const path = convo._mode === 'buyer'
+      ? `/business/my-conversations/${convo.id}/pin`
+      : `/business/inbox/${convo.id}/pin`;
+    const field = convo._mode === 'buyer' ? 'buyerPinned' : 'sellerPinned';
+    try {
+      const res = await api.patch(path);
+      setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, [field]: res.data.pinned } : c));
+    } catch {}
+  };
+
+  const handleToggleMute = async (convo) => {
+    setMenuForId(null);
+    const path = convo._mode === 'buyer'
+      ? `/business/my-conversations/${convo.id}/mute`
+      : `/business/inbox/${convo.id}/mute`;
+    const field = convo._mode === 'buyer' ? 'buyerMuted' : 'sellerMuted';
+    try {
+      const res = await api.patch(path);
+      setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, [field]: res.data.muted } : c));
+    } catch {}
+  };
+
+  // "Archive" reuses the existing status field rather than a new concept —
+  // 'closed' already means "done, out of the active list" for the seller
+  // side; buyer-side conversations don't have their own status column
+  // (status is seller-owned), so archiving there is represented as muting
+  // instead, the closest existing buyer-controllable equivalent.
+  const handleArchive = async (convo) => {
+    setMenuForId(null);
+    if (convo._mode === 'buyer') { await handleToggleMute(convo); return; }
+    try {
+      await api.patch(`/business/inbox/${convo.id}/status`, { status: 'closed' });
+      setConversations(prev => prev.map(c => c.id === convo.id ? { ...c, status: 'closed' } : c));
+    } catch {}
+  };
+
   return (
     <div style={{ display: 'flex', height: '100dvh', flexDirection: 'column',
       backgroundColor: '#f8fafc' }}>
@@ -459,6 +645,20 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
         {/* Conversation list — hidden when active on mobile */}
         {!active && (
           <div style={{ width: '100%', overflowY: 'auto', backgroundColor: '#fff' }}>
+            {/* Search — debounced 300ms, see the effect above; searches by
+                person/business name (seller side: customer name/phone;
+                buyer side: the seller's own name/store name). */}
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: '#94a3b8' }}>🔍</span>
+                <input value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder={t('seller_inbox.search_placeholder')}
+                  style={{ width: '100%', padding: '9px 12px 9px 32px', borderRadius: 10,
+                    border: '1.5px solid #e2e8f0', fontSize: 13, outline: 'none',
+                    boxSizing: 'border-box', backgroundColor: '#f8fafc' }} />
+              </div>
+            </div>
+
             {/* Filter tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9' }}>
               {['open','pending','resolved'].map(s => (
@@ -496,7 +696,13 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
             ) : conversations.map(c => (
               <ConversationItem key={c.id} convo={c} t={t} dateLocale={dateLocale}
                 isActive={active?.id === c.id}
-                onClick={() => openConversation(c)} />
+                onClick={() => openConversation(c)}
+                menuOpen={menuForId === c.id}
+                onOpenMenu={() => setMenuForId(c.id)}
+                onCloseMenu={() => setMenuForId(null)}
+                onPin={() => handleTogglePin(c)}
+                onMute={() => handleToggleMute(c)}
+                onArchive={() => handleArchive(c)} />
             ))}
           </div>
         )}
@@ -567,7 +773,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                   </div>
                 )}
                 {messages.map(msg => (
-                <MessageBubble key={msg.id} msg={msg} mode={active._mode} t={t} />
+                <MessageBubble key={msg.id} msg={msg} mode={active._mode} t={t} onRetry={handleRetry} />
               ))}
               </>
               )}
@@ -706,7 +912,20 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input ref={fileInputRef} type="file" accept="image/*" hidden
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (file) handleAttachImage(file);
+                    e.target.value = '';
+                  }} />
+                <button onClick={() => fileInputRef.current?.click()} disabled={uploadingImage}
+                  title={t('seller_inbox.attach_image_title')}
+                  style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
+                    border: '1.5px solid #e2e8f0', backgroundColor: '#fff',
+                    cursor: uploadingImage ? 'default' : 'pointer', fontSize: 16 }}>
+                  {uploadingImage ? '⏳' : '📎'}
+                </button>
                 <input
                   value={text}
                   onChange={e => setText(e.target.value)}
@@ -716,7 +935,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                     border: `2px solid ${isNote ? '#fde68a' : '#e2e8f0'}`,
                     fontSize: 13, outline: 'none',
                     backgroundColor: isNote ? '#fffbeb' : '#f8fafc' }} />
-                <button onClick={handleSend} disabled={sending || !text.trim()}
+                <button onClick={() => handleSend()} disabled={sending || !text.trim()}
                   style={{ width: 44, height: 44, borderRadius: '50%',
                     backgroundColor: text.trim() ? '#1d4ed8' : '#e2e8f0',
                     border: 'none', cursor: text.trim() ? 'pointer' : 'default',

@@ -105,6 +105,22 @@ export class Conversation {
   @Column({ type: 'int', default: 0 })
   buyerUnreadCount: number; // buyer's unread messages (from seller)
 
+  // Pin/mute are personal organizational preferences, not facts about the
+  // conversation itself — split seller/buyer exactly like unreadCount/
+  // buyerUnreadCount above, so a seller pinning a thread never pins it on
+  // the buyer's side of the same row, and vice versa.
+  @Column({ type: 'boolean', default: false })
+  sellerPinned: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  sellerMuted: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  buyerPinned: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  buyerMuted: boolean;
+
   @Column({ type: 'timestamp', nullable: true })
   lastMessageAt: Date | null;
 

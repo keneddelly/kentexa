@@ -339,6 +339,18 @@ export class BusinessController {
     return this.conversationService.updateStatus(sellerId, id, body.status);
   }
 
+  @Patch('inbox/:id/pin')
+  async togglePin(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const sellerId = await this.resolveSellerActorId(req.user, 'canSendMessages');
+    return this.conversationService.togglePin(sellerId, id);
+  }
+
+  @Patch('inbox/:id/mute')
+  async toggleMute(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    const sellerId = await this.resolveSellerActorId(req.user, 'canSendMessages');
+    return this.conversationService.toggleMute(sellerId, id);
+  }
+
   @Patch('inbox/:id/assign')
   async assignConversation(
     @Request() req,
@@ -361,8 +373,13 @@ export class BusinessController {
   // ═══════════════════════════════════════════════════════════════════════════
 
   @Get('my-conversations')
-  getMyConversations(@Request() req, @Query('page') page?: string) {
+  getMyConversations(
+    @Request() req,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+  ) {
     return this.conversationService.getMyConversations(req.user.id, {
+      search,
       page: page ? Number(page) : 1,
     });
   }
@@ -404,5 +421,15 @@ export class BusinessController {
       dto,
       req.user,
     );
+  }
+
+  @Patch('my-conversations/:id/pin')
+  togglePinAsBuyer(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.conversationService.togglePinAsBuyer(req.user.id, id);
+  }
+
+  @Patch('my-conversations/:id/mute')
+  toggleMuteAsBuyer(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.conversationService.toggleMuteAsBuyer(req.user.id, id);
   }
 }

@@ -108,7 +108,8 @@ export class ConversationService {
     }
 
     const [conversations, total] = await query
-      .orderBy('c.lastMessageAt', 'DESC', 'NULLS LAST')
+      .orderBy('c.sellerPinned', 'DESC')
+      .addOrderBy('c.lastMessageAt', 'DESC', 'NULLS LAST')
       .addOrderBy('c.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
@@ -134,6 +135,7 @@ export class ConversationService {
   async getMyConversations(
     userId: number,
     params: {
+      search?: string;
       page?: number;
       limit?: number;
     } = {},
@@ -148,8 +150,16 @@ export class ConversationService {
       .leftJoinAndSelect('c.seller', 'seller')
       .where('customer.user_id = :userId', { userId });
 
+    if (params.search) {
+      query.andWhere(
+        '(LOWER(seller.storeName) LIKE :q OR LOWER(seller.name) LIKE :q)',
+        { q: `%${params.search.toLowerCase()}%` },
+      );
+    }
+
     const [conversations, total] = await query
-      .orderBy('c.lastMessageAt', 'DESC', 'NULLS LAST')
+      .orderBy('c.buyerPinned', 'DESC')
+      .addOrderBy('c.lastMessageAt', 'DESC', 'NULLS LAST')
       .addOrderBy('c.createdAt', 'DESC')
       .skip(skip)
       .take(limit)
@@ -186,17 +196,23 @@ export class ConversationService {
     sellerActorId: number,
     buyerUserId: number,
   ): Promise<number> {
+    // Muted threads keep their own per-conversation unread indicator (still
+    // visible once inside the Inbox) but deliberately don't add to this
+    // combined count — the one that drives the app-wide badge — matching
+    // the whole point of muting a conversation.
     const [asSeller, asBuyer] = await Promise.all([
       this.convoRepo
         .createQueryBuilder('c')
         .where('c.seller_id = :sellerActorId', { sellerActorId })
         .andWhere('c.unreadCount > 0')
+        .andWhere('c.sellerMuted = false')
         .getCount(),
       this.convoRepo
         .createQueryBuilder('c')
         .leftJoin('c.customer', 'customer')
         .where('customer.user_id = :buyerUserId', { buyerUserId })
         .andWhere('c.buyerUnreadCount > 0')
+        .andWhere('c.buyerMuted = false')
         .getCount(),
     ]);
     return asSeller + asBuyer;
@@ -640,6 +656,50 @@ export class ConversationService {
     if (!convo) throw new NotFoundException('Conversation not found');
     convo.status = status;
     return this.convoRepo.save(convo);
+  }
+
+  // ── Pin / mute — personal to each side, see the entity's own comment ─────
+
+  async togglePin(sellerId: number, conversationId: number): Promise<{ pinned: boolean }> {
+    const convo = await this.convoRepo.findOne({ where: { id: conversationId, sellerId } });
+    if (!convo) throw new NotFoundException('Conversation not found');
+    convo.sellerPinned = !convo.sellerPinned;
+    await this.convoRepo.save(convo);
+    return { pinned: convo.sellerPinned };
+  }
+
+  async toggleMute(sellerId: number, conversationId: number): Promise<{ muted: boolean }> {
+    const convo = await this.convoRepo.findOne({ where: { id: conversationId, sellerId } });
+    if (!convo) throw new NotFoundException('Conversation not found');
+    convo.sellerMuted = !convo.sellerMuted;
+    await this.convoRepo.save(convo);
+    return { muted: convo.sellerMuted };
+  }
+
+  async togglePinAsBuyer(userId: number, conversationId: number): Promise<{ pinned: boolean }> {
+    const convo = await this.convoRepo.findOne({
+      where: { id: conversationId },
+      relations: { customer: true },
+    });
+    if (!convo || convo.customer?.userId !== userId) {
+      throw new NotFoundException('Conversation not found');
+    }
+    convo.buyerPinned = !convo.buyerPinned;
+    await this.convoRepo.save(convo);
+    return { pinned: convo.buyerPinned };
+  }
+
+  async toggleMuteAsBuyer(userId: number, conversationId: number): Promise<{ muted: boolean }> {
+    const convo = await this.convoRepo.findOne({
+      where: { id: conversationId },
+      relations: { customer: true },
+    });
+    if (!convo || convo.customer?.userId !== userId) {
+      throw new NotFoundException('Conversation not found');
+    }
+    convo.buyerMuted = !convo.buyerMuted;
+    await this.convoRepo.save(convo);
+    return { muted: convo.buyerMuted };
   }
 
   // ── Assign conversation to team member ────────────────────────────────────
