@@ -57,6 +57,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
     description:         '',
     weightKg:            '',
     parcelSize:          'small',
+    declaredValue:       '',
     shippingFeeCollected: '',
     paymentMethod:       'cash',
     notes:               '',
@@ -95,6 +96,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
     if (!form.destinationCity)            return t('super_agent_parcel.validate_destination_city');
     if (!form.deliveryAddress.trim())     return t('super_agent_parcel.validate_recipient_address');
     if (!form.description.trim())         return t('super_agent_parcel.validate_description');
+    if (!form.declaredValue.trim() || Number(form.declaredValue) <= 0) return t('super_agent_parcel.validate_declared_value');
     if (!form.shippingFeeCollected.trim()) return t('super_agent_parcel.validate_shipping_fee');
     return null;
   };
@@ -107,6 +109,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
       const res = await api.post('/super-agents/offline-intercity', {
         ...form,
         weightKg:            form.weightKg ? Number(form.weightKg) : undefined,
+        declaredValue:       Number(form.declaredValue),
         shippingFeeCollected: Number(form.shippingFeeCollected),
       });
       setResult(res.data);
@@ -144,7 +147,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
     setForm({
       senderName: '', senderPhone: '', recipientName: '', recipientPhone: '',
       destinationCity: '', deliveryAddress: '', description: '',
-      weightKg: '', parcelSize: 'small',
+      weightKg: '', parcelSize: 'small', declaredValue: '',
       shippingFeeCollected: '', paymentMethod: 'cash', notes: '',
     });
     setError('');
@@ -238,6 +241,7 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
             [t('super_agent_parcel.summary_to'), result.destinationCity],
             [t('super_agent_parcel.summary_recipient'), form.recipientName],
             [t('super_agent_parcel.summary_recipient_phone'), form.recipientPhone],
+            [t('super_agent_parcel.summary_declared_value'), `TZS ${Number(result.declaredValue).toLocaleString()}`],
             [t('super_agent_parcel.summary_fee_collected'), `TZS ${Number(result.shippingFeeCollected).toLocaleString()}`],
             [t('super_agent_parcel.summary_receiving_hub'), result.destinationAgent || t('super_agent_parcel.hub_to_be_assigned')],
             ...(routeInfo?.transitCity ? [[t('super_agent_parcel.summary_route'), t('super_agent_parcel.summary_route_via', { city: routeInfo.transitCity })]] : []),
@@ -387,6 +391,17 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
               </div>
             ))}
           </div>
+
+          {/* Thamani ya Mzigo — the value of the goods themselves, kept in
+              its own section so it's never mistaken for the shipping fee
+              collected below (a genuinely different number, for a
+              genuinely different purpose — this one matters for claims). */}
+          <SectionTitle icon="💰" title={t('super_agent_parcel.section_declared_value')} />
+          <Field label={t('super_agent_parcel.declared_value_label')} required hint={t('super_agent_parcel.declared_value_hint')}>
+            <input type="number" min="0" placeholder="e.g. 150000"
+              value={form.declaredValue} onChange={e => set('declaredValue', e.target.value)}
+              style={{ ...inputStyle, fontSize: 18, fontWeight: 800 }} />
+          </Field>
 
           {/* Payment */}
           <SectionTitle icon="💵" title={t('super_agent_parcel.section_payment')} />

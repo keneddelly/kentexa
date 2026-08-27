@@ -154,6 +154,27 @@ export class Parcel {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  // ── Declared goods value (Thamani ya Mzigo) ──────────────────────────────
+  // The value of the GOODS inside the parcel — never shipping fee, agent
+  // commission, platform fee, or any other charge (see the entity-wide
+  // financial fields below, all of which are fees, not goods value).
+  // Snapshotted ONCE, at parcel-creation/first-receive time:
+  //   - order-linked parcel  -> Order.baseAmount (basePrice × quantity,
+  //     the authoritative goods-only figure computed in orders.service.ts,
+  //     never touched by any later order-update code path)
+  //   - manual counter walk-in -> the Super Agent's own required entry
+  // There is deliberately NO update endpoint for this field anywhere in
+  // the app — it is set once and never exposed for editing, which is the
+  // simplest possible way to satisfy "must not be changeable after
+  // acceptance" without inventing new lifecycle/lock states. Nullable
+  // because historical parcels (created before this column existed) have
+  // no reliable way to derive it and must not have one invented.
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  declaredValue: number | null;
+
+  @Column({ type: 'varchar', length: 8, default: 'TZS' })
+  declaredValueCurrency: string;
+
   // ── Financials ────────────────────────────────────────────────────────────
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   estimatedShippingFee: number; // What seller estimated

@@ -855,10 +855,26 @@ export class OrdersService {
     // Update-if-exists makes this the single, idempotent "attach this
     // agent + mark received" step regardless of which flow created the
     // order.
+    let declaredValueForSms: number | null = null;
     try {
       const existingParcel = await this.parcelRepo.findOne({
         where: { trackingNumber },
       });
+      // Thamani ya Mzigo — a manual order (offline-intercity/seller-shipment)
+      // already has its own real declared value set at creation time (see
+      // super-agents.service.ts); preserve it as-is here, never overwrite.
+      // A genuine ONLINE order has no Parcel yet at all until this exact
+      // moment, so order.baseAmount (basePrice × quantity — goods only,
+      // never touched after order creation) is the correct, authoritative
+      // source. Deliberately left null for a manual order missing one
+      // (shouldn't happen going forward, but a pre-existing historical
+      // parcel must not have a value invented for it) rather than falling
+      // back to order.baseAmount, which for these order types holds the
+      // shipping-fee-collected figure, not a goods value.
+      const declaredValue =
+        existingParcel?.declaredValue ??
+        (isManualOrder ? null : Number(order.baseAmount || 0));
+      declaredValueForSms = declaredValue;
       const parcelFields: any = {
         status: ParcelStatus.RECEIVED_AT_HUB,
         superAgent: superAgentProfile || null,
@@ -870,6 +886,8 @@ export class OrdersService {
         parcelPhoto: data.parcelPhoto || existingParcel?.parcelPhoto || null,
         handoverTime: new Date(),
         notes: data.notes || existingParcel?.notes || null,
+        declaredValue,
+        declaredValueCurrency: existingParcel?.declaredValueCurrency || 'TZS',
       };
       if (existingParcel) {
         await this.parcelRepo.update(existingParcel.id, parcelFields);
@@ -899,6 +917,43 @@ export class OrdersService {
       }
     } catch (err) {
       console.error('Parcel record creation failed:', err.message);
+    }
+
+    // ── SMS: buyer + seller, declared goods value ──────────────────────────
+    // Only for genuine online orders — a manual order (offline-intercity /
+    // seller-shipment) already sent its own "received" SMS with the
+    // declared value at CREATION time (super-agents.service.ts), and this
+    // method runs in the same moment for those, so sending a second one
+    // here would just be a duplicate at extra cost. Skipped entirely if no
+    // real declared value exists yet (never sends "TZS 0"/"TZS null").
+    if (!isManualOrder && declaredValueForSms && declaredValueForSms > 0) {
+      const agentBrand = superAgentProfile?.businessName || 'KenteXa Network';
+      const valueLabel = `TZS ${declaredValueForSms.toLocaleString()}`;
+      const trackUrl = `${FRONTEND_URL}/?track=${trackingNumber}`;
+      const buyerPhone = order.buyer?.phone || order.phone;
+      if (buyerPhone) {
+        this.smsService
+          .sendSms(
+            buyerPhone,
+            `${agentBrand}\n\n` +
+              `Mzigo wako ${trackingNumber} wenye thamani ya ${valueLabel} umepokelewa na Super Agent. ` +
+              `Unaendelea na hatua za usafirishaji.\n\n` +
+              `Fuatilia: ${trackUrl}\n\n` +
+              `Verified by Kentexa`,
+          )
+          .catch((e) => console.warn('Buyer received SMS failed:', e?.message));
+      }
+      const sellerPhone = order.seller?.phone;
+      if (sellerPhone) {
+        this.smsService
+          .sendSms(
+            sellerPhone,
+            `${agentBrand}\n\n` +
+              `Mzigo ${trackingNumber} wenye thamani ya ${valueLabel} umepokelewa na Super Agent na unaendelea kusafirishwa.\n\n` +
+              `Verified by Kentexa`,
+          )
+          .catch((e) => console.warn('Seller received SMS failed:', e?.message));
+      }
     }
 
     return {

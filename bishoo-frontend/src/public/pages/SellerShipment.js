@@ -313,6 +313,12 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
 
   const validate = () => {
     if (items.length === 0)            return t('seller_shipment.validate_add_item');
+    // Thamani ya Mzigo — every shipment needs a real declared goods value;
+    // the backend now rejects a zero total too (a free-text item with no
+    // price typed in was the one way this UI already allowed reaching
+    // zero even with items present), so this catches it here with a
+    // clearer message instead of a raw 400 at submit.
+    if (getTotalValue() <= 0)          return t('seller_shipment.validate_value_required');
     if (!form.recipientName.trim())    return t('seller_shipment.validate_recipient_name');
     if (!form.recipientPhone.trim())   return t('seller_shipment.validate_recipient_phone');
     if (form.buyerDiffersFromRecipient && !form.buyerName.trim())  return t('seller_shipment.validate_payer_name');

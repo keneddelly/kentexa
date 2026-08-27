@@ -444,7 +444,10 @@ export class SuperAgentsService {
       description: string; // what's inside — "nguo", "vifaa vya ujenzi" etc
       weightKg?: number;
       parcelSize?: string; // small | medium | large
-      declaredValue?: number; // optional — for insurance
+      // Thamani ya Mzigo — required, not optional. Was typed here already
+      // but never actually read anywhere below; the parcel had no column
+      // to persist it to, so it was silently dropped on every submission.
+      declaredValue: number;
       // Fee collected at counter
       shippingFeeCollected: number;
       paymentMethod?: string; // cash | mpesa | airtel
@@ -458,6 +461,18 @@ export class SuperAgentsService {
       throw new BadRequestException('Super Agent profile not found');
 
     this.assertNotBillingBlocked(superAgent);
+
+    // Thamani ya Mzigo — required, numeric, greater than zero. Matches this
+    // method's own existing convention (manual inline checks, no
+    // class-validator DTO on this endpoint — see the controller's
+    // `@Body() dto: any`), rather than introducing a second validation
+    // mechanism just for this one field.
+    const declaredValue = Number(dto.declaredValue);
+    if (!dto.declaredValue || !Number.isFinite(declaredValue) || declaredValue <= 0) {
+      throw new BadRequestException(
+        'Thamani ya mzigo inahitajika na lazima iwe zaidi ya sifuri',
+      );
+    }
 
     const originCity = superAgent.city;
     const destinationCity = dto.destinationCity;
@@ -561,6 +576,8 @@ export class SuperAgentsService {
       weightKg,
       parcelSize: dto.parcelSize || 'small',
       description: dto.description,
+      declaredValue,
+      declaredValueCurrency: 'TZS',
       estimatedShippingFee: dto.shippingFeeCollected,
       actualShippingFee: dto.shippingFeeCollected,
       superAgentEarnings: agentEarnings,
@@ -572,6 +589,21 @@ export class SuperAgentsService {
     const savedParcel = (await this.parcelRepo.save(
       parcel as any,
     )) as unknown as Parcel;
+
+    // Who declared the value and when — reuses the existing generic audit
+    // log rather than building a second history mechanism. There is no
+    // corresponding "changed" event anywhere, by design: this field has no
+    // update endpoint, so declaration and lock happen in the same instant.
+    await this.auditLog
+      .record({
+        actorId: superAgentUser.id,
+        actorRole: 'super_agent',
+        action: 'parcel.declared_value_set',
+        entityType: 'parcel',
+        entityId: savedParcel.id,
+        newValue: { declaredValue, currency: 'TZS' },
+      })
+      .catch(() => {});
 
     // Aggregate the free-order/fee counters onto the Super Agent's own
     // record — same tracked-only principle as the parcel-level fields above.
@@ -634,7 +666,8 @@ export class SuperAgentsService {
       senderSmsSent = await this.smsService.sendSms(
         dto.senderPhone,
         `${superAgent.businessName}\n\n` +
-          `Habari ${dto.senderName}, malipo yako ya TZS ${dto.shippingFeeCollected.toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}.\n\n` +
+          `Habari ${dto.senderName}, malipo yako ya TZS ${dto.shippingFeeCollected.toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}. ` +
+          `Thamani ya mzigo: TZS ${declaredValue.toLocaleString()}.\n\n` +
           `Risiti: ${invoice.receiptNumber}\n\n` +
           `Verified by Kentexa`,
       );
@@ -669,6 +702,7 @@ export class SuperAgentsService {
       originCity,
       destinationCity,
       destinationAgent: destAgent?.businessName || null,
+      declaredValue,
       shippingFeeCollected: dto.shippingFeeCollected,
       agentEarnings,
       receiptNumber: invoice.receiptNumber,
@@ -679,6 +713,7 @@ export class SuperAgentsService {
         senderPhone: dto.senderPhone,
         receiverName: dto.recipientName,
         receiverPhone: dto.recipientPhone,
+        declaredValue,
         amountPaid: dto.shippingFeeCollected,
         paymentMethod: dto.paymentMethod || 'cash',
         superAgentName: superAgent.businessName,
@@ -2684,6 +2719,7 @@ export class SuperAgentsService {
       where: { trackingNumber },
       relations: {
         order: { buyer: true },
+        seller: true,
         superAgent: true,
         destinationSuperAgent: true,
       },
@@ -2772,7 +2808,24 @@ export class SuperAgentsService {
       const arrivalPhoneLine = arrivalHub?.phone
         ? `Simu ya Hub: ${arrivalHub.phone}`
         : null;
+      const originHub = parcel.superAgent || null;
+      const originBrand = originHub?.businessName || 'KenteXa Network';
+      const declaredValueLine = (parcel as any).declaredValue
+        ? ` wenye thamani ya TZS ${Number((parcel as any).declaredValue).toLocaleString()}`
+        : '';
       const smsMap: Partial<Record<ParcelStatus, string>> = {
+        // Origin hub physically has the parcel now — the seller-shipment
+        // equivalent of createOfflineIntercityOrder's own "received" SMS
+        // (that flow sends its own at creation since status starts here
+        // already; a seller_shipment parcel starts at PENDING and only
+        // reaches this status later, via this generic endpoint).
+        [ParcelStatus.RECEIVED_AT_HUB]:
+          `${originBrand}\n\n` +
+          `Habari ${recipientName}! Mzigo wako (${trackingNumber})${declaredValueLine} umepokelewa na Super Agent. ` +
+          `Unaendelea na hatua za usafirishaji.\n\n` +
+          `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+          `Verified by Kentexa`,
+
         [ParcelStatus.ARRIVED_AT_HUB]:
           `${arrivalBrand}\n\n` +
           `Habari ${recipientName}! Kifurushi chako (${trackingNumber}) ` +
@@ -2791,6 +2844,29 @@ export class SuperAgentsService {
         await this.smsService
           .sendSms(buyerPhone, smsMap[dto.status]!)
           .catch((e) => console.warn('SMS failed:', e.message));
+      }
+    }
+
+    // ── SMS to seller — RECEIVED_AT_HUB only, not every status change ─────
+    // The seller needs to know their goods actually reached the Super
+    // Agent; later transit/arrival/delivery updates are the buyer's
+    // concern, not something the seller needs a text for.
+    if (dto.status === ParcelStatus.RECEIVED_AT_HUB) {
+      const sellerPhone = (parcel as any).seller?.phone;
+      if (sellerPhone) {
+        const originHub = parcel.superAgent || null;
+        const originBrand = originHub?.businessName || 'KenteXa Network';
+        const declaredValueLine = (parcel as any).declaredValue
+          ? ` wenye thamani ya TZS ${Number((parcel as any).declaredValue).toLocaleString()}`
+          : '';
+        this.smsService
+          .sendSms(
+            sellerPhone,
+            `${originBrand}\n\n` +
+              `Mzigo ${trackingNumber}${declaredValueLine} umepokelewa na Super Agent na unaendelea kusafirishwa.\n\n` +
+              `Verified by Kentexa`,
+          )
+          .catch((e) => console.warn('Seller received SMS failed:', e?.message));
       }
     }
 
@@ -3034,6 +3110,23 @@ export class SuperAgentsService {
               .catch(() => null)
         : null;
 
+    // Thamani ya Mzigo for this flow — a linked completed Sale's own
+    // recorded subtotal (the actual POS transaction, before discount) beats
+    // a hand-typed totalValue/items estimate when one exists; otherwise
+    // fall back to what the seller entered. Computed once and reused for
+    // both the synthetic Order (existing behavior) and the Parcel snapshot
+    // (new) rather than letting the two ever disagree.
+    const computedGoodsValue =
+      Number(linkedSale?.subtotal) ||
+      Number(dto.totalValue) ||
+      dto.items?.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0) ||
+      0;
+    if (computedGoodsValue <= 0) {
+      throw new BadRequestException(
+        'Thamani ya mzigo inahitajika — jaza bei ya bidhaa au chagua mauzo yaliyokamilika',
+      );
+    }
+
     const order = (await this.orderRepo.save(
       this.orderRepo.create({
         source: OrderSource.SELLER_SHIPMENT as any,
@@ -3044,14 +3137,8 @@ export class SuperAgentsService {
         deliveryAddress: dto.deliveryAddress,
         phone: dto.recipientPhone,
         quantity: dto.items?.reduce((s, i) => s + (i.qty || 1), 0) || 1,
-        totalAmount:
-          dto.totalValue ||
-          dto.items?.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0) ||
-          0,
-        baseAmount:
-          dto.totalValue ||
-          dto.items?.reduce((s, i) => s + (i.price || 0) * (i.qty || 1), 0) ||
-          0,
+        totalAmount: computedGoodsValue,
+        baseAmount: computedGoodsValue,
         // ── ZERO FEE RULE FOR MANUAL SHIPMENTS ─────────────────────────────
         // Same rule as createOnBehalf: the buyer already paid the seller
         // directly (offline sale) — KenteXa never holds this money, so
@@ -3138,6 +3225,8 @@ export class SuperAgentsService {
         description: dto.description,
         weightKg: dto.weightKg || null,
         parcelSize: dto.parcelSize || 'small',
+        declaredValue: computedGoodsValue,
+        declaredValueCurrency: 'TZS',
         classifiedId: dto.classifiedId || null,
         saleId: linkedSale?.id || null,
         transportMethod: dto.transportMethod,
@@ -3162,6 +3251,21 @@ export class SuperAgentsService {
         type: 'system',
       },
     );
+
+    await this.auditLog
+      .record({
+        actorId: seller.id,
+        actorRole: 'seller',
+        action: 'parcel.declared_value_set',
+        entityType: 'parcel',
+        entityId: parcel.id,
+        newValue: {
+          declaredValue: computedGoodsValue,
+          currency: 'TZS',
+          source: linkedSale ? 'linked_sale' : 'seller_declared',
+        },
+      })
+      .catch(() => {});
 
     // Populated by whichever branch below runs — read by the receipt in
     // the return value at the bottom of this method either way.

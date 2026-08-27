@@ -185,7 +185,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [walkForm, setWalkForm] = useState({
     senderName: '', senderPhone: '', recipientName: '', recipientPhone: '',
     destinationCity: '', deliveryAddress: '', description: '',
-    weightKg: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '',
+    weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '',
   });
   const [walkRoute, setWalkRoute]       = useState(null);
   const [walkDestLocation, setWalkDestLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
@@ -482,12 +482,20 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     if (!walkForm.senderName || !walkForm.recipientName || !walkForm.destinationCity) {
       setError('Jaza sehemu zote zinazohitajika'); return;
     }
+    // Thamani ya Mzigo — required, numeric, greater than zero. Matches the
+    // same rule the backend now enforces (super-agents.service.ts), so a
+    // missing/zero value is caught here with a clear message instead of a
+    // raw 400 at submit.
+    if (!walkForm.declaredValue || Number(walkForm.declaredValue) <= 0) {
+      setError('Weka thamani ya mzigo (lazima iwe zaidi ya sifuri)'); return;
+    }
     try {
       setActionLoading(true); setError('');
       const res = await api.post('/super-agents/offline-intercity', {
         ...walkForm,
         originCity: profile?.city,
         weightKg:   walkForm.weightKg ? Number(walkForm.weightKg) : undefined,
+        declaredValue: Number(walkForm.declaredValue),
         shippingFeeCollected: Number(walkForm.shippingFeeCollected || 0),
       });
       setWalkResult(res.data);
@@ -503,7 +511,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const resetWalk = () => {
     setWalkForm({ senderName: '', senderPhone: '', recipientName: '', recipientPhone: '',
       destinationCity: '', deliveryAddress: '', description: '',
-      weightKg: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
+      weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
     setWalkRoute(null); setWalkResult(null);
     setPokeaMode('list'); fetchAll();
   };
@@ -549,6 +557,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       ${row('Simu ya Mtumaji', receipt.senderPhone)}
       ${row('Mpokeaji', receipt.receiverName)}
       ${row('Simu ya Mpokeaji', receipt.receiverPhone)}
+      ${row('Thamani ya Mzigo', receipt.declaredValue ? `TZS ${Number(receipt.declaredValue).toLocaleString()}` : '')}
       <hr />
       ${row('Njia ya Malipo', receipt.paymentMethod)}
       <div class="amount">TZS ${Number(receipt.amountPaid || 0).toLocaleString()}</div>
@@ -1234,6 +1243,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       {[
                         { k: 'description',        l: 'Bidhaa',      ph: 'e.g. Nguo, Simu' },
                         { k: 'weightKg',            l: 'Uzito (kg)',   ph: '2.5', type: 'number' },
+                        { k: 'declaredValue',       l: 'Thamani ya Mzigo (TZS) *', ph: '150000', type: 'number' },
                         { k: 'shippingFeeCollected',l: 'Ada Uliyokusanya (TZS)', ph: '8000', type: 'number' },
                       ].map(f => (
                         <div key={f.k} style={{ marginBottom: 8 }}>
@@ -1243,6 +1253,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             value={walkForm[f.k]}
                             onChange={e => setWalkForm(p => ({ ...p, [f.k]: e.target.value }))}
                             style={inp} />
+                          {f.k === 'declaredValue' && (
+                            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
+                              Weka thamani halisi ya bidhaa zilizomo kwenye mzigo. Thamani hii inaweza kutumika kama kumbukumbu katika kushughulikia upotevu, uharibifu au madai.
+                            </div>
+                          )}
                         </div>
                       ))}
                       <div style={{ marginBottom: 8 }}>
