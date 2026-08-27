@@ -20,6 +20,7 @@ import { ActivityModule } from '../activity/activity.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { ReputationModule } from '../reputation/reputation.module';
+import { BusinessModule } from '../business/business.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ReputationModule } from '../reputation/reputation.module';
     CommerceProfilesModule,
     WalletModule,
     ReputationModule,
+    BusinessModule,
   ],
   controllers: [PaymentsController],
   providers: [

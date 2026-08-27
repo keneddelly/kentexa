@@ -609,6 +609,34 @@ export class ConversationService {
     );
   }
 
+  // ── System messages (order/invoice cards) — shared real-time push ─────────
+  // Both addOrderMessage and addInvoiceMessage are called from OUTSIDE any
+  // request that already has the conversation loaded (order-creation,
+  // payment webhooks), so unlike sendMessage/sendMessageAsBuyer they need to
+  // fetch sellerId/buyerUserId themselves before they can push live. Kept as
+  // one helper so this fetch-and-emit logic isn't duplicated per card type.
+  private async emitSystemMessage(
+    conversationId: number,
+    msg: ConversationMessage,
+  ): Promise<void> {
+    try {
+      const convo = await this.convoRepo.findOne({
+        where: { id: conversationId },
+        relations: { customer: true },
+      });
+      if (!convo) return;
+      this.gateway.emitNewMessage({
+        conversationId,
+        sellerId: convo.sellerId,
+        buyerUserId: convo.customer?.userId ?? null,
+        message: msg,
+        isNote: false,
+      });
+    } catch {
+      // Non-critical — the message is already durably persisted above.
+    }
+  }
+
   // ── Create order from chat ────────────────────────────────────────────────
   // Adds a system message to the conversation after order is created
 
@@ -621,7 +649,7 @@ export class ConversationService {
       status: string;
     },
   ): Promise<void> {
-    await this.msgRepo.save(
+    const msg = await this.msgRepo.save(
       this.msgRepo.create({
         conversationId,
         senderType: MessageSenderType.SYSTEM,
@@ -641,6 +669,45 @@ export class ConversationService {
       lastMessagePreview: `📦 Agizo limeundwa — TZS ${order.totalAmount.toLocaleString()}`,
       messageCount: () => '"messageCount" + 1',
     });
+
+    await this.emitSystemMessage(conversationId, msg);
+  }
+
+  // ── Invoice created / paid — narrates the rest of the commerce loop
+  // (order → invoice → payment) inside the same thread, so "did you pay?"
+  // never needs to leave the chat. One method for both states since they
+  // share every field except the message text.
+  async addInvoiceMessage(
+    conversationId: number,
+    invoice: { invoiceNumber: string; amount: number; paid: boolean },
+  ): Promise<void> {
+    const content = invoice.paid
+      ? `Malipo yamepokelewa ✅ — Ankara #${invoice.invoiceNumber}`
+      : `Ankara mpya #${invoice.invoiceNumber} — TZS ${invoice.amount.toLocaleString()}`;
+
+    const msg = await this.msgRepo.save(
+      this.msgRepo.create({
+        conversationId,
+        senderType: MessageSenderType.SYSTEM,
+        type: MessageType.INVOICE,
+        content,
+        metadata: {
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceAmount: invoice.amount,
+          invoicePaid: invoice.paid,
+        },
+      }),
+    );
+
+    await this.convoRepo.update(conversationId, {
+      lastMessageAt: new Date(),
+      lastMessagePreview: invoice.paid
+        ? `✅ Malipo yamepokelewa — Ankara #${invoice.invoiceNumber}`
+        : `🧾 Ankara #${invoice.invoiceNumber}`,
+      messageCount: () => '"messageCount" + 1',
+    });
+
+    await this.emitSystemMessage(conversationId, msg);
   }
 
   // ── Update conversation status ────────────────────────────────────────────

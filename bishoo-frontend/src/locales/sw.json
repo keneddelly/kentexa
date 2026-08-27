@@ -3784,7 +3784,11 @@
     "message_placeholder": "Andika ujumbe...",
     "order_created_msg": "📦 Agizo limeundwa: {{name}}",
     "order_created_system_msg": "Agizo limeundwa: {{name}}",
-    "order_card_label": "AGIZO LIMEUNDWA"
+    "order_card_label": "AGIZO LIMEUNDWA",
+    "invoice_card_label": "ANKARA",
+    "invoice_paid_label": "Imelipwa",
+    "invoice_pending_label": "Inasubiri malipo",
+    "invoice_pay_now": "Lipa Sasa"
   },
   "seller_orders": {
     "title": "Maagizo Yangu",

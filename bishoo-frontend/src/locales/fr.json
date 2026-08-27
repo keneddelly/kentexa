@@ -3934,7 +3934,11 @@
     "message_placeholder": "Écrire un message...",
     "order_created_msg": "📦 Commande créée : {{name}}",
     "order_created_system_msg": "Commande créée : {{name}}",
-    "order_card_label": "COMMANDE CRÉÉE"
+    "order_card_label": "COMMANDE CRÉÉE",
+    "invoice_card_label": "FACTURE",
+    "invoice_paid_label": "Payée",
+    "invoice_pending_label": "En attente de paiement",
+    "invoice_pay_now": "Payer maintenant"
   },
   "seller_orders": {
     "title": "Mes Commandes",

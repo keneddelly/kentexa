@@ -432,6 +432,15 @@ export class OrdersService {
             totalAmount: Number(saved.totalAmount || 0),
             status: saved.status,
           });
+          // Same thread, right after the order card — invoiceNumber is set
+          // further up this method only when createForOrder() succeeded.
+          if (invoiceNumber) {
+            await this.conversationService.addInvoiceMessage(convo.id, {
+              invoiceNumber,
+              amount: Number(saved.totalAmount || 0),
+              paid: false,
+            });
+          }
         } catch (e: any) {
           console.error(
             'Order system message failed (non-critical):',

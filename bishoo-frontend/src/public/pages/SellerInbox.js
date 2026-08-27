@@ -113,7 +113,7 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale, menuOpen, o
   );
 };
 
-const MessageBubble = ({ msg, mode, t, onRetry }) => {
+const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
   // "Mine" = my own outgoing messages, aligned right — flips depending on
   // which side of the conversation the current viewer is on.
   const isMine = mode === 'buyer'
@@ -166,6 +166,47 @@ const MessageBubble = ({ msg, mode, t, onRetry }) => {
           <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b' }}>
             {msg.metadata.trackingNumber}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Invoice card — created (awaiting payment) or paid, same card either way
+  if (msg.type === 'invoice' && msg.metadata) {
+    const paid = !!msg.metadata.invoicePaid;
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
+        <div style={{
+          backgroundColor: paid ? '#f0fdf4' : '#fffbeb',
+          border: `1px solid ${paid ? '#86efac' : '#fde68a'}`,
+          borderRadius: 12, padding: 12, maxWidth: '85%', textAlign: 'center',
+        }}>
+          <div style={{ fontSize: 11, color: paid ? '#16a34a' : '#b45309', fontWeight: 700 }}>
+            🧾 {t('seller_inbox.invoice_card_label')}
+          </div>
+          <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b', marginTop: 4 }}>
+            #{msg.metadata.invoiceNumber}
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginTop: 2 }}>
+            TZS {Number(msg.metadata.invoiceAmount || 0).toLocaleString()}
+          </div>
+          <div style={{
+            display: 'inline-block', marginTop: 6, padding: '2px 10px', borderRadius: 100,
+            fontSize: 10, fontWeight: 800,
+            backgroundColor: paid ? '#16a34a' : '#f59e0b', color: '#fff',
+          }}>
+            {paid ? t('seller_inbox.invoice_paid_label') : t('seller_inbox.invoice_pending_label')}
+          </div>
+          {!paid && mode === 'buyer' && (
+            <div style={{ marginTop: 8 }}>
+              <button onClick={() => onNavigate?.('MyOrders')}
+                style={{ padding: '6px 16px', borderRadius: 8, border: 'none',
+                  backgroundColor: '#1d4ed8', color: '#fff', fontSize: 11, fontWeight: 700,
+                  cursor: 'pointer' }}>
+                {t('seller_inbox.invoice_pay_now')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -773,7 +814,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                   </div>
                 )}
                 {messages.map(msg => (
-                <MessageBubble key={msg.id} msg={msg} mode={active._mode} t={t} onRetry={handleRetry} />
+                <MessageBubble key={msg.id} msg={msg} mode={active._mode} t={t} onRetry={handleRetry} onNavigate={onNavigate} />
               ))}
               </>
               )}

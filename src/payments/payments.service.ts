@@ -42,6 +42,8 @@ import { WalletService } from '../wallet/wallet.service';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { OrderStatus } from '../orders/entities/order.entity';
+import { ConversationService } from '../business/conversation.service';
+import { BusinessCustomerService } from '../business/business-customer.service';
 
 const USE_INDIVIDUAL_NETWORKS = false;
 
@@ -85,6 +87,8 @@ export class PaymentsService {
     private commerceProfiles: CommerceProfilesService,
     private walletService: WalletService,
     private reputationService: ReputationService,
+    private conversationService: ConversationService,
+    private businessCustomerService: BusinessCustomerService,
   ) {}
 
   private getProvider(provider: string): IPaymentProvider {
@@ -131,6 +135,45 @@ export class PaymentsService {
 
     // Payment webhooks can retry — never re-process a completed order.
     if (order.status === OrderStatus.COMPLETED) return;
+
+    // Drop a system message into the buyer↔seller thread so "did you pay?"
+    // is answered right there in the chat, mirroring the order-created card
+    // OrdersService already posts. Both online-payment webhook paths
+    // (handleCallback and the agent callback) funnel through this single
+    // method, so this is the one place that needs to know about it — no
+    // duplication at either call site. Non-critical: never let a chat-side
+    // failure block the actual payment confirmation below.
+    if (order.buyer && order.seller) {
+      try {
+        const invoice = await this.invoicesService
+          .findByOrderId(orderId)
+          .catch(() => null);
+        if (invoice) {
+          const customer = await this.businessCustomerService.findOrCreateForChat(
+            order.seller.id,
+            {
+              id: order.buyer.id,
+              name: order.buyer.name || 'Mnunuzi',
+              phone: order.buyer.phone,
+              email: order.buyer.email,
+            },
+          );
+          const convo = await this.conversationService.getOrCreateConversation(
+            order.seller.id,
+            customer.id,
+          );
+          await this.conversationService.addInvoiceMessage(convo.id, {
+            invoiceNumber: invoice.invoiceNumber,
+            amount: Number(order.totalAmount || 0),
+            paid: true,
+          });
+        }
+      } catch (err: any) {
+        this.logger.warn(
+          `Invoice-paid chat message failed for order #${orderId} (non-critical): ${err.message}`,
+        );
+      }
+    }
 
     // Digital products (Layer 1 seller verification) have nothing to ship —
     // this path (direct online payment, not invoice) previously left them

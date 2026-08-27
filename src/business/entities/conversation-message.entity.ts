@@ -74,6 +74,7 @@ export class ConversationMessage {
     invoiceNumber?: string;
     invoiceAmount?: number;
     invoiceUrl?: string;
+    invoicePaid?: boolean;
   } | null;
 
   // ── Status ────────────────────────────────────────────────────────────────

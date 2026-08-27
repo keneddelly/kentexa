@@ -3938,7 +3938,11 @@
     "message_placeholder": "Write a message...",
     "order_created_msg": "📦 Order created: {{name}}",
     "order_created_system_msg": "Order created: {{name}}",
-    "order_card_label": "ORDER CREATED"
+    "order_card_label": "ORDER CREATED",
+    "invoice_card_label": "INVOICE",
+    "invoice_paid_label": "Paid",
+    "invoice_pending_label": "Awaiting payment",
+    "invoice_pay_now": "Pay Now"
   },
   "seller_orders": {
     "title": "My Orders",
