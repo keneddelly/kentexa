@@ -747,8 +747,16 @@ function App() {
       {/* ── Social Commerce Navigation ─────────────────────── */}
       {/* Hidden during Onboarding — a focused setup wizard shouldn't show
           tab navigation, and this also fixes the Continue button being
-          hidden behind the nav bar on each step. */}
-      {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS' && (
+          hidden behind the nav bar on each step. Also hidden on the Inbox
+          (SellerInbox / SellerInbox-{id} / MessageSeller-{id}, same
+          startsWith check already used above for the unread-refetch-on-exit
+          logic): SellerInbox.js is its own full 100dvh chat surface with a
+          message composer pinned to the true bottom edge — this fixed,
+          position:fixed, zIndex:1000 bar was rendering directly on top of
+          it, covering the send button (and on the conversation list, the
+          bottom rows) since nothing in SellerInbox reserved space for it. */}
+      {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
+        && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller'))) && (
         <BottomNav
           // Remount protection (profile-switch architecture spec): a stable
           // profile-context key forces React to tear down and rebuild this

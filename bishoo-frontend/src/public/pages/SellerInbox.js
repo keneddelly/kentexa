@@ -675,7 +675,11 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   return (
     <div style={{ display: 'flex', height: '100dvh', flexDirection: 'column',
       backgroundColor: '#f8fafc' }}>
-      <BackBar title={t('seller_inbox.title')} onBack={() => onNavigate('back')} />
+      {/* top={0} — this page has no Navbar above it (its own 100dvh
+          container is the entire screen), so BackBar's default top={56}
+          would stick 56px down leaving a blank gap at the true top, per
+          BackBar's own doc comment about exactly this failure mode. */}
+      <BackBar title={t('seller_inbox.title')} onBack={() => onNavigate('back')} top={0} />
 
       {error && (
         <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 16px',
@@ -921,8 +925,12 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
               </div>
             )}
 
-            {/* Input bar */}
+            {/* Input bar — now that BottomNav is hidden on this page (it was
+                overlapping the composer, see App.js), this sits at the true
+                bottom edge of the screen, so it needs its own home-indicator
+                clearance on notched devices instead of borrowing BottomNav's. */}
             <div style={{ backgroundColor: '#fff', padding: '10px 12px',
+              paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
               borderTop: '1px solid #f1f5f9', flexShrink: 0 }}>
               {/* Action buttons — seller-only CRM tools, hidden for the buyer side.
                   overflowX:'auto' + flexShrink:0 per button so all four stay
