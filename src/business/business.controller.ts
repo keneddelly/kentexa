@@ -242,6 +242,11 @@ export class BusinessController {
     @Query('status') status?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    // "mine" always resolves to the CALLER's own id, never an arbitrary
+    // user — a team member filtering to their own assigned conversations
+    // must never be able to ask for someone else's by passing their id.
+    @Query('mine') mine?: string,
   ) {
     const sellerId = await this.resolveSellerActorId(
       req.user,
@@ -251,6 +256,8 @@ export class BusinessController {
       status,
       search,
       page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : undefined,
+      assignedToId: mine === 'true' ? req.user.id : undefined,
     });
   }
 
@@ -377,10 +384,12 @@ export class BusinessController {
     @Request() req,
     @Query('search') search?: string,
     @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
     return this.conversationService.getMyConversations(req.user.id, {
       search,
       page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : undefined,
     });
   }
 

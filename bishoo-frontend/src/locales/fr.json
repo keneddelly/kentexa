@@ -3895,6 +3895,7 @@
     "filter_open": "🟢 Ouvert",
     "filter_pending": "🟡 En Attente",
     "filter_resolved": "✅ Résolu",
+    "mine_only_toggle": "🎯 Qui me sont assignées",
     "loading": "⏳ Chargement...",
     "load_older_messages": "Charger les anciens messages",
     "search_placeholder": "Rechercher des conversations...",

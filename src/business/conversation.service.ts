@@ -86,6 +86,7 @@ export class ConversationService {
       search?: string;
       page?: number;
       limit?: number;
+      assignedToId?: number;
     },
   ) {
     const page = params.page || 1;
@@ -104,6 +105,18 @@ export class ConversationService {
     if (params.search) {
       query.andWhere('LOWER(customer.name) LIKE :q OR customer.phone LIKE :q', {
         q: `%${params.search.toLowerCase()}%`,
+      });
+    }
+    // "Assigned to me" — a team member's own working view of the shared
+    // business inbox, not a separate inbox: same conversations, filtered.
+    if (params.assignedToId) {
+      // assignedToId's @Column has an explicit `name: 'assigned_to_id'`
+      // override (unlike sellerPinned/buyerPinned above, which keep their
+      // camelCase property name as the literal DB column) — raw
+      // querybuilder conditions address the actual column, not the TS
+      // property name, so this must use the snake_case form.
+      query.andWhere('c.assigned_to_id = :assignedToId', {
+        assignedToId: params.assignedToId,
       });
     }
 

@@ -277,6 +277,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   const [loadingMore,     setLoadingMore]     = useState(false);
   const [search,        setSearch]          = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [mineOnly,      setMineOnly]        = useState(false);
   const [menuForId,     setMenuForId]       = useState(null); // which conversation's ⋮ menu is open
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef(null);
@@ -339,10 +340,16 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       }
 
       // ── Bare inbox — merge both sides: my conversations as seller AND as buyer ──
+      // "Assigned to me" only means something on the seller side (it's a
+      // team-member working filter over the shared business inbox) — a
+      // buyer-side thread where I'm messaging some other seller has no
+      // assignment concept, so that fetch is skipped entirely while active
+      // rather than fetched and then discarded.
       const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
+      const mineParam = mineOnly ? '&mine=true' : '';
       const [sellerRes, buyerRes] = await Promise.allSettled([
-        api.get(`/business/inbox?status=${filter}&limit=30${searchParam}`),
-        api.get(`/business/my-conversations?limit=30${searchParam}`),
+        api.get(`/business/inbox?status=${filter}&limit=30${searchParam}${mineParam}`),
+        mineOnly ? Promise.resolve({ data: { conversations: [] } }) : api.get(`/business/my-conversations?limit=30${searchParam}`),
       ]);
       const sellerList = sellerRes.status === 'fulfilled'
         ? (sellerRes.value.data.conversations || []).map(c => ({ ...c, _mode: 'seller' }))
@@ -364,7 +371,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       setConversations(merged);
     } catch {} finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, initialCustomerId, sellerId, messageCommerceProfileId, debouncedSearch]);
+  }, [filter, initialCustomerId, sellerId, messageCommerceProfileId, debouncedSearch, mineOnly]);
 
   const fetchMessages = async (convo) => {
     try {
@@ -712,6 +719,22 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                   {s === 'open' ? t('seller_inbox.filter_open') : s === 'pending' ? t('seller_inbox.filter_pending') : t('seller_inbox.filter_resolved')}
                 </button>
               ))}
+            </div>
+
+            {/* "Assigned to me" — a team member's own working view over the
+                shared business inbox (same conversations, filtered), not a
+                separate inbox. Meaningless on the buyer side, so toggling
+                this on skips that fetch entirely rather than showing an
+                always-empty buyer section. */}
+            <div style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}>
+              <button onClick={() => setMineOnly(v => !v)}
+                style={{ padding: '5px 12px', borderRadius: 100, cursor: 'pointer',
+                  border: mineOnly ? '1.5px solid #1d4ed8' : '1.5px solid #e2e8f0',
+                  backgroundColor: mineOnly ? '#eff6ff' : '#fff',
+                  color: mineOnly ? '#1d4ed8' : '#64748b',
+                  fontSize: 11.5, fontWeight: 700 }}>
+                {t('seller_inbox.mine_only_toggle')}
+              </button>
             </div>
 
             {loading ? (
