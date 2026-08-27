@@ -6,6 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { BusinessCustomer } from './business-customer.entity';
@@ -24,6 +25,25 @@ export enum ConversationChannel {
   MANUAL = 'manual',
 }
 
+// Application-level find-or-create (ConversationService.getOrCreateConversation)
+// only checks-then-creates — a double-tap on "Message Seller" or a client
+// retry after a slow/timed-out first request could still race past the
+// findOne check before either insert commits. Two partial unique indexes
+// close that at the DB level (Postgres treats every NULL as distinct in a
+// plain multi-column UNIQUE, so a single constraint on
+// (sellerId, customerId, commerceProfileId) would silently let unlimited
+// commerceProfileId:NULL duplicates through — the single most common case,
+// since most sellers/buyers never pass a specific profile at all):
+//   - one seller+customer+specific-profile conversation
+//   - one seller+customer conversation with no profile attached
+@Index('idx_conversation_unique_with_profile', ['sellerId', 'customerId', 'commerceProfileId'], {
+  unique: true,
+  where: '"commerceProfileId" IS NOT NULL',
+})
+@Index('idx_conversation_unique_no_profile', ['sellerId', 'customerId'], {
+  unique: true,
+  where: '"commerceProfileId" IS NULL',
+})
 @Entity('conversation')
 export class Conversation {
   @PrimaryGeneratedColumn()

@@ -339,6 +339,27 @@ export class InAppNotificationService {
     );
   }
 
+  // Bridges the two "unread" systems that otherwise never talk to each
+  // other: opening a conversation zeroes Conversation.unreadCount/
+  // buyerUnreadCount (ConversationService), but that never touched this
+  // Notification table, so the bell/profile badge (fed by getUnreadCount
+  // below) kept showing stale message-notification counts after a user had
+  // already read everything in the Inbox. There's no conversationId FK on
+  // Notification, so this correlates on the same (actionPage, actionParam)
+  // deep-link pair conversation.service.ts already sets when it creates a
+  // message notification — precise because that pair is how the frontend
+  // itself finds its way back to one specific conversation.
+  async markReadByAction(
+    userId: number,
+    actionPage: string,
+    actionParam: string,
+  ): Promise<void> {
+    await this.repo.update(
+      { userId, actionPage, actionParam, isRead: false },
+      { isRead: true, readAt: new Date() },
+    );
+  }
+
   async getUnreadCount(userId: number): Promise<number> {
     return this.repo.count({ where: { userId, isRead: false } });
   }

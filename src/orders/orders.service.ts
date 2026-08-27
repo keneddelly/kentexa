@@ -70,6 +70,7 @@ const getCommissionRate = (category: string): number =>
 import { ParcelCollectionsService } from '../parcel-collections/parcel-collections.service';
 import { SmsService } from '../sms/sms.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
+import { ConversationService } from '../business/conversation.service';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { ReputationService } from '../reputation/reputation.service';
@@ -121,6 +122,7 @@ export class OrdersService {
     private collectionsService: ParcelCollectionsService,
     private smsService: SmsService,
     private businessCustomerService: BusinessCustomerService,
+    private conversationService: ConversationService,
     private inAppNotif: InAppNotificationService,
     private sellerScope: SellerScopeService,
     private walletService: WalletService,
@@ -393,7 +395,7 @@ export class OrdersService {
       const sellerId: number | undefined =
         (saved.seller as any)?.id ?? (product.seller as any)?.id;
       if (sellerId) {
-        await this.businessCustomerService.upsertFromOrder({
+        const customer = await this.businessCustomerService.upsertFromOrder({
           sellerId,
           userId: user.id || null,
           name:
@@ -409,6 +411,33 @@ export class OrdersService {
           orderAmount: Number(saved.totalAmount || 0),
           channel: 'kentexa',
         });
+
+        // Drop a system message into the buyer↔seller conversation so
+        // "where's my order" has somewhere natural to be asked — this was
+        // ConversationService.addOrderMessage()'s whole reason for existing,
+        // it was just never actually called from here. Uses the normal
+        // get-or-create path (now race-safe via the DB unique index), so
+        // this reuses whatever thread already exists rather than forking a
+        // new one, and only ever creates a thread scoped to no specific
+        // CommerceProfile (a real product-page "Message Seller" click that
+        // set one takes precedence over this generic order-context one).
+        try {
+          const convo = await this.conversationService.getOrCreateConversation(
+            sellerId,
+            customer.id,
+          );
+          await this.conversationService.addOrderMessage(convo.id, {
+            id: saved.id,
+            trackingNumber: saved.trackingNumber || '',
+            totalAmount: Number(saved.totalAmount || 0),
+            status: saved.status,
+          });
+        } catch (e: any) {
+          console.error(
+            'Order system message failed (non-critical):',
+            e.message,
+          );
+        }
       }
     } catch (e) {
       console.error(

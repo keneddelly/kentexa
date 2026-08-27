@@ -3896,6 +3896,7 @@
     "filter_pending": "🟡 En Attente",
     "filter_resolved": "✅ Résolu",
     "loading": "⏳ Chargement...",
+    "load_older_messages": "Charger les anciens messages",
     "no_conversations": "Aucune conversation",
     "go_to_customer_hint": "Allez sur un client et appuyez sur « Démarrer une Conversation »",
     "no_conversations_hint": "Les messages des vendeurs que vous avez contactés apparaîtront ici.",

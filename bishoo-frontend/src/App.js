@@ -153,6 +153,13 @@ function App() {
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [momentModalMode, setMomentModalMode] = useState('selling');
   const [momentRefreshKey, setMomentRefreshKey] = useState(0);
+  // Single source of truth for every unread-inbox badge (bottom nav,
+  // anywhere else that wants it) — GET /business/inbox/unread-count
+  // combines seller-side + buyer-side unread conversations, deliberately
+  // NOT the generic /notifications/unread-count some pages read today
+  // (a different, never-reconciled number — see backend's
+  // ConversationService.getUnreadConversationCount comment).
+  const [inboxUnread, setInboxUnread] = useState(0);
   const [currentUser, setCurrentUser] = useState(() => {
     // Load cached user from localStorage so forms pre-fill immediately
     try { return JSON.parse(localStorage.getItem('kentexa_user') || 'null'); }
@@ -230,6 +237,15 @@ function App() {
   useEffect(() => {
     if (isLoggedIn) loadMyProfiles();
   }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchInboxUnread = () => {
+    if (!isLoggedIn) { setInboxUnread(0); return; }
+    api.get('/business/inbox/unread-count')
+      .then(res => setInboxUnread(res.data?.unread || 0))
+      .catch(() => {});
+  };
+
+  useEffect(() => { fetchInboxUnread(); }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Which page each profile type lands on when it becomes active — the
   // "home base" for that identity, same idea as roleHome() below but keyed
@@ -318,6 +334,13 @@ function App() {
       const next = [...h, current].slice(-10);
       return next;
     });
+    // Leaving the inbox is the one moment we know for sure messages might
+    // have just been read (their unreadCount reset server-side) — refetch
+    // the badge count now instead of waiting for the next full page load.
+    const leavingInbox = typeof page === 'string'
+      && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller'));
+    if (leavingInbox && pageName !== page) fetchInboxUnread();
+
     setNavParams(params);
     setPage(pageName);
     syncUrl(pageName, params);
@@ -489,6 +512,7 @@ function App() {
       setShowMomentModal(true);
     },
     momentRefreshKey,
+    inboxUnread,
   };
   const adminProps  = { onNavigate: handleNavigate, onLogout: handleLogout };
 

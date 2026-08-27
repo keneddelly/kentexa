@@ -95,7 +95,7 @@ const TYPE_TABS = (t) => {
 };
 
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,
-  activeProfile, onOpenSwitcher, myProfiles }) => {
+  activeProfile, onOpenSwitcher, myProfiles, inboxUnread }) => {
   const { t } = useTranslation();
   let cfg = TYPE_TABS(t)[activeProfile?.type] || TYPE_TABS(t).personal;
 
@@ -257,6 +257,21 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
               }}
             >
               {tab.icon(isActive)}
+              {/* Sourced from App.js's inboxUnread — GET /business/inbox/unread-count,
+                  the same combined seller+buyer conversation count SellerInbox.js
+                  itself reflects, never the unrelated generic notifications count
+                  other badges in the app read (see that endpoint's own comment for
+                  why those two numbers were never the same thing). */}
+              {tab.key === 'SellerInbox' && inboxUnread > 0 && (
+                <span style={{
+                  position: 'absolute', top: 2, right: '28%',
+                  minWidth: 15, height: 15, padding: '0 3px', borderRadius: 100,
+                  backgroundColor: '#DC2626', color: '#fff',
+                  fontSize: 9, fontWeight: 800, lineHeight: '15px', textAlign: 'center',
+                }}>
+                  {inboxUnread > 99 ? '99+' : inboxUnread}
+                </span>
+              )}
               {tab.label ? (
                 <span style={{
                   fontSize:   9,

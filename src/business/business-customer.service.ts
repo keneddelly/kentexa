@@ -138,7 +138,17 @@ export class BusinessCustomerService {
       segment: 'new',
       channel: 'kentexa',
     });
-    return this.repo.save(customer);
+    try {
+      return await this.repo.save(customer);
+    } catch (err: any) {
+      // 23505 = unique_violation on idx_business_customer_unique_registered_buyer
+      // — a concurrent request already created this seller+buyer CRM row.
+      // Hand back the existing one instead of throwing.
+      if (err?.code !== '23505') throw err;
+      const winner = await this.repo.findOne({ where: { sellerId, userId: buyer.id } });
+      if (!winner) throw err;
+      return winner;
+    }
   }
 
   private calculateSegment(c: BusinessCustomer): string {

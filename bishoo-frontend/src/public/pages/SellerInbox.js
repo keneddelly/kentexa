@@ -177,6 +177,8 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   const [creatingOrder, setCreatingOrder]   = useState(false);
   const [filter,        setFilter]          = useState('open');
   const [error,         setError]           = useState('');
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [loadingMore,     setLoadingMore]     = useState(false);
   const messagesEndRef = useRef(null);
 
   // Deep-linked straight into a chat with one specific seller (MessageSeller-{id}).
@@ -255,8 +257,31 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
           : `/business/inbox/${convo.id}/messages`
       );
       setMessages(res.data.messages || []);
+      setHasMoreMessages(!!res.data.hasMore);
       setActive({ ...res.data.conversation, _mode: convo._mode });
     } catch {} finally { setMsgLoading(false); }
+  };
+
+  // Fetches the next page of OLDER messages (before the oldest one
+  // currently shown) and prepends them — the initial fetchMessages() call
+  // above only ever gets the most recent 50 (ConversationService's
+  // MESSAGE_PAGE_SIZE); any conversation with more history than that needs
+  // this to reach it at all.
+  const loadOlderMessages = async () => {
+    if (!active || loadingMore || messages.length === 0) return;
+    const oldestId = messages[0]?.id;
+    if (!oldestId) return;
+    setLoadingMore(true);
+    try {
+      const res = await api.get(
+        active._mode === 'buyer'
+          ? `/business/my-conversations/${active.id}/messages`
+          : `/business/inbox/${active.id}/messages`,
+        { params: { before: oldestId } },
+      );
+      setMessages(prev => [...(res.data.messages || []), ...prev]);
+      setHasMoreMessages(!!res.data.hasMore);
+    } catch {} finally { setLoadingMore(false); }
   };
 
   const openConversation = (convo) => {
@@ -461,9 +486,23 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                     {t('seller_inbox.start_conversation_prompt')}
                   </div>
                 </div>
-              ) : messages.map(msg => (
+              ) : (
+              <>
+                {hasMoreMessages && (
+                  <div style={{ textAlign: 'center', marginBottom: 10 }}>
+                    <button onClick={loadOlderMessages} disabled={loadingMore}
+                      style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 100,
+                        padding: '6px 16px', fontSize: 11, fontWeight: 700, color: '#1d4ed8',
+                        cursor: loadingMore ? 'default' : 'pointer' }}>
+                      {loadingMore ? t('seller_inbox.loading') : t('seller_inbox.load_older_messages')}
+                    </button>
+                  </div>
+                )}
+                {messages.map(msg => (
                 <MessageBubble key={msg.id} msg={msg} mode={active._mode} t={t} />
               ))}
+              </>
+              )}
               <div ref={messagesEndRef} />
             </div>
 

@@ -3900,6 +3900,7 @@
     "filter_pending": "🟡 Pending",
     "filter_resolved": "✅ Resolved",
     "loading": "⏳ Loading...",
+    "load_older_messages": "Load older messages",
     "no_conversations": "No conversations",
     "go_to_customer_hint": "Go to a customer and tap \"Start Conversation\"",
     "no_conversations_hint": "Messages from sellers you've contacted will show up here.",

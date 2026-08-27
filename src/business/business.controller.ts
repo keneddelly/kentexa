@@ -218,6 +218,24 @@ export class BusinessController {
   // INBOX (Conversations)
   // ═══════════════════════════════════════════════════════════════════════════
 
+  // Single source of truth for every unread-inbox badge in the app (bottom
+  // nav, header icon) — combines seller-side and buyer-side unread
+  // conversation counts. Deliberately NOT the generic
+  // /notifications/unread-count (a different, never-reconciled number —
+  // see ConversationService.getUnreadConversationCount's own comment).
+  @Get('inbox/unread-count')
+  async getInboxUnreadCount(@Request() req) {
+    const sellerId = await this.resolveSellerActorId(
+      req.user,
+      'canSendMessages',
+    );
+    const unread = await this.conversationService.getUnreadConversationCount(
+      sellerId,
+      req.user.id,
+    );
+    return { unread };
+  }
+
   @Get('inbox')
   async getInbox(
     @Request() req,
@@ -252,12 +270,20 @@ export class BusinessController {
   }
 
   @Get('inbox/:id/messages')
-  async getMessages(@Request() req, @Param('id', ParseIntPipe) id: number) {
+  async getMessages(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Query('before') before?: string,
+  ) {
     const sellerId = await this.resolveSellerActorId(
       req.user,
       'canSendMessages',
     );
-    return this.conversationService.getMessages(sellerId, id);
+    return this.conversationService.getMessages(
+      sellerId,
+      id,
+      before ? Number(before) : undefined,
+    );
   }
 
   @Post('inbox/:id/messages')
@@ -357,8 +383,13 @@ export class BusinessController {
   getMyConversationMessages(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
+    @Query('before') before?: string,
   ) {
-    return this.conversationService.getMessagesAsBuyer(req.user.id, id);
+    return this.conversationService.getMessagesAsBuyer(
+      req.user.id,
+      id,
+      before ? Number(before) : undefined,
+    );
   }
 
   @Post('my-conversations/:id/messages')

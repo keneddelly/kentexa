@@ -3746,6 +3746,7 @@
     "filter_pending": "🟡 Inasubiri",
     "filter_resolved": "✅ Imekamilika",
     "loading": "⏳ Inapakia...",
+    "load_older_messages": "Pakia ujumbe wa zamani",
     "no_conversations": "Hakuna mazungumzo",
     "go_to_customer_hint": "Nenda kwa mteja na ubonyeze \"Anza Mazungumzo\"",
     "no_conversations_hint": "Ujumbe kutoka kwa wachuuzi uliowasiliana nao utaonekana hapa.",

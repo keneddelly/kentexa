@@ -11,7 +11,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, LessThan } from 'typeorm';
 import {
   Conversation,
   ConversationStatus,
@@ -168,6 +168,38 @@ export class ConversationService {
     };
   }
 
+  // ── Combined unread-conversation count (seller side + buyer side) ────────
+  // The one number that should feed EVERY unread-inbox badge in the app
+  // (bottom nav, header icon) — a user can be both a seller receiving
+  // messages and a buyer messaging other sellers, and previously nothing
+  // combined those two counts, let alone did it from conversation data at
+  // all (existing badges read the unrelated generic Notification-unread
+  // count instead, which drifts — see markReadByAction's own comment).
+  // sellerActorId and buyerUserId are deliberately separate params — a team
+  // member's "seller side" unread count belongs to the business they act
+  // for (resolveSellerActorId's delegation), but their "buyer side" unread
+  // count (messages they sent to OTHER sellers) is always their own raw
+  // account, never the business they're delegated on.
+  async getUnreadConversationCount(
+    sellerActorId: number,
+    buyerUserId: number,
+  ): Promise<number> {
+    const [asSeller, asBuyer] = await Promise.all([
+      this.convoRepo
+        .createQueryBuilder('c')
+        .where('c.seller_id = :sellerActorId', { sellerActorId })
+        .andWhere('c.unreadCount > 0')
+        .getCount(),
+      this.convoRepo
+        .createQueryBuilder('c')
+        .leftJoin('c.customer', 'customer')
+        .where('customer.user_id = :buyerUserId', { buyerUserId })
+        .andWhere('c.buyerUnreadCount > 0')
+        .getCount(),
+    ]);
+    return asSeller + asBuyer;
+  }
+
   // ── Get or create conversation ────────────────────────────────────────────
 
   async getOrCreateConversation(
@@ -228,9 +260,28 @@ export class ConversationService {
         subject: `Mazungumzo na ${customer.name}`,
         commerceProfileId: verifiedProfileId,
       });
-      convo = await this.convoRepo.save(convo);
-      convo.customer = customer;
-      convo.seller = customer.seller;
+      try {
+        convo = await this.convoRepo.save(convo);
+        convo.customer = customer;
+        convo.seller = customer.seller;
+      } catch (err: any) {
+        // 23505 = unique_violation on the partial indexes above — a
+        // concurrent request (double-tap, retry-on-timeout) won the race
+        // and already created the matching conversation. Not an error from
+        // the caller's point of view: re-fetch and hand back that row
+        // instead of throwing, exactly like a normal find-or-create result.
+        if (err?.code !== '23505') throw err;
+        const winner = await this.convoRepo.findOne({
+          where: {
+            sellerId,
+            customerId,
+            commerceProfileId: verifiedProfileId === null ? IsNull() : verifiedProfileId,
+          },
+          relations: { customer: true, seller: true },
+        });
+        if (!winner) throw err;
+        convo = winner;
+      }
     }
 
     return convo;
@@ -260,30 +311,72 @@ export class ConversationService {
   }
 
   // ── Get messages in a conversation ───────────────────────────────────────
+  // Cursor-paginated on message id (monotonic, no timestamp-collision risk):
+  // no `before` = the most recent page (what opening a conversation wants);
+  // `before` = the id of the oldest message currently on screen, for
+  // "load older" scrolling up. Was a flat `take: 100` with no way to reach
+  // anything before it — any conversation past 100 messages had its entire
+  // earlier history permanently unreachable through this endpoint.
 
-  async getMessages(sellerId: number, conversationId: number) {
+  private static readonly MESSAGE_PAGE_SIZE = 50;
+
+  private async fetchMessagePage(
+    conversationId: number,
+    before?: number,
+    extraWhere: Record<string, any> = {},
+  ): Promise<{ messages: ConversationMessage[]; hasMore: boolean }> {
+    const limit = ConversationService.MESSAGE_PAGE_SIZE;
+    const rows = await this.msgRepo.find({
+      where: before
+        ? { conversationId, id: LessThan(before), ...extraWhere }
+        : { conversationId, ...extraWhere },
+      order: { id: 'DESC' },
+      take: limit + 1,
+    });
+    const hasMore = rows.length > limit;
+    const page = rows.slice(0, limit).reverse(); // oldest-first for display
+    return { messages: page, hasMore };
+  }
+
+  async getMessages(
+    sellerId: number,
+    conversationId: number,
+    before?: number,
+  ) {
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId, sellerId },
       relations: { customer: true, assignedTo: true },
     });
     if (!convo) throw new NotFoundException('Conversation not found');
 
-    const messages = await this.msgRepo.find({
-      where: { conversationId },
-      order: { createdAt: 'ASC' },
-      take: 100,
-    });
+    const { messages, hasMore } = await this.fetchMessagePage(
+      conversationId,
+      before,
+    );
 
-    // Mark as read
-    await this.convoRepo.update(conversationId, { unreadCount: 0 });
+    // Mark as read — only on the initial (most-recent) page; paging further
+    // back into history isn't a new "read" action and shouldn't re-fire the
+    // notification bridge below on every scroll-up.
+    if (!before) {
+      await this.convoRepo.update(conversationId, { unreadCount: 0 });
+      if (convo.customerId) {
+        this.notifService
+          .markReadByAction(sellerId, 'SellerInbox', String(convo.customerId))
+          .catch(() => {});
+      }
+    }
 
     const [conversation] = await this.attachCommerceProfiles([convo]);
-    return { conversation, messages };
+    return { conversation, messages, hasMore };
   }
 
   // ── Get messages in a conversation, as the BUYER ──────────────────────────
 
-  async getMessagesAsBuyer(userId: number, conversationId: number) {
+  async getMessagesAsBuyer(
+    userId: number,
+    conversationId: number,
+    before?: number,
+  ) {
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId },
       relations: { customer: true, seller: true },
@@ -292,16 +385,23 @@ export class ConversationService {
       throw new NotFoundException('Conversation not found');
     }
 
-    const messages = await this.msgRepo.find({
-      where: { conversationId, isNote: false },
-      order: { createdAt: 'ASC' },
-      take: 100,
-    });
+    const { messages, hasMore } = await this.fetchMessagePage(
+      conversationId,
+      before,
+      { isNote: false },
+    );
 
-    await this.convoRepo.update(conversationId, { buyerUnreadCount: 0 });
+    if (!before) {
+      await this.convoRepo.update(conversationId, { buyerUnreadCount: 0 });
+      // Bridge to the bell/profile-badge notification count — see
+      // InAppNotificationService.markReadByAction's own comment for why.
+      this.notifService
+        .markReadByAction(userId, 'MessageSeller', String(convo.sellerId))
+        .catch(() => {});
+    }
 
     const [conversation] = await this.attachCommerceProfiles([convo]);
-    return { conversation, messages };
+    return { conversation, messages, hasMore };
   }
 
   // ── Send a message ────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
@@ -23,6 +24,17 @@ import { User } from '../../users/entities/user.entity';
  *   - Seller manually adds a customer
  *   - Invoice is paid
  */
+// BusinessCustomerService.findOrCreateForChat is a plain findOne-then-create
+// with no transaction — a race (double-tap "Message Seller", a client retry
+// after a timeout) could create two CRM rows for the same registered buyer
+// under the same seller. Partial index (not a plain unique constraint) since
+// userId is legitimately null for WhatsApp/walk-in customers who aren't
+// KenteXa accounts — those can and should have many separate rows per
+// seller, only a real user_id needs to be deduplicated.
+@Index('idx_business_customer_unique_registered_buyer', ['sellerId', 'userId'], {
+  unique: true,
+  where: '"user_id" IS NOT NULL',
+})
 @Entity('business_customer')
 export class BusinessCustomer {
   @PrimaryGeneratedColumn()
