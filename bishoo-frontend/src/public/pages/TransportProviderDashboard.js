@@ -82,7 +82,7 @@ const CityInput = ({ label, value, onChange, placeholder }) => {
   );
 };
 
-const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
+const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) => {
   const { t } = useTranslation();
   const STATUS_STYLE = getStatusStyle(t);
   const AVAIL_STATUS = getAvailStatus(t);
@@ -277,10 +277,25 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment }) => {
             </span>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <button onClick={() => onNavigate('TransportProviderSettings')}
-              style={{ background: 'rgba(255,255,255,0.1)', border: 'none',
-                borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
-                color: '#fff', fontSize: 15, marginBottom: 6 }}>⚙️</button>
+            <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginBottom: 6 }}>
+              <button onClick={() => onNavigate('SellerInbox')} title={t('bottom_nav.messages')}
+                style={{ position: 'relative', background: 'rgba(255,255,255,0.1)', border: 'none',
+                  borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+                  color: '#fff', fontSize: 15 }}>
+                💬
+                {inboxUnread > 0 && (
+                  <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 14, height: 14,
+                    padding: '0 3px', borderRadius: 100, backgroundColor: '#DC2626', color: '#fff',
+                    fontSize: 8, fontWeight: 800, lineHeight: '14px', textAlign: 'center' }}>
+                    {inboxUnread > 99 ? '99+' : inboxUnread}
+                  </span>
+                )}
+              </button>
+              <button onClick={() => onNavigate('TransportProviderSettings')}
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none',
+                  borderRadius: 8, padding: '6px 10px', cursor: 'pointer',
+                  color: '#fff', fontSize: 15 }}>⚙️</button>
+            </div>
             <div style={{ fontSize: 28, fontWeight: 900 }}>{profile.completedAssignments || 0}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{t('transport_provider_dashboard.completed_label')}</div>
             {pendingAssignments.length > 0 && (

@@ -153,7 +153,7 @@ const PCard = ({ p, actions = [] }) => (
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
+const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const { t } = useTranslation();
 
   // ── Core state ────────────────────────────────────────────────────────────
@@ -890,10 +890,25 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn }) => {
                 📍 {profile?.city} · {profile?.agentCode || '—'}
               </div>
             </div>
-            <button onClick={() => onNavigate('SuperAgentSettings')}
-              style={{ background: 'rgba(255,255,255,0.1)', border: 'none',
-                borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
-                color: '#fff', fontSize: 16 }}>⚙️</button>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button onClick={() => onNavigate('SellerInbox')} title={t('bottom_nav.messages')}
+                style={{ position: 'relative', background: 'rgba(255,255,255,0.1)', border: 'none',
+                  borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
+                  color: '#fff', fontSize: 16 }}>
+                💬
+                {inboxUnread > 0 && (
+                  <span style={{ position: 'absolute', top: -3, right: -3, minWidth: 15, height: 15,
+                    padding: '0 3px', borderRadius: 100, backgroundColor: '#DC2626', color: '#fff',
+                    fontSize: 9, fontWeight: 800, lineHeight: '15px', textAlign: 'center' }}>
+                    {inboxUnread > 99 ? '99+' : inboxUnread}
+                  </span>
+                )}
+              </button>
+              <button onClick={() => onNavigate('SuperAgentSettings')}
+                style={{ background: 'rgba(255,255,255,0.1)', border: 'none',
+                  borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
+                  color: '#fff', fontSize: 16 }}>⚙️</button>
+            </div>
           </div>
 
           {/* Stats */}

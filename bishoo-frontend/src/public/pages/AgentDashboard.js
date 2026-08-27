@@ -197,7 +197,7 @@ const JobCard = ({ order, onClaim, onPickup, onDeliver, actionLoading, profile }
   );
 };
 
-const AgentDashboard = ({ onNavigate, isLoggedIn }) => {
+const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const { t } = useTranslation();
   const TIER_STYLE = getTierStyle(t);
   // ── State ────────────────────────────────────────────────────────────────
@@ -533,7 +533,23 @@ const AgentDashboard = ({ onNavigate, isLoggedIn }) => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', paddingBottom: 90 }}>
       <BackBar onBack={() => onNavigate('Home')} title={t('agent_dashboard.header_title')} top={0}
-        right={<TourTrigger tourKey="agent_dashboard_orientation" />} />
+        right={(
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={() => onNavigate('SellerInbox')} title={t('bottom_nav.messages')}
+              style={{ position: 'relative', background: 'none', border: 'none',
+                cursor: 'pointer', fontSize: 18, padding: 0 }}>
+              💬
+              {inboxUnread > 0 && (
+                <span style={{ position: 'absolute', top: -6, right: -8, minWidth: 14, height: 14,
+                  padding: '0 3px', borderRadius: 100, backgroundColor: '#DC2626', color: '#fff',
+                  fontSize: 8, fontWeight: 800, lineHeight: '14px', textAlign: 'center' }}>
+                  {inboxUnread > 99 ? '99+' : inboxUnread}
+                </span>
+              )}
+            </button>
+            <TourTrigger tourKey="agent_dashboard_orientation" />
+          </div>
+        )} />
       <FeatureTour tourKey="agent_dashboard_orientation" onStepChange={handleTourStepChange} autoStart />
 
       {/* Header */}
