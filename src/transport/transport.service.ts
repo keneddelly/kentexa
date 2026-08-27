@@ -1050,7 +1050,12 @@ export class TransportService {
   // ── ADMIN ─────────────────────────────────────────────────────────────────
 
   async adminGetAll(status?: string): Promise<TransportProvider[]> {
-    const where: any = status ? { status } : {};
+    // TransportAdmin.js's own "📋 Zote" (All) tab sends status=all to mean
+    // "no filter" — passing that string straight through to a `where`
+    // clause on an enum column made Postgres reject it outright (invalid
+    // enum literal, a 500 on every click of that tab), since 'all' isn't
+    // a real ProviderStatus value.
+    const where: any = status && status !== 'all' ? { status } : {};
     return this.providerRepo.find({
       where,
       relations: { user: true },
