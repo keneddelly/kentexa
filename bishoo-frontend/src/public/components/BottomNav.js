@@ -66,7 +66,14 @@ const TYPE_TABS = (t) => {
     hub: {
       first,
       second: { page: 'SuperAgentDashboard', icon: emojiIcon('🏢'), label: t('bottom_nav.dashboard') },
-      fourth: { page: 'SuperAgentSettings',  icon: emojiIcon('⚙️'), label: t('bottom_nav.settings') },
+      // Was SuperAgentSettings — a Super Agent talks to customers about
+      // shipments constantly, same as a Business talks to buyers, so Inbox
+      // earns the dedicated bottom-nav slot the same way it already does
+      // for `business` above. Settings stays one tap away via the ⚙️ icon
+      // already in SuperAgentDashboard's own header, matching how
+      // BusinessDashboard.js already has BOTH a bottom-nav Inbox tab AND
+      // its own in-page Messages row — not a new inconsistency.
+      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
     },
     transport_provider: {
       first,
