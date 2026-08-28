@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import LocationPicker from '../components/LocationPicker';
 import api from '../../api/api';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
@@ -19,6 +20,11 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
   const [loadingClassifieds, setLoadingClassifieds] = useState(false);
   const [selectedClassified, setSelectedClassified] = useState(null);
   const [manualForm, setManualForm]       = useState({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3 });
+  // Structured delivery location — was previously only ever captured as
+  // free text inside deliveryAddress, with no way to actually match it
+  // against Kentexa's real region/district/ward data the way every other
+  // shipping-adjacent form already does (SellerShipment.js, BecomeSeller.js).
+  const [manualLocation, setManualLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [creatingManual, setCreatingManual] = useState(false);
   const [manualResult, setManualResult]   = useState(null);
   const [classifiedSearch, setClassifiedSearch] = useState('');
@@ -72,6 +78,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
     setShowManual(true); setManualResult(null); setSelectedClassified(null);
     setClassifiedSearch('');
     setManualForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3 });
+    setManualLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
     fetchMyClassifieds();
   };
 
@@ -110,10 +117,14 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
         deliveryAddress: manualForm.deliveryAddress.trim(), productName: selectedClassified.title,
         classifiedId: selectedClassified.id, amount: Number(manualForm.amount),
         notes: manualForm.notes.trim(), dueDays: Number(manualForm.dueDays),
+        regionId: manualLocation.regionId || undefined, regionName: manualLocation.regionName || undefined,
+        districtId: manualLocation.districtId || undefined, districtName: manualLocation.districtName || undefined,
+        wardId: manualLocation.wardId || undefined, wardName: manualLocation.wardName || undefined,
       });
       setManualResult(res.data);
       setShowManual(false);
       setManualForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3 });
+      setManualLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
       setSelectedClassified(null);
       fetchRequests();
     } catch (err) {
@@ -595,7 +606,6 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
               {[
                 { label: t('seller_invoices.buyer_full_name_label'), key: 'buyerName',       placeholder: t('seller_invoices.buyer_name_placeholder'),                type: 'text' },
                 { label: t('seller_invoices.buyer_phone_label'),        key: 'buyerPhone',      placeholder: '255712345678',                   type: 'tel' },
-                { label: t('seller_invoices.delivery_address_label'),          key: 'deliveryAddress', placeholder: t('seller_invoices.delivery_address_placeholder'), type: 'text' },
               ].map(field => (
                 <div key={field.key} style={{ marginBottom: 10 }}>
                   <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{field.label}</label>
@@ -603,6 +613,21 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                     onChange={e => setManualForm({ ...manualForm, [field.key]: e.target.value })} style={inputStyle} />
                 </div>
               ))}
+              {/* Structured region/district/ward — was missing entirely,
+                  leaving delivery location as free text only with no way
+                  to match it against Kentexa's real location data. */}
+              <div style={{ marginBottom: 10 }}>
+                <LocationPicker
+                  label={t('seller_invoices.delivery_location_label')}
+                  value={manualLocation}
+                  onChange={setManualLocation}
+                />
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.delivery_address_label')}</label>
+                <input type="text" placeholder={t('seller_invoices.delivery_address_placeholder')} value={manualForm.deliveryAddress}
+                  onChange={e => setManualForm({ ...manualForm, deliveryAddress: e.target.value })} style={inputStyle} />
+              </div>
             </div>
 
             {/* Step 3 — Payment */}

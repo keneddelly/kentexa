@@ -37,6 +37,36 @@ export class ClassifiedInvoiceRequest {
   @Column({ type: 'text', nullable: true })
   buyerMessage: string | null;
 
+  // ── Structured delivery location (LocationPicker) — previously the
+  // delivery address only ever existed as free text folded into
+  // buyerMessage, with no way to actually search/match/verify it against
+  // Kentexa's real region/district/ward data the way every other
+  // shipping-adjacent form (SellerShipment.js, BecomeSeller.js) already
+  // does. Same naming convention as SellerShipment.js's own submit body.
+  @Column({ type: 'int', nullable: true })
+  regionId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  regionName: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  districtId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  districtName: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  wardId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  wardName: string | null;
+
+  // Street/landmark detail only — the region/district/ward columns above
+  // now carry the structured part that used to live only inside
+  // buyerMessage's free-text blob.
+  @Column({ type: 'text', nullable: true })
+  deliveryAddress: string | null;
+
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
   amount: number | null;
 

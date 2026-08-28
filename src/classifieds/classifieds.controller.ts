@@ -221,6 +221,12 @@ export class ClassifiedsController {
       amount: number;
       notes?: string;
       dueDays?: number;
+      regionId?: number;
+      regionName?: string;
+      districtId?: number;
+      districtName?: string;
+      wardId?: number;
+      wardName?: string;
     },
   ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
@@ -296,6 +302,12 @@ export class ClassifiedsController {
       buyerPhone: string;
       deliveryAddress: string;
       message?: string;
+      regionId?: number;
+      regionName?: string;
+      districtId?: number;
+      districtName?: string;
+      wardId?: number;
+      wardName?: string;
     },
   ) {
     return this.service.requestInvoice(id, req.user, body);

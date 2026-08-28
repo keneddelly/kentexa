@@ -406,6 +406,12 @@ export class ClassifiedsService {
       buyerPhone: string;
       deliveryAddress: string;
       message?: string;
+      regionId?: number;
+      regionName?: string;
+      districtId?: number;
+      districtName?: string;
+      wardId?: number;
+      wardName?: string;
     },
   ) {
     const classified = await this.findOne(id);
@@ -432,11 +438,21 @@ export class ClassifiedsService {
       );
     }
 
+    const locationSuffix = data.wardName || data.districtName || data.regionName
+      ? ` (${[data.wardName, data.districtName, data.regionName].filter(Boolean).join(', ')})`
+      : '';
     const request = this.invoiceRequestRepo.create({
       classified,
       buyer,
       seller: classified.seller,
-      buyerMessage: `Name: ${data.buyerName} | Phone: ${data.buyerPhone} | Address: ${data.deliveryAddress}${data.message ? ' | Note: ' + data.message : ''}`,
+      buyerMessage: `Name: ${data.buyerName} | Phone: ${data.buyerPhone} | Address: ${data.deliveryAddress}${locationSuffix}${data.message ? ' | Note: ' + data.message : ''}`,
+      deliveryAddress: data.deliveryAddress || null,
+      regionId: data.regionId || null,
+      regionName: data.regionName || null,
+      districtId: data.districtId || null,
+      districtName: data.districtName || null,
+      wardId: data.wardId || null,
+      wardName: data.wardName || null,
       status: ClassifiedInvoiceStatus.PENDING,
     });
     await this.invoiceRequestRepo.save(request);
@@ -463,6 +479,12 @@ export class ClassifiedsService {
       amount: number;
       notes?: string;
       dueDays?: number;
+      regionId?: number;
+      regionName?: string;
+      districtId?: number;
+      districtName?: string;
+      wardId?: number;
+      wardName?: string;
     },
   ) {
     const invoiceNumber = await this.invoicesService.generateInvoiceNumber();
@@ -476,9 +498,19 @@ export class ClassifiedsService {
       });
     }
 
+    const locationSuffix = data.wardName || data.districtName || data.regionName
+      ? ` (${[data.wardName, data.districtName, data.regionName].filter(Boolean).join(', ')})`
+      : '';
     const request = this.invoiceRequestRepo.create({
       seller,
-      buyerMessage: `Name: ${data.buyerName} | Phone: ${data.buyerPhone} | Address: ${data.deliveryAddress || '—'} | Note: ${data.notes || ''}`,
+      buyerMessage: `Name: ${data.buyerName} | Phone: ${data.buyerPhone} | Address: ${data.deliveryAddress || '—'}${locationSuffix} | Note: ${data.notes || ''}`,
+      deliveryAddress: data.deliveryAddress || null,
+      regionId: data.regionId || null,
+      regionName: data.regionName || null,
+      districtId: data.districtId || null,
+      districtName: data.districtName || null,
+      wardId: data.wardId || null,
+      wardName: data.wardName || null,
       amount: data.amount,
       invoiceDescription: data.productName,
       sellerNotes: data.notes || null,

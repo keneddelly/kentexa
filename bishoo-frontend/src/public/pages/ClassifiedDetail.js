@@ -5,6 +5,7 @@ import api from '../../api/api';
 import WishlistHeart   from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
+import LocationPicker from '../components/LocationPicker';
 import { useTranslation } from 'react-i18next';
 
 // Simple countdown for ClassifiedDetail
@@ -50,6 +51,10 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   const [invoiceResult, setInvoiceResult] = useState(null);
   const [sendingInvoice, setSendingInvoice] = useState(false);
   const [invoiceForm, setInvoiceForm]   = useState({ buyerName: '', buyerPhone: '', deliveryAddress: '', message: '' });
+  // Structured delivery location — the free-text address field alone had
+  // no way to match against Kentexa's real region/district/ward data,
+  // unlike every shipping-adjacent form elsewhere in the app.
+  const [invoiceLocation, setInvoiceLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [showOffer,   setShowOffer]     = useState(false);
   const [offerAmount, setOfferAmount]   = useState('');
   const [offerNote,   setOfferNote]     = useState('');
@@ -124,9 +129,13 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
         buyerPhone:      invoiceForm.buyerPhone.trim(),
         deliveryAddress: invoiceForm.deliveryAddress.trim(),
         message:         invoiceForm.message.trim(),
+        regionId: invoiceLocation.regionId || undefined, regionName: invoiceLocation.regionName || undefined,
+        districtId: invoiceLocation.districtId || undefined, districtName: invoiceLocation.districtName || undefined,
+        wardId: invoiceLocation.wardId || undefined, wardName: invoiceLocation.wardName || undefined,
       });
       setInvoiceResult(res.data); setShowInvoiceForm(false);
       setInvoiceForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', message: '' });
+      setInvoiceLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
     } catch (err) { setError(err?.response?.data?.message || 'Failed to send request'); }
     finally { setSendingInvoice(false); }
   };
@@ -466,7 +475,6 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                         {[
                           { label: t('classified_detail.your_name'), key: 'buyerName', placeholder: 'e.g. Amina Hassan', type: 'text' },
                           { label: t('classified_detail.your_phone'), key: 'buyerPhone', placeholder: '255712345678', type: 'tel' },
-                          { label: t('classified_detail.delivery_address'), key: 'deliveryAddress', placeholder: 'e.g. Mwanza, Ilemela', type: 'text' },
                         ].map(f => (
                           <div key={f.key} style={{ marginBottom: 10 }}>
                             <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{f.label}</label>
@@ -477,6 +485,23 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                               onBlur={e => e.target.style.border = '2px solid #e2e8f0'} />
                           </div>
                         ))}
+                        {/* Structured region/district/ward — was missing
+                            entirely, only a free-text address existed. */}
+                        <div style={{ marginBottom: 10 }}>
+                          <LocationPicker
+                            label={t('classified_detail.delivery_location')}
+                            value={invoiceLocation}
+                            onChange={setInvoiceLocation}
+                          />
+                        </div>
+                        <div style={{ marginBottom: 10 }}>
+                          <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{t('classified_detail.delivery_address')}</label>
+                          <input type="text" placeholder="e.g. Mwanza, Ilemela" value={invoiceForm.deliveryAddress}
+                            onChange={e => setInvoiceForm({ ...invoiceForm, deliveryAddress: e.target.value })}
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box', outline: 'none' }}
+                            onFocus={e => e.target.style.border = '2px solid #7c3aed'}
+                            onBlur={e => e.target.style.border = '2px solid #e2e8f0'} />
+                        </div>
                         <div style={{ marginBottom: 12 }}>
                           <label style={{ display: 'block', fontSize: 12, color: '#64748b', marginBottom: 5, fontWeight: 600 }}>{t('classified_detail.message_to_seller')}</label>
                           <textarea placeholder={t('classified_detail.message_placeholder')} rows={2} value={invoiceForm.message}

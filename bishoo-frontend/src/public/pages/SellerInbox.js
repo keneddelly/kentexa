@@ -10,6 +10,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { io } from 'socket.io-client';
 import BackBar from '../components/BackBar';
+import LocationPicker from '../components/LocationPicker';
 import api from '../../api/api';
 import { hasAnyRole } from '../utils/roles';
 
@@ -290,6 +291,9 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   const [showProducts,  setShowProducts]    = useState(false);
   const [showOrderForm, setShowOrderForm]   = useState(false);
   const [orderForm,     setOrderForm]       = useState({ recipientName: '', productName: '', qty: 1, price: '', phone: '', address: '', classifiedId: null });
+  // Structured delivery location — was missing entirely, address was
+  // free text only. Same fields SellerInvoices.js/ClassifiedDetail.js now use.
+  const [orderLocation, setOrderLocation]   = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [creatingOrder, setCreatingOrder]   = useState(false);
   const [filter,        setFilter]          = useState('open');
   const [error,         setError]           = useState('');
@@ -572,6 +576,9 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
         productName:     orderForm.productName,
         classifiedId:    orderForm.classifiedId || undefined,
         amount:          (Number(orderForm.price) || 0) * (Number(orderForm.qty) || 1),
+        regionId: orderLocation.regionId || undefined, regionName: orderLocation.regionName || undefined,
+        districtId: orderLocation.districtId || undefined, districtName: orderLocation.districtName || undefined,
+        wardId: orderLocation.wardId || undefined, wardName: orderLocation.wardName || undefined,
       });
       // Add invoice card to conversation — same MessageType.INVOICE shape
       // SellerInbox.js's own MessageBubble already renders for invoices
@@ -594,6 +601,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       }]);
       setShowOrderForm(false);
       setOrderForm({ recipientName: '', productName: '', qty: 1, price: '', phone: '', address: '', classifiedId: null });
+      setOrderLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
     } catch (err) {
       setError(err?.response?.data?.message || t('seller_inbox.order_create_failed'));
     } finally { setCreatingOrder(false); }
@@ -976,6 +984,15 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
                     border: '1px solid #86efac', fontSize: 12, marginBottom: 6,
                     boxSizing: 'border-box', outline: 'none' }} />
+                {/* Structured region/district/ward — was missing entirely,
+                    address was free text only. */}
+                <div style={{ marginBottom: 6 }}>
+                  <LocationPicker
+                    label={t('seller_inbox.delivery_location_label')}
+                    value={orderLocation}
+                    onChange={setOrderLocation}
+                  />
+                </div>
                 <input placeholder={t('seller_inbox.delivery_address_placeholder')} value={orderForm.address}
                   onChange={e => setOrderForm(p => ({...p, address: e.target.value}))}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
