@@ -2271,18 +2271,6 @@
     "interest_services": "Services",
     "interest_transport": "Transport",
 
-    "welcome_title": "Bienvenue sur Kentexa{{name}} 👋",
-    "usecase_desc": "Que voulez-vous faire sur Kentexa ?",
-    "usecase_sell": "Vendre des produits",
-    "usecase_manage": "Gérer mon entreprise",
-    "usecase_orders": "Créer/gérer des commandes",
-    "usecase_ship": "Expédier des colis",
-    "usecase_super_agent": "Devenir Super Agent",
-    "usecase_transport": "Devenir transporteur",
-    "usecase_buy": "Acheter/trouver des produits",
-    "usecase_ai": "Explorer Kentexa AI",
-    "usecase_explore_link": "Je vais explorer par moi-même pour l'instant",
-
     "setup_title": "Votre configuration Kentexa",
     "continue_setup": "Continuer la configuration",
     "setup_complete": "Votre configuration Kentexa est terminée !",
@@ -2379,6 +2367,8 @@
     "bh_step_search_desc": "Tapez ce que vous cherchez en langage simple — l'IA Kentexa comprend des phrases comme \"téléphone pas cher à Mwanza\".",
     "bh_step_filters_title": "Filtrez votre fil",
     "bh_step_filters_desc": "Glissez pour voir les vendeurs que vous suivez, ce qui est à proximité, les tendances, ou juste les produits, services et transport.",
+    "bh_step_roles_title": "Vendez, livrez ou proposez des services aussi",
+    "bh_step_roles_desc": "Un seul compte, tous les rôles. Appuyez sur Profil puis Rôles à tout moment pour devenir Vendeur, Agent, Super Agent ou Transporteur — pas besoin de décider maintenant.",
 
     "agent_dashboard_title": "Votre tableau de bord Agent",
     "ag_step_intro_title": "Votre rôle en tant qu'Agent",

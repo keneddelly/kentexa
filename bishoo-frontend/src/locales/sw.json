@@ -2121,18 +2121,6 @@
     "interest_services": "Huduma",
     "interest_transport": "Usafiri",
 
-    "welcome_title": "Karibu Kentexa{{name}} 👋",
-    "usecase_desc": "Unataka kufanya nini kwenye Kentexa?",
-    "usecase_sell": "Kuuza bidhaa",
-    "usecase_manage": "Kusimamia biashara yangu",
-    "usecase_orders": "Kutengeneza/kusimamia maagizo",
-    "usecase_ship": "Kutuma vifurushi",
-    "usecase_super_agent": "Kuwa Super Agent",
-    "usecase_transport": "Kuwa Mtoa Huduma wa Usafirishaji",
-    "usecase_buy": "Kununua/kutafuta bidhaa",
-    "usecase_ai": "Gundua Kentexa AI",
-    "usecase_explore_link": "Nitajigundulia mwenyewe kwa sasa",
-
     "setup_title": "Usanidi wako wa Kentexa",
     "continue_setup": "Endelea na usanidi",
     "setup_complete": "Usanidi wako wa Kentexa umekamilika!",
@@ -2229,6 +2217,8 @@
     "bh_step_search_desc": "Andika unachotafuta kwa lugha ya kawaida — Kentexa AI inaelewa vitu kama \"simu rahisi Mwanza\".",
     "bh_step_filters_title": "Chuja mtiririko wako",
     "bh_step_filters_desc": "Telezesha kuona wauzaji unaowafuata, vilivyo karibu, vinavyovuma, au bidhaa, huduma na usafirishaji tu.",
+    "bh_step_roles_title": "Uza, safirisha au toa huduma pia",
+    "bh_step_roles_desc": "Akaunti moja, majukumu yote. Gusa Profaili kisha Majukumu wakati wowote kuwa Muuzaji, Wakala, Super Agent au Msafirishaji — huhitaji kuamua sasa.",
 
     "agent_dashboard_title": "Dashibodi Yako ya Wakala",
     "ag_step_intro_title": "Unachofanya kama Wakala",

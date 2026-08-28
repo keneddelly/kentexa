@@ -2275,18 +2275,6 @@
     "interest_services": "Services",
     "interest_transport": "Transport",
 
-    "welcome_title": "Welcome to Kentexa{{name}} 👋",
-    "usecase_desc": "What do you want to do on Kentexa?",
-    "usecase_sell": "Sell products",
-    "usecase_manage": "Manage my business",
-    "usecase_orders": "Create/manage orders",
-    "usecase_ship": "Ship parcels",
-    "usecase_super_agent": "Become a Super Agent",
-    "usecase_transport": "Become a Transport Provider",
-    "usecase_buy": "Buy/find products",
-    "usecase_ai": "Explore Kentexa AI",
-    "usecase_explore_link": "I'll explore on my own for now",
-
     "setup_title": "Your Kentexa setup",
     "continue_setup": "Continue setup",
     "setup_complete": "Your Kentexa setup is complete!",
@@ -2383,6 +2371,8 @@
     "bh_step_search_desc": "Type what you're looking for in plain language — Kentexa AI understands things like \"cheap phone in Mwanza\".",
     "bh_step_filters_title": "Filter your feed",
     "bh_step_filters_desc": "Swipe to see sellers you follow, what's nearby, trending items, or just products, services and transport.",
+    "bh_step_roles_title": "Sell, ship or offer services too",
+    "bh_step_roles_desc": "One account, every role. Tap Profile, then Roles, anytime to become a Seller, Agent, Super Agent or Transport Provider — no need to decide now.",
 
     "agent_dashboard_title": "Your Agent Dashboard",
     "ag_step_intro_title": "What you do as an Agent",

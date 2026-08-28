@@ -190,6 +190,12 @@ export const TOURS = {
         target: 'hf-filters',
         titleKey: 'tours.bh_step_filters_title',
         descKey: 'tours.bh_step_filters_desc',
+      },
+      {
+        id: 'roles',
+        target: 'bottomnav-profile',
+        titleKey: 'tours.bh_step_roles_title',
+        descKey: 'tours.bh_step_roles_desc',
         isFinal: true,
       },
     ],

@@ -243,6 +243,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
           return (
             <button
               key={tab.key}
+              data-tour={tab.key === 'MyProfile' ? 'bottomnav-profile' : undefined}
               onClick={() => {
                 if (isPost) {
                   if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
