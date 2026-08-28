@@ -140,6 +140,8 @@ export class ClassifiedsController {
     return this.service.getMyInvoiceRequests(req.user);
   }
 
+  // Creates a real Order (escrow, tracking, payout) once shipping starts —
+  // an operational logistics action, gated the same as any other shipment.
   @UseGuards(JwtAuthGuard)
   @Patch('invoices/:requestId/shipping')
   async setShipping(
@@ -148,6 +150,7 @@ export class ClassifiedsController {
     @Request() req,
   ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
+    await this.verification.requireFeature(sellerId, Feature.CREATE_SHIPMENT);
     return this.service.setShippingMethod(requestId, { id: sellerId } as User, body);
   }
 
@@ -221,6 +224,7 @@ export class ClassifiedsController {
     },
   ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
+    await this.verification.requireFeature(sellerId, Feature.CREATE_INVOICE);
     return this.service.createManualInvoice({ id: sellerId } as User, body);
   }
 
@@ -238,6 +242,7 @@ export class ClassifiedsController {
     },
   ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
+    await this.verification.requireFeature(sellerId, Feature.CREATE_INVOICE);
     return this.service.createInvoiceForRequest(
       requestId,
       { id: sellerId } as User,

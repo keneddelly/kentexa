@@ -480,19 +480,25 @@ export class SuperAgentsController {
   // ══ Seller shipments ════════════════════════════════════════════════════
 
   // Selling is universal (classifieds/products both create fine without a
-  // formal SellerProfile — see products/classifieds services) — shipping
-  // something you sold shouldn't require a role the plain listing itself
-  // never required. The role restriction here never actually added an
-  // ownership guarantee beyond what the service already enforces itself:
-  // createSellerShipment() already tolerates a caller with no SellerProfile
-  // (used today for ADMIN/MANAGER/SUPER_AGENT — billing simply doesn't
-  // apply), and its one real ownership check (dto.saleId must belong to
-  // `seller.id`) never depended on role either. JwtAuthGuard alone is
-  // enough; every caller — verified or not — is billed/gated identically
-  // to how an admin already is today.
+  // formal SellerProfile — see products/classifieds services), so this
+  // never required a role the plain listing itself never required. But
+  // shipping a real parcel through the Super Agent network — creating an
+  // Order, moving goods, sometimes escrow — IS the exact "operational
+  // logistics" action the 2026-08-28 identity-verification architecture
+  // audit is about: role/permission answers WHICH business a caller may
+  // act for, never whether the real person behind the account has been
+  // identity-verified at all. Gated on the resolved caller's own identity
+  // level, same table CREATE_SHIPMENT already declared (unused) since
+  // Phase 1. ADMIN/MANAGER staff are exempt — they call this
+  // administratively (billing tools), not as a commerce participant
+  // shipping their own goods; an active SUPER_AGENT already clears any
+  // level requirement automatically (getLevel() returns 4 for one).
   @UseGuards(JwtAuthGuard)
   @Post('shipments')
-  createSellerShipment(@Request() req, @Body() body: any) {
+  async createSellerShipment(@Request() req, @Body() body: any) {
+    if (![UserRole.ADMIN, UserRole.MANAGER].includes(req.user.role)) {
+      await this.verification.requireFeature(req.user.id, Feature.CREATE_SHIPMENT);
+    }
     return this.service.createSellerShipment(req.user, body);
   }
 

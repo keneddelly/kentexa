@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import api     from '../../api/api';
 
 const getProviderTypes = (t) => [
@@ -35,6 +36,7 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
   const [logoUploading, setLogoUploading] = useState(false);
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -79,7 +81,12 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout
       });
       setStep(3);
     } catch (e) {
-      setError(e.response?.data?.message || t('become_transport_provider.submit_failed'));
+      const code = e.response?.data?.code;
+      if (code === 'VERIFICATION_REQUIRED' || code === 'VERIFICATION_REJECTED') {
+        setShowVerifyIdentity(true);
+      } else {
+        setError(e.response?.data?.message || t('become_transport_provider.submit_failed'));
+      }
     } finally { setSaving(false); }
   };
 
@@ -295,6 +302,13 @@ const BecomeTransportProvider = ({ onNavigate, isLoggedIn, currentUser, onLogout
           </div>
         )}
       </div>
+
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
+        />
+      )}
     </div>
   );
 };

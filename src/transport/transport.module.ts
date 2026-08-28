@@ -20,12 +20,14 @@ import { TzLocationModule } from '../tz-location/tz-location.module';
 import { Parcel, ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
+import { IdentityModule } from '../identity/identity.module';
 
 @Module({
   imports: [
     ReputationModule,
     CommerceProfilesModule,
     TzLocationModule,
+    IdentityModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
     TypeOrmModule.forFeature([
       TransportProvider,

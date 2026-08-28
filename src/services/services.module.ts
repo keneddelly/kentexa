@@ -13,6 +13,7 @@ import { FeedModule } from '../feed/feed.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { SearchModule } from '../search/search.module';
 import { AiModule } from '../ai/ai.module';
+import { IdentityModule } from '../identity/identity.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AiModule } from '../ai/ai.module';
     CommerceProfilesModule,
     SearchModule,
     AiModule,
+    IdentityModule,
   ],
   controllers: [ServicesController],
   providers: [ServicesService],

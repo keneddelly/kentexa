@@ -23,6 +23,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
 import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { ActivityModule } from '../activity/activity.module';
+import { IdentityModule } from '../identity/identity.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { ActivityModule } from '../activity/activity.module';
     CommerceProfilesModule,
     ScheduleModule.forRoot(),
     ActivityModule,
+    IdentityModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

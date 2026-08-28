@@ -25,12 +25,15 @@ import { CreateServiceAdDto } from './dto/create-service-ad.dto';
 import { UpdateServiceAdDto } from './dto/update-service-ad.dto';
 import { AiListingDescriptionService } from '../ai/ai-listing-description.service';
 import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
+import { VerificationService } from '../identity/verification.service';
+import { Feature } from '../identity/verification.constants';
 
 @Controller('services')
 export class ServicesController {
   constructor(
     private readonly svc: ServicesService,
     private readonly aiDescription: AiListingDescriptionService,
+    private readonly verification: VerificationService,
   ) {}
 
   // Reads the provider's already-uploaded photo(s) + typed title and
@@ -94,9 +97,14 @@ export class ServicesController {
   }
 
   // ── Provider: manage own ads ──────────────────────────────────────────────
+  // 2026-08-28 identity-verification architecture audit: posting a service
+  // ad is how someone becomes an operational Service Provider on Kentexa —
+  // this had zero identity check, same gap as classified/product/seller/
+  // super-agent/transporter entry points already gated elsewhere.
   @Post()
   @UseGuards(JwtAuthGuard)
-  createAd(@Request() req, @Body() dto: CreateServiceAdDto) {
+  async createAd(@Request() req, @Body() dto: CreateServiceAdDto) {
+    await this.verification.requireFeature(req.user.id, Feature.CREATE_SERVICE);
     return this.svc.createAd(req.user, dto);
   }
 

@@ -8,7 +8,19 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import api from '../../api/api';
+
+// Roles that make someone an operational Kentexa participant (sells,
+// ships, transports, or provides a service on behalf of themselves or
+// others) — per the 2026-08-28 identity-verification architecture audit,
+// choosing one of these must check identity verification immediately,
+// here at the single hub every activation path already passes through,
+// rather than being discovered later as a raw 403 deep inside each
+// role's own apply/register/post-ad flow. 'business' is excluded: it's a
+// tier upgrade for an ALREADY-active seller (who cleared this gate to
+// become a seller in the first place), not a fresh operational role.
+const OPERATIONAL_ROLE_KEYS = ['seller', 'agent', 'super_agent', 'transport_provider', 'service_provider'];
 
 const B = '#2563EB';
 
@@ -86,6 +98,8 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
   const ROLES = getRoles(t);
   const [selected, setSelected] = useState(null);
   const [hasBusiness, setHasBusiness] = useState(false);
+  const [identityStatus, setIdentityStatus] = useState(null);
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
 
   // Business isn't tracked on User.activeRoles — it's its own entity
   // (multi-role architecture Phase 1) — so its "already have it" state
@@ -96,6 +110,28 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
       .then(res => setHasBusiness(!!res.data))
       .catch(() => {});
   }, [isLoggedIn]);
+
+  // Same identity check BecomeSeller.js already does — mirrored here so
+  // it fires ONCE at the shared hub every role picks through, for every
+  // operational role, not just Seller.
+  useEffect(() => {
+    if (!isLoggedIn) { setIdentityStatus({ status: 'not_submitted', level: 0 }); return; }
+    api.get('/identity/me')
+      .then(r => setIdentityStatus(r.data))
+      .catch(() => setIdentityStatus({ status: 'not_submitted', level: 0 }));
+  }, [isLoggedIn]);
+
+  const handleActivate = (targetPage) => {
+    const needsVerification =
+      OPERATIONAL_ROLE_KEYS.includes(selected) &&
+      identityStatus &&
+      identityStatus.level === 0;
+    if (needsVerification) {
+      setShowVerifyIdentity(true);
+      return;
+    }
+    onNavigate(targetPage);
+  };
 
   const role  = selected ? ROLES.find(r => r.key === selected) : null;
   const activeRoles = currentUser?.activeRoles || [currentUser?.role || 'user'];
@@ -236,7 +272,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
               ))}
             </div>
 
-            <button onClick={() => onNavigate(role.page)}
+            <button onClick={() => handleActivate(role.page)}
               style={{ width:'100%',
                 background:`linear-gradient(135deg,${role.accent},${role.accent}cc)`,
                 color:'#fff', border:'none', borderRadius:14,
@@ -248,6 +284,17 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
           </div>
         )}
       </div>
+
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => {
+            setShowVerifyIdentity(false);
+            setIdentityStatus({ status: 'pending', level: 1 });
+            onNavigate(role.page);
+          }}
+        />
+      )}
     </div>
   );
 };

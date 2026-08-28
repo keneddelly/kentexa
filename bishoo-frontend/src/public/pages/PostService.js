@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar  from '../components/BackBar';
+import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import api      from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 
@@ -52,6 +53,7 @@ const PostService = ({ onNavigate, activeProfileId }) => {
   const [step,  setStep]  = useState(1);
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
+  const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [form,  setForm]  = useState({
     title: '', description: '', category: '', subcategory: '',
     priceType: 'per_job', price: '', priceMax: '',
@@ -140,7 +142,12 @@ const PostService = ({ onNavigate, activeProfileId }) => {
       const res = await api.post('/services', payload);
       onNavigate(`ServiceDetail-${res.data.id}`);
     } catch (e) {
-      setError(e.response?.data?.message || t('post_service.submit_failed'));
+      const code = e.response?.data?.code;
+      if (code === 'VERIFICATION_REQUIRED' || code === 'VERIFICATION_REJECTED') {
+        setShowVerifyIdentity(true);
+      } else {
+        setError(e.response?.data?.message || t('post_service.submit_failed'));
+      }
     } finally { setSaving(false); }
   };
 
@@ -446,6 +453,13 @@ const PostService = ({ onNavigate, activeProfileId }) => {
           </div>
         )}
       </div>
+
+      {showVerifyIdentity && (
+        <VerifyIdentityModal
+          onClose={() => setShowVerifyIdentity(false)}
+          onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
+        />
+      )}
     </div>
   );
 };

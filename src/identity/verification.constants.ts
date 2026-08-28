@@ -11,16 +11,32 @@ export enum Feature {
   CREATE_PRODUCT = 'CREATE_PRODUCT',
   RECEIVE_PAYMENT = 'RECEIVE_PAYMENT',
   REQUEST_INVOICE = 'REQUEST_INVOICE',
+  CREATE_INVOICE = 'CREATE_INVOICE',
   USE_ESCROW = 'USE_ESCROW',
   BECOME_SUPER_AGENT = 'BECOME_SUPER_AGENT',
+  BECOME_TRANSPORTER = 'BECOME_TRANSPORTER',
+  CREATE_SERVICE = 'CREATE_SERVICE',
   CREATE_SHIPMENT = 'CREATE_SHIPMENT',
   ACCESS_SELLER_WALLET = 'ACCESS_SELLER_WALLET',
 }
 
-// Only POST_CLASSIFIED is actually wired to a real gate in Phase 1 — the
-// rest of the map exists so later phases extend this one table instead of
-// redefining it, per the spec's "do not hard-code verification
-// requirements throughout unrelated controllers" instruction.
+// 2026-08-28 identity-verification architecture audit: CREATE_SHIPMENT sat
+// declared here since Phase 1 but was never actually wired to any
+// controller — the same gap now closed for every other operational
+// (transaction/logistics/service) action a user can take. The rule this
+// table encodes: BUYING/browsing needs nothing (level 0); the moment an
+// account performs a SELLING/logistics/service action on behalf of itself
+// or others, identity verification (level 1) is required first — this is
+// the actual role-activation gate, not a side effect of Seller Level 1
+// (CREATE_PRODUCT/RECEIVE_PAYMENT staying at level 2 is unrelated: that's
+// the separate, later "approved seller" bar for the catalog/escrow
+// pipeline specifically, not a precondition for identity verification
+// itself). Every controller that performs an operational action should
+// call VerificationService.requireFeature() against this table — never
+// hardcode a level check inline, and never rely on a role/permission
+// check (SellerScopeService, RolesGuard) alone, since role can describe
+// WHICH business a caller may act for without saying anything about
+// whether the real person behind the account has been identity-verified.
 export const FEATURE_REQUIREMENTS: Record<Feature, number> = {
   [Feature.VIEW_LISTING]: 0,
   [Feature.BASIC_MESSAGING]: 0,
@@ -29,8 +45,11 @@ export const FEATURE_REQUIREMENTS: Record<Feature, number> = {
   [Feature.CREATE_PRODUCT]: 2,
   [Feature.RECEIVE_PAYMENT]: 2,
   [Feature.REQUEST_INVOICE]: 0,
+  [Feature.CREATE_INVOICE]: 1,
   [Feature.USE_ESCROW]: 2,
   [Feature.BECOME_SUPER_AGENT]: 1,
+  [Feature.BECOME_TRANSPORTER]: 1,
+  [Feature.CREATE_SERVICE]: 1,
   [Feature.CREATE_SHIPMENT]: 1,
   [Feature.ACCESS_SELLER_WALLET]: 2,
 };

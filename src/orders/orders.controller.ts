@@ -19,12 +19,15 @@ import { Roles } from '../auth/roles.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { parseOrderIdParam } from '../common/utils/order-id.util';
+import { VerificationService } from '../identity/verification.service';
+import { Feature } from '../identity/verification.constants';
 
 @Controller('orders')
 export class OrdersController {
   constructor(
     private ordersService: OrdersService,
     private sellerScope: SellerScopeService,
+    private verification: VerificationService,
   ) {}
 
   // ── Customer ──────────────────────────────────────────────────────────────
@@ -139,6 +142,7 @@ export class OrdersController {
       req.user,
       'canCreateOrders',
     );
+    await this.verification.requireFeature(sellerId, Feature.CREATE_SHIPMENT);
     return this.ordersService.uploadShippingProof(
       id,
       { id: sellerId } as User,
@@ -154,6 +158,7 @@ export class OrdersController {
       req.user,
       'canCreateOrders',
     );
+    await this.verification.requireFeature(sellerId, Feature.CREATE_SHIPMENT);
     return this.ordersService.markShipped(id, { id: sellerId } as User);
   }
 
@@ -171,6 +176,7 @@ export class OrdersController {
       req.user,
       'canCreateOrders',
     );
+    await this.verification.requireFeature(sellerId, Feature.CREATE_SHIPMENT);
     return this.ordersService.sellerHandToSuperAgent(
       id,
       { id: sellerId } as User,
