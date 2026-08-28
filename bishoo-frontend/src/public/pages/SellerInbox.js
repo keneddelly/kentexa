@@ -274,7 +274,7 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
   );
 };
 
-const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId }) => {
   const { t, i18n } = useTranslation();
   const canSell = hasAnyRole(userRole, currentUser, ['seller', 'admin', 'manager']);
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
@@ -289,7 +289,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   const [products,      setProducts]        = useState([]);
   const [showProducts,  setShowProducts]    = useState(false);
   const [showOrderForm, setShowOrderForm]   = useState(false);
-  const [orderForm,     setOrderForm]       = useState({ productName: '', qty: 1, price: '', phone: '', address: '' });
+  const [orderForm,     setOrderForm]       = useState({ recipientName: '', productName: '', qty: 1, price: '', phone: '', address: '', classifiedId: null });
   const [creatingOrder, setCreatingOrder]   = useState(false);
   const [filter,        setFilter]          = useState('open');
   const [error,         setError]           = useState('');
@@ -439,8 +439,38 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   useEffect(() => { fetchInbox(); }, [fetchInbox]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => {
-    api.get('/seller/products').then(r => setProducts(r.data?.products || [])).catch(() => {});
-  }, []);
+    if (!currentUser?.id) return;
+    // Was '/seller/products' — that route has never existed (the real
+    // product-list endpoints all live under /products/*, e.g.
+    // CreateMomentModal.js's own /products/profile/:id and
+    // /products/seller/:id) — every call 404'd, so this tab always
+    // rendered empty regardless of how many products the seller had.
+    const productsCall = api.get('/products/my/products', {
+      params: activeProfileId ? { commerceProfileId: activeProfileId } : undefined,
+    });
+    // Classifieds are now shareable/attachable here too — same endpoints
+    // CreateMomentModal.js already uses, same profile-scoping reasoning
+    // (a business profile must only ever see its own listings).
+    const classifiedsCall = activeProfileId
+      ? api.get(`/classifieds/profile/${activeProfileId}`)
+      : api.get(`/classifieds/seller/${currentUser.id}`);
+    Promise.allSettled([productsCall, classifiedsCall]).then(([pr, cl]) => {
+      const items = [];
+      if (pr.status === 'fulfilled') {
+        (pr.value.data || []).forEach(p => items.push({
+          type: 'product', id: p.id, name: p.name,
+          price: p.basePrice || p.displayPrice, image: p.images?.[0],
+        }));
+      }
+      if (cl.status === 'fulfilled') {
+        (cl.value.data || []).forEach(c => items.push({
+          type: 'classified', id: c.id, name: c.title,
+          price: c.price, image: c.images?.[0],
+        }));
+      }
+      setProducts(items);
+    });
+  }, [activeProfileId, currentUser?.id]);
 
   // ── Real-time — purely additive over the REST calls above. If the socket
   // never connects (offline, blocked, server restart), every send/receive
@@ -508,40 +538,64 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
     return () => socket.emit('leaveConversation', active.id);
   }, [active?.id]);
 
+  // Was calling POST /super-agents/shipments (createSellerShipment) — a
+  // Super Agent LOGISTICS endpoint requiring originCity/transportMethod/
+  // a real deliveryAddress, none of which this quick form ever collected,
+  // so every real submission either failed outright or wrote garbage
+  // shipment data (destinationCity was being set from the free-text
+  // address field). It also swallowed every failure silently
+  // (catch { console.error }, no setError) — a seller who hit the
+  // missing-field failure saw nothing happen and had no way to tell why,
+  // which read as "it keeps asking me to fill the form in again."
+  //
+  // The quick-order form's actual fields (free-text item, price, buyer
+  // phone/address, no city/shipping-method) match the manual classified
+  // invoice flow, not a shipment — POST /classifieds/invoices/manual —
+  // exactly, and that's already the correct, identity-gated, verified
+  // entry point for "seller quotes a customer an amount for something not
+  // necessarily in the catalog" (see the 2026-08-28 identity-verification
+  // and classified-invoice-orders audits). This creates a real invoice
+  // the buyer can pay; it does NOT create a shippable Order or tracking
+  // number immediately (that only happens once the invoice is paid and a
+  // shipping method is chosen) — the success card/message below reflects
+  // that honestly instead of claiming a tracking number that doesn't
+  // exist yet.
   const handleCreateOrder = async () => {
     if (!active || !orderForm.productName.trim()) return;
     setCreatingOrder(true);
+    setError('');
     try {
-      const res = await api.post('/super-agents/shipments', {
-        recipientName:   active.customer?.name || t('seller_inbox.customer_fallback'),
-        recipientPhone:  orderForm.phone || active.customer?.phone,
-        destinationCity: orderForm.address,
-        description:     orderForm.productName,
-        weightKg:        1,
-        totalValue:      Number(orderForm.price) || 0,
-        quantity:        Number(orderForm.qty) || 1,
-        source:          'seller_shipment',
+      const res = await api.post('/classifieds/invoices/manual', {
+        buyerName:       orderForm.recipientName.trim() || active.customer?.name || t('seller_inbox.customer_fallback'),
+        buyerPhone:      orderForm.phone || active.customer?.phone,
+        deliveryAddress: orderForm.address || undefined,
+        productName:     orderForm.productName,
+        classifiedId:    orderForm.classifiedId || undefined,
+        amount:          (Number(orderForm.price) || 0) * (Number(orderForm.qty) || 1),
       });
-      // Add order card to conversation
+      // Add invoice card to conversation — same MessageType.INVOICE shape
+      // SellerInbox.js's own MessageBubble already renders for invoices
+      // created through the normal (non-chat) flow.
+      const metadata = {
+        invoiceNumber: res.data?.invoiceNumber,
+        invoiceAmount: res.data?.amount,
+        invoicePaid:   false,
+      };
       await api.post(`/business/inbox/${active.id}/messages`, {
-        content: t('seller_inbox.order_created_msg', { name: orderForm.productName }),
-        type: 'order',
-        metadata: {
-          orderId:        res.data?.id,
-          trackingNumber: res.data?.trackingNumber,
-          orderStatus:    'preparing',
-        },
+        content: t('seller_inbox.invoice_sent_msg', { name: orderForm.productName }),
+        type: 'invoice',
+        metadata,
       });
       setMessages(prev => [...prev, {
-        id: Date.now(), senderType: 'system', type: 'order',
-        content: t('seller_inbox.order_created_system_msg', { name: orderForm.productName }),
-        metadata: { orderId: res.data?.id, trackingNumber: res.data?.trackingNumber, orderStatus: 'preparing' },
+        id: Date.now(), senderType: 'system', type: 'invoice',
+        content: t('seller_inbox.invoice_sent_system_msg', { name: orderForm.productName }),
+        metadata,
         createdAt: new Date().toISOString(),
       }]);
       setShowOrderForm(false);
-      setOrderForm({ productName: '', qty: 1, price: '', phone: '', address: '' });
+      setOrderForm({ recipientName: '', productName: '', qty: 1, price: '', phone: '', address: '', classifiedId: null });
     } catch (err) {
-      console.error('Order creation failed:', err);
+      setError(err?.response?.data?.message || t('seller_inbox.order_create_failed'));
     } finally { setCreatingOrder(false); }
   };
 
@@ -629,13 +683,16 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
 
   const handleRetry = (msg) => msg._file ? handleAttachImage(msg._file, msg.id) : handleSend(msg);
 
-  const handleShareProduct = async (product) => {
+  // `item` is already normalized to {type, id, name, price, image} by the
+  // products+classifieds fetch above, regardless of which listing type it
+  // came from — share-product itself doesn't care (see its own comment),
+  // it just stamps whatever {id, name, price, image} it's given onto a
+  // product-card message.
+  const handleShareProduct = async (item) => {
     if (!active) return;
     try {
       const res = await api.post(`/business/inbox/${active.id}/share-product`, {
-        id: product.id, name: product.name,
-        price: product.basePrice || product.displayPrice,
-        image: product.images?.[0],
+        id: item.id, name: item.name, price: item.price, image: item.image,
       });
       setMessages(prev => [...prev, res.data]);
       setShowProducts(false);
@@ -888,6 +945,17 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#16a34a', marginBottom: 10 }}>
                   {t('seller_inbox.quick_order_title')}
                 </div>
+                {/* Pre-filled from the conversation's own customer record —
+                    editable rather than hardcoded, since active.customer?.name
+                    is often just the generic "Mnunuzi" fallback (a customer
+                    who never typed a real name), which used to get baked
+                    straight into the invoice with no way for the seller to
+                    correct it before sending. */}
+                <input placeholder={t('seller_inbox.recipient_name_placeholder')} value={orderForm.recipientName}
+                  onChange={e => setOrderForm(p => ({...p, recipientName: e.target.value}))}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
+                    border: '1px solid #86efac', fontSize: 12, marginBottom: 6,
+                    boxSizing: 'border-box', outline: 'none' }} />
                 <input placeholder={t('seller_inbox.product_name_placeholder')} value={orderForm.productName}
                   onChange={e => setOrderForm(p => ({...p, productName: e.target.value}))}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8,
@@ -938,21 +1006,54 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                   {t('seller_inbox.choose_product_title')}
                 </div>
                 {products.slice(0, 20).map(p => (
-                  <div key={p.id} onClick={() => handleShareProduct(p)}
+                  <div key={`${p.type}-${p.id}`}
                     style={{ display: 'flex', gap: 10, alignItems: 'center',
-                      padding: '8px 0', borderBottom: '1px solid #f1f5f9',
-                      cursor: 'pointer' }}>
-                    {p.images?.[0] && (
-                      <img src={p.images[0]} alt=""
-                        style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover' }} />
-                    )}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700 }}>{p.name}</div>
-                      <div style={{ fontSize: 11, color: '#16a34a' }}>
-                        TZS {Number(p.basePrice || 0).toLocaleString()}
+                      padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                    <div onClick={() => handleShareProduct(p)}
+                      style={{ display: 'flex', gap: 10, alignItems: 'center', flex: 1,
+                        minWidth: 0, cursor: 'pointer' }}>
+                      {p.image ? (
+                        <img src={p.image} alt=""
+                          style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', flexShrink: 0 }} />
+                      ) : (
+                        <span style={{ fontSize: 20, width: 36, textAlign: 'center', flexShrink: 0 }}>
+                          {p.type === 'classified' ? '🏷️' : '🛍️'}
+                        </span>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden',
+                          textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                        <div style={{ fontSize: 11, color: '#16a34a' }}>
+                          TZS {Number(p.price || 0).toLocaleString()}
+                        </div>
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, color: '#1d4ed8' }}>{t('seller_inbox.send_arrow')}</span>
+                    <span onClick={() => handleShareProduct(p)}
+                      style={{ fontSize: 11, color: '#1d4ed8', cursor: 'pointer', flexShrink: 0 }}>
+                      {t('seller_inbox.send_arrow')}
+                    </span>
+                    {/* Attaches this listing to the Quick Invoice form
+                        instead of just sharing a card — the "allow adding
+                        classified [to the order/invoice]" ask. */}
+                    <button
+                      title={t('seller_inbox.use_for_invoice_title')}
+                      onClick={() => {
+                        setOrderForm(f => ({
+                          ...f,
+                          recipientName: f.recipientName || active.customer?.name || '',
+                          phone: f.phone || active.customer?.phone || '',
+                          productName: p.name,
+                          price: p.price || '',
+                          classifiedId: p.type === 'classified' ? p.id : null,
+                        }));
+                        setShowProducts(false);
+                        setShowOrderForm(true);
+                      }}
+                      style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#16a34a',
+                        background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6,
+                        padding: '4px 8px', cursor: 'pointer' }}>
+                      🧾
+                    </button>
                   </div>
                 ))}
               </div>
@@ -979,7 +1080,16 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                     fontSize: 11, fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
                   {t('seller_inbox.products_button')}
                 </button>
-                <button onClick={() => setShowOrderForm(!showOrderForm)}
+                <button onClick={() => {
+                    if (!showOrderForm) {
+                      setOrderForm(p => ({
+                        ...p,
+                        recipientName: p.recipientName || active.customer?.name || '',
+                        phone: p.phone || active.customer?.phone || '',
+                      }));
+                    }
+                    setShowOrderForm(!showOrderForm);
+                  }}
                   style={{ flexShrink: 0, padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0',
                     backgroundColor: showOrderForm ? '#f0fdf4' : '#fff', cursor: 'pointer',
                     fontSize: 11, fontWeight: 700, color: '#16a34a', whiteSpace: 'nowrap' }}>
