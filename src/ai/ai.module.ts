@@ -17,6 +17,7 @@ import { AiSearchParserService } from './ai-search-parser.service';
 import { AiSearchExplainerService } from './ai-search-explainer.service';
 import { AiSellerEnrichmentService } from './ai-seller-enrichment.service';
 import { AiListingDescriptionService } from './ai-listing-description.service';
+import { AiCategorySuggestionService } from './ai-category-suggestion.service';
 import { AiBusinessInsightService } from './ai-business-insight.service';
 import { EmbeddingService } from './embedding.service';
 import { EmbeddingRouter } from './embedding.router';
@@ -40,6 +41,7 @@ import { OpenAiEmbeddingProvider } from './providers/openai-embedding.provider';
     AiSearchExplainerService,
     AiSellerEnrichmentService,
     AiListingDescriptionService,
+    AiCategorySuggestionService,
     AiBusinessInsightService,
     OpenAiEmbeddingProvider,
     EmbeddingRouter,
@@ -52,6 +54,7 @@ import { OpenAiEmbeddingProvider } from './providers/openai-embedding.provider';
     AiSearchExplainerService,
     AiSellerEnrichmentService,
     AiListingDescriptionService,
+    AiCategorySuggestionService,
     AiBusinessInsightService,
     EmbeddingService,
   ],

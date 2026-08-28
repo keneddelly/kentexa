@@ -22,6 +22,8 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
 import { AiListingDescriptionService } from '../ai/ai-listing-description.service';
 import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
+import { AiCategorySuggestionService } from '../ai/ai-category-suggestion.service';
+import { SuggestCategoryDto } from '../ai/dto/suggest-category.dto';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { resolveCategoryKey } from '../categories/categories.data';
 import { VerificationService } from '../identity/verification.service';
@@ -34,6 +36,7 @@ export class ClassifiedsController {
     private readonly priceSvc: PriceSuggestionService,
     private readonly aiSearchParser: AiSearchParserService,
     private readonly aiDescription: AiListingDescriptionService,
+    private readonly aiCategorySuggestion: AiCategorySuggestionService,
     private readonly sellerScope: SellerScopeService,
     private readonly verification: VerificationService,
   ) {}
@@ -45,6 +48,16 @@ export class ClassifiedsController {
   @Post('ai/generate-description')
   generateDescription(@Body() dto: GenerateDescriptionDto) {
     return this.aiDescription.generate(dto);
+  }
+
+  // Auto-suggests a category/subcategory from just the title, fired as the
+  // seller types (see SellerClassifieds.js) rather than making them scan
+  // all 36 top-level categories manually. Suggestion-only — the seller's
+  // own dropdown stays the actual source of truth and fully editable.
+  @UseGuards(JwtAuthGuard)
+  @Post('ai/suggest-category')
+  suggestCategory(@Body() dto: SuggestCategoryDto) {
+    return this.aiCategorySuggestion.suggest(dto);
   }
 
   // Classifieds are peer-to-peer listings (a "side hustle" item, not a

@@ -23,6 +23,8 @@ import { AiListingService } from './ai-listing.service';
 import { GenerateListingDto } from './dto/generate-listing.dto';
 import { AiListingDescriptionService } from '../ai/ai-listing-description.service';
 import { GenerateDescriptionDto } from '../ai/dto/generate-description.dto';
+import { AiCategorySuggestionService } from '../ai/ai-category-suggestion.service';
+import { SuggestCategoryDto } from '../ai/dto/suggest-category.dto';
 import { AiSearchParserService } from '../ai/ai-search-parser.service';
 import { resolveCategoryKey } from '../categories/categories.data';
 import { SellerScopeService } from '../business/seller-scope.service';
@@ -35,6 +37,7 @@ export class ProductsController {
     private service: ProductsService,
     private aiListing: AiListingService,
     private aiDescription: AiListingDescriptionService,
+    private aiCategorySuggestion: AiCategorySuggestionService,
     private aiSearchParser: AiSearchParserService,
     private sellerScope: SellerScopeService,
     private verification: VerificationService,
@@ -140,6 +143,17 @@ export class ProductsController {
   @Post('ai/generate-description')
   generateDescription(@Body() dto: GenerateDescriptionDto) {
     return this.aiDescription.generate(dto);
+  }
+
+  // Auto-suggests a category/subcategory from just the title, fired as the
+  // seller types (see SellerProducts.js) rather than making them scan all
+  // 36 top-level categories manually. Suggestion-only — never sets the
+  // form field itself, the seller's own dropdown is always the actual
+  // source of truth and stays fully editable.
+  @UseGuards(JwtAuthGuard)
+  @Post('ai/suggest-category')
+  suggestCategory(@Body() dto: SuggestCategoryDto) {
+    return this.aiCategorySuggestion.suggest(dto);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

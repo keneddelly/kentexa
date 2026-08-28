@@ -46,6 +46,10 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const [userPhone, setUserPhone]     = useState('');
   const [descGenerating, setDescGenerating] = useState(false);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
+  // Same auto-suggest pattern as SellerProducts.js — see AiCategorySuggestionService.
+  const [categoryManuallySet, setCategoryManuallySet] = useState(false);
+  const [categorySuggested, setCategorySuggested]     = useState(false);
+  const [suggestingCategory, setSuggestingCategory]   = useState(false);
 
   // Derived
   const currentCat  = CATEGORIES[form.category] || CATEGORIES.general;
@@ -112,9 +116,24 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classifieds, editItemId]);
 
-  const handleCategoryChange = (cat) => {
+  const handleCategoryChange = (cat, opts = {}) => {
     const firstSub = Object.keys(CATEGORIES[cat]?.subcategories || {})[0] || '';
     setForm(prev => ({ ...prev, category: cat, subcategory: firstSub, specs: {} }));
+    if (!opts.fromSuggestion) { setCategoryManuallySet(true); setCategorySuggested(false); }
+  };
+
+  const handleTitleBlur = async () => {
+    if (categoryManuallySet || !form.title.trim() || form.title.trim().length < 3) return;
+    try {
+      setSuggestingCategory(true);
+      const res = await api.post('/classifieds/ai/suggest-category', { title: form.title.trim() });
+      if (res.data?.category && CATEGORIES[res.data.category]) {
+        handleCategoryChange(res.data.category, { fromSuggestion: true });
+        if (res.data.subcategory) setForm(prev => ({ ...prev, subcategory: res.data.subcategory }));
+        setCategorySuggested(true);
+      }
+    } catch { /* silent — a suggestion failure must never block posting */ }
+    finally { setSuggestingCategory(false); }
   };
 
   const handleSubcategoryChange = (sub) => {
@@ -183,6 +202,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const resetForm = () => {
     setShowForm(false); setEditItem(null);
     setImagePreviews([]); setForm(EMPTY_FORM);
+    setCategoryManuallySet(false); setCategorySuggested(false);
   };
 
   const handleSubmit = async () => {
@@ -222,6 +242,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
 
   const handleEdit = (item) => {
     setEditItem(item);
+    setCategoryManuallySet(true); // editing a real listing — never auto-suggest over its actual category
     setForm({
       title:        item.title,
       description:  item.description || '',
@@ -422,13 +443,17 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>{t('seller_classifieds.title_label')}</label>
               <input type="text" placeholder={t('seller_classifieds.title_placeholder')} value={form.title}
-                onChange={e => setForm({ ...form, title: e.target.value })} style={inputStyle} />
+                onChange={e => setForm({ ...form, title: e.target.value })} onBlur={handleTitleBlur} style={inputStyle} />
             </div>
 
             {/* Category + Subcategory */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
               <div>
-                <label style={labelStyle}>{t('seller_classifieds.category_label')}</label>
+                <label style={labelStyle}>
+                  {t('seller_classifieds.category_label')}
+                  {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_classifieds.category_detecting')}</span>}
+                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>✨ {t('seller_classifieds.category_suggested')}</span>}
+                </label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                   {Object.entries(CATEGORIES).map(([key, cat]) => (
                     <option key={key} value={key}>{cat.icon} {cat.label}</option>

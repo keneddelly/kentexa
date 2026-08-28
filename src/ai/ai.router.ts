@@ -11,6 +11,7 @@ export type AiTask =
   | 'summary'
   | 'reply-draft'
   | 'product-listing'
+  | 'category-suggest'
   | 'search-parse'
   | 'search-explain'
   | 'seller-profile-enrich'
@@ -27,6 +28,7 @@ const TASK_TIER: Record<AiTask, AiTier> = {
   summary: 'simple',
   'reply-draft': 'simple',
   'product-listing': 'simple',
+  'category-suggest': 'simple',
   'search-parse': 'simple',
   'search-explain': 'simple',
   'business-insight': 'simple',

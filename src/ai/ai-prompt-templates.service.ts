@@ -1,7 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { CATEGORY_KEYS } from '../categories/categories.data';
+import { CATEGORIES, CATEGORY_KEYS } from '../categories/categories.data';
 
 const CATEGORY_LIST = CATEGORY_KEYS.join(', ');
+
+// Compact "key: subkey/subkey/..." listing for every category — lets the
+// classifier prefer a REAL subcategory key over inventing a plausible-
+// looking one, without needing a per-category enum (JSON Schema has no
+// clean way to make one enum's valid values depend on another field's
+// value across every provider this app routes to).
+const CATEGORY_SUBCATEGORY_MAP = Object.entries(CATEGORIES)
+  .map(([key, def]) => `${key}: ${Object.keys(def.subcategories).join('/')}`)
+  .join('; ');
 
 export interface PromptTemplate {
   system: string;
@@ -93,6 +102,37 @@ export class AiPromptTemplateService {
         additionalProperties: false,
       },
       schemaName: 'product_listing',
+    };
+  }
+
+  // Lighter/cheaper sibling of productListingPrompt() above — used to
+  // auto-suggest just a category+subcategory from a title as the seller
+  // types (so they don't have to manually scan all 36 top-level
+  // categories), without also generating a name/description/features the
+  // caller doesn't need for that. Conservative by design: a listing
+  // creator seeing a wrong category costs more trust than "general" would.
+  categorySuggestPrompt(): PromptTemplate {
+    return {
+      system:
+        'You classify a listing for the KenteXa marketplace (Tanzania) into the single best-' +
+        "fitting category and subcategory, given only its title (and maybe a short extra hint) " +
+        "— the seller has not chosen a category yet. Be conservative: if genuinely unsure, prefer " +
+        'the "general" category over a confident-sounding wrong guess. ' +
+        `The category MUST be exactly one of these keys: ${CATEGORY_LIST}. ` +
+        `Each category's real subcategory keys are — ${CATEGORY_SUBCATEGORY_MAP}. ` +
+        "Return one of the REAL subcategory keys listed for your chosen category when one clearly " +
+        'fits; only invent a short label if truly none do.',
+      schema: {
+        type: 'object',
+        properties: {
+          category: { type: 'string', enum: CATEGORY_KEYS },
+          subcategory: { type: 'string' },
+          confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+        },
+        required: ['category', 'subcategory', 'confidence'],
+        additionalProperties: false,
+      },
+      schemaName: 'category_suggestion',
     };
   }
 

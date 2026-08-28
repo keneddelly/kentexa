@@ -54,6 +54,15 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [shippingEstimate, setShippingEstimate] = useState(null);
   const [estimateLoading, setEstimateLoading]   = useState(false);
   const [descGenerating, setDescGenerating]     = useState(false);
+  // Auto-suggests category/subcategory from the title as the seller types
+  // (fires on blur, not per-keystroke — see AiCategorySuggestionService's
+  // own comment for why), so they don't have to manually scan all 36 top-
+  // level categories. categoryManuallySet stops it from ever overwriting a
+  // choice the seller actually made themselves, including editing an
+  // existing product (handleEdit sets this true too).
+  const [categoryManuallySet, setCategoryManuallySet] = useState(false);
+  const [categorySuggested, setCategorySuggested]     = useState(false);
+  const [suggestingCategory, setSuggestingCategory]   = useState(false);
 
   // Boda fee suggestions
   const [bodaSuggestions, setBodaSuggestions]   = useState([]);
@@ -134,9 +143,24 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   }, [products, editProductId]);
 
   // When category changes, reset subcategory + specs
-  const handleCategoryChange = (cat) => {
+  const handleCategoryChange = (cat, opts = {}) => {
     const firstSub = Object.keys(CATEGORIES[cat]?.subcategories || {})[0] || '';
     setForm(prev => ({ ...prev, category: cat, subcategory: firstSub, specs: {} }));
+    if (!opts.fromSuggestion) { setCategoryManuallySet(true); setCategorySuggested(false); }
+  };
+
+  const handleNameBlur = async () => {
+    if (categoryManuallySet || !form.name.trim() || form.name.trim().length < 3) return;
+    try {
+      setSuggestingCategory(true);
+      const res = await api.post('/products/ai/suggest-category', { title: form.name.trim() });
+      if (res.data?.category && CATEGORIES[res.data.category]) {
+        handleCategoryChange(res.data.category, { fromSuggestion: true });
+        if (res.data.subcategory) setForm(prev => ({ ...prev, subcategory: res.data.subcategory }));
+        setCategorySuggested(true);
+      }
+    } catch { /* silent — a suggestion failure must never block listing creation */ }
+    finally { setSuggestingCategory(false); }
   };
 
   const handleSubcategoryChange = (sub) => {
@@ -258,6 +282,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     setShowForm(false); setEditProduct(null);
     setImagePreviews([]); setForm(EMPTY_FORM);
     setFeatureInput(''); setShippingEstimate(null);
+    setCategoryManuallySet(false); setCategorySuggested(false);
   };
 
   const handleSubmit = async () => {
@@ -347,6 +372,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
   const handleEdit = (product) => {
     setEditProduct(product);
+    setCategoryManuallySet(true); // editing a real listing — never auto-suggest over its actual category
     setForm({
       name:         product.name,
       description:  product.description || '',
@@ -575,13 +601,17 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>{t('seller_products.product_name')} *</label>
               <input type="text" placeholder={t('seller_products.name_placeholder')} value={form.name}
-                onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} />
+                onChange={e => setForm({ ...form, name: e.target.value })} onBlur={handleNameBlur} style={inputStyle} />
             </div>
 
             {/* Category + Subcategory */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
               <div>
-                <label style={labelStyle}>{t('seller_products.category')}</label>
+                <label style={labelStyle}>
+                  {t('seller_products.category')}
+                  {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_products.category_detecting')}</span>}
+                  {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>✨ {t('seller_products.category_suggested')}</span>}
+                </label>
                 <select value={form.category} onChange={e => handleCategoryChange(e.target.value)} style={inputStyle}>
                   {visibleCategories.map(([key, cat]) => (
                     <option key={key} value={key}>{cat.icon} {cat.label}</option>
