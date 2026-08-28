@@ -2502,6 +2502,14 @@
     "creating_button": "⏳ Inaunda...",
     "create_button": "💵 Unda na Ainisha kwenye Van"
   },
+  "seller_access_gate": {
+    "title": "🪪 Thibitisha Utambulisho Wako Kuendelea",
+    "desc_not_submitted": "Kentexa inahitaji uthibitisho wa utambulisho kabla ya kusimamia mauzo, maagizo, ankara, au usafirishaji — hii inahakikisha kila muuzaji Kentexa anawajibika kwa mtu halisi aliyethibitishwa.",
+    "desc_rejected": "Uwasilishaji wako wa awali wa utambulisho ulikataliwa. Tafadhali pitia sababu hapa chini na uwasilishe tena taarifa zako.",
+    "rejected_reason": "Sababu: {{reason}}",
+    "verify_button": "Thibitisha Utambulisho Wangu",
+    "back_button": "← Rudi"
+  },
   "role_activation": {
     "page_title": "Ongeza Jukumu",
     "eyebrow": "AKAUNTI MOJA • MAJUKUMU MENGI",

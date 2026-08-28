@@ -51,6 +51,7 @@ import OrderTracking       from './public/pages/OrderTracking';
 import MyOrders from './public/pages/MyOrders';
 import CustomerProfile from './public/pages/CustomerProfile';
 import BecomeSeller from './public/pages/BecomeSeller';
+import SellerAccessGate from './public/components/SellerAccessGate';
 import SellerDashboard from './public/pages/SellerDashboard';
 import BusinessDashboard from './public/pages/BusinessDashboard';
 import BecomeBusiness from './public/pages/BecomeBusiness';
@@ -247,6 +248,22 @@ function App() {
   };
 
   useEffect(() => { fetchInboxUnread(); }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Identity-verification architecture audit (2026-08-28): fetched once at
+  // app level so requireVerifiedSeller() below can gate EVERY seller-
+  // back-office entry point (Quick Actions tile, direct deep link, bottom
+  // nav) from one place, instead of each page independently discovering
+  // it's ungated. null = not loaded yet (never treated as "verified" —
+  // renderPage() shows nothing/blocks rather than flashing a real page
+  // then yanking it away).
+  const [identityStatus, setIdentityStatus] = useState(null);
+  const fetchIdentityStatus = () => {
+    if (!isLoggedIn) { setIdentityStatus({ status: 'not_submitted', level: 0 }); return; }
+    api.get('/identity/me')
+      .then(res => setIdentityStatus(res.data))
+      .catch(() => setIdentityStatus({ status: 'not_submitted', level: 0 }));
+  };
+  useEffect(() => { fetchIdentityStatus(); }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Which page each profile type lands on when it becomes active — the
   // "home base" for that identity, same idea as roleHome() below but keyed
@@ -534,6 +551,44 @@ function App() {
     return <HomeFeed {...publicProps} />;
   };
 
+  // Identity-verification architecture audit (2026-08-28): closes every
+  // entry point into the seller back office (Quick Actions "Seller
+  // Center" tile, direct deep link, bottom nav — whatever got the user
+  // here) behind identity verification, at the single router level,
+  // rather than each page discovering separately that it was never
+  // gated. This is about IDENTITY (NIDA/passport/etc.) only — level 1 is
+  // enough to pass; whether a given ACTION inside also needs an
+  // approved SellerProfile (level 2) is decided separately, backend-
+  // side, by VerificationService.requireFeature() per endpoint. Staff
+  // (admin/manager) bypass, same as the backend's own shipment gate —
+  // they access these pages administratively, not as a commerce
+  // participant selling their own goods. Known gap: a BusinessTeamMember
+  // (SellerTeam.js — a cashier with e.g. canOperatePOS) is gated on
+  // THEIR OWN identity here, not their verified employer's, unlike the
+  // backend action-level checks (which correctly resolve to the
+  // employer via SellerScopeService). Zero active team members exist in
+  // production as of this fix (confirmed via DB), so this is currently
+  // inert, not a live regression — revisit if team accounts start
+  // getting used and a legitimate unverified staff member gets blocked.
+  const requireVerifiedSeller = (component) => {
+    const token = localStorage.getItem('token');
+    if (!token) return loginPage;
+    const decoded = decodeToken(token);
+    const role = decoded?.role;
+    if (role === 'admin' || role === 'manager') return component;
+    if (identityStatus === null) return null; // brief post-login load; avoid flashing either state
+    if (identityStatus.level === 0) {
+      return (
+        <SellerAccessGate
+          onNavigate={handleNavigate}
+          identityStatus={identityStatus}
+          onVerified={() => setIdentityStatus({ status: 'pending', level: 1 })}
+        />
+      );
+    }
+    return component;
+  };
+
   const renderPage = () => {
     const pageStr = typeof page === 'string' ? page : 'Home';
     if (pageStr !== page) { setPage('Home'); return <HomeFeed {...publicProps} />; }
@@ -655,10 +710,10 @@ function App() {
       case 'Cart':              return <Cart {...publicProps} />;
       case 'BecomeSeller':      return <BecomeSeller {...publicProps} />;
       case 'BecomeSellerInfo':  return <BecomeSellerInfo {...publicProps} />;
-      case 'SellerCustomers':   return requireLogin(<SellerCustomers {...publicProps} />);
+      case 'SellerCustomers':   return requireVerifiedSeller(<SellerCustomers {...publicProps} />);
       case 'AgentEarnings':     return requireLogin(<AgentEarnings {...publicProps} />);
-      case 'SellerPayouts':     return requireLogin(<SellerPayouts {...publicProps} />);
-      case 'SellerWallet':      return requireLogin(<SellerWallet {...publicProps} />);
+      case 'SellerPayouts':     return requireVerifiedSeller(<SellerPayouts {...publicProps} />);
+      case 'SellerWallet':      return requireVerifiedSeller(<SellerWallet {...publicProps} />);
       case 'BecomeAgent':       return <BecomeAgent {...publicProps} />;
       case 'BecomeSuperAgentInfo': return <BecomeSuperAgentInfo {...publicProps} />;
       case 'VerifyReceipt':     return <VerifyReceipt {...publicProps} />;
@@ -667,17 +722,17 @@ function App() {
       case 'MyOrders':          return requireLogin(<MyOrders {...publicProps} />);
       case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} />);
       case 'Checkout':          return requireLogin(<Checkout {...publicProps} />);
-      case 'StoreSettings':     return requireLogin(<StoreSettings {...publicProps} userId={decodeToken(localStorage.getItem('token'))?.sub} />);
-      case 'SellerDashboard':   return requireLogin(<SellerDashboard {...publicProps} />);
+      case 'StoreSettings':     return requireVerifiedSeller(<StoreSettings {...publicProps} userId={decodeToken(localStorage.getItem('token'))?.sub} />);
+      case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
-      case 'SellerProducts':    return requireLogin(<SellerProducts {...publicProps} />);
-      case 'POS':               return requireLogin(<POS {...publicProps} />);
-      case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} />);
-      case 'SellerOrders':      return requireLogin(<SellerOrders {...publicProps} />);
-      case 'SellerShipping':    return requireLogin(<SellerShipping {...publicProps} />);
-      case 'SendShipment':      return requireLogin(<SendShipment {...publicProps} navParams={navParams} />);
-      case 'SellerInvoices':    return requireLogin(<SellerInvoices {...publicProps} preSelected={navParams?.preSelected} />);
+      case 'SellerProducts':    return requireVerifiedSeller(<SellerProducts {...publicProps} />);
+      case 'POS':               return requireVerifiedSeller(<POS {...publicProps} />);
+      case 'SellerClassifieds': return requireVerifiedSeller(<SellerClassifieds {...publicProps} />);
+      case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
+      case 'SellerShipping':    return requireVerifiedSeller(<SellerShipping {...publicProps} />);
+      case 'SendShipment':      return requireVerifiedSeller(<SendShipment {...publicProps} navParams={navParams} />);
+      case 'SellerInvoices':    return requireVerifiedSeller(<SellerInvoices {...publicProps} preSelected={navParams?.preSelected} />);
       case 'AgentDashboard':    return requireLogin(<AgentDashboard {...publicProps} />);
       case 'AgentOrderDashboard': return requireLogin(<AgentDashboard {...publicProps} />); // merged into unified dashboard
       case 'SuperAgentDashboard':   return requireLogin(<SuperAgentDashboard {...publicProps} />);
@@ -687,7 +742,7 @@ function App() {
       case 'OfflineIntercityOrder':  return requireLogin(<OfflineIntercityOrder {...publicProps} />);
       case 'SuperAgentParcel':       return requireLogin(<SuperAgentParcel {...publicProps} />);
       case 'SuperAgentSettings':     return requireLogin(<SuperAgentSettings {...publicProps} />);
-      case 'SellerShipment':         return requireLogin(<SellerShipment {...publicProps} prefill={navParams} />);
+      case 'SellerShipment':         return requireVerifiedSeller(<SellerShipment {...publicProps} prefill={navParams} />);
       case 'VanToday':             return requireLogin(<VanToday {...publicProps} />);
       case 'Dashboard':   return requireAdmin(<Dashboard activePage={page} {...adminProps} />);
       case 'Products':    return requireAdmin(<Products activePage={page} {...adminProps} />);
@@ -725,15 +780,15 @@ function App() {
       case 'TransportProviderSettings': return requireLogin(<TransportProviderSettings {...publicProps} />);
       case 'TransportAdmin':             return requireAdmin(<TransportAdmin onNavigate={handleNavigate} activePage={page} />);
       case 'HubAdmin':                   return requireAdmin(<HubAdmin onNavigate={handleNavigate} activePage={page} />);
-      case 'SellerAnalytics':            return requireLogin(<SellerAnalytics {...publicProps} />);
-      case 'SellerTeam':                 return requireLogin(<SellerTeam {...publicProps} />);
+      case 'SellerAnalytics':            return requireVerifiedSeller(<SellerAnalytics {...publicProps} />);
+      case 'SellerTeam':                 return requireVerifiedSeller(<SellerTeam {...publicProps} />);
       case 'AgentScorecard':             return requireLogin(<AgentScorecard {...publicProps} />);
       case 'Wishlist':                   return requireLogin(<Wishlist {...publicProps} />);
       case 'SellerInbox':                return requireLogin(<SellerInbox {...publicProps} />);
 
       case 'Services':                     return <Services {...publicProps} />;
       case 'PostService':                  return requireLogin(<PostService {...publicProps} />);
-      case 'MyServices':                   return requireLogin(<MyServices {...publicProps} />);
+      case 'MyServices':                   return requireVerifiedSeller(<MyServices {...publicProps} />);
       default: return <HomeFeed {...publicProps} />;
     }
   };

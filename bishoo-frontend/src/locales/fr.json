@@ -2652,6 +2652,14 @@
     "creating_button": "⏳ Création...",
     "create_button": "💵 Créer et assigner au van"
   },
+  "seller_access_gate": {
+    "title": "🪪 Vérifiez votre identité pour continuer",
+    "desc_not_submitted": "Kentexa exige une vérification d'identité avant de pouvoir gérer les ventes, commandes, factures ou expéditions — cela garantit que chaque vendeur sur Kentexa est responsable devant une personne réelle et vérifiée.",
+    "desc_rejected": "Votre précédente soumission d'identité a été rejetée. Veuillez consulter la raison ci-dessous et soumettre à nouveau vos informations.",
+    "rejected_reason": "Raison : {{reason}}",
+    "verify_button": "Vérifier mon identité",
+    "back_button": "← Retour"
+  },
   "role_activation": {
     "page_title": "Ajouter un rôle",
     "eyebrow": "UN COMPTE • PLUSIEURS RÔLES",
