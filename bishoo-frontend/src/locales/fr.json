@@ -1587,6 +1587,7 @@
     "view_product_short": "Voir le Produit",
     "view_service_short": "Voir le Service",
     "ship_this_route": "Expédier sur cet Itinéraire",
+    "view_business_short": "Voir l'Entreprise",
     "view_listing_short": "Voir l'Annonce",
     "looking_for_fallback": "Recherche",
     "i_have_this_button": "🙋 J'ai Ça",
@@ -3210,6 +3211,7 @@
     "loading_items": "Chargement de vos articles...",
     "no_items_msg": "Vous n'avez encore aucun produit, annonce, service ou itinéraire — ajoutez-en un d'abord, puis revenez partager un moment à ce sujet.",
 
+    "type_label_business": "🏢 Mon entreprise",
     "type_label_product": "🛍️ Produits de la boutique",
     "type_label_classified": "🏷️ Annonces",
     "type_label_service": "🔧 Services",

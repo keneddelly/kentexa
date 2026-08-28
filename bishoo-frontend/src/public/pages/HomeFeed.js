@@ -595,6 +595,10 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
       if (bizId) onNavigate(`CommerceProfile-${bizId}-transport`);
       else onNavigate('SendShipment');
     }
+    // Self-tagged Moment (CreateMomentModal.js's "My Business" option) —
+    // entityId here IS a CommerceProfile id, never a classified id, same
+    // fix as ViewMomentModal's goToListing() above.
+    else if (entityType === 'business' && entityId) onNavigate(`CommerceProfile-${entityId}`, bizNavParams);
     else if (entityId) onNavigate(`ClassifiedDetail-${entityId}`);
     else if (bizId)   onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   };
@@ -1229,7 +1233,9 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
   const isLookingFor = moment.postType === 'looking_for';
   const typeLabel = moment.linkedEntityType === 'product' ? t('home_feed.view_product_short')
     : moment.linkedEntityType === 'service' ? t('home_feed.view_service_short')
-    : moment.linkedEntityType === 'route' ? t('home_feed.ship_this_route') : t('home_feed.view_listing_short');
+    : moment.linkedEntityType === 'route' ? t('home_feed.ship_this_route')
+    : moment.linkedEntityType === 'business' ? t('home_feed.view_business_short')
+    : t('home_feed.view_listing_short');
 
   const [showReply,   setShowReply]   = useState(false);
   const [myItems,     setMyItems]     = useState([]);
@@ -1260,6 +1266,12 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
       if (biz.id) onNavigate(`CommerceProfile-${biz.id}-transport`);
       else onNavigate('SendShipment');
     }
+    // Self-tagged to the poster's own identity (CreateMomentModal.js's
+    // always-available "My Business" option, for profile types with
+    // nothing else taggable — e.g. a Super Agent hub) — linkedEntityId IS
+    // the CommerceProfile id here, not a classified id, so this must not
+    // fall into the classified branch below.
+    else if (moment.linkedEntityType === 'business') onNavigate(`CommerceProfile-${moment.linkedEntityId}`);
     else onNavigate(`ClassifiedDetail-${moment.linkedEntityId}`);
   };
 

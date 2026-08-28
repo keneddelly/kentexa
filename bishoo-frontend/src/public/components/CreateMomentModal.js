@@ -38,7 +38,7 @@ const routeTitle = (r, t) => {
   return t('create_moment_modal.my_route_fallback');
 };
 
-const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId }) => {
+const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile }) => {
   const { t } = useTranslation();
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
   const [mode,      setMode]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'selling');
@@ -81,6 +81,24 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       api.get('/transport/routes'),
     ]).then(([cl, pr, sv, rt]) => {
       const items = [];
+      // Always available, for every profile type — a Moment tagged to a
+      // specific product/service/route only ever fit identities that HAVE
+      // one; a Super Agent hub has none of those (no products, no
+      // classifieds, no service ads, no transport routes), so "tag
+      // something" used to hard-block them from ever posting a Selling-
+      // mode Moment at all, even though sharing hub activity to build
+      // reputation is exactly what CLAUDE.md's Super Agent identity
+      // section calls for. Tagging the active profile itself covers that
+      // — and is just as useful for any other identity posting an update
+      // that isn't really about one listing (a new branch, a milestone).
+      if (activeProfileId) {
+        items.push({
+          type: 'business',
+          id: activeProfileId,
+          title: activeProfile?.displayName || currentUser?.storeName || currentUser?.name || t('create_moment_modal.type_label_business'),
+          image: activeProfile?.photoUrl || null,
+        });
+      }
       if (cl.status === 'fulfilled') {
         (cl.value.data || []).forEach(c => items.push({
           type: 'classified', id: c.id, title: c.title, image: c.images?.[0],
@@ -103,7 +121,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
       }
       setMyItems(items);
     }).finally(() => setLoadingItems(false));
-  }, [currentUser?.id, activeProfileId, t]);
+  }, [currentUser?.id, activeProfileId, activeProfile, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePickFile = (e) => {
     const f = e.target.files?.[0];
@@ -259,6 +277,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                     const prevType = myItems[i - 1]?.type;
                     const showHeader = item.type !== prevType;
                     const typeLabel = {
+                      business: t('create_moment_modal.type_label_business'),
                       product: t('create_moment_modal.type_label_product'), classified: t('create_moment_modal.type_label_classified'),
                       service: t('create_moment_modal.type_label_service'), route: t('create_moment_modal.type_label_route'),
                     }[item.type];
@@ -283,7 +302,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
                             justifyContent:'center', fontSize:14 }}>
                             {item.image
                               ? <img src={item.image} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
-                              : (item.type==='product'?'🛍️':item.type==='service'?'🔧':item.type==='route'?'🚌':'🏷️')}
+                              : (item.type==='business'?'🏢':item.type==='product'?'🛍️':item.type==='service'?'🔧':item.type==='route'?'🚌':'🏷️')}
                           </div>
                           <div style={{ fontSize:12, fontWeight:700, color:DK, flex:1,
                             overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>

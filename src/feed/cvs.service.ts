@@ -18,6 +18,18 @@ import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
+
+// Which linkedEntityType values get the "unified comment thread" treatment
+// (a Moment's comments ARE that entity's own comment/review thread, keyed
+// by entityType+entityId with no postId — see getComments()/postComment()
+// below). 'business' (added for the identity-verification-era Super Agent
+// self-tag — CreateMomentModal.js) is deliberately excluded: nothing else
+// in the app reads entityType==='business' comments, so unifying onto it
+// would silently orphan every comment left on a business-tagged Moment
+// (stored with postId:null, invisible everywhere). A business-tagged
+// Moment's comments stay on the plain per-post thread instead, exactly
+// like an untagged Moment or a Looking For post already does.
+const UNIFIED_THREAD_ENTITY_TYPES = new Set(['product', 'classified', 'service', 'route']);
 import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
 import { ProviderStatus } from '../transport/entities/transport-provider.entity';
 import {
@@ -148,7 +160,9 @@ export class CvsService {
     // and vice versa, because it's literally the same rows.
     const post = await this.feedRepo.findOne({ where: { id: postId } });
     const linked =
-      post?.linkedEntityType && post?.linkedEntityId
+      post?.linkedEntityType &&
+      post?.linkedEntityId &&
+      UNIFIED_THREAD_ENTITY_TYPES.has(post.linkedEntityType)
         ? { entityType: post.linkedEntityType, entityId: post.linkedEntityId }
         : null;
 
@@ -404,7 +418,9 @@ export class CvsService {
   async getComments(postId: number): Promise<any[]> {
     const post = await this.feedRepo.findOne({ where: { id: postId } });
     const linked =
-      post?.linkedEntityType && post?.linkedEntityId
+      post?.linkedEntityType &&
+      post?.linkedEntityId &&
+      UNIFIED_THREAD_ENTITY_TYPES.has(post.linkedEntityType)
         ? { entityType: post.linkedEntityType, entityId: post.linkedEntityId }
         : null;
 

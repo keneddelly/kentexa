@@ -866,6 +866,7 @@ function App() {
           currentUser={currentUser}
           initialMode={momentModalMode}
           activeProfileId={activeProfile?.id}
+          activeProfile={activeProfile}
           onClose={() => setShowMomentModal(false)}
           onPosted={() => {
             setMomentRefreshKey(k => k + 1);

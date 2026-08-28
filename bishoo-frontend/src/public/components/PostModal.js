@@ -61,7 +61,13 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
   const ACTIONS_BY_TYPE = {
     personal:            [momentAction, listAction, serviceAction],
     business:            [momentAction, listAction, updateAction, shipmentAction, serviceAction],
-    hub:                 [hubShipmentAction, receiveAction],
+    // CLAUDE.md's own Super Agent identity section explicitly lists
+    // "Moments" alongside city/hub, verification, shipments, reputation —
+    // this was missing entirely, so a hub had no way to share what's
+    // happening at their hub and build reputation the same way a Business
+    // profile can. (Not extended to transport_provider — CLAUDE.md's
+    // Transporter identity list omits Moments, a deliberate distinction.)
+    hub:                 [momentAction, hubShipmentAction, receiveAction],
     transport_provider:  [routeAction],
     agent:                [onlineAction],
     service_provider:    [momentAction, serviceAction],

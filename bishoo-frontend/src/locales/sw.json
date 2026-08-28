@@ -1437,6 +1437,7 @@
     "view_product_short": "Ona Bidhaa",
     "view_service_short": "Ona Service",
     "ship_this_route": "Tuma kwa Njia Hii",
+    "view_business_short": "Ona Biashara",
     "view_listing_short": "Ona Tangazo",
     "looking_for_fallback": "Anatafuta",
     "i_have_this_button": "🙋 Nina Hii",
@@ -3060,6 +3061,7 @@
     "loading_items": "Inapakia bidhaa zako...",
     "no_items_msg": "Bado huna bidhaa, matangazo, huduma, au njia — ongeza moja kwanza, kisha rudi kushiriki Wakati kuhusu hiyo.",
 
+    "type_label_business": "🏢 Biashara Yangu",
     "type_label_product": "🛍️ Bidhaa za Duka",
     "type_label_classified": "🏷️ Matangazo",
     "type_label_service": "🔧 Huduma",

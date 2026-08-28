@@ -1591,6 +1591,7 @@
     "view_product_short": "View Product",
     "view_service_short": "View Service",
     "ship_this_route": "Ship on This Route",
+    "view_business_short": "View Business",
     "view_listing_short": "View Listing",
     "looking_for_fallback": "Looking For",
     "i_have_this_button": "🙋 I Have This",
@@ -3214,6 +3215,7 @@
     "loading_items": "Loading your items...",
     "no_items_msg": "You don't have any products, listings, services, or routes yet — add one first, then come back to share a Moment about it.",
 
+    "type_label_business": "🏢 My Business",
     "type_label_product": "🛍️ Shop Products",
     "type_label_classified": "🏷️ Listings",
     "type_label_service": "🔧 Services",
