@@ -5,9 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToOne,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Classified } from './classified.entity';
+import { Order } from '../../orders/entities/order.entity';
 
 export enum ClassifiedInvoiceStatus {
   PENDING = 'pending',
@@ -112,8 +115,31 @@ export class ClassifiedInvoiceRequest {
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
   sellerAmount: number | null;
 
+  // Legacy plain int, kept untouched — see order.entity.ts's matching
+  // comment on classifiedInvoiceId for why (synchronize:true risk on
+  // converting an already-populated int column into a hard FK). The `order`
+  // relation below is the real link new code should use.
   @Column({ type: 'int', nullable: true })
   linkedOrderId: number | null;
+
+  @OneToOne(() => Order, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'orderRefId' })
+  order: Order | null;
+
+  // ── Shipment method detail — the seller's "Set Shipping" modal already
+  // collects these for bus/courier methods, but until now the backend had
+  // nowhere to persist them and silently dropped every value.
+  @Column({ type: 'varchar', nullable: true })
+  busCompany: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  busTicketNumber: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  courierName: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  courierTrackingRef: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

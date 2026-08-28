@@ -15,8 +15,15 @@ describe('PaymentsService', () => {
   let airtelService: any;
   let selcomService: any;
   let mockAgentService: any;
+  let clickPesaService: any;
   let notificationsService: any;
   let invoicesService: any;
+  let activityEvents: any;
+  let commerceProfiles: any;
+  let walletService: any;
+  let reputationService: any;
+  let conversationService: any;
+  let businessCustomerService: any;
 
   const originalNodeEnv = process.env.NODE_ENV;
 
@@ -30,15 +37,27 @@ describe('PaymentsService', () => {
     payoutRepo = { findOne: jest.fn(), save: jest.fn() };
     orderRepo = { findOne: jest.fn(), update: jest.fn() };
     invoiceRepo = { findOne: jest.fn() };
-    classifiedInvoiceRepo = { findOne: jest.fn() };
+    classifiedInvoiceRepo = { findOne: jest.fn(), update: jest.fn() };
     agentRepo = { findOne: jest.fn() };
     agentTransactionRepo = { findOne: jest.fn(), save: jest.fn(), create: jest.fn() };
     vodacomService = { initiatePayment: jest.fn(), parseCallback: jest.fn() };
     airtelService = { initiatePayment: jest.fn(), parseCallback: jest.fn() };
     selcomService = { initiatePayment: jest.fn(), parseCallback: jest.fn() };
     mockAgentService = { initiatePayment: jest.fn(), parseCallback: jest.fn() };
-    notificationsService = { orderPaid: jest.fn() };
-    invoicesService = {};
+    // Was previously missing from this constructor call entirely — every
+    // param below actually landed one slot early (this mock ended up bound
+    // as clickPesaService, invoicesService as notificationsService, etc.),
+    // so any test touching a service past mockAgentService was silently
+    // exercising the wrong mock.
+    clickPesaService = { initiatePayment: jest.fn(), parseCallback: jest.fn() };
+    notificationsService = { orderPaid: jest.fn(), classifiedInvoicePaid: jest.fn() };
+    invoicesService = { findByOrderId: jest.fn(async () => null) };
+    activityEvents = { record: jest.fn() };
+    commerceProfiles = { findForUserByType: jest.fn(async () => null) };
+    walletService = {};
+    reputationService = {};
+    conversationService = {};
+    businessCustomerService = { findOrCreateForChat: jest.fn(async () => null) };
 
     service = new PaymentsService(
       paymentRepo,
@@ -52,8 +71,15 @@ describe('PaymentsService', () => {
       airtelService,
       selcomService,
       mockAgentService,
+      clickPesaService,
       notificationsService,
       invoicesService,
+      activityEvents,
+      commerceProfiles,
+      walletService,
+      reputationService,
+      conversationService,
+      businessCustomerService,
     );
   });
 
@@ -172,6 +198,63 @@ describe('PaymentsService', () => {
         ),
       ).rejects.toThrow(BadRequestException);
       expect(selcomService.initiatePayment).not.toHaveBeenCalled();
+    });
+  });
+
+  // Regression: handleCallback() — the webhook route Airtel/Vodacom actually
+  // call — never checked payment.metadata at all, so a classified/manual
+  // invoice paid directly by a buyer via real mobile money never flipped to
+  // PAID; only the separately-routed agentPaymentCallback() did. See
+  // plans/mutable-meandering-dongarra.md.
+  describe('handleCallback() classified/manual invoice branch', () => {
+    it('marks a classified invoice PAID when the payment has no linked order', async () => {
+      selcomService.parseCallback.mockReturnValue({
+        providerRequestId: 'req-3',
+        success: true,
+        providerReference: 'ref-3',
+      });
+      paymentRepo.findOne.mockResolvedValue({
+        providerRequestId: 'req-3',
+        status: PaymentStatus.PENDING,
+        order: null,
+        metadata: JSON.stringify({ invoiceType: 'classified', invoiceNumber: 'INV-9' }),
+      });
+      classifiedInvoiceRepo.findOne.mockResolvedValue({
+        invoiceNumber: 'INV-9',
+        amount: 50000,
+        buyerMessage: 'Name: Amina | Phone: 255700000000',
+        buyer: { email: 'a@x.com', phone: '255700000000', name: 'Amina' },
+        seller: { email: 's@x.com', phone: '255711111111', name: 'Seller' },
+      });
+      process.env.NODE_ENV = 'production';
+
+      const result = await service.handleCallback({}, 'selcom');
+
+      expect(result).toEqual({ message: 'OK' });
+      expect(classifiedInvoiceRepo.update).toHaveBeenCalledWith(
+        { invoiceNumber: 'INV-9' },
+        expect.objectContaining({ status: 'paid', transactionReference: 'ref-3' }),
+      );
+      expect(notificationsService.classifiedInvoicePaid).toHaveBeenCalled();
+    });
+
+    it('does nothing for a payment with no order and no classified/manual metadata', async () => {
+      selcomService.parseCallback.mockReturnValue({
+        providerRequestId: 'req-4',
+        success: true,
+      });
+      paymentRepo.findOne.mockResolvedValue({
+        providerRequestId: 'req-4',
+        status: PaymentStatus.PENDING,
+        order: null,
+        metadata: null,
+      });
+      process.env.NODE_ENV = 'production';
+
+      const result = await service.handleCallback({}, 'selcom');
+
+      expect(result).toEqual({ message: 'OK' });
+      expect(classifiedInvoiceRepo.update).not.toHaveBeenCalled();
     });
   });
 });

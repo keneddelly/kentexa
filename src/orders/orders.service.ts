@@ -38,6 +38,8 @@ import { TransportAssignment } from '../transport/entities/transport-assignment.
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { ClassifiedInvoiceRequest } from '../classifieds/entities/classified-invoice-request.entity';
+import { Classified, ClassifiedStatus } from '../classifieds/entities/classified.entity';
 
 const CATEGORY_COMMISSION: Record<string, number> = {
   electronics: 10,
@@ -131,6 +133,10 @@ export class OrdersService {
     private transportAssignmentRepo: Repository<TransportAssignment>,
     @InjectRepository(TransportProvider)
     private transportProviderRepo: Repository<TransportProvider>,
+    @InjectRepository(ClassifiedInvoiceRequest)
+    private classifiedInvoiceRepo: Repository<ClassifiedInvoiceRequest>,
+    @InjectRepository(Classified)
+    private classifiedRepo: Repository<Classified>,
     private productsService: ProductsService,
     private invoicesService: InvoicesService,
     private notificationsService: NotificationsService,
@@ -146,6 +152,30 @@ export class OrdersService {
     private profileScope: CommerceProfileScopeService,
     private activityEvents: ActivityEventService,
   ) {}
+
+  // If this order was created from a paid Manual Classified Invoice
+  // (classifieds.service.ts setShippingMethod()) and just completed, the
+  // listing has now actually sold — move it out of ACTIVE so it stops
+  // showing as available. Called from every OrderStatus.COMPLETED write
+  // site below (buyerConfirm, confirmViaToken, autoConfirmDeliveredOrders,
+  // resolveDispute's seller-favor branch) since there's no single shared
+  // "order completed" choke point among them. A no-op for every other
+  // order type (find returns null immediately).
+  private async markClassifiedSoldIfLinked(orderId: number): Promise<void> {
+    try {
+      const invoice = await this.classifiedInvoiceRepo.findOne({
+        where: { order: { id: orderId } },
+        relations: { classified: true },
+      });
+      if (!invoice?.classified) return;
+      if (invoice.classified.status !== ClassifiedStatus.ACTIVE) return;
+      await this.classifiedRepo.update(invoice.classified.id, {
+        status: ClassifiedStatus.SOLD,
+      });
+    } catch (e) {
+      console.error('markClassifiedSoldIfLinked failed:', e.message);
+    }
+  }
 
   // ── Create Order ──────────────────────────────────────────────────────────
   async create(dto: CreateOrderDto, user: User) {
@@ -1077,6 +1107,7 @@ export class OrdersService {
       escrowStatus: EscrowStatus.RELEASED,
       fundsReleasedAt: new Date(),
     });
+    await this.markClassifiedSoldIfLinked(orderId);
     const completedSellerProfile = order.seller
       ? await this.commerceProfiles
           .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)
@@ -1648,6 +1679,7 @@ export class OrdersService {
             }
           : {}),
       });
+      await this.markClassifiedSoldIfLinked(order.id);
 
       await this.syncParcelDeliveredForOrder(order);
 
@@ -1849,6 +1881,7 @@ export class OrdersService {
           escrowStatus: EscrowStatus.RELEASED,
           fundsReleasedAt: now,
         });
+        await this.markClassifiedSoldIfLinked(order.id);
 
         if (order.seller?.id) {
           await this.walletService
@@ -1941,6 +1974,7 @@ export class OrdersService {
       buyerConfirmedAt: new Date(),
       fundsReleasedAt: isSeller ? new Date() : null,
     });
+    if (isSeller) await this.markClassifiedSoldIfLinked(orderId);
 
     // A dispute resolved in the seller's favour is a real completion too —
     // was never reflected in the seller's completedOrders/rating.

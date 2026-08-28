@@ -132,13 +132,24 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
     } finally { setCreatingManual(false); }
   };
 
-  // ── Shipping handler — now creates a real KenteXa order with tracking ─────
+  // ── Shipping handler — creates a real KenteXa order + Parcel with tracking,
+  // or (for buyer_pickup) nothing at all. shippingNote may be a plain string
+  // or, once bus/courier detail fields are touched, an object — previously
+  // this called .trim() on it unconditionally, which throws once it becomes
+  // an object, silently dropping the bus/courier details it was meant to
+  // send. Now sends them as their own real fields the backend now accepts.
   const handleSubmitShipping = async () => {
     if (!shippingMethod) { setError(t('seller_invoices.shipping_method_required')); return; }
+    const noteIsObject = typeof shippingNote === 'object' && shippingNote !== null;
     try {
       setSubmittingShipping(true); setError('');
       const res = await api.patch(`/classifieds/invoices/${shippingInvoice.id}/shipping`, {
-        shippingMethod, notes: shippingNote.trim(),
+        shippingMethod,
+        notes: (noteIsObject ? shippingNote.notes || '' : shippingNote).trim(),
+        busCompany: noteIsObject ? shippingNote.busCompany || undefined : undefined,
+        busTicketNumber: noteIsObject ? shippingNote.busTicketNumber || undefined : undefined,
+        courierName: noteIsObject ? shippingNote.courierName || undefined : undefined,
+        courierTrackingRef: noteIsObject ? shippingNote.courierRef || undefined : undefined,
       });
       const orderId        = res.data?.orderId;
       const trackingNumber = res.data?.trackingNumber;
@@ -301,9 +312,11 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
             const parsedName  = msgParts.find(p => p.startsWith('Name:'))?.replace('Name: ', '')   || req.buyerName  || '—';
             const parsedPhone = msgParts.find(p => p.startsWith('Phone:'))?.replace('Phone: ', '') || req.buyerPhone || '—';
             const isPaid = req.status === 'paid';
-            const needsShipping = isPaid && !req.shippingMethod;
-            // Derive tracking number from linkedOrderId if available
-            const trackingNum = req.trackingNumber || (req.linkedOrderId ? `KTX-ORD-${req.linkedOrderId}` : null);
+            // req.shipment is the backend's own authoritative shipment
+            // summary (set on every paid invoice) — needsShipping only until
+            // a method has actually been chosen; buyer_pickup never needs one.
+            const needsShipping = isPaid && !req.shipment?.shippingMethod;
+            const trackingNum = req.shipment?.trackingNumber || null;
 
             return (
               <div key={req.id} style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 10, border: needsShipping ? '2px solid #f97316' : '1px solid #f1f5f9' }}>
@@ -352,16 +365,20 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                   </div>
                 )}
 
-                {/* ── PAID with shipping set — show tracking ── */}
-                {isPaid && req.shippingMethod && (
+                {/* ── PAID with shipping set — show real status, not a re-offer
+                    of "Set Shipping" (nothing left to do here for a method
+                    that already has a shipment or needs none at all). ── */}
+                {isPaid && req.shipment?.shippingMethod && (
                   <div style={{ backgroundColor: '#dcfce7', borderRadius: 10, padding: 10, marginBottom: 8, fontSize: 12 }}>
                     <div style={{ fontWeight: 700, color: '#16a34a', marginBottom: 2 }}>
-                      {t('seller_invoices.paid_label')} · {req.shippingMethod === 'agent' ? t('seller_invoices.paid_via_agent') : t('seller_invoices.paid_direct_delivery')}
+                      {t('seller_invoices.paid_label')} · {req.shipment.shippingMethod === 'agent' ? t('seller_invoices.paid_via_agent') : req.shipment.shippingMethod === 'buyer_pickup' ? t('seller_invoices.method_buyer_pickup') : t('seller_invoices.paid_direct_delivery')}
                     </div>
                     <div style={{ color: '#166534' }}>
-                      {trackingNum
-                        ? t('seller_invoices.tracking_awaiting', { tracking: trackingNum })
-                        : t('seller_invoices.awaiting_confirmation')}
+                      {!req.shipment.requiresShipment
+                        ? t('seller_invoices.method_buyer_pickup_desc')
+                        : trackingNum
+                          ? `${t('seller_invoices.tracking_awaiting', { tracking: trackingNum })}${req.shipment.orderStatus ? ` · ${req.shipment.orderStatus}` : ''}`
+                          : t('seller_invoices.awaiting_confirmation')}
                     </div>
                   </div>
                 )}
@@ -486,6 +503,13 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                     title: t('seller_invoices.method_direct'),
                     desc:  t('seller_invoices.method_direct_desc'),
                     color: '#64748b', bg: '#f8fafc', border: '#e2e8f0',
+                  },
+                  {
+                    key:   'buyer_pickup',
+                    icon:  '🏠',
+                    title: t('seller_invoices.method_buyer_pickup'),
+                    desc:  t('seller_invoices.method_buyer_pickup_desc'),
+                    color: '#0891b2', bg: '#ecfeff', border: '#a5f3fc',
                   },
               ].map(opt => (
                 <div key={opt.key} onClick={() => setShippingMethod(opt.key)}

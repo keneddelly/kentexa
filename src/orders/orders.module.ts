@@ -24,6 +24,8 @@ import { TransportAssignment } from '../transport/entities/transport-assignment.
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { ActivityModule } from '../activity/activity.module';
 import { IdentityModule } from '../identity/identity.module';
+import { ClassifiedInvoiceRequest } from '../classifieds/entities/classified-invoice-request.entity';
+import { Classified } from '../classifieds/entities/classified.entity';
 
 @Module({
   imports: [
@@ -39,6 +41,12 @@ import { IdentityModule } from '../identity/identity.module';
       Review,
       TransportAssignment,
       TransportProvider,
+      // Repo-only (not importing ClassifiedsModule, which already imports
+      // OrdersModule — would be circular) — same pattern SuperAgentsModule
+      // already uses for Order/Payment/Sale. Lets markClassifiedSoldIfLinked()
+      // trace a completed order back to its originating classified listing.
+      ClassifiedInvoiceRequest,
+      Classified,
     ]),
     ProductsModule,
     InvoicesModule,

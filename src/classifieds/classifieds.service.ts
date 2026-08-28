@@ -19,6 +19,7 @@ import {
   OrderStatus,
   PaymentStatus,
   EscrowStatus,
+  OrderSource,
 } from '../orders/entities/order.entity';
 import { CreateClassifiedDto } from './dto/create-classified.dto';
 import { updateClassifiedDto } from './dto/update-classified.dto';
@@ -31,6 +32,7 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { SearchIndexService } from '../search/search-index.service';
 import { FRONTEND_URL } from '../config/urls.config';
 import { validateAttributes } from '../categories/categories.data';
+import { SuperAgentsService } from '../super-agents/super-agents.service';
 
 @Injectable()
 export class ClassifiedsService {
@@ -53,6 +55,7 @@ export class ClassifiedsService {
     private readonly commerceProfiles: CommerceProfilesService,
     private readonly profileScope: CommerceProfileScopeService,
     private readonly searchIndex: SearchIndexService,
+    private readonly superAgents: SuperAgentsService,
   ) {}
 
   // ─── Create listing ───────────────────────────────────────────────────────
@@ -144,13 +147,19 @@ export class ClassifiedsService {
   // (invoices/my-requests, invoices/seller-requests) but nothing showed
   // these to admin at all — the admin Invoices page only ever queried the
   // Order-backed Invoice table, never ClassifiedInvoiceRequest.
-  async findAllInvoiceRequestsAdmin(
-    status?: string,
-  ): Promise<ClassifiedInvoiceRequest[]> {
-    return this.invoiceRequestRepo.find({
+  // Admin audit-trail view — full Classified → Invoice → Payment → Shipment
+  // chain in one response, so a dispute/refund/support lookup never needs
+  // to hop between separate admin pages to trace one transaction.
+  async findAllInvoiceRequestsAdmin(status?: string) {
+    const requests = await this.invoiceRequestRepo.find({
       where: status ? { status: status as any } : {},
       order: { createdAt: 'DESC' },
+      relations: { classified: true, buyer: true, seller: true, order: true },
     });
+    return requests.map((r) => ({
+      ...r,
+      shipment: r.status === ClassifiedInvoiceStatus.PAID ? this.shipmentSummary(r) : null,
+    }));
   }
 
   async findAll(category?: string, location?: string, attributes?: Record<string, string> | null) {
@@ -578,12 +587,29 @@ export class ClassifiedsService {
     };
   }
 
+  // Shared shipment summary shape — used by getMyInvoiceRequests(),
+  // getSellerInvoiceRequests(), and findAllInvoiceRequestsAdmin() so the
+  // buyer/seller/admin views all agree on what "shipment status" means for
+  // a classified invoice, instead of each re-deriving it differently.
+  private shipmentSummary(r: ClassifiedInvoiceRequest) {
+    return {
+      requiresShipment: r.shippingMethod !== ClassifiedsService.NO_SHIPMENT_METHOD,
+      shippingMethod: r.shippingMethod,
+      orderId: r.order?.id ?? null,
+      orderStatus: r.order?.status ?? null,
+      trackingNumber: r.order?.trackingNumber ?? null,
+      trackingUrl: r.order?.trackingNumber
+        ? `${FRONTEND_URL}/?track=${r.order.trackingNumber}`
+        : null,
+    };
+  }
+
   // ─── Buyer: Get my invoice requests ───────────────────────────────────────
   async getMyInvoiceRequests(user: User) {
     const requests = await this.invoiceRequestRepo.find({
       where: { buyer: { id: user.id } },
       order: { createdAt: 'DESC' },
-      relations: { classified: true, seller: true },
+      relations: { classified: true, seller: true, order: true },
     });
     return requests.map((r) => ({
       id: r.id,
@@ -600,6 +626,7 @@ export class ClassifiedsService {
       paidAt: r.paidAt,
       paymentMethod: r.paymentMethod,
       createdAt: r.createdAt,
+      shipment: r.status === ClassifiedInvoiceStatus.PAID ? this.shipmentSummary(r) : null,
     }));
   }
 
@@ -608,7 +635,7 @@ export class ClassifiedsService {
     const requests = await this.invoiceRequestRepo.find({
       where: { seller: { id: user.id } },
       order: { createdAt: 'DESC' },
-      relations: { classified: true, buyer: true },
+      relations: { classified: true, buyer: true, order: true },
     });
     return requests.map((r) => ({
       id: r.id,
@@ -624,6 +651,7 @@ export class ClassifiedsService {
       status: r.status,
       dueDate: r.dueDate,
       createdAt: r.createdAt,
+      shipment: r.status === ClassifiedInvoiceStatus.PAID ? this.shipmentSummary(r) : null,
     }));
   }
 
@@ -678,13 +706,22 @@ export class ClassifiedsService {
   }
 
   // ─── Universal Invoice Lookup ─────────────────────────────────────────────
-  async getInvoiceByNumber(invoiceNumber: string) {
+  // Requires the requester to actually be a party to this invoice (buyer,
+  // seller, or admin) — invoice numbers are sequential, so without this
+  // check any logged-in user could read another buyer's/seller's contact
+  // info just by guessing a number.
+  async getInvoiceByNumber(invoiceNumber: string, user: User) {
     const classifiedInvoice = await this.invoiceRequestRepo.findOne({
       where: { invoiceNumber },
       relations: { classified: true, buyer: true, seller: true },
     });
 
     if (classifiedInvoice) {
+      const isParty =
+        user.role === UserRole.ADMIN ||
+        classifiedInvoice.buyer?.id === user.id ||
+        classifiedInvoice.seller?.id === user.id;
+      if (!isParty) throw new ForbiddenException('Not your invoice');
       if (classifiedInvoice.status === ClassifiedInvoiceStatus.CANCELLED) {
         throw new BadRequestException('This invoice has been cancelled');
       }
@@ -729,6 +766,12 @@ export class ClassifiedsService {
     });
 
     if (orderInvoice) {
+      const isParty =
+        user.role === UserRole.ADMIN ||
+        orderInvoice.buyer?.id === user.id ||
+        orderInvoice.order?.buyer?.id === user.id ||
+        orderInvoice.order?.seller?.id === user.id;
+      if (!isParty) throw new ForbiddenException('Not your invoice');
       if (orderInvoice.status === InvoiceStatus.CANCELLED)
         throw new BadRequestException('This invoice has been cancelled');
       if (orderInvoice.status === InvoiceStatus.EXPIRED)
@@ -760,15 +803,29 @@ export class ClassifiedsService {
     throw new NotFoundException('Invoice not found');
   }
 
-  // ─── Set shipping method after payment — creates a real Order ────────────
+  // Not reusing Order.DeliveryMethod.DIRECT's string 'direct' — that already
+  // means "seller delivers directly, not via the agent network," a
+  // different concept from "buyer collects it themselves, no shipment at
+  // all needed." Kept as its own recognized value on ClassifiedInvoiceRequest.shippingMethod.
+  private static readonly NO_SHIPMENT_METHOD = 'buyer_pickup';
+
+  // ─── Set shipping method after payment — creates a real Order + Parcel ───
+  // for every method except buyer_pickup, which needs neither.
   async setShippingMethod(
     requestId: number,
     seller: User,
-    data: { shippingMethod: string; notes?: string },
+    data: {
+      shippingMethod: string;
+      notes?: string;
+      busCompany?: string;
+      busTicketNumber?: string;
+      courierName?: string;
+      courierTrackingRef?: string;
+    },
   ) {
     const request = await this.invoiceRequestRepo.findOne({
       where: { id: requestId },
-      relations: { seller: true, buyer: true, classified: true },
+      relations: { seller: true, buyer: true, classified: true, order: true },
     });
     if (!request) throw new NotFoundException('Invoice not found');
     if (request.seller?.id !== seller.id)
@@ -776,12 +833,36 @@ export class ClassifiedsService {
     if (request.status !== ClassifiedInvoiceStatus.PAID)
       throw new BadRequestException('Invoice must be paid first');
 
+    // Idempotency — a second tap (network retry, double-click) must not
+    // create a second Order/Parcel. Once a shipment exists for this
+    // invoice, just return its current state instead of erroring or
+    // silently duplicating it.
+    if (request.order) {
+      const existingOrder = request.order;
+      return {
+        success: true,
+        requiresShipment: true,
+        shippingMethod: request.shippingMethod,
+        orderId: existingOrder.id,
+        orderStatus: existingOrder.status,
+        trackingNumber: existingOrder.trackingNumber,
+        trackingUrl: existingOrder.trackingNumber
+          ? `${FRONTEND_URL}/?track=${existingOrder.trackingNumber}`
+          : null,
+        amount: Number(request.amount || 0),
+        platformFee: request.platformFee,
+        sellerAmount: request.sellerAmount,
+        message: 'Shipment already created for this invoice.',
+      };
+    }
+
     // ✅ Calculate commission — 10% platform fee on amount
     const amount = Number(request.amount || 0);
     const platformFee = parseFloat((amount * 0.1).toFixed(2));
     const sellerAmt = parseFloat((amount - platformFee).toFixed(2));
 
-    // Parse buyer details from buyerMessage
+    // Parse buyer details from buyerMessage — the system's actual
+    // structured-buyer-identity storage today (see requestInvoice()).
     const msgParts = (request.buyerMessage || '').split(' | ');
     const buyerName =
       msgParts.find((p) => p.startsWith('Name:'))?.replace('Name: ', '') ||
@@ -792,129 +873,129 @@ export class ClassifiedsService {
       request.buyer?.phone ||
       '';
     const buyerAddr =
+      request.deliveryAddress ||
       msgParts
         .find((p) => p.startsWith('Address:'))
-        ?.replace('Address: ', '') || '';
+        ?.replace('Address: ', '') ||
+      '';
 
-    // ✅ Create a real Order so the full KenteXa tracking flow kicks in
-    // This links classified invoice payment → normal order → tracking → payout
-    let orderId: number | null = null;
-    try {
-      const order = this.orderRepo.create({
-        buyer: request.buyer || null,
-        seller: seller,
-        quantity: 1,
-        // No catalog Product exists for a classified — SellerOrders.js and
-        // other seller-facing views already fall back to manualProductName
-        // for offline-style orders, so give it the classified's own title
-        // instead of leaving it blank.
-        manualProductName: request.classified?.title || null,
-        totalAmount: amount,
-        baseAmount: amount,
-        deliveryFeeAmount: 0,
-        platformFeePercent: 10,
-        platformFeeAmount: platformFee,
-        agentCommissionAmount: 0,
-        sellerAmount: sellerAmt,
-        deliveryAddress: buyerAddr || 'As agreed with seller',
-        phone: buyerPhone,
-        recipientName: buyerName,
-        shippingMethod: data.shippingMethod,
-        shippingNote: data.notes || null,
-        status: OrderStatus.PAID, // Already paid
-        paymentStatus: PaymentStatus.PAID,
-        escrowStatus: EscrowStatus.HOLDING,
-        payoutStatus: 'pending',
-        // Link back to the classified invoice
-        classifiedInvoiceId: requestId,
-      });
-
-      const savedOrder = (await this.orderRepo.save(order)) as unknown as Order;
-      orderId = savedOrder.id;
-
-      // ── Assign tracking number immediately so buyer can track ──────────────
-      const trackingNumber = `KTX-ORD-${savedOrder.id}`;
-      await this.orderRepo.update(savedOrder.id, { trackingNumber });
-
-      // ── Create initial tracking event ──────────────────────────────────────
-      // This ensures TrackParcel shows the full history from day one
-      try {
-        await this.dataSource.query(
-          `INSERT INTO parcel_tracking (status, city, note, "updatedBy", "parcelId", "createdAt")
-           VALUES ($1, $2, $3, $4, NULL, NOW())`,
-          [
-            'paid',
-            (seller as any).city || 'Tanzania',
-            `Agizo limeundwa kupitia ankara ya KenteXa. Muuzaji atawasiliana nawe kwa maelezo ya utoaji.`,
-            seller.name || 'KenteXa',
-          ],
-        );
-      } catch {
-        /* non-fatal */
-      }
-
-      // Generate invoice for the order
-      try {
-        await this.invoicesService.createForOrder(savedOrder);
-      } catch (e) {
-        console.error('Order invoice creation failed:', e.message);
-      }
-
-      // Return tracking number so seller can share it with buyer
-      orderId = savedOrder.id;
-
-      // Still proceed — just won't have order tracking
-    } catch (e) {
-      console.error(
-        'Order creation from classified invoice failed:',
-        e.message,
-      );
-    }
-
-    // Update the invoice request
     request.shippingMethod = data.shippingMethod;
     if (data.notes) request.sellerNotes = data.notes;
+    request.busCompany = data.busCompany || null;
+    request.busTicketNumber = data.busTicketNumber || null;
+    request.courierName = data.courierName || null;
+    request.courierTrackingRef = data.courierTrackingRef || null;
     request.platformFee = platformFee;
     request.sellerAmount = sellerAmt;
-    request.linkedOrderId = orderId;
+
+    // Buyer collection — no shipment needed at all, per the invoice's own
+    // chosen delivery method. Nothing downstream (Order/Parcel) is created.
+    if (data.shippingMethod === ClassifiedsService.NO_SHIPMENT_METHOD) {
+      await this.invoiceRequestRepo.save(request);
+      return {
+        success: true,
+        requiresShipment: false,
+        shippingMethod: data.shippingMethod,
+        orderId: null,
+        trackingNumber: null,
+        amount,
+        platformFee,
+        sellerAmount: sellerAmt,
+        message: 'Buyer will collect the item — no shipment needed.',
+      };
+    }
+
+    // ✅ Create a real Order so the full KenteXa tracking flow kicks in —
+    // this links classified invoice payment → normal order → tracking → payout.
+    const order = this.orderRepo.create({
+      buyer: request.buyer || null,
+      seller: seller,
+      quantity: 1,
+      // No catalog Product exists for a classified — SellerOrders.js and
+      // other seller-facing views already fall back to manualProductName
+      // for offline-style orders, so give it the classified's own title
+      // instead of leaving it blank.
+      manualProductName: request.classified?.title || null,
+      totalAmount: amount,
+      baseAmount: amount,
+      deliveryFeeAmount: 0,
+      platformFeePercent: 10,
+      platformFeeAmount: platformFee,
+      agentCommissionAmount: 0,
+      sellerAmount: sellerAmt,
+      deliveryAddress: buyerAddr || 'As agreed with seller',
+      phone: buyerPhone,
+      recipientName: buyerName,
+      shippingMethod: data.shippingMethod,
+      shippingNote: data.notes || null,
+      status: OrderStatus.PAID, // Already paid
+      paymentStatus: PaymentStatus.PAID,
+      escrowStatus: EscrowStatus.HOLDING,
+      payoutStatus: 'pending',
+      source: OrderSource.CLASSIFIED_INVOICE,
+      // Legacy loose int, kept for backward compat — the real relation
+      // (classifiedInvoiceRequest) is set right below.
+      classifiedInvoiceId: requestId,
+      classifiedInvoiceRequest: request,
+    });
+
+    const savedOrder = (await this.orderRepo.save(order)) as unknown as Order;
+
+    const trackingNumber = `KTX-ORD-${savedOrder.id}`;
+    await this.orderRepo.update(savedOrder.id, { trackingNumber });
+    savedOrder.trackingNumber = trackingNumber;
+
+    // ✅ Real Parcel + tracking-history row — replaces the previous raw SQL
+    // insert into parcel_tracking with a NULL parcelId (an orphaned row
+    // that violated ParcelTracking's own non-nullable FK invariant).
+    try {
+      await this.superAgents.createParcelForClassifiedInvoice(
+        savedOrder,
+        seller,
+        request.buyer || null,
+        {
+          classifiedId: request.classified?.id || null,
+          classifiedInvoiceId: requestId,
+          description: request.classified?.title || request.invoiceDescription || 'Bidhaa',
+          recipientName: buyerName,
+          recipientPhone: buyerPhone,
+          deliveryAddress: buyerAddr || 'As agreed with seller',
+          originCity: (seller as any).city || 'Tanzania',
+          destinationCity: request.regionName || request.districtName || 'Tanzania',
+          transportMethod: data.shippingMethod,
+          busCompany: data.busCompany,
+          busTicketNumber: data.busTicketNumber,
+          courierName: data.courierName,
+          courierTrackingRef: data.courierTrackingRef,
+        },
+      );
+    } catch (e) {
+      console.error('Parcel creation from classified invoice failed:', e.message);
+    }
+
+    // Generate invoice for the order
+    try {
+      await this.invoicesService.createForOrder(savedOrder);
+    } catch (e) {
+      console.error('Order invoice creation failed:', e.message);
+    }
+
+    request.linkedOrderId = savedOrder.id;
+    request.order = savedOrder;
     await this.invoiceRequestRepo.save(request);
 
     return {
       success: true,
+      requiresShipment: true,
       shippingMethod: data.shippingMethod,
-      orderId,
-      trackingNumber: orderId ? `KTX-ORD-${orderId}` : null,
-      trackingUrl: orderId
-        ? `${FRONTEND_URL}/?track=KTX-ORD-${orderId}`
-        : null,
+      orderId: savedOrder.id,
+      trackingNumber,
+      trackingUrl: `${FRONTEND_URL}/?track=${trackingNumber}`,
       amount,
       platformFee,
       sellerAmount: sellerAmt,
-      message: orderId
-        ? `Agizo #${orderId} limeundwa. Namba ya kufuatilia: KTX-ORD-${orderId}. Tuma kiungo hiki kwa mnunuzi: ${FRONTEND_URL}/?track=KTX-ORD-${orderId}`
-        : `Njia ya utoaji imewekwa. TZS ${sellerAmt.toLocaleString()} itatolewa baada ya mteja kuthibitisha.`,
+      message: `Agizo #${savedOrder.id} limeundwa. Namba ya kufuatilia: ${trackingNumber}. Tuma kiungo hiki kwa mnunuzi: ${FRONTEND_URL}/?track=${trackingNumber}`,
     };
   }
 
-  // ─── Mark invoice paid ────────────────────────────────────────────────────
-  async markInvoicePaid(
-    invoiceNumber: string,
-    paymentMethod: string,
-    transactionReference: string,
-  ) {
-    const request = await this.invoiceRequestRepo.findOne({
-      where: { invoiceNumber },
-    });
-    if (!request) throw new NotFoundException('Invoice not found');
-    if (request.status === ClassifiedInvoiceStatus.PAID)
-      throw new BadRequestException('Already paid');
-
-    request.status = ClassifiedInvoiceStatus.PAID;
-    request.paidAt = new Date();
-    request.paymentMethod = paymentMethod;
-    request.transactionReference = transactionReference;
-    await this.invoiceRequestRepo.save(request);
-
-    return { success: true, invoiceNumber, message: 'Payment confirmed' };
-  }
 }

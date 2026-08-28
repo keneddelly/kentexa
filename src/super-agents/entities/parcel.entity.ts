@@ -204,6 +204,15 @@ export class Parcel {
   @Column({ type: 'int', nullable: true })
   saleId: number | null;
 
+  // Set when source = 'classified_invoice': this parcel fulfils a paid
+  // Manual Classified Invoice (classifieds.service.ts setShippingMethod()).
+  // Plain nullable id, same pattern as classifiedId/saleId above — the
+  // invoice already lives on the linked `order` relation via
+  // Order.classifiedInvoiceRequest, but this avoids a double hop through
+  // Order for direct admin/audit/buyer lookups.
+  @Column({ type: 'int', nullable: true })
+  classifiedInvoiceId: number | null;
+
   // Transport method seller chose
   @Column({ type: 'varchar', nullable: true })
   transportMethod: string | null; // 'super_agent' | 'bus' | 'courier' | 'boda'
@@ -261,7 +270,7 @@ export class Parcel {
 
   // Source of parcel
   @Column({ type: 'varchar', default: 'super_agent' })
-  source: string; // 'super_agent' | 'seller_shipment' | 'online_order'────────────────────────────────────────────────────
+  source: string; // 'super_agent' | 'seller_shipment' | 'online_order' | 'shipment' | 'classified_invoice'
   @Column({ type: 'varchar', nullable: true })
   parcelPhoto: string | null; // Photo taken by super agent at handover
 

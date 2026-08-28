@@ -656,6 +656,29 @@ export class PaymentsService {
       await this.paymentRepo.save(payment);
       if (payment.order) {
         await this.autoConfirmOrder(payment.order.id);
+      } else {
+        // This is the webhook route Airtel/Vodacom actually call (see
+        // AIRTEL_CALLBACK_URL/VODACOM_CALLBACK_URL) — previously it never
+        // checked payment.metadata at all, so a classified/manual invoice
+        // paid directly by a buyer via real mobile money never flipped to
+        // PAID; only agentPaymentCallback()'s separate, differently-routed
+        // handler (POST /payments/agent/callback/:provider) did.
+        let meta: any = {};
+        try {
+          meta = JSON.parse((payment as any).metadata || '{}');
+        } catch {
+          /* not JSON / no metadata — not a classified/manual invoice payment */
+        }
+        if (
+          (meta.invoiceType === 'classified' || meta.invoiceType === 'manual') &&
+          meta.invoiceNumber
+        ) {
+          await this.markClassifiedInvoicePaidFromWebhook(
+            meta.invoiceNumber,
+            payment.providerReference || `KNT-TXN-${Date.now()}`,
+            providerName,
+          );
+        }
       }
     } else {
       payment.status = PaymentStatus.FAILED;
@@ -663,6 +686,65 @@ export class PaymentsService {
       await this.paymentRepo.save(payment);
     }
     return { message: 'OK' };
+  }
+
+  // Shared by handleCallback() (the real Airtel/Vodacom webhook route) and
+  // agentPaymentCallback() (agent-confirmed payments) — single place a
+  // classified/manual invoice actually flips to PAID and notifies both
+  // parties, instead of two independently-drifting copies of this logic.
+  // markInvoicePaid() (ClassifiedsService) was a third, uncalled copy —
+  // removed in favor of this one.
+  private async markClassifiedInvoicePaidFromWebhook(
+    invoiceNumber: string,
+    transactionRef: string,
+    providerName: string,
+  ): Promise<void> {
+    await this.classifiedInvoiceRepo.update(
+      { invoiceNumber },
+      {
+        status: ClassifiedInvoiceStatus.PAID,
+        paidAt: new Date(),
+        transactionReference: transactionRef,
+        paymentMethod: providerName,
+      },
+    );
+
+    // 📱 SMS (1 of 3 allowed events — orderPaid equivalent for classifieds) + 📧 Email
+    try {
+      const fullInvoice = await this.classifiedInvoiceRepo.findOne({
+        where: { invoiceNumber },
+        relations: { buyer: true, seller: true },
+      });
+      if (fullInvoice) {
+        const msgParts = (fullInvoice.buyerMessage || '').split(' | ');
+        const buyerName =
+          msgParts.find((p) => p.startsWith('Name:'))?.replace('Name: ', '') ||
+          fullInvoice.buyer?.name ||
+          'Customer';
+        const buyerPhone =
+          msgParts.find((p) => p.startsWith('Phone:'))?.replace('Phone: ', '') ||
+          fullInvoice.buyer?.phone ||
+          null;
+        await this.notificationsService.classifiedInvoicePaid(
+          {
+            email: fullInvoice.buyer?.email,
+            phone: buyerPhone,
+            name: buyerName,
+          },
+          {
+            email: fullInvoice.seller?.email,
+            phone: fullInvoice.seller?.phone,
+            name: fullInvoice.seller?.name,
+          },
+          invoiceNumber,
+          Number(fullInvoice.amount || 0),
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Failed to send classifiedInvoicePaid notifications: ${err.message}`,
+      );
+    }
   }
 
   async getMyPayments(user: User) {
@@ -942,56 +1024,11 @@ export class PaymentsService {
       (invoiceType === 'classified' || invoiceType === 'manual') &&
       invoiceNumber
     ) {
-      await this.classifiedInvoiceRepo.update(
-        { invoiceNumber },
-        {
-          status: ClassifiedInvoiceStatus.PAID,
-          paidAt: new Date(),
-          transactionReference: transactionRef,
-          paymentMethod: providerName,
-        },
+      await this.markClassifiedInvoicePaidFromWebhook(
+        invoiceNumber,
+        transactionRef,
+        providerName,
       );
-
-      // 📱 SMS (1 of 3 allowed event — orderPaid equivalent for classifieds) + 📧 Email
-      try {
-        const fullInvoice = await this.classifiedInvoiceRepo.findOne({
-          where: { invoiceNumber },
-          relations: { buyer: true, seller: true },
-        });
-        if (fullInvoice) {
-          const msgParts = (fullInvoice.buyerMessage || '').split(' | ');
-          const buyerName =
-            msgParts
-              .find((p) => p.startsWith('Name:'))
-              ?.replace('Name: ', '') ||
-            fullInvoice.buyer?.name ||
-            'Customer';
-          const buyerPhone =
-            msgParts
-              .find((p) => p.startsWith('Phone:'))
-              ?.replace('Phone: ', '') ||
-            fullInvoice.buyer?.phone ||
-            null;
-          await this.notificationsService.classifiedInvoicePaid(
-            {
-              email: fullInvoice.buyer?.email,
-              phone: buyerPhone,
-              name: buyerName,
-            },
-            {
-              email: fullInvoice.seller?.email,
-              phone: fullInvoice.seller?.phone,
-              name: fullInvoice.seller?.name,
-            },
-            invoiceNumber,
-            Number(fullInvoice.amount || 0),
-          );
-        }
-      } catch (err) {
-        this.logger.warn(
-          `Failed to send classifiedInvoicePaid notifications: ${err.message}`,
-        );
-      }
     }
 
     if (agentId) {

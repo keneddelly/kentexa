@@ -145,14 +145,17 @@ export class ClassifiedsController {
     return this.service.findByCommerceProfile(commerceProfileId);
   }
 
-  // Requires login — returns buyer name/phone/email/amount, and invoice
-  // numbers are sequential so this was scrapeable end-to-end when public.
-  // Matches the same fix already applied to payments.controller.ts's
-  // equivalent lookup route.
+  // Requires login AND now checks the requester is actually a party to this
+  // specific invoice (buyer, seller, or admin) — previously any logged-in
+  // user could read another buyer's name/phone/email plus the seller's
+  // contact info just by knowing/guessing a (sequential) invoice number.
   @UseGuards(JwtAuthGuard)
   @Get('invoice/:invoiceNumber')
-  getInvoiceByNumber(@Param('invoiceNumber') invoiceNumber: string) {
-    return this.service.getInvoiceByNumber(invoiceNumber);
+  getInvoiceByNumber(
+    @Param('invoiceNumber') invoiceNumber: string,
+    @Request() req,
+  ) {
+    return this.service.getInvoiceByNumber(invoiceNumber, req.user);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -167,7 +170,14 @@ export class ClassifiedsController {
   @Patch('invoices/:requestId/shipping')
   async setShipping(
     @Param('requestId', ParseIntPipe) requestId: number,
-    @Body() body: { shippingMethod: string; notes?: string },
+    @Body() body: {
+      shippingMethod: string;
+      notes?: string;
+      busCompany?: string;
+      busTicketNumber?: string;
+      courierName?: string;
+      courierTrackingRef?: string;
+    },
     @Request() req,
   ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);

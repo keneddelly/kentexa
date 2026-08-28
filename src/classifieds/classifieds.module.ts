@@ -15,6 +15,7 @@ import { BusinessModule } from '../business/business.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { SearchModule } from '../search/search.module';
 import { IdentityModule } from '../identity/identity.module';
+import { SuperAgentsModule } from '../super-agents/super-agents.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { IdentityModule } from '../identity/identity.module';
     CommerceProfilesModule,
     SearchModule,
     IdentityModule,
+    SuperAgentsModule,
   ],
   controllers: [ClassifiedsController],
   providers: [ClassifiedsService, PriceSuggestionService],

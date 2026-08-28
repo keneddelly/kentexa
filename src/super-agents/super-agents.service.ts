@@ -3440,6 +3440,84 @@ export class SuperAgentsService {
     };
   }
 
+  // ── Create the real Parcel/tracking record for a paid Manual Classified
+  // Invoice ──────────────────────────────────────────────────────────────
+  // Called from ClassifiedsService.setShippingMethod() once it has created
+  // the synthetic Order for a paid invoice. Reuses the same Parcel entity
+  // and addTrackingEvent() choke point every other transaction source
+  // (seller shipment, online order, standalone Shipment) already funnels
+  // through, instead of the raw, orphaned parcel_tracking INSERT this used
+  // to do — this is the ONE new public entry point classifieds needed, kept
+  // deliberately simple (no route/hub matching, no items array) since the
+  // invoice flow doesn't collect that level of detail today.
+  async createParcelForClassifiedInvoice(
+    order: Order,
+    seller: User,
+    buyer: User | null,
+    dto: {
+      classifiedId: number | null;
+      classifiedInvoiceId: number;
+      description: string;
+      recipientName: string;
+      recipientPhone: string;
+      deliveryAddress: string;
+      originCity: string;
+      destinationCity: string;
+      transportMethod: string;
+      busCompany?: string | null;
+      busTicketNumber?: string | null;
+      courierName?: string | null;
+      courierTrackingRef?: string | null;
+    },
+  ): Promise<Parcel> {
+    const trackingNumber = order.trackingNumber || `KTX-ORD-${order.id}`;
+
+    // Defense in depth — the caller already guards against calling this
+    // twice for the same invoice (ClassifiedInvoiceRequest.order check),
+    // but the DB's own unique constraint on trackingNumber is the real
+    // backstop, same idempotent find-then-reuse pattern
+    // superAgentReceiveOrder() already uses.
+    const existing = await this.parcelRepo.findOne({ where: { trackingNumber } });
+    if (existing) return existing;
+
+    const parcel = await this.parcelRepo.save(
+      this.parcelRepo.create({
+        trackingNumber,
+        source: 'classified_invoice',
+        order,
+        seller,
+        buyer: buyer || null,
+        senderName: (seller as any).storeName || seller.name,
+        senderPhone: seller.phone,
+        originCity: dto.originCity || 'Tanzania',
+        destinationCity: dto.destinationCity || 'Tanzania',
+        deliveryAddress: dto.deliveryAddress,
+        recipientName: dto.recipientName,
+        buyerPhone: dto.recipientPhone,
+        description: dto.description,
+        classifiedId: dto.classifiedId,
+        classifiedInvoiceId: dto.classifiedInvoiceId,
+        transportMethod: dto.transportMethod,
+        busCompany: dto.busCompany || null,
+        busTicketNumber: dto.busTicketNumber || null,
+        courierName: dto.courierName || null,
+        courierTrackingRef: dto.courierTrackingRef || null,
+        status: ParcelStatus.PENDING,
+      } as any),
+    ) as unknown as Parcel;
+
+    await this.addTrackingEvent(
+      parcel,
+      ParcelStatus.PENDING,
+      dto.originCity || 'Tanzania',
+      'Agizo limeundwa kupitia ankara ya KenteXa. Muuzaji atawasiliana nawe kwa maelezo ya utoaji.',
+      seller.name || 'KenteXa',
+      { type: 'system' },
+    );
+
+    return parcel;
+  }
+
   // ── Seller or agent uploads transport details after pickup ───────────────
 
   async updateShipmentTransport(

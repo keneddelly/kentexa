@@ -729,6 +729,41 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                             {inv.paidAt && <div style={{ fontWeight: '400', marginTop: '2px' }}>{t('my_orders.paid_on_label', { date: new Date(inv.paidAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) })}</div>}
                           </div>
                         </div>
+
+                        {/* Delivery/shipment status — the invoice is the
+                            entry point to the whole transaction, so the
+                            buyer shouldn't have to go find their shipment
+                            separately. */}
+                        {inv.shipment && !inv.shipment.requiresShipment && (
+                          <div style={{ backgroundColor: '#ecfeff', borderRadius: 10, padding: '12px 16px', marginBottom: 10, fontSize: 13, color: '#0e7490' }}>
+                            🏠 {t('my_orders.buyer_pickup_notice')}
+                          </div>
+                        )}
+                        {inv.shipment?.requiresShipment && !inv.shipment.trackingNumber && (
+                          <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: '12px 16px', marginBottom: 10, fontSize: 13, color: '#9a3412' }}>
+                            ⏳ {t('my_orders.shipment_pending_notice')}
+                          </div>
+                        )}
+                        {inv.shipment?.trackingNumber && (
+                          <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '14px 16px', marginBottom: 10, border: '1px solid #bfdbfe' }}>
+                            <div style={{ fontSize: 11, color: '#1d4ed8', fontWeight: 700, marginBottom: 4 }}>
+                              🚚 {t('my_orders.shipment_created_label')}
+                            </div>
+                            <div style={{ fontSize: 16, fontWeight: 900, color: '#1d4ed8', fontFamily: 'monospace', letterSpacing: 0.5, marginBottom: 4 }}>
+                              {inv.shipment.trackingNumber}
+                            </div>
+                            {inv.shipment.orderStatus && (
+                              <div style={{ fontSize: 12, color: '#475569', marginBottom: 10 }}>
+                                {t('my_orders.status_label')}: {inv.shipment.orderStatus}
+                              </div>
+                            )}
+                            <button onClick={() => onNavigate(`TrackParcel-${inv.shipment.trackingNumber}`)}
+                              style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '9px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                              {t('my_orders.track_shipment_button')} →
+                            </button>
+                          </div>
+                        )}
+
                         {inv.invoiceNumber && (
                           <div style={{ display: 'flex', gap: 8 }}>
                             <a href={`${API_URL}/invoices/number/${inv.invoiceNumber}/pdf`} target="_blank" rel="noreferrer"

@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Product } from '../../products/entities/products.entity';
+import { ClassifiedInvoiceRequest } from '../../classifieds/entities/classified-invoice-request.entity';
 
 export enum OrderStatus {
   PENDING_PAYMENT = 'pending_payment',
@@ -54,6 +55,7 @@ export enum OrderSource {
   OFFLINE = 'offline', // entered manually by seller/agent for a walk-in/cash sale
   OFFLINE_INTERCITY = 'offline_intercity', // Super Agent counter parcel — TZS 1,000 tracking fee applies
   SELLER_SHIPMENT = 'seller_shipment', // seller ships their own offline sale via KenteXa network
+  CLASSIFIED_INVOICE = 'classified_invoice', // created from a paid ClassifiedInvoiceRequest (classifieds.service.ts setShippingMethod())
 }
 
 @Entity()
@@ -170,9 +172,17 @@ export class Order {
 
   // Set when this order was created from a paid classified invoice request
   // (classifieds.service.ts setShippingMethod()) — lets you trace back to
-  // the originating ClassifiedInvoiceRequest row.
+  // the originating ClassifiedInvoiceRequest row. Legacy plain int, kept
+  // untouched (same reasoning TransportAssignment documents: synchronize:true
+  // + no migrations means an existing int column can't safely be converted
+  // into a hard FK if it might already hold orphaned data) — the real
+  // relation below is the one new code should read/write.
   @Column({ type: 'int', nullable: true })
   classifiedInvoiceId: number | null;
+
+  @ManyToOne(() => ClassifiedInvoiceRequest, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'classifiedInvoiceRequestId' })
+  classifiedInvoiceRequest: ClassifiedInvoiceRequest | null;
 
   // Set once the buyer has left a seller review for this order (from either
   // orders.service.ts rateSellerForOrder() or store.service.ts
