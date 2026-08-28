@@ -53,8 +53,20 @@ export class ProductsController {
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
     @Query('location') location?: string,
+    @Query() allQuery?: Record<string, string>,
   ) {
     if (!q) return [];
+    // Structured attribute filters — e.g. ?attr_color=Black&attr_brand=Hisense
+    // — read alongside the named params above rather than replacing them,
+    // since NestJS doesn't support a "everything except these keys" query
+    // decorator. See categories.data.ts's validateAttributes()/AttributeDef
+    // for where these keys come from.
+    const attributes: Record<string, string> = {};
+    Object.entries(allQuery || {}).forEach(([key, value]) => {
+      if (key.startsWith('attr_') && value) {
+        attributes[key.slice('attr_'.length)] = String(value);
+      }
+    });
     // NEW — Kentexa AI: opt-in query understanding, backward-compatible.
     if (ai === 'true') {
       try {
@@ -68,6 +80,7 @@ export class ProductsController {
         return this.service.search(parsed.keywords || q, {
           ...parsed,
           category: aiCategory || undefined,
+          attributes: Object.keys(attributes).length ? attributes : undefined,
         });
       } catch {
         // AI parsing failed — fall through to the plain keyword search.
@@ -83,12 +96,19 @@ export class ProductsController {
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       location: location || undefined,
+      attributes: Object.keys(attributes).length ? attributes : undefined,
     });
   }
 
   @Get()
-  findAll(@Query('category') category?: string) {
-    return this.service.findAll(category);
+  findAll(@Query('category') category?: string, @Query() allQuery?: Record<string, string>) {
+    const attributes: Record<string, string> = {};
+    Object.entries(allQuery || {}).forEach(([key, value]) => {
+      if (key.startsWith('attr_') && value) {
+        attributes[key.slice('attr_'.length)] = String(value);
+      }
+    });
+    return this.service.findAll(category, Object.keys(attributes).length ? attributes : undefined);
   }
 
   // ── Authenticated — MUST be before :id ─────────────────────────────────

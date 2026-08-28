@@ -45,20 +45,47 @@ const CategoryPage = ({ onNavigate, category }) => {
   const [tab, setTab]               = useState('all'); // 'all' | 'products' | 'classifieds'
   const [search, setSearch]         = useState('');
   const { addToCart } = useCart();
+  // Dynamic filter chips — sourced from this category's own filterable
+  // AttributeDef list (GET /categories), not a hardcoded per-category UI.
+  // A buyer filtering "Refrigerators" sees Brand/Capacity/Color chips; one
+  // filtering "Clothing" sees Size/Color/Material instead.
+  const [categorySchema, setCategorySchema] = useState([]); // flat filterable AttributeDef[] across all subcategories of this category
+  const [activeFilters, setActiveFilters] = useState({}); // { [attrKey]: value }
 
   const CATEGORIES = getCategories(t);
   const cat = CATEGORIES[category] || { icon: '📦', label: category?.replace(/_/g,' ') || t('category_page.cat_fallback'), color: '#1d4ed8', bg: '#ede9fe' };
 
   useEffect(() => {
+    if (!category) return;
+    api.get('/categories').then(res => {
+      const match = (res.data || []).find(c => c.key === category);
+      if (!match) { setCategorySchema([]); return; }
+      const seen = new Map();
+      (match.subcategories || []).forEach(sub => {
+        (sub.attributes || []).filter(a => a.filterable).forEach(a => {
+          if (!seen.has(a.key)) seen.set(a.key, a);
+        });
+      });
+      setCategorySchema(Array.from(seen.values()));
+    }).catch(() => setCategorySchema([]));
+    setActiveFilters({});
+  }, [category]);
+
+  useEffect(() => {
     if (category) fetchAll();
-  }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [category, activeFilters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAll = async () => {
     try {
       setLoading(true);
+      const attrParams = Object.entries(activeFilters)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `attr_${k}=${encodeURIComponent(v)}`)
+        .join('&');
+      const suffix = attrParams ? `&${attrParams}` : '';
       const [pRes, cRes] = await Promise.all([
-        api.get(`/products?category=${category}`).catch(() => ({ data: [] })),
-        api.get(`/classifieds?category=${category}`).catch(() => ({ data: [] })),
+        api.get(`/products?category=${category}${suffix}`).catch(() => ({ data: [] })),
+        api.get(`/classifieds?category=${category}${suffix}`).catch(() => ({ data: [] })),
       ]);
       setProducts(pRes.data || []);
       setClassifieds((cRes.data || []).filter(c => c.status === 'active'));
@@ -67,6 +94,10 @@ const CategoryPage = ({ onNavigate, category }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleFilter = (key, value) => {
+    setActiveFilters(prev => ({ ...prev, [key]: prev[key] === value ? '' : value }));
   };
 
   const filteredProducts = products.filter(p =>
@@ -116,6 +147,34 @@ const CategoryPage = ({ onNavigate, category }) => {
           )}
         </div>
       </div>
+
+      {/* Dynamic attribute filter chips — see categorySchema above */}
+      {categorySchema.length > 0 && (
+        <div style={{ backgroundColor: '#fff', padding: '10px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 8, overflowX: 'auto' }}>
+          {categorySchema.map(attr => (
+            <div key={attr.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', flexShrink: 0, minWidth: 60 }}>{attr.label}</span>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto' }}>
+                {(attr.allowedValues?.length ? attr.allowedValues : []).map(v => (
+                  <button key={v} onClick={() => toggleFilter(attr.key, v)}
+                    style={{ flexShrink: 0, padding: '5px 12px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                      border: activeFilters[attr.key] === v ? `2px solid ${cat.color}` : '1px solid #e2e8f0',
+                      background: activeFilters[attr.key] === v ? cat.bg : '#fff',
+                      color: activeFilters[attr.key] === v ? cat.color : '#64748b' }}>
+                    {v}
+                  </button>
+                ))}
+                {!attr.allowedValues?.length && (
+                  <input type="text" placeholder={t('category_page.filter_placeholder', { label: attr.label })}
+                    value={activeFilters[attr.key] || ''}
+                    onChange={e => setActiveFilters(prev => ({ ...prev, [attr.key]: e.target.value }))}
+                    style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 11, outline: 'none' }} />
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Tabs */}
       <div style={{ backgroundColor: '#fff', borderBottom: '2px solid #f1f5f9', display: 'flex', overflowX: 'auto' }}>

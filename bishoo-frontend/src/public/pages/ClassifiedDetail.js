@@ -70,6 +70,22 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   const [error, setError]               = useState('');
   const [wishlist, setWishlist]         = useState(false);
   const commentsRef = React.useRef(null);
+  // Category attribute schema — same purpose as ProductDetail.js's: order
+  // the specs list using the seller-defined displayOrder/label/unit
+  // instead of an unordered raw key dump, without ever hiding a spec whose
+  // key doesn't match (legacy data still renders, just unordered).
+  const [categorySchema, setCategorySchema] = useState({});
+  useEffect(() => {
+    api.get('/categories').then(res => {
+      const tree = {};
+      (res.data || []).forEach(cat => {
+        const subcategories = {};
+        (cat.subcategories || []).forEach(sub => { subcategories[sub.key] = sub.attributes || []; });
+        tree[cat.key] = subcategories;
+      });
+      setCategorySchema(tree);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => { if (classifiedId) fetchClassified(); }, [classifiedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -174,6 +190,23 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
 
   const hasSpecs = classified.specs && Object.keys(classified.specs).filter(k => classified.specs[k]).length > 0;
   const catIcon  = CAT_ICONS[classified.category] || '📋';
+  const orderedSpecEntries = (() => {
+    if (!hasSpecs) return [];
+    const attrs = categorySchema[classified.category]?.[classified.subcategory] || [];
+    const attrByKey = new Map(attrs.map(a => [a.key, a]));
+    return Object.entries(classified.specs)
+      .filter(([, v]) => v)
+      .map(([k, v]) => {
+        const attr = attrByKey.get(k);
+        return {
+          key: k,
+          label: attr ? `${attr.label}${attr.unit ? ` (${attr.unit})` : ''}` : k,
+          value: v,
+          order: attr ? (attr.displayOrder ?? 999) : 1000,
+        };
+      })
+      .sort((a, b) => a.order - b.order);
+  })();
   // Prefer the BUSINESS CommerceProfile's own identity — same fix as
   // ProductDetail.js. Falls back to the seller's personal fields when
   // they have no business profile yet.
@@ -402,10 +435,10 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
           <div style={{ backgroundColor: '#fff', padding: '14px 16px', marginBottom: 8 }}>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: '0 0 12px' }}>📋 {t('classified_detail.details')}</h3>
             <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-              {Object.entries(classified.specs).filter(([,v]) => v).map(([k, v], i) => (
-                <div key={k} style={{ display: 'flex', backgroundColor: i % 2 === 0 ? '#f8fafc' : '#fff' }}>
-                  <div style={{ flex: '0 0 45%', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#475569', borderRight: '1px solid #e2e8f0' }}>{k}</div>
-                  <div style={{ flex: 1, padding: '10px 14px', fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{v}</div>
+              {orderedSpecEntries.map(({ key, label, value }, i) => (
+                <div key={key} style={{ display: 'flex', backgroundColor: i % 2 === 0 ? '#f8fafc' : '#fff' }}>
+                  <div style={{ flex: '0 0 45%', padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#475569', borderRight: '1px solid #e2e8f0' }}>{label}</div>
+                  <div style={{ flex: 1, padding: '10px 14px', fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{value}</div>
                 </div>
               ))}
             </div>

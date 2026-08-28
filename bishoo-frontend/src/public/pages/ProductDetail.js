@@ -53,6 +53,23 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
   const [reviewMessage, setReviewMessage] = useState('');
 
   const { addToCart, isInCart } = useCart();
+  // Category attribute schema (GET /categories) — used only to render the
+  // specs tab in the seller-defined displayOrder with proper labels/units
+  // instead of an unordered raw key dump. Never blocks anything: a spec
+  // key that doesn't match the schema (e.g. a pre-existing listing) still
+  // renders, just unordered with its raw key as the label.
+  const [categorySchema, setCategorySchema] = useState({});
+  useEffect(() => {
+    api.get('/categories').then(res => {
+      const tree = {};
+      (res.data || []).forEach(cat => {
+        const subcategories = {};
+        (cat.subcategories || []).forEach(sub => { subcategories[sub.key] = sub.attributes || []; });
+        tree[cat.key] = subcategories;
+      });
+      setCategorySchema(tree);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => { if (productId) fetchProduct(); }, [productId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -196,6 +213,29 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
   const discount      = originalPrice > displayPrice ? Math.round((1 - displayPrice / originalPrice) * 100) : 0;
   const catIcon       = CATEGORIES[product.category]?.icon || '📦';
   const hasSpecs      = product.specs && Object.keys(product.specs).length > 0;
+
+  // Orders/labels the specs tab using the category's own AttributeDef
+  // schema (displayOrder + label + unit) instead of an unordered raw key
+  // dump. A spec whose key doesn't match any known attribute (legacy data,
+  // or a category the schema fetch hasn't loaded yet) still renders —
+  // just appended at the end, using its raw key as the label.
+  const orderedSpecEntries = (() => {
+    if (!hasSpecs) return [];
+    const attrs = categorySchema[product.category]?.[product.subcategory] || [];
+    const attrByKey = new Map(attrs.map(a => [a.key, a]));
+    const entries = Object.entries(product.specs).filter(([, v]) => v);
+    return entries
+      .map(([k, v]) => {
+        const attr = attrByKey.get(k);
+        return {
+          key: k,
+          label: attr ? `${attr.label}${attr.unit ? ` (${attr.unit})` : ''}` : k,
+          value: v,
+          order: attr ? (attr.displayOrder ?? 999) : 1000,
+        };
+      })
+      .sort((a, b) => a.order - b.order);
+  })();
 
   const autoFeatures = (() => {
     if (product.features && product.features.length > 0) return product.features;
@@ -482,10 +522,10 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
 
                 {tab === 'specs' && hasSpecs && (
                   <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                    {Object.entries(product.specs).filter(([,v]) => v).map(([k, v], i) => (
-                      <div key={k} style={{ display: 'flex', backgroundColor: i % 2 === 0 ? '#f8fafc' : '#fff' }}>
-                        <div style={{ flex: '0 0 45%', padding: '11px 14px', fontSize: 13, fontWeight: 700, color: '#475569', borderRight: '1px solid #e2e8f0' }}>{k}</div>
-                        <div style={{ flex: 1, padding: '11px 14px', fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{v}</div>
+                    {orderedSpecEntries.map(({ key, label, value }, i) => (
+                      <div key={key} style={{ display: 'flex', backgroundColor: i % 2 === 0 ? '#f8fafc' : '#fff' }}>
+                        <div style={{ flex: '0 0 45%', padding: '11px 14px', fontSize: 13, fontWeight: 700, color: '#475569', borderRight: '1px solid #e2e8f0' }}>{label}</div>
+                        <div style={{ flex: 1, padding: '11px 14px', fontSize: 13, color: '#0f172a', fontWeight: 600 }}>{value}</div>
                       </div>
                     ))}
                   </div>

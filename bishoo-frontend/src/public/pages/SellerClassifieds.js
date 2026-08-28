@@ -11,8 +11,13 @@ import VerifyIdentityModal from '../components/VerifyIdentityModal';
 // pets/construction/industrial, different subcategory keys/specs) — one of
 // three divergent category lists in the app. This fallback only covers the
 // brief window before that fetch resolves.
+const DEFAULT_MEDIA_RULES = { minImages: 2, recommendedImages: 6, maxImages: 10, guidanceText: 'Clear photos from multiple angles help buyers trust your listing.' };
 const FALLBACK_CATEGORIES = {
-  general: { label: 'General', icon: '📦', subcategories: { other: { label: 'Other', specs: ['Brand', 'Model', 'Condition', 'Color'] } } },
+  general: { label: 'General', icon: '📦', mediaRules: DEFAULT_MEDIA_RULES, subcategories: { other: { label: 'Other', attributes: [
+    { key: 'brand', label: 'Brand', type: 'text' }, { key: 'model', label: 'Model', type: 'text' },
+    { key: 'condition', label: 'Condition', type: 'select', allowedValues: ['New', 'Used', 'Refurbished'] },
+    { key: 'color', label: 'Color', type: 'multiselect' },
+  ] } } },
 };
 
 const CONDITIONS = ['Brand New', 'Like New', 'Good', 'Fair', 'Parts Only'];
@@ -55,7 +60,8 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const currentCat  = CATEGORIES[form.category] || CATEGORIES.general;
   const subOptions  = Object.entries(currentCat.subcategories);
   const currentSub  = currentCat.subcategories[form.subcategory];
-  const specFields  = currentSub?.specs || [];
+  const attrFields  = currentSub?.attributes || [];
+  const mediaRules  = currentCat.mediaRules || DEFAULT_MEDIA_RULES;
 
   // Same fetch pattern SellerProducts.js already uses against the
   // canonical GET /categories — replaces the independently-hardcoded list
@@ -66,9 +72,9 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       (res.data || []).forEach(cat => {
         const subcategories = {};
         (cat.subcategories || []).forEach(sub => {
-          subcategories[sub.key] = { label: sub.label, specs: sub.specs || [] };
+          subcategories[sub.key] = { label: sub.label, attributes: sub.attributes || [] };
         });
-        tree[cat.key] = { label: cat.label, icon: cat.icon, subcategories };
+        tree[cat.key] = { label: cat.label, icon: cat.icon, mediaRules: cat.mediaRules || DEFAULT_MEDIA_RULES, subcategories };
       });
       if (Object.keys(tree).length) setCategories(tree);
     }).catch(() => {});
@@ -144,6 +150,16 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
     setForm(prev => ({ ...prev, specs: { ...prev.specs, [key]: value } }));
   };
 
+  // Same comma-joined-string convention as SellerProducts.js's multiselect
+  // handling — stays within the existing Record<string,string> specs shape.
+  const toggleMultiSpec = (key, option) => {
+    setForm(prev => {
+      const current = (prev.specs?.[key] || '').split(',').map(v => v.trim()).filter(Boolean);
+      const next = current.includes(option) ? current.filter(v => v !== option) : [...current, option];
+      return { ...prev, specs: { ...prev.specs, [key]: next.join(',') } };
+    });
+  };
+
   const fetchMyClassifieds = async () => {
     try {
       setLoading(true);
@@ -160,7 +176,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    if (form.images.length + files.length > 5) { setError(t('seller_classifieds.max_images')); return; }
+    if (form.images.length + files.length > mediaRules.maxImages) { setError(t('seller_classifieds.max_images', { count: mediaRules.maxImages })); return; }
     files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => setImagePreviews(prev => [...prev, reader.result]);
@@ -243,6 +259,19 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const handleEdit = (item) => {
     setEditItem(item);
     setCategoryManuallySet(true); // editing a real listing — never auto-suggest over its actual category
+    // Same migration as SellerProducts.js's handleEdit — old listings stored
+    // specs keyed by raw label text ("Make") rather than the new
+    // AttributeDef.key ("make"); match by label so old values still show.
+    const targetAttrs = CATEGORIES[item.category]?.subcategories?.[item.subcategory]?.attributes || [];
+    const migratedSpecs = { ...(item.specs || {}) };
+    targetAttrs.forEach(attr => {
+      if (migratedSpecs[attr.key] === undefined) {
+        const oldEntry = Object.entries(item.specs || {}).find(
+          ([k]) => k.toLowerCase() === attr.label.toLowerCase(),
+        );
+        if (oldEntry) migratedSpecs[attr.key] = oldEntry[1];
+      }
+    });
     setForm({
       title:        item.title,
       description:  item.description || '',
@@ -251,7 +280,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       subcategory:  item.subcategory || '',
       location:     item.location || '',
       images:       item.images || [],
-      specs:        item.specs || {},
+      specs:        migratedSpecs,
       condition:    item.condition || '',
       isNegotiable: item.isNegotiable || false,
       contactPhone: item.contactPhone || '',
@@ -418,6 +447,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
             {/* Images */}
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>{t('seller_classifieds.photos_label')}</label>
+              <p style={{ color: '#64748b', fontSize: 11, margin: '0 0 8px' }}>{mediaRules.guidanceText}</p>
               {imagePreviews.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                   {imagePreviews.map((p, i) => (
@@ -428,13 +458,15 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                   ))}
                 </div>
               )}
-              {imagePreviews.length < 5 && (
+              {imagePreviews.length < mediaRules.maxImages && (
                 <div style={{ border: '2px dashed #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', backgroundColor: '#f8fafc' }}>
                   <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} id="classifiedImages" />
                   <label htmlFor="classifiedImages" style={{ background: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                     {uploading ? t('seller_classifieds.uploading') : t('seller_classifieds.choose_photos')}
                   </label>
-                  <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>{t('seller_classifieds.photos_count_hint', { count: imagePreviews.length })}</p>
+                  <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>
+                    {t('seller_classifieds.photos_count_hint', { count: imagePreviews.length })}/{mediaRules.maxImages}
+                  </p>
                 </div>
               )}
             </div>
@@ -490,31 +522,77 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
             </div>
 
-            {/* ── DYNAMIC SPEC FIELDS ── */}
-            {specFields.length > 0 && (
+            {/* ── DYNAMIC, TYPE-AWARE CATEGORY ATTRIBUTES ── */}
+            {/* Same schema-driven rendering as SellerProducts.js — see
+                categories.data.ts's AttributeDef. Classifieds stay flexible
+                (no client-side required-field block here — a listing can
+                still be posted with a field left out; any server-side
+                requirement, e.g. Make/Model for vehicles, surfaces through
+                the existing error banner instead of blocking the form
+                upfront). */}
+            {attrFields.length > 0 && (
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
                   {t('seller_classifieds.listing_details_title')}
                   <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_classifieds.listing_details_hint')}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {specFields.map(spec => (
-                    <div key={spec}>
-                      <label style={{ ...labelStyle, marginBottom: 4 }}>{spec}</label>
-                      <input type="text" placeholder={
-                        spec === 'Make' ? 'e.g. Toyota' :
-                        spec === 'Model' ? 'e.g. Land Cruiser' :
-                        spec === 'Year' ? 'e.g. 2019' :
-                        spec === 'Mileage (km)' ? 'e.g. 45,000' :
-                        spec === 'Bedrooms' ? 'e.g. 3' :
-                        spec === 'Condition' ? 'Good / Like New' :
-                        spec === 'Color' ? 'e.g. White' : '...'
-                      }
-                        value={form.specs?.[spec] || ''}
-                        onChange={e => handleSpecChange(spec, e.target.value)}
-                        style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
-                    </div>
-                  ))}
+                  {[...attrFields].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).map(attr => {
+                    const currentValue = form.specs?.[attr.key] || '';
+                    const fieldLabel = `${attr.label}${attr.unit ? ` (${attr.unit})` : ''}${attr.required ? ' *' : ''}`;
+                    if (attr.type === 'select') {
+                      return (
+                        <div key={attr.key}>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>{fieldLabel}</label>
+                          <select value={currentValue} onChange={e => handleSpecChange(attr.key, e.target.value)}
+                            style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }}>
+                            <option value="">{t('seller_classifieds.select_subcategory')}</option>
+                            {(attr.allowedValues || []).map(v => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        </div>
+                      );
+                    }
+                    if (attr.type === 'multiselect') {
+                      const selected = currentValue.split(',').map(v => v.trim()).filter(Boolean);
+                      return (
+                        <div key={attr.key} style={{ gridColumn: '1 / -1' }}>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>{fieldLabel}</label>
+                          {attr.allowedValues?.length ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {attr.allowedValues.map(v => (
+                                <button type="button" key={v} onClick={() => toggleMultiSpec(attr.key, v)}
+                                  style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                    border: selected.includes(v) ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                                    background: selected.includes(v) ? '#dbeafe' : '#fff', color: selected.includes(v) ? '#1d4ed8' : '#64748b' }}>
+                                  {v}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <input type="text" value={currentValue} onChange={e => handleSpecChange(attr.key, e.target.value)}
+                              style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
+                          )}
+                        </div>
+                      );
+                    }
+                    if (attr.type === 'boolean') {
+                      return (
+                        <div key={attr.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <label style={{ ...labelStyle, marginBottom: 0, flex: 1 }}>{fieldLabel}</label>
+                          <input type="checkbox" checked={currentValue === 'true'} onChange={e => handleSpecChange(attr.key, e.target.checked ? 'true' : 'false')} />
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={attr.key}>
+                        <label style={{ ...labelStyle, marginBottom: 4 }}>{fieldLabel}</label>
+                        <input type={attr.type === 'number' ? 'number' : 'text'} placeholder={`e.g. ${attr.label}`}
+                          value={currentValue}
+                          onChange={e => handleSpecChange(attr.key, e.target.value)}
+                          style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

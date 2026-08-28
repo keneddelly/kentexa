@@ -30,6 +30,7 @@ import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profi
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
 import { FRONTEND_URL } from '../config/urls.config';
+import { validateAttributes } from '../categories/categories.data';
 
 @Injectable()
 export class ClassifiedsService {
@@ -56,6 +57,15 @@ export class ClassifiedsService {
 
   // ─── Create listing ───────────────────────────────────────────────────────
   async create(dto: CreateClassifiedDto, user: User) {
+    const attributeErrors = validateAttributes(
+      dto.category,
+      dto.subcategory,
+      dto.specs,
+    );
+    if (attributeErrors.length) {
+      throw new BadRequestException(attributeErrors.join('; '));
+    }
+
     // Attributes the listing to whichever profile was active when it was
     // posted, so a personal-profile side-hustle classified stays personal
     // instead of silently resolving to the account's business identity —
@@ -143,7 +153,7 @@ export class ClassifiedsService {
     });
   }
 
-  async findAll(category?: string, location?: string) {
+  async findAll(category?: string, location?: string, attributes?: Record<string, string> | null) {
     const query = this.repo
       .createQueryBuilder('c')
       .where('c.status = :status', { status: ClassifiedStatus.ACTIVE });
@@ -152,6 +162,18 @@ export class ClassifiedsService {
       query.andWhere('c.location ILIKE :location', {
         location: `%${location}%`,
       });
+    // Same structured attribute filtering as search() — powers
+    // CategoryPage.js's dynamic filter chips on a plain category browse.
+    if (attributes) {
+      Object.entries(attributes).forEach(([key, value], i) => {
+        if (!value) return;
+        const param = `catAttrVal${i}`;
+        query.andWhere(
+          `LOWER(c.specs ->> '${key.replace(/[^a-z0-9_]/gi, '')}') LIKE :${param}`,
+          { [param]: `%${value.toLowerCase()}%` },
+        );
+      });
+    }
     return query.orderBy('c.createdAt', 'DESC').getMany();
   }
 
@@ -268,6 +290,7 @@ export class ClassifiedsService {
       location?: string;
       sort?: string;
       category?: string | null; // NEW — Kentexa AI search-query parsing
+      attributes?: Record<string, string> | null;
     },
   ) {
     const qb = this.repo
@@ -313,6 +336,16 @@ export class ClassifiedsService {
       qb.andWhere('LOWER(c.category::text) = :aiCategory', {
         aiCategory: opts.category.toLowerCase(),
       });
+    if (opts?.attributes) {
+      Object.entries(opts.attributes).forEach(([key, value], i) => {
+        if (!value) return;
+        const param = `attrVal${i}`;
+        qb.andWhere(
+          `LOWER(c.specs ->> '${key.replace(/[^a-z0-9_]/gi, '')}') LIKE :${param}`,
+          { [param]: `%${value.toLowerCase()}%` },
+        );
+      });
+    }
 
     // Ranking: verified sellers first, then by reputation score, then by recency
     const sort = opts?.sort;
@@ -350,6 +383,16 @@ export class ClassifiedsService {
     const listing = await this.findOne(id);
     if (listing.seller.id !== user.id && user.role !== UserRole.ADMIN) {
       throw new ForbiddenException('Not your listing');
+    }
+    if (dto.category || dto.subcategory || dto.specs) {
+      const attributeErrors = validateAttributes(
+        dto.category || listing.category,
+        dto.subcategory ?? listing.subcategory,
+        dto.specs ?? listing.specs,
+      );
+      if (attributeErrors.length) {
+        throw new BadRequestException(attributeErrors.join('; '));
+      }
     }
     Object.assign(listing, dto);
     const saved = await this.repo.save(listing);

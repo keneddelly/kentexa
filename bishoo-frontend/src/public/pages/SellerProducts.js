@@ -18,9 +18,14 @@ const TZ_CITIES = [
 // independent 124-line hardcoded list, one of five that all disagreed with
 // each other across the app). This fallback only covers the brief window
 // before that fetch resolves.
+const DEFAULT_MEDIA_RULES = { minImages: 2, recommendedImages: 6, maxImages: 10, guidanceText: 'Clear photos from multiple angles help buyers trust your listing.' };
 const FALLBACK_CATEGORIES = {
-  general: { label: 'General', icon: '📦', subcategories: { other: { label: 'Other', specs: ['Brand', 'Model', 'Condition', 'Color'] } } },
-  digital_general: { label: 'Digital — Other', icon: '🗂️', isDigital: true, subcategories: { other: { label: 'Other Digital' } } },
+  general: { label: 'General', icon: '📦', mediaRules: DEFAULT_MEDIA_RULES, subcategories: { other: { label: 'Other', attributes: [
+    { key: 'brand', label: 'Brand', type: 'text' }, { key: 'model', label: 'Model', type: 'text' },
+    { key: 'condition', label: 'Condition', type: 'select', allowedValues: ['New', 'Used', 'Refurbished'] },
+    { key: 'color', label: 'Color', type: 'multiselect' },
+  ] } } },
+  digital_general: { label: 'Digital — Other', icon: '🗂️', isDigital: true, mediaRules: { minImages: 1, recommendedImages: 3, maxImages: 5, guidanceText: 'Add a cover image or screenshots that represent this item.' }, subcategories: { other: { label: 'Other Digital' } } },
 };
 
 const labelStyle = { display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' };
@@ -82,11 +87,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [originCity, setOriginCity]             = useState('');
   const [featureInput, setFeatureInput]         = useState('');
 
-  // Derived: current subcategory options + spec fields
+  // Derived: current subcategory options + attribute fields
   const currentCat    = CATEGORIES[form.category] || CATEGORIES.general;
   const subOptions    = Object.entries(currentCat.subcategories);
   const currentSub    = currentCat.subcategories[form.subcategory];
-  const specFields    = currentSub?.specs || [];
+  const attrFields    = currentSub?.attributes || [];
+  const mediaRules    = currentCat.mediaRules || DEFAULT_MEDIA_RULES;
 
   // Categories shown in the dropdown depend on the Product Type toggle —
   // a digital seller should only ever see digital-goods categories
@@ -128,9 +134,9 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       (res.data || []).forEach(cat => {
         const subcategories = {};
         (cat.subcategories || []).forEach(sub => {
-          subcategories[sub.key] = { label: sub.label, specs: sub.specs || [] };
+          subcategories[sub.key] = { label: sub.label, attributes: sub.attributes || [] };
         });
-        tree[cat.key] = { label: cat.label, icon: cat.icon, isDigital: !!cat.isDigital, subcategories };
+        tree[cat.key] = { label: cat.label, icon: cat.icon, isDigital: !!cat.isDigital, mediaRules: cat.mediaRules || DEFAULT_MEDIA_RULES, subcategories };
       });
       if (Object.keys(tree).length) setCategories(tree);
     }).catch(() => {});
@@ -172,6 +178,18 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
   const handleSpecChange = (key, value) => {
     setForm(prev => ({ ...prev, specs: { ...prev.specs, [key]: value } }));
+  };
+
+  // Multiselect attributes (e.g. Color) store a comma-separated string in
+  // the same Record<string,string> specs shape the backend already
+  // validates against (see categories.data.ts's validateAttributes) —
+  // toggles one value in/out of that string.
+  const toggleMultiSpec = (key, option) => {
+    setForm(prev => {
+      const current = (prev.specs?.[key] || '').split(',').map(v => v.trim()).filter(Boolean);
+      const next = current.includes(option) ? current.filter(v => v !== option) : [...current, option];
+      return { ...prev, specs: { ...prev.specs, [key]: next.join(',') } };
+    });
   };
 
   const addFeature = () => {
@@ -219,7 +237,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    if (form.images.length + files.length > 5) { setError(t('seller_products.max_images')); return; }
+    if (form.images.length + files.length > mediaRules.maxImages) { setError(t('seller_products.max_images', { count: mediaRules.maxImages })); return; }
     files.forEach(file => {
       const reader = new FileReader();
       reader.onloadend = () => setImagePreviews(prev => [...prev, reader.result]);
@@ -297,6 +315,18 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     if (isDigital && !editProduct) {
       if (!form.digitalFile) { setError(t('seller_products.digital_file_required')); return; }
       if (!form.copyrightDeclared) { setError(t('seller_products.copyright_declaration_required')); return; }
+    }
+    // Required category attributes (e.g. Brand for appliances) — fast
+    // client-side check, backed by the server's own validateAttributes().
+    const missingAttrs = attrFields.filter(a => a.required && !String(form.specs?.[a.key] || '').trim());
+    if (missingAttrs.length) {
+      setError(`${t('seller_products.required_fields_missing')}: ${missingAttrs.map(a => a.label).join(', ')}`);
+      return;
+    }
+    // Category-aware minimum image count — not a fixed "10 photos" rule.
+    if (!isDigital && imagePreviews.length < mediaRules.minImages) {
+      setError(`${t('seller_products.min_images_required', { count: mediaRules.minImages })}`);
+      return;
     }
     try {
       const base = Number(form.basePrice) || 0;
@@ -376,6 +406,21 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const handleEdit = (product) => {
     setEditProduct(product);
     setCategoryManuallySet(true); // editing a real listing — never auto-suggest over its actual category
+    // Pre-existing listings stored specs keyed by the old raw label text
+    // (e.g. "Brand") rather than the new AttributeDef.key ("brand") this
+    // schema introduces. Migrate by label match so previously-entered
+    // values still show up in the new typed fields instead of appearing
+    // blank — old keys are kept alongside, nothing is deleted.
+    const targetAttrs = CATEGORIES[product.category]?.subcategories?.[product.subcategory]?.attributes || [];
+    const migratedSpecs = { ...(product.specs || {}) };
+    targetAttrs.forEach(attr => {
+      if (migratedSpecs[attr.key] === undefined) {
+        const oldEntry = Object.entries(product.specs || {}).find(
+          ([k]) => k.toLowerCase() === attr.label.toLowerCase(),
+        );
+        if (oldEntry) migratedSpecs[attr.key] = oldEntry[1];
+      }
+    });
     setForm({
       name:         product.name,
       description:  product.description || '',
@@ -388,7 +433,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       category:     product.category || 'electronics',
       subcategory:  product.subcategory || '',
       model:        product.model || '',
-      specs:        product.specs || {},
+      specs:        migratedSpecs,
       features:     product.features || [],
       images:       product.images || [],
       isZipo:  product.isZipo,
@@ -598,6 +643,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             {/* Images */}
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>{t('seller_products.images')}</label>
+              <p style={{ color: '#64748b', fontSize: 11, margin: '0 0 8px' }}>{mediaRules.guidanceText}</p>
               {imagePreviews.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                   {imagePreviews.map((preview, i) => (
@@ -608,13 +654,15 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   ))}
                 </div>
               )}
-              {imagePreviews.length < 5 && (
+              {imagePreviews.length < mediaRules.maxImages && (
                 <div style={{ border: '2px dashed #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', backgroundColor: '#f8fafc' }}>
                   <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} id="productImages" />
                   <label htmlFor="productImages" style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                     {uploading ? `⏳ ${t('seller_products.uploading')}` : `📷 ${t('seller_products.choose_images')}`}
                   </label>
-                  <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>{imagePreviews.length}/5 · {t('seller_products.first_image')}</p>
+                  <p style={{ color: '#94a3b8', fontSize: 11, margin: '6px 0 0' }}>
+                    {imagePreviews.length}/{mediaRules.maxImages} · {t('seller_products.min_recommended_images', { min: mediaRules.minImages, recommended: mediaRules.recommendedImages })}
+                  </p>
                 </div>
               )}
             </div>
@@ -677,31 +725,75 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 style={{ ...inputStyle, minHeight: 80, resize: 'vertical' }} />
             </div>
 
-            {/* ── DYNAMIC SPEC FIELDS ── */}
-            {specFields.length > 0 && (
+            {/* ── DYNAMIC, TYPE-AWARE CATEGORY ATTRIBUTES ── */}
+            {/* Rendered from the category's own AttributeDef schema (GET
+                /categories) — text/number/select/multiselect/boolean, not
+                a one-size-fits-all text input. See categories.data.ts. */}
+            {attrFields.length > 0 && (
               <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 12 }}>
                   {`📋 ${t('seller_products.specs')}`}
                   <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.specs_hint')}</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  {specFields.map(spec => (
-                    <div key={spec}>
-                      <label style={{ ...labelStyle, marginBottom: 4 }}>{spec}</label>
-                      <input type="text" placeholder={`e.g. ${
-                        spec === 'Resolution' ? '1080P Full HD' :
-                        spec === 'Battery Life' ? '2 hours' :
-                        spec === 'Storage' ? '128GB microSD' :
-                        spec === 'Night Vision' ? 'Up to 5 metres' :
-                        spec === 'Brand' ? 'Your brand name' :
-                        spec === 'Color' ? 'Black' :
-                        spec === 'Size' ? 'Medium / L / XL' : '...'
-                      }`}
-                        value={form.specs?.[spec] || ''}
-                        onChange={e => handleSpecChange(spec, e.target.value)}
-                        style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
-                    </div>
-                  ))}
+                  {[...attrFields].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).map(attr => {
+                    const currentValue = form.specs?.[attr.key] || '';
+                    const fieldLabel = `${attr.label}${attr.unit ? ` (${attr.unit})` : ''}${attr.required ? ' *' : ''}`;
+                    if (attr.type === 'select') {
+                      return (
+                        <div key={attr.key}>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>{fieldLabel}</label>
+                          <select value={currentValue} onChange={e => handleSpecChange(attr.key, e.target.value)}
+                            style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }}>
+                            <option value="">{t('seller_products.select_subcategory')}</option>
+                            {(attr.allowedValues || []).map(v => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                        </div>
+                      );
+                    }
+                    if (attr.type === 'multiselect') {
+                      const selected = currentValue.split(',').map(v => v.trim()).filter(Boolean);
+                      return (
+                        <div key={attr.key} style={{ gridColumn: '1 / -1' }}>
+                          <label style={{ ...labelStyle, marginBottom: 4 }}>{fieldLabel}</label>
+                          {attr.allowedValues?.length ? (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {attr.allowedValues.map(v => (
+                                <button type="button" key={v} onClick={() => toggleMultiSpec(attr.key, v)}
+                                  style={{ padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                    border: selected.includes(v) ? '2px solid #2563eb' : '1px solid #e2e8f0',
+                                    background: selected.includes(v) ? '#dbeafe' : '#fff', color: selected.includes(v) ? '#1d4ed8' : '#64748b' }}>
+                                  {v}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <input type="text" placeholder={t('seller_products.multiselect_placeholder')}
+                              value={currentValue} onChange={e => handleSpecChange(attr.key, e.target.value)}
+                              style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
+                          )}
+                        </div>
+                      );
+                    }
+                    if (attr.type === 'boolean') {
+                      const isTrue = currentValue === 'true';
+                      return (
+                        <div key={attr.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <label style={{ ...labelStyle, marginBottom: 0, flex: 1 }}>{fieldLabel}</label>
+                          <input type="checkbox" checked={isTrue} onChange={e => handleSpecChange(attr.key, e.target.checked ? 'true' : 'false')} />
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={attr.key}>
+                        <label style={{ ...labelStyle, marginBottom: 4 }}>{fieldLabel}</label>
+                        <input type={attr.type === 'number' ? 'number' : 'text'} placeholder={`e.g. ${attr.label}`}
+                          value={currentValue}
+                          onChange={e => handleSpecChange(attr.key, e.target.value)}
+                          style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

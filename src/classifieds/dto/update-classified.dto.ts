@@ -5,6 +5,7 @@ import {
   IsString,
   Min,
   IsArray,
+  IsObject,
 } from 'class-validator';
 import { CATEGORY_KEYS } from '../../categories/categories.data';
 
@@ -21,6 +22,14 @@ export class updateClassifiedDto {
 
   @IsIn(CATEGORY_KEYS)
   category: string;
+
+  @IsOptional()
+  @IsString()
+  subcategory?: string;
+
+  @IsOptional()
+  @IsObject()
+  specs?: Record<string, string>;
 
   @IsOptional()
   @IsString()

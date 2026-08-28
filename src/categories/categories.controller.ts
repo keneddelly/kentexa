@@ -12,11 +12,12 @@ export class CategoriesController {
       label: def.label,
       icon: def.icon,
       isDigital: !!def.isDigital,
+      mediaRules: def.mediaRules,
       subcategories: Object.entries(def.subcategories).map(
         ([subKey, subDef]) => ({
           key: subKey,
           label: subDef.label,
-          specs: subDef.specs || [],
+          attributes: subDef.attributes || [],
         }),
       ),
     }));

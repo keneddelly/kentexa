@@ -86,6 +86,7 @@ export class ClassifiedsController {
     @Query('sort') sort?: string,
     @Query('category') category?: string,
     @Query('ai') ai?: string,
+    @Query() allQuery?: Record<string, string>,
   ) {
     if (!q) return [];
     // `category` was previously only ever read inside the ai=true branch
@@ -93,12 +94,19 @@ export class ClassifiedsController {
     // resolved category as an ordinary query param (from GET
     // /search/intent, resolved once before this endpoint is even hit), so
     // it was being silently dropped on every real call.
+    const attributes: Record<string, string> = {};
+    Object.entries(allQuery || {}).forEach(([key, value]) => {
+      if (key.startsWith('attr_') && value) {
+        attributes[key.slice('attr_'.length)] = String(value);
+      }
+    });
     const opts = {
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       location,
       sort,
       category: category || undefined,
+      attributes: Object.keys(attributes).length ? attributes : undefined,
     };
     // NEW — Kentexa AI: opt-in query understanding, backward-compatible.
     if (ai === 'true') {
@@ -275,8 +283,15 @@ export class ClassifiedsController {
   findAll(
     @Query('category') category?: string,
     @Query('location') location?: string,
+    @Query() allQuery?: Record<string, string>,
   ) {
-    return this.service.findAll(category, location);
+    const attributes: Record<string, string> = {};
+    Object.entries(allQuery || {}).forEach(([key, value]) => {
+      if (key.startsWith('attr_') && value) {
+        attributes[key.slice('attr_'.length)] = String(value);
+      }
+    });
+    return this.service.findAll(category, location, Object.keys(attributes).length ? attributes : undefined);
   }
 
   @UseGuards(JwtAuthGuard)

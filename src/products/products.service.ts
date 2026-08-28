@@ -28,6 +28,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { validateAttributes } from '../categories/categories.data';
 
 @Injectable()
 export class ProductsService {
@@ -98,7 +99,7 @@ export class ProductsService {
     );
   }
 
-  async findAll(category?: string) {
+  async findAll(category?: string, attributes?: Record<string, string> | null) {
     const query = this.repo
       .createQueryBuilder('p')
       .leftJoin('p.seller', 'seller')
@@ -119,6 +120,19 @@ export class ProductsService {
       .where('p.isAvailable = :isAvailable', { isAvailable: true })
       .andWhere('p.availableOnline = :availableOnline', { availableOnline: true });
     if (category) query.andWhere('p.category = :category', { category });
+    // Same structured attribute filtering as search() — lets CategoryPage.js's
+    // dynamic filter chips (e.g. Color, Brand) narrow a plain category browse,
+    // not just a keyword search.
+    if (attributes) {
+      Object.entries(attributes).forEach(([key, value], i) => {
+        if (!value) return;
+        const param = `catAttrVal${i}`;
+        query.andWhere(
+          `LOWER(p.specs ->> '${key.replace(/[^a-z0-9_]/gi, '')}') LIKE :${param}`,
+          { [param]: `%${value.toLowerCase()}%` },
+        );
+      });
+    }
     const products = await query.orderBy('p.createdAt', 'DESC').getMany();
     return this.rankByRelevance(products);
   }
@@ -130,6 +144,7 @@ export class ProductsService {
       minPrice?: number | null;
       maxPrice?: number | null;
       location?: string | null;
+      attributes?: Record<string, string> | null;
     },
   ) {
     const qb = this.repo
@@ -178,6 +193,20 @@ export class ProductsService {
     if (filters?.location) {
       qb.andWhere('LOWER(p.sellerCity) LIKE :location', {
         location: `%${filters.location.toLowerCase()}%`,
+      });
+    }
+    // Structured attribute filtering (e.g. attr_color=Black) against the
+    // existing `specs` JSONB column — no schema change. Multiselect values
+    // are stored comma-separated within one specs value, so a single stored
+    // value like "Black,White" matches a filter of either color.
+    if (filters?.attributes) {
+      Object.entries(filters.attributes).forEach(([key, value], i) => {
+        if (!value) return;
+        const param = `attrVal${i}`;
+        qb.andWhere(
+          `LOWER(p.specs ->> '${key.replace(/[^a-z0-9_]/gi, '')}') LIKE :${param}`,
+          { [param]: `%${value.toLowerCase()}%` },
+        );
       });
     }
 
@@ -367,6 +396,15 @@ export class ProductsService {
       );
     }
 
+    const attributeErrors = validateAttributes(
+      dto.category || 'general',
+      dto.subcategory,
+      dto.specs,
+    );
+    if (attributeErrors.length) {
+      throw new BadRequestException(attributeErrors.join('; '));
+    }
+
     const basePrice = Number(dto.basePrice || 0);
     // Digital goods are never shipped — never carry a delivery fee,
     // regardless of what was computed/passed for a physical listing.
@@ -487,6 +525,17 @@ export class ProductsService {
     if (user.role !== UserRole.ADMIN) {
       if (!product.seller || product.seller.id !== user.id) {
         throw new ForbiddenException('You can only edit your own products');
+      }
+    }
+
+    if (dto.category || dto.subcategory || dto.specs) {
+      const attributeErrors = validateAttributes(
+        dto.category || product.category || 'general',
+        dto.subcategory ?? product.subcategory,
+        dto.specs ?? product.specs,
+      );
+      if (attributeErrors.length) {
+        throw new BadRequestException(attributeErrors.join('; '));
       }
     }
 
