@@ -476,10 +476,31 @@ export class SellerService {
           if (orderScope) qb.andWhere(orderScope);
           return qb.getMany();
         })(),
-      ]).then(([onlineOrders, manualOrders]) => {
+        // Orders created from a paid classified invoice (ClassifiedsService.
+        // setShippingMethod) have no product (classifieds aren't catalog
+        // Products) and keep the default source:'online' — matching neither
+        // branch above, so they silently never appeared in Seller Orders
+        // and the seller could never reach the Ship Order / Super Agent
+        // flow for them despite a real Order + escrow already existing.
+        (() => {
+          const qb = this.orderRepo
+            .createQueryBuilder('o')
+            .leftJoinAndSelect('o.product', 'p')
+            .leftJoin('o.seller', 's')
+            .addSelect(['s.id', 's.name', 's.storeName'])
+            .leftJoin('o.buyer', 'b')
+            .addSelect(['b.id', 'b.name', 'b.phone'])
+            .where('o.seller = :sid', { sid: user.id })
+            .andWhere('o."classifiedInvoiceId" IS NOT NULL')
+            .orderBy('o.createdAt', 'DESC')
+            .take(30);
+          if (orderScope) qb.andWhere(orderScope);
+          return qb.getMany();
+        })(),
+      ]).then(([onlineOrders, manualOrders, classifiedInvoiceOrders]) => {
         // Merge and deduplicate by id
         const seen = new Set<number>();
-        return [...onlineOrders, ...manualOrders]
+        return [...onlineOrders, ...manualOrders, ...classifiedInvoiceOrders]
           .filter((o) => {
             if (seen.has(o.id)) return false;
             seen.add(o.id);
@@ -625,7 +646,14 @@ export class SellerService {
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.product', 'p')
       .leftJoinAndSelect('o.buyer', 'b')
-      .where('(p.sellerId = :uid OR o.createdByUserId = :uid)', { uid: userId })
+      // Orders with no catalog product (classified-invoice-derived orders,
+      // among others) carry the seller directly on o.seller instead — this
+      // used to only check p.sellerId/o.createdByUserId, so those orders'
+      // payouts silently never appeared here either.
+      .where(
+        '(p.sellerId = :uid OR o.createdByUserId = :uid OR o."sellerId" = :uid)',
+        { uid: userId },
+      )
       .andWhere('o.status NOT IN (:...skip)', { skip: ['cancelled'] })
       .orderBy('o.createdAt', 'DESC')
       .take(50);

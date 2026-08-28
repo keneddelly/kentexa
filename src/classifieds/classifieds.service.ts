@@ -729,6 +729,11 @@ export class ClassifiedsService {
         buyer: request.buyer || null,
         seller: seller,
         quantity: 1,
+        // No catalog Product exists for a classified — SellerOrders.js and
+        // other seller-facing views already fall back to manualProductName
+        // for offline-style orders, so give it the classified's own title
+        // instead of leaving it blank.
+        manualProductName: request.classified?.title || null,
         totalAmount: amount,
         baseAmount: amount,
         deliveryFeeAmount: 0,
