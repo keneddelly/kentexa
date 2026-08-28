@@ -22,6 +22,18 @@ const getCategories = (t) => ({
   pets:          { icon: '🐾', label: t('category_page.cat_pets'),          color: '#b45309', bg: '#fef3c7' },
   construction:  { icon: '🧱', label: t('category_page.cat_construction'),  color: '#78716c', bg: '#f5f5f4' },
   industrial:    { icon: '🏭', label: t('category_page.cat_industrial'),    color: '#475569', bg: '#f1f5f9' },
+  appliances:          { icon: '🧊', label: t('category_page.cat_appliances'),          color: '#0284c7', bg: '#e0f2fe' },
+  musical_instruments: { icon: '🎸', label: t('category_page.cat_musical_instruments'), color: '#9333ea', bg: '#f3e8ff' },
+  flowers:             { icon: '🌸', label: t('category_page.cat_flowers'),             color: '#db2777', bg: '#fce7f3' },
+  jobs:                { icon: '💼', label: t('category_page.cat_jobs'),                color: '#1e293b', bg: '#f1f5f9' },
+  energy:              { icon: '☀️', label: t('category_page.cat_energy'),              color: '#d97706', bg: '#fef3c7' },
+  tools_hardware:      { icon: '🔧', label: t('category_page.cat_tools_hardware'),      color: '#78716c', bg: '#f5f5f4' },
+  weddings_events:     { icon: '💍', label: t('category_page.cat_weddings_events'),     color: '#be185d', bg: '#fce7f3' },
+  water_sanitation:    { icon: '🚰', label: t('category_page.cat_water_sanitation'),    color: '#0891b2', bg: '#cffafe' },
+  office_supplies:     { icon: '🖇️', label: t('category_page.cat_office_supplies'),     color: '#475569', bg: '#f1f5f9' },
+  collectibles:        { icon: '🏺', label: t('category_page.cat_collectibles'),        color: '#92400e', bg: '#fef3c7' },
+  tickets_vouchers:    { icon: '🎟️', label: t('category_page.cat_tickets_vouchers'),    color: '#7c3aed', bg: '#ede9fe' },
+  free_giveaway:       { icon: '🎁', label: t('category_page.cat_free_giveaway'),       color: '#16a34a', bg: '#dcfce7' },
   general:       { icon: '📦', label: t('category_page.cat_general'),       color: '#64748b', bg: '#f1f5f9' },
 });
 

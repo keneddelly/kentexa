@@ -36,7 +36,11 @@ const CAT_ICONS = {
   electronics: '📱', vehicles: '🚗', property: '🏢', fashion: '👗',
   services: '🔧', home_garden: '🏠', health_beauty: '💄', food: '🍎',
   agriculture: '🌾', security: '🔒', baby_kids: '🧸', sports: '⚽',
-  books: '📚', arts: '🎨', general: '📦',
+  books: '📚', arts: '🎨', general: '📦', pets: '🐾', construction: '🧱',
+  industrial: '🏭', appliances: '🧊', musical_instruments: '🎸', flowers: '🌸',
+  jobs: '💼', energy: '☀️', tools_hardware: '🔧', weddings_events: '💍',
+  water_sanitation: '🚰', office_supplies: '🖇️', collectibles: '🏺',
+  tickets_vouchers: '🎟️', free_giveaway: '🎁',
 };
 
 const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifiedId, currentUser, onOpenMoment, openComments, activeProfileId }) => {

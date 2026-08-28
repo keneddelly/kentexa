@@ -12,6 +12,15 @@ const CATEGORIES = {
   health_beauty: { icon: '💄' }, food: { icon: '🍎' }, baby_kids: { icon: '🧸' },
   sports: { icon: '⚽' }, agriculture: { icon: '🌾' }, security: { icon: '🔒' },
   vehicles: { icon: '🚗' }, books: { icon: '📚' }, arts: { icon: '🎨' }, general: { icon: '📦' },
+  property: { icon: '🏡' }, services: { icon: '🧾' }, pets: { icon: '🐾' },
+  construction: { icon: '🧱' }, industrial: { icon: '🏭' },
+  appliances: { icon: '🧊' }, musical_instruments: { icon: '🎸' }, flowers: { icon: '🌸' },
+  jobs: { icon: '💼' }, energy: { icon: '☀️' }, tools_hardware: { icon: '🔧' },
+  weddings_events: { icon: '💍' }, water_sanitation: { icon: '🚰' },
+  office_supplies: { icon: '🖇️' }, collectibles: { icon: '🏺' },
+  tickets_vouchers: { icon: '🎟️' }, free_giveaway: { icon: '🎁' },
+  ebooks: { icon: '📖' }, software: { icon: '💻' }, online_courses: { icon: '🎓' },
+  digital_services: { icon: '🛠️' }, music_media: { icon: '🎵' }, digital_general: { icon: '🗂️' },
 };
 
 const Stars = ({ rating, size = 12, interactive = false, onRate }) => (

@@ -69,9 +69,31 @@ export const CATEGORIES: Record<string, CategoryDef> = {
       furniture:  { label: 'Furniture',         specs: ['Material', 'Dimensions', 'Color', 'Weight Capacity', 'Assembly Required'] },
       bedding:    { label: 'Bedding & Pillows', specs: ['Size', 'Material', 'Color', 'Thread Count'] },
       kitchen:    { label: 'Kitchen & Dining',  specs: ['Material', 'Capacity', 'Brand', 'Dishwasher Safe'] },
-      appliances: { label: 'Home Appliances',   specs: ['Brand', 'Power (W)', 'Voltage', 'Dimensions', 'Weight', 'Warranty'] },
       garden:     { label: 'Garden & Outdoor',  specs: ['Material', 'Dimensions', 'Color', 'Weatherproof'] },
       cleaning:   { label: 'Cleaning Supplies', specs: ['Type', 'Volume', 'Scent', 'Concentrated'] },
+    },
+  },
+  // Promoted out of home_garden's single "appliances" line — a category
+  // this large (fridges, washing machines, generators, AC units) deserves
+  // its own real subcategory tree, not one entry buried under Home & Garden.
+  appliances: {
+    label: 'Home Appliances', icon: '🧊',
+    synonyms: ['appliance', 'appliances', 'electronics appliances', 'home appliance'],
+    subcategories: {
+      refrigerators:    { label: 'Refrigerators & Freezers', specs: ['Brand', 'Capacity (L)', 'Power (W)', 'Voltage', 'Energy Rating', 'Condition'] },
+      washing_machines: { label: 'Washing Machines',         specs: ['Brand', 'Capacity (kg)', 'Type', 'Power (W)', 'Voltage', 'Condition'] },
+      air_conditioners: { label: 'Air Conditioners',         specs: ['Brand', 'Capacity (BTU)', 'Type', 'Power (W)', 'Voltage', 'Condition'] },
+      water_heaters:    { label: 'Water Heaters (Geyser)',   specs: ['Brand', 'Capacity (L)', 'Power (W)', 'Voltage', 'Type', 'Condition'] },
+      microwaves_ovens: { label: 'Microwaves & Ovens',       specs: ['Brand', 'Capacity (L)', 'Power (W)', 'Voltage', 'Condition'] },
+      cookers_stoves:   { label: 'Cookers & Stoves',         specs: ['Brand', 'Fuel Type', 'Burners', 'Dimensions', 'Condition'] },
+      blenders_mixers:  { label: 'Blenders & Mixers',        specs: ['Brand', 'Power (W)', 'Capacity (L)', 'Voltage', 'Condition'] },
+      fans_coolers:     { label: 'Fans & Air Coolers',       specs: ['Brand', 'Power (W)', 'Type', 'Voltage', 'Condition'] },
+      generators:       { label: 'Generators',               specs: ['Brand', 'Power Output (kVA)', 'Fuel Type', 'Voltage', 'Condition'] },
+      irons:            { label: 'Irons & Garment Care',     specs: ['Brand', 'Power (W)', 'Type', 'Condition'] },
+      vacuum_cleaners:  { label: 'Vacuum Cleaners',          specs: ['Brand', 'Power (W)', 'Type', 'Condition'] },
+      water_dispensers: { label: 'Water Dispensers',         specs: ['Brand', 'Type', 'Capacity', 'Power (W)', 'Condition'] },
+      sewing_machines:  { label: 'Sewing Machines',          specs: ['Brand', 'Type', 'Stitch Options', 'Power Source', 'Condition'] },
+      other_appliances: { label: 'Other Appliances',         specs: ['Brand', 'Power (W)', 'Voltage', 'Condition'] },
     },
   },
   health_beauty: {
@@ -156,11 +178,37 @@ export const CATEGORIES: Record<string, CategoryDef> = {
   },
   arts: {
     label: 'Arts & Crafts', icon: '🎨',
-    synonyms: ['music', 'instruments'],
     subcategories: {
-      paintings: { label: 'Paintings & Art',     specs: ['Medium', 'Dimensions', 'Style', 'Framed', 'Artist'] },
-      crafts:    { label: 'Craft Supplies',      specs: ['Type', 'Brand', 'Quantity', 'Material'] },
-      music:     { label: 'Musical Instruments', specs: ['Type', 'Brand', 'Material', 'Condition', 'Key/Tuning'] },
+      paintings: { label: 'Paintings & Art', specs: ['Medium', 'Dimensions', 'Style', 'Framed', 'Artist'] },
+      crafts:    { label: 'Craft Supplies',  specs: ['Type', 'Brand', 'Quantity', 'Material'] },
+    },
+  },
+  // Promoted out of arts.music — deserves its own tree given how much
+  // gear (instruments, DJ/sound equipment) this genuinely covers.
+  musical_instruments: {
+    label: 'Musical Instruments', icon: '🎸',
+    synonyms: ['music', 'instruments', 'instrument'],
+    subcategories: {
+      guitars:              { label: 'Guitars & Strings',      specs: ['Type', 'Brand', 'Material', 'Condition'] },
+      keyboards_pianos:     { label: 'Keyboards & Pianos',     specs: ['Type', 'Brand', 'Keys', 'Condition'] },
+      drums_percussion:     { label: 'Drums & Percussion',     specs: ['Type', 'Brand', 'Material', 'Condition'] },
+      traditional:          { label: 'Traditional Instruments',specs: ['Type', 'Material', 'Origin', 'Condition'] },
+      dj_sound_equipment:   { label: 'DJ & Sound Equipment',   specs: ['Brand', 'Power (W)', 'Type', 'Condition'] },
+      accessories:          { label: 'Instrument Accessories', specs: ['Compatible With', 'Type', 'Brand'] },
+    },
+  },
+  // Explicit user request — didn't exist in any form previously.
+  flowers: {
+    label: 'Flowers & Plants', icon: '🌸',
+    synonyms: ['flower', 'florist', 'plants', 'bouquet', 'bouquets'],
+    subcategories: {
+      bouquets:           { label: 'Bouquets & Arrangements', specs: ['Flower Type', 'Occasion', 'Size'] },
+      potted_plants:      { label: 'Potted & Indoor Plants',  specs: ['Plant Type', 'Pot Included', 'Size', 'Care Level'] },
+      wedding_flowers:    { label: 'Wedding & Event Flowers', specs: ['Flower Type', 'Occasion', 'Quantity'] },
+      artificial_flowers: { label: 'Artificial Flowers',      specs: ['Material', 'Type', 'Quantity'] },
+      seeds_bulbs:        { label: 'Seeds & Bulbs',           specs: ['Plant Type', 'Quantity', 'Season'] },
+      gardening_plants:   { label: 'Garden Plants & Trees',   specs: ['Plant Type', 'Height', 'Age', 'Care Level'] },
+      dried_flowers:      { label: 'Dried & Preserved Flowers', specs: ['Flower Type', 'Quantity'] },
     },
   },
   property: {
@@ -211,6 +259,109 @@ export const CATEGORIES: Record<string, CategoryDef> = {
       machinery:  { label: 'Machinery',           specs: ['Type', 'Brand', 'Power', 'Condition'] },
       office:     { label: 'Office Equipment',    specs: ['Type', 'Brand', 'Condition'] },
       restaurant: { label: 'Restaurant Equipment',specs: ['Type', 'Brand', 'Capacity', 'Power Source'] },
+    },
+  },
+  // ── Newly added, 2026-08-28 category expansion ──────────────────────────
+  jobs: {
+    label: 'Jobs & Employment', icon: '💼',
+    synonyms: ['job', 'jobs', 'employment', 'vacancy', 'vacancies', 'career', 'hiring'],
+    subcategories: {
+      full_time:      { label: 'Full-Time Jobs' },
+      part_time:      { label: 'Part-Time Jobs' },
+      internships:    { label: 'Internships & Trainee' },
+      freelance_jobs: { label: 'Freelance & Contract' },
+      domestic_help:  { label: 'Domestic Help & Housekeeping' },
+      driving_jobs:   { label: 'Driving & Delivery Jobs' },
+      hospitality_jobs: { label: 'Hospitality & Restaurant Jobs' },
+      other_jobs:     { label: 'Other Jobs' },
+    },
+  },
+  energy: {
+    label: 'Solar & Energy', icon: '☀️',
+    synonyms: ['solar', 'energy', 'power', 'generator', 'inverter', 'battery'],
+    subcategories: {
+      solar_panels:       { label: 'Solar Panels',        specs: ['Brand', 'Wattage (W)', 'Voltage', 'Condition'] },
+      solar_batteries:    { label: 'Solar & Deep-Cycle Batteries', specs: ['Brand', 'Capacity (Ah)', 'Voltage', 'Condition'] },
+      inverters:          { label: 'Inverters',           specs: ['Brand', 'Capacity (VA/W)', 'Voltage', 'Condition'] },
+      solar_lights:       { label: 'Solar Lights',        specs: ['Brand', 'Power (W)', 'Battery Life', 'Condition'] },
+      generators_energy:  { label: 'Generators',          specs: ['Brand', 'Power Output (kVA)', 'Fuel Type', 'Condition'] },
+      energy_accessories: { label: 'Cables & Accessories',specs: ['Compatible With', 'Type', 'Length'] },
+    },
+  },
+  tools_hardware: {
+    label: 'Tools & Hardware', icon: '🔧',
+    synonyms: ['tools', 'hardware', 'toolbox'],
+    subcategories: {
+      hand_tools:       { label: 'Hand Tools',       specs: ['Type', 'Brand', 'Material', 'Condition'] },
+      power_tools:      { label: 'Power Tools',      specs: ['Brand', 'Power Source', 'Power (W)', 'Condition'] },
+      hardware_supplies:{ label: 'Hardware Supplies',specs: ['Type', 'Material', 'Quantity/Unit'] },
+      safety_gear:      { label: 'Safety Gear',      specs: ['Type', 'Size', 'Material', 'Certification'] },
+      measuring_tools:  { label: 'Measuring & Layout Tools', specs: ['Type', 'Brand', 'Range'] },
+      ladders_access:   { label: 'Ladders & Access Equipment', specs: ['Type', 'Material', 'Height', 'Weight Capacity'] },
+    },
+  },
+  weddings_events: {
+    label: 'Weddings & Events', icon: '💍',
+    synonyms: ['wedding', 'weddings', 'event', 'events', 'party'],
+    subcategories: {
+      event_planning:   { label: 'Event Planning Services' },
+      decorations:      { label: 'Decorations & Balloons' },
+      invitations_cards:{ label: 'Invitations & Cards' },
+      catering_services:{ label: 'Catering Services' },
+      photo_video:      { label: 'Photography & Videography' },
+      event_rentals:    { label: 'Chairs, Tents & Rentals' },
+      bridal_wear:      { label: 'Bridal & Groom Wear' },
+    },
+  },
+  water_sanitation: {
+    label: 'Water & Sanitation', icon: '🚰',
+    synonyms: ['water', 'tank', 'tanks', 'pump', 'pumps', 'sanitation'],
+    subcategories: {
+      water_tanks:          { label: 'Water Tanks',          specs: ['Brand', 'Capacity (L)', 'Material', 'Condition'] },
+      water_pumps:          { label: 'Water Pumps',          specs: ['Brand', 'Power (W)', 'Flow Rate', 'Condition'] },
+      water_filters:        { label: 'Water Filters & Purifiers', specs: ['Brand', 'Capacity', 'Filter Type', 'Condition'] },
+      plumbing_fixtures:    { label: 'Plumbing Fixtures',    specs: ['Type', 'Material', 'Size'] },
+      sanitation_equipment: { label: 'Sanitation Equipment', specs: ['Type', 'Material', 'Capacity'] },
+    },
+  },
+  office_supplies: {
+    label: 'Office Supplies & Equipment', icon: '🖇️',
+    synonyms: ['office', 'stationery'],
+    subcategories: {
+      office_furniture: { label: 'Office Furniture',      specs: ['Material', 'Dimensions', 'Color', 'Condition'] },
+      filing_storage:   { label: 'Filing & Storage',      specs: ['Type', 'Material', 'Dimensions'] },
+      office_electronics:{ label: 'Office Electronics',   specs: ['Brand', 'Type', 'Condition'] },
+      stationery_supplies:{ label: 'Stationery Supplies', specs: ['Type', 'Brand', 'Quantity'] },
+      printing_copying: { label: 'Printing & Copying Services' },
+    },
+  },
+  collectibles: {
+    label: 'Antiques & Collectibles', icon: '🏺',
+    synonyms: ['antique', 'antiques', 'collectible', 'collectibles', 'vintage'],
+    subcategories: {
+      antiques:          { label: 'Antiques' },
+      coins_stamps:      { label: 'Coins & Stamps' },
+      memorabilia:       { label: 'Memorabilia' },
+      vintage_items:     { label: 'Vintage Items' },
+      collectible_toys:  { label: 'Collectible Toys & Figures' },
+    },
+  },
+  tickets_vouchers: {
+    label: 'Tickets & Vouchers', icon: '🎟️',
+    synonyms: ['ticket', 'tickets', 'voucher', 'vouchers'],
+    subcategories: {
+      event_tickets:  { label: 'Event Tickets' },
+      travel_tickets: { label: 'Travel Tickets' },
+      gift_vouchers:  { label: 'Gift Vouchers' },
+      subscriptions:  { label: 'Subscriptions & Memberships' },
+    },
+  },
+  free_giveaway: {
+    label: 'Free Stuff', icon: '🎁',
+    synonyms: ['free', 'giveaway', 'giveaways'],
+    subcategories: {
+      free_items: { label: 'Free Items' },
+      giveaways:  { label: 'Giveaways' },
     },
   },
   general: {

@@ -55,6 +55,22 @@ const CATEGORY_COMMISSION: Record<string, number> = {
   general: 10,
   property: 0,
   services: 0,
+  pets: 10,
+  construction: 8,
+  industrial: 8,
+  // ── 2026-08-28 category expansion ──
+  appliances: 10,
+  musical_instruments: 10,
+  flowers: 10,
+  jobs: 0, // a job posting has no sale value to take commission from
+  energy: 8,
+  tools_hardware: 10,
+  weddings_events: 10,
+  water_sanitation: 8,
+  office_supplies: 10,
+  collectibles: 10,
+  tickets_vouchers: 10,
+  free_giveaway: 0, // nothing is being sold
   // ── Digital goods ──
   ebooks: 10,
   software: 10,
