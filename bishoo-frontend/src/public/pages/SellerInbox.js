@@ -79,11 +79,31 @@ const ConversationItem = ({ convo, isActive, onClick, t, dateLocale, menuOpen, o
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {convo.lastMessagePreview || '...'}
         </div>
-        <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 100,
-          backgroundColor: sc.bg, color: sc.color, fontWeight: 700, marginTop: 4,
-          display: 'inline-block' }}>
-          {sc.label}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 100,
+            backgroundColor: sc.bg, color: sc.color, fontWeight: 700,
+            display: 'inline-block' }}>
+            {sc.label}
+          </span>
+          {/* Which product/classified/service this conversation is about —
+              always the most recent one messaged about (see Conversation
+              entity's linkedContextType comment), not tied to whatever
+              lastMessagePreview currently shows once the chat moves past
+              the opening message. */}
+          {convo.linkedContextTitle && (
+            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 100,
+              backgroundColor: '#f5f3ff', color: '#7c3aed', fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: 4, minWidth: 0,
+              maxWidth: 140, overflow: 'hidden' }}>
+              {convo.linkedContextImage
+                ? <img src={convo.linkedContextImage} alt="" style={{ width: 12, height: 12, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+                : '🏷️'}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {convo.linkedContextTitle}
+              </span>
+            </span>
+          )}
+        </div>
       </div>
       <button
         onClick={(e) => { e.stopPropagation(); menuOpen ? onCloseMenu() : onOpenMenu(); }}
@@ -254,7 +274,7 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
   );
 };
 
-const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, currentUser }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser }) => {
   const { t, i18n } = useTranslation();
   const canSell = hasAnyRole(userRole, currentUser, ['seller', 'admin', 'manager']);
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
@@ -305,6 +325,8 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
           const r = await api.post('/business/my-conversations/start', {
             sellerId: Number(sellerId),
             commerceProfileId: messageCommerceProfileId ? Number(messageCommerceProfileId) : undefined,
+            contextType: messageContextType || undefined,
+            contextId: messageContextId ? Number(messageContextId) : undefined,
           });
           const convo = { ...r.data, _mode: 'buyer' };
           setConversations([convo]);
@@ -371,7 +393,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       setConversations(merged);
     } catch {} finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, initialCustomerId, sellerId, messageCommerceProfileId, debouncedSearch, mineOnly]);
+  }, [filter, initialCustomerId, sellerId, messageCommerceProfileId, messageContextType, messageContextId, debouncedSearch, mineOnly]);
 
   const fetchMessages = async (convo) => {
     try {
@@ -794,8 +816,19 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                     ? (active.commerceProfile?.displayName || active.seller?.storeName || active.seller?.name || t('seller_inbox.seller_fallback'))
                     : (active.customer?.name || t('seller_inbox.customer_fallback'))}
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b' }}>
-                  {active._mode === 'buyer' ? '' : (active.customer?.phone || '')}
+                <div style={{ fontSize: 11, color: '#64748b', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {active._mode !== 'buyer' && (active.customer?.phone || '')}
+                  {active.linkedContextTitle && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4,
+                      color: '#7c3aed', fontWeight: 700, overflow: 'hidden' }}>
+                      {active.linkedContextImage
+                        ? <img src={active.linkedContextImage} alt="" style={{ width: 14, height: 14, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
+                        : '🏷️'}
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {active.linkedContextTitle}
+                      </span>
+                    </span>
+                  )}
                 </div>
               </div>
               {/* Status dropdown — seller-only CRM control */}

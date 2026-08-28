@@ -396,12 +396,20 @@ export class BusinessController {
   @Post('my-conversations/start')
   startConversationAsBuyer(
     @Request() req,
-    @Body() body: { sellerId: number; commerceProfileId?: number },
+    @Body() body: {
+      sellerId: number;
+      commerceProfileId?: number;
+      contextType?: 'product' | 'classified' | 'service';
+      contextId?: number;
+    },
   ) {
     return this.conversationService.getOrCreateConversationAsBuyer(
       req.user,
       body.sellerId,
       body.commerceProfileId,
+      body.contextType && body.contextId
+        ? { type: body.contextType, id: body.contextId }
+        : null,
     );
   }
 
@@ -424,10 +432,17 @@ export class BusinessController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: { content?: string; imageUrl?: string },
   ) {
+    // sendMessageAsBuyer's service signature also accepts type/metadata now
+    // (used internally by getOrCreateConversationAsBuyer to post a
+    // server-computed product/listing card) — explicitly whitelisted here
+    // to content/imageUrl only, since this inline @Body() type has no
+    // class-validator whitelist stripping unlisted JSON fields, and a
+    // buyer must never be able to forge an arbitrary product card
+    // (fake name/price/image) in their own outgoing message.
     return this.conversationService.sendMessageAsBuyer(
       req.user.id,
       id,
-      dto,
+      { content: dto.content, imageUrl: dto.imageUrl },
       req.user,
     );
   }

@@ -437,8 +437,10 @@ const ServiceDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, serviceId, 
                         {t('service_detail.request_service_button')}
                       </button>
                       {ad.provider?.id && (
-                        <button onClick={() => onNavigate(`MessageSeller-${ad.provider.id}`,
-                            ad.commerceProfile?.id ? { commerceProfileId: ad.commerceProfile.id } : undefined)}
+                        <button onClick={() => onNavigate(`MessageSeller-${ad.provider.id}`, {
+                            ...(ad.commerceProfile?.id ? { commerceProfileId: ad.commerceProfile.id } : {}),
+                            contextType: 'service', contextId: ad.id,
+                          })}
                           style={{ display: 'block', textAlign: 'center', width: '100%',
                             backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe',
                             borderRadius: 12, padding: '12px 0', fontSize: 14, cursor: 'pointer',

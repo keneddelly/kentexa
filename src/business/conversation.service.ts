@@ -28,6 +28,14 @@ import { User } from '../users/entities/user.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { ConversationGateway } from './conversation.gateway';
+import { Product } from '../products/entities/products.entity';
+import { Classified } from '../classifieds/entities/classified.entity';
+import { ServiceAd } from '../services/entities/service-ad.entity';
+
+export interface ConversationContext {
+  type: 'product' | 'classified' | 'service';
+  id: number;
+}
 
 @Injectable()
 export class ConversationService {
@@ -40,11 +48,51 @@ export class ConversationService {
     private customerRepo: Repository<BusinessCustomer>,
     @InjectRepository(BusinessTeamMember)
     private teamMemberRepo: Repository<BusinessTeamMember>,
+    @InjectRepository(Product)
+    private productRepo: Repository<Product>,
+    @InjectRepository(Classified)
+    private classifiedRepo: Repository<Classified>,
+    @InjectRepository(ServiceAd)
+    private serviceAdRepo: Repository<ServiceAd>,
     private customerService: BusinessCustomerService,
     private notifService: InAppNotificationService,
     private commerceProfiles: CommerceProfilesService,
     private gateway: ConversationGateway,
   ) {}
+
+  // Never trust a client-supplied contextId blindly — same posture as
+  // verifiedProfileId in getOrCreateConversation below: the listing must
+  // actually belong to this seller, or the context is silently dropped
+  // (the conversation still opens, just without a tag) rather than
+  // rejecting the whole "message seller" action over it.
+  private async resolveContext(
+    sellerId: number,
+    context?: ConversationContext | null,
+  ): Promise<{ type: string; id: number; title: string; image: string | null; price: number } | null> {
+    if (!context?.type || !context?.id) return null;
+    if (context.type === 'product') {
+      const p = await this.productRepo.findOne({
+        where: { id: context.id, seller: { id: sellerId } },
+      });
+      if (!p) return null;
+      return { type: 'product', id: p.id, title: p.name, image: p.images?.[0] || null, price: Number(p.displayPrice || p.basePrice || 0) };
+    }
+    if (context.type === 'classified') {
+      const c = await this.classifiedRepo.findOne({
+        where: { id: context.id, seller: { id: sellerId } },
+      });
+      if (!c) return null;
+      return { type: 'classified', id: c.id, title: c.title, image: c.images?.[0] || null, price: Number(c.price || 0) };
+    }
+    if (context.type === 'service') {
+      const s = await this.serviceAdRepo.findOne({
+        where: { id: context.id, providerId: sellerId },
+      });
+      if (!s) return null;
+      return { type: 'service', id: s.id, title: s.title, image: s.images?.[0] || null, price: Number(s.price || 0) };
+    }
+    return null;
+  }
 
   // Batched — resolves whatever distinct commerceProfileIds appear among a
   // page of conversations in parallel, not one lookup per row. Attaches
@@ -326,6 +374,7 @@ export class ConversationService {
     buyer: User,
     sellerId: number,
     commerceProfileId?: number | null,
+    context?: ConversationContext | null,
   ): Promise<Conversation> {
     if (sellerId === buyer.id) {
       throw new BadRequestException('Cannot message yourself');
@@ -338,7 +387,52 @@ export class ConversationService {
       email: buyer.email,
     });
 
-    return this.getOrCreateConversation(sellerId, customer.id, commerceProfileId);
+    const convo = await this.getOrCreateConversation(sellerId, customer.id, commerceProfileId);
+
+    // Tag the thread with the listing this "Message Seller" tap came from
+    // (ProductDetail.js/ClassifiedDetail.js/ServiceDetail.js) — see
+    // resolveContext()'s own comment for why this is fetched fresh rather
+    // than trusted from the client. Always overwritten to the latest
+    // listing messaged about; a resolution failure (deleted/not-owned
+    // listing) never blocks opening the conversation itself, only skips
+    // the tag.
+    const resolved = await this.resolveContext(sellerId, context);
+    if (resolved) {
+      await this.convoRepo.update(convo.id, {
+        linkedContextType: resolved.type as any,
+        linkedContextId: resolved.id,
+        linkedContextTitle: resolved.title,
+        linkedContextImage: resolved.image,
+      });
+      convo.linkedContextType = resolved.type as any;
+      convo.linkedContextId = resolved.id;
+      convo.linkedContextTitle = resolved.title;
+      convo.linkedContextImage = resolved.image;
+
+      // A real first message, not just a silent tag — reuses the exact
+      // product-card rendering SellerInbox.js already has for
+      // shareProduct() (MessageType.PRODUCT + productName/Image/Price
+      // metadata keys), so classified/service context renders with zero
+      // frontend changes to the message bubble itself.
+      await this.sendMessageAsBuyer(
+        buyer.id,
+        convo.id,
+        {
+          content: `${resolved.type === 'service' ? 'Huduma' : resolved.type === 'classified' ? 'Tangazo' : 'Bidhaa'}: ${resolved.title}${resolved.price ? ` — TZS ${resolved.price.toLocaleString()}` : ''}`,
+          type: MessageType.PRODUCT,
+          metadata: {
+            contextType: resolved.type,
+            contextId: resolved.id,
+            productName: resolved.title,
+            productPrice: resolved.price,
+            productImage: resolved.image,
+          },
+        },
+        buyer,
+      );
+    }
+
+    return convo;
   }
 
   // ── Get messages in a conversation ───────────────────────────────────────
@@ -534,6 +628,8 @@ export class ConversationService {
     dto: {
       content?: string;
       imageUrl?: string;
+      type?: string;
+      metadata?: any;
     },
     sender: User,
   ): Promise<ConversationMessage> {
@@ -549,9 +645,10 @@ export class ConversationService {
       conversationId,
       senderType: MessageSenderType.CUSTOMER,
       senderId: sender.id,
-      type: MessageType.TEXT,
+      type: dto.type || MessageType.TEXT,
       content: dto.content || null,
       imageUrl: dto.imageUrl || null,
+      metadata: dto.metadata || null,
     });
     await this.msgRepo.save(msg);
 

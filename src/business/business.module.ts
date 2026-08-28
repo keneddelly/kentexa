@@ -12,6 +12,8 @@ import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { Invoice } from '../invoices/entities/invoice.entity';
 import { Product } from '../products/entities/products.entity';
+import { Classified } from '../classifieds/entities/classified.entity';
+import { ServiceAd } from '../services/entities/service-ad.entity';
 import { BusinessCustomerService } from './business-customer.service';
 import { ConversationService } from './conversation.service';
 import { SellerScopeService } from './seller-scope.service';
@@ -38,6 +40,8 @@ import { ConversationGateway } from './conversation.gateway';
       CommerceProfile,
       Invoice,
       Product,
+      Classified,
+      ServiceAd,
     ]),
     NotificationsModule,
     CommerceProfilesModule,

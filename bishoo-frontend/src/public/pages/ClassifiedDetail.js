@@ -168,6 +168,10 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
   const sellerPhoto = classified.commerceProfile?.photoUrl || classified.seller?.logo;
   const sellerFollowers = classified.commerceProfile?.followersCount ?? classified.seller?.followersCount;
   const sellerNavParams = classified.commerceProfile?.id ? { commerceProfileId: classified.commerceProfile.id } : undefined;
+  // Message-button-only variant — same reasoning as ProductDetail.js's
+  // messageSellerNavParams: tags the resulting conversation to this exact
+  // classified so it shows up in the inbox with it attached.
+  const messageSellerNavParams = { ...sellerNavParams, contextType: 'classified', contextId: classified.id };
   const isVerifiedSeller = ['seller','admin','manager'].includes(classified.seller?.role);
 
   const handleMakeOffer = async () => {
@@ -515,7 +519,7 @@ const ClassifiedDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, classifi
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {classified.seller?.id && (
-                      <button onClick={() => onNavigate(`MessageSeller-${classified.seller.id}`, sellerNavParams)}
+                      <button onClick={() => onNavigate(`MessageSeller-${classified.seller.id}`, messageSellerNavParams)}
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: 11, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
                         💬 {t('classified_detail.message_seller')}
                       </button>

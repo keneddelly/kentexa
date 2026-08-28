@@ -666,7 +666,8 @@ function App() {
     if (page.startsWith('MessageSeller-')) {
       const sellerId = page.split('MessageSeller-')[1];
       return requireLogin(<SellerInbox {...publicProps} initialCustomerId={null} sellerId={sellerId}
-        messageCommerceProfileId={navParams?.commerceProfileId} />);
+        messageCommerceProfileId={navParams?.commerceProfileId}
+        messageContextType={navParams?.contextType} messageContextId={navParams?.contextId} />);
     }
     if (page.startsWith('Search-'))
       return <Search {...publicProps} initialQuery={page.split('Search-')[1]} aiIntent={navParams?.aiIntent} track={track} />;

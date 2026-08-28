@@ -134,6 +134,27 @@ export class Conversation {
   @Column({ type: 'int', nullable: true })
   linkedInvoiceId: number | null;
 
+  // What listing this conversation is CURRENTLY about — unlike
+  // commerceProfileId above (set once, never changed: which identity),
+  // this is mutable and always overwritten to the most recent product/
+  // classified/service a buyer messaged about, since one ongoing customer
+  // relationship can naturally touch several listings over time (CLAUDE.md:
+  // "Messages connect to context... product, service, order, invoice").
+  // Denormalized title/image (not just a foreign id) so the inbox list row
+  // can show a chip without an extra lookup per conversation, and so it
+  // still displays correctly even if the listing is later deleted/sold.
+  @Column({ type: 'varchar', nullable: true })
+  linkedContextType: 'product' | 'classified' | 'service' | null;
+
+  @Column({ type: 'int', nullable: true })
+  linkedContextId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  linkedContextTitle: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  linkedContextImage: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

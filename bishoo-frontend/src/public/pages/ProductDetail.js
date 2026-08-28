@@ -204,6 +204,13 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
   const sellerFollowers = product.commerceProfile?.followersCount ?? product.seller?.followersCount;
   const sellerPhoto = product.commerceProfile?.photoUrl || product.seller?.logo;
   const sellerNavParams = product.commerceProfile?.id ? { commerceProfileId: product.commerceProfile.id } : undefined;
+  // Message-button-only variant — tags the resulting conversation to this
+  // exact product (see ConversationService.getOrCreateConversationAsBuyer's
+  // context param) so it shows up in the inbox with the product attached,
+  // not just the business identity. Kept separate from sellerNavParams
+  // above since that one is also used for plain "visit business profile"
+  // navigation, where a product context wouldn't mean anything.
+  const messageSellerNavParams = { ...sellerNavParams, contextType: 'product', contextId: product.id };
 
   const avgRating = reviews.length > 0
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
@@ -404,7 +411,7 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
               </div>
               <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
                 {product.seller?.id && currentUser?.id !== product.seller.id && (
-                  <button onClick={() => onNavigate(`MessageSeller-${product.seller.id}`, sellerNavParams)}
+                  <button onClick={() => onNavigate(`MessageSeller-${product.seller.id}`, messageSellerNavParams)}
                     style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1.5px solid #bbf7d0', padding: '7px 13px', borderRadius: 8, fontSize: 12, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     💬 {t('product_detail.message_seller')}
                   </button>
