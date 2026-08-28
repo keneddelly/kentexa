@@ -1075,7 +1075,14 @@ const DiscoveryRail = ({ type, items, onNavigate }) => {
   const goTo = (item) => {
     if (type === 'store') {
       const bizId = item.id || item.userId;
-      if (bizId) onNavigate(`CommerceProfile-${bizId}`);
+      // getTrending() already resolves and attaches item.commerceProfileId
+      // for exactly this reason (see its own comment) — this was the one
+      // caller in this file that still navigated on the bare account id,
+      // which CommerceProfile.js then defaults to resolving as that
+      // account's PERSONAL profile instead of the business actually shown
+      // on the card (e.g. "Bishoo" opening "Kened").
+      if (bizId) onNavigate(`CommerceProfile-${bizId}`,
+        item.commerceProfileId ? { commerceProfileId: item.commerceProfileId } : undefined);
       return;
     }
     if (type === 'transport') {
