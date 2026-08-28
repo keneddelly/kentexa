@@ -63,6 +63,9 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [categoryManuallySet, setCategoryManuallySet] = useState(false);
   const [categorySuggested, setCategorySuggested]     = useState(false);
   const [suggestingCategory, setSuggestingCategory]   = useState(false);
+  // Which product's ⋮ menu is open — same idiom SellerInbox.js's
+  // conversation list already uses for its own per-row action menu.
+  const [menuForProductId, setMenuForProductId] = useState(null);
 
   // Boda fee suggestions
   const [bodaSuggestions, setBodaSuggestions]   = useState([]);
@@ -479,59 +482,78 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <button onClick={() => { resetForm(); setShowForm(true); }} style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>{`+ ${t('seller_products.add_first')}`}</button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 12 }}>
-            {products.map(product => (
-              <div key={product.id} style={{ backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9' }}>
-                <div style={{ height: 160, backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' }}>
-                  {product.images?.[0] ? <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 48 }}>📦</span>}
-                  <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, backgroundColor: product.isZipo ? '#dcfce7' : '#fee2e2', color: product.isZipo ? '#16a34a' : '#dc2626' }}>
-                    {product.isZipo ? `✅ ${t('seller_products.on_sale')}` : t('seller_products.hidden_badge')}
-                  </span>
+          // Instagram-style 3-column grid — same visual pattern as the
+          // public profile's Products/Moments tabs (CommerceProfile.js),
+          // per explicit request. That grid is read-only/tap-to-view since
+          // it's someone else looking at a storefront; this is the SELLER's
+          // own management page, so tapping a tile opens Edit directly
+          // (the single most common action) and a small ⋮ menu — the same
+          // idiom SellerInbox.js's conversation list already uses — covers
+          // Hide/Show and Delete without needing a full card's worth of
+          // inline buttons per product.
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 2 }}>
+            {products.map(product => {
+              const lowStock = product.minStockThreshold > 0 && product.stock <= product.minStockThreshold;
+              return (
+              <div key={product.id}
+                onClick={() => handleEdit(product)}
+                style={{ position: 'relative', aspectRatio: '1', backgroundColor: '#F8FAFC', cursor: 'pointer', overflow: 'hidden' }}>
+                {product.images?.[0]
+                  ? <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>}
+
+                {!product.isZipo && (
+                  <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff', textAlign: 'center', padding: 4 }}>
+                    {t('seller_products.hidden_badge')}
+                  </div>
+                )}
+
+                <div style={{ position: 'absolute', bottom: 4, left: 4, fontSize: 10, fontWeight: 800, color: '#fff',
+                  backgroundColor: 'rgba(15,23,42,0.65)', padding: '2px 6px', borderRadius: 6, maxWidth: 'calc(100% - 30px)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  TZS {Number(product.displayPrice || product.price || 0).toLocaleString()}
                 </div>
-                <div style={{ padding: 14 }}>
-                  <div style={{ display: 'flex', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, backgroundColor: '#ede9fe', color: '#7c3aed' }}>
-                      {CATEGORIES[product.category]?.icon} {product.category?.replace(/_/g,' ')}
-                    </span>
-                    {product.subcategory && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, backgroundColor: '#f0fdf4', color: '#16a34a' }}>
-                        {CATEGORIES[product.category]?.subcategories[product.subcategory]?.label || product.subcategory}
-                      </span>
-                    )}
-                  </div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 4px' }}>{product.name}</h3>
-                  {product.model && (
-                    <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>
-                      {t('seller_products.model_label')}: {product.model}
+
+                {lowStock && (
+                  <span style={{ position: 'absolute', top: 4, left: 4, fontSize: 12 }} title={t('seller_products.low_stock_badge')}>⚠️</span>
+                )}
+
+                <button
+                  onClick={(e) => { e.stopPropagation(); setMenuForProductId(id => id === product.id ? null : product.id); }}
+                  style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(15,23,42,0.5)', border: 'none',
+                    borderRadius: '50%', width: 22, height: 22, color: '#fff', fontSize: 14, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                  ⋮
+                </button>
+
+                {menuForProductId === product.id && (
+                  <div onClick={(e) => e.stopPropagation()}
+                    style={{ position: 'absolute', top: 26, right: 2, backgroundColor: '#fff', borderRadius: 10,
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.2)', zIndex: 10, minWidth: 130, overflow: 'hidden', border: '1px solid #f1f5f9' }}>
+                    <div onClick={() => { setMenuForProductId(null); handleEdit(product); }}
+                      style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
+                      {`✏️ ${t('seller_products.edit')}`}
                     </div>
-                  )}
-                  <div style={{ fontSize: 16, fontWeight: 900, color: '#1d4ed8', marginBottom: 4 }}>
-                    TZS {Number(product.displayPrice || product.price || 0).toLocaleString()}
-                  </div>
-                  {product.specs && Object.keys(product.specs).length > 0 && (
-                    <div style={{ fontSize: 10, color: '#64748b', marginBottom: 6 }}>
-                      {Object.entries(product.specs).slice(0, 2).map(([k, v]) => `${k}: ${v}`).join(' · ')}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>
-                    {t('seller_products.stock_label', { count: product.stock })}
-                    {product.reservedStock > 0 && (
-                      <span style={{ color: '#ca8a04', fontWeight: 700 }}> · {t('seller_products.reserved_label', { count: product.reservedStock })}</span>
-                    )}
-                  </div>
-                  {product.minStockThreshold > 0 && product.stock <= product.minStockThreshold && (
-                    <div style={{ fontSize: 10, fontWeight: 700, color: '#dc2626', marginBottom: 6 }}>{`⚠️ ${t('seller_products.low_stock_badge')}`}</div>
-                  )}
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => handleEdit(product)} style={{ flex: 1, backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>{`✏️ ${t('seller_products.edit')}`}</button>
-                    <button onClick={() => handleToggleZipo(product)} style={{ flex: 1, backgroundColor: product.isZipo ? '#fee2e2' : '#dcfce7', color: product.isZipo ? '#dc2626' : '#16a34a', border: 'none', padding: '7px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                    <div onClick={() => { setMenuForProductId(null); handleToggleZipo(product); }}
+                      style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: product.isZipo ? '#dc2626' : '#16a34a', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
                       {product.isZipo ? `🚫 ${t('seller_products.hide')}` : `✅ ${t('seller_products.show')}`}
-                    </button>
-                    <button onClick={() => handleDelete(product.id)} style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: 'none', padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>🗑</button>
+                    </div>
+                    <div onClick={() => { setMenuForProductId(null); handleDelete(product.id); }}
+                      style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#dc2626', cursor: 'pointer' }}>
+                      {`🗑 ${t('seller_products.delete_action')}`}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
-            ))}
+              );
+            })}
+            {/* Click-away to close whichever tile's ⋮ menu is open — sits
+                below the menu itself (z-index 10) so the menu still wins. */}
+            {menuForProductId !== null && (
+              <div onClick={() => setMenuForProductId(null)}
+                style={{ position: 'fixed', inset: 0, zIndex: 5 }} />
+            )}
           </div>
         )}
       </div>
