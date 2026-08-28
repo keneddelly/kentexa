@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
+import LanguageSwitcher, { LANGUAGES } from '../components/LanguageSwitcher';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -79,7 +80,7 @@ const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => 
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment, activeProfile }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const TIERS = getTiers(t);
   const ROLE_META = getRoleMeta(t);
   const getTier = s => TIERS.find(tier => Number(s||0) >= tier.min) || TIERS[4];
@@ -101,6 +102,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [showQR,     setShowQR]     = useState(false);
   const [identityStatus, setIdentityStatus] = useState(null);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [sellerProfile, setSellerProfile] = useState(null);
 
   const role = userRole || profile?.role || 'user';
@@ -998,6 +1000,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               {/* "Verify ID" removed — same dead KYC row already removed from
                   the Identity tab; it linked to CustomerProfile, which has no
                   ID-verification UI, for any role, seller included. */}
+              <Row icon="🌐" label={t('my_profile.language_label')}
+                value={(LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0]).label}
+                onAction={() => setShowLanguagePicker(p => !p)} />
+              {showLanguagePicker && (
+                <div style={{ paddingTop: 12 }}>
+                  <LanguageSwitcher variant="list" onChange={() => setShowLanguagePicker(false)} />
+                </div>
+              )}
             </SCard>
 
             {/* Payout details — only means anything if KenteXa actually pays

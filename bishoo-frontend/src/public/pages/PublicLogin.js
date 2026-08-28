@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const { t } = useTranslation();
@@ -108,6 +109,14 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f0f4ff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+
+      {/* Persistent language control — the one-time first-visit picker in
+          App.js only ever shows once per browser and has no way to reopen
+          it afterward, so returning/switched-device users had no way to
+          change language from the login screen at all. */}
+      <div style={{ position: 'fixed', top: 'max(16px, env(safe-area-inset-top))', right: 16, zIndex: 10 }}>
+        <LanguageSwitcher variant="dropdown" />
+      </div>
 
       <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: '36px 28px', width: '100%', maxWidth: 420, boxShadow: '0 8px 40px rgba(0,0,0,0.1)' }}>
 
