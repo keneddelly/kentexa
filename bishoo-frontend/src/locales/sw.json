@@ -182,7 +182,12 @@
     "cod_confirmed_title": "Agizo Limethibitishwa!",
     "cod_confirmed_sub": "Hakuna malipo yanayohitajika sasa — lipa agizo lako litakapofika",
     "cod_pay_on_delivery": "Lipa Ukipokea",
-    "cod_deposit_paid_label": "Kiasi cha Awali Kimelipwa"
+    "cod_deposit_paid_label": "Kiasi cha Awali Kimelipwa",
+    "cod_calculating": "Inakokotoa kiasi cha awali...",
+    "cod_pay_now_label": "Lipa sasa (kiasi cha awali)",
+    "cod_pay_later_label": "Lipa ukipokea",
+    "cod_total_hint": "TZS {{upfront}} sasa · TZS {{remaining}} ukipokea",
+    "cod_total_hint_zero": "Lipa TZS {{remaining}} ukipokea"
   },
   "common": {
     "loading": "Inapakia...",

@@ -21,6 +21,7 @@ import { SellerScopeService } from '../business/seller-scope.service';
 import { parseOrderIdParam } from '../common/utils/order-id.util';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
+import { CodCalculationService } from '../cod/cod-calculation.service';
 
 @Controller('orders')
 export class OrdersController {
@@ -28,6 +29,7 @@ export class OrdersController {
     private ordersService: OrdersService,
     private sellerScope: SellerScopeService,
     private verification: VerificationService,
+    private codCalculation: CodCalculationService,
   ) {}
 
   // ── Customer ──────────────────────────────────────────────────────────────
@@ -36,6 +38,30 @@ export class OrdersController {
   @Post()
   create(@Body() dto: CreateOrderDto, @Request() req) {
     return this.ordersService.create(dto, req.user);
+  }
+
+  // Live preview for checkout — lets the buyer see the upfront/remaining
+  // split BEFORE placing the order, instead of only after (the actual
+  // split is decided server-side at order creation, in OrdersService.create()
+  // via this same CodCalculationService, so this is a read-only preview of
+  // that same calculation, not a second implementation of it).
+  @UseGuards(JwtAuthGuard)
+  @Get('cod-quote')
+  getCodQuote(
+    @Query('totalAmount') totalAmount: string,
+    @Query('isIntercity') isIntercity: string,
+  ) {
+    const amount = Number(totalAmount || 0);
+    try {
+      const result = this.codCalculation.calculate({
+        basePrice: amount,
+        deliveryFee: 0,
+        isIntercity: isIntercity === 'true',
+      });
+      return { eligible: true, ...result };
+    } catch (err) {
+      return { eligible: false, message: err.message };
+    }
   }
 
   @UseGuards(JwtAuthGuard)

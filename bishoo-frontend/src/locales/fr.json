@@ -161,7 +161,12 @@
     "cod_confirmed_title": "Commande Confirmée!",
     "cod_confirmed_sub": "Aucun paiement requis maintenant — payez à l'arrivée de votre commande",
     "cod_pay_on_delivery": "Payer à la Livraison",
-    "cod_deposit_paid_label": "Acompte Payé"
+    "cod_deposit_paid_label": "Acompte Payé",
+    "cod_calculating": "Calcul de l'acompte...",
+    "cod_pay_now_label": "Payer maintenant (acompte)",
+    "cod_pay_later_label": "Payer à la livraison",
+    "cod_total_hint": "TZS {{upfront}} maintenant · TZS {{remaining}} à la livraison",
+    "cod_total_hint_zero": "Payez TZS {{remaining}} à la livraison"
   },
   "pay_invoice": {
     "title": "Payer Facture",

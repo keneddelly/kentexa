@@ -161,7 +161,12 @@
     "cod_confirmed_title": "Order Confirmed!",
     "cod_confirmed_sub": "No payment needed now — pay when your order arrives",
     "cod_pay_on_delivery": "Pay on Delivery",
-    "cod_deposit_paid_label": "Deposit Paid"
+    "cod_deposit_paid_label": "Deposit Paid",
+    "cod_calculating": "Calculating deposit...",
+    "cod_pay_now_label": "Pay now (deposit)",
+    "cod_pay_later_label": "Pay on delivery",
+    "cod_total_hint": "TZS {{upfront}} now · TZS {{remaining}} on delivery",
+    "cod_total_hint_zero": "Pay TZS {{remaining}} on delivery"
   },
   "pay_invoice": {
     "title": "Pay Invoice",

@@ -39,6 +39,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // since the backend decides upfront/remaining split at creation time.
   const [paymentChoice, setPaymentChoice] = useState('online'); // 'online' | 'cod'
   const [codInfo, setCodInfo]             = useState(null); // { upfront, remaining } once order is placed
+  // Live preview of that same split, fetched from the backend's own
+  // CodCalculationService (via /orders/cod-quote) so the buyer sees the
+  // real upfront/remaining amounts BEFORE placing the order, not only after.
+  const [codQuote, setCodQuote]               = useState(null);
+  const [codQuoteLoading, setCodQuoteLoading] = useState(false);
 
   const [showAgentStep, setShowAgentStep] = useState(false);
   const [nearbyAgents, setNearbyAgents]   = useState([]);
@@ -109,6 +114,22 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     const baseOnly = cart.reduce((sum, item) => sum + Number(item.basePrice || item.price || 0) * item.quantity, 0);
     return baseOnly + (method.fee || 0);
   };
+
+  // Live COD preview — whenever COD is selected, ask the backend for the
+  // real upfront/remaining split for the current cart total so it can be
+  // shown before the order is placed, not only after.
+  React.useEffect(() => {
+    if (paymentChoice !== 'cod' || isDigitalOnlyCart || cart.length === 0) { setCodQuote(null); return; }
+    const total = getCartTotal();
+    if (!total) { setCodQuote(null); return; }
+    let cancelled = false;
+    setCodQuoteLoading(true);
+    api.get('/orders/cod-quote', { params: { totalAmount: total, isIntercity: selectedMethod === 'agent' } })
+      .then(res => { if (!cancelled) setCodQuote(res.data); })
+      .catch(() => { if (!cancelled) setCodQuote(null); })
+      .finally(() => { if (!cancelled) setCodQuoteLoading(false); });
+    return () => { cancelled = true; };
+  }, [paymentChoice, cart, deliveryMethods, selectedMethod]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckout = async () => {
     if ((!isDigitalOnlyCart && !form.deliveryAddress.trim()) || !form.phone.trim()) {
@@ -696,6 +717,36 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                 </div>
                 {paymentChoice === 'cod' && <span style={{ fontSize: 18, color: '#1d4ed8' }}>✅</span>}
               </div>
+
+              {paymentChoice === 'cod' && (
+                codQuoteLoading ? (
+                  <div style={{ fontSize: 12, color: '#94a3b8', padding: '4px 4px' }}>⏳ {t('checkout.cod_calculating')}</div>
+                ) : codQuote && codQuote.eligible === false ? (
+                  <div style={{ backgroundColor: '#fee2e2', borderRadius: 10, padding: '10px 12px', fontSize: 12, color: '#dc2626', fontWeight: 600 }}>
+                    ⚠️ {codQuote.message}
+                  </div>
+                ) : codQuote ? (
+                  <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '12px 14px', border: '1px solid #bfdbfe' }}>
+                    {Number(codQuote.upfrontRequired) > 0 ? (
+                      <>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                          <span style={{ color: '#1d4ed8', fontWeight: 700 }}>{t('checkout.cod_pay_now_label')}</span>
+                          <span style={{ fontWeight: 900, color: '#1d4ed8' }}>TZS {Number(codQuote.upfrontRequired).toLocaleString()}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                          <span style={{ color: '#64748b' }}>{t('checkout.cod_pay_later_label')}</span>
+                          <span style={{ fontWeight: 700, color: '#64748b' }}>TZS {Number(codQuote.remainingBalance).toLocaleString()}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                        <span style={{ color: '#1d4ed8', fontWeight: 700 }}>{t('checkout.cod_pay_later_label')}</span>
+                        <span style={{ fontWeight: 900, color: '#1d4ed8' }}>TZS {Number(codQuote.remainingBalance).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : null
+              )}
             </div>
           </div>
         )}
@@ -752,12 +803,20 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               <span style={{ fontWeight: 700, color: '#f59e0b' }}>TZS {(isRuralCollection ? 3000 : 1500).toLocaleString()}</span>
             </div>
           )}
-          <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <span style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('checkout.total')}</span>
             <span style={{ fontSize: 22, fontWeight: 900, color: '#2563eb' }}>TZS {getCartTotal().toLocaleString()}</span>
           </div>
-          <button onClick={handleCheckout} disabled={loading || cart.length === 0}
-            style={{ width: '100%', background: loading ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: loading || cart.length === 0 ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
+          {paymentChoice === 'cod' && codQuote && codQuote.eligible !== false && (
+            <div style={{ textAlign: 'right', fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 12 }}>
+              {Number(codQuote.upfrontRequired) > 0
+                ? t('checkout.cod_total_hint', { upfront: Number(codQuote.upfrontRequired).toLocaleString(), remaining: Number(codQuote.remainingBalance).toLocaleString() })
+                : t('checkout.cod_total_hint_zero', { remaining: Number(codQuote.remainingBalance).toLocaleString() })}
+            </div>
+          )}
+          <button onClick={handleCheckout}
+            disabled={loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)}
+            style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
             {loading ? `⏳ ${t('checkout.placing')}` : `✅ ${t('checkout.place_order')}`}
           </button>
           <div style={{ textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>{t('cart.secure_note')}</div>
