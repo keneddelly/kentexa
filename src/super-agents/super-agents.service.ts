@@ -1010,6 +1010,9 @@ export class SuperAgentsService {
           totalComplaints: agent.totalComplaints,
           totalEarnings: Number(agent.totalEarnings),
           pendingEarnings: Number(agent.pendingEarnings),
+          // Admin-facing so unremitted COD cash across the whole agent
+          // network is visible in one place, not just per-agent dashboards.
+          codCashHeld: Number(agent.codCashHeld),
         };
       }),
     );
@@ -1375,6 +1378,9 @@ export class SuperAgentsService {
           billingThreshold: Number(agent.billingThreshold),
           billingBlocked:
             Number(agent.outstandingBalance) >= Number(agent.billingThreshold),
+          // COD cash currently in this agent's hand, not yet remitted —
+          // see SuperAgent.codCashHeld and recordCodCashRemittance().
+          codCashHeld: Number(agent.codCashHeld),
         },
       },
       stats,
@@ -1976,6 +1982,84 @@ export class SuperAgentsService {
       amountPaid: params.amount,
       outstandingBalance: newBalance,
       billingBlocked: newBalance >= Number(agent.billingThreshold),
+    };
+  }
+
+  // Records that a Super Agent has physically remitted COD cash they were
+  // holding after collecting it at delivery — see codCashHeld's own
+  // comment on the entity, and updateParcelStatus()'s COD-collection
+  // block where that liability is created. Mirrors recordBillingPayment()
+  // exactly (same Payment-row + audit-log pattern) since that's this
+  // codebase's one existing template for "an agent settled a cash debt
+  // outside the app, admin records it" — deliberately not a second,
+  // different mechanism. Kentexa's Wallet already credited the seller at
+  // collection time (same trust model as every other manually-recorded
+  // payment in this codebase); this only reconciles the agent's own
+  // physical liability, not the seller's payout.
+  async recordCodCashRemittance(
+    superAgentId: number,
+    params: {
+      amount: number;
+      paymentMethod: string;
+      reference?: string;
+      adminUserId: number;
+    },
+  ) {
+    const agent = await this.superAgentRepo.findOne({
+      where: { id: superAgentId },
+      relations: { user: true },
+    });
+    if (!agent) throw new NotFoundException('Super Agent not found');
+    const held = Number(agent.codCashHeld);
+    if (params.amount <= 0)
+      throw new BadRequestException('Amount must be greater than zero');
+    if (params.amount > held)
+      throw new BadRequestException(
+        `Payment (TZS ${params.amount}) exceeds COD cash held (TZS ${held})`,
+      );
+
+    const payment = await this.paymentRepo.save(
+      this.paymentRepo.create({
+        order: null,
+        user: agent.user || null,
+        phone: agent.phone || agent.user?.phone || '',
+        amount: params.amount,
+        provider: params.paymentMethod || 'admin_manual',
+        status: PaymentStatus.SUCCESS,
+        metadata: JSON.stringify({
+          type: 'super_agent_cod_remittance',
+          superAgentId: agent.id,
+          reference: params.reference || null,
+          recordedByAdminId: params.adminUserId,
+        }),
+      } as any),
+    );
+
+    const newHeld = parseFloat((held - params.amount).toFixed(2));
+    await this.superAgentRepo.update(superAgentId, { codCashHeld: newHeld });
+
+    await this.auditLog
+      .record({
+        actorId: params.adminUserId,
+        actorRole: 'admin',
+        action: 'super_agent.cod_cash_remitted',
+        entityType: 'super_agent',
+        entityId: agent.id,
+        newValue: {
+          amount: params.amount,
+          paymentMethod: params.paymentMethod,
+          reference: params.reference || null,
+          codCashHeldBefore: held,
+          codCashHeldAfter: newHeld,
+          paymentId: (payment as any).id,
+        },
+      })
+      .catch(() => {});
+
+    return {
+      superAgentId,
+      amountRemitted: params.amount,
+      codCashHeld: newHeld,
     };
   }
 
@@ -2853,6 +2937,19 @@ export class SuperAgentsService {
         await this.parcelRepo
           .increment({ id: parcel.id }, 'superAgentEarnings', agentHandlingShare)
           .catch((e) => console.error('COD agent earnings credit failed (non-critical):', e.message));
+      }
+
+      // The agent is now physically holding `collected` (the buyer's cash/
+      // mobile-money) that isn't theirs — the seller's Wallet was just
+      // credited above as if Kentexa already had this money, so this is a
+      // real liability the agent owes onward until they remit it (see
+      // recordCodCashRemittance()). Tracked on the agent that actually
+      // handled THIS delivery, which may differ from the parcel's origin
+      // agent for an intercity shipment.
+      if (handlerAgent?.id) {
+        await this.superAgentRepo
+          .increment({ id: handlerAgent.id }, 'codCashHeld', collected)
+          .catch((e) => console.error('COD cash-held tracking failed (non-critical):', e.message));
       }
 
       await this.invoicesService

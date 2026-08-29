@@ -222,6 +222,18 @@ export class SuperAgent {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
   outstandingBalance: number;
 
+  // Cash/mobile-money this agent is CURRENTLY PHYSICALLY HOLDING after
+  // collecting a COD balance at delivery — Kentexa never touches this
+  // money electronically (see updateParcelStatus()'s COD-collection
+  // block), so it's a real liability the agent owes onward (to Kentexa,
+  // which then pays the seller from its own Wallet ledger, same as every
+  // other order type) until they remit it. Unlike outstandingBalance
+  // (a flat per-order platform-subscription fee), this tracks the actual
+  // TZS amount collected — incremented per COD delivery, decremented via
+  // recordCodCashRemittance() when the agent pays it over.
+  @Column({ type: 'decimal', precision: 12, scale: 2, default: 0 })
+  codCashHeld: number;
+
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

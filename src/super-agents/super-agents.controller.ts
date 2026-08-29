@@ -355,6 +355,27 @@ export class SuperAgentsController {
     });
   }
 
+  // Records that a Super Agent has physically remitted COD cash they were
+  // holding after collecting it at delivery (see SuperAgent.codCashHeld
+  // and updateParcelStatus()'s COD-collection block).
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post(':id/cod-cash-remittance')
+  recordCodCashRemittance(
+    @Param('id') id: string,
+    @Body('amount') amount: number,
+    @Body('paymentMethod') paymentMethod: string,
+    @Body('reference') reference: string,
+    @Request() req: any,
+  ) {
+    return this.service.recordCodCashRemittance(Number(id), {
+      amount: Number(amount),
+      paymentMethod: paymentMethod || 'cash',
+      reference,
+      adminUserId: req.user.id,
+    });
+  }
+
   // ── Admin: Seller manual-shipment billing (mirrors the Super Agent
   //    endpoints above — same founding-pilot free-order + accumulating-
   //    balance model, applied to createSellerShipment() instead) ─────────
