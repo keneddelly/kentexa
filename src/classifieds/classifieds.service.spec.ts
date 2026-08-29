@@ -67,7 +67,7 @@ describe('ClassifiedsService — manual invoice access', () => {
       { findForUserByType: jest.fn(async () => null) } as any, // commerceProfiles
       {} as any, // profileScope
       { upsert: jest.fn(), remove: jest.fn() } as any, // searchIndex
-      { createParcelForClassifiedInvoice: jest.fn(async () => ({ id: 1 })) } as any, // superAgents
+      { createParcelForOrder: jest.fn(async () => ({ parcel: { id: 1 }, transitCity: null, expectedArrival: '', estimatedDays: 1 })) } as any, // superAgents
       realCodCalculation(),
     );
   });
@@ -178,7 +178,7 @@ describe('ClassifiedsService — invoice-to-shipment linking', () => {
       update: jest.fn(async () => ({})),
     };
     superAgents = {
-      createParcelForClassifiedInvoice: jest.fn(async () => ({ id: 1 })),
+      createParcelForOrder: jest.fn(async () => ({ parcel: { id: 1 }, transitCity: null, expectedArrival: '', estimatedDays: 1 })),
     };
     invoicesService = {
       generateInvoiceNumber: jest.fn(async () => 'INV-TEST-1'),
@@ -227,7 +227,7 @@ describe('ClassifiedsService — invoice-to-shipment linking', () => {
     expect(result.requiresShipment).toBe(false);
     expect(result.orderId).toBeNull();
     expect(orderRepo.create).not.toHaveBeenCalled();
-    expect(superAgents.createParcelForClassifiedInvoice).not.toHaveBeenCalled();
+    expect(superAgents.createParcelForOrder).not.toHaveBeenCalled();
   });
 
   it('creates an Order with the right source and a real Parcel for a real shipping method', async () => {
@@ -242,7 +242,22 @@ describe('ClassifiedsService — invoice-to-shipment linking', () => {
         classifiedInvoiceId: 5,
       }),
     );
-    expect(superAgents.createParcelForClassifiedInvoice).toHaveBeenCalled();
+    // Regression guard for the central createParcelForOrder() migration:
+    // declaredValue must be the goods-only amount (matches
+    // createSellerShipment()'s own convention), and with no hub-picker UI
+    // on this flow yet, destinationSuperAgentId must be explicitly null
+    // (falls back to city-match inside createParcelForOrder itself).
+    expect(superAgents.createParcelForOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 77 }),
+      seller,
+      buyer,
+      expect.objectContaining({
+        source: 'classified_invoice',
+        declaredValue: 100000,
+        destinationSuperAgentId: null,
+        classifiedInvoiceId: 5,
+      }),
+    );
     expect(result.requiresShipment).toBe(true);
     expect(result.orderId).toBe(77);
     expect(result.trackingNumber).toBe('KTX-ORD-77');
@@ -258,7 +273,7 @@ describe('ClassifiedsService — invoice-to-shipment linking', () => {
     const result = await service.setShippingMethod(5, seller, { shippingMethod: 'agent' });
 
     expect(orderRepo.create).not.toHaveBeenCalled();
-    expect(superAgents.createParcelForClassifiedInvoice).not.toHaveBeenCalled();
+    expect(superAgents.createParcelForOrder).not.toHaveBeenCalled();
     expect(result.orderId).toBe(77);
     expect(result.message).toMatch(/already/i);
   });

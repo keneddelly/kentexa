@@ -3289,60 +3289,6 @@ export class SuperAgentsService {
     const platformFeeCharged = sellerProfile && !isFreeOrder ? feePerOrder : 0;
     const platformFeeWaived = sellerProfile && isFreeOrder ? feePerOrder : 0;
 
-    const isSameCity =
-      dto.originCity.toLowerCase() === dto.destinationCity.toLowerCase();
-
-    let transitCity: string | null = null;
-    let estimatedDays = 1;
-    let expectedArrivalStr: string;
-
-    if (isSameCity) {
-      estimatedDays = 1;
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      expectedArrivalStr = tomorrow.toISOString().split('T')[0];
-    } else {
-      const route = await this.routeRepo
-        .findOne({
-          where: {
-            originCity: dto.originCity,
-            destinationCity: dto.destinationCity,
-            isActive: true,
-          },
-        })
-        .catch(() => null);
-      transitCity = (route as any)?.transitCity || null;
-      estimatedDays = route?.estimatedDays || 2;
-      const arrival = new Date();
-      arrival.setDate(arrival.getDate() + estimatedDays);
-      expectedArrivalStr = arrival.toISOString().split('T')[0];
-    }
-
-    // The seller's explicit pick wins when given (validated: must be a real,
-    // active hub) — falls back to the old auto-match-by-city only when no
-    // choice was made, so existing callers that never send this keep
-    // working exactly as before.
-    const destAgent =
-      dto.transportMethod === 'super_agent'
-        ? dto.destinationSuperAgentId
-          ? await this.superAgentRepo
-              .findOne({
-                where: {
-                  id: dto.destinationSuperAgentId,
-                  status: 'active' as any,
-                },
-              })
-              .catch(() => null)
-          : await this.superAgentRepo
-              .findOne({
-                // Case-insensitive fallback for when the seller didn't
-                // explicitly pick a hub — same reasoning as
-                // findAllActiveByCity().
-                where: { city: ILike(dto.destinationCity), status: 'active' as any },
-              })
-              .catch(() => null)
-        : null;
-
     // Thamani ya Mzigo for this flow — a linked completed Sale's own
     // recorded subtotal (the actual POS transaction, before discount) beats
     // a hand-typed totalValue/items estimate when one exists; otherwise
@@ -3471,66 +3417,42 @@ export class SuperAgentsService {
       );
     }
 
-    const parcel = (await this.parcelRepo.save(
-      this.parcelRepo.create({
-        trackingNumber,
-        source: 'seller_shipment',
-        order: order,
-        seller: seller,
-        senderName: senderDisplayName,
-        senderPhone: seller.phone,
-        destinationSuperAgent: destAgent || null,
-        originCity: dto.originCity,
-        destinationCity: dto.destinationCity,
-        transitCity,
-        expectedArrival: expectedArrivalStr,
-        deliveryAddress: dto.deliveryAddress,
-        recipientName: dto.recipientName,
-        buyerPhone: dto.recipientPhone,
-        description: dto.description,
-        weightKg: dto.weightKg || null,
-        parcelSize: dto.parcelSize || 'small',
-        declaredValue: computedGoodsValue,
-        declaredValueCurrency: 'TZS',
-        classifiedId: dto.classifiedId || null,
-        saleId: linkedSale?.id || null,
-        transportMethod: dto.transportMethod,
-        busCompany: dto.busCompany || null,
-        busTicketNumber: dto.busTicketNumber || null,
-        courierName: dto.courierName || null,
-        courierTrackingRef: dto.courierTrackingRef || null,
-        platformFeePaid: false,
-        status: ParcelStatus.PENDING,
-      } as any) as any,
-    )) as unknown as Parcel;
-
-    await this.addTrackingEvent(
+    const {
       parcel,
-      ParcelStatus.PENDING,
-      dto.originCity,
-      'Agizo limeundwa.',
-      seller.name || 'Muuzaji',
-      {
+      transitCity,
+      expectedArrival: expectedArrivalStr,
+      estimatedDays,
+    } = await this.createParcelForOrder(order, seller, null, {
+      trackingNumber,
+      source: 'seller_shipment',
+      senderName: senderDisplayName,
+      senderPhone: seller.phone,
+      originCity: dto.originCity,
+      destinationCity: dto.destinationCity,
+      destinationSuperAgentId: dto.destinationSuperAgentId,
+      transportMethod: dto.transportMethod,
+      deliveryAddress: dto.deliveryAddress,
+      recipientName: dto.recipientName,
+      recipientPhone: dto.recipientPhone,
+      description: dto.description,
+      weightKg: dto.weightKg,
+      parcelSize: dto.parcelSize,
+      declaredValue: computedGoodsValue,
+      declaredValueSource: linkedSale ? 'linked_sale' : 'seller_declared',
+      classifiedId: dto.classifiedId,
+      saleId: linkedSale?.id,
+      busCompany: dto.busCompany,
+      busTicketNumber: dto.busTicketNumber,
+      courierName: dto.courierName,
+      courierTrackingRef: dto.courierTrackingRef,
+      trackingEventNote: 'Agizo limeundwa.',
+      trackingEventActorName: seller.name || 'Muuzaji',
+      trackingEventHandlerInfo: {
         phone: seller.phone || undefined,
         location: dto.originCity || undefined,
         type: 'system',
       },
-    );
-
-    await this.auditLog
-      .record({
-        actorId: seller.id,
-        actorRole: 'seller',
-        action: 'parcel.declared_value_set',
-        entityType: 'parcel',
-        entityId: parcel.id,
-        newValue: {
-          declaredValue: computedGoodsValue,
-          currency: 'TZS',
-          source: linkedSale ? 'linked_sale' : 'seller_declared',
-        },
-      })
-      .catch(() => {});
+    });
 
     // Populated by whichever branch below runs — read by the receipt in
     // the return value at the bottom of this method either way.
@@ -3708,72 +3630,191 @@ export class SuperAgentsService {
   // to do — this is the ONE new public entry point classifieds needed, kept
   // deliberately simple (no route/hub matching, no items array) since the
   // invoice flow doesn't collect that level of detail today.
-  async createParcelForClassifiedInvoice(
+  // ── Central Parcel-creation for an already-created Order ─────────────────
+  // Every flow that produces an Order needing a Kentexa-network shipment
+  // leg (createSellerShipment()'s manual-order Order, ClassifiedsService.
+  // setShippingMethod()'s paid-invoice Order) calls this AFTER saving its
+  // own Order, instead of duplicating destination-hub matching, transit/ETA
+  // computation, and the Parcel row's shape inline — replaces the old,
+  // much thinner createParcelForClassifiedInvoice() (which never assigned
+  // a destination hub at all, making a classified-invoice parcel invisible
+  // on every Super Agent's dashboard). Commission math and Order-creation
+  // stay 100% owned by each caller — this method never touches Order
+  // fields, so a caller's own fee model (real commission vs. the manual-
+  // shipment zero-fee rule) is unaffected either way.
+  async createParcelForOrder(
     order: Order,
     seller: User,
     buyer: User | null,
     dto: {
-      classifiedId: number | null;
-      classifiedInvoiceId: number;
-      description: string;
-      recipientName: string;
-      recipientPhone: string;
-      deliveryAddress: string;
+      trackingNumber: string;
+      source: 'seller_shipment' | 'classified_invoice';
+      senderName: string;
+      senderPhone: string | null;
       originCity: string;
       destinationCity: string;
+      // Seller's explicit hub pick — falls back to a city ILike match when
+      // absent (e.g. the classified-invoice flow, which has no hub-picker
+      // UI yet).
+      destinationSuperAgentId?: number | null;
       transportMethod: string;
+      deliveryAddress: string;
+      recipientName: string;
+      recipientPhone: string;
+      description: string;
+      weightKg?: number | null;
+      parcelSize?: string | null;
+      // Value of the GOODS only, excluding shipping — caller's
+      // responsibility to compute correctly per its own money model.
+      declaredValue: number;
+      declaredValueSource: string; // audit metadata, e.g. 'linked_sale' | 'seller_declared' | 'classified_invoice'
+      classifiedId?: number | null;
+      classifiedInvoiceId?: number | null;
+      saleId?: number | null;
       busCompany?: string | null;
       busTicketNumber?: string | null;
       courierName?: string | null;
       courierTrackingRef?: string | null;
+      // Wording differs per caller (Kiswahili strings) — kept explicit
+      // rather than branched internally on `source`.
+      trackingEventNote: string;
+      trackingEventActorName: string;
+      trackingEventHandlerInfo?: {
+        phone?: string;
+        location?: string;
+        type?: 'super_agent' | 'local_agent' | 'system';
+      };
     },
-  ): Promise<Parcel> {
-    const trackingNumber = order.trackingNumber || `KTX-ORD-${order.id}`;
+  ): Promise<{
+    parcel: Parcel;
+    transitCity: string | null;
+    expectedArrival: string;
+    estimatedDays: number;
+  }> {
+    // Defense in depth — same idempotent find-then-reuse pattern
+    // superAgentReceiveOrder() already uses; the DB's own unique
+    // constraint on trackingNumber is the real backstop.
+    const existing = await this.parcelRepo.findOne({
+      where: { trackingNumber: dto.trackingNumber },
+    });
+    if (existing) {
+      return {
+        parcel: existing,
+        transitCity: (existing as any).transitCity ?? null,
+        expectedArrival: (existing as any).expectedArrival ?? '',
+        estimatedDays: 0,
+      };
+    }
 
-    // Defense in depth — the caller already guards against calling this
-    // twice for the same invoice (ClassifiedInvoiceRequest.order check),
-    // but the DB's own unique constraint on trackingNumber is the real
-    // backstop, same idempotent find-then-reuse pattern
-    // superAgentReceiveOrder() already uses.
-    const existing = await this.parcelRepo.findOne({ where: { trackingNumber } });
-    if (existing) return existing;
+    const isSameCity =
+      dto.originCity.toLowerCase() === dto.destinationCity.toLowerCase();
 
-    const parcel = await this.parcelRepo.save(
+    let transitCity: string | null = null;
+    let estimatedDays = 1;
+    let expectedArrivalStr: string;
+
+    if (isSameCity) {
+      estimatedDays = 1;
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      expectedArrivalStr = tomorrow.toISOString().split('T')[0];
+    } else {
+      const route = await this.routeRepo
+        .findOne({
+          where: {
+            originCity: dto.originCity,
+            destinationCity: dto.destinationCity,
+            isActive: true,
+          },
+        })
+        .catch(() => null);
+      transitCity = (route as any)?.transitCity || null;
+      estimatedDays = route?.estimatedDays || 2;
+      const arrival = new Date();
+      arrival.setDate(arrival.getDate() + estimatedDays);
+      expectedArrivalStr = arrival.toISOString().split('T')[0];
+    }
+
+    // The seller's explicit pick wins when given (validated: must be a
+    // real, active hub) — falls back to the auto-match-by-city otherwise.
+    const destAgent =
+      dto.transportMethod === 'super_agent'
+        ? dto.destinationSuperAgentId
+          ? await this.superAgentRepo
+              .findOne({
+                where: {
+                  id: dto.destinationSuperAgentId,
+                  status: 'active' as any,
+                },
+              })
+              .catch(() => null)
+          : await this.superAgentRepo
+              .findOne({
+                where: { city: ILike(dto.destinationCity), status: 'active' as any },
+              })
+              .catch(() => null)
+        : null;
+
+    const parcel = (await this.parcelRepo.save(
       this.parcelRepo.create({
-        trackingNumber,
-        source: 'classified_invoice',
+        trackingNumber: dto.trackingNumber,
+        source: dto.source,
         order,
         seller,
         buyer: buyer || null,
-        senderName: (seller as any).storeName || seller.name,
-        senderPhone: seller.phone,
+        senderName: dto.senderName,
+        senderPhone: dto.senderPhone,
+        destinationSuperAgent: destAgent || null,
         originCity: dto.originCity || 'Tanzania',
         destinationCity: dto.destinationCity || 'Tanzania',
+        transitCity,
+        expectedArrival: expectedArrivalStr,
         deliveryAddress: dto.deliveryAddress,
         recipientName: dto.recipientName,
         buyerPhone: dto.recipientPhone,
         description: dto.description,
-        classifiedId: dto.classifiedId,
-        classifiedInvoiceId: dto.classifiedInvoiceId,
+        weightKg: dto.weightKg ?? null,
+        parcelSize: dto.parcelSize || 'small',
+        declaredValue: dto.declaredValue,
+        declaredValueCurrency: 'TZS',
+        classifiedId: dto.classifiedId ?? null,
+        classifiedInvoiceId: dto.classifiedInvoiceId ?? null,
+        saleId: dto.saleId ?? null,
         transportMethod: dto.transportMethod,
         busCompany: dto.busCompany || null,
         busTicketNumber: dto.busTicketNumber || null,
         courierName: dto.courierName || null,
         courierTrackingRef: dto.courierTrackingRef || null,
+        platformFeePaid: false,
         status: ParcelStatus.PENDING,
-      } as any),
-    ) as unknown as Parcel;
+      } as any) as any,
+    )) as unknown as Parcel;
 
     await this.addTrackingEvent(
       parcel,
       ParcelStatus.PENDING,
-      dto.originCity || 'Tanzania',
-      'Agizo limeundwa kupitia ankara ya KenteXa. Muuzaji atawasiliana nawe kwa maelezo ya utoaji.',
-      seller.name || 'KenteXa',
-      { type: 'system' },
+      dto.originCity,
+      dto.trackingEventNote,
+      dto.trackingEventActorName,
+      dto.trackingEventHandlerInfo ?? { type: 'system' },
     );
 
-    return parcel;
+    await this.auditLog
+      .record({
+        actorId: seller.id,
+        actorRole: 'seller',
+        action: 'parcel.declared_value_set',
+        entityType: 'parcel',
+        entityId: parcel.id,
+        newValue: {
+          declaredValue: dto.declaredValue,
+          currency: 'TZS',
+          source: dto.declaredValueSource,
+        },
+      })
+      .catch(() => {});
+
+    return { parcel, transitCity, expectedArrival: expectedArrivalStr, estimatedDays };
   }
 
   // ── Seller or agent uploads transport details after pickup ───────────────

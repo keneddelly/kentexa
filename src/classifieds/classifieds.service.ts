@@ -1046,28 +1046,46 @@ export class ClassifiedsService {
     await this.orderRepo.update(savedOrder.id, { trackingNumber });
     savedOrder.trackingNumber = trackingNumber;
 
-    // ✅ Real Parcel + tracking-history row — replaces the previous raw SQL
-    // insert into parcel_tracking with a NULL parcelId (an orphaned row
-    // that violated ParcelTracking's own non-nullable FK invariant).
+    // ✅ Real Parcel + tracking-history row, via the same central
+    // createParcelForOrder() createSellerShipment() uses — replaces the
+    // previous thin createParcelForClassifiedInvoice(), which never
+    // assigned a destination hub at all (would have left a classified-
+    // invoice parcel invisible on every Super Agent's dashboard the
+    // moment a real one was created). No hub-picker UI exists on this
+    // flow yet (destinationSuperAgentId: null), so it falls back to the
+    // same city-match logic createSellerShipment() itself falls back to.
     try {
-      await this.superAgents.createParcelForClassifiedInvoice(
+      await this.superAgents.createParcelForOrder(
         savedOrder,
         seller,
         request.buyer || null,
         {
-          classifiedId: request.classified?.id || null,
-          classifiedInvoiceId: requestId,
-          description: request.classified?.title || request.invoiceDescription || 'Bidhaa',
-          recipientName: buyerName,
-          recipientPhone: buyerPhone,
-          deliveryAddress: buyerAddr || 'As agreed with seller',
+          trackingNumber,
+          source: 'classified_invoice',
+          senderName: (seller as any).storeName || seller.name,
+          senderPhone: seller.phone,
           originCity: (seller as any).city || 'Tanzania',
           destinationCity: request.regionName || request.districtName || 'Tanzania',
+          destinationSuperAgentId: null,
           transportMethod: data.shippingMethod,
+          deliveryAddress: buyerAddr || 'As agreed with seller',
+          recipientName: buyerName,
+          recipientPhone: buyerPhone,
+          description: request.classified?.title || request.invoiceDescription || 'Bidhaa',
+          // Goods value only — excludes shippingAmount, matching
+          // createSellerShipment()'s own declaredValue convention.
+          declaredValue: productAmount,
+          declaredValueSource: 'classified_invoice',
+          classifiedId: request.classified?.id || null,
+          classifiedInvoiceId: requestId,
+          saleId: null,
           busCompany: data.busCompany,
           busTicketNumber: data.busTicketNumber,
           courierName: data.courierName,
           courierTrackingRef: data.courierTrackingRef,
+          trackingEventNote:
+            'Agizo limeundwa kupitia ankara ya KenteXa. Muuzaji atawasiliana nawe kwa maelezo ya utoaji.',
+          trackingEventActorName: seller.name || 'KenteXa',
         },
       );
     } catch (e) {
