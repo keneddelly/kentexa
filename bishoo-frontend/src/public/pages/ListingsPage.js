@@ -147,6 +147,9 @@ const ListingsPage = ({ onNavigate, initialTab }) => {
                           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>📦</div>
                         }
                         <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, backgroundColor: '#1d4ed8', color: '#fff' }}>{t('listings_page.store_badge')}</span>
+                        {p.codEnabled && (
+                          <span style={{ position: 'absolute', top: 6, right: 6, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>💵 {t('listings_page.cod_badge')}</span>
+                        )}
                         {!p.isAvailable && (
                           <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span style={{ color: '#fff', fontSize: 10, fontWeight: 800 }}>{t('listings_page.out_of_stock')}</span>

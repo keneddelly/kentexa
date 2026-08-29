@@ -816,6 +816,7 @@
     "delivered_button": "✅ Livré"
   },
   "search": {
+    "cod_badge": "COD",
     "cat_phones": "Téléphones",
     "cat_clothes": "Vêtements",
     "cat_house": "Maison",
@@ -1835,7 +1836,8 @@
     "badge_new": "✨ Nouveau",
     "badge_recommended": "👍 Recommandé",
     "badge_featured": "⭐ En vedette",
-    "free_delivery_label": "LIVRAISON GRATUITE"
+    "free_delivery_label": "LIVRAISON GRATUITE",
+    "cod_badge": "COD"
   },
   "pickup_points": {
     "status_active": "🟢 Ouvert",
@@ -2813,6 +2815,7 @@
     "store_products_title": "🏪 Produits de boutique",
     "see_all": "Voir tout →",
     "store_badge": "🏪 BOUTIQUE",
+    "cod_badge": "COD",
     "out_of_stock": "ÉPUISÉ",
     "free_delivery": "🚚 LIVRAISON GRATUITE",
     "classified_ads_title": "📋 Petites annonces",
@@ -2834,6 +2837,7 @@
     "see_all": "Voir tout →",
     "out_of_stock": "ÉPUISÉ",
     "store_badge": "🏪 BOUTIQUE",
+    "cod_badge": "COD",
     "free_delivery": "🚚 GRATUIT",
     "classified_ads_title": "📋 Petites annonces",
     "ad_badge": "📋 ANNONCE",

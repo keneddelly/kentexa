@@ -911,12 +911,17 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                             onClick={() => onNavigate(`ProductDetail-${item.id}`)}
                             style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden',
                               boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
-                            <div style={{ height:120, backgroundColor:'#F8FAFC',
+                            <div style={{ height:120, backgroundColor:'#F8FAFC', position:'relative',
                               display:'flex', alignItems:'center', justifyContent:'center' }}>
                               {item.images?.[0]
                                 ? <img src={item.images[0]} alt={item.name}
                                     style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                                 : <span style={{ fontSize:32 }}>🛍️</span>}
+                              {item.codEnabled && (
+                                <span style={{ position:'absolute', top:6, right:6, fontSize:9, fontWeight:800,
+                                  padding:'2px 6px', borderRadius:6, backgroundColor:'#eff6ff', color:'#1d4ed8',
+                                  border:'1px solid #bfdbfe' }}>💵 {t('search.cod_badge')}</span>
+                              )}
                             </div>
                             <div style={{ padding:'8px 10px 12px' }}>
                               <div style={{ fontSize:12, fontWeight:700, color:DK, marginBottom:3,

@@ -229,6 +229,9 @@ const CategoryPage = ({ onNavigate, category }) => {
                         }
                         {/* Product badge */}
                         <span style={{ position: 'absolute', top: 7, left: 7, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#1d4ed8', color: '#fff' }}>{t('category_page.store_badge')}</span>
+                        {p.codEnabled && (
+                          <span style={{ position: 'absolute', top: 7, right: 7, fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 8, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>💵 {t('category_page.cod_badge')}</span>
+                        )}
                         {!p.isAvailable && (
                           <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <span style={{ color: '#fff', fontSize: 11, fontWeight: 800 }}>{t('category_page.out_of_stock')}</span>

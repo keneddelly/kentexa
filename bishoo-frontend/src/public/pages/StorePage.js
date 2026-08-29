@@ -421,6 +421,11 @@ const ProductCard = ({ product, onNavigate, featured }) => {
           {badge.label}
         </div>
       )}
+      {product.codEnabled && (
+        <div style={{ position: 'absolute', top: 6, right: 6, backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 10, zIndex: 1 }}>
+          💵 {t('store_page.cod_badge')}
+        </div>
+      )}
       <div style={{ width: '100%', aspectRatio: featured ? '4/3' : '1/1', backgroundColor: '#f1f5f9', overflow: 'hidden', position: 'relative' }}>
         {product.images?.[0]
           ? <img src={product.images[0]} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', top: 0, left: 0 }} />

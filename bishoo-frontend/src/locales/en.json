@@ -820,6 +820,7 @@
     "delivered_button": "✅ Delivered"
   },
   "search": {
+    "cod_badge": "COD",
     "cat_phones": "Phones",
     "cat_clothes": "Clothes",
     "cat_house": "House",
@@ -1839,7 +1840,8 @@
     "badge_new": "✨ New",
     "badge_recommended": "👍 Recommended",
     "badge_featured": "⭐ Featured",
-    "free_delivery_label": "FREE DELIVERY"
+    "free_delivery_label": "FREE DELIVERY",
+    "cod_badge": "COD"
   },
   "pickup_points": {
     "status_active": "🟢 Open",
@@ -2817,6 +2819,7 @@
     "store_products_title": "🏪 Store Products",
     "see_all": "See all →",
     "store_badge": "🏪 STORE",
+    "cod_badge": "COD",
     "out_of_stock": "OUT OF STOCK",
     "free_delivery": "🚚 FREE DELIVERY",
     "classified_ads_title": "📋 Classified Ads",
@@ -2838,6 +2841,7 @@
     "see_all": "See all →",
     "out_of_stock": "OUT OF STOCK",
     "store_badge": "🏪 STORE",
+    "cod_badge": "COD",
     "free_delivery": "🚚 FREE",
     "classified_ads_title": "📋 Classified Ads",
     "ad_badge": "📋 AD",

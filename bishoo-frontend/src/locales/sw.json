@@ -666,6 +666,7 @@
     "delivered_button": "✅ Imetolewa"
   },
   "search": {
+    "cod_badge": "COD",
     "cat_phones": "Simu",
     "cat_clothes": "Nguo",
     "cat_house": "Nyumba",
@@ -1685,7 +1686,8 @@
     "badge_new": "✨ Mpya",
     "badge_recommended": "👍 Inapendekezwa",
     "badge_featured": "⭐ Imeangaziwa",
-    "free_delivery_label": "UTOAJI BURE"
+    "free_delivery_label": "UTOAJI BURE",
+    "cod_badge": "COD"
   },
   "pickup_points": {
     "status_active": "🟢 Wazi",
@@ -2663,6 +2665,7 @@
     "store_products_title": "🏪 Bidhaa za Duka",
     "see_all": "Ona zote →",
     "store_badge": "🏪 DUKA",
+    "cod_badge": "COD",
     "out_of_stock": "IMEISHA",
     "free_delivery": "🚚 USAFIRISHAJI BURE",
     "classified_ads_title": "📋 Matangazo",
@@ -2684,6 +2687,7 @@
     "see_all": "Ona zote →",
     "out_of_stock": "IMEISHA",
     "store_badge": "🏪 DUKA",
+    "cod_badge": "COD",
     "free_delivery": "🚚 BURE",
     "classified_ads_title": "📋 Matangazo",
     "ad_badge": "📋 TANGAZO",
