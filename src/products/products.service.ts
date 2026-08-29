@@ -462,6 +462,7 @@ export class ProductsService {
       minStockThreshold: dto.minStockThreshold || 0,
       availableOnline: dto.availableOnline ?? true,
       availableInStore: dto.availableInStore ?? true,
+      codEnabled: dto.codEnabled ?? false,
     } as any);
 
     const saved = (await this.repo.save(product)) as unknown as Product;

@@ -87,6 +87,13 @@ export class Product {
   @Column({ default: true })
   availableInStore: boolean;
 
+  // Seller's explicit choice — Cash on Delivery is never assumed available.
+  // Default false: a product only becomes COD-eligible when the seller
+  // deliberately turns it on. Gates OrdersService.create()'s COD branch;
+  // see orders.service.ts's own comment there.
+  @Column({ default: false })
+  codEnabled: boolean;
+
   // ── Category & Subcategory ──
   @Column({ type: 'text', nullable: true })
   category: string | null;

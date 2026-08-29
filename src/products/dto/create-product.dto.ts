@@ -157,6 +157,12 @@ export class CreateProductDto {
   @IsBoolean()
   availableInStore?: boolean;
 
+  // Seller's explicit Cash-on-Delivery permission for this product — never
+  // assumed. Defaults to false in the entity when omitted.
+  @IsOptional()
+  @IsBoolean()
+  codEnabled?: boolean;
+
   // ── Digital products (Layer 1 seller verification) ─────────────────────
   @IsOptional()
   @IsIn(['physical', 'digital'])

@@ -254,6 +254,14 @@ export class Order {
   @Column({ type: 'timestamp', nullable: true })
   codBalanceCollectedAt: Date | null;
 
+  // Buyer's acceptance of the COD payment schedule shown at checkout —
+  // set once, at order creation, alongside the seller's own product-level
+  // codEnabled permission that was checked at the same moment. Preserves
+  // the terms the buyer actually agreed to even if the seller later
+  // changes their product's COD setting.
+  @Column({ type: 'timestamp', nullable: true })
+  codTermsAcceptedAt: Date | null;
+
   // ── Seller collection request ─────────────────────────────────────────────
   // When the seller is in a rural area and can't bring the parcel to the hub
   // themselves, they request a local agent to collect it. The collection fee

@@ -17,6 +17,13 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // physical item(s) — only skip it when every item is digital.
   const isDigitalOnlyCart = cart.length > 0 && cart.every(item => item.productType === 'digital');
 
+  // COD is the seller's explicit per-product choice (never assumed) — the
+  // option only appears when every item in the cart allows it. The backend
+  // re-checks this independently in OrdersService.create() (never trust a
+  // frontend-only gate); this is purely to avoid offering a choice that
+  // would fail per-item once submitted.
+  const allItemsAllowCod = cart.length > 0 && cart.every(item => item.codEnabled);
+
   const [form, setForm]                     = useState({ deliveryAddress: '', phone: '', recipientName: '' });
   const [deliveryLocation, setDeliveryLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [forSomeoneElse, setForSomeoneElse] = useState(false);
@@ -114,6 +121,13 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     const baseOnly = cart.reduce((sum, item) => sum + Number(item.basePrice || item.price || 0) * item.quantity, 0);
     return baseOnly + (method.fee || 0);
   };
+
+  // If the cart changes so that COD is no longer offered (e.g. a non-COD
+  // item gets added after COD was already selected), fall back to online
+  // rather than leaving a hidden/stale 'cod' choice that could still submit.
+  React.useEffect(() => {
+    if (paymentChoice === 'cod' && !allItemsAllowCod) setPaymentChoice('online');
+  }, [allItemsAllowCod]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live COD preview — whenever COD is selected, ask the backend for the
   // real upfront/remaining split for the current cart total so it can be
@@ -704,21 +718,27 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                 </div>
                 {paymentChoice === 'online' && <span style={{ fontSize: 18, color: '#16a34a' }}>✅</span>}
               </div>
-              <div onClick={() => setPaymentChoice('cod')}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
-                  backgroundColor: paymentChoice === 'cod' ? '#eff6ff' : '#f8fafc',
-                  border: `2px solid ${paymentChoice === 'cod' ? '#1d4ed8' : '#e2e8f0'}` }}>
-                <span style={{ fontSize: 22 }}>🚚</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'cod' ? '#1d4ed8' : '#1e293b' }}>{t('checkout.pm_cod')}</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                    {isSameCity ? t('checkout.pm_cod_sub_samecity') : t('checkout.pm_cod_sub_intercity')}
+              {allItemsAllowCod ? (
+                <div onClick={() => setPaymentChoice('cod')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                    backgroundColor: paymentChoice === 'cod' ? '#eff6ff' : '#f8fafc',
+                    border: `2px solid ${paymentChoice === 'cod' ? '#1d4ed8' : '#e2e8f0'}` }}>
+                  <span style={{ fontSize: 22 }}>🚚</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'cod' ? '#1d4ed8' : '#1e293b' }}>{t('checkout.pm_cod')}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                      {isSameCity ? t('checkout.pm_cod_sub_samecity') : t('checkout.pm_cod_sub_intercity')}
+                    </div>
                   </div>
+                  {paymentChoice === 'cod' && <span style={{ fontSize: 18, color: '#1d4ed8' }}>✅</span>}
                 </div>
-                {paymentChoice === 'cod' && <span style={{ fontSize: 18, color: '#1d4ed8' }}>✅</span>}
-              </div>
+              ) : (
+                <div style={{ fontSize: 11, color: '#94a3b8', padding: '4px 4px' }}>
+                  {t('checkout.pm_cod_not_offered')}
+                </div>
+              )}
 
-              {paymentChoice === 'cod' && (
+              {paymentChoice === 'cod' && allItemsAllowCod && (
                 codQuoteLoading ? (
                   <div style={{ fontSize: 12, color: '#94a3b8', padding: '4px 4px' }}>⏳ {t('checkout.cod_calculating')}</div>
                 ) : codQuote && codQuote.eligible === false ? (

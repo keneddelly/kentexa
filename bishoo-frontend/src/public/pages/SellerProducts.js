@@ -36,7 +36,7 @@ const EMPTY_FORM = {
   displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '',
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
   sku: '', barcode: '', costPrice: '', minStockThreshold: '0',
-  availableOnline: true, availableInStore: true,
+  availableOnline: true, availableInStore: true, codEnabled: false,
   // ── Digital products (Layer 1 seller verification) ─────────────────────
   productType: 'physical', digitalFile: null, licenseType: '', copyrightDeclared: false,
 };
@@ -359,6 +359,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         minStockThreshold: form.minStockThreshold !== '' ? Number(form.minStockThreshold) : undefined,
         availableOnline:  form.availableOnline,
         availableInStore: form.availableInStore,
+        codEnabled:       form.codEnabled,
         ...(isDigital && !editProduct ? {
           productType: 'digital',
           digitalAsset: {
@@ -444,6 +445,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       minStockThreshold: product.minStockThreshold != null ? String(product.minStockThreshold) : '0',
       availableOnline:  product.availableOnline ?? true,
       availableInStore: product.availableInStore ?? true,
+      codEnabled:       product.codEnabled ?? false,
       // Digital products (Layer 1 seller verification) — the underlying
       // file is immutable once uploaded (no replace endpoint exists), so
       // editing only ever shows it read-only; digitalFile/copyrightDeclared
@@ -923,6 +925,15 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     style={{ width: 16, height: 16, cursor: 'pointer' }} />
                   {t('seller_products.available_in_store')}
                 </label>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#1e293b', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.codEnabled}
+                    onChange={e => setForm({ ...form, codEnabled: e.target.checked })}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }} />
+                  🚚 {t('seller_products.allow_cod')}
+                </label>
+                <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0 22px' }}>{t('seller_products.allow_cod_hint')}</p>
               </div>
             </div>
 

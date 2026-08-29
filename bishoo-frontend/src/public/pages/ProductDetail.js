@@ -431,7 +431,15 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                 {product.estimatedDelivery && (
                   <span style={{ backgroundColor: '#f8fafc', color: '#64748b', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>⏱ {product.estimatedDelivery}</span>
                 )}
+                {product.codEnabled && (
+                  <span style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800, border: '1px solid #bfdbfe' }}>💵 {t('product_detail.cod_badge')}</span>
+                )}
               </div>
+              {product.codEnabled && (
+                <div style={{ fontSize: 11, color: '#1d4ed8', marginBottom: 6 }}>
+                  {t('product_detail.cod_terms_hint')}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, backgroundColor: product.isAvailable ? '#dcfce7' : '#fee2e2', color: product.isAvailable ? '#16a34a' : '#dc2626' }}>
                   {product.isAvailable ? `✅ ${t('product_detail.in_stock')}` : `❌ ${t('product_detail.out_of_stock')}`}

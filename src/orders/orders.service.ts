@@ -237,7 +237,18 @@ export class OrdersService {
     // in this file's own comment above (line ~192-194); everything else
     // ('boda', 'kentexa_delivery', 'direct') is same-city. Digital products
     // have nothing to deliver, so COD never applies to them.
-    const isCod = !isDigitalProduct && dto.paymentMethod === CheckoutPaymentMethod.COD;
+    //
+    // codEnabled is the seller's own explicit, product-level permission —
+    // never assumed. Checked server-side (never trust the frontend, which
+    // only hides the COD option as a UX nicety) so a direct API call can't
+    // force COD onto a product the seller never opted into.
+    const buyerRequestedCod = dto.paymentMethod === CheckoutPaymentMethod.COD;
+    if (buyerRequestedCod && !isDigitalProduct && !(product as any).codEnabled) {
+      throw new BadRequestException(
+        'This product does not support Cash on Delivery',
+      );
+    }
+    const isCod = !isDigitalProduct && buyerRequestedCod;
     const isIntercity = ['agent', 'bus', 'courier'].includes(chosenMethod);
     let codUpfrontAmount: number | null = null;
     let codRemainingBalance: number | null = null;
@@ -284,6 +295,7 @@ export class OrdersService {
       paymentMethod: isCod ? OrderPaymentMethod.COD : OrderPaymentMethod.ONLINE,
       codUpfrontAmount,
       codRemainingBalance,
+      codTermsAcceptedAt: isCod ? new Date() : null,
       escrowStatus: EscrowStatus.HOLDING,
       payoutStatus: 'pending',
       // Collection fields
