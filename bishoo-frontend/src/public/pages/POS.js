@@ -120,15 +120,19 @@ const POS = ({ onNavigate, currentUser }) => {
     searchRef.current?.focus();
   };
 
-  // Customer paid but isn't taking it in person — hand off to the shipping
+  // Customer isn't taking the sale in person — hand off to the shipping
   // flow, pre-filled with what was actually sold so nothing gets retyped.
-  // Payment itself is already done; SellerShipment.js skips asking for it
-  // again once it sees saleId.
+  // SellerShipment.js skips asking for payment again once it sees saleId
+  // (the backend re-reads the Sale itself for the authoritative isCod/
+  // balanceDue) — isCod/balanceDue are passed through here only so that
+  // screen can show the right banner before the seller even submits.
   const handleShipIt = () => {
     onNavigate('SellerShipment', {
       name: receipt.customerName || '',
       phone: receipt.customerPhone || '',
       saleId: receipt.id,
+      isCod: receipt.isCod || false,
+      balanceDue: Number(receipt.balanceDue || 0),
       items: (receipt.items || []).map(i => ({
         name: i.productName, qty: i.quantity, price: Number(i.unitPrice),
         weight: 0, productId: i.productId, classifiedId: null, source: 'product',

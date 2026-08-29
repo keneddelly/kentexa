@@ -3199,6 +3199,17 @@ export class SuperAgentsService {
       );
     }
 
+    // A linked Sale recorded as Cash on Delivery (buyer paid the seller
+    // directly for only PART of the total, in person, via POS.js's own
+    // isCod toggle) still has money outstanding — "Ship It" must not
+    // silently mark the resulting Order fully paid, or the Super Agent
+    // handling delivery would never know to collect the remaining balance
+    // (see updateParcelStatus()'s own COD-collection block, which only
+    // triggers for paymentMethod === COD).
+    const saleAmountPaid = Number(linkedSale?.amountPaid || 0);
+    const saleBalanceDue = Number(linkedSale?.balanceDue || 0);
+    const isCodSale = !!linkedSale?.isCod && saleBalanceDue > 0;
+
     const order = (await this.orderRepo.save(
       this.orderRepo.create({
         source: OrderSource.SELLER_SHIPMENT as any,
@@ -3217,14 +3228,21 @@ export class SuperAgentsService {
         // there's no platform commission and no payout owed. The TZS 1,000
         // tracking fee is a separate, already-paid charge (see
         // /payments/invoice/pay, purpose: 'platform_tracking_fee') — it is
-        // not deducted from a payout here.
+        // not deducted from a payout here. Unaffected by the COD split
+        // below — this policy is about commission, not payment status.
         platformFeeAmount: 0,
         sellerAmount: 0,
-        // Buyer already paid the seller directly (offline sale) — same
-        // model as createOnBehalf, so this is "paid" from creation, not
-        // pending. Otherwise it silently never counts toward the seller's
-        // dashboard revenue total, which only sums paymentStatus === 'paid'.
-        paymentStatus: 'paid' as any,
+        paymentMethod: isCodSale ? OrderPaymentMethod.COD : OrderPaymentMethod.ONLINE,
+        // Non-COD: buyer already paid the seller directly in full (offline
+        // sale) — "paid" from creation, not pending, or it silently never
+        // counts toward the seller's dashboard revenue total (which only
+        // sums paymentStatus === 'paid'). COD: only the amount the seller
+        // actually recorded as collected so far is settled — the rest is
+        // still owed, tracked the same way an online COD order is.
+        paymentStatus: isCodSale ? OrderPaymentStatus.UPFRONT_PAID : ('paid' as any),
+        codUpfrontAmount: isCodSale ? saleAmountPaid : null,
+        codRemainingBalance: isCodSale ? saleBalanceDue : null,
+        codTermsAcceptedAt: isCodSale ? new Date() : null,
         status: 'preparing' as any,
         shippingMethod: dto.transportMethod || 'super_agent',
         notes: dto.notes || null,

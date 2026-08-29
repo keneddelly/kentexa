@@ -3826,6 +3826,7 @@
     "dashboard": "Tableau de Bord",
     "mission_reminder": "🎯 KenteXa suit chaque étape — votre client verra toujours où se trouve son article. Les détails d'expédition sont requis pour que le suivi fonctionne correctement.",
     "already_paid_banner": "Déjà payé au comptoir — remplissez juste les détails de livraison ci-dessous.",
+    "cod_balance_banner": "Paiement à la Livraison — l'agent de livraison collectera le solde de TZS {{amount}} à l'arrivée.",
     "step1_title": "Articles que Vous Envoyez",
     "step1_subtitle": "Ajoutez un ou plusieurs articles — ils seront tous suivis ensemble",
     "items_count_summary": "{{count}} articles · {{pieces}} pièces",

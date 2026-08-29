@@ -599,9 +599,17 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
           {t('seller_shipment.mission_reminder')}
         </div>
 
-        {/* Continuing an already-paid POS/Manual sale ("Ship It") — payment
-            is not asked for again below; this is shipping logistics only. */}
-        {prefill?.saleId && (
+        {/* Continuing a POS/Manual sale ("Ship It") — payment is not asked
+            for again below; this is shipping logistics only. A COD sale
+            still has a balance owed, so it gets its own notice rather than
+            claiming everything is already paid — the resulting Order
+            carries the same COD balance through to the Super Agent who
+            delivers it (see SuperAgentsService.createSellerShipment()). */}
+        {prefill?.saleId && prefill?.isCod && Number(prefill?.balanceDue) > 0 ? (
+          <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#1d4ed8', fontWeight: 700 }}>
+            {`🚚 ${t('seller_shipment.cod_balance_banner', { amount: Number(prefill.balanceDue).toLocaleString() })}`}
+          </div>
+        ) : prefill?.saleId && (
           <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#166534', fontWeight: 700 }}>
             {`✅ ${t('seller_shipment.already_paid_banner')}`}
           </div>

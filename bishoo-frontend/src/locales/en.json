@@ -3830,6 +3830,7 @@
     "dashboard": "Dashboard",
     "mission_reminder": "🎯 KenteXa tracks every step — your customer will always see where their item is. Shipping details are required for tracking to work properly.",
     "already_paid_banner": "Already paid at the counter — just fill in delivery details below.",
+    "cod_balance_banner": "Cash on Delivery — the delivery agent will collect the remaining TZS {{amount}} when this arrives.",
     "step1_title": "Items You're Sending",
     "step1_subtitle": "Add one or more items — they'll all be tracked together",
     "items_count_summary": "{{count}} items · {{pieces}} pieces",
