@@ -77,6 +77,16 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const [isSameCity, setIsSameCity]               = useState(false);
   const DETECT_DELAY = 500; // ms after user stops typing
 
+  // The backend's own intercity/same-city split for COD purposes is based
+  // on the SELECTED SHIPPING METHOD ('agent'/'bus'/'courier' = intercity;
+  // see OrdersService.create()'s own comment), not the separate isSameCity
+  // flag above (that flag only describes whether same-city delivery
+  // METHODS exist to offer at all, and can disagree with which method the
+  // buyer actually picks). COD terms text must follow the same rule the
+  // backend actually enforces, or it can show "pay a deposit" for a
+  // same-city order the backend will treat as 100%-after-delivery.
+  const isIntercityForCod = selectedMethod === 'agent';
+
   const inputStyle = {
     width: '100%', padding: '12px 14px', borderRadius: 10,
     border: '2px solid #e2e8f0', fontSize: 14,
@@ -727,7 +737,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'cod' ? '#1d4ed8' : '#1e293b' }}>{t('checkout.pm_cod')}</div>
                     <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
-                      {isSameCity ? t('checkout.pm_cod_sub_samecity') : t('checkout.pm_cod_sub_intercity')}
+                      {isIntercityForCod ? t('checkout.pm_cod_sub_intercity') : t('checkout.pm_cod_sub_samecity')}
                     </div>
                   </div>
                   {paymentChoice === 'cod' && <span style={{ fontSize: 18, color: '#1d4ed8' }}>✅</span>}
@@ -823,15 +833,51 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               <span style={{ fontWeight: 700, color: '#f59e0b' }}>TZS {(isRuralCollection ? 3000 : 1500).toLocaleString()}</span>
             </div>
           )}
-          <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('checkout.total')}</span>
-            <span style={{ fontSize: 22, fontWeight: 900, color: '#2563eb' }}>TZS {getCartTotal().toLocaleString()}</span>
-          </div>
-          {paymentChoice === 'cod' && codQuote && codQuote.eligible !== false && (
-            <div style={{ textAlign: 'right', fontSize: 12, color: '#1d4ed8', fontWeight: 700, marginBottom: 12 }}>
-              {Number(codQuote.upfrontRequired) > 0
-                ? t('checkout.cod_total_hint', { upfront: Number(codQuote.upfrontRequired).toLocaleString(), remaining: Number(codQuote.remainingBalance).toLocaleString() })
-                : t('checkout.cod_total_hint_zero', { remaining: Number(codQuote.remainingBalance).toLocaleString() })}
+          {/* Online (or COD not yet resolved): the big number is what gets
+              charged right now, same as before. */}
+          {(paymentChoice !== 'cod' || !codQuote || codQuote.eligible === false) && (
+            <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('checkout.total')}</span>
+              <span style={{ fontSize: 22, fontWeight: 900, color: '#2563eb' }}>TZS {getCartTotal().toLocaleString()}</span>
+            </div>
+          )}
+          {paymentChoice === 'cod' && codQuoteLoading && (
+            <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, textAlign: 'center', fontSize: 13, color: '#94a3b8', marginBottom: 4 }}>
+              ⏳ {t('checkout.cod_calculating')}
+            </div>
+          )}
+          {/* COD, intercity (upfront > 0): the amount charged right now is
+              the deposit, NOT the order total — that must be the prominent
+              number, since that's what the buyer is about to be asked to
+              pay before the order is even placed. */}
+          {paymentChoice === 'cod' && codQuote && codQuote.eligible !== false && Number(codQuote.upfrontRequired) > 0 && (
+            <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, marginBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 16, fontWeight: 800, color: '#1d4ed8' }}>{t('checkout.cod_pay_now_label')}</span>
+                <span style={{ fontSize: 22, fontWeight: 900, color: '#1d4ed8' }}>TZS {Number(codQuote.upfrontRequired).toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#94a3b8' }}>
+                <span>{t('checkout.total')}</span>
+                <span>TZS {getCartTotal().toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#94a3b8' }}>
+                <span>{t('checkout.cod_pay_later_label')}</span>
+                <span>TZS {Number(codQuote.remainingBalance).toLocaleString()}</span>
+              </div>
+            </div>
+          )}
+          {/* COD, same-city (upfront = 0): nothing charged now — make that
+              explicit rather than showing the total as if it's due today. */}
+          {paymentChoice === 'cod' && codQuote && codQuote.eligible !== false && Number(codQuote.upfrontRequired) === 0 && (
+            <div style={{ borderTop: '2px solid #e2e8f0', paddingTop: 12, marginBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 16, fontWeight: 800, color: '#1e293b' }}>{t('checkout.cod_pay_now_label')}</span>
+                <span style={{ fontSize: 22, fontWeight: 900, color: '#16a34a' }}>TZS 0</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: '#64748b' }}>{t('checkout.cod_pay_later_label')} (100%)</span>
+                <span style={{ fontWeight: 700, color: '#1e293b' }}>TZS {Number(codQuote.remainingBalance).toLocaleString()}</span>
+              </div>
             </div>
           )}
           <button onClick={handleCheckout}
