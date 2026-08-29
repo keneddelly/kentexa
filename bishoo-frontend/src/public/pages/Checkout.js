@@ -97,9 +97,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   };
 
   // ── Detect delivery methods when address changes ─────────────
+  // Split from handleAddressChange (below) so the LocationPicker can
+  // re-run detection on every change WITHOUT clobbering a manually-typed
+  // street address — see its onChange for why this split matters.
   const detectDeliveryRef = React.useRef(null);
-  const handleAddressChange = (address) => {
-    setForm(f => ({ ...f, deliveryAddress: address }));
+  const detectDeliveryMethodsFor = (address) => {
     setSelectedMethod(null);
     setDeliveryMethods([]);
     if (detectDeliveryRef.current) clearTimeout(detectDeliveryRef.current);
@@ -119,6 +121,10 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       } catch { setDeliveryMethods([]); }
       finally { setDetectingMethods(false); }
     }, DETECT_DELAY);
+  };
+  const handleAddressChange = (address) => {
+    setForm(f => ({ ...f, deliveryAddress: address }));
+    detectDeliveryMethodsFor(address);
   };
 
   const getSelectedMethodData = () => deliveryMethods.find(m => m.key === selectedMethod) || null;
@@ -550,10 +556,21 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                     value={deliveryLocation}
                     onChange={loc => {
                       setDeliveryLocation(loc);
-                      // Pre-fill address with structured location
                       const locationStr = [loc.wardName, loc.districtName, loc.regionName].filter(Boolean).join(', ');
-                      if (locationStr && !form.deliveryAddress) {
+                      if (!locationStr) return;
+                      if (!form.deliveryAddress) {
+                        // Nothing typed yet — prefill the address field too.
                         handleAddressChange(locationStr);
+                      } else {
+                        // Address already has (possibly manually-typed)
+                        // text — don't overwrite it, but the region/ward
+                        // just changed, so re-run intercity/same-city
+                        // detection against the new location, or price
+                        // and COD terms go stale (e.g. someone who first
+                        // picks a different city, then corrects back to
+                        // the seller's own city, previously kept seeing
+                        // intercity pricing forever).
+                        detectDeliveryMethodsFor(locationStr);
                       }
                     }}
                     required
