@@ -99,6 +99,11 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
     buyerDiffersFromRecipient: false,
     buyerName: '', buyerPhone: '',
     paymentMethod: 'cash',
+    // Cash on Delivery — buyer hasn't (fully) paid yet; the Super Agent
+    // collects the remaining balance at delivery, same COD engine used by
+    // online orders, Manual Sale, and classified invoices.
+    isCod: false,
+    codAmountPaid: '0',
     // Shipping — all required per method
     transportMethod: 'super_agent',
     superAgentNote: '',      // confirmation seller has/will hand to hub
@@ -389,6 +394,10 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
         // Set only when this continues an already-paid POS/Manual sale
         // ("Ship It") — the backend skips re-collecting payment for it.
         saleId: prefill?.saleId || undefined,
+        // Cash on Delivery declared directly on this form (ignored by the
+        // backend when saleId is set — that Sale's own isCod is authoritative).
+        isCod: !prefill?.saleId && form.isCod ? true : undefined,
+        codAmountPaid: !prefill?.saleId && form.isCod ? (Number(form.codAmountPaid) || 0) : undefined,
       });
       setResult(res.data);
       // Tracking is active immediately — no separate upfront fee payment
@@ -897,6 +906,33 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
                 <option value="other">{t('seller_shipment.payment_method_other')}</option>
               </select>
             </Field>
+
+            {/* Not shown when continuing a "Ship It" POS sale — that Sale's
+                own isCod/balanceDue already governs (see the banner above),
+                so re-declaring it here would be redundant and could disagree
+                with what was actually recorded at the point of sale. */}
+            {!prefill?.saleId && (
+              <div style={{ marginTop: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 700, color: '#475569', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={form.isCod}
+                    onChange={e => set('isCod', e.target.checked)} />
+                  🚚 {t('seller_shipment.cod_toggle')}
+                </label>
+                {form.isCod && (
+                  <div style={{ marginTop: 10 }}>
+                    <Field label={t('seller_shipment.cod_amount_paid_label')} hint={t('seller_shipment.cod_amount_paid_hint')}>
+                      <input type="number" placeholder="0" value={form.codAmountPaid}
+                        onChange={e => set('codAmountPaid', e.target.value)} style={inputStyle} />
+                    </Field>
+                    <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 12px', fontSize: 12, color: '#1d4ed8' }}>
+                      {t('seller_shipment.cod_balance_preview', {
+                        amount: Math.max(0, getTotalValue() - (Number(form.codAmountPaid) || 0)).toLocaleString(),
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <Field label={t('seller_shipment.destination_city_label')} required>

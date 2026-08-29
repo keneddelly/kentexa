@@ -2920,11 +2920,23 @@ export class SuperAgentsService {
       const agentHandlingShare = parseFloat(
         (codHandlingFee - kentexaHandlingShare).toFixed(2),
       );
+      // A shipment created via SellerShipment.js (Manual Sale "Ship It", or
+      // a shipment made directly on that form) follows the ZERO FEE RULE
+      // above: the buyer and seller settle the product price themselves,
+      // off-platform — Kentexa never holds or pays out order.sellerAmount
+      // (deliberately 0 for these). Crediting the Wallet here as if
+      // Kentexa held that money would be wrong (order.sellerAmount is 0,
+      // so it would credit a NEGATIVE amount). For these orders Kentexa's
+      // only real stake in the collected cash is its own handling-fee
+      // share — the rest passes from the agent straight to the seller in
+      // the real world, exactly as the base product price already does.
+      const isManuallyArrangedOrder = order.source === OrderSource.SELLER_SHIPMENT;
+
       const sellerNetAfterCodFee = parseFloat(
         (Number(order.sellerAmount || 0) - codHandlingFee).toFixed(2),
       );
 
-      if (order.seller?.id) {
+      if (!isManuallyArrangedOrder && order.seller?.id) {
         await this.walletService
           .creditFromEscrowRelease(order.seller.id, order.id, sellerNetAfterCodFee)
           .catch((e) => console.error('COD wallet credit failed (non-critical):', e.message));
@@ -2933,22 +2945,26 @@ export class SuperAgentsService {
       // Attributed to whichever agent actually handled this delivery —
       // reuses the same live-summed field the dashboard already trusts
       // over SuperAgent.totalEarnings (see getDashboard()'s own comment).
+      // Applies regardless of order source — the agent earns this cut
+      // either way.
       if (agentHandlingShare > 0) {
         await this.parcelRepo
           .increment({ id: parcel.id }, 'superAgentEarnings', agentHandlingShare)
           .catch((e) => console.error('COD agent earnings credit failed (non-critical):', e.message));
       }
 
-      // The agent is now physically holding `collected` (the buyer's cash/
-      // mobile-money) that isn't theirs — the seller's Wallet was just
-      // credited above as if Kentexa already had this money, so this is a
-      // real liability the agent owes onward until they remit it (see
-      // recordCodCashRemittance()). Tracked on the agent that actually
-      // handled THIS delivery, which may differ from the parcel's origin
-      // agent for an intercity shipment.
-      if (handlerAgent?.id) {
+      // The agent is now physically holding `collected` cash that isn't
+      // theirs. For a Kentexa-mediated order (online marketplace), the
+      // Wallet credit above already "promised" the seller their share, so
+      // the agent owes the FULL amount back to Kentexa until remitted
+      // (see recordCodCashRemittance()). For a manually-arranged order,
+      // only Kentexa's own handling-fee share is actually owed to
+      // Kentexa — the rest goes straight from the agent to the seller,
+      // never touching Kentexa's books, matching the ZERO FEE RULE.
+      const codCashLiability = isManuallyArrangedOrder ? kentexaHandlingShare : collected;
+      if (handlerAgent?.id && codCashLiability > 0) {
         await this.superAgentRepo
-          .increment({ id: handlerAgent.id }, 'codCashHeld', collected)
+          .increment({ id: handlerAgent.id }, 'codCashHeld', codCashLiability)
           .catch((e) => console.error('COD cash-held tracking failed (non-critical):', e.message));
       }
 
@@ -2970,7 +2986,8 @@ export class SuperAgentsService {
           codHandlingFee,
           kentexaHandlingShare,
           agentHandlingShare,
-          sellerNetCredited: sellerNetAfterCodFee,
+          sellerNetCredited: isManuallyArrangedOrder ? null : sellerNetAfterCodFee,
+          manuallyArranged: isManuallyArrangedOrder,
         },
       });
     }
@@ -3207,6 +3224,12 @@ export class SuperAgentsService {
       // this skips re-collecting/re-confirming payment (already happened
       // at the point of sale) and links the resulting parcel back to it.
       saleId?: number;
+      // Cash on Delivery for a shipment created directly on this form
+      // (no linked Sale) — the seller declares the buyer hasn't paid in
+      // full yet. Ignored when saleId is set, since a linked Sale's own
+      // isCod/balanceDue is the authoritative source in that case.
+      isCod?: boolean;
+      codAmountPaid?: number; // what the buyer has already paid, if anything
     },
   ) {
     // Verify the linked Sale up front — before anything else gets created —
@@ -3337,16 +3360,30 @@ export class SuperAgentsService {
       );
     }
 
-    // A linked Sale recorded as Cash on Delivery (buyer paid the seller
-    // directly for only PART of the total, in person, via POS.js's own
-    // isCod toggle) still has money outstanding — "Ship It" must not
-    // silently mark the resulting Order fully paid, or the Super Agent
-    // handling delivery would never know to collect the remaining balance
+    // Cash on Delivery for this shipment — either inherited from a linked
+    // POS/Manual Sale (isCod toggle there), or declared directly on this
+    // form when creating a shipment from scratch (no linked Sale at all).
+    // Either way, "Ship It"/direct creation must not silently mark the
+    // resulting Order fully paid when money is still outstanding, or the
+    // Super Agent handling delivery would never know to collect a balance
     // (see updateParcelStatus()'s own COD-collection block, which only
     // triggers for paymentMethod === COD).
     const saleAmountPaid = Number(linkedSale?.amountPaid || 0);
     const saleBalanceDue = Number(linkedSale?.balanceDue || 0);
-    const isCodSale = !!linkedSale?.isCod && saleBalanceDue > 0;
+    const directAmountPaid = !linkedSale && dto.isCod ? Number(dto.codAmountPaid || 0) : 0;
+    const directBalanceDue = !linkedSale && dto.isCod
+      ? Math.max(0, parseFloat((computedGoodsValue - directAmountPaid).toFixed(2)))
+      : 0;
+    if (!linkedSale && dto.isCod && directAmountPaid > computedGoodsValue) {
+      throw new BadRequestException(
+        'Kiasi kilicholipwa hakiwezi kuzidi thamani ya mzigo',
+      );
+    }
+    const codUpfrontAmount = linkedSale ? saleAmountPaid : directAmountPaid;
+    const codRemainingBalance = linkedSale ? saleBalanceDue : directBalanceDue;
+    const isCodSale = linkedSale
+      ? !!linkedSale.isCod && saleBalanceDue > 0
+      : !!dto.isCod && directBalanceDue > 0;
 
     const order = (await this.orderRepo.save(
       this.orderRepo.create({
@@ -3378,8 +3415,8 @@ export class SuperAgentsService {
         // actually recorded as collected so far is settled — the rest is
         // still owed, tracked the same way an online COD order is.
         paymentStatus: isCodSale ? OrderPaymentStatus.UPFRONT_PAID : ('paid' as any),
-        codUpfrontAmount: isCodSale ? saleAmountPaid : null,
-        codRemainingBalance: isCodSale ? saleBalanceDue : null,
+        codUpfrontAmount: isCodSale ? codUpfrontAmount : null,
+        codRemainingBalance: isCodSale ? codRemainingBalance : null,
         codTermsAcceptedAt: isCodSale ? new Date() : null,
         status: 'preparing' as any,
         shippingMethod: dto.transportMethod || 'super_agent',
