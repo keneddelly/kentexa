@@ -319,7 +319,13 @@ export class BusinessController {
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Body()
-    product: { id: number; name: string; price: number; image?: string },
+    product: {
+      id: number;
+      name: string;
+      price: number;
+      image?: string;
+      itemType?: 'product' | 'classified';
+    },
   ) {
     const sellerId = await this.resolveSellerActorId(
       req.user,

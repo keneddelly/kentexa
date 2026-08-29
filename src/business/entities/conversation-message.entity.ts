@@ -66,11 +66,13 @@ export class ConversationMessage {
     productName?: string;
     productPrice?: number;
     productImage?: string;
+    itemType?: 'product' | 'classified';
     // For order cards
     orderId?: number;
     orderStatus?: string;
     trackingNumber?: string;
-    // For invoice cards
+    // For invoice cards — orderId only set when this invoice is linked to
+    // a real Order (checkout flow), letting the frontend deep-link there
     invoiceNumber?: string;
     invoiceAmount?: number;
     invoiceUrl?: string;

@@ -699,6 +699,7 @@ export class ConversationService {
       name: string;
       price: number;
       image?: string;
+      itemType?: 'product' | 'classified';
     },
     sender: User,
   ): Promise<ConversationMessage> {
@@ -713,6 +714,12 @@ export class ConversationService {
           productName: product.name,
           productPrice: product.price,
           productImage: product.image,
+          // Products and classifieds are two different entities sharing
+          // this one card shape (see SellerInbox.js's products+classifieds
+          // fetch) — without this, productId is ambiguous as to which
+          // table it points into. Defaults to 'product' for messages sent
+          // before classifieds became shareable here too.
+          itemType: product.itemType || 'product',
         },
       },
       sender,
@@ -789,7 +796,7 @@ export class ConversationService {
   // share every field except the message text.
   async addInvoiceMessage(
     conversationId: number,
-    invoice: { invoiceNumber: string; amount: number; paid: boolean },
+    invoice: { invoiceNumber: string; amount: number; paid: boolean; orderId?: number },
   ): Promise<void> {
     const content = invoice.paid
       ? `Malipo yamepokelewa ✅ — Ankara #${invoice.invoiceNumber}`
@@ -805,6 +812,13 @@ export class ConversationService {
           invoiceNumber: invoice.invoiceNumber,
           invoiceAmount: invoice.amount,
           invoicePaid: invoice.paid,
+          // Lets the frontend deep-link the card straight to this Order in
+          // MyOrders/SellerOrders instead of just a generic "go find it"
+          // navigation — only set for the Order-linked invoice path
+          // (orders.service.ts/payments.service.ts); the chat quick-invoice
+          // path (createManualInvoice, no buyer account yet) has no Order
+          // to link to and omits it.
+          orderId: invoice.orderId,
         },
       }),
     );

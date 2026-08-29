@@ -152,13 +152,26 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
     </div>
   );
 
-  // Product card
+  // Product card — routes to the right detail page for whatever this
+  // actually is (Product or Classified share the same card shape; see
+  // conversation.service.ts's shareProduct() comment). itemType is missing
+  // on cards sent before classifieds became shareable here — those were
+  // always real Products, so default to that rather than guessing wrong.
   if (msg.type === 'product' && msg.metadata) {
+    const goToItem = () => {
+      if (!msg.metadata.productId) return;
+      onNavigate?.(
+        msg.metadata.itemType === 'classified'
+          ? `ClassifiedDetail-${msg.metadata.productId}`
+          : `ProductDetail-${msg.metadata.productId}`,
+      );
+    };
     return (
       <div style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start',
         margin: '6px 0' }}>
-        <div style={{ maxWidth: '75%', backgroundColor: '#fff',
-          border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden' }}>
+        <div onClick={goToItem} style={{ maxWidth: '75%', backgroundColor: '#fff',
+          border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden',
+          cursor: msg.metadata.productId ? 'pointer' : 'default' }}>
           {msg.metadata.productImage && (
             <img src={msg.metadata.productImage} alt=""
               style={{ width: '100%', height: 120, objectFit: 'cover' }} />
@@ -174,12 +187,19 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
     );
   }
 
-  // Order card
+  // Order card — the seller and buyer each have their own order-management
+  // page, both already support scrolling straight to one order by id
+  // (App.js's MyOrders-{id}/SellerOrders-{id} deep links).
   if (msg.type === 'order' && msg.metadata) {
+    const goToOrder = () => {
+      if (!msg.metadata.orderId) return;
+      onNavigate?.(mode === 'buyer' ? `MyOrders-${msg.metadata.orderId}` : `SellerOrders-${msg.metadata.orderId}`);
+    };
     return (
       <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
-        <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac',
-          borderRadius: 12, padding: 12, maxWidth: '85%', textAlign: 'center' }}>
+        <div onClick={goToOrder} style={{ backgroundColor: '#f0fdf4', border: '1px solid #86efac',
+          borderRadius: 12, padding: 12, maxWidth: '85%', textAlign: 'center',
+          cursor: msg.metadata.orderId ? 'pointer' : 'default' }}>
           <div style={{ fontSize: 11, color: '#16a34a', fontWeight: 700 }}>📦 {t('seller_inbox.order_card_label')}</div>
           <div style={{ fontSize: 13, fontWeight: 900, color: '#1e293b', marginTop: 4 }}>
             #{msg.metadata.orderId}
@@ -195,6 +215,17 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
   // Invoice card — created (awaiting payment) or paid, same card either way
   if (msg.type === 'invoice' && msg.metadata) {
     const paid = !!msg.metadata.invoicePaid;
+    // orderId is only set for the real Order-linked invoice path
+    // (online-order checkout) — the chat quick-invoice path has no Order
+    // yet and no buyer account link, so it falls back to each role's own
+    // general invoice list instead of a precise deep link.
+    const goToInvoice = () => {
+      if (msg.metadata.orderId) {
+        onNavigate?.(mode === 'buyer' ? `MyOrders-${msg.metadata.orderId}` : `SellerOrders-${msg.metadata.orderId}`);
+      } else {
+        onNavigate?.(mode === 'buyer' ? 'MyOrders' : 'SellerInvoices');
+      }
+    };
     return (
       <div style={{ display: 'flex', justifyContent: 'center', margin: '8px 0' }}>
         <div style={{
@@ -202,25 +233,27 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
           border: `1px solid ${paid ? '#86efac' : '#fde68a'}`,
           borderRadius: 12, padding: 12, maxWidth: '85%', textAlign: 'center',
         }}>
-          <div style={{ fontSize: 11, color: paid ? '#16a34a' : '#b45309', fontWeight: 700 }}>
-            🧾 {t('seller_inbox.invoice_card_label')}
-          </div>
-          <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b', marginTop: 4 }}>
-            #{msg.metadata.invoiceNumber}
-          </div>
-          <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginTop: 2 }}>
-            TZS {Number(msg.metadata.invoiceAmount || 0).toLocaleString()}
-          </div>
-          <div style={{
-            display: 'inline-block', marginTop: 6, padding: '2px 10px', borderRadius: 100,
-            fontSize: 10, fontWeight: 800,
-            backgroundColor: paid ? '#16a34a' : '#f59e0b', color: '#fff',
-          }}>
-            {paid ? t('seller_inbox.invoice_paid_label') : t('seller_inbox.invoice_pending_label')}
+          <div onClick={goToInvoice} style={{ cursor: 'pointer' }}>
+            <div style={{ fontSize: 11, color: paid ? '#16a34a' : '#b45309', fontWeight: 700 }}>
+              🧾 {t('seller_inbox.invoice_card_label')}
+            </div>
+            <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#64748b', marginTop: 4 }}>
+              #{msg.metadata.invoiceNumber}
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b', marginTop: 2 }}>
+              TZS {Number(msg.metadata.invoiceAmount || 0).toLocaleString()}
+            </div>
+            <div style={{
+              display: 'inline-block', marginTop: 6, padding: '2px 10px', borderRadius: 100,
+              fontSize: 10, fontWeight: 800,
+              backgroundColor: paid ? '#16a34a' : '#f59e0b', color: '#fff',
+            }}>
+              {paid ? t('seller_inbox.invoice_paid_label') : t('seller_inbox.invoice_pending_label')}
+            </div>
           </div>
           {!paid && mode === 'buyer' && (
             <div style={{ marginTop: 8 }}>
-              <button onClick={() => onNavigate?.('MyOrders')}
+              <button onClick={() => onNavigate?.(msg.metadata.orderId ? `MyOrders-${msg.metadata.orderId}` : 'MyOrders')}
                 style={{ padding: '6px 16px', borderRadius: 8, border: 'none',
                   backgroundColor: '#1d4ed8', color: '#fff', fontSize: 11, fontWeight: 700,
                   cursor: 'pointer' }}>
@@ -701,6 +734,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
     try {
       const res = await api.post(`/business/inbox/${active.id}/share-product`, {
         id: item.id, name: item.name, price: item.price, image: item.image,
+        itemType: item.type,
       });
       setMessages(prev => [...prev, res.data]);
       setShowProducts(false);

@@ -175,6 +175,7 @@ export class PaymentsService {
             invoiceNumber: invoice.invoiceNumber,
             amount: Number(order.totalAmount || 0),
             paid: true,
+            orderId: order.id,
           });
         }
       } catch (err: any) {

@@ -544,6 +544,7 @@ export class OrdersService {
               invoiceNumber,
               amount: Number(saved.totalAmount || 0),
               paid: false,
+              orderId: saved.id,
             });
           }
         } catch (e: any) {
