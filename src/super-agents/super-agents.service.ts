@@ -28,6 +28,11 @@ import {
   PaymentStatus as OrderPaymentStatus,
 } from '../orders/entities/order.entity';
 import { BatchParcel } from '../daily-batches/entities/batch-parcel.entity';
+import {
+  COD_HANDLING_FEE_PERCENT,
+  COD_HANDLING_FEE_KENTEXA_SHARE_PERCENT,
+  COD_HANDLING_FEE_AGENT_SHARE_PERCENT,
+} from '../cod/cod-policy.config';
 import { SmsService } from '../sms/sms.service';
 import { WalletService } from '../wallet/wallet.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
@@ -2815,10 +2820,39 @@ export class SuperAgentsService {
         paymentStatus: OrderPaymentStatus.PAID,
       } as any);
 
+      // COD is not free to run — collecting cash/mobile money at the door
+      // is real extra risk and work for the delivering agent, on top of
+      // Kentexa's ordinary marketplace commission (already deducted into
+      // order.sellerAmount at order-creation time, from the FULL price —
+      // untouched here). This new fee applies only to the cash actually
+      // collected in person (`collected`), never the upfront portion
+      // already paid through Kentexa's own gateway. See cod-policy.config.
+      const codHandlingFee = parseFloat(
+        ((collected * COD_HANDLING_FEE_PERCENT) / 100).toFixed(2),
+      );
+      const kentexaHandlingShare = parseFloat(
+        ((codHandlingFee * COD_HANDLING_FEE_KENTEXA_SHARE_PERCENT) / 100).toFixed(2),
+      );
+      const agentHandlingShare = parseFloat(
+        (codHandlingFee - kentexaHandlingShare).toFixed(2),
+      );
+      const sellerNetAfterCodFee = parseFloat(
+        (Number(order.sellerAmount || 0) - codHandlingFee).toFixed(2),
+      );
+
       if (order.seller?.id) {
         await this.walletService
-          .creditFromEscrowRelease(order.seller.id, order.id, Number(order.sellerAmount || 0))
+          .creditFromEscrowRelease(order.seller.id, order.id, sellerNetAfterCodFee)
           .catch((e) => console.error('COD wallet credit failed (non-critical):', e.message));
+      }
+
+      // Attributed to whichever agent actually handled this delivery —
+      // reuses the same live-summed field the dashboard already trusts
+      // over SuperAgent.totalEarnings (see getDashboard()'s own comment).
+      if (agentHandlingShare > 0) {
+        await this.parcelRepo
+          .increment({ id: parcel.id }, 'superAgentEarnings', agentHandlingShare)
+          .catch((e) => console.error('COD agent earnings credit failed (non-critical):', e.message));
       }
 
       await this.invoicesService
@@ -2833,7 +2867,14 @@ export class SuperAgentsService {
         relatedUserId: order.seller?.id ?? null,
         targetType: 'order',
         targetId: order.id,
-        metadata: { trackingNumber, amountCollected: collected },
+        metadata: {
+          trackingNumber,
+          amountCollected: collected,
+          codHandlingFee,
+          kentexaHandlingShare,
+          agentHandlingShare,
+          sellerNetCredited: sellerNetAfterCodFee,
+        },
       });
     }
 

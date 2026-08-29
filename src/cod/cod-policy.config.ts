@@ -32,3 +32,22 @@ export const MAX_COD_ORDER_VALUE = 2_000_000; // TZS
 // shipping cost) rather than it being refunded — see
 // DisputesService.resolve()'s SPLIT branch for where this is applied.
 export const REFUSED_DELIVERY_UPFRONT_REFUNDABLE = false;
+
+// ── COD handling fee ─────────────────────────────────────────────────────
+// Cash on Delivery is not free to run: collecting cash/mobile money at the
+// buyer's doorstep is real extra risk and physical work for the delivering
+// Super Agent, on top of Kentexa's ordinary marketplace commission (already
+// deducted via Order.platformFeeAmount/sellerAmount, computed once at
+// order-creation time from the FULL order price — untouched by this).
+//
+// This fee applies ONLY to the cash/mobile-money the Super Agent actually
+// collects in person at delivery (Order.codRemainingBalance) — never to an
+// intercity order's upfront portion, which the buyer already paid through
+// Kentexa's own online payment gateway, not through the agent's hands.
+// See SuperAgentsService.updateParcelStatus()'s COD-collection block.
+export const COD_HANDLING_FEE_PERCENT = 2;
+
+// How COD_HANDLING_FEE_PERCENT's take is split between Kentexa and the
+// delivering Super Agent. Must sum to 100.
+export const COD_HANDLING_FEE_KENTEXA_SHARE_PERCENT = 40;
+export const COD_HANDLING_FEE_AGENT_SHARE_PERCENT = 60;
