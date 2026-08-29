@@ -35,6 +35,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const [paymentPending, setPaymentPending]       = useState(false);
   const [paymentSuccess, setPaymentSuccess]       = useState(false);
 
+  // Cash on Delivery — chosen at checkout, before the order is created,
+  // since the backend decides upfront/remaining split at creation time.
+  const [paymentChoice, setPaymentChoice] = useState('online'); // 'online' | 'cod'
+  const [codInfo, setCodInfo]             = useState(null); // { upfront, remaining } once order is placed
+
   const [showAgentStep, setShowAgentStep] = useState(false);
   const [nearbyAgents, setNearbyAgents]   = useState([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
@@ -138,13 +143,28 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           // Send the actual delivery fee for this method
           // agent = use product default, others = method fee
           ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
+          paymentMethod: paymentChoice,
         });
         orders.push(res.data);
       }
       setOrderTotal(getCartTotal());
       setPlacedOrders(orders);
       clearCart();
-      setPaymentStep(true);
+
+      const first = orders[0];
+      if (first?.paymentMethod === 'cod') {
+        const upfront   = Number(first.codUpfrontAmount || 0);
+        const remaining = Number(first.codRemainingBalance || 0);
+        setCodInfo({ upfront, remaining });
+        if (upfront <= 0) {
+          // Same-city COD — nothing to pay now, order is already confirmed.
+          setPaymentSuccess(true);
+        } else {
+          setPaymentStep(true);
+        }
+      } else {
+        setPaymentStep(true);
+      }
     } catch (err) {
       setError(err?.response?.data?.message || t('checkout.err_place_orders'));
     } finally {
@@ -212,12 +232,25 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: '36px 24px', textAlign: 'center', width: '100%', maxWidth: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.1)' }}>
             <div style={{ fontSize: 56, marginBottom: 12 }}>🎉</div>
-            <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1e293b', marginBottom: 8, fontFamily: 'Manrope,sans-serif' }}>{t('checkout.payment_confirmed')}</h2>
-            <p style={{ color: '#64748b', marginBottom: 20, fontSize: 14 }}>{t('checkout.order_being_prepared')}</p>
-            <div style={{ background: 'linear-gradient(135deg,#43e97b,#38f9d7)', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>{t('checkout.amount_paid')}</div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>TZS {Number(orderTotal).toLocaleString()}</div>
+            <h2 style={{ fontSize: 22, fontWeight: 900, color: '#1e293b', marginBottom: 8, fontFamily: 'Manrope,sans-serif' }}>
+              {codInfo ? t('checkout.cod_confirmed_title') : t('checkout.payment_confirmed')}
+            </h2>
+            <p style={{ color: '#64748b', marginBottom: 20, fontSize: 14 }}>
+              {codInfo && codInfo.upfront <= 0 ? t('checkout.cod_confirmed_sub') : t('checkout.order_being_prepared')}
+            </p>
+            <div style={{ background: 'linear-gradient(135deg,#43e97b,#38f9d7)', borderRadius: 12, padding: 16, marginBottom: codInfo && codInfo.upfront > 0 ? 10 : 20 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)', marginBottom: 4 }}>
+                {codInfo ? (codInfo.upfront > 0 ? t('checkout.cod_deposit_paid_label') : t('checkout.cod_pay_on_delivery')) : t('checkout.amount_paid')}
+              </div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: '#fff' }}>
+                TZS {Number(codInfo ? (codInfo.upfront > 0 ? codInfo.upfront : orderTotal) : orderTotal).toLocaleString()}
+              </div>
             </div>
+            {codInfo && codInfo.upfront > 0 && (
+              <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: '#92400e', fontWeight: 600 }}>
+                {t('checkout.cod_remaining_notice', { amount: Number(codInfo.remaining).toLocaleString() })}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => onNavigate('MyOrders')} style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>📋 {t('checkout.my_orders_button')}</button>
               <button onClick={() => onNavigate('Home')} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 14 }}>{t('checkout.home_button')}</button>
@@ -304,8 +337,17 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           <div style={{ backgroundColor: '#dcfce7', borderRadius: 16, padding: '18px 16px', textAlign: 'center', marginBottom: 16, border: '2px solid #86efac' }}>
             <div style={{ fontSize: 40, marginBottom: 6 }}>🎉</div>
             <h2 style={{ fontSize: 18, fontWeight: 900, color: '#15803d', margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>{t('checkout.order_placed')}</h2>
-            <p style={{ color: '#166534', fontSize: 13, margin: '0 0 8px' }}>{t('checkout.order_placed_sub')}</p>
-            <div style={{ fontSize: 18, fontWeight: 900, color: '#15803d' }}>TZS {Number(orderTotal).toLocaleString()}</div>
+            <p style={{ color: '#166534', fontSize: 13, margin: '0 0 8px' }}>
+              {codInfo ? t('checkout.cod_upfront_notice') : t('checkout.order_placed_sub')}
+            </p>
+            <div style={{ fontSize: 18, fontWeight: 900, color: '#15803d' }}>
+              TZS {Number(codInfo ? codInfo.upfront : orderTotal).toLocaleString()}
+            </div>
+            {codInfo && (
+              <div style={{ fontSize: 12, color: '#166534', marginTop: 6 }}>
+                {t('checkout.cod_remaining_notice', { amount: Number(codInfo.remaining).toLocaleString() })}
+              </div>
+            )}
           </div>
 
           {error && (
@@ -340,7 +382,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                     style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 11, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('checkout.cancel')}</button>
                   <button onClick={handlePayOnline} disabled={paying || !payerPhone.trim()}
                     style={{ flex: 2, background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: 11, borderRadius: 8, cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
-                    {paying ? t('checkout.sending') : t('checkout.pay_button', { amount: Number(orderTotal).toLocaleString() })}
+                    {paying ? t('checkout.sending') : t('checkout.pay_button', { amount: Number(codInfo ? codInfo.upfront : orderTotal).toLocaleString() })}
                   </button>
                 </div>
               </>
@@ -354,7 +396,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             )}
           </div>
 
-          {/* Agent payment */}
+          {/* Agent payment — not offered for COD orders (agent-assisted cash
+              is redundant with the pay-on-delivery flow already chosen) */}
+          {!codInfo && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 12, border: '2px solid #2563eb', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ fontSize: 28 }}>🤝</span>
@@ -368,6 +412,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
               </button>
             </div>
           </div>
+          )}
 
           <button onClick={() => onNavigate('MyOrders')}
             style={{ width: '100%', backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
@@ -618,6 +663,40 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Payment Method — chosen before order creation since the backend
+            decides the upfront/remaining split (COD) at creation time */}
+        {!isDigitalOnlyCart && (
+          <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px' }}>💰 {t('checkout.payment_method_title')}</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div onClick={() => setPaymentChoice('online')}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                  backgroundColor: paymentChoice === 'online' ? '#f0fdf4' : '#f8fafc',
+                  border: `2px solid ${paymentChoice === 'online' ? '#16a34a' : '#e2e8f0'}` }}>
+                <span style={{ fontSize: 22 }}>💳</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'online' ? '#15803d' : '#1e293b' }}>{t('checkout.pm_online')}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{t('checkout.pm_online_sub')}</div>
+                </div>
+                {paymentChoice === 'online' && <span style={{ fontSize: 18, color: '#16a34a' }}>✅</span>}
+              </div>
+              <div onClick={() => setPaymentChoice('cod')}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                  backgroundColor: paymentChoice === 'cod' ? '#eff6ff' : '#f8fafc',
+                  border: `2px solid ${paymentChoice === 'cod' ? '#1d4ed8' : '#e2e8f0'}` }}>
+                <span style={{ fontSize: 22 }}>🚚</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: paymentChoice === 'cod' ? '#1d4ed8' : '#1e293b' }}>{t('checkout.pm_cod')}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>
+                    {isSameCity ? t('checkout.pm_cod_sub_samecity') : t('checkout.pm_cod_sub_intercity')}
+                  </div>
+                </div>
+                {paymentChoice === 'cod' && <span style={{ fontSize: 18, color: '#1d4ed8' }}>✅</span>}
+              </div>
+            </div>
           </div>
         )}
 

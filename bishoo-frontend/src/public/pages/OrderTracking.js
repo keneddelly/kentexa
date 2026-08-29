@@ -439,6 +439,31 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
           </div>
         </div>
 
+        {/* Cash on Delivery breakdown */}
+        {order?.paymentMethod === 'cod' && (
+          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16, border: '2px solid #fde68a' }}>
+            <h3 style={{ fontSize: 13, fontWeight: 800, color: '#92400e', margin: '0 0 12px' }}>🚚 {t('order_tracking.cod_title')}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+              <span style={{ color: '#64748b' }}>{t('order_tracking.cod_total_label')}</span>
+              <span style={{ fontWeight: 700, color: '#1e293b' }}>TZS {Number(order?.totalAmount).toLocaleString()}</span>
+            </div>
+            {Number(order?.codUpfrontAmount || 0) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
+                <span style={{ color: '#64748b' }}>{t('order_tracking.cod_upfront_label')}</span>
+                <span style={{ fontWeight: 700, color: '#16a34a' }}>TZS {Number(order.codUpfrontAmount).toLocaleString()}</span>
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, paddingTop: 8, borderTop: '1px dashed #fde68a' }}>
+              <span style={{ fontWeight: 800, color: '#92400e' }}>
+                {order?.codBalanceCollected ? t('order_tracking.cod_settled_label') : t('order_tracking.cod_remaining_label')}
+              </span>
+              <span style={{ fontWeight: 900, color: order?.codBalanceCollected ? '#16a34a' : '#92400e' }}>
+                {order?.codBalanceCollected ? `✅ ${t('order_tracking.cod_paid_word')}` : `TZS ${Number(order?.codRemainingBalance || 0).toLocaleString()}`}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Invoice */}
         {invoice && (
           <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 10px rgba(0,0,0,0.06)', marginBottom: 16 }}>

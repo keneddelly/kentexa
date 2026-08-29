@@ -356,6 +356,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [statusParcel, setStatusParcel] = useState(null);
   const [newStatus, setNewStatus]       = useState('');
   const [statusNote, setStatusNote]     = useState('');
+  const [codBalanceAmount, setCodBalanceAmount] = useState('');
 
   // ── Apply form ────────────────────────────────────────────────────────────
   const [applyForm, setApplyForm] = useState({
@@ -714,15 +715,21 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
   // ── Status update handler ─────────────────────────────────────────────────
 
+  const needsCodBalance = statusParcel &&
+    newStatus === 'delivered' &&
+    statusParcel.order?.paymentMethod === 'cod' &&
+    !statusParcel.order?.codBalanceCollected;
+
   const handleStatus = async () => {
     if (!statusParcel || !newStatus) return;
     try {
       setActionLoading(true); setError('');
       await api.patch(`/super-agents/parcels/${statusParcel.trackingNumber}/status`, {
         status: newStatus, city: profile?.city, note: statusNote,
+        ...(needsCodBalance ? { codBalanceCollected: Number(codBalanceAmount) || 0 } : {}),
       });
       setSuccess('✅ Hali imesasishwa');
-      setStatusParcel(null); setStatusNote(''); setNewStatus('');
+      setStatusParcel(null); setStatusNote(''); setNewStatus(''); setCodBalanceAmount('');
       fetchAll();
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa');
@@ -2459,7 +2466,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               marginBottom: 14 }}>
               {statusParcel.trackingNumber}
             </div>
-            <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
+            <select value={newStatus} onChange={e => {
+                setNewStatus(e.target.value);
+                if (e.target.value === 'delivered' && statusParcel.order?.paymentMethod === 'cod' && !statusParcel.order?.codBalanceCollected) {
+                  setCodBalanceAmount(String(Number(statusParcel.order?.codRemainingBalance || 0)));
+                }
+              }}
               style={{ ...inp, marginBottom: 12 }}>
               <option value="">— Chagua Hali Mpya —</option>
               {[
@@ -2483,6 +2495,19 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 ] : []),
               ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
+            {needsCodBalance && (
+              <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 6 }}>
+                  🚚 Malipo Baada ya Kupokea — kiasi kilichokusanywa kwa mteja
+                </div>
+                <input type="number" placeholder="0" value={codBalanceAmount}
+                  onChange={e => setCodBalanceAmount(e.target.value)}
+                  style={{ ...inp, marginBottom: 0 }} />
+                <div style={{ fontSize: 11, color: '#92400e', marginTop: 6 }}>
+                  Kinachotarajiwa: TZS {Number(statusParcel.order?.codRemainingBalance || 0).toLocaleString()}
+                </div>
+              </div>
+            )}
             <input type="text" placeholder="Maelezo (hiari)"
               value={statusNote} onChange={e => setStatusNote(e.target.value)}
               style={{ ...inp, marginBottom: 14 }} />
@@ -2493,7 +2518,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
                 {actionLoading ? '⏳' : '💾 Hifadhi'}
               </button>
-              <button onClick={() => { setStatusParcel(null); setNewStatus(''); setStatusNote(''); }}
+              <button onClick={() => { setStatusParcel(null); setNewStatus(''); setStatusNote(''); setCodBalanceAmount(''); }}
                 style={{ flex: 1, background: '#fff', color: '#64748b',
                   border: '2px solid #e2e8f0', padding: 14, borderRadius: 10,
                   cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>

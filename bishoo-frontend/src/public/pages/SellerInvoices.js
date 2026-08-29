@@ -13,13 +13,13 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
   const [error, setError]                 = useState('');
   const [success, setSuccess]             = useState('');
   const [showForm, setShowForm]           = useState(null);
-  const [form, setForm]                   = useState({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3 });
+  const [form, setForm]                   = useState({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3, shippingAmount: '', isCod: false });
   const [creating, setCreating]           = useState(false);
   const [showManual, setShowManual]       = useState(false);
   const [myClassifieds, setMyClassifieds] = useState([]);
   const [loadingClassifieds, setLoadingClassifieds] = useState(false);
   const [selectedClassified, setSelectedClassified] = useState(null);
-  const [manualForm, setManualForm]       = useState({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3 });
+  const [manualForm, setManualForm]       = useState({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3, shippingAmount: '', isCod: false });
   // Structured delivery location — was previously only ever captured as
   // free text inside deliveryAddress, with no way to actually match it
   // against Kentexa's real region/district/ward data the way every other
@@ -77,7 +77,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
   const openManualModal = () => {
     setShowManual(true); setManualResult(null); setSelectedClassified(null);
     setClassifiedSearch('');
-    setManualForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3 });
+    setManualForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3, shippingAmount: '', isCod: false });
     setManualLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
     fetchMyClassifieds();
   };
@@ -94,10 +94,11 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
       const res = await api.post(`/classifieds/invoices/${requestId}/create`, {
         amount: Number(form.amount), invoiceDescription: form.invoiceDescription,
         sellerNotes: form.sellerNotes, dueDays: Number(form.dueDays),
+        shippingAmount: Number(form.shippingAmount) || 0, isCod: form.isCod,
       });
       setSuccess(t('seller_invoices.invoice_sent_msg', { number: res.data.invoiceNumber }));
       setShowForm(null);
-      setForm({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3 });
+      setForm({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3, shippingAmount: '', isCod: false });
       fetchRequests();
       setTimeout(() => setSuccess(''), 5000);
     } catch (err) {
@@ -117,13 +118,14 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
         deliveryAddress: manualForm.deliveryAddress.trim(), productName: selectedClassified.title,
         classifiedId: selectedClassified.id, amount: Number(manualForm.amount),
         notes: manualForm.notes.trim(), dueDays: Number(manualForm.dueDays),
+        shippingAmount: Number(manualForm.shippingAmount) || 0, isCod: manualForm.isCod,
         regionId: manualLocation.regionId || undefined, regionName: manualLocation.regionName || undefined,
         districtId: manualLocation.districtId || undefined, districtName: manualLocation.districtName || undefined,
         wardId: manualLocation.wardId || undefined, wardName: manualLocation.wardName || undefined,
       });
       setManualResult(res.data);
       setShowManual(false);
-      setManualForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3 });
+      setManualForm({ buyerName: '', buyerPhone: '', deliveryAddress: '', amount: '', notes: '', dueDays: 3, shippingAmount: '', isCod: false });
       setManualLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
       setSelectedClassified(null);
       fetchRequests();
@@ -405,8 +407,22 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                         <input placeholder={req.classifiedTitle} value={form.invoiceDescription}
                           onChange={e => setForm({ ...form, invoiceDescription: e.target.value })} style={inputStyle} />
                       </div>
+                      <div style={{ marginBottom: 10 }}>
+                        <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.shipping_amount_label')}</label>
+                        <input type="number" placeholder="0" value={form.shippingAmount}
+                          onChange={e => setForm({ ...form, shippingAmount: e.target.value })} style={inputStyle} />
+                      </div>
+                      <div onClick={() => setForm({ ...form, isCod: !form.isCod })}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 10,
+                          backgroundColor: form.isCod ? '#eff6ff' : '#f8fafc', border: `1px solid ${form.isCod ? '#2563eb' : '#e2e8f0'}` }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${form.isCod ? '#2563eb' : '#94a3b8'}`,
+                          backgroundColor: form.isCod ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {form.isCod && <span style={{ color: '#fff', fontSize: 10 }}>✓</span>}
+                        </div>
+                        <div style={{ fontSize: 12, color: form.isCod ? '#1d4ed8' : '#64748b', fontWeight: 600 }}>🚚 {t('seller_invoices.cod_toggle')}</div>
+                      </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => { setShowForm(null); setForm({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3 }); }}
+                        <button onClick={() => { setShowForm(null); setForm({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3, shippingAmount: '', isCod: false }); }}
                           style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('seller_invoices.cancel_button')}</button>
                         <button onClick={() => handleCreateInvoice(req.id)} disabled={creating}
                           style={{ flex: 2, background: creating ? '#a5b4fc' : 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: creating ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
@@ -415,7 +431,7 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                       </div>
                     </div>
                   ) : (
-                    <button onClick={() => { setShowForm(req.id); setForm({ amount: String(req.listingPrice || ''), invoiceDescription: req.classifiedTitle || '', sellerNotes: '', dueDays: 3 }); }}
+                    <button onClick={() => { setShowForm(req.id); setForm({ amount: String(req.listingPrice || ''), invoiceDescription: req.classifiedTitle || '', sellerNotes: '', dueDays: 3, shippingAmount: '', isCod: false }); }}
                       style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none', padding: '9px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                       {t('seller_invoices.create_send_invoice_button')}
                     </button>
@@ -668,6 +684,20 @@ const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, acti
                   <input type="number" value={manualForm.dueDays}
                     onChange={e => setManualForm({ ...manualForm, dueDays: e.target.value })} style={inputStyle} />
                 </div>
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600 }}>{t('seller_invoices.shipping_amount_label')}</label>
+                <input type="number" placeholder="0" value={manualForm.shippingAmount}
+                  onChange={e => setManualForm({ ...manualForm, shippingAmount: e.target.value })} style={inputStyle} />
+              </div>
+              <div onClick={() => setManualForm({ ...manualForm, isCod: !manualForm.isCod })}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 8, cursor: 'pointer', marginBottom: 10,
+                  backgroundColor: manualForm.isCod ? '#eff6ff' : '#f8fafc', border: `1px solid ${manualForm.isCod ? '#2563eb' : '#e2e8f0'}` }}>
+                <div style={{ width: 18, height: 18, borderRadius: 4, border: `2px solid ${manualForm.isCod ? '#2563eb' : '#94a3b8'}`,
+                  backgroundColor: manualForm.isCod ? '#2563eb' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  {manualForm.isCod && <span style={{ color: '#fff', fontSize: 10 }}>✓</span>}
+                </div>
+                <div style={{ fontSize: 12, color: manualForm.isCod ? '#1d4ed8' : '#64748b', fontWeight: 600 }}>🚚 {t('seller_invoices.cod_toggle')}</div>
               </div>
               <textarea placeholder={t('seller_invoices.notes_placeholder')} value={manualForm.notes}
                 onChange={e => setManualForm({ ...manualForm, notes: e.target.value })} rows={2}

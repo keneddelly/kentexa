@@ -45,8 +45,10 @@ const POS = ({ onNavigate, currentUser }) => {
   const [amountPaid, setAmountPaid] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [isCod, setIsCod] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  const [collectingBalance, setCollectingBalance] = useState(false);
   const searchRef = useRef(null);
 
   useEffect(() => {
@@ -114,7 +116,7 @@ const POS = ({ onNavigate, currentUser }) => {
 
   const resetSale = () => {
     setCart([]); setDiscountAmount('0'); setAmountPaid(''); setCustomerName(''); setCustomerPhone('');
-    setPaymentMethod('cash'); setReceipt(null); setStep('cart'); setError('');
+    setPaymentMethod('cash'); setIsCod(false); setReceipt(null); setStep('cart'); setError('');
     searchRef.current?.focus();
   };
 
@@ -136,7 +138,9 @@ const POS = ({ onNavigate, currentUser }) => {
 
   const handleConfirm = async () => {
     if (cart.length === 0) return;
-    if (paid < total) { setError(t('pos.insufficient_payment')); return; }
+    if (!isCod && paid < total) { setError(t('pos.insufficient_payment')); return; }
+    if (isCod && !customerPhone.trim()) { setError(t('pos.cod_needs_phone')); return; }
+    if (isCod && paid > total) { setError(t('pos.cod_overpaid')); return; }
     setSubmitting(true); setError('');
     try {
       const res = await api.post('/sales', {
@@ -145,6 +149,7 @@ const POS = ({ onNavigate, currentUser }) => {
         discountAmount: Number(discountAmount) || 0,
         paymentMethod,
         amountPaid: paid,
+        isCod,
         customerName: customerName || undefined,
         customerPhone: customerPhone || undefined,
       });
@@ -153,6 +158,17 @@ const POS = ({ onNavigate, currentUser }) => {
     } catch (err) {
       setError(err?.response?.data?.message || t('pos.sale_failed'));
     } finally { setSubmitting(false); }
+  };
+
+  const handleCollectBalance = async () => {
+    if (!receipt) return;
+    setCollectingBalance(true); setError('');
+    try {
+      const res = await api.post(`/sales/${receipt.id}/collect-cod-balance`);
+      setReceipt(res.data);
+    } catch (err) {
+      setError(err?.response?.data?.message || t('pos.collect_balance_failed'));
+    } finally { setCollectingBalance(false); }
   };
 
   return (
@@ -284,16 +300,37 @@ const POS = ({ onNavigate, currentUser }) => {
           </div>
 
           <div style={{ backgroundColor: WH, borderRadius: 14, padding: 16, marginBottom: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: DK, marginBottom: 10 }}>{t('pos.customer_optional')}</div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: DK, marginBottom: 10 }}>
+              {isCod ? t('pos.customer_required_cod') : t('pos.customer_optional')}
+            </div>
             <input placeholder={t('pos.customer_name_placeholder')} value={customerName}
               onChange={e => setCustomerName(e.target.value)} style={{ ...inputStyle, marginBottom: 8 }} />
             <input placeholder={t('pos.customer_phone_placeholder')} value={customerPhone}
               onChange={e => setCustomerPhone(e.target.value)} style={inputStyle} />
           </div>
 
-          <button onClick={handleConfirm} disabled={submitting || paid < total}
-            style={{ width: '100%', padding: '15px 0', background: (submitting || paid < total) ? '#94A3B8' : GREEN,
-              color: WH, border: 'none', borderRadius: 14, cursor: (submitting || paid < total) ? 'default' : 'pointer',
+          <div onClick={() => setIsCod(!isCod)}
+            style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, cursor: 'pointer',
+              backgroundColor: isCod ? '#EFF6FF' : WH, border: `2px solid ${isCod ? B : '#E2E8F0'}`, marginBottom: 14 }}>
+            <div style={{ width: 22, height: 22, borderRadius: '50%', border: `2px solid ${isCod ? B : '#94A3B8'}`,
+              backgroundColor: isCod ? B : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {isCod && <span style={{ color: WH, fontSize: 12 }}>✓</span>}
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: isCod ? B : DK }}>🚚 {t('pos.cod_toggle')}</div>
+              <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{t('pos.cod_toggle_sub')}</div>
+            </div>
+          </div>
+
+          {isCod && paid < total && (
+            <div style={{ backgroundColor: '#FEF9C3', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: '#92400E', fontWeight: 600 }}>
+              {t('pos.cod_balance_notice', { amount: fmt(total - paid) })}
+            </div>
+          )}
+
+          <button onClick={handleConfirm} disabled={submitting || (!isCod && paid < total)}
+            style={{ width: '100%', padding: '15px 0', background: (submitting || (!isCod && paid < total)) ? '#94A3B8' : GREEN,
+              color: WH, border: 'none', borderRadius: 14, cursor: (submitting || (!isCod && paid < total)) ? 'default' : 'pointer',
               fontSize: 15, fontWeight: 900 }}>
             {submitting ? t('pos.processing') : t('pos.confirm_sale')}
           </button>
@@ -335,7 +372,24 @@ const POS = ({ onNavigate, currentUser }) => {
                 <span>{t('pos.change_due')}</span><span>TZS {fmt(receipt.changeDue)}</span>
               </div>
             )}
+            {receipt.isCod && Number(receipt.balanceDue) > 0 && (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0', fontSize: 13, fontWeight: 800, color: '#EA580C', display: 'flex', justifyContent: 'space-between' }}>
+                <span>🚚 {t('pos.balance_due')}</span><span>TZS {fmt(receipt.balanceDue)}</span>
+              </div>
+            )}
+            {receipt.isCod && Number(receipt.balanceDue) <= 0 && (
+              <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0', fontSize: 12, fontWeight: 700, color: GREEN, textAlign: 'center' }}>
+                ✅ {t('pos.balance_settled')}
+              </div>
+            )}
           </div>
+          {receipt.isCod && Number(receipt.balanceDue) > 0 && (
+            <button onClick={handleCollectBalance} disabled={collectingBalance} style={{ width: '100%', marginTop: 16, padding: '14px 0',
+              background: collectingBalance ? '#94A3B8' : '#EA580C', color: WH, border: 'none',
+              borderRadius: 14, cursor: collectingBalance ? 'default' : 'pointer', fontSize: 14, fontWeight: 900 }}>
+              {collectingBalance ? t('pos.processing') : `💰 ${t('pos.collect_balance_button', { amount: fmt(receipt.balanceDue) })}`}
+            </button>
+          )}
           <button onClick={handleShipIt} style={{ width: '100%', marginTop: 16, padding: '14px 0',
             background: WH, color: B, border: `2px solid ${B}`,
             borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
