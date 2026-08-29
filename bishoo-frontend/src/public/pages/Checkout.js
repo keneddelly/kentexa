@@ -78,14 +78,17 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const DETECT_DELAY = 500; // ms after user stops typing
 
   // The backend's own intercity/same-city split for COD purposes is based
-  // on the SELECTED SHIPPING METHOD ('agent'/'bus'/'courier' = intercity;
-  // see OrdersService.create()'s own comment), not the separate isSameCity
-  // flag above (that flag only describes whether same-city delivery
-  // METHODS exist to offer at all, and can disagree with which method the
-  // buyer actually picks). COD terms text must follow the same rule the
-  // backend actually enforces, or it can show "pay a deposit" for a
-  // same-city order the backend will treat as 100%-after-delivery.
-  const isIntercityForCod = selectedMethod === 'agent';
+  // on the SHIPPING METHOD actually sent with the order ('agent'/'bus'/
+  // 'courier' = intercity; see OrdersService.create()'s own comment) —
+  // not the separate isSameCity flag above (that only describes whether
+  // same-city delivery METHODS exist to offer at all). Mirrors the exact
+  // `shippingMethod` fallback handleCheckout() sends below
+  // (selectedMethod || (isSameCity ? 'boda' : 'agent')), so this is
+  // accurate even before delivery-method detection has resolved —
+  // relying on selectedMethod alone left it permanently "same-city" (and
+  // showing 0% upfront) until that detection succeeded.
+  const chosenShippingMethod = selectedMethod || (isSameCity ? 'boda' : 'agent');
+  const isIntercityForCod = ['agent', 'bus', 'courier'].includes(chosenShippingMethod);
 
   const inputStyle = {
     width: '100%', padding: '12px 14px', borderRadius: 10,
@@ -148,12 +151,12 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     if (!total) { setCodQuote(null); return; }
     let cancelled = false;
     setCodQuoteLoading(true);
-    api.get('/orders/cod-quote', { params: { totalAmount: total, isIntercity: selectedMethod === 'agent' } })
+    api.get('/orders/cod-quote', { params: { totalAmount: total, isIntercity: isIntercityForCod } })
       .then(res => { if (!cancelled) setCodQuote(res.data); })
       .catch(() => { if (!cancelled) setCodQuote(null); })
       .finally(() => { if (!cancelled) setCodQuoteLoading(false); });
     return () => { cancelled = true; };
-  }, [paymentChoice, cart, deliveryMethods, selectedMethod]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [paymentChoice, cart, deliveryMethods, selectedMethod, isSameCity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckout = async () => {
     if ((!isDigitalOnlyCart && !form.deliveryAddress.trim()) || !form.phone.trim()) {
