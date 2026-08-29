@@ -153,6 +153,33 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
     finally { setAgentsLoading(false); }
   };
 
+  // Classified invoices aren't Orders — no /payments/invoice/pay wiring, no
+  // Order id — so this jumps straight to the modal's "visit an agent, quote
+  // this invoice number" screen rather than opening the full modal (which
+  // would also offer the modal's own "Pay Online" button, wired to Order
+  // semantics that don't apply here; classified invoices already have their
+  // own separate inline online-pay UI right next to this button).
+  const openPayViaAgentForInvoice = async (inv) => {
+    const normalized = {
+      id: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      totalAmount: inv.totalAmount,
+      paymentMethod: inv.isCod ? 'cod' : 'online',
+      codUpfrontAmount: inv.codUpfrontAmount,
+      codRemainingBalance: inv.codRemainingBalance,
+      deliveryAddress: inv.deliveryAddress,
+    };
+    setPayModalOrder(normalized);
+    setPayMode('agent');
+    try {
+      setAgentsLoading(true);
+      const parts = (normalized.deliveryAddress || '').split(',').map(s => s.trim());
+      const res = await api.get(`/agents/nearby?region=${encodeURIComponent(parts[0] || '')}`);
+      setNearbyAgents(res.data);
+    } catch { setNearbyAgents([]); }
+    finally { setAgentsLoading(false); }
+  };
+
   const handleCopyInvoice = (inv) => {
     navigator.clipboard.writeText(inv);
     setCopied(true);
@@ -740,7 +767,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                                     <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
                                       {t('my_orders.pay_via_agent_desc', { num: inv.invoiceNumber, amount: dueNow.toLocaleString() })}
                                     </div>
-                                    <button onClick={() => onNavigate(`PayInvoice-${payModalOrder?.id || ''}`)}
+                                    <button onClick={() => openPayViaAgentForInvoice(inv)}
                                       style={{ marginTop: 8, backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                                       {t('my_orders.find_agent_button')}
                                     </button>

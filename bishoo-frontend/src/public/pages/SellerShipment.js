@@ -330,6 +330,13 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
     if (form.buyerDiffersFromRecipient && !form.buyerPhone.trim()) return t('seller_shipment.validate_payer_phone');
     if (!form.destinationCity)         return t('seller_shipment.validate_destination');
     if (!form.deliveryAddress.trim())  return t('seller_shipment.validate_address');
+    // Mirrors the backend's own check (super-agents.service.ts,
+    // createSellerShipment) so the seller gets an inline message here
+    // instead of a raw server-error surface — same rule POS.js already
+    // enforces for the linked-sale COD path.
+    if (!prefill?.saleId && form.isCod && (Number(form.codAmountPaid) || 0) > getTotalValue()) {
+      return t('seller_shipment.validate_cod_overpaid');
+    }
     // Shipping validation — required for tracking to work
     if (isSameCity) {
       // boda/local — just need address (already validated above)

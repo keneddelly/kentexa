@@ -690,6 +690,8 @@ export class ClassifiedsService {
       sellerNotes: r.sellerNotes,
       paidAt: r.paidAt,
       paymentMethod: r.paymentMethod,
+      deliveryAddress: r.deliveryAddress,
+      regionName: r.regionName,
       createdAt: r.createdAt,
       shipment: r.status === ClassifiedInvoiceStatus.PAID ? this.shipmentSummary(r) : null,
       ...this.codSchedule(r),

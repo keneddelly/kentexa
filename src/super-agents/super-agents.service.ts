@@ -3506,15 +3506,23 @@ export class SuperAgentsService {
         .catch(() => {});
     } else {
       // ── Manual-order payment confirmation ───────────────────────────────
-      // The customer already paid the seller directly (cash/WhatsApp/mobile
-      // money/bank) — this records that payment as confirmed inside Kentexa
-      // and receipts it, exactly like createOfflineIntercityOrder()'s counter
-      // flow does, reusing the same recordManualPayment() receipt generator
-      // (one numbering scheme, not a second one). The buyer (who paid) is
-      // not necessarily the parcel's recipient — e.g. someone paying for a
-      // gift shipped to a different person — so this is billed/receipted to
-      // buyerName/buyerPhone, falling back to the recipient when the seller
-      // didn't distinguish them.
+      // Non-COD: the customer already paid the seller directly (cash/
+      // WhatsApp/mobile money/bank) in FULL — this records that payment as
+      // confirmed inside Kentexa and receipts it, exactly like
+      // createOfflineIntercityOrder()'s counter flow does, reusing the same
+      // recordManualPayment() receipt generator (one numbering scheme, not
+      // a second one). The buyer (who paid) is not necessarily the
+      // parcel's recipient — e.g. someone paying for a gift shipped to a
+      // different person — so this is billed/receipted to buyerName/
+      // buyerPhone, falling back to the recipient when the seller didn't
+      // distinguish them.
+      //
+      // COD (isCodSale, declared directly on this form — see
+      // directAmountPaid/directBalanceDue above): only what was ACTUALLY
+      // paid so far is real. Claiming the full total was "received" here
+      // — as this branch used to do unconditionally — would fabricate a
+      // payment event and tell the buyer their balance was settled before
+      // the Super Agent ever collects it.
       //
       // Fires exactly once, inline in this create call — there is no
       // separate "mark as paid" toggle or GET/view endpoint that could
@@ -3523,35 +3531,63 @@ export class SuperAgentsService {
       // once per successful POST).
       buyerName = dto.buyerName || dto.recipientName;
       buyerPhone = dto.buyerPhone || dto.recipientPhone;
-      orderAmount = Number(order.totalAmount || 0);
-      const invoice = await this.invoicesService.recordManualPayment(order, {
-        amount: orderAmount,
-        paymentMethod: dto.paymentMethod || 'cash',
-        payerName: buyerName,
-        payerPhone: buyerPhone,
-      });
-      receiptNumber = invoice.receiptNumber;
 
-      // SELLER's own brand, never "SUPER AGENT" — no Super Agent is involved
-      // yet at this point, the customer is dealing with the seller only.
-      // Brand named inline in the sentence rather than as a standalone
-      // header line, alongside what was actually bought and the total.
-      try {
-        buyerPaymentSmsSent = await this.smsService.sendSms(
-          buyerPhone,
-          `Habari ${buyerName}, ${senderDisplayName} imepokea malipo yako ya TZS ${orderAmount.toLocaleString()} kwa ${dto.description} (Oda: ${trackingNumber}).\n\n` +
-            `Risiti: ${receiptNumber}\n\n` +
-            `Verified by Kentexa`,
-        );
-      } catch (e: any) {
-        console.warn('Manual order payment SMS failed:', e?.message);
+      if (isCodSale) {
+        orderAmount = directAmountPaid;
+        receiptNumber = null;
+        if (directAmountPaid > 0) {
+          const invoice = await this.invoicesService.recordManualPayment(order, {
+            amount: directAmountPaid,
+            paymentMethod: dto.paymentMethod || 'cash',
+            payerName: buyerName,
+            payerPhone: buyerPhone,
+          });
+          receiptNumber = invoice.receiptNumber;
+        }
+        try {
+          buyerPaymentSmsSent = await this.smsService.sendSms(
+            buyerPhone,
+            directAmountPaid > 0
+              ? `Habari ${buyerName}, ${senderDisplayName} imepokea malipo ya awali ya TZS ${directAmountPaid.toLocaleString()} kwa ${dto.description} (Oda: ${trackingNumber}). Salio la TZS ${directBalanceDue.toLocaleString()} litakusanywa ukipokea.\n\n` +
+                `Verified by Kentexa`
+              : `Habari ${buyerName}, agizo lako la ${dto.description} (Oda: ${trackingNumber}) limethibitishwa — Malipo Baada ya Kupokea. Utalipa TZS ${directBalanceDue.toLocaleString()} ukipokea.\n\n` +
+                `Verified by Kentexa`,
+          );
+        } catch (e: any) {
+          console.warn('Manual order COD confirmation SMS failed:', e?.message);
+        }
+      } else {
+        orderAmount = Number(order.totalAmount || 0);
+        const invoice = await this.invoicesService.recordManualPayment(order, {
+          amount: orderAmount,
+          paymentMethod: dto.paymentMethod || 'cash',
+          payerName: buyerName,
+          payerPhone: buyerPhone,
+        });
+        receiptNumber = invoice.receiptNumber;
+
+        // SELLER's own brand, never "SUPER AGENT" — no Super Agent is
+        // involved yet at this point, the customer is dealing with the
+        // seller only. Brand named inline in the sentence rather than as a
+        // standalone header line, alongside what was actually bought and
+        // the total.
+        try {
+          buyerPaymentSmsSent = await this.smsService.sendSms(
+            buyerPhone,
+            `Habari ${buyerName}, ${senderDisplayName} imepokea malipo yako ya TZS ${orderAmount.toLocaleString()} kwa ${dto.description} (Oda: ${trackingNumber}).\n\n` +
+              `Risiti: ${receiptNumber}\n\n` +
+              `Verified by Kentexa`,
+          );
+        } catch (e: any) {
+          console.warn('Manual order payment SMS failed:', e?.message);
+        }
       }
 
       await this.auditLog
         .record({
           actorId: seller.id,
           actorRole: 'seller',
-          action: 'order.manual_payment_confirmed',
+          action: isCodSale ? 'order.manual_cod_confirmed' : 'order.manual_payment_confirmed',
           entityType: 'order',
           entityId: order.id,
           newValue: {

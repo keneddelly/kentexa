@@ -3762,6 +3762,7 @@
     "validate_recipient_phone": "Weka simu ya mpokeaji",
     "validate_destination": "Chagua mji wa mwisho",
     "validate_address": "Weka anwani ya mpokeaji",
+    "validate_cod_overpaid": "Kiasi kilicholipwa hakiwezi kuzidi thamani ya mzigo",
     "create_order_failed": "Imeshindwa kuunda agizo. Jaribu tena.",
     "enter_mpesa_number": "Weka namba yako ya M-Pesa",
     "payment_failed_retry": "Malipo yameshindwa. Jaribu tena.",

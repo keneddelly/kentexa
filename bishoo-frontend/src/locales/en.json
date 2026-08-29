@@ -3916,6 +3916,7 @@
     "validate_recipient_phone": "Enter the recipient's phone",
     "validate_destination": "Choose the destination city",
     "validate_address": "Enter the recipient's address",
+    "validate_cod_overpaid": "Amount paid cannot be more than the goods value",
     "create_order_failed": "Could not create the order. Try again.",
     "enter_mpesa_number": "Enter your M-Pesa number",
     "payment_failed_retry": "Payment failed. Try again.",

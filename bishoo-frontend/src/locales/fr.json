@@ -3912,6 +3912,7 @@
     "validate_recipient_phone": "Entrez le téléphone du destinataire",
     "validate_destination": "Choisissez la ville de destination",
     "validate_address": "Entrez l'adresse du destinataire",
+    "validate_cod_overpaid": "Le montant payé ne peut pas dépasser la valeur des marchandises",
     "create_order_failed": "Impossible de créer la commande. Réessayez.",
     "enter_mpesa_number": "Entrez votre numéro M-Pesa",
     "payment_failed_retry": "Le paiement a échoué. Réessayez.",
