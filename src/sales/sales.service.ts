@@ -10,10 +10,13 @@ import { Sale, SaleChannel, SaleStatus } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { Product } from '../products/entities/products.entity';
 import { Order, OrderSource, OrderStatus } from '../orders/entities/order.entity';
+import { User } from '../users/entities/user.entity';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { InventoryService } from '../inventory/inventory.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 import { InvoicesService } from '../invoices/invoices.service';
+import { SmsService } from '../sms/sms.service';
+import { GrowthInviteService, InviteContext } from '../sms/growth-invite.service';
 
 @Injectable()
 export class SalesService {
@@ -22,9 +25,12 @@ export class SalesService {
     @InjectRepository(SaleItem) private saleItemRepo: Repository<SaleItem>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
     @InjectRepository(Order) private orderRepo: Repository<Order>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     private dataSource: DataSource,
     private inventory: InventoryService,
     private invoices: InvoicesService,
+    private smsService: SmsService,
+    private growthInvite: GrowthInviteService,
   ) {}
 
   // The whole multi-item sale is one DB transaction: build every SaleItem
@@ -41,7 +47,7 @@ export class SalesService {
       throw new BadRequestException('Unsupported sale channel');
     }
 
-    return this.dataSource.transaction(async (manager) => {
+    const saved = await this.dataSource.transaction(async (manager) => {
       const productRepo = manager.getRepository(Product);
       const saleRepo = manager.getRepository(Sale);
 
@@ -124,6 +130,40 @@ export class SalesService {
 
       return saved;
     });
+
+    // Digital receipt SMS — outside the DB transaction (this is external
+    // I/O, not something that should ever roll back a completed sale) and
+    // never allowed to fail the request: a seller's manual/local sale is
+    // real the moment stock and payment are recorded, regardless of
+    // whether the SMS provider is reachable. See CreateSaleDto — a manual
+    // sale doesn't require a customer phone at all (in-shop cash sale with
+    // no contact info), so this is skipped entirely when none was given.
+    if (saved.customerPhone) {
+      this.sendReceiptSms(sellerId, saved).catch((e) =>
+        console.error('Manual sale receipt SMS failed (non-critical):', e.message),
+      );
+    }
+
+    return saved;
+  }
+
+  // The customer for a manual/local-POS sale very often did NOT come from
+  // Kentexa (a walk-in shopper, a WhatsApp order, a phone call) — this is
+  // the one place in the whole app where Kentexa can reach someone who has
+  // never heard of it, purely because the SELLER already uses Kentexa to
+  // record the sale. See CLAUDE.md-adjacent product spec: "even when the
+  // customer did not originate from Kentexa, the seller can use Kentexa to
+  // digitize the transaction."
+  private async sendReceiptSms(sellerId: number, sale: Sale): Promise<void> {
+    const seller = await this.userRepo.findOne({ where: { id: sellerId } });
+    const sellerName = (seller as any)?.storeName || seller?.name || 'Muuzaji';
+    const baseMessage = `KenteXa: Umepokea risiti ${sale.receiptNumber} ya TZS ${Number(sale.total).toLocaleString()} kutoka ${sellerName}.`;
+    const message = await this.growthInvite.appendInvite(
+      baseMessage,
+      sale.customerPhone,
+      InviteContext.MANUAL_SALE_CUSTOMER,
+    );
+    await this.smsService.sendSms(sale.customerPhone!, message);
   }
 
   async getSales(

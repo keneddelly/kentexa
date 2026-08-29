@@ -1,19 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MailService } from '../mail/mail.service';
 import { SmsService } from '../sms/sms.service';
+import { GrowthInviteService, InviteContext } from '../sms/growth-invite.service';
 import { FRONTEND_URL } from '../config/urls.config';
 
 /**
  * Central notification dispatcher.
  *
  * RULES:
- * - SMS costs money — ONLY 3 events trigger SMS:
- *     1. registrationOtp        (handled directly in auth flow, not here)
- *     2. orderPaid               (buyer + seller)
- *     3. delivered/readyForPickup (buyer — mandatory, they may not check email)
+ * - SMS costs money — historically capped at 3 events (registrationOtp,
+ *   orderPaid, delivered); has since grown a few more narrowly-scoped ones
+ *   (classifiedInvoicePaid, parcel-collection updates) but the spirit
+ *   holds: don't add a new SMS-triggering method here without a reason.
  * - Email is free — sent for every event, but ONLY if the user has an email on file.
  * - Every method here is "fire and forget" — failures are logged, never thrown,
  *   so a notification failure never breaks the main business flow (payment, shipping, etc).
+ * - orderPaid()/delivered()/classifiedInvoicePaid() also append a short,
+ *   contextual "join Kentexa" nudge via GrowthInviteService — see that
+ *   file for the registered-user/cooldown/length rules. This is the
+ *   primary organic-acquisition surface: a real transaction is what makes
+ *   the invite feel earned rather than spam.
  */
 
 interface NotifyTarget {
@@ -29,6 +35,7 @@ export class NotificationsService {
   constructor(
     private mailService: MailService,
     private smsService: SmsService,
+    private growthInvite: GrowthInviteService,
   ) {}
 
   // ── Safe wrappers — never throw, always log ───────────────────────────────
@@ -91,14 +98,17 @@ export class NotificationsService {
     this.logger.log(
       `🔔 orderPaid() called for order #${orderId} — buyer.email=${buyer.email}, buyer.phone=${buyer.phone}, seller.email=${seller.email}, seller.phone=${seller.phone}`,
     );
-    // Buyer: SMS (allowed) + Email (if available)
+    // Buyer: SMS (allowed) + Email (if available). Growth nudge only when
+    // this phone isn't already a Kentexa account and isn't in cooldown —
+    // see GrowthInviteService for why.
     if (buyer.phone) {
+      const buyerMessage = await this.growthInvite.appendInvite(
+        `KenteXa: Malipo yako ya Order #${orderId} (TZS ${amount.toLocaleString()}) yamethibitishwa. Muuzaji ataandaa bidhaa yako hivi karibuni.`,
+        buyer.phone,
+        InviteContext.BUYER_ORDER,
+      );
       await this.safeSms(
-        () =>
-          this.smsService.sendSms(
-            buyer.phone!,
-            `KenteXa: Malipo yako ya Order #${orderId} (TZS ${amount.toLocaleString()}) yamethibitishwa. Muuzaji ataandaa bidhaa yako hivi karibuni.`,
-          ),
+        () => this.smsService.sendSms(buyer.phone!, buyerMessage),
         'orderPaid-buyer-sms',
       );
     }
@@ -116,14 +126,19 @@ export class NotificationsService {
       );
     }
 
-    // Seller: SMS (allowed, same event) + Email (if available)
+    // Seller: SMS (allowed, same event) + Email (if available). A seller
+    // able to receive this SMS already owns the product/listing, so in
+    // practice they're always an existing account — appendInvite() is
+    // still called for correctness (and to cover a future non-online-order
+    // seller-side flow), it just resolves to no invite today.
     if (seller.phone) {
+      const sellerMessage = await this.growthInvite.appendInvite(
+        `KenteXa: Umepokea agizo jipya #${orderId} - ${productName} (TZS ${amount.toLocaleString()}). Tafadhali andaa usafirishaji.`,
+        seller.phone,
+        InviteContext.SELLER_TRANSACTION,
+      );
       await this.safeSms(
-        () =>
-          this.smsService.sendSms(
-            seller.phone!,
-            `KenteXa: Umepokea agizo jipya #${orderId} - ${productName} (TZS ${amount.toLocaleString()}). Tafadhali andaa usafirishaji.`,
-          ),
+        () => this.smsService.sendSms(seller.phone!, sellerMessage),
         'orderPaid-seller-sms',
       );
     }
@@ -217,12 +232,13 @@ export class NotificationsService {
     trackingNumber: string,
   ) {
     if (buyer.phone) {
+      const buyerMessage = await this.growthInvite.appendInvite(
+        `KenteXa: Bidhaa yako Order #${orderId} (${trackingNumber}) imefika. Tafadhali ithibitishe kwenye app au tovuti ili tutoe malipo kwa muuzaji.`,
+        buyer.phone,
+        InviteContext.BUYER_SHIPMENT,
+      );
       await this.safeSms(
-        () =>
-          this.smsService.sendSms(
-            buyer.phone!,
-            `KenteXa: Bidhaa yako Order #${orderId} (${trackingNumber}) imefika. Tafadhali ithibitishe kwenye app au tovuti ili tutoe malipo kwa muuzaji.`,
-          ),
+        () => this.smsService.sendSms(buyer.phone!, buyerMessage),
         'delivered-buyer-sms',
       );
     }
@@ -364,22 +380,27 @@ export class NotificationsService {
     amount: number,
   ) {
     if (buyer.phone) {
+      const buyerMessage = await this.growthInvite.appendInvite(
+        `KenteXa: Malipo ya ankara ${invoiceNumber} (TZS ${amount.toLocaleString()}) yamethibitishwa.`,
+        buyer.phone,
+        InviteContext.CLASSIFIED_BUYER,
+      );
       await this.safeSms(
-        () =>
-          this.smsService.sendSms(
-            buyer.phone!,
-            `KenteXa: Malipo ya ankara ${invoiceNumber} (TZS ${amount.toLocaleString()}) yamethibitishwa.`,
-          ),
+        () => this.smsService.sendSms(buyer.phone!, buyerMessage),
         'classifiedPaid-buyer-sms',
       );
     }
     if (seller.phone) {
+      // Same as orderPaid()'s seller branch — posting a classified already
+      // requires a Kentexa account, so this resolves to no invite today;
+      // kept for consistency and to cover a future non-account-holder path.
+      const sellerMessage = await this.growthInvite.appendInvite(
+        `KenteXa: Ankara ${invoiceNumber} imelipwa - TZS ${amount.toLocaleString()}. Chagua njia ya usafirishaji kwenye dashibodi yako.`,
+        seller.phone,
+        InviteContext.SELLER_TRANSACTION,
+      );
       await this.safeSms(
-        () =>
-          this.smsService.sendSms(
-            seller.phone!,
-            `KenteXa: Ankara ${invoiceNumber} imelipwa - TZS ${amount.toLocaleString()}. Chagua njia ya usafirishaji kwenye dashibodi yako.`,
-          ),
+        () => this.smsService.sendSms(seller.phone!, sellerMessage),
         'classifiedPaid-seller-sms',
       );
     }
