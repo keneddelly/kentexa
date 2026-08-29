@@ -144,15 +144,24 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
                 <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: 0 }}>📄 {t('pay_invoice.invoice_details')}</h2>
                 <button onClick={() => { setInvoice(null); setInvoiceNumber(''); }} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px' }}>{t('pay_invoice.search_again')}</button>
               </div>
-              <div style={{ background: 'linear-gradient(135deg, #1e1b4b, #7c3aed)', borderRadius: '12px', padding: '14px 16px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ background: 'linear-gradient(135deg, #1e1b4b, #7c3aed)', borderRadius: '12px', padding: '14px 16px', marginBottom: invoice.isCod ? 8 : '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px' }}>{t('pay_invoice.amount_due')}</div>
+                  <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.7)', marginBottom: '3px' }}>
+                    {invoice.isCod ? t('pay_invoice.cod_due_now') : t('pay_invoice.amount_due')}
+                  </div>
                   <div style={{ fontSize: '24px', fontWeight: '900', color: '#fff' }}>TZS {Number(invoice.amount).toLocaleString()}</div>
                 </div>
                 <div style={{ backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '8px', padding: '5px 12px', color: '#fff', fontSize: '11px', fontWeight: '700' }}>
                   {invoice.status?.toUpperCase()}
                 </div>
               </div>
+              {invoice.isCod && (
+                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '10px 14px', marginBottom: '14px', fontSize: '12px', color: '#1d4ed8' }}>
+                  🚚 {Number(invoice.amount) > 0
+                    ? t('pay_invoice.cod_upfront_notice', { total: Number(invoice.fullAmount || 0).toLocaleString(), remaining: Number(invoice.remainingBalance || 0).toLocaleString() })
+                    : t('pay_invoice.cod_zero_upfront_notice', { remaining: Number(invoice.remainingBalance ?? invoice.fullAmount ?? 0).toLocaleString() })}
+                </div>
+              )}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {[
                   { label: t('pay_invoice.invoice_no'), value: invoice.invoiceNumber },
@@ -168,7 +177,7 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
               </div>
             </div>
 
-            {(invoice.status === 'sent' || invoice.status === 'awaiting_payment' || invoice.status === 'payment_processing') && (
+            {(invoice.status === 'sent' || invoice.status === 'awaiting_payment' || invoice.status === 'payment_processing') && !(invoice.isCod && Number(invoice.amount) === 0) && (
               <div style={{ backgroundColor: '#fff', borderRadius: '16px', padding: '18px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '14px' }}>
                 <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b', margin: '0 0 14px' }}>💳 {t('pay_invoice.pay_now')}</h2>
                 <div style={{ marginBottom: '14px' }}>
@@ -191,7 +200,17 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
               </div>
             )}
 
-            {invoice.status === 'paid' && (
+            {invoice.status === 'paid' && invoice.isCod && (
+              <div style={{ backgroundColor: '#eff6ff', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '2px solid #bfdbfe' }}>
+                <div style={{ fontSize: '36px', marginBottom: '8px' }}>🚚</div>
+                <h3 style={{ color: '#1d4ed8', fontWeight: '800', margin: '0 0 4px', fontSize: '15px' }}>{t('pay_invoice.cod_confirmed_title')}</h3>
+                <p style={{ color: '#1e293b', fontSize: '12px', margin: 0 }}>
+                  {t('pay_invoice.cod_zero_upfront_notice', { remaining: Number(invoice.remainingBalance ?? invoice.fullAmount ?? 0).toLocaleString() })}
+                </p>
+              </div>
+            )}
+
+            {invoice.status === 'paid' && !invoice.isCod && (
               <div style={{ backgroundColor: '#dcfce7', borderRadius: '16px', padding: '20px', textAlign: 'center', border: '2px solid #86efac' }}>
                 <div style={{ fontSize: '36px', marginBottom: '8px' }}>✅</div>
                 <h3 style={{ color: '#16a34a', fontWeight: '800', margin: '0 0 4px', fontSize: '15px' }}>{t('pay_invoice.already_paid')}</h3>

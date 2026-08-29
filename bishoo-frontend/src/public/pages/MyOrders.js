@@ -43,6 +43,14 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
   const [copied, setCopied]                   = useState(false);
   const [payingInvoice, setPayingInvoice]     = useState(null); // classified invoice id being paid online
   const [onlinePayPhone, setOnlinePayPhone]   = useState('');
+
+  // Pay Now modal's own COD schedule — a COD order's `totalAmount` is the
+  // full order value, never what's actually chargeable online right now
+  // (that's codUpfrontAmount; see payments.service.ts's InvoiceLookupResult
+  // comment). Guarded for payModalOrder being null between opens.
+  const modalIsCod = payModalOrder?.paymentMethod === 'cod';
+  const modalDueNow = modalIsCod ? Number(payModalOrder?.codUpfrontAmount || 0) : Number(payModalOrder?.totalAmount || 0);
+  const modalRemaining = Number(payModalOrder?.codRemainingBalance || 0);
   const [payingOnline, setPayingOnline]       = useState(false);
 
   useEffect(() => {
@@ -457,28 +465,66 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#6366f1' }}>
                           TZS {Number(order.totalAmount).toLocaleString()}
                         </div>
-                        {order.paymentStatus !== 'paid' && order.status !== 'cancelled' && (
-                          <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', fontWeight: '600' }}>
-                            {t('my_orders.payment_pending')}
-                          </div>
-                        )}
+                        {(() => {
+                          const isCodOrder = order.paymentMethod === 'cod';
+                          const codUpfront = Number(order.codUpfrontAmount || 0);
+                          // COD with no upfront owed online (same-city, or the
+                          // upfront's already been paid) has nothing "pending"
+                          // in the online-payment sense — the amber warning
+                          // badge would otherwise wrongly flag a perfectly
+                          // normal COD order as having a payment problem.
+                          const nothingOwedOnlineYet = isCodOrder && (codUpfront === 0 || order.paymentStatus === 'upfront_paid');
+                          if (order.status === 'cancelled' || order.paymentStatus === 'paid' || nothingOwedOnlineYet) return null;
+                          return (
+                            <div style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px', fontWeight: '600' }}>
+                              {isCodOrder ? t('my_orders.cod_deposit_pending') : t('my_orders.payment_pending')}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
-                    {/* Pay Now — unpaid orders that weren't cancelled */}
-                    {order.paymentStatus !== 'paid' && order.status !== 'cancelled' && (
-                      <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                        <div style={{ fontSize: '13px', color: '#fff' }}>
-                          {t('my_orders.payment_not_completed')}
+                    {/* Pay Now — unpaid orders that weren't cancelled. For
+                        COD orders this only ever offers the UPFRONT deposit,
+                        never the full total, and never shows at all once
+                        there's nothing left to pay online (same-city COD,
+                        or the deposit is already settled). */}
+                    {(() => {
+                      const isCodOrder = order.paymentMethod === 'cod';
+                      const codUpfront = Number(order.codUpfrontAmount || 0);
+                      const codRemaining = Number(order.codRemainingBalance || 0);
+                      if (order.status === 'cancelled') return null;
+                      if (isCodOrder && (codUpfront === 0 || order.paymentStatus === 'upfront_paid' || order.paymentStatus === 'paid')) {
+                        // Nothing payable online — either 100%-on-delivery,
+                        // or the deposit is already done. Show a plain
+                        // informational notice instead of a "Pay Now" CTA.
+                        if (order.paymentStatus === 'paid') return null;
+                        return (
+                          <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px' }}>
+                            <div style={{ fontSize: '12px', fontWeight: 800, color: '#1d4ed8', marginBottom: 4 }}>🚚 {t('my_orders.cod_label')}</div>
+                            <div style={{ fontSize: 12, color: '#1e293b' }}>
+                              {order.paymentStatus === 'upfront_paid'
+                                ? t('my_orders.cod_upfront_already_paid_notice', { remaining: (codRemaining || Number(order.totalAmount)).toLocaleString() })
+                                : t('my_orders.cod_zero_upfront_notice', { remaining: Number(order.totalAmount).toLocaleString() })}
+                            </div>
+                          </div>
+                        );
+                      }
+                      if (order.paymentStatus === 'paid') return null;
+                      return (
+                        <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: '10px', padding: '14px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                          <div style={{ fontSize: '13px', color: '#fff' }}>
+                            {isCodOrder ? t('my_orders.cod_deposit_notice', { amount: codUpfront.toLocaleString() }) : t('my_orders.payment_not_completed')}
+                          </div>
+                          <button
+                            onClick={() => openPayModal(order)}
+                            style={{ backgroundColor: '#fff', color: '#1d4ed8', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '800', whiteSpace: 'nowrap' }}
+                          >
+                            {t('my_orders.pay_now')}
+                          </button>
                         </div>
-                        <button
-                          onClick={() => openPayModal(order)}
-                          style={{ backgroundColor: '#fff', color: '#1d4ed8', border: 'none', padding: '9px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '800', whiteSpace: 'nowrap' }}
-                        >
-                          {t('my_orders.pay_now')}
-                        </button>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Download — paid digital product orders */}
                     {order.product?.productType === 'digital' && order.paymentStatus === 'paid' && (
@@ -574,7 +620,16 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {classifiedInvoices.map(inv => (
+                {classifiedInvoices.map(inv => {
+                  // COD payment schedule — shared by the invoice-number card,
+                  // the COD notice, and the "how to pay" section below.
+                  const invTotal = Number(inv.totalAmount ?? inv.amount ?? 0);
+                  const invIsCod = !!inv.isCod;
+                  const codUpfront = Number(inv.codUpfrontAmount || 0);
+                  const codRemaining = Number(inv.codRemainingBalance || 0);
+                  const dueNow = invIsCod ? codUpfront : invTotal;
+                  const nothingToPayOnline = invIsCod && codUpfront === 0;
+                  return (
                   <div key={inv.id} style={{
                     backgroundColor: '#fff', borderRadius: '12px', padding: '24px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.06)', border: '1px solid #f1f5f9',
@@ -651,7 +706,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: 600, marginBottom: 3 }}>{t('my_orders.invoice_number_label')}</div>
                                 <div style={{ fontSize: 16, fontWeight: 900, color: '#fff', fontFamily: 'monospace', letterSpacing: 1, wordBreak: 'break-all' }}>{inv.invoiceNumber}</div>
-                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 }}>TZS {Number(inv.amount).toLocaleString()}</div>
+                                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 3 }}>TZS {invTotal.toLocaleString()}</div>
                               </div>
                               <button
                                 onClick={() => { navigator.clipboard.writeText(inv.invoiceNumber); setMessage(t('my_orders.invoice_copied_msg')); setTimeout(() => setMessage(''), 2000); }}
@@ -660,7 +715,20 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                               </button>
                             </div>
 
-                            {/* Payment options */}
+                            {invIsCod && (
+                              <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+                                <div style={{ fontSize: 12, fontWeight: 800, color: '#1d4ed8', marginBottom: 4 }}>🚚 {t('my_orders.cod_label')}</div>
+                                <div style={{ fontSize: 12, color: '#1e293b' }}>
+                                  {codUpfront > 0
+                                    ? t('my_orders.cod_upfront_notice', { upfront: codUpfront.toLocaleString(), remaining: codRemaining.toLocaleString() })
+                                    : t('my_orders.cod_zero_upfront_notice', { remaining: (codRemaining || invTotal).toLocaleString() })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Payment options — hidden entirely when COD needs nothing paid online */}
+                            {!nothingToPayOnline && (
+                            <>
                             <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 8 }}>{t('my_orders.choose_payment_label')}</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                               {/* Pay via Agent */}
@@ -670,7 +738,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                                   <div>
                                     <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 3 }}>{t('my_orders.pay_via_agent_title')}</div>
                                     <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6 }}>
-                                      {t('my_orders.pay_via_agent_desc', { num: inv.invoiceNumber, amount: Number(inv.amount).toLocaleString() })}
+                                      {t('my_orders.pay_via_agent_desc', { num: inv.invoiceNumber, amount: dueNow.toLocaleString() })}
                                     </div>
                                     <button onClick={() => onNavigate(`PayInvoice-${payModalOrder?.id || ''}`)}
                                       style={{ marginTop: 8, backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
@@ -685,9 +753,9 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                                   <span style={{ fontSize: 22, flexShrink: 0 }}>💳</span>
                                   <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 800, color: '#16a34a', marginBottom: 3 }}>{t('my_orders.pay_online_title')}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 800, color: '#16a34a', marginBottom: 3 }}>{invIsCod ? t('my_orders.pay_deposit_title') : t('my_orders.pay_online_title')}</div>
                                     <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.6, marginBottom: 8 }}>
-                                      {t('my_orders.pay_online_desc')}
+                                      {invIsCod ? t('my_orders.pay_deposit_desc', { remaining: codRemaining.toLocaleString() }) : t('my_orders.pay_online_desc')}
                                     </div>
                                     {!payingInvoice || payingInvoice !== inv.id ? (
                                       <button onClick={() => setPayingInvoice(inv.id)}
@@ -705,7 +773,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                                           <button onClick={() => handlePayClassifiedOnline(inv)}
                                             disabled={!onlinePayPhone.trim() || payingOnline}
                                             style={{ flex: 2, backgroundColor: !onlinePayPhone.trim() || payingOnline ? '#e2e8f0' : '#16a34a', color: !onlinePayPhone.trim() || payingOnline ? '#94a3b8' : '#fff', border: 'none', padding: 8, borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
-                                            {payingOnline ? '⏳' : t('my_orders.pay_amount_button', { amount: Number(inv.amount).toLocaleString() })}
+                                            {payingOnline ? '⏳' : t('my_orders.pay_amount_button', { amount: dueNow.toLocaleString() })}
                                           </button>
                                         </div>
                                       </div>
@@ -714,6 +782,8 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                                 </div>
                               </div>
                             </div>
+                            </>
+                            )}
                           </div>
                         )}
                       </>
@@ -775,7 +845,8 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       </div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -791,9 +862,14 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
               <>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>💳</div>
                 <h2 style={{ fontSize: 19, fontWeight: 900, color: '#1e293b', marginBottom: 4, fontFamily: 'Manrope,sans-serif' }}>{t('my_orders.complete_payment_title')}</h2>
-                <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginBottom: 16, fontSize: 13, color: '#64748b' }}>
-                  {t('my_orders.order_number', { id: payModalOrder.id })} · <strong style={{ color: '#2563eb', fontSize: 15 }}>TZS {Number(payModalOrder.totalAmount).toLocaleString()}</strong>
+                <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginBottom: modalIsCod ? 8 : 16, fontSize: 13, color: '#64748b' }}>
+                  {t('my_orders.order_number', { id: payModalOrder.id })} · <strong style={{ color: '#2563eb', fontSize: 15 }}>TZS {modalDueNow.toLocaleString()}</strong>
                 </div>
+                {modalIsCod && (
+                  <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: 10, marginBottom: 16, fontSize: 12, color: '#1d4ed8', textAlign: 'left' }}>
+                    🚚 {t('my_orders.cod_upfront_notice', { upfront: modalDueNow.toLocaleString(), remaining: modalRemaining.toLocaleString() })}
+                  </div>
+                )}
 
                 {error && (
                   <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 12px', borderRadius: 10, marginBottom: 14, fontSize: 12, textAlign: 'left', display: 'flex', justifyContent: 'space-between' }}>
@@ -820,7 +896,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                           <button onClick={() => setPayMode(null)} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('my_orders.cancel')}</button>
                           <button onClick={handlePayOnline} disabled={paying || !payerPhone.trim()}
                             style={{ flex: 2, background: paying || !payerPhone.trim() ? '#e2e8f0' : 'linear-gradient(135deg,#16a34a,#15803d)', color: paying || !payerPhone.trim() ? '#94a3b8' : '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: paying || !payerPhone.trim() ? 'not-allowed' : 'pointer', fontWeight: 800, fontSize: 13 }}>
-                            {paying ? '⏳' : t('my_orders.pay_amount_button', { amount: Number(payModalOrder.totalAmount).toLocaleString() })}
+                            {paying ? '⏳' : t('my_orders.pay_amount_button', { amount: modalDueNow.toLocaleString() })}
                           </button>
                         </div>
                       </>
@@ -854,7 +930,7 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{t('my_orders.invoice_number_label')}</div>
                     <div style={{ fontSize: 15, fontWeight: 900, color: '#2563eb', fontFamily: 'monospace' }}>{payModalOrder.invoiceNumber || payModalOrder.id}</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>TZS {Number(payModalOrder.totalAmount).toLocaleString()}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>TZS {modalDueNow.toLocaleString()}</div>
                   </div>
                   <button onClick={() => handleCopyInvoice(payModalOrder.invoiceNumber || String(payModalOrder.id))}
                     style={{ backgroundColor: copied ? '#dcfce7' : '#2563eb', color: copied ? '#16a34a' : '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
