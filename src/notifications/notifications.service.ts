@@ -94,16 +94,22 @@ export class NotificationsService {
     orderId: number,
     productName: string,
     amount: number,
+    cod?: { upfrontAmount: number; remainingBalance: number },
   ) {
     this.logger.log(
       `🔔 orderPaid() called for order #${orderId} — buyer.email=${buyer.email}, buyer.phone=${buyer.phone}, seller.email=${seller.email}, seller.phone=${seller.phone}`,
     );
     // Buyer: SMS (allowed) + Email (if available). Growth nudge only when
     // this phone isn't already a Kentexa account and isn't in cooldown —
-    // see GrowthInviteService for why.
+    // see GrowthInviteService for why. Cash on Delivery: this event only
+    // ever means the UPFRONT amount cleared — the message says so
+    // explicitly rather than implying the whole order is paid for.
     if (buyer.phone) {
+      const buyerBaseMessage = cod
+        ? `KenteXa: Oda #${orderId} imepokelewa. Malipo ya awali ya TZS ${cod.upfrontAmount.toLocaleString()} yamethibitishwa. Salio la TZS ${cod.remainingBalance.toLocaleString()} litalipwa wakati wa kupokea.`
+        : `KenteXa: Malipo yako ya Order #${orderId} (TZS ${amount.toLocaleString()}) yamethibitishwa. Muuzaji ataandaa bidhaa yako hivi karibuni.`;
       const buyerMessage = await this.growthInvite.appendInvite(
-        `KenteXa: Malipo yako ya Order #${orderId} (TZS ${amount.toLocaleString()}) yamethibitishwa. Muuzaji ataandaa bidhaa yako hivi karibuni.`,
+        buyerBaseMessage,
         buyer.phone,
         InviteContext.BUYER_ORDER,
       );
@@ -132,8 +138,11 @@ export class NotificationsService {
     // still called for correctness (and to cover a future non-online-order
     // seller-side flow), it just resolves to no invite today.
     if (seller.phone) {
+      const sellerBaseMessage = cod
+        ? `KenteXa: Umepokea agizo jipya #${orderId} - ${productName} (TZS ${amount.toLocaleString()}, COD). Mnunuzi amelipa TZS ${cod.upfrontAmount.toLocaleString()} ya awali. Salio TZS ${cod.remainingBalance.toLocaleString()} litakusanywa wakati wa kupokea.`
+        : `KenteXa: Umepokea agizo jipya #${orderId} - ${productName} (TZS ${amount.toLocaleString()}). Tafadhali andaa usafirishaji.`;
       const sellerMessage = await this.growthInvite.appendInvite(
-        `KenteXa: Umepokea agizo jipya #${orderId} - ${productName} (TZS ${amount.toLocaleString()}). Tafadhali andaa usafirishaji.`,
+        sellerBaseMessage,
         seller.phone,
         InviteContext.SELLER_TRANSACTION,
       );

@@ -14,8 +14,9 @@ import {
   PaymentStatus,
   EscrowStatus,
   OrderSource,
+  OrderPaymentMethod,
 } from './entities/order.entity';
-import { CreateOrderDto } from './dto/create-order.dto';
+import { CreateOrderDto, CheckoutPaymentMethod } from './dto/create-order.dto';
 import { ProductsService } from '../products/products.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -40,6 +41,7 @@ import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { ClassifiedInvoiceRequest } from '../classifieds/entities/classified-invoice-request.entity';
 import { Classified, ClassifiedStatus } from '../classifieds/entities/classified.entity';
+import { CodCalculationService } from '../cod/cod-calculation.service';
 
 const CATEGORY_COMMISSION: Record<string, number> = {
   electronics: 10,
@@ -151,6 +153,7 @@ export class OrdersService {
     private commerceProfiles: CommerceProfilesService,
     private profileScope: CommerceProfileScopeService,
     private activityEvents: ActivityEventService,
+    private codCalculation: CodCalculationService,
   ) {}
 
   // If this order was created from a paid Manual Classified Invoice
@@ -229,6 +232,31 @@ export class OrdersService {
     const category = product.category || 'general';
     const commission = calcCommission(baseAmount, category);
 
+    // ── Cash on Delivery ─────────────────────────────────────────────────────
+    // 'agent'/'bus'/'courier' are the intercity shipping methods elsewhere
+    // in this file's own comment above (line ~192-194); everything else
+    // ('boda', 'kentexa_delivery', 'direct') is same-city. Digital products
+    // have nothing to deliver, so COD never applies to them.
+    const isCod = !isDigitalProduct && dto.paymentMethod === CheckoutPaymentMethod.COD;
+    const isIntercity = ['agent', 'bus', 'courier'].includes(chosenMethod);
+    let codUpfrontAmount: number | null = null;
+    let codRemainingBalance: number | null = null;
+    if (isCod) {
+      const codResult = this.codCalculation.calculate({
+        basePrice: totalAmount,
+        deliveryFee: 0, // already folded into totalAmount above
+        isIntercity,
+      });
+      codUpfrontAmount = codResult.upfrontRequired;
+      codRemainingBalance = codResult.remainingBalance;
+    }
+    // Zero-upfront COD (same-city, by default policy) has no online
+    // payment step at all — the order goes straight to PREPARING instead
+    // of waiting on a payment that was never going to happen through the
+    // gateway. Every other case (ONLINE, or COD with a real upfront
+    // requirement) keeps the existing PENDING_PAYMENT gate unchanged.
+    const codSkipsPayment = isCod && codUpfrontAmount === 0;
+
     const order = this.repo.create({
       buyer: user,
       product,
@@ -251,8 +279,11 @@ export class OrdersService {
       phone: dto.phone,
       recipientName: dto.recipientName || null,
       shippingMethod: chosenMethod,
-      status: OrderStatus.PENDING_PAYMENT,
+      status: codSkipsPayment ? OrderStatus.PREPARING : OrderStatus.PENDING_PAYMENT,
       paymentStatus: PaymentStatus.PENDING,
+      paymentMethod: isCod ? OrderPaymentMethod.COD : OrderPaymentMethod.ONLINE,
+      codUpfrontAmount,
+      codRemainingBalance,
       escrowStatus: EscrowStatus.HOLDING,
       payoutStatus: 'pending',
       // Collection fields
@@ -339,6 +370,22 @@ export class OrdersService {
       product.name,
       totalAmount,
     );
+
+    // Zero-upfront COD (same-city, by default policy) has no payment
+    // gateway event to hang a confirmation SMS off of — this is the only
+    // place that transition happens, so it's the only place that can tell
+    // the buyer their order is confirmed and the full amount is due at
+    // delivery. No growth-invite wrapper here: placing an online order
+    // already requires a Kentexa account, so this buyer is never
+    // unregistered.
+    if (codSkipsPayment && dto.phone) {
+      this.smsService
+        .sendSms(
+          dto.phone,
+          `KenteXa: Oda #${saved.id} imethibitishwa. Hakuna malipo ya awali yanayohitajika. Utalipa TZS ${totalAmount.toLocaleString()} wakati wa kupokea.`,
+        )
+        .catch((e) => console.error('COD confirmation SMS failed (non-critical):', e.message));
+    }
 
     // Auto-assign to daily batch if buyer chose KenteXa delivery
     let batchInfo: any = null;

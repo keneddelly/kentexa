@@ -20,6 +20,7 @@ import {
   PaymentStatus,
   EscrowStatus,
   OrderSource,
+  OrderPaymentMethod,
 } from '../orders/entities/order.entity';
 import { CreateClassifiedDto } from './dto/create-classified.dto';
 import { updateClassifiedDto } from './dto/update-classified.dto';
@@ -33,6 +34,7 @@ import { SearchIndexService } from '../search/search-index.service';
 import { FRONTEND_URL } from '../config/urls.config';
 import { validateAttributes } from '../categories/categories.data';
 import { SuperAgentsService } from '../super-agents/super-agents.service';
+import { CodCalculationService } from '../cod/cod-calculation.service';
 
 @Injectable()
 export class ClassifiedsService {
@@ -56,6 +58,7 @@ export class ClassifiedsService {
     private readonly profileScope: CommerceProfileScopeService,
     private readonly searchIndex: SearchIndexService,
     private readonly superAgents: SuperAgentsService,
+    private readonly codCalculation: CodCalculationService,
   ) {}
 
   // ─── Create listing ───────────────────────────────────────────────────────
@@ -519,6 +522,33 @@ export class ClassifiedsService {
     };
   }
 
+  // Shared by createManualInvoice() and createInvoiceForRequest() — the
+  // ONE place a classified invoice's COD upfront/remaining split gets
+  // decided, always through CodCalculationService rather than either
+  // method computing its own. isIntercity is a simple same-city string
+  // comparison, matching the pattern already used elsewhere (e.g.
+  // createSellerShipment()'s originCity/destinationCity check) — no new
+  // geo-matching system introduced for this.
+  private computeCodFields(
+    sellerCity: string | null | undefined,
+    buyerLocation: string | null | undefined,
+    productAmount: number,
+    shippingAmount: number,
+    isCod: boolean,
+  ): { codUpfrontAmount: number | null; codRemainingBalance: number | null } {
+    if (!isCod) return { codUpfrontAmount: null, codRemainingBalance: null };
+    const isIntercity =
+      !sellerCity || !buyerLocation
+        ? true // can't confirm same-city — treat conservatively as intercity
+        : sellerCity.trim().toLowerCase() !== buyerLocation.trim().toLowerCase();
+    const { upfrontRequired, remainingBalance } = this.codCalculation.calculate({
+      basePrice: productAmount,
+      deliveryFee: shippingAmount,
+      isIntercity,
+    });
+    return { codUpfrontAmount: upfrontRequired, codRemainingBalance: remainingBalance };
+  }
+
   // ─── Seller: Create manual invoice ────────────────────────────────────────
   async createManualInvoice(
     seller: User,
@@ -529,6 +559,8 @@ export class ClassifiedsService {
       productName: string;
       classifiedId?: number;
       amount: number;
+      shippingAmount?: number;
+      isCod?: boolean;
       notes?: string;
       dueDays?: number;
       regionId?: number;
@@ -550,6 +582,15 @@ export class ClassifiedsService {
       });
     }
 
+    const shippingAmount = Number(data.shippingAmount || 0);
+    const { codUpfrontAmount, codRemainingBalance } = this.computeCodFields(
+      (seller as any).city,
+      data.regionName || data.districtName,
+      Number(data.amount),
+      shippingAmount,
+      !!data.isCod,
+    );
+
     const locationSuffix = data.wardName || data.districtName || data.regionName
       ? ` (${[data.wardName, data.districtName, data.regionName].filter(Boolean).join(', ')})`
       : '';
@@ -564,6 +605,10 @@ export class ClassifiedsService {
       wardId: data.wardId || null,
       wardName: data.wardName || null,
       amount: data.amount,
+      shippingAmount: shippingAmount || null,
+      isCod: !!data.isCod,
+      codUpfrontAmount,
+      codRemainingBalance,
       invoiceDescription: data.productName,
       sellerNotes: data.notes || null,
       dueDate,
@@ -582,6 +627,11 @@ export class ClassifiedsService {
       buyerPhone: data.buyerPhone,
       productName: data.productName,
       amount: data.amount,
+      shippingAmount,
+      isCod: !!data.isCod,
+      codUpfrontAmount,
+      codRemainingBalance,
+      totalAmount: Number(data.amount) + shippingAmount,
       dueDate,
       classifiedId: classified?.id || null,
     };
@@ -601,6 +651,21 @@ export class ClassifiedsService {
       trackingUrl: r.order?.trackingNumber
         ? `${FRONTEND_URL}/?track=${r.order.trackingNumber}`
         : null,
+    };
+  }
+
+  // Shared by getMyInvoiceRequests()/getSellerInvoiceRequests() — the
+  // payment-schedule view (§8 of the COD spec): total due, what's been
+  // paid upfront, what remains. Non-COD invoices just show a flat total.
+  private codSchedule(r: ClassifiedInvoiceRequest) {
+    const productAmount = r.amount ? Number(r.amount) : 0;
+    const shippingAmount = r.shippingAmount ? Number(r.shippingAmount) : 0;
+    return {
+      isCod: r.isCod,
+      shippingAmount,
+      totalAmount: productAmount + shippingAmount,
+      codUpfrontAmount: r.codUpfrontAmount != null ? Number(r.codUpfrontAmount) : null,
+      codRemainingBalance: r.codRemainingBalance != null ? Number(r.codRemainingBalance) : null,
     };
   }
 
@@ -627,6 +692,7 @@ export class ClassifiedsService {
       paymentMethod: r.paymentMethod,
       createdAt: r.createdAt,
       shipment: r.status === ClassifiedInvoiceStatus.PAID ? this.shipmentSummary(r) : null,
+      ...this.codSchedule(r),
     }));
   }
 
@@ -652,6 +718,7 @@ export class ClassifiedsService {
       dueDate: r.dueDate,
       createdAt: r.createdAt,
       shipment: r.status === ClassifiedInvoiceStatus.PAID ? this.shipmentSummary(r) : null,
+      ...this.codSchedule(r),
     }));
   }
 
@@ -661,6 +728,8 @@ export class ClassifiedsService {
     seller: User,
     data: {
       amount: number;
+      shippingAmount?: number;
+      isCod?: boolean;
       invoiceDescription: string;
       sellerNotes?: string;
       dueDays?: number;
@@ -684,8 +753,21 @@ export class ClassifiedsService {
     const dueDate = new Date();
     dueDate.setHours(dueDate.getHours() + (data.dueDays || 24) * 24);
 
+    const shippingAmount = Number(data.shippingAmount || 0);
+    const { codUpfrontAmount, codRemainingBalance } = this.computeCodFields(
+      (seller as any).city,
+      request.regionName || request.districtName,
+      Number(data.amount),
+      shippingAmount,
+      !!data.isCod,
+    );
+
     request.invoiceNumber = invoiceNumber;
     request.amount = data.amount;
+    request.shippingAmount = shippingAmount || null;
+    request.isCod = !!data.isCod;
+    request.codUpfrontAmount = codUpfrontAmount;
+    request.codRemainingBalance = codRemainingBalance;
     request.invoiceDescription = data.invoiceDescription;
     request.sellerNotes = data.sellerNotes || null;
     request.dueDate = dueDate;
@@ -697,6 +779,11 @@ export class ClassifiedsService {
       success: true,
       invoiceNumber,
       amount: data.amount,
+      shippingAmount,
+      isCod: !!data.isCod,
+      codUpfrontAmount,
+      codRemainingBalance,
+      totalAmount: Number(data.amount) + shippingAmount,
       invoiceDescription: data.invoiceDescription,
       dueDate,
       buyerName: request.buyer?.name || request.buyer?.email,
@@ -852,14 +939,20 @@ export class ClassifiedsService {
         amount: Number(request.amount || 0),
         platformFee: request.platformFee,
         sellerAmount: request.sellerAmount,
+        isCod: request.isCod,
+        codUpfrontAmount: request.codUpfrontAmount,
+        codRemainingBalance: request.codRemainingBalance,
         message: 'Shipment already created for this invoice.',
       };
     }
 
-    // ✅ Calculate commission — 10% platform fee on amount
-    const amount = Number(request.amount || 0);
-    const platformFee = parseFloat((amount * 0.1).toFixed(2));
-    const sellerAmt = parseFloat((amount - platformFee).toFixed(2));
+    // ✅ Calculate commission — 10% platform fee on the PRODUCT price only,
+    // never on shipping (existing Kentexa pricing rule, unchanged by COD).
+    const productAmount = Number(request.amount || 0);
+    const shippingAmount = Number(request.shippingAmount || 0);
+    const amount = productAmount + shippingAmount; // total the buyer owes
+    const platformFee = parseFloat((productAmount * 0.1).toFixed(2));
+    const sellerAmt = parseFloat((productAmount - platformFee + shippingAmount).toFixed(2));
 
     // Parse buyer details from buyerMessage — the system's actual
     // structured-buyer-identity storage today (see requestInvoice()).
@@ -917,8 +1010,8 @@ export class ClassifiedsService {
       // instead of leaving it blank.
       manualProductName: request.classified?.title || null,
       totalAmount: amount,
-      baseAmount: amount,
-      deliveryFeeAmount: 0,
+      baseAmount: productAmount,
+      deliveryFeeAmount: shippingAmount,
       platformFeePercent: 10,
       platformFeeAmount: platformFee,
       agentCommissionAmount: 0,
@@ -928,8 +1021,16 @@ export class ClassifiedsService {
       recipientName: buyerName,
       shippingMethod: data.shippingMethod,
       shippingNote: data.notes || null,
-      status: OrderStatus.PAID, // Already paid
-      paymentStatus: PaymentStatus.PAID,
+      // COD: only the upfront portion has actually cleared at this point
+      // (setShippingMethod() only ever runs once request.status is PAID,
+      // and for a COD invoice that PAID transition only ever charged the
+      // upfront amount — see PaymentsService.lookupAnyInvoice()). The
+      // remaining balance is collected physically at delivery.
+      status: OrderStatus.PAID,
+      paymentStatus: request.isCod ? PaymentStatus.UPFRONT_PAID : PaymentStatus.PAID,
+      paymentMethod: request.isCod ? OrderPaymentMethod.COD : OrderPaymentMethod.ONLINE,
+      codUpfrontAmount: request.isCod ? request.codUpfrontAmount : null,
+      codRemainingBalance: request.isCod ? request.codRemainingBalance : null,
       escrowStatus: EscrowStatus.HOLDING,
       payoutStatus: 'pending',
       source: OrderSource.CLASSIFIED_INVOICE,

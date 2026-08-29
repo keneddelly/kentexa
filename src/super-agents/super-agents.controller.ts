@@ -203,7 +203,13 @@ export class SuperAgentsController {
   updateStatus(
     @Request() req,
     @Param('trackingNumber') tn: string,
-    @Body() dto: { status: ParcelStatus; city: string; note?: string },
+    @Body()
+    dto: {
+      status: ParcelStatus;
+      city: string;
+      note?: string;
+      codBalanceCollected?: number;
+    },
   ) {
     return this.service.updateParcelStatus(req.user, tn, dto);
   }

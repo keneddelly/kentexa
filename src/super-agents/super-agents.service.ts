@@ -24,9 +24,12 @@ import {
   Order,
   OrderSource,
   OrderStatus,
+  OrderPaymentMethod,
+  PaymentStatus as OrderPaymentStatus,
 } from '../orders/entities/order.entity';
 import { BatchParcel } from '../daily-batches/entities/batch-parcel.entity';
 import { SmsService } from '../sms/sms.service';
+import { WalletService } from '../wallet/wallet.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
@@ -125,6 +128,7 @@ export class SuperAgentsService {
     private auditLog: AuditLogService,
     private verification: VerificationService,
     private activityEvents: ActivityEventService,
+    private walletService: WalletService,
   ) {}
 
   // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
@@ -2717,12 +2721,17 @@ export class SuperAgentsService {
       status: ParcelStatus;
       city: string;
       note?: string;
+      // Cash on Delivery — the amount the handling agent physically
+      // collected from the buyer right now. Required (and validated
+      // against the order's own codRemainingBalance) only when marking a
+      // COD order DELIVERED; ignored for every other status/order.
+      codBalanceCollected?: number;
     },
   ) {
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
       relations: {
-        order: { buyer: true },
+        order: { buyer: true, seller: true },
         seller: true,
         superAgent: true,
         destinationSuperAgent: true,
@@ -2775,6 +2784,57 @@ export class SuperAgentsService {
     if (dto.status === ParcelStatus.DELIVERED) {
       updates.deliveredTime = new Date();
       updates.buyerConfirmed = true;
+    }
+
+    // ── Cash on Delivery: collect the remaining balance at the moment of
+    // delivery ──────────────────────────────────────────────────────────────
+    // Mirrors the shippingFeeCollected* pattern already used elsewhere in
+    // this codebase for cash the seller hands the agent — here it's the
+    // PRODUCT-PRICE balance the buyer hands the agent instead. Kentexa
+    // never touches this cash electronically; it only records that the
+    // handling agent collected it, then credits the seller's Wallet for
+    // their net share, same as a normal escrow release would.
+    const order = parcel.order;
+    if (
+      dto.status === ParcelStatus.DELIVERED &&
+      order?.paymentMethod === OrderPaymentMethod.COD &&
+      !order.codBalanceCollected
+    ) {
+      const expected = Number(order.codRemainingBalance || 0);
+      const collected = Number(dto.codBalanceCollected ?? 0);
+      if (Math.abs(collected - expected) > 1) {
+        throw new BadRequestException(
+          `Salio linalotarajiwa ni TZS ${expected.toLocaleString()}, lakini TZS ${collected.toLocaleString()} imeingizwa.`,
+        );
+      }
+      const codAgentId = handlerAgent?.id ?? null;
+      await this.orderRepo.update(order.id, {
+        codBalanceCollected: true,
+        codBalanceCollectedByAgentId: codAgentId,
+        codBalanceCollectedAt: new Date(),
+        paymentStatus: OrderPaymentStatus.PAID,
+      } as any);
+
+      if (order.seller?.id) {
+        await this.walletService
+          .creditFromEscrowRelease(order.seller.id, order.id, Number(order.sellerAmount || 0))
+          .catch((e) => console.error('COD wallet credit failed (non-critical):', e.message));
+      }
+
+      await this.invoicesService
+        .recordCodBalanceCollected(order, Number(order.totalAmount || 0))
+        .catch((e) => console.error('COD receipt generation failed (non-critical):', e.message));
+
+      this.activityEvents.record({
+        eventType: 'COD_BALANCE_COLLECTED',
+        category: ActivityCategory.PAYMENT,
+        actorId: user.id,
+        actorType: 'super_agent',
+        relatedUserId: order.seller?.id ?? null,
+        targetType: 'order',
+        targetId: order.id,
+        metadata: { trackingNumber, amountCollected: collected },
+      });
     }
 
     await this.parcelRepo.update(parcel.id, updates);
@@ -2840,9 +2900,14 @@ export class SuperAgentsService {
           `Verified by Kentexa`,
 
         [ParcelStatus.DELIVERED]:
-          `${arrivalBrand}\n\n` +
-          `✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
-          `Asante kwa kutumia KenteXa! 🎉`,
+          order?.paymentMethod === OrderPaymentMethod.COD
+            ? `${arrivalBrand}\n\n` +
+              `✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
+              `Malipo ya TZS ${Number(order.codRemainingBalance || 0).toLocaleString()} yamethibitishwa. Risiti yako ya kidigitali imeandaliwa.\n\n` +
+              `Asante kwa kutumia KenteXa! 🎉`
+            : `${arrivalBrand}\n\n` +
+              `✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
+              `Asante kwa kutumia KenteXa! 🎉`,
       };
       if (smsMap[dto.status]) {
         await this.smsService

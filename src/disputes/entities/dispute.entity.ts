@@ -31,6 +31,11 @@ export enum DisputeReason {
   NOT_AS_DESCRIBED = 'not_as_described', // doesn't match listing
   LATE_DELIVERY = 'late_delivery', // arrived too late
   MISSING_ITEMS = 'missing_items', // partial delivery
+  // Cash on Delivery: buyer refused the parcel at the door — distinct from
+  // NOT_DELIVERED (which means it never arrived at all). See
+  // DisputesService.resolve()'s SPLIT branch for the concrete financial
+  // outcome this reason gets.
+  COD_BUYER_REFUSED = 'cod_buyer_refused',
   OTHER = 'other',
 }
 

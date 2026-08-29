@@ -67,13 +67,25 @@ export class InvoicesService {
     const dueDate = new Date();
     dueDate.setHours(dueDate.getHours() + 24);
 
+    // Cash on Delivery: only the upfront portion (possibly zero, for
+    // same-city COD under the default policy) is ever charged through the
+    // online payment gateway — the remaining balance is collected
+    // physically at delivery, never through this invoice. A zero-upfront
+    // COD order has nothing to charge online at all, so its invoice is
+    // created already settled rather than sitting in AWAITING_PAYMENT
+    // waiting for a payment that was never going to arrive that way.
+    const isCod = (order as any).codUpfrontAmount != null;
+    const amount = isCod ? Number((order as any).codUpfrontAmount) : order.totalAmount;
+    const status = isCod && amount === 0 ? InvoiceStatus.PAID : InvoiceStatus.AWAITING_PAYMENT;
+
     const invoice = this.invoiceRepo.create({
       invoiceNumber,
       order,
       buyer: order.buyer || null,
-      amount: order.totalAmount,
-      status: InvoiceStatus.AWAITING_PAYMENT,
+      amount,
+      status,
       dueDate,
+      ...(status === InvoiceStatus.PAID ? { paidAt: new Date(), paymentMethod: 'cod' } : {}),
     } as any);
     const saved = (await this.invoiceRepo.save(
       invoice,
@@ -95,6 +107,34 @@ export class InvoicesService {
       metadata: { orderId: order.id, amount: order.totalAmount },
     });
     return saved;
+  }
+
+  // Cash on Delivery: the order already has exactly one Invoice (the
+  // OneToOne created by createForOrder() above, for the upfront amount) —
+  // this UPDATES that same row to the full total once the balance clears
+  // at delivery, rather than creating a second Invoice for the same Order
+  // (which the OneToOne relation wouldn't even allow). If no invoice was
+  // ever created (e.g. a zero-upfront COD order, which skips the online
+  // payment step entirely), one is created now, already settled — same
+  // "money already changed hands" shape as recordManualPayment().
+  async recordCodBalanceCollected(order: Order, fullAmountReceived: number): Promise<Invoice> {
+    const existing = await this.invoiceRepo.findOne({ where: { order: { id: order.id } } });
+    if (existing) {
+      existing.amount = fullAmountReceived;
+      existing.status = InvoiceStatus.PAID;
+      existing.paidAt = new Date();
+      if (!existing.receiptNumber) {
+        existing.receiptNumber = await this.generateReceiptNumber();
+      }
+      return this.invoiceRepo.save(existing);
+    }
+    return this.recordManualPayment(order, {
+      amount: fullAmountReceived,
+      paymentMethod: 'cod',
+      buyerId: order.buyer?.id ?? null,
+      payerName: order.recipientName,
+      payerPhone: order.phone,
+    });
   }
 
   // For a payment collected outside the online provider pipeline — e.g. a

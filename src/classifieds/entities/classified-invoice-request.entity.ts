@@ -73,6 +73,27 @@ export class ClassifiedInvoiceRequest {
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
   amount: number | null;
 
+  // Previously `amount` was the only figure on this entity — product price
+  // and shipping were always folded together with no way to tell them
+  // apart. A COD upfront split needs to know the shipping portion
+  // separately (matching how Product.deliveryFee already works for online
+  // orders). Nullable — existing invoices predating this column simply
+  // have no shipping breakdown, same as before.
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  shippingAmount: number | null;
+
+  // ── Cash on Delivery — see CodCalculationService. Named isCod rather
+  // than reusing the existing `paymentMethod` column below, which already
+  // means something else here (the mobile-money provider name once paid).
+  @Column({ type: 'boolean', default: false })
+  isCod: boolean;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  codUpfrontAmount: number | null;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  codRemainingBalance: number | null;
+
   @Column({ type: 'text', nullable: true })
   invoiceDescription: string | null;
 

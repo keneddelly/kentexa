@@ -2,8 +2,15 @@ import { ClassifiedsService } from './classifieds.service';
 import { ClassifiedStatus } from './entities/classified.entity';
 import { ClassifiedInvoiceStatus } from './entities/classified-invoice-request.entity';
 import { UserRole } from '../users/entities/user.entity';
-import { OrderStatus, OrderSource } from '../orders/entities/order.entity';
+import { OrderStatus, OrderSource, OrderPaymentMethod, PaymentStatus } from '../orders/entities/order.entity';
 import { ForbiddenException, BadRequestException } from '@nestjs/common';
+import { CodCalculationService } from '../cod/cod-calculation.service';
+
+// The tests below inject a REAL CodCalculationService (it's a pure
+// function with no DB access — see cod-calculation.service.spec.ts for
+// its own dedicated coverage) rather than a mock, so these tests exercise
+// the actual upfront/remaining split end to end.
+const realCodCalculation = () => new CodCalculationService();
 
 // Locks in the ownership-based authorization the manual-invoice flow already
 // implements (no role/isVerified gate exists anywhere in this service) —
@@ -61,6 +68,7 @@ describe('ClassifiedsService — manual invoice access', () => {
       {} as any, // profileScope
       { upsert: jest.fn(), remove: jest.fn() } as any, // searchIndex
       { createParcelForClassifiedInvoice: jest.fn(async () => ({ id: 1 })) } as any, // superAgents
+      realCodCalculation(),
     );
   });
 
@@ -189,6 +197,7 @@ describe('ClassifiedsService — invoice-to-shipment linking', () => {
       {} as any, // profileScope
       { upsert: jest.fn(), remove: jest.fn() } as any,
       superAgents,
+      realCodCalculation(),
     );
   });
 
@@ -268,5 +277,102 @@ describe('ClassifiedsService — invoice-to-shipment linking', () => {
 
     const result = await service.getInvoiceByNumber('INV-1', buyer);
     expect(result.invoiceNumber).toBe('INV-1');
+  });
+
+  it('a COD Order created by setShippingMethod() carries the upfront/remaining split, not a full PAID status', async () => {
+    invoiceRequestRepo.findOne.mockResolvedValue({
+      ...basePaidRequest(),
+      isCod: true,
+      codUpfrontAmount: 20_000,
+      codRemainingBalance: 80_000,
+    });
+
+    await service.setShippingMethod(5, seller, { shippingMethod: 'agent' });
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentMethod: OrderPaymentMethod.COD,
+        paymentStatus: PaymentStatus.UPFRONT_PAID,
+        codUpfrontAmount: 20_000,
+        codRemainingBalance: 80_000,
+      }),
+    );
+  });
+
+  it('a non-COD invoice still creates a fully PAID, ONLINE-method Order (unchanged behavior)', async () => {
+    invoiceRequestRepo.findOne.mockResolvedValue(basePaidRequest());
+
+    await service.setShippingMethod(5, seller, { shippingMethod: 'agent' });
+
+    expect(orderRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentMethod: OrderPaymentMethod.ONLINE,
+        paymentStatus: PaymentStatus.PAID,
+        codUpfrontAmount: null,
+        codRemainingBalance: null,
+      }),
+    );
+  });
+});
+
+describe('ClassifiedsService — COD invoice creation', () => {
+  let service: ClassifiedsService;
+  let invoiceRequestRepo: any;
+  let repo: any;
+
+  const seller = { id: 2, name: 'Seller', city: 'Dar es Salaam' } as any;
+
+  beforeEach(() => {
+    invoiceRequestRepo = {
+      create: jest.fn((x) => x),
+      save: jest.fn(async (x) => x),
+    };
+    repo = { findOne: jest.fn(async () => null) };
+
+    service = new ClassifiedsService(
+      repo,
+      invoiceRequestRepo,
+      {} as any,
+      {} as any,
+      { generateInvoiceNumber: jest.fn(async () => 'INV-COD-1') } as any,
+      {} as any,
+      {} as any,
+      { findForUserByType: jest.fn(async () => null) } as any,
+      {} as any,
+      { upsert: jest.fn(), remove: jest.fn() } as any,
+      {} as any,
+      realCodCalculation(),
+    );
+  });
+
+  it('computes an intercity upfront split when the seller creates a COD manual invoice', async () => {
+    const result = await service.createManualInvoice(seller, {
+      buyerName: 'Amina',
+      buyerPhone: '255700000000',
+      productName: 'Fridge',
+      amount: 300_000,
+      shippingAmount: 15_000,
+      isCod: true,
+      regionName: 'Mwanza', // different city from the seller — intercity
+    });
+
+    expect(result.totalAmount).toBe(315_000);
+    expect(result.isCod).toBe(true);
+    expect(result.codUpfrontAmount).toBeGreaterThan(0);
+    expect(result.codUpfrontAmount! + result.codRemainingBalance!).toBe(315_000);
+  });
+
+  it('a non-COD manual invoice has no upfront/remaining split at all', async () => {
+    const result = await service.createManualInvoice(seller, {
+      buyerName: 'Amina',
+      buyerPhone: '255700000000',
+      productName: 'Fridge',
+      amount: 300_000,
+      shippingAmount: 15_000,
+    });
+
+    expect(result.isCod).toBe(false);
+    expect(result.codUpfrontAmount).toBeNull();
+    expect(result.codRemainingBalance).toBeNull();
   });
 });

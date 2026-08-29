@@ -25,10 +25,23 @@ export enum OrderStatus {
 
 export enum PaymentStatus {
   PENDING = 'pending',
+  // Cash-on-Delivery: the required upfront portion has been paid, the
+  // remaining balance is still due at delivery. Distinct from PAID (which
+  // means the FULL amount has been settled) — see CodCalculationService.
+  UPFRONT_PAID = 'upfront_paid',
   PAID = 'paid',
   RELEASED = 'released',
   REFUNDED = 'refunded',
   FAILED = 'failed',
+}
+
+// How the buyer is paying — orthogonal to OrderSource (which describes
+// WHERE the order was created, e.g. online checkout vs a seller's manual
+// shipment). ONLINE means the full amount is charged upfront through the
+// existing payment gateway flow, exactly as every order works today.
+export enum OrderPaymentMethod {
+  ONLINE = 'online',
+  COD = 'cod',
 }
 
 export enum EscrowStatus {
@@ -216,6 +229,30 @@ export class Order {
 
   @Column({ type: 'timestamp', nullable: true })
   shippingFeeCollectedAt: Date | null;
+
+  // ── Cash on Delivery ─────────────────────────────────────────────────────
+  // Mirrors the shippingFeeCollected* trio above exactly, but for the
+  // PRODUCT-PRICE balance rather than the shipping fee — the same
+  // "physically collected, recorded after the fact" pattern, extended to
+  // cover the whole COD transaction. See CodCalculationService for how
+  // codUpfrontAmount/codRemainingBalance are computed at order creation.
+  @Column({ type: 'enum', enum: OrderPaymentMethod, default: OrderPaymentMethod.ONLINE })
+  paymentMethod: OrderPaymentMethod;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  codUpfrontAmount: number | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  codRemainingBalance: number | null;
+
+  @Column({ type: 'boolean', default: false })
+  codBalanceCollected: boolean;
+
+  @Column({ type: 'int', nullable: true })
+  codBalanceCollectedByAgentId: number | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  codBalanceCollectedAt: Date | null;
 
   // ── Seller collection request ─────────────────────────────────────────────
   // When the seller is in a rural area and can't bring the parcel to the hub

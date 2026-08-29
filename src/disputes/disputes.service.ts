@@ -16,7 +16,9 @@ import {
   Order,
   OrderStatus,
   EscrowStatus,
+  OrderPaymentMethod,
 } from '../orders/entities/order.entity';
+import { REFUSED_DELIVERY_UPFRONT_REFUNDABLE } from '../cod/cod-policy.config';
 import { User, UserRole } from '../users/entities/user.entity';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { SmsService } from '../sms/sms.service';
@@ -255,8 +257,28 @@ export class DisputesService {
       orderUpdate.payoutStatus = 'released';
       orderUpdate.fundsReleasedAt = new Date();
     } else if (dto.resolution === DisputeResolution.SPLIT) {
-      orderUpdate.escrowStatus = 'released';
-      // Partial — handled manually by admin
+      // Cash on Delivery, buyer refused at the door — the only SPLIT case
+      // with a concrete, computable outcome: the upfront payment already
+      // moved (it funded real shipping cost), the remaining balance never
+      // did (delivery failed, so nothing was ever collected). This never
+      // "completes" the transaction — the sale didn't happen — so it's
+      // marked CANCELLED, not COMPLETED, unlike every other resolution.
+      if (
+        dispute.reason === DisputeReason.COD_BUYER_REFUSED &&
+        dispute.order.paymentMethod === OrderPaymentMethod.COD
+      ) {
+        orderUpdate.status = 'cancelled';
+        orderUpdate.escrowStatus = REFUSED_DELIVERY_UPFRONT_REFUNDABLE
+          ? 'refunded'
+          : 'released'; // seller keeps the already-collected upfront
+        orderUpdate.payoutStatus = REFUSED_DELIVERY_UPFRONT_REFUNDABLE
+          ? 'cancelled'
+          : 'released';
+      } else {
+        orderUpdate.escrowStatus = 'released';
+        // Partial — every other SPLIT reason still has no computable
+        // amount; handled manually by admin via resolutionNote/refundAmount.
+      }
     }
 
     await this.orderRepo.update(dispute.order.id, orderUpdate);

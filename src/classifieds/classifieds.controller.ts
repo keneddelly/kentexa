@@ -250,6 +250,8 @@ export class ClassifiedsController {
       productName: string;
       classifiedId?: number;
       amount: number;
+      shippingAmount?: number;
+      isCod?: boolean;
       notes?: string;
       dueDays?: number;
       regionId?: number;
@@ -273,6 +275,8 @@ export class ClassifiedsController {
     @Body()
     body: {
       amount: number;
+      shippingAmount?: number;
+      isCod?: boolean;
       invoiceDescription: string;
       sellerNotes?: string;
       dueDays?: number;

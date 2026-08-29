@@ -12,6 +12,7 @@ import {
   Order,
   PaymentStatus as OrderPaymentStatus,
   EscrowStatus,
+  OrderPaymentMethod,
 } from '../orders/entities/order.entity';
 import { Invoice, InvoiceStatus } from '../invoices/entities/invoice.entity';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -57,9 +58,17 @@ export interface InvoiceLookupResult {
   productName: string;
   sellerName: string;
   quantity: number;
+  // For a COD invoice this is the UPFRONT amount actually chargeable right
+  // now via the payment gateway — never the full transaction total. Every
+  // caller that initiates a real payment (customerPayInvoice/
+  // agentInitiatePayment) must keep charging exactly `amount`, not
+  // `fullAmount`, or a COD buyer would be charged the whole price upfront.
   amount: number;
   dueDate: Date | null;
   status: string;
+  isCod?: boolean;
+  fullAmount?: number;
+  remainingBalance?: number;
 }
 
 @Injectable()
@@ -184,9 +193,16 @@ export class PaymentsService {
       return;
     }
 
+    // Cash on Delivery: the gateway only ever charged the upfront amount
+    // (see PaymentsService.lookupAnyInvoice() and InvoicesService.
+    // createForOrder()) — clearing that payment means the upfront is
+    // confirmed, NOT that the order is fully paid. UPFRONT_PAID keeps that
+    // distinction visible on the order itself; the order still moves to
+    // PREPARING (seller can start fulfilling) exactly like a normal order.
+    const isCod = order.paymentMethod === OrderPaymentMethod.COD;
     await this.orderRepo.update(orderId, {
-      paymentStatus: 'paid' as any,
-      status: 'paid' as any,
+      paymentStatus: (isCod ? 'upfront_paid' : 'paid') as any,
+      status: (isCod ? 'preparing' : 'paid') as any,
     });
     this.logger.log(`Order #${orderId} auto-confirmed after payment`);
 
@@ -206,6 +222,12 @@ export class PaymentsService {
         order.id,
         order.product?.name || 'Product',
         Number(order.totalAmount || 0),
+        isCod
+          ? {
+              upfrontAmount: Number(order.codUpfrontAmount || 0),
+              remainingBalance: Number(order.codRemainingBalance || 0),
+            }
+          : undefined,
       );
     } catch (err) {
       this.logger.warn(
@@ -457,9 +479,19 @@ export class PaymentsService {
           classifiedInvoice.seller?.email ||
           '—',
         quantity: 1,
-        amount: Number(classifiedInvoice.amount),
+        // COD: charge only the upfront amount now — the remaining balance
+        // is collected physically at delivery (see setShippingMethod()/
+        // superAgentReceiveOrder() for the balance-collection side).
+        amount: classifiedInvoice.isCod
+          ? Number(classifiedInvoice.codUpfrontAmount || 0)
+          : Number(classifiedInvoice.amount),
         dueDate: classifiedInvoice.dueDate,
         status: classifiedInvoice.status,
+        isCod: classifiedInvoice.isCod,
+        fullAmount: Number(classifiedInvoice.amount),
+        remainingBalance: classifiedInvoice.isCod
+          ? Number(classifiedInvoice.codRemainingBalance || 0)
+          : 0,
       };
     }
 

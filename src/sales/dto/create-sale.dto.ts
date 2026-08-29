@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNumber,
@@ -54,6 +55,13 @@ export class CreateSaleDto {
   @IsNumber()
   @Min(0)
   amountPaid: number;
+
+  // Cash on Delivery — the only way amountPaid may be less than the sale
+  // total (see SalesService.createSale()'s validation). Requires
+  // customerPhone so there's someone to collect the balance from later.
+  @IsOptional()
+  @IsBoolean()
+  isCod?: boolean;
 
   @IsOptional()
   @IsInt()

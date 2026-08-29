@@ -16,6 +16,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
 import { SearchModule } from '../search/search.module';
 import { IdentityModule } from '../identity/identity.module';
 import { SuperAgentsModule } from '../super-agents/super-agents.module';
+import { CodModule } from '../cod/cod.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SuperAgentsModule } from '../super-agents/super-agents.module';
     SearchModule,
     IdentityModule,
     SuperAgentsModule,
+    CodModule,
   ],
   controllers: [ClassifiedsController],
   providers: [ClassifiedsService, PriceSuggestionService],

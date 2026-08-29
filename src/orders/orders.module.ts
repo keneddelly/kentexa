@@ -26,6 +26,7 @@ import { ActivityModule } from '../activity/activity.module';
 import { IdentityModule } from '../identity/identity.module';
 import { ClassifiedInvoiceRequest } from '../classifieds/entities/classified-invoice-request.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
+import { CodModule } from '../cod/cod.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { Classified } from '../classifieds/entities/classified.entity';
     ScheduleModule.forRoot(),
     ActivityModule,
     IdentityModule,
+    CodModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

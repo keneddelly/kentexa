@@ -96,6 +96,19 @@ export class Sale {
   @Column('decimal', { precision: 12, scale: 2, default: 0 })
   changeDue: number;
 
+  // ── Cash on Delivery ─────────────────────────────────────────────────────
+  // A manual sale is normally paid in full at creation (createSale()
+  // enforces amountPaid >= total) — isCod is the one, explicit escape
+  // hatch from that rule: only when set does a shortfall become the
+  // tracked balanceDue instead of a validation error. See
+  // SalesService.recordCodBalancePayment() for how the balance later
+  // clears to zero.
+  @Column({ type: 'boolean', default: false })
+  isCod: boolean;
+
+  @Column('decimal', { precision: 12, scale: 2, default: 0 })
+  balanceDue: number;
+
   @Column({ type: 'enum', enum: SaleStatus, default: SaleStatus.COMPLETED })
   status: SaleStatus;
 

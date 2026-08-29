@@ -88,11 +88,24 @@ export class SalesService {
         (dto.discountAmount || 0) + items.reduce((s, i) => s + Number(i.lineDiscount || 0), 0);
       const total = subtotal - discountAmount;
       if (total < 0) throw new BadRequestException('Discount exceeds sale total');
-      if (dto.amountPaid < total) {
+
+      // Cash on Delivery is the ONE explicit escape hatch from "paid in
+      // full at creation" — everything else still enforces amountPaid >=
+      // total exactly as before, so a plain shortfall on a non-COD sale
+      // remains a rejected request, not a silent hole in this check.
+      if (dto.isCod) {
+        if (!dto.customerPhone) {
+          throw new BadRequestException('customerPhone is required for a COD sale — someone has to pay the balance later');
+        }
+        if (dto.amountPaid > total) {
+          throw new BadRequestException('Amount paid cannot exceed the total for a COD sale');
+        }
+      } else if (dto.amountPaid < total) {
         throw new BadRequestException(
           `Amount paid (${dto.amountPaid}) is less than the total due (${total})`,
         );
       }
+      const balanceDue = dto.isCod ? parseFloat((total - dto.amountPaid).toFixed(2)) : 0;
 
       const receiptNumber = await this.invoices.generateReceiptNumber();
 
@@ -109,7 +122,9 @@ export class SalesService {
         total,
         paymentMethod: dto.paymentMethod,
         amountPaid: dto.amountPaid,
-        changeDue: dto.amountPaid - total,
+        changeDue: dto.isCod ? 0 : dto.amountPaid - total,
+        isCod: !!dto.isCod,
+        balanceDue,
         status: SaleStatus.COMPLETED,
         createdByUserId: cashierId,
       });
@@ -157,13 +172,42 @@ export class SalesService {
   private async sendReceiptSms(sellerId: number, sale: Sale): Promise<void> {
     const seller = await this.userRepo.findOne({ where: { id: sellerId } });
     const sellerName = (seller as any)?.storeName || seller?.name || 'Muuzaji';
-    const baseMessage = `KenteXa: Umepokea risiti ${sale.receiptNumber} ya TZS ${Number(sale.total).toLocaleString()} kutoka ${sellerName}.`;
+    const baseMessage = sale.isCod
+      ? `KenteXa: Risiti ${sale.receiptNumber} kutoka ${sellerName}. Umelipa TZS ${Number(sale.amountPaid).toLocaleString()}. Salio la TZS ${Number(sale.balanceDue).toLocaleString()} litalipwa wakati wa kupokea.`
+      : `KenteXa: Umepokea risiti ${sale.receiptNumber} ya TZS ${Number(sale.total).toLocaleString()} kutoka ${sellerName}.`;
     const message = await this.growthInvite.appendInvite(
       baseMessage,
       sale.customerPhone,
       InviteContext.MANUAL_SALE_CUSTOMER,
     );
     await this.smsService.sendSms(sale.customerPhone!, message);
+  }
+
+  // Marks a COD manual sale's remaining balance as collected — the seller
+  // (or whoever physically received the cash) confirms it once the
+  // customer pays on delivery/pickup. No payment-gateway involvement here,
+  // same as the rest of this manual-sale flow: Kentexa records that money
+  // changed hands, it never held or moved it electronically.
+  async recordCodBalancePayment(sellerId: number, saleId: number): Promise<Sale> {
+    const sale = await this.saleRepo.findOne({ where: { id: saleId, sellerId } });
+    if (!sale) throw new NotFoundException('Sale not found');
+    if (!sale.isCod) throw new BadRequestException('This sale is not a COD sale');
+    if (Number(sale.balanceDue) <= 0) {
+      throw new BadRequestException('No balance is due on this sale');
+    }
+
+    sale.amountPaid = sale.total;
+    sale.balanceDue = 0;
+    const updated = await this.saleRepo.save(sale);
+
+    if (updated.customerPhone) {
+      const message = `KenteXa: Asante! Salio la TZS ${Number(sale.total).toLocaleString()} kwa risiti ${updated.receiptNumber} limekamilika.`;
+      this.smsService
+        .sendSms(updated.customerPhone, message)
+        .catch((e) => console.error('COD balance-paid SMS failed (non-critical):', e.message));
+    }
+
+    return updated;
   }
 
   async getSales(
