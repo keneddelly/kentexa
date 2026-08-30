@@ -113,6 +113,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   const [showHistory, setShowHistory]     = useState(false);
   const [historyList, setHistoryList]     = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [collectingCodId, setCollectingCodId] = useState(null);
 
   useEffect(() => {
     if (!localStorage.getItem('token')) { onNavigate('PublicLogin'); return; }
@@ -301,6 +302,21 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
     } finally { setActionLoading(false); }
   };
 
+  // Same-city/boda shipments never involve a Super Agent, so there's
+  // nobody else to confirm COD collection — the backend rejects this if a
+  // Super Agent actually IS assigned to the shipment (see
+  // OrdersService.sellerCollectCodBalance's own comment).
+  const handleCollectCodBalance = async (orderId) => {
+    try {
+      setCollectingCodId(orderId);
+      const res = await api.patch(`/orders/${orderId}/collect-cod-balance`);
+      setMessage(res.data?.message || t('seller_orders.cod_collected_msg'));
+      fetchOrders();
+    } catch (err) {
+      setError(err?.response?.data?.message || t('seller_orders.cod_collect_failed'));
+    } finally { setCollectingCodId(null); }
+  };
+
   const statusStyle = (status) => ({
     pending_payment:  { backgroundColor: '#f1f5f9', color: '#64748b' },
     paid:             { backgroundColor: '#dbeafe', color: '#2563eb' },
@@ -341,7 +357,16 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
           style={{ background: '#fff', color: '#1d4ed8', border: '2px solid #1d4ed8', padding: '9px 16px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
           📜 Historia Kamili
         </button>
-        <button onClick={() => onNavigate('OfflineIntercityOrder')}
+        {/* Was OfflineIntercityOrder — a standalone re-implementation of
+            exactly the walk-in-counter flow SuperAgentDashboard.js's own
+            "Walk-In" form already posts to (same
+            POST /super-agents/offline-intercity endpoint), except that
+            endpoint is @Roles(SUPER_AGENT, ADMIN)-gated while this button
+            lived on the SELLER's own orders page — a plain seller clicking
+            it got a 403 on submit. SellerShipment.js ("Ship Item") is the
+            real, working, COD-aware manual-order path for sellers; this
+            just points there instead of to the broken duplicate. */}
+        <button onClick={() => onNavigate('SellerShipment')}
           style={{ background: 'linear-gradient(135deg,#0f172a,#1d4ed8)', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
           {t('seller_orders.create_manual_order')}
         </button>
@@ -517,6 +542,38 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                     </div>
                   </div>
 
+                  {/* COD status — order.paymentMethod/codRemainingBalance/
+                      codBalanceCollected already come through on every
+                      order from GET /seller/dashboard; this was simply
+                      never rendered anywhere on this page before. */}
+                  {order.paymentMethod === 'cod' && (
+                    <div style={{ backgroundColor: order.codBalanceCollected ? '#f0fdf4' : '#eff6ff',
+                      border: `1px solid ${order.codBalanceCollected ? '#86efac' : '#93c5fd'}`,
+                      borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 800, color: order.codBalanceCollected ? '#16a34a' : '#1d4ed8' }}>
+                          🚚 {t('seller_orders.cod_label')}
+                        </span>
+                        {order.codBalanceCollected ? (
+                          <span style={{ color: '#16a34a', fontWeight: 700 }}>{t('seller_orders.cod_settled_label')}</span>
+                        ) : (
+                          <span style={{ color: '#1d4ed8', fontWeight: 900 }}>
+                            TZS {Number(order.codRemainingBalance || 0).toLocaleString()} {t('seller_orders.cod_owed_suffix')}
+                          </span>
+                        )}
+                      </div>
+                      {!order.codBalanceCollected && Number(order.codRemainingBalance) > 0 && (
+                        <button onClick={() => handleCollectCodBalance(order.id)} disabled={collectingCodId === order.id}
+                          style={{ width: '100%', marginTop: 8, padding: '9px 14px',
+                            backgroundColor: collectingCodId === order.id ? '#f1f5f9' : '#1d4ed8',
+                            color: collectingCodId === order.id ? '#94a3b8' : '#fff', border: 'none',
+                            borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
+                          {collectingCodId === order.id ? t('seller_orders.saving') : t('seller_orders.cod_collect_button')}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
                   {/* Tracking info */}
                   {order.trackingNumber && (
                     <div style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: 12 }}>
@@ -647,6 +704,14 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                     <button onClick={() => onNavigate(`TrackParcel-KTX-ORD-${order.id}`)}
                       style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                       {t('seller_orders.track_button')}
+                    </button>
+                    {/* Full detail — OrderTracking.js already exists and
+                        already allows seller access server-side
+                        (orders.service.ts getOrderDetail's isSeller check);
+                        it was just never linked from this page. */}
+                    <button onClick={() => onNavigate(`OrderTracking-${order.id}`)}
+                      style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
+                      {t('seller_orders.view_details_button')}
                     </button>
                   </div>
                 </div>

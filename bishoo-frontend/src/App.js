@@ -98,7 +98,6 @@ import AgentPerformance from './admin/pages/AgentPerformance';
 import FinancialDashboard from './admin/pages/FinancialDashboard';
 import CollectionFees from './admin/pages/CollectionFees';
 import BatchHandoff from './public/pages/BatchHandoff';
-import OfflineIntercityOrder from './public/pages/OfflineIntercityOrder';
 import SuperAgentParcel from './public/pages/SuperAgentParcel';
 import SuperAgentSettings from './public/pages/SuperAgentSettings';
 import SellerShipment from './public/pages/SellerShipment';
@@ -740,7 +739,6 @@ function App() {
       case 'DispatcherManifest':    return requireLogin(<DispatcherManifest {...publicProps} />);
       case 'HubReceive':           return requireLogin(<HubReceive {...publicProps} />);
       case 'BatchHandoff':          return requireLogin(<BatchHandoff {...publicProps} />);
-      case 'OfflineIntercityOrder':  return requireLogin(<OfflineIntercityOrder {...publicProps} />);
       case 'SuperAgentParcel':       return requireLogin(<SuperAgentParcel {...publicProps} />);
       case 'SuperAgentSettings':     return requireLogin(<SuperAgentSettings {...publicProps} />);
       case 'SellerShipment':         return requireVerifiedSeller(<SellerShipment {...publicProps} prefill={navParams} />);

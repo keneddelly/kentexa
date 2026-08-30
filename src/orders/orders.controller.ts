@@ -210,6 +210,24 @@ export class OrdersController {
     );
   }
 
+  // ── Seller: Settle a COD balance collected without a Super Agent ─────────
+  // Same-city/boda shipments never involve a Super Agent, so the delivery
+  // Super Agent normally confirms COD collection through has nobody to do
+  // it — this lets the seller mark it settled themselves. Rejects if a
+  // Super Agent actually is assigned to this shipment (see service method).
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/collect-cod-balance')
+  async sellerCollectCodBalance(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+  ) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canCreateOrders',
+    );
+    return this.ordersService.sellerCollectCodBalance(id, { id: sellerId } as User);
+  }
+
   // ── Super Agent: Look up order before receiving ───────────────────────────
   // Auto-fills destination city, recipient name & phone in the agent's UI.
   // Accepts either the bare numeric id or the full "KTX-ORD-{id}" tracking

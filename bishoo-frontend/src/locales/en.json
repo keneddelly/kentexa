@@ -3670,7 +3670,12 @@
     "balance_due": "Balance Due",
     "balance_settled": "Balance fully collected",
     "collect_balance_button": "Collect Balance (TZS {{amount}})",
-    "collect_balance_failed": "Failed to record the balance collection"
+    "collect_balance_failed": "Failed to record the balance collection",
+    "history_button": "History",
+    "history_title": "Sales History",
+    "history_empty": "No sales yet",
+    "walk_in_customer": "Walk-in customer",
+    "voided_label": "VOIDED"
   },
   "seller_dashboard": {
     "badge": "SELLER DASHBOARD",
@@ -4136,6 +4141,15 @@
     "transport_details_button": "📋 Enter Transport Details",
     "mark_shipped_button": "🚚 Mark as Shipped",
     "track_button": "👁 Track",
+    "view_details_button": "📄 View Details",
+
+    "cod_label": "Cash on Delivery",
+    "cod_settled_label": "Settled",
+    "cod_owed_suffix": "owed",
+    "cod_collect_button": "I've received this balance",
+    "cod_collected_msg": "✅ COD balance marked as collected.",
+    "cod_collect_failed": "Failed to record COD collection",
+    "saving": "⏳ Saving...",
 
     "ship_order_title": "🚀 Ship Order",
     "order_hash_deliver_to": "Order #{{id}} · Deliver to: {{address}}",

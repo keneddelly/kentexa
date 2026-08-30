@@ -709,6 +709,75 @@ export class OrdersService {
     };
   }
 
+  // ── Seller: Settle a COD balance the seller collected themselves ──────────
+  // The only other place a COD balance ever gets marked collected is
+  // SuperAgentsService.updateParcelStatus()'s DELIVERED branch — Super
+  // Agent/Admin only, and gated on the calling agent actually being the
+  // parcel's assigned origin/destination hub. A same-city/boda seller
+  // shipment (createSellerShipment() with transportMethod !== 'super_agent')
+  // is created with BOTH Parcel.superAgent and destinationSuperAgent null —
+  // no Super Agent is ever involved in that delivery at all, so that path
+  // can never settle it, and the Order's codRemainingBalance/
+  // codBalanceCollected would otherwise stay stuck forever. This mirrors the
+  // same self-reported trust model createSellerShipment()'s own
+  // "Manual-order payment confirmation" branch already uses for the upfront
+  // portion (a seller_shipment order's sellerAmount is 0 by design — the
+  // ZERO FEE RULE — Kentexa never mediates this money either way, so a
+  // seller self-reporting collection here is not a new trust gap).
+  //
+  // Explicitly refuses to touch an order whose parcel DOES have a Super
+  // Agent assigned — that delivery's collection must be confirmed by the
+  // agent who actually handled it, not self-reported by the seller.
+  async sellerCollectCodBalance(orderId: number, seller: User) {
+    const order = await this.repo.findOne({
+      where: { id: orderId },
+      relations: { seller: true, buyer: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    if (order.seller?.id !== seller.id)
+      throw new ForbiddenException('Not your order');
+    if (order.paymentMethod !== OrderPaymentMethod.COD)
+      throw new BadRequestException('Agizo hili si la Malipo Baada ya Kupokea');
+    if (order.codBalanceCollected)
+      throw new BadRequestException('Salio tayari limekusanywa');
+    const remaining = Number(order.codRemainingBalance || 0);
+    if (remaining <= 0)
+      throw new BadRequestException('Hakuna salio linalodaiwa kwenye agizo hili');
+
+    const parcel = await this.parcelRepo.findOne({
+      where: { order: { id: orderId } },
+      relations: { superAgent: true, destinationSuperAgent: true },
+    });
+    if (parcel?.superAgent || parcel?.destinationSuperAgent) {
+      throw new BadRequestException(
+        'Usafirishaji huu unashughulikiwa na Super Agent — mwombe athibitishe amepokea malipo, si wewe.',
+      );
+    }
+
+    await this.repo.update(orderId, {
+      codBalanceCollected: true,
+      codBalanceCollectedAt: new Date(),
+      paymentStatus: PaymentStatus.PAID,
+    });
+
+    this.activityEvents.record({
+      eventType: 'COD_BALANCE_COLLECTED',
+      category: ActivityCategory.COMMERCE,
+      actorType: 'seller',
+      actorId: seller.id,
+      relatedUserId: order.buyer?.id ?? null,
+      targetType: 'order',
+      targetId: order.id,
+      metadata: { amount: remaining, collectedBy: 'seller_self_reported' },
+    });
+
+    return {
+      message: `Salio la TZS ${remaining.toLocaleString()} limerekodiwa kama limekusanywa.`,
+      orderId,
+      codBalanceCollected: true,
+    };
+  }
+
   // ── Super Agent: Look up order before receiving ───────────────────────────
   async lookupForAgent(orderId: number) {
     const order = await this.repo.findOne({

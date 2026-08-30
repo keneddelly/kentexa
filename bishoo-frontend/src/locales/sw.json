@@ -3516,7 +3516,12 @@
     "balance_due": "Salio Linalodaiwa",
     "balance_settled": "Salio limekusanywa kikamilifu",
     "collect_balance_button": "Kusanya Salio (TZS {{amount}})",
-    "collect_balance_failed": "Imeshindwa kurekodi ukusanyaji wa salio"
+    "collect_balance_failed": "Imeshindwa kurekodi ukusanyaji wa salio",
+    "history_button": "Historia",
+    "history_title": "Historia ya Mauzo",
+    "history_empty": "Hakuna mauzo bado",
+    "walk_in_customer": "Mteja wa dukani",
+    "voided_label": "IMEFUTWA"
   },
   "seller_dashboard": {
     "badge": "DASHIBODI YA MUUZAJI",
@@ -3982,6 +3987,15 @@
     "transport_details_button": "📋 Weka Maelezo ya Usafiri",
     "mark_shipped_button": "🚚 Weka Limetumwa",
     "track_button": "👁 Fuatilia",
+    "view_details_button": "📄 Angalia Maelezo",
+
+    "cod_label": "Malipo Baada ya Kupokea",
+    "cod_settled_label": "Limekusanywa",
+    "cod_owed_suffix": "linadaiwa",
+    "cod_collect_button": "Nimepokea salio hili",
+    "cod_collected_msg": "✅ Salio la COD limerekodiwa kama limekusanywa.",
+    "cod_collect_failed": "Imeshindwa kurekodi ukusanyaji wa COD",
+    "saving": "⏳ Inahifadhi...",
 
     "ship_order_title": "🚀 Tuma Agizo",
     "order_hash_deliver_to": "Agizo #{{id}} · Peleka: {{address}}",

@@ -49,6 +49,11 @@ const POS = ({ onNavigate, currentUser }) => {
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [collectingBalance, setCollectingBalance] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historySales, setHistorySales] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyDetailId, setHistoryDetailId] = useState(null);
+  const [collectingHistoryId, setCollectingHistoryId] = useState(null);
   const searchRef = useRef(null);
 
   useEffect(() => {
@@ -175,10 +180,45 @@ const POS = ({ onNavigate, currentUser }) => {
     } finally { setCollectingBalance(false); }
   };
 
+  // ── Sales history — GET /sales already returns the full Sale row
+  // (items are eager on the entity), so no separate per-sale detail call
+  // is needed just to render this. This was the one gap: the endpoint
+  // existed server-side and was never called from anywhere in the UI, so
+  // once a receipt screen was left behind there was no way back to it.
+  const openHistory = async () => {
+    setShowHistory(true);
+    setHistoryLoading(true);
+    try {
+      const res = await api.get('/sales');
+      setHistorySales(res.data || []);
+    } catch { setHistorySales([]); }
+    finally { setHistoryLoading(false); }
+  };
+
+  const handleCollectHistoryBalance = async (saleId) => {
+    setCollectingHistoryId(saleId); setError('');
+    try {
+      const res = await api.post(`/sales/${saleId}/collect-cod-balance`);
+      setHistorySales(prev => prev.map(s => s.id === saleId ? res.data : s));
+    } catch (err) {
+      setError(err?.response?.data?.message || t('pos.collect_balance_failed'));
+    } finally { setCollectingHistoryId(null); }
+  };
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#F8FAFC', fontFamily: 'Manrope,Inter,-apple-system,sans-serif' }}>
       <BackBar title={t('pos.title')} onBack={() => step === 'cart' ? onNavigate('back') : setStep('cart')} top={0}
-        right={<TourTrigger tourKey="pos_first_sale" />} />
+        right={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {step === 'cart' && (
+              <button onClick={openHistory}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: B, fontWeight: 700 }}>
+                📜 {t('pos.history_button')}
+              </button>
+            )}
+            <TourTrigger tourKey="pos_first_sale" />
+          </div>
+        } />
       <FeatureTour tourKey="pos_first_sale" autoStart />
 
       {error && (
@@ -404,6 +444,87 @@ const POS = ({ onNavigate, currentUser }) => {
             borderRadius: 14, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
             {t('pos.new_sale')}
           </button>
+        </div>
+      )}
+
+      {/* ── SALES HISTORY MODAL ── */}
+      {showHistory && (
+        <div onClick={() => { setShowHistory(false); setHistoryDetailId(null); }}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 3000 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ backgroundColor: WH, borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>📜 {t('pos.history_title')}</div>
+              <button onClick={() => { setShowHistory(false); setHistoryDetailId(null); }}
+                style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: GR }}>×</button>
+            </div>
+
+            {historyLoading ? (
+              <div style={{ textAlign: 'center', padding: 40, color: GR }}>{t('pos.loading')}</div>
+            ) : historySales.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 40, color: GR }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>🧾</div>
+                {t('pos.history_empty')}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {historySales.map(sale => {
+                  const isOpen = historyDetailId === sale.id;
+                  const owesBalance = sale.isCod && Number(sale.balanceDue) > 0;
+                  return (
+                    <div key={sale.id} style={{ border: '1px solid #F1F5F9', borderRadius: 12, overflow: 'hidden' }}>
+                      <div onClick={() => setHistoryDetailId(isOpen ? null : sale.id)}
+                        style={{ padding: '12px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                          backgroundColor: owesBalance ? '#EFF6FF' : '#F8FAFC' }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: DK, fontFamily: 'monospace' }}>{sale.receiptNumber}</div>
+                          <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
+                            {new Date(sale.createdAt).toLocaleDateString()} · {sale.customerName || t('pos.walk_in_customer')}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 900, color: DK }}>TZS {fmt(sale.total)}</div>
+                          {owesBalance && (
+                            <div style={{ fontSize: 10, fontWeight: 800, color: '#EA580C' }}>🚚 {t('pos.balance_due')}: TZS {fmt(sale.balanceDue)}</div>
+                          )}
+                          {sale.status === 'voided' && (
+                            <div style={{ fontSize: 10, fontWeight: 800, color: '#DC2626' }}>{t('pos.voided_label')}</div>
+                          )}
+                        </div>
+                      </div>
+                      {isOpen && (
+                        <div style={{ padding: '10px 14px 14px', borderTop: '1px dashed #E2E8F0' }}>
+                          {sale.items?.map(item => (
+                            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0' }}>
+                              <span style={{ color: DK }}>{item.quantity} × {item.productName}</span>
+                              <span style={{ fontWeight: 700, color: DK }}>TZS {fmt(item.lineTotal)}</span>
+                            </div>
+                          ))}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: GR, marginTop: 6, paddingTop: 6, borderTop: '1px dashed #E2E8F0' }}>
+                            <span>{t(`pos.method_${sale.paymentMethod}`)}</span><span>TZS {fmt(sale.amountPaid)}</span>
+                          </div>
+                          {sale.customerPhone && (
+                            <div style={{ fontSize: 11, color: GR, marginTop: 4 }}>📞 {sale.customerPhone}</div>
+                          )}
+                          {sale.shipmentTrackingNumber && (
+                            <div style={{ fontSize: 11, color: B, marginTop: 4, fontFamily: 'monospace' }}>🔗 {sale.shipmentTrackingNumber}</div>
+                          )}
+                          {owesBalance && (
+                            <button onClick={() => handleCollectHistoryBalance(sale.id)} disabled={collectingHistoryId === sale.id}
+                              style={{ width: '100%', marginTop: 10, padding: '11px 0',
+                                background: collectingHistoryId === sale.id ? '#94A3B8' : '#EA580C', color: WH, border: 'none',
+                                borderRadius: 10, cursor: collectingHistoryId === sale.id ? 'default' : 'pointer', fontSize: 13, fontWeight: 800 }}>
+                              {collectingHistoryId === sale.id ? t('pos.processing') : `💰 ${t('pos.collect_balance_button', { amount: fmt(sale.balanceDue) })}`}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

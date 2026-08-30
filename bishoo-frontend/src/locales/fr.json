@@ -3666,7 +3666,12 @@
     "balance_due": "Solde Dû",
     "balance_settled": "Solde entièrement collecté",
     "collect_balance_button": "Collecter le Solde (TZS {{amount}})",
-    "collect_balance_failed": "Échec de l'enregistrement de la collecte du solde"
+    "collect_balance_failed": "Échec de l'enregistrement de la collecte du solde",
+    "history_button": "Historique",
+    "history_title": "Historique des Ventes",
+    "history_empty": "Aucune vente pour l'instant",
+    "walk_in_customer": "Client de passage",
+    "voided_label": "ANNULÉE"
   },
   "seller_dashboard": {
     "badge": "TABLEAU VENDEUR",
@@ -4132,6 +4137,15 @@
     "transport_details_button": "📋 Entrer les détails du transport",
     "mark_shipped_button": "🚚 Marquer comme expédiée",
     "track_button": "👁 Suivre",
+    "view_details_button": "📄 Voir les détails",
+
+    "cod_label": "Paiement à la livraison",
+    "cod_settled_label": "Réglé",
+    "cod_owed_suffix": "dû",
+    "cod_collect_button": "J'ai reçu ce solde",
+    "cod_collected_msg": "✅ Solde COD enregistré comme perçu.",
+    "cod_collect_failed": "Échec de l'enregistrement de la collecte COD",
+    "saving": "⏳ Enregistrement...",
 
     "ship_order_title": "🚀 Expédier la commande",
     "order_hash_deliver_to": "Commande #{{id}} · Livrer à : {{address}}",
