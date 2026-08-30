@@ -511,6 +511,22 @@ const POS = ({ onNavigate, currentUser }) => {
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: GR, marginTop: 6 }}>
                             <span>{t(`pos.method_${sale.paymentMethod}`)}</span><span>TZS {fmt(sale.amountPaid)}</span>
                           </div>
+                          {/* COD status — shown whether pending or already
+                              settled, same convention as the receipt
+                              screen. Previously the expanded detail showed
+                              nothing at all once a balance was collected,
+                              so there was no way to tell a sale had ever
+                              been COD in the first place. */}
+                          {sale.isCod && owesBalance && (
+                            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0', fontSize: 12, fontWeight: 800, color: '#EA580C', display: 'flex', justifyContent: 'space-between' }}>
+                              <span>🚚 {t('pos.balance_due')}</span><span>TZS {fmt(sale.balanceDue)}</span>
+                            </div>
+                          )}
+                          {sale.isCod && !owesBalance && (
+                            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #E2E8F0', fontSize: 12, fontWeight: 700, color: GREEN, textAlign: 'center' }}>
+                              🚚 ✅ {t('pos.balance_settled')}
+                            </div>
+                          )}
                           {sale.customerPhone && (
                             <div style={{ fontSize: 11, color: GR, marginTop: 4 }}>📞 {sale.customerPhone}</div>
                           )}
