@@ -500,7 +500,15 @@ const POS = ({ onNavigate, currentUser }) => {
                               <span style={{ fontWeight: 700, color: DK }}>TZS {fmt(item.lineTotal)}</span>
                             </div>
                           ))}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: GR, marginTop: 6, paddingTop: 6, borderTop: '1px dashed #E2E8F0' }}>
+                          {Number(sale.discountAmount) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: GR, padding: '3px 0' }}>
+                              <span>{t('pos.discount')}</span><span>− TZS {fmt(sale.discountAmount)}</span>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800, color: DK, marginTop: 4, paddingTop: 6, borderTop: '1px dashed #E2E8F0' }}>
+                            <span>{t('pos.total')}</span><span>TZS {fmt(sale.total)}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: GR, marginTop: 6 }}>
                             <span>{t(`pos.method_${sale.paymentMethod}`)}</span><span>TZS {fmt(sale.amountPaid)}</span>
                           </div>
                           {sale.customerPhone && (
