@@ -497,6 +497,25 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
               </div>
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>kentexa.com/?track={result.trackingNumber}</div>
             </div>
+            {result?.isCod && (
+              <div style={{ backgroundColor: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 14,
+                padding: 16, marginBottom: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 8 }}>
+                  🚚 {t('seller_shipment.cod_success_title')}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: '#1e40af' }}>{t('seller_shipment.cod_success_collect_label')}</span>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: '#1d4ed8' }}>
+                    TZS {Number(result.codRemainingBalance || 0).toLocaleString()}
+                  </span>
+                </div>
+                {Number(result.codUpfrontAmount || 0) > 0 && (
+                  <div style={{ fontSize: 11, color: '#1e40af', marginTop: 6 }}>
+                    {t('seller_shipment.cod_success_already_paid', { amount: Number(result.codUpfrontAmount).toLocaleString() })}
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 16 }}>
               {[
                 [t('seller_shipment.item_label'), getDescription()],

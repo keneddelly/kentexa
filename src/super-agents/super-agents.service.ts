@@ -3635,6 +3635,12 @@ export class SuperAgentsService {
       expectedArrival: expectedArrivalStr,
       estimatedDays,
       message: 'Agizo limeundwa. Ufuatiliaji umeamilishwa.',
+      // Was entirely missing from this response — the success screen had
+      // no way to show "this is COD, TZS X still owed" even though the
+      // Order itself was already carrying these fields correctly.
+      isCod: isCodSale,
+      codUpfrontAmount: isCodSale ? codUpfrontAmount : null,
+      codRemainingBalance: isCodSale ? codRemainingBalance : null,
       billing: sellerProfile
         ? {
             isFreeOrder,

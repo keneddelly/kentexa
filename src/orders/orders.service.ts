@@ -760,6 +760,17 @@ export class OrdersService {
       sellerName: (order.seller as any)?.storeName || order.seller?.name || '—',
       sellerPhone: order.seller?.phone || '—',
       isManualOrder: order.source !== 'online',
+      // COD — a third, distinct case from isOnlinePaid/isOffline: nothing
+      // (or only a deposit) has been collected from anyone yet, and the
+      // agent themselves must collect the remaining balance from the BUYER
+      // at delivery, not from the seller now. Without these fields the
+      // agent has no way to know this before they get to the
+      // mark-as-delivered step.
+      paymentMethod: order.paymentMethod || 'online',
+      isCod: order.paymentMethod === OrderPaymentMethod.COD,
+      codUpfrontAmount: Number((order as any).codUpfrontAmount || 0),
+      codRemainingBalance: Number((order as any).codRemainingBalance || 0),
+      codBalanceCollected: !!(order as any).codBalanceCollected,
     };
   }
 

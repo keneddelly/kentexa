@@ -115,8 +115,16 @@ const PCard = ({ p, actions = [] }) => (
       </div>
     )}
 
-    {/* Payment type badge */}
-    {p.source === 'online' ? (
+    {/* Payment type badge — COD checked first: a seller_shipment/
+        offline_intercity order can ALSO be COD (buyer pays the remainder
+        at delivery), which is a completely different instruction from
+        "Mtumaji analipa cash" (the sender already paid in full) below. */}
+    {p.order?.paymentMethod === 'cod' && !p.order?.codBalanceCollected ? (
+      <div style={{ backgroundColor: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 6,
+        padding: '3px 8px', fontSize: 10, color: '#1d4ed8', marginBottom: 8, display: 'inline-block' }}>
+        🚚 COD — Kusanya TZS {Number(p.order?.codRemainingBalance || 0).toLocaleString()} kwa mpokeaji
+      </div>
+    ) : p.source === 'online' ? (
       <div style={{ backgroundColor: '#f0fdf4', borderRadius: 6, padding: '3px 8px',
         fontSize: 10, color: '#16a34a', marginBottom: 8, display: 'inline-block' }}>
         💳 KenteXa italipa ada ya usafirishaji
@@ -1371,16 +1379,21 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 </div>
 
                 {orderLookup && (() => {
-                  const isOnlinePaid  = orderLookup.source === 'online' && orderLookup.paymentStatus === 'paid';
-                  const isOffline     = ['offline', 'offline_intercity', 'seller_shipment'].includes(orderLookup.source);
+                  const isCod         = !!orderLookup.isCod && !orderLookup.codBalanceCollected;
+                  const isOnlinePaid  = !isCod && orderLookup.source === 'online' && orderLookup.paymentStatus === 'paid';
+                  const isOffline     = !isCod && ['offline', 'offline_intercity', 'seller_shipment'].includes(orderLookup.source);
                   const shippingFee   = Number(orderLookup.deliveryFeeAmount || orderLookup.shippingFee || 0);
                   return (
                     <div style={{ borderRadius: 12, padding: 14, marginBottom: 14,
-                      border: `2px solid ${isOnlinePaid ? '#86efac' : isOffline ? '#fed7aa' : '#e2e8f0'}`,
-                      backgroundColor: isOnlinePaid ? '#f0fdf4' : isOffline ? '#fff7ed' : '#f8fafc' }}>
+                      border: `2px solid ${isCod ? '#93c5fd' : isOnlinePaid ? '#86efac' : isOffline ? '#fed7aa' : '#e2e8f0'}`,
+                      backgroundColor: isCod ? '#eff6ff' : isOnlinePaid ? '#f0fdf4' : isOffline ? '#fff7ed' : '#f8fafc' }}>
 
                       {/* Payment status header */}
-                      {isOnlinePaid ? (
+                      {isCod ? (
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#1d4ed8', marginBottom: 10 }}>
+                          🚚 Agizo la KenteXa — Malipo Baada ya Kupokea (COD)
+                        </div>
+                      ) : isOnlinePaid ? (
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#15803d', marginBottom: 10 }}>
                           ✅ Agizo la KenteXa — Imelipiwa
                         </div>
@@ -1391,6 +1404,29 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       ) : (
                         <div style={{ fontSize: 13, fontWeight: 800, color: '#64748b', marginBottom: 10 }}>
                           📋 Agizo Limepatikana
+                        </div>
+                      )}
+
+                      {/* COD banner — the amount to collect from the BUYER at
+                          delivery, distinct from Ada ya Usafirishaji below
+                          (which is KenteXa's own shipping fee, unrelated to
+                          what the buyer still owes for the goods). */}
+                      {isCod && (
+                        <div style={{ marginBottom: 10, padding: '10px 12px', borderRadius: 8,
+                          backgroundColor: '#dbeafe', border: '1px solid #93c5fd' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
+                              Kusanya kutoka kwa Mteja
+                            </span>
+                            <span style={{ fontSize: 18, fontWeight: 900, color: '#1d4ed8' }}>
+                              TZS {Number(orderLookup.codRemainingBalance || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          {Number(orderLookup.codUpfrontAmount || 0) > 0 && (
+                            <div style={{ fontSize: 11, marginTop: 4, color: '#1e40af' }}>
+                              Mteja tayari amelipa TZS {Number(orderLookup.codUpfrontAmount).toLocaleString()} mtandaoni.
+                            </div>
+                          )}
                         </div>
                       )}
 
