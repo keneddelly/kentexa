@@ -499,7 +499,10 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                     <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10 }}>
                       <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, marginBottom: 4 }}>{t('seller_orders.product_label')}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.product?.name || '—'}</div>
+                      {/* Snapshot preferred over the live relation — a
+                          renamed/deleted product must never rewrite what
+                          this order actually shows was sold. */}
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.productNameSnapshot || order.product?.name || order.manualProductName || '—'}</div>
                       <div style={{ fontSize: 11, color: '#64748b' }}>{t('seller_orders.qty_label', { qty: order.quantity })}</div>
                       <div style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', marginTop: 2 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>
                     </div>
@@ -626,7 +629,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         href={buildSellerToBuyerMessage(
                           order.buyer?.phone || order.phone || order.recipientPhone, {
                           trackingNumber:   order.trackingNumber || `KTX-ORD-${order.id}`,
-                          productName:      order.product?.name || order.manualProductName || order.description,
+                          productName:      order.productNameSnapshot || order.product?.name || order.manualProductName || order.description,
                           buyerName:        order.buyer?.name  || order.manualBuyerName || order.recipientName,
                           sellerStoreName:  order.seller?.storeName || order.seller?.businessName,
                           senderPhone:      order.seller?.user?.phone || order.seller?.phone,
@@ -651,7 +654,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                       <a href={buildTransportMessage(
                           order.buyer?.phone || order.phone, {
                           trackingNumber:    order.trackingNumber,
-                          productName:       order.product?.name || order.manualProductName,
+                          productName:       order.productNameSnapshot || order.product?.name || order.manualProductName,
                           buyerName:         order.buyer?.name   || order.manualBuyerName || order.recipientName,
                           busCompany:        order.busCompany,
                           busTicketNumber:   order.busTicketNumber,

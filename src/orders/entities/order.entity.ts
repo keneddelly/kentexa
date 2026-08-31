@@ -102,17 +102,36 @@ export class Order {
   manualProductName: string | null;
 
   // Snapshot of the purchased product's brand at order-creation time — NOT
-  // a live reference. Order.product itself IS a live relation (a
-  // pre-existing gap this doesn't attempt to fix generally), but brand
-  // specifically must survive the transaction per the Brand & Authorization
-  // Network spec: a historical order must stay accurate even if the
-  // product's brandId is later changed or the Brand row is edited. See
-  // src/brands/brands.module.ts.
+  // a live reference. Order.product itself IS a live relation, per the
+  // Brand & Authorization Network spec: a historical order must stay
+  // accurate even if the product's brandId is later changed or the Brand
+  // row is edited. See src/brands/brands.module.ts.
   @Column({ type: 'int', nullable: true })
   brandId: number | null;
 
   @Column({ type: 'varchar', nullable: true })
   brandNameSnapshot: string | null;
+
+  // ── Product identity snapshot (closes the "renamed/deleted product
+  // silently rewrites order history" gap spec §16 called out) — resolved
+  // once at order-creation from the already-loaded product, same posture
+  // as brandNameSnapshot above. productNameSnapshot is the only one with
+  // real read-side wiring today (MyOrders.js/SellerOrders.js prefer it
+  // over the live order.product?.name); model/sku/variant have no
+  // consuming UI yet — written now so a future feature never needs
+  // another migration, same "snapshot now, wire display later" precedent
+  // brandNameSnapshot itself already set. ──────────────────────────────
+  @Column({ type: 'varchar', nullable: true })
+  productNameSnapshot: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  modelSnapshot: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  skuSnapshot: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  variantAttributesSnapshot: Record<string, string> | null;
 
   // Buyer's name typed in by seller/agent, used when buyer is null
   @Column({ type: 'varchar', nullable: true })

@@ -492,7 +492,10 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                       </div>
                       <div style={{ flex: 1 }}>
                         <h4 style={{ fontSize: '15px', fontWeight: '600', color: '#0f172a', margin: '0 0 4px' }}>
-                          {order.product?.name || t('my_orders.product_fallback')}
+                          {/* Snapshot preferred over the live relation — a
+                              renamed/deleted product must never rewrite
+                              what this order actually shows was purchased. */}
+                          {order.productNameSnapshot || order.product?.name || order.manualProductName || t('my_orders.product_fallback')}
                         </h4>
                         <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 4px' }}>
                           {t('my_orders.qty_price_label', { qty: order.quantity, price: Number(order.product?.price || 0).toLocaleString() })}
