@@ -45,6 +45,7 @@ import { ReputationEventType } from '../reputation/entities/reputation-event.ent
 import { OrderStatus } from '../orders/entities/order.entity';
 import { ConversationService } from '../business/conversation.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
+import { CommunicationEngineService } from '../communication/communication-engine.service';
 
 const USE_INDIVIDUAL_NETWORKS = false;
 
@@ -98,6 +99,7 @@ export class PaymentsService {
     private reputationService: ReputationService,
     private conversationService: ConversationService,
     private businessCustomerService: BusinessCustomerService,
+    private communicationEngine: CommunicationEngineService,
   ) {}
 
   private getProvider(provider: string): IPaymentProvider {
@@ -233,6 +235,49 @@ export class PaymentsService {
     } catch (err) {
       this.logger.warn(
         `Failed to send orderPaid notifications for order #${orderId}: ${err.message}`,
+      );
+    }
+
+    // 🔔 In-app + push — via the Communication Engine (Phase A). Separate
+    // from the SMS/email call above: that leg already worked and is left
+    // untouched; this leg was previously completely dead (no in-app/push
+    // notification existed for a paid order at all).
+    try {
+      const recipients = [
+        order.buyer
+          ? {
+              userId: order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(order.id),
+            }
+          : null,
+        order.seller
+          ? {
+              userId: order.seller.id,
+              role: 'seller',
+              actionPage: 'SellerOrders',
+              actionParam: String(order.id),
+            }
+          : null,
+      ].filter((r): r is NonNullable<typeof r> => r !== null);
+
+      await this.communicationEngine.dispatch({
+        eventType: isCod ? 'ORDER_PAID_COD' : 'ORDER_PAID',
+        sourceType: 'order',
+        sourceId: order.id,
+        recipients,
+        context: {
+          orderId: order.id,
+          productName: order.product?.name || 'Product',
+          amount: Number(order.totalAmount || 0),
+          upfrontAmount: Number(order.codUpfrontAmount || 0),
+          remainingBalance: Number(order.codRemainingBalance || 0),
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(
+        `Communication engine dispatch failed for order #${orderId}: ${err.message}`,
       );
     }
   }

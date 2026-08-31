@@ -24,6 +24,7 @@ describe('PaymentsService', () => {
   let reputationService: any;
   let conversationService: any;
   let businessCustomerService: any;
+  let communicationEngine: any;
 
   const originalNodeEnv = process.env.NODE_ENV;
 
@@ -58,6 +59,7 @@ describe('PaymentsService', () => {
     reputationService = {};
     conversationService = {};
     businessCustomerService = { findOrCreateForChat: jest.fn(async () => null) };
+    communicationEngine = { dispatch: jest.fn(async () => undefined) };
 
     service = new PaymentsService(
       paymentRepo,
@@ -80,6 +82,7 @@ describe('PaymentsService', () => {
       reputationService,
       conversationService,
       businessCustomerService,
+      communicationEngine,
     );
   });
 

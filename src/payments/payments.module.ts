@@ -21,6 +21,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
 import { WalletModule } from '../wallet/wallet.module';
 import { ReputationModule } from '../reputation/reputation.module';
 import { BusinessModule } from '../business/business.module';
+import { CommunicationModule } from '../communication/communication.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { BusinessModule } from '../business/business.module';
     WalletModule,
     ReputationModule,
     BusinessModule,
+    CommunicationModule,
   ],
   controllers: [PaymentsController],
   providers: [
