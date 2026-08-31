@@ -9,6 +9,7 @@ import { Order } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { CommunicationModule } from '../communication/communication.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       SuperAgent, // needed by DeliveryZone#superAgent relation
     ]),
     NotificationsModule,
+    CommunicationModule,
   ],
   controllers: [DailyBatchesController],
   providers: [DailyBatchesService],

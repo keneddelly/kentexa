@@ -15,6 +15,7 @@ import { IntercityRoute } from '../super-agents/entities/intercity-route.entity'
 import { Product } from '../products/entities/products.entity';
 import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CommunicationEngineService } from '../communication/communication-engine.service';
 
 @Injectable()
 export class DailyBatchesService {
@@ -185,6 +186,7 @@ export class DailyBatchesService {
     @InjectRepository(IntercityRoute)
     private routeRepo: Repository<IntercityRoute>,
     private notificationsService: NotificationsService,
+    private communicationEngine: CommunicationEngineService,
   ) {}
 
   // ── Zone detection — match a delivery address to a known zone ────────────
@@ -651,6 +653,35 @@ export class DailyBatchesService {
       parcel.order.id,
       parcel.trackingNumber || `Order #${parcel.order.id}`,
     );
+
+    // 🔔 In-app + push for the buyer — via the Communication Engine
+    // (Phase D). SMS/email above stays untouched.
+    try {
+      if (parcel.order.buyer?.id) {
+        await this.communicationEngine.dispatch({
+          eventType: 'ORDER_DELIVERED',
+          sourceType: 'order',
+          sourceId: parcel.order.id,
+          recipients: [
+            {
+              userId: parcel.order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(parcel.order.id),
+            },
+          ],
+          context: {
+            orderId: parcel.order.id,
+            trackingNumber: parcel.trackingNumber || `Order #${parcel.order.id}`,
+          },
+        });
+      }
+    } catch (e: any) {
+      console.error(
+        `Communication engine dispatch failed for delivered parcel #${parcelId}:`,
+        e.message,
+      );
+    }
 
     return {
       success: true,

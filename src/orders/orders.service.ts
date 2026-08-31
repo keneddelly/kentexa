@@ -1266,6 +1266,36 @@ export class OrdersService {
       order.trackingNumber || `Order #${orderId}`,
     );
 
+    // 🔔 In-app + push for the buyer — via the Communication Engine
+    // (Phase D). SMS/email above stays untouched; this event previously
+    // had zero in-app coverage at all (not even a dead method existed).
+    try {
+      if (order.buyer?.id) {
+        await this.communicationEngine.dispatch({
+          eventType: 'ORDER_DELIVERED',
+          sourceType: 'order',
+          sourceId: orderId,
+          recipients: [
+            {
+              userId: order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(orderId),
+            },
+          ],
+          context: {
+            orderId,
+            trackingNumber: order.trackingNumber || `Order #${orderId}`,
+          },
+        });
+      }
+    } catch (err: any) {
+      console.error(
+        `Communication engine dispatch failed for delivered order #${orderId}:`,
+        err.message,
+      );
+    }
+
     return { message: 'Agent received confirmed. Buyer notified to collect.' };
   }
 
