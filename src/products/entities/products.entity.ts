@@ -116,6 +116,13 @@ export class Product {
   @Column({ type: 'int', nullable: true })
   brandId: number | null;
 
+  // Optional per-product override of this product's warranty length in
+  // months (spec §15) — falls back to Brand.defaultWarrantyMonths when
+  // unset. Never required; a product with neither simply can't register
+  // a warranty (see WarrantyService.register()).
+  @Column({ type: 'int', nullable: true })
+  warrantyMonths: number | null;
+
   // ── Variants (Phase B) ──────────────────────────────────────────────────
   // Deliberately NOT a restructure of Product itself — a "variant" is just
   // another independent Product row (own price/stock/images, same

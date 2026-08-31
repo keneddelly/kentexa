@@ -17,6 +17,26 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
   const [cancellingId, setCancellingId] = useState(null);
   const [message, setMessage] = useState('');
   const [downloadingOrderId, setDownloadingOrderId] = useState(null);
+  // Warranty registration (spec §15) — a manual buyer action, never
+  // auto-created at delivery time. registeredWarrantyOrderIds tracks
+  // which orders were just registered this session so the button can
+  // flip to "View Warranty" without a full re-fetch.
+  const [registeringWarrantyId, setRegisteringWarrantyId] = useState(null);
+  const [registeredWarrantyOrderIds, setRegisteredWarrantyOrderIds] = useState([]);
+
+  const handleRegisterWarranty = async (order) => {
+    try {
+      setRegisteringWarrantyId(order.id);
+      setError(null);
+      await api.post('/warranty/register', { orderId: order.id });
+      setRegisteredWarrantyOrderIds(prev => [...prev, order.id]);
+      setMessage(t('my_orders.warranty_registered'));
+    } catch (err) {
+      setError(err?.response?.data?.message || t('my_orders.warranty_register_failed'));
+    } finally {
+      setRegisteringWarrantyId(null);
+    }
+  };
 
   const handleDownload = async (order) => {
     if (!order.product?.id) return;
@@ -612,6 +632,34 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
                         <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 700, padding: '6px 0' }}>
                           {'⭐'.repeat(order.buyerRating)}
                         </span>
+                      )}
+                      {/* Warranty registration — only offered on branded
+                          orders (order.brandId is already snapshotted on
+                          every order from Phase A). The backend does the
+                          real product/brand warranty-length resolution and
+                          rejects clearly if neither has one; this button
+                          is a fail-open convenience, not a precise
+                          eligibility guess. */}
+                      {order.status === 'completed' && order.brandId && !registeredWarrantyOrderIds.includes(order.id) && (
+                        <button
+                          onClick={() => handleRegisterWarranty(order)}
+                          disabled={registeringWarrantyId === order.id}
+                          style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #93c5fd',
+                            padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
+                            fontSize: 12, fontWeight: 800 }}
+                        >
+                          {registeringWarrantyId === order.id ? t('my_orders.please_wait') : `🛡️ ${t('my_orders.register_warranty_button')}`}
+                        </button>
+                      )}
+                      {order.status === 'completed' && order.brandId && registeredWarrantyOrderIds.includes(order.id) && (
+                        <button
+                          onClick={() => onNavigate('MyWarranties')}
+                          style={{ backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #86efac',
+                            padding: '6px 12px', borderRadius: 8, cursor: 'pointer',
+                            fontSize: 12, fontWeight: 800 }}
+                        >
+                          🛡️ {t('my_orders.view_warranty_button')}
+                        </button>
                       )}
                       <button
                         onClick={() => onNavigate('Store')}

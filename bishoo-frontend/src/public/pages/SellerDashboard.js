@@ -475,6 +475,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
               <MenuRow t={t} icon="💬" label={t('seller_dashboard.inbox')} onClick={() => onNavigate('SellerInbox')} />
               <MenuRow t={t} icon="📦" label={t('seller_dashboard.ship_item')} onClick={() => onNavigate('SellerShipment')} />
               <MenuRow t={t} icon="🧾" label={t('seller_dashboard.invoices')} value={invoiceRequests.filter(r=>r.status==='pending').length > 0 ? t('seller_dashboard.pending_count', { count: invoiceRequests.filter(r=>r.status==='pending').length }) : null} onClick={() => onNavigate('SellerInvoices')} dataTour="sd-menu-invoices" />
+              <MenuRow t={t} icon="🛡️" label={t('seller_dashboard.warranty_claims')} onClick={() => onNavigate('SellerWarrantyClaims')} />
 
               {/* Verified-only — a formal product catalog, logistics and
                   business tooling. Never hidden (per the "encourage upgrade,

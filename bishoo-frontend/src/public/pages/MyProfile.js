@@ -688,6 +688,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 onAction={() => onNavigate('TrackParcel')} />
               <Row icon="❤️" label={t('my_profile.wishlist_label')}
                 onAction={() => onNavigate('Wishlist')} />
+              <Row icon="🛡️" label={t('my_profile.my_warranties_label')}
+                onAction={() => onNavigate('MyWarranties')} />
               <Row icon="🏪" label={t('my_profile.businesses_i_follow_label')}
                 value={fmt(followed.length)} onAction={() => onNavigate('Stores')} />
               <Row icon="📋" label={t('my_profile.order_status_label')}

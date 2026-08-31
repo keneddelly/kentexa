@@ -110,6 +110,7 @@ export class BrandsService {
       countryOfOrigin: string;
       officialContactInfo: { email?: string; phone?: string };
       isActive: boolean;
+      defaultWarrantyMonths: number | null;
     }>,
   ): Promise<Brand> {
     const brand = await this.findOne(id);

@@ -65,6 +65,8 @@ import SellerProducts from './public/pages/SellerProducts';
 import MyBrands from './public/pages/MyBrands';
 import BrandDashboard from './public/pages/BrandDashboard';
 import VerifyProduct from './public/pages/VerifyProduct';
+import MyWarranties from './public/pages/MyWarranties';
+import SellerWarrantyClaims from './public/pages/SellerWarrantyClaims';
 import POS from './public/pages/POS';
 import SellerClassifieds from './public/pages/SellerClassifieds';
 import SellerOrders from './public/pages/SellerOrders';
@@ -91,6 +93,7 @@ import AdminServices from './admin/pages/Services';
 import IdentityVerifications from './admin/pages/IdentityVerifications';
 import AdminBrands from './admin/pages/AdminBrands';
 import AdminBrandAuthorizations from './admin/pages/AdminBrandAuthorizations';
+import AdminWarrantyClaims from './admin/pages/AdminWarrantyClaims';
 import OfficialProducts from './admin/pages/OfficialProducts';
 import Agents from './admin/pages/Agents';
 import SuperAgentDashboard from './public/pages/SuperAgentDashboard';
@@ -629,6 +632,13 @@ function App() {
       return <ProductDetail {...publicProps} productId={Number(rawId)} track={track}
         initialTab={suffix === 'comments' ? 'reviews' : null} />;
     }
+    // Deep-links from a warranty-claim notification (WarrantyService's own
+    // actionPage/actionParam) straight to the relevant registration —
+    // see MyWarranties.js/SellerWarrantyClaims.js's own registrationId prop.
+    if (page.startsWith('MyWarranties-'))
+      return requireLogin(<MyWarranties {...publicProps} registrationId={page.split('MyWarranties-')[1]} />);
+    if (page.startsWith('SellerWarrantyClaims-'))
+      return requireLogin(<SellerWarrantyClaims {...publicProps} registrationId={page.split('SellerWarrantyClaims-')[1]} />);
     // Deep-links straight into editing one item — from that item's own
     // detail page ••• menu, so the owner doesn't have to re-find it on the
     // separate SellerProducts/SellerClassifieds management page.
@@ -714,6 +724,8 @@ function App() {
       case 'ServiceDetail':        return <ServiceDetail {...publicProps} />;
       case 'ProductDetail':        return <ProductDetail {...publicProps} />;
       case 'VerifyProduct':        return <VerifyProduct {...publicProps} code={navParams?.code} />;
+      case 'MyWarranties':         return requireLogin(<MyWarranties {...publicProps} />);
+      case 'SellerWarrantyClaims': return requireLogin(<SellerWarrantyClaims {...publicProps} />);
       case 'OrderTracking':        return requireLogin(<OrderTracking {...publicProps} />);
 
       case 'Discover':          return <Search {...publicProps} track={track} />;
@@ -783,6 +795,7 @@ function App() {
       case 'IdentityVerifications': return requireAdmin(<IdentityVerifications activePage={page} {...adminProps} />);
       case 'AdminBrands': return requireAdmin(<AdminBrands activePage={page} {...adminProps} />);
       case 'AdminBrandAuthorizations': return requireAdmin(<AdminBrandAuthorizations activePage={page} {...adminProps} />);
+      case 'AdminWarrantyClaims': return requireAdmin(<AdminWarrantyClaims activePage={page} {...adminProps} />);
       case 'OfficialProducts': return requireAdmin(<OfficialProducts activePage={page} {...adminProps} />);
       case 'Agents':      return requireAdmin(<Agents activePage={page} {...adminProps} />);
       case 'Profile':     return requireLogin(<Profile activePage={page} {...adminProps} />);

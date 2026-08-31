@@ -26,6 +26,11 @@ import { ActivityModule } from '../activity/activity.module';
 // business logic.
 import { Product } from '../products/entities/products.entity';
 import { Order } from '../orders/entities/order.entity';
+// Repo-only, same reasoning as Product/Order above — WarrantyModule itself
+// imports BrandsModule (for BrandsService.findOne()'s default-warranty
+// lookup), so BrandsModule importing WarrantyModule back would be
+// circular. The dashboard only ever needs a COUNT here.
+import { WarrantyRegistration } from '../warranty/entities/warranty-registration.entity';
 
 // ── Kentexa Brand & Authorization Network — Phase A ─────────────────────────
 //
@@ -59,6 +64,7 @@ import { Order } from '../orders/entities/order.entity';
       User,
       Product,
       Order,
+      WarrantyRegistration,
     ]),
     CommerceProfilesModule,
     NotificationsModule,

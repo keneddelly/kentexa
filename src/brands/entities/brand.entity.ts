@@ -54,6 +54,14 @@ export class Brand {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  // Manufacturer-standard warranty length in months, if this brand states
+  // one — the fallback WarrantyService.register() uses when the specific
+  // Product itself has no override (see products.entity.ts's
+  // warrantyMonths). Null means no default; a product with no override
+  // under a brand with no default simply can't register a warranty.
+  @Column({ type: 'int', nullable: true })
+  defaultWarrantyMonths: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

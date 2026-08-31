@@ -138,6 +138,12 @@ export class CreateProductDto {
   @IsInt()
   brandId?: number;
 
+  // Optional per-product warranty length override in months (spec §15) —
+  // falls back to the brand's own defaultWarrantyMonths when unset.
+  @IsOptional()
+  @IsInt()
+  warrantyMonths?: number;
+
   // Optional link to the brand's own canonical catalog entry
   // (src/products/entities/official-product.entity.ts) — never required.
   // When set, other sellers' listings on the same official item are

@@ -6,15 +6,17 @@ import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profi
 import { BusinessBrandAuthorization, BrandAuthorizationStatus } from './entities/business-brand-authorization.entity';
 import { Product } from '../products/entities/products.entity';
 import { Order } from '../orders/entities/order.entity';
+import { WarrantyRegistration } from '../warranty/entities/warranty-registration.entity';
 
 // Read-only visibility for a brand's own identity — spec §19. Never a
 // place financial/authorization state is decided; every number here is a
 // plain aggregate over data that's already the real source of truth
 // elsewhere (BusinessBrandAuthorization.status, Product.brandId,
-// Order.brandId/totalAmount). No warrantyRegistrations field — see this
-// module's own note in the approved plan: that metric doesn't exist yet
-// anywhere in the system, so it's omitted rather than shown as a
-// fabricated zero (CLAUDE.md: never invent activity).
+// Order.brandId/totalAmount, WarrantyRegistration.brandId). Phase C
+// originally shipped with no warrantyRegistrations field at all — no
+// warranty system existed yet anywhere in Kentexa, so it was omitted
+// rather than shown as a fabricated zero (CLAUDE.md: never invent
+// activity). Phase F built that system; this is the real count.
 @Injectable()
 export class BrandDashboardService {
   constructor(
@@ -22,6 +24,7 @@ export class BrandDashboardService {
     @InjectRepository(BusinessBrandAuthorization) private authRepo: Repository<BusinessBrandAuthorization>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
     @InjectRepository(Order) private orderRepo: Repository<Order>,
+    @InjectRepository(WarrantyRegistration) private warrantyRepo: Repository<WarrantyRegistration>,
     private profileScope: CommerceProfileScopeService,
   ) {}
 
@@ -56,6 +59,8 @@ export class BrandDashboardService {
     const ordersCount = orders.length;
     const ordersRevenue = orders.reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
 
+    const warrantyRegistrations = await this.warrantyRepo.count({ where: { brandId } });
+
     return {
       brandId,
       authorizedBusinesses: {
@@ -70,6 +75,7 @@ export class BrandDashboardService {
       cities,
       products: productsCount,
       orders: { count: ordersCount, revenue: ordersRevenue },
+      warrantyRegistrations,
     };
   }
 }

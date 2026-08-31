@@ -1,9 +1,10 @@
 /**
  * BrandDashboard.js — read-only visibility for a brand's own identity
  * (src/brands/ Phase C). Every number here is a plain aggregate over data
- * that's already the real source of truth elsewhere (no metric is
- * fabricated — e.g. there's no "warranty registrations" tile because that
- * system doesn't exist yet anywhere in Kentexa).
+ * that's already the real source of truth elsewhere. The warranty
+ * registrations tile was originally omitted (no warranty system existed
+ * yet anywhere in Kentexa) — Phase F (src/warranty/) built that system,
+ * so it's now a real count, not a fabricated one.
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -78,6 +79,7 @@ const BrandDashboard = ({ onNavigate, activeProfileId, activeProfile }) => {
               <StatCard icon="📦" label={t('brand_dashboard.products_label')} value={data.products} />
               <StatCard icon="🛒" label={t('brand_dashboard.orders_label')} value={data.orders.count} />
               <StatCard icon="💰" label={t('brand_dashboard.revenue_label')} value={`TZS ${Number(data.orders.revenue || 0).toLocaleString()}`} color="#1d4ed8" bg="#eff6ff" />
+              <StatCard icon="🛡️" label={t('brand_dashboard.warranty_registrations_label')} value={data.warrantyRegistrations} />
             </div>
           </>
         )}
