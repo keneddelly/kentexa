@@ -106,6 +106,16 @@ export class Product {
   @Column({ type: 'text', nullable: true })
   model: string | null;
 
+  // Plain nullable id, not a relation — same zero-import-coupling
+  // convention as commerceProfileId on this same entity. Optional: the
+  // vast majority of existing/future products have no structured brand at
+  // all, and this must never require one. When set, product-read
+  // serialization (ProductsService) attaches a computed
+  // brandAuthorizationBadge via BrandAuthorizationsService — never stored
+  // here, never trusted from the client. See src/brands/brands.module.ts.
+  @Column({ type: 'int', nullable: true })
+  brandId: number | null;
+
   // ── Product Specs (JSON: { "Resolution": "1080P", "Battery": "2hrs" }) ──
   @Column({ type: 'json', nullable: true })
   specs: Record<string, string> | null;

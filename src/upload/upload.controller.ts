@@ -76,24 +76,26 @@ export class UploadController {
     return { urls };
   }
 
-  // Digital products (Layer 1 seller verification) — uploads as a
-  // private, non-public Cloudinary raw asset (type: 'private'), unlike
+  // Private, non-public Cloudinary raw asset (type: 'private'), unlike
   // uploadImages() above which uploads publicly. The returned publicId is
-  // meaningless without a signed URL, generated on demand by
-  // ProductsService.getDownloadUrl() only after a real purchase is
-  // verified — never served or stored as a plain URL anywhere.
+  // meaningless without a signed URL, generated on demand server-side only
+  // after an authorization check — see ProductsService.getDownloadUrl()
+  // (digital product purchases) and BrandAuthorizationsService.
+  // getSignedEvidenceUrl() (brand authorization evidence: distributor
+  // letters, certificates — often a photographed scan, hence images are
+  // allowed here too, not just document formats).
   @UseGuards(JwtAuthGuard)
   @Post('digital-file')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
       fileFilter: (req, file, cb) => {
-        const allowed = /pdf|epub|zip/;
+        const allowed = /pdf|epub|zip|jpe?g|png/;
         const valid = allowed.test(extname(file.originalname).toLowerCase());
         if (valid) {
           cb(null, true);
         } else {
-          cb(new BadRequestException('Only PDF, EPUB, or ZIP files allowed'), false);
+          cb(new BadRequestException('Only PDF, EPUB, ZIP, JPG, or PNG files allowed'), false);
         }
       },
       limits: { fileSize: 50 * 1024 * 1024 }, // 50MB

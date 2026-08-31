@@ -410,9 +410,26 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                 )}
               </div>
               <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: '0 0 4px', lineHeight: 1.5 }}>{product.name}</h1>
-              {product.model && (
+              {(product.brand || product.model) && (
                 <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8, fontWeight: 600 }}>
-                  {t('product_detail.model_label')}: {product.model}
+                  {product.brand && <span>{product.brand.name}</span>}
+                  {product.brand && product.model && <span> · </span>}
+                  {product.model && <span>{t('product_detail.model_label')}: {product.model}</span>}
+                </div>
+              )}
+              {/* Never derived client-side — see brands.module.ts. Distinct
+                  labels per spec: a brand-specific authorization reads
+                  differently from Kentexa's own general identity check. */}
+              {product.brandAuthorizationBadge === 'brand_authorized' && (
+                <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#1d4ed8',
+                  backgroundColor: '#eff6ff', border: '1px solid #93c5fd', borderRadius: 20, padding: '3px 10px', marginBottom: 8 }}>
+                  ✓ {t('product_detail.brand_authorized_badge', { brand: product.brand?.name || '' })}
+                </div>
+              )}
+              {product.brandAuthorizationBadge === 'kentexa_verified' && (
+                <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 800, color: '#16a34a',
+                  backgroundColor: '#f0fdf4', border: '1px solid #86efac', borderRadius: 20, padding: '3px 10px', marginBottom: 8 }}>
+                  ✓ {t('product_detail.kentexa_verified_badge')}
                 </div>
               )}
               <SocialProofBadge viewsToday={product.viewsToday} salesCount={product.salesCount} createdAt={product.createdAt} />

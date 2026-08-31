@@ -17,6 +17,7 @@ import { SearchModule } from '../search/search.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { ActivityModule } from '../activity/activity.module';
 import { IdentityModule } from '../identity/identity.module';
+import { BrandsModule } from '../brands/brands.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { IdentityModule } from '../identity/identity.module';
     InventoryModule,
     ActivityModule,
     IdentityModule,
+    BrandsModule,
   ],
   controllers: [ProductsController],
   providers: [ProductsService, AiListingService, SellerRankingService],

@@ -33,7 +33,7 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', b
 
 const EMPTY_FORM = {
   name: '', description: '', basePrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
-  displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '',
+  displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '', brandId: null,
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
   sku: '', barcode: '', costPrice: '', minStockThreshold: '0',
   availableOnline: true, availableInStore: true, codEnabled: false,
@@ -71,6 +71,16 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   // Which product's ⋮ menu is open — same idiom SellerInbox.js's
   // conversation list already uses for its own per-row action menu.
   const [menuForProductId, setMenuForProductId] = useState(null);
+
+  // ── Brand picker (src/brands/) — optional, never blocks submission.
+  // selectedBrand carries the name so the picker can show it without a
+  // second lookup; brandBadge is the LIVE, server-computed authorization
+  // status for it, refetched whenever the brand/category/model changes —
+  // never trusted/derived on the client.
+  const [brandQuery, setBrandQuery] = useState('');
+  const [brandResults, setBrandResults] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [brandBadge, setBrandBadge] = useState(null);
 
   // Boda fee suggestions
   const [bodaSuggestions, setBodaSuggestions]   = useState([]);
@@ -150,6 +160,27 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     if (match) handleEdit(match);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products, editProductId]);
+
+  // Debounced brand search — feeds the picker's dropdown.
+  useEffect(() => {
+    if (selectedBrand) return; // already picked, no need to keep searching
+    const handle = setTimeout(() => {
+      api.get('/brands', { params: brandQuery ? { search: brandQuery } : {} })
+        .then(r => setBrandResults(r.data || []))
+        .catch(() => setBrandResults([]));
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [brandQuery, selectedBrand]);
+
+  // Live authorization-status hint — never trusted/derived client-side.
+  // Refetches whenever the brand/category/model changes so the hint stays
+  // accurate as the seller fills in the rest of the form.
+  useEffect(() => {
+    if (!selectedBrand || !activeProfileId) { setBrandBadge(null); return; }
+    api.get('/products/brand-status', {
+      params: { commerceProfileId: activeProfileId, brandId: selectedBrand.id, category: form.category, model: form.model || undefined },
+    }).then(r => setBrandBadge(r.data?.badge || null)).catch(() => setBrandBadge(null));
+  }, [selectedBrand, activeProfileId, form.category, form.model]);
 
   // When category changes, reset subcategory + specs
   const handleCategoryChange = (cat, opts = {}) => {
@@ -302,6 +333,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const resetForm = () => {
     setShowForm(false); setEditProduct(null);
     setImagePreviews([]); setForm(EMPTY_FORM);
+    setSelectedBrand(null); setBrandQuery(''); setBrandResults([]); setBrandBadge(null);
     setFeatureInput(''); setShippingEstimate(null);
     setCategoryManuallySet(false); setCategorySuggested(false);
   };
@@ -337,6 +369,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         category:     form.category,
         subcategory:  form.subcategory,
         model:        form.model,
+        brandId:      form.brandId || undefined,
         isAvailable:  form.isZipo,
         shippingMethod: form.shippingMethod,
         estimatedDelivery: form.estimatedDelivery,
@@ -434,6 +467,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       category:     product.category || 'electronics',
       subcategory:  product.subcategory || '',
       model:        product.model || '',
+      brandId:      product.brandId || null,
       specs:        migratedSpecs,
       features:     product.features || [],
       images:       product.images || [],
@@ -456,6 +490,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       copyrightDeclared: false,
     });
     setImagePreviews(product.images || []);
+    if (product.brandId) {
+      api.get(`/brands/${product.brandId}`).then(r => setSelectedBrand(r.data)).catch(() => setSelectedBrand(null));
+    } else {
+      setSelectedBrand(null);
+    }
     setShowForm(true);
   };
 
@@ -699,6 +738,42 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Brand (src/brands/) — optional, structured, never blocks
+                submission. Distinct from any free-text "Brand" spec
+                attribute a category may already have (that's just
+                descriptive text; this is the authorization-linked field). */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>{t('seller_products.brand_label')}</label>
+              {selectedBrand ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 10, border: '2px solid #e2e8f0' }}>
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>{selectedBrand.name}</span>
+                  <button type="button" onClick={() => { setSelectedBrand(null); setForm(f => ({ ...f, brandId: null })); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 16 }}>×</button>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <input type="text" value={brandQuery} onChange={e => setBrandQuery(e.target.value)}
+                    placeholder={t('seller_products.brand_search_placeholder')} style={inputStyle} />
+                  {brandResults.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, zIndex: 20, maxHeight: 200, overflowY: 'auto' }}>
+                      {brandResults.map(b => (
+                        <div key={b.id} onClick={() => { setSelectedBrand(b); setForm(f => ({ ...f, brandId: b.id })); setBrandResults([]); setBrandQuery(''); }}
+                          style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: 13, fontWeight: 600 }}>
+                          {b.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {selectedBrand && brandBadge === 'brand_authorized' && (
+                <div style={{ marginTop: 6, fontSize: 12, fontWeight: 700, color: '#16a34a' }}>✓ {t('seller_products.brand_authorized_hint')}</div>
+              )}
+              {selectedBrand && brandBadge !== 'brand_authorized' && (
+                <div style={{ marginTop: 6, fontSize: 12, color: '#94a3b8' }}>{t('seller_products.brand_not_authorized_hint')}</div>
+              )}
             </div>
 
             {/* Model */}

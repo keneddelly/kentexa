@@ -62,6 +62,7 @@ import Checkout from './public/pages/Checkout';
 import Search from './public/pages/Search';
 import VerifyReceipt from './public/pages/VerifyReceipt';
 import SellerProducts from './public/pages/SellerProducts';
+import MyBrands from './public/pages/MyBrands';
 import POS from './public/pages/POS';
 import SellerClassifieds from './public/pages/SellerClassifieds';
 import SellerOrders from './public/pages/SellerOrders';
@@ -86,6 +87,8 @@ import Payments from './admin/pages/Payments';
 import Sellers from './admin/pages/Sellers';
 import AdminServices from './admin/pages/Services';
 import IdentityVerifications from './admin/pages/IdentityVerifications';
+import AdminBrands from './admin/pages/AdminBrands';
+import AdminBrandAuthorizations from './admin/pages/AdminBrandAuthorizations';
 import Agents from './admin/pages/Agents';
 import SuperAgentDashboard from './public/pages/SuperAgentDashboard';
 import TrackParcel from './public/pages/TrackParcel';
@@ -727,6 +730,7 @@ function App() {
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
       case 'SellerProducts':    return requireVerifiedSeller(<SellerProducts {...publicProps} />);
+      case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
       case 'POS':               return requireVerifiedSeller(<POS {...publicProps} />);
       case 'SellerClassifieds': return requireVerifiedSeller(<SellerClassifieds {...publicProps} />);
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
@@ -756,6 +760,8 @@ function App() {
       // the public page for every user.
       case 'AdminServices': return requireAdmin(<AdminServices activePage={page} {...adminProps} />);
       case 'IdentityVerifications': return requireAdmin(<IdentityVerifications activePage={page} {...adminProps} />);
+      case 'AdminBrands': return requireAdmin(<AdminBrands activePage={page} {...adminProps} />);
+      case 'AdminBrandAuthorizations': return requireAdmin(<AdminBrandAuthorizations activePage={page} {...adminProps} />);
       case 'Agents':      return requireAdmin(<Agents activePage={page} {...adminProps} />);
       case 'Profile':     return requireLogin(<Profile activePage={page} {...adminProps} />);
       case 'TrackParcel': return <TrackParcel {...publicProps} />;

@@ -101,6 +101,19 @@ export class Order {
   @Column({ type: 'text', nullable: true })
   manualProductName: string | null;
 
+  // Snapshot of the purchased product's brand at order-creation time — NOT
+  // a live reference. Order.product itself IS a live relation (a
+  // pre-existing gap this doesn't attempt to fix generally), but brand
+  // specifically must survive the transaction per the Brand & Authorization
+  // Network spec: a historical order must stay accurate even if the
+  // product's brandId is later changed or the Brand row is edited. See
+  // src/brands/brands.module.ts.
+  @Column({ type: 'int', nullable: true })
+  brandId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  brandNameSnapshot: string | null;
+
   // Buyer's name typed in by seller/agent, used when buyer is null
   @Column({ type: 'varchar', nullable: true })
   manualBuyerName: string | null;

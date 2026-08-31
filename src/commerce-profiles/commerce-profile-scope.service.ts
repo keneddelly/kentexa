@@ -18,7 +18,8 @@ export type CommerceProfilePermission =
   | 'canSendMessages'
   | 'canViewRevenue'
   | 'canManageProducts'
-  | 'canManageTeam';
+  | 'canManageTeam'
+  | 'canManageBrandAuthorization';
 
 @Injectable()
 export class CommerceProfileScopeService {

@@ -47,6 +47,7 @@ import { ServiceProvidersModule } from './service-providers/service-providers.mo
 import { EarlyAccessModule } from './early-access/early-access.module';
 import { SearchModule } from './search/search.module';
 import { ShipmentsModule } from './shipments/shipments.module';
+import { BrandsModule } from './brands/brands.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
 import { ActivityModule } from './activity/activity.module';
 import { AdminIntelligenceModule } from './admin-intelligence/admin-intelligence.module';
@@ -123,6 +124,7 @@ import { ShareModule } from './share/share.module';
     ParcelCollectionsModule,
     AnalyticsModule,
     AnnouncementsModule,
+    BrandsModule,
     BodaRatesModule,
     ContactModule,
     ServiceProvidersModule,

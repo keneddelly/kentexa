@@ -28,6 +28,8 @@ import { InventoryService } from '../inventory/inventory.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { BrandAuthorizationsService } from '../brands/brand-authorizations.service';
+import { BrandsService } from '../brands/brands.service';
 import { validateAttributes } from '../categories/categories.data';
 
 @Injectable()
@@ -55,7 +57,28 @@ export class ProductsService {
     private readonly ranking: SellerRankingService,
     private readonly inventory: InventoryService,
     private readonly activityEvents: ActivityEventService,
+    private readonly brandAuthorizations: BrandAuthorizationsService,
+    private readonly brands: BrandsService,
   ) {}
+
+  // Live-computed only, never persisted — see brands.module.ts. Used both
+  // by product-read serialization and directly by the seller-facing
+  // product-creation form (GET /products/brand-status) so a seller sees
+  // whether they're authorized before they even submit.
+  async getBrandStatus(params: {
+    commerceProfileId: number;
+    brandId: number;
+    category?: string;
+    model?: string;
+    city?: string;
+  }) {
+    return this.brandAuthorizations.getBadgeStatus(params.commerceProfileId, {
+      brandId: params.brandId,
+      category: params.category,
+      model: params.model,
+      city: params.city,
+    });
+  }
 
   // Batches verificationTier for a set of products' sellers in one query —
   // avoids joining SellerProfile into the main product query (a different
@@ -236,8 +259,30 @@ export class ProductsService {
             .catch(() => null)
         : null;
 
+    // Never persisted, never trusted from the product row itself — see
+    // brands.module.ts. Only computed when both a brand and a resolvable
+    // commerce profile exist; a product with no brandId simply gets null.
+    const brandAuthorizationBadge =
+      product.brandId && commerceProfile
+        ? (
+            await this.brandAuthorizations.getBadgeStatus(commerceProfile.id, {
+              brandId: product.brandId,
+              category: product.category || undefined,
+              model: product.model || undefined,
+            })
+          ).badge
+        : commerceProfile?.isVerified
+          ? 'kentexa_verified'
+          : null;
+
+    const brand = product.brandId
+      ? await this.brands.findOne(product.brandId).catch(() => null)
+      : null;
+
     return {
       ...product,
+      brandAuthorizationBadge,
+      brand: brand ? { id: brand.id, name: brand.name, logoUrl: brand.logoUrl } : null,
       commerceProfile: commerceProfile
         ? {
             id: commerceProfile.id,
@@ -443,6 +488,7 @@ export class ProductsService {
       category: dto.category || 'general',
       subcategory: dto.subcategory || null,
       model: dto.model || null,
+      brandId: dto.brandId ?? null,
       specs: dto.specs || null,
       features: dto.features || null,
       images: dto.images || [],

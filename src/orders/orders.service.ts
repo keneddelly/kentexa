@@ -42,6 +42,7 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { ClassifiedInvoiceRequest } from '../classifieds/entities/classified-invoice-request.entity';
 import { Classified, ClassifiedStatus } from '../classifieds/entities/classified.entity';
 import { CodCalculationService } from '../cod/cod-calculation.service';
+import { Brand } from '../brands/entities/brand.entity';
 
 const CATEGORY_COMMISSION: Record<string, number> = {
   electronics: 10,
@@ -123,6 +124,7 @@ export class OrdersService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(Payout) private payoutRepo: Repository<Payout>,
     @InjectRepository(Parcel) private parcelRepo: Repository<Parcel>,
+    @InjectRepository(Brand) private brandRepo: Repository<Brand>,
     @InjectRepository(ParcelTracking)
     private parcelTrackingRepo: Repository<ParcelTracking>,
     @InjectRepository(SuperAgent)
@@ -187,6 +189,14 @@ export class OrdersService {
       throw new BadRequestException('Product not available');
     if (product.stock < dto.quantity)
       throw new BadRequestException('Insufficient stock');
+
+    // Snapshot only — see Order.brandId's own comment. Resolved once here
+    // rather than joined at read time, so the name stays frozen even if
+    // the Brand row is later renamed.
+    const brandId = (product as any).brandId ?? null;
+    const brandNameSnapshot = brandId
+      ? (await this.brandRepo.findOne({ where: { id: brandId } }))?.name ?? null
+      : null;
 
     const basePrice = Number(product.basePrice || 0);
     const chosenMethod =
@@ -278,6 +288,8 @@ export class OrdersService {
       // that predate Product.commerceProfileId (profile-architecture-
       // audit-2026-08), same legacy-fallback convention as elsewhere.
       commerceProfileId: (product as any).commerceProfileId ?? null,
+      brandId,
+      brandNameSnapshot,
       quantity: dto.quantity,
       totalAmount,
       baseAmount,

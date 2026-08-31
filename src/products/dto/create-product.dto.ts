@@ -130,6 +130,14 @@ export class CreateProductDto {
   @IsInt()
   commerceProfileId?: number;
 
+  // Optional structured brand (src/brands/) — never required. Setting
+  // this does NOT claim authorization; ProductsService computes the
+  // authorized-seller badge separately, live, from
+  // BrandAuthorizationsService.
+  @IsOptional()
+  @IsInt()
+  brandId?: number;
+
   // ── Unified inventory (BIS Local Shop POS) ──────────────────────────────
   @IsOptional()
   @IsString()

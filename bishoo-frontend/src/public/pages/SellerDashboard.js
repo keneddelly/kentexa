@@ -481,6 +481,8 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                   don't block" principle) — routes to Verify Now instead. */}
               <MenuRow t={t} icon="📦" label={t('seller_dashboard.my_products')} onClick={() => onNavigate('SellerProducts')} dataTour="sd-menu-products"
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="🏷️" label={t('seller_dashboard.my_brands')} onClick={() => onNavigate('MyBrands')}
+                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
               <MenuRow t={t} icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')}
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
               <MenuRow t={t} icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')}

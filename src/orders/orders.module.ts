@@ -27,6 +27,7 @@ import { IdentityModule } from '../identity/identity.module';
 import { ClassifiedInvoiceRequest } from '../classifieds/entities/classified-invoice-request.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { CodModule } from '../cod/cod.module';
+import { Brand } from '../brands/entities/brand.entity';
 
 @Module({
   imports: [
@@ -48,6 +49,11 @@ import { CodModule } from '../cod/cod.module';
       // trace a completed order back to its originating classified listing.
       ClassifiedInvoiceRequest,
       Classified,
+      // Repo-only for the brand-name snapshot at order creation — see
+      // Order.brandNameSnapshot. Not importing BrandsModule since only the
+      // repository is needed here (same pattern as ClassifiedInvoiceRequest/
+      // Classified above).
+      Brand,
     ]),
     ProductsModule,
     InvoicesModule,

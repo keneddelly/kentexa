@@ -45,6 +45,20 @@ export class ProductsController {
 
   // ── Public ─────────────────────────────────────────────────────────────
 
+  // Live badge-status read — used by the product-creation form to show a
+  // seller whether they're authorized for a brand BEFORE they submit.
+  // Declared before ':id' so it isn't swallowed by that route.
+  @Get('brand-status')
+  getBrandStatus(
+    @Query('commerceProfileId', ParseIntPipe) commerceProfileId: number,
+    @Query('brandId', ParseIntPipe) brandId: number,
+    @Query('category') category?: string,
+    @Query('model') model?: string,
+    @Query('city') city?: string,
+  ) {
+    return this.service.getBrandStatus({ commerceProfileId, brandId, category, model, city });
+  }
+
   @Get('search')
   async search(
     @Query('q') q: string,
