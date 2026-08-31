@@ -47,6 +47,18 @@ const SEED_TEMPLATES: Array<
     titleTemplate: 'Malipo ya awali yamepokelewa 💰',
     bodyTemplate: 'Umepokea malipo ya awali ya TZS {upfrontAmount} kwa {productName} (Agizo #{orderId}). Baki la TZS {remainingBalance} litakusanywa wakati wa uwasilishaji.',
   },
+  {
+    eventType: 'ORDER_COMPLETED',
+    recipientRole: 'buyer',
+    titleTemplate: 'Agizo limekamilika ✅',
+    bodyTemplate: 'Agizo lako la {productName} (Agizo #{orderId}) limekamilika. Asante kwa kununua Kentexa!',
+  },
+  {
+    eventType: 'ORDER_COMPLETED',
+    recipientRole: 'seller',
+    titleTemplate: 'Malipo yametolewa 💰',
+    bodyTemplate: 'Agizo #{orderId} ({productName}) limekamilika na TZS {sellerAmount} zimewekwa kwenye pochi yako.',
+  },
 ];
 
 // Phase A of the Kentexa Communication Engine (see spec §1-58 audit).

@@ -355,6 +355,43 @@ export class PaymentsService {
       );
     }
 
+    try {
+      const recipients = [
+        order.buyer
+          ? {
+              userId: order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(order.id),
+            }
+          : null,
+        order.seller
+          ? {
+              userId: order.seller.id,
+              role: 'seller',
+              actionPage: 'SellerOrders',
+              actionParam: String(order.id),
+            }
+          : null,
+      ].filter((r): r is NonNullable<typeof r> => r !== null);
+
+      await this.communicationEngine.dispatch({
+        eventType: 'ORDER_COMPLETED',
+        sourceType: 'order',
+        sourceId: order.id,
+        recipients,
+        context: {
+          orderId: order.id,
+          productName: order.product?.name || 'Product',
+          sellerAmount: Number(order.sellerAmount || 0),
+        },
+      });
+    } catch (err: any) {
+      this.logger.warn(
+        `Communication engine dispatch failed for completed digital order #${order.id}: ${err.message}`,
+      );
+    }
+
     const sellerProfile = order.seller?.id
       ? await this.commerceProfiles
           .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)
@@ -408,6 +445,35 @@ export class PaymentsService {
           order.id,
           Number(order.sellerAmount || order.totalAmount || 0),
         );
+
+        const recipients = [
+          order.buyer
+            ? {
+                userId: order.buyer.id,
+                role: 'buyer',
+                actionPage: 'MyOrders',
+                actionParam: String(order.id),
+              }
+            : null,
+          {
+            userId: order.seller.id,
+            role: 'seller',
+            actionPage: 'SellerOrders',
+            actionParam: String(order.id),
+          },
+        ].filter((r): r is NonNullable<typeof r> => r !== null);
+
+        await this.communicationEngine.dispatch({
+          eventType: 'ORDER_COMPLETED',
+          sourceType: 'order',
+          sourceId: order.id,
+          recipients,
+          context: {
+            orderId: order.id,
+            productName: order.product?.name || 'Product',
+            sellerAmount: Number(order.sellerAmount || order.totalAmount || 0),
+          },
+        });
       }
     } catch {
       /* non-critical */

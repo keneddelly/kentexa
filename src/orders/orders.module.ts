@@ -28,6 +28,7 @@ import { ClassifiedInvoiceRequest } from '../classifieds/entities/classified-inv
 import { Classified } from '../classifieds/entities/classified.entity';
 import { CodModule } from '../cod/cod.module';
 import { Brand } from '../brands/entities/brand.entity';
+import { CommunicationModule } from '../communication/communication.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { Brand } from '../brands/entities/brand.entity';
     ActivityModule,
     IdentityModule,
     CodModule,
+    CommunicationModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

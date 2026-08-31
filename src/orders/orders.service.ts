@@ -101,6 +101,7 @@ import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FRONTEND_URL } from '../config/urls.config';
+import { CommunicationEngineService } from '../communication/communication-engine.service';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -156,6 +157,7 @@ export class OrdersService {
     private profileScope: CommerceProfileScopeService,
     private activityEvents: ActivityEventService,
     private codCalculation: CodCalculationService,
+    private communicationEngine: CommunicationEngineService,
   ) {}
 
   // If this order was created from a paid Manual Classified Invoice
@@ -1333,6 +1335,47 @@ export class OrdersService {
       orderId,
       Number(order.sellerAmount || 0),
     );
+
+    // 🔔 In-app + push — via the Communication Engine (Phase B). Same
+    // posture as Phase A's ORDER_PAID addition: the SMS/email call above
+    // stays untouched, this is purely the previously-missing in-app leg.
+    try {
+      const recipients = [
+        order.buyer
+          ? {
+              userId: order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(order.id),
+            }
+          : null,
+        order.seller
+          ? {
+              userId: order.seller.id,
+              role: 'seller',
+              actionPage: 'SellerOrders',
+              actionParam: String(order.id),
+            }
+          : null,
+      ].filter((r): r is NonNullable<typeof r> => r !== null);
+
+      await this.communicationEngine.dispatch({
+        eventType: 'ORDER_COMPLETED',
+        sourceType: 'order',
+        sourceId: order.id,
+        recipients,
+        context: {
+          orderId: order.id,
+          productName: order.product?.name || 'Product',
+          sellerAmount: Number(order.sellerAmount || 0),
+        },
+      });
+    } catch (err: any) {
+      console.error(
+        `Communication engine dispatch failed for completed order #${orderId}:`,
+        err.message,
+      );
+    }
 
     // 📈 Social proof — increment product's sales count
     if (order.product?.id) {
