@@ -3,9 +3,13 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Unique } from
 // The Phase A audit trail AND the idempotency guard in one row: the
 // unique constraint below means a retried dispatch() for the same
 // source event + recipient + channel finds the existing row and skips
-// rather than sending a duplicate notification.
+// rather than sending a duplicate notification. recipientRole is part
+// of the key (not just recipientUserId) because a self-purchase order
+// (buyerId === sellerId, e.g. an admin test account) legitimately needs
+// two distinct notifications — one as buyer, one as seller — for the
+// same user; keying on userId alone collapsed those into one.
 @Entity('communication_log')
-@Unique(['eventType', 'sourceType', 'sourceId', 'recipientUserId', 'channel'])
+@Unique(['eventType', 'sourceType', 'sourceId', 'recipientUserId', 'recipientRole', 'channel'])
 export class CommunicationLog {
   @PrimaryGeneratedColumn()
   id: number;

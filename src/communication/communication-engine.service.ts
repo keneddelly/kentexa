@@ -114,6 +114,7 @@ export class CommunicationEngineService implements OnModuleInit {
             sourceType: params.sourceType,
             sourceId: params.sourceId,
             recipientUserId: recipient.userId,
+            recipientRole: recipient.role,
             channel,
           },
         });
