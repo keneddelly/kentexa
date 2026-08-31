@@ -59,6 +59,12 @@ const SEED_TEMPLATES: Array<
     titleTemplate: 'Malipo yametolewa 💰',
     bodyTemplate: 'Agizo #{orderId} ({productName}) limekamilika na TZS {sellerAmount} zimewekwa kwenye pochi yako.',
   },
+  {
+    eventType: 'ORDER_PLACED',
+    recipientRole: 'buyer',
+    titleTemplate: '✅ Agizo Limepokelewa',
+    bodyTemplate: 'Agizo lako la {productName} (Agizo #{orderId}) limepokelewa. Subiri uthibitisho wa muuzaji.',
+  },
 ];
 
 // Phase A of the Kentexa Communication Engine (see spec §1-58 audit).

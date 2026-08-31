@@ -594,6 +594,38 @@ export class OrdersService {
       /* non-critical */
     }
 
+    // 🔔 In-app + push for the BUYER — via the Communication Engine (Phase
+    // C). The seller leg above already works via orderPlacedById; the
+    // buyer previously got only the email at line ~397, never an in-app
+    // notification, so this is purely the missing leg.
+    try {
+      if (saved.buyer?.id) {
+        await this.communicationEngine.dispatch({
+          eventType: 'ORDER_PLACED',
+          sourceType: 'order',
+          sourceId: saved.id,
+          recipients: [
+            {
+              userId: saved.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(saved.id),
+            },
+          ],
+          context: {
+            orderId: saved.id,
+            productName:
+              saved.product?.name || (saved as any).manualProductName || 'Bidhaa',
+          },
+        });
+      }
+    } catch (err: any) {
+      console.error(
+        `Communication engine dispatch failed for placed order #${saved.id}:`,
+        err.message,
+      );
+    }
+
     return { ...saved, invoiceNumber, batchInfo };
   }
 
