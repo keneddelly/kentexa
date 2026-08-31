@@ -48,6 +48,7 @@ const getTabs = t => [
   { key:'transport',  label:t('search.tab_transport')    },
   { key:'hub',        label:t('search.tab_hub')          },
   { key:'people',     label:t('search.tab_people')       },
+  { key:'business',   label:t('search.tab_business')     },
 ];
 
 // ── Classified card ───────────────────────────────────────────────────────────
@@ -253,6 +254,40 @@ const ProfileResultCard = ({ item, onNavigate }) => {
   );
 };
 
+// ── Business card (AI/NL brand query integration, spec §23) — a result
+// from GET /brands/authorized-businesses, e.g. "authorized LG dealers in
+// Mwanza". Same identity-first navigation as ProfileResultCard above
+// (every path leads back to the CommerceProfile), plus the coverage
+// area(s) this specific authorization actually covers. ─────────────────────
+const BusinessCard = ({ item, onNavigate }) => {
+  const { t } = useTranslation();
+  return (
+    <div onClick={() => onNavigate(`CommerceProfile-${item.ownerId}`, { commerceProfileId: item.commerceProfileId })}
+      style={{ backgroundColor:WH, borderRadius:14, padding:14,
+        boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer',
+        display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center' }}>
+      <div style={{ width:52, height:52, borderRadius:16, overflow:'hidden',
+        backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
+        justifyContent:'center', fontSize:22, marginBottom:8 }}>
+        {item.photoUrl
+          ? <img src={item.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+          : '🏪'}
+      </div>
+      <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:2,
+        overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:'100%' }}>
+        {item.displayName}{item.isVerified ? ' ✅' : ''}
+      </div>
+      {item.location && (
+        <div style={{ fontSize:10, color:GR, marginBottom:6 }}>📍 {item.location}</div>
+      )}
+      <div style={{ display:'inline-block', fontSize:10, fontWeight:800, color:'#1d4ed8',
+        backgroundColor:'#eff6ff', border:'1px solid #93c5fd', borderRadius:20, padding:'3px 8px' }}>
+        {item.coverage?.length ? t('search.business_covers', { area: item.coverage.join(', ') }) : t('search.business_authorized_badge')}
+      </div>
+    </div>
+  );
+};
+
 // ── Seller card ───────────────────────────────────────────────────────────────
 const SellerCard = ({ seller, onNavigate, isLoggedIn }) => {
   const { t } = useTranslation();
@@ -395,7 +430,7 @@ const rankResults = (list, semanticExtras, intent) => {
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', hub: 'hub', people: 'people', all: 'all' };
+const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', hub: 'hub', people: 'people', business: 'business', all: 'all' };
 
 const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIntent, track }) => {
   const { t } = useTranslation();
@@ -413,8 +448,14 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   const [transports,  setTransports]  = useState([]);
   const [hubs,        setHubs]        = useState([]);
   const [profiles,    setProfiles]    = useState([]);
+  // AI/NL brand query integration (spec §23) — "which businesses sell
+  // genuine LG products near me" etc. Same structured, domain-exclusive
+  // shape as transports/hubs above, calling /brands/authorized-businesses
+  // directly rather than a search-specific endpoint.
+  const [businesses,  setBusinesses]  = useState([]);
   const [transportNeedsCities, setTransportNeedsCities] = useState(false);
   const [hubNeedsCity, setHubNeedsCity] = useState(false);
+  const [businessNeedsBrand, setBusinessNeedsBrand] = useState(false);
 
   // AI's conversational summary of the results actually found (not the
   // routing step above — see search.controller.ts's /search/explain).
@@ -477,7 +518,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     // the auto-selected Products/Store tab and looks like it "vanished"
     // unless the user manually clicks back to All.
     const tabForDomain =
-      intent?.domain === 'transport' || intent?.domain === 'people' || intent?.domain === 'hub'
+      intent?.domain === 'transport' || intent?.domain === 'people' || intent?.domain === 'hub' || intent?.domain === 'business'
         ? AI_DOMAIN_TO_TAB[intent.domain]
         : 'all';
     setLoading(true);
@@ -489,8 +530,10 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     setTransports([]);
     setHubs([]);
     setProfiles([]);
+    setBusinesses([]);
     setTransportNeedsCities(false);
     setHubNeedsCity(false);
+    setBusinessNeedsBrand(false);
 
     // People/business name match — uses the raw query, not the AI-extracted
     // keywords (that extraction is tuned for listing search, not names).
@@ -626,6 +669,34 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       return;
     }
 
+    // Business (spec §23 — "which shops sell genuine LG products near
+    // me") is the same structured shape as hub/transport above — a real
+    // brand name is required (city is optional; an unscoped authorization
+    // covers everywhere), and it calls the brand network's own endpoint
+    // directly rather than joining the classifieds/products/services
+    // fan-out below.
+    if (tabForDomain === 'business') {
+      if (!intent?.brand) {
+        setBusinessNeedsBrand(true);
+        finish(0, { skipExplain: true });
+        return;
+      }
+      try {
+        const res = await api.get('/brands/authorized-businesses', {
+          params: { brand: intent.brand, city: intent.location || undefined },
+        });
+        const businessList = res.data?.businesses || [];
+        setBusinesses(businessList);
+        finish(businessList.length, {
+          domainCounts: { business: businessList.length },
+          topItems: businessList.slice(0, 3).map(b => ({
+            type: 'business', name: b.displayName, subtitle: b.location,
+          })),
+        });
+      } catch { finish(0, { skipExplain: true }); }
+      return;
+    }
+
     // People is likewise a dedicated single-source domain — the fetch
     // above already covers it, nothing further to fan out to.
     if (tabForDomain === 'people') { finish(0); return; }
@@ -718,7 +789,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     await handleAiSearch(trimmed, intent);
   }, [query, handleAiSearch]);
 
-  const total = classifieds.length + products.length + services.length + transports.length + hubs.length + profiles.length;
+  const total = classifieds.length + products.length + services.length + transports.length + hubs.length + profiles.length + businesses.length;
 
   // Every item is tagged with _type so the render loop below picks the
   // right card regardless of whether it came via a single-domain tab or
@@ -737,6 +808,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     transport:   transports.map(tr => ({...tr, _type:'transport'})),
     hub:         hubs.map(h => ({...h, _type:'hub'})),
     people:      profiles.map(p => ({...p, _type:'profile'})),
+    business:    businesses.map(b => ({...b, _type:'business'})),
   };
 
   return (
@@ -866,6 +938,16 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                     {t('search.hub_needs_city_desc')}
                   </div>
                 </div>
+              ) : businessNeedsBrand ? (
+                <div style={{ textAlign:'center', padding:'60px 0' }}>
+                  <div style={{ fontSize:48, marginBottom:12 }}>🏷️</div>
+                  <div style={{ fontSize:15, fontWeight:800, color:DK, marginBottom:8 }}>
+                    {t('search.business_needs_brand_title')}
+                  </div>
+                  <div style={{ fontSize:13, color:GR }}>
+                    {t('search.business_needs_brand_desc')}
+                  </div>
+                </div>
               ) : total === 0 ? (
                 <div style={{ textAlign:'center', padding:'60px 0' }}>
                   <div style={{ fontSize:48, marginBottom:12 }}>🔍</div>
@@ -904,6 +986,9 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                       }
                       if (item._type === 'profile') {
                         return <ProfileResultCard key={`pr-${item.id}`} item={item} onNavigate={onNavigate} />;
+                      }
+                      if (item._type === 'business') {
+                        return <BusinessCard key={`b-${item.commerceProfileId}`} item={item} onNavigate={onNavigate} />;
                       }
                       if (item._type === 'product') {
                         return (

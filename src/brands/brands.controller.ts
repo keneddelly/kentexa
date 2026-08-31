@@ -16,12 +16,14 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { BrandsService } from './brands.service';
 import { BrandDashboardService } from './brand-dashboard.service';
+import { BrandAuthorizationsService } from './brand-authorizations.service';
 
 @Controller('brands')
 export class BrandsController {
   constructor(
     private service: BrandsService,
     private dashboard: BrandDashboardService,
+    private authorizations: BrandAuthorizationsService,
   ) {}
 
   // ── Brand's own read-only dashboard (Phase C) — owner or an authorized
@@ -43,6 +45,26 @@ export class BrandsController {
   findAll(@Query('search') search?: string, @Query('includeInactive') includeInactive?: string) {
     if (search) return this.service.search(search);
     return this.service.findAll(includeInactive === 'true');
+  }
+
+  // ── AI/NL brand query integration (spec §23) — the 'business' search
+  // domain's real endpoint (Search.js calls this directly, the same way
+  // its existing 'hub'/'transport' domain branches call their own real
+  // endpoints rather than a search-specific one). Public, and deliberately
+  // fails open to an empty list rather than throwing — this is reached
+  // straight off an AI domain guess and must never surface as a hard
+  // error on the search page. Declared before ':id' so a literal
+  // 'authorized-businesses' path segment is never swallowed by that
+  // catch-all.
+  @Get('authorized-businesses')
+  async authorizedBusinesses(@Query('brand') brand?: string, @Query('city') city?: string) {
+    const resolved = brand ? await this.service.findByName(brand) : null;
+    if (!resolved) return { brand: null, businesses: [] };
+    const businesses = await this.authorizations.findAuthorizedBusinesses(resolved.id, { city });
+    return {
+      brand: { id: resolved.id, name: resolved.name, logoUrl: resolved.logoUrl },
+      businesses,
+    };
   }
 
   @Get(':id')

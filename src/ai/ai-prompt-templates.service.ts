@@ -176,15 +176,24 @@ export class AiPromptTemplateService {
         'a KenteXa parcel hub/agent in a city that receives, holds, and forwards packages, ' +
         'e.g. "super agent Mwanza", "hub near me", "who handles parcels in Dodoma", "send a ' +
         'parcel from Arusha" when no specific transport company is named), "people" (looking ' +
-        'up a specific person, seller, or business by their name/username/brand directly — ' +
-        'not what they sell, e.g. "kened" or "Bishoo Intelligence Systems"), or "all" if it ' +
-        'is ambiguous or could span multiple. Then extract the core keywords to search for, ' +
-        'and, only if clearly stated or strongly implied: a category, minimum price, and ' +
-        'maximum price (in Tanzanian Shillings); fromCity and toCity for transport queries; ' +
-        'or, for any non-transport query (including "hub"), a generic location (a city/town/' +
-        'neighborhood the user wants results from — for "hub" queries this is the city whose ' +
-        'Super Agent they want). Expand common city shorthand to the full name (e.g. "Dar" → ' +
-        '"Dar es Salaam"). Omit fields that are not present in the query rather than guessing.\n\n' +
+        'up a specific person, seller, or business by their name/username directly — not what ' +
+        'they sell, e.g. "kened" or "Bishoo Intelligence Systems"), "business" (the user wants ' +
+        'to find businesses/sellers/shops THEMSELVES, usually filtered by a brand they carry ' +
+        'or their authorization status, rather than one specific product/classified/service or ' +
+        'a specific named identity — e.g. "which shops sell genuine LG products", "authorized ' +
+        'Samsung dealers in Mwanza", "who sells LG here", "verified LG sellers near me"; this ' +
+        'is different from "people", which names ONE specific identity to look up directly), ' +
+        'or "all" if it is ambiguous or could span multiple. Then extract the core keywords to ' +
+        'search for, and, only if clearly stated or strongly implied: a category, minimum ' +
+        'price, and maximum price (in Tanzanian Shillings); fromCity and toCity for transport ' +
+        'queries; or, for any non-transport query (including "hub" and "business"), a generic ' +
+        'location (a city/town/neighborhood the user wants results from — for "hub" queries ' +
+        'this is the city whose Super Agent they want, for "business" queries this is where ' +
+        'they want an authorized business). Also extract a brand/manufacturer name whenever ' +
+        'one is clearly mentioned, for ANY domain (not only "business") — e.g. "LG phones in ' +
+        'Mwanza" is still domain "product" but should still set brand "LG". Expand common city ' +
+        'shorthand to the full name (e.g. "Dar" -> "Dar es Salaam"). Omit fields that are not ' +
+        'present in the query rather than guessing.\n\n' +
         'Tanzanian price shorthand — convert these into numeric TZS: "120k" → 120000, ' +
         '"laki moja" → 100000 (laki = hundred-thousand), "elfu hamsini" → 50000 (elfu = ' +
         'thousand), "nusu laki" → 50000. A bare amount with no explicit range word (e.g. ' +
@@ -196,15 +205,15 @@ export class AiPromptTemplateService {
         '"Mwanza". Do not populate location when no place is mentioned.\n\n' +
         `For "product" or "classified" queries, category MUST be exactly one of these keys ` +
         `if you set it at all (pick the closest match, or omit it if nothing fits): ` +
-        `${CATEGORY_LIST}. For "service", "transport", "hub", or "people" queries, always ` +
-        'omit category — those parts of the marketplace use a different classification and ' +
-        'category here would be meaningless.',
+        `${CATEGORY_LIST}. For "service", "transport", "hub", "people", or "business" queries, ` +
+        'always omit category — those parts of the marketplace use a different classification ' +
+        'and category here would be meaningless.',
       schema: {
         type: 'object',
         properties: {
           domain: {
             type: 'string',
-            enum: ['product', 'classified', 'service', 'transport', 'hub', 'people', 'all'],
+            enum: ['product', 'classified', 'service', 'transport', 'hub', 'people', 'business', 'all'],
           },
           keywords: { type: 'string' },
           category: { type: ['string', 'null'] },
@@ -213,6 +222,7 @@ export class AiPromptTemplateService {
           fromCity: { type: ['string', 'null'] },
           toCity: { type: ['string', 'null'] },
           location: { type: ['string', 'null'] },
+          brand: { type: ['string', 'null'] },
         },
         required: ['domain', 'keywords'],
         additionalProperties: false,

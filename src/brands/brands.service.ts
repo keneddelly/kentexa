@@ -53,6 +53,18 @@ export class BrandsService {
       .getMany();
   }
 
+  // Resolves an AI-parsed free-text brand guess ("LG") into a real Brand
+  // row — reuses search()'s own case-insensitive match rather than a
+  // second query shape, just takes the first hit. Deliberately not fuzzy/
+  // typo-tolerant. Never null-throws — callers (ProductsService.search(),
+  // the /brands/authorized-businesses endpoint) treat "didn't resolve" as
+  // a normal, fail-open case, not an error.
+  async findByName(name: string): Promise<Brand | null> {
+    if (!name?.trim()) return null;
+    const matches = await this.search(name);
+    return matches[0] ?? null;
+  }
+
   async create(dto: {
     name: string;
     legalName?: string;

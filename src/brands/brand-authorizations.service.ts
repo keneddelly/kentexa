@@ -302,17 +302,84 @@ export class BrandAuthorizationsService {
       relations: { brand: true, distributor: true },
     });
 
-    const now = Date.now();
-    const active = candidates.find((row) => {
-      if (row.expiresAt && new Date(row.expiresAt).getTime() <= now) return false;
-      if (row.categoryScope && opts.category && row.categoryScope !== opts.category) return false;
-      if (row.modelScope?.length && opts.model && !row.modelScope.includes(opts.model)) return false;
-      if (row.geographicScope?.length && opts.city && !row.geographicScope.includes(opts.city)) return false;
-      return true;
-    });
+    const active = candidates.find((row) => this.isRowCurrentlyActive(row, opts));
 
     if (active) return { badge: 'brand_authorized', authorization: active };
     return { badge: kentexaVerified, authorization: null };
+  }
+
+  // Shared by getBadgeStatus() (one profile, is it authorized) and
+  // findAuthorizedBusinesses() below (one brand, which profiles are
+  // authorized) — same validity rule either way: APPROVED status is
+  // necessary but not sufficient, since expiresAt/categoryScope/
+  // modelScope/geographicScope can each independently disqualify a row
+  // that's technically still marked APPROVED (the daily cron sweep hasn't
+  // caught an overdue expiry yet, or the caller is asking about a
+  // category/model/city outside this row's own scope).
+  private isRowCurrentlyActive(
+    row: BusinessBrandAuthorization,
+    opts: { category?: string; model?: string; city?: string } = {},
+  ): boolean {
+    if (row.expiresAt && new Date(row.expiresAt).getTime() <= Date.now()) return false;
+    if (row.categoryScope && opts.category && row.categoryScope !== opts.category) return false;
+    if (row.modelScope?.length && opts.model && !row.modelScope.includes(opts.model)) return false;
+    if (row.geographicScope?.length && opts.city && !row.geographicScope.includes(opts.city)) return false;
+    return true;
+  }
+
+  // The inverse of getBadgeStatus(): given a brand, which businesses are
+  // currently authorized to sell it (optionally narrowed to a city)? Pure
+  // Layer 2 aggregation — an AI query only ever decides THAT this should
+  // run and extracts brand/city; it never fabricates or ranks the list
+  // itself (see search.controller.ts's AI "front door" and Search.js's
+  // 'business' domain branch). Deduplicates by commerceProfileId since a
+  // single business can hold more than one authorization row for the same
+  // brand (e.g. one per distributor).
+  async findAuthorizedBusinesses(
+    brandId: number,
+    opts: { city?: string } = {},
+  ): Promise<
+    Array<{
+      commerceProfileId: number;
+      ownerId: number;
+      displayName: string;
+      photoUrl: string | null;
+      location: string | null;
+      isVerified: boolean;
+      coverage: string[] | null;
+    }>
+  > {
+    const candidates = await this.repo.find({
+      where: { brand: { id: brandId }, status: BrandAuthorizationStatus.APPROVED },
+    });
+    const active = candidates.filter((row) => this.isRowCurrentlyActive(row, opts));
+
+    const seen = new Set<number>();
+    const results: Array<{
+      commerceProfileId: number;
+      ownerId: number;
+      displayName: string;
+      photoUrl: string | null;
+      location: string | null;
+      isVerified: boolean;
+      coverage: string[] | null;
+    }> = [];
+    for (const row of active) {
+      if (seen.has(row.commerceProfileId)) continue;
+      seen.add(row.commerceProfileId);
+      const profile = await this.profileRepo.findOne({ where: { id: row.commerceProfileId } });
+      if (!profile) continue;
+      results.push({
+        commerceProfileId: profile.id,
+        ownerId: profile.ownerId,
+        displayName: profile.displayName,
+        photoUrl: profile.photoUrl,
+        location: profile.location,
+        isVerified: profile.isVerified,
+        coverage: row.geographicScope,
+      });
+    }
+    return results;
   }
 
   // ── Daily sweep: flip overdue APPROVED rows to EXPIRED, notify. Same

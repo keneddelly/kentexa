@@ -176,6 +176,13 @@ export class ProductsService {
       maxPrice?: number | null;
       location?: string | null;
       attributes?: Record<string, string> | null;
+      // AI-parsed free-text brand guess (spec §23) — resolved to a real
+      // Brand row below via BrandsService.findByName() before it's ever
+      // used as a filter. A name that doesn't resolve is silently
+      // ignored, never a hard error — this must never break plain
+      // keyword search just because the AI guessed a brand that isn't in
+      // Kentexa's own Brand table.
+      brand?: string | null;
     },
   ) {
     const qb = this.repo
@@ -225,6 +232,12 @@ export class ProductsService {
       qb.andWhere('LOWER(p.sellerCity) LIKE :location', {
         location: `%${filters.location.toLowerCase()}%`,
       });
+    }
+    if (filters?.brand) {
+      const resolvedBrand = await this.brands.findByName(filters.brand).catch(() => null);
+      if (resolvedBrand) {
+        qb.andWhere('p.brandId = :brandId', { brandId: resolvedBrand.id });
+      }
     }
     // Structured attribute filtering (e.g. attr_color=Black) against the
     // existing `specs` JSONB column — no schema change. Multiselect values

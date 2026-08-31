@@ -12,6 +12,7 @@ export type SearchDomain =
   | 'transport'
   | 'people'
   | 'hub'
+  | 'business'
   | 'all';
 
 export interface ParsedSearchQuery {
@@ -26,6 +27,12 @@ export interface ParsedSearchQuery {
   // from fromCity/toCity, which stay transport-route-specific. "kinasa
   // sauti Mwanza" / "spy camera Keko" populate this, not fromCity/toCity.
   location?: string | null;
+  // A brand/manufacturer name mentioned in the query, for ANY domain —
+  // e.g. "LG phones in Mwanza" stays domain 'product' but still sets this.
+  // Free text; resolving it to a real Brand row (never trusting it as a
+  // literal match against product listings) is the caller's job — see
+  // BrandsService.findByName() / ProductsService.search().
+  brand?: string | null;
 }
 
 // Shared by ProductsModule and ClassifiedsModule — has no feature-specific
