@@ -6,6 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Brand } from './entities/brand.entity';
+import {
+  CommerceProfile,
+  CommerceProfileType,
+} from '../commerce-profiles/entities/commerce-profile.entity';
 
 function slugify(name: string): string {
   return name
@@ -19,6 +23,7 @@ function slugify(name: string): string {
 export class BrandsService {
   constructor(
     @InjectRepository(Brand) private repo: Repository<Brand>,
+    @InjectRepository(CommerceProfile) private profileRepo: Repository<CommerceProfile>,
   ) {}
 
   // Public — feeds the product-creation brand picker and storefront
@@ -104,5 +109,36 @@ export class BrandsService {
     const brand = await this.findOne(id);
     brand.verificationStatus = status;
     return this.repo.save(brand);
+  }
+
+  // ── Brand identity (Phase C) — always admin-provisioned, never self-
+  // registered, same trust-bearing-identity gating already used for HUB/
+  // AGENT/TRANSPORT_PROVIDER. Idempotent: a brand only ever has one
+  // CommerceProfile, so calling this again just reassigns the owner
+  // rather than creating a second one. ────────────────────────────────
+  async createOrReassignProfile(brandId: number, userId: number): Promise<CommerceProfile> {
+    const brand = await this.findOne(brandId);
+
+    const existing = await this.profileRepo.findOne({ where: { brandId } });
+    if (existing) {
+      existing.ownerId = userId;
+      return this.profileRepo.save(existing);
+    }
+
+    let username = brand.slug;
+    let suffix = 1;
+    while (await this.profileRepo.findOne({ where: { username } })) {
+      username = `${brand.slug}-${++suffix}`;
+    }
+
+    const profile = this.profileRepo.create({
+      ownerId: userId,
+      type: CommerceProfileType.BRAND,
+      username,
+      displayName: brand.name,
+      photoUrl: brand.logoUrl,
+      brandId: brand.id,
+    });
+    return this.profileRepo.save(profile);
   }
 }

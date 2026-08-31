@@ -36,6 +36,7 @@ const emojiIcon = (emoji) => (active) => (
 const PROFILE_TYPE_ICON = {
   personal: '👤', business: '🏪', hub: '🏢',
   transport_provider: '🚌', agent: '🏍️', service_provider: '🔧',
+  brand: '🏷️',
 };
 
 // Position 1 is fixed to Home (discovery, every type). Position 2 is that
@@ -102,6 +103,15 @@ const TYPE_TABS = (t) => {
       second: { page: 'MyServices', icon: emojiIcon('🔧'), label: t('bottom_nav.my_services') },
       // Was Activity — same reasoning as `personal` above (Home's own bell
       // icon already covers notifications).
+      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
+    },
+    // Brand & Authorization Network Phase C — always admin-provisioned
+    // (BrandsService.createOrReassignProfile()), never self-registered.
+    // Read-only visibility for now (see BrandDashboard.js) — same
+    // Inbox-earns-the-slot reasoning as the other identity types above.
+    brand: {
+      first,
+      second: { page: 'BrandDashboard', icon: emojiIcon('🏷️'), label: t('bottom_nav.dashboard') },
       fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
     },
   };

@@ -690,6 +690,22 @@
     "earnings": "Revenus",
     "my_services": "Mes Services"
   },
+  "brand_dashboard": {
+    "title": "Tableau de Bord de la Marque",
+    "loading": "Chargement de l'activité de la marque...",
+    "load_failed": "Échec du chargement de l'activité de la marque",
+    "authorized_businesses_section": "Entreprises Autorisées",
+    "total_label": "Total",
+    "active_label": "Actives",
+    "pending_label": "En attente",
+    "suspended_label": "Suspendues",
+    "coverage_section": "Couverture",
+    "no_cities": "Aucune autorisation approuvée avec une zone définie pour l'instant",
+    "commerce_section": "Commerce",
+    "products_label": "Produits",
+    "orders_label": "Commandes",
+    "revenue_label": "Revenu"
+  },
   "profile_switcher": {
     "title": "Changer de profil",
     "type_personal": "Personnel",
@@ -1201,6 +1217,8 @@
     "hub_dashboard_label": "Tableau de Bord du Hub",
     "hub_parcels_label2": "Colis du Hub",
     "arrange_transport_label": "Organiser le Transport",
+    "brand_dashboard_label": "Tableau de Bord de la Marque",
+    "brand_dashboard_sub": "Entreprises autorisées et couverture",
     "routes_dashboard_label": "Tableau de Bord des Itinéraires",
     "my_routes_label": "Mes Itinéraires",
     "cargo_orders_label": "Commandes de Fret",

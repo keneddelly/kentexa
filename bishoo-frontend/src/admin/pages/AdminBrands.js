@@ -18,6 +18,8 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
   const [showDistForm, setShowDistForm] = useState(false);
   const [distForm, setDistForm] = useState(EMPTY_DISTRIBUTOR);
   const [saving, setSaving] = useState(false);
+  const [ownerBrand, setOwnerBrand] = useState(null); // brand row currently assigning an owner for
+  const [ownerUserId, setOwnerUserId] = useState('');
 
   const fetchAll = async () => {
     try {
@@ -67,6 +69,18 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
       await api.patch(`/brands/${brand.id}/verify`, { status: brand.verificationStatus === 'verified' ? 'unverified' : 'verified' });
       fetchAll();
     } catch { showErr('Failed to update verification'); }
+  };
+
+  const assignOwner = async () => {
+    const userId = parseInt(ownerUserId, 10);
+    if (!userId) { showErr('Enter a valid user ID'); return; }
+    try {
+      setSaving(true);
+      await api.post(`/brands/${ownerBrand.id}/assign-owner`, { userId });
+      showMsg(`✅ Brand identity assigned to user #${userId}`);
+      setOwnerBrand(null); setOwnerUserId('');
+    } catch (err) { showErr(err?.response?.data?.message || 'Failed to assign owner'); }
+    finally { setSaving(false); }
   };
 
   const createDistributor = async () => {
@@ -150,6 +164,10 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
                         style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                         {b.isActive ? 'Deactivate' : 'Activate'}
                       </button>
+                      <button onClick={() => { setOwnerBrand(b); setOwnerUserId(''); }}
+                        style={{ backgroundColor: '#f5f3ff', color: '#7c3aed', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+                        Assign Owner
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -215,6 +233,25 @@ const AdminBrands = ({ activePage, onNavigate, onLogout }) => {
               <button onClick={createDistributor} disabled={saving}
                 style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', backgroundColor: '#1d4ed8', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
                 {saving ? 'Saving...' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {ownerBrand && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 24, width: 420 }}>
+            <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 800 }}>Assign Brand Owner</h3>
+            <p style={{ margin: '0 0 16px', fontSize: 12, color: '#64748b' }}>
+              Grants a Kentexa user a "{ownerBrand.name}" brand identity (creates or reassigns its CommerceProfile). This is how a brand's own dashboard access is provisioned — no self-service signup.
+            </p>
+            <input placeholder="User ID *" type="number" value={ownerUserId} onChange={e => setOwnerUserId(e.target.value)} style={inputStyle} />
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button onClick={() => { setOwnerBrand(null); setOwnerUserId(''); }}
+                style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'pointer', fontWeight: 700 }}>Cancel</button>
+              <button onClick={assignOwner} disabled={saving}
+                style={{ flex: 1, padding: 12, borderRadius: 8, border: 'none', backgroundColor: '#7c3aed', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
+                {saving ? 'Assigning...' : 'Assign'}
               </button>
             </div>
           </div>

@@ -14,10 +14,18 @@ import { DistributorsService } from './distributors.service';
 import { DistributorsController } from './distributors.controller';
 import { BrandAuthorizationsService } from './brand-authorizations.service';
 import { BrandAuthorizationsController } from './brand-authorizations.controller';
+import { BrandDashboardService } from './brand-dashboard.service';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SmsModule } from '../sms/sms.module';
 import { ActivityModule } from '../activity/activity.module';
+// Repo-only — NOT importing ProductsModule/OrdersModule (both already
+// import/reference this module or its entities the other direction; see
+// OrdersModule's own identical repo-only Brand registration) — the
+// dashboard only ever needs COUNT/SUM aggregates, never the services'
+// business logic.
+import { Product } from '../products/entities/products.entity';
+import { Order } from '../orders/entities/order.entity';
 
 // ── Kentexa Brand & Authorization Network — Phase A ─────────────────────────
 //
@@ -49,6 +57,8 @@ import { ActivityModule } from '../activity/activity.module';
       BrandAuthorizationAuditLog,
       CommerceProfile,
       User,
+      Product,
+      Order,
     ]),
     CommerceProfilesModule,
     NotificationsModule,
@@ -56,7 +66,7 @@ import { ActivityModule } from '../activity/activity.module';
     ActivityModule,
   ],
   controllers: [BrandsController, DistributorsController, BrandAuthorizationsController],
-  providers: [BrandsService, DistributorsService, BrandAuthorizationsService],
+  providers: [BrandsService, DistributorsService, BrandAuthorizationsService, BrandDashboardService],
   exports: [BrandsService, BrandAuthorizationsService],
 })
 export class BrandsModule {}

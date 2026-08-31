@@ -63,6 +63,7 @@ import Search from './public/pages/Search';
 import VerifyReceipt from './public/pages/VerifyReceipt';
 import SellerProducts from './public/pages/SellerProducts';
 import MyBrands from './public/pages/MyBrands';
+import BrandDashboard from './public/pages/BrandDashboard';
 import POS from './public/pages/POS';
 import SellerClassifieds from './public/pages/SellerClassifieds';
 import SellerOrders from './public/pages/SellerOrders';
@@ -732,6 +733,7 @@ function App() {
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
       case 'SellerProducts':    return requireVerifiedSeller(<SellerProducts {...publicProps} />);
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
+      case 'BrandDashboard':    return requireLogin(<BrandDashboard {...publicProps} />);
       case 'POS':               return requireVerifiedSeller(<POS {...publicProps} />);
       case 'SellerClassifieds': return requireVerifiedSeller(<SellerClassifieds {...publicProps} />);
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);

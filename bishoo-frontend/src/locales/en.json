@@ -694,6 +694,22 @@
     "earnings": "Earnings",
     "my_services": "My Services"
   },
+  "brand_dashboard": {
+    "title": "Brand Dashboard",
+    "loading": "Loading brand activity...",
+    "load_failed": "Couldn't load brand activity",
+    "authorized_businesses_section": "Authorized Businesses",
+    "total_label": "Total",
+    "active_label": "Active",
+    "pending_label": "Pending",
+    "suspended_label": "Suspended",
+    "coverage_section": "Coverage",
+    "no_cities": "No approved authorizations with a set location yet",
+    "commerce_section": "Commerce",
+    "products_label": "Products",
+    "orders_label": "Orders",
+    "revenue_label": "Revenue"
+  },
   "profile_switcher": {
     "title": "Switch profile",
     "type_personal": "Personal",
@@ -1205,6 +1221,8 @@
     "hub_dashboard_label": "Hub Dashboard",
     "hub_parcels_label2": "Hub Parcels",
     "arrange_transport_label": "Arrange Transport",
+    "brand_dashboard_label": "Brand Dashboard",
+    "brand_dashboard_sub": "Authorized businesses & coverage",
     "routes_dashboard_label": "Routes Dashboard",
     "my_routes_label": "My Routes",
     "cargo_orders_label": "Cargo Orders",

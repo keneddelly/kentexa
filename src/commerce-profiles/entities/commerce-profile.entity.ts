@@ -24,6 +24,10 @@ export enum CommerceProfileType {
   AGENT = 'agent',
   TRANSPORT_PROVIDER = 'transport_provider',
   HUB = 'hub',
+  // A brand's own identity (src/brands/) — always admin-provisioned (see
+  // BrandsService.createOrReassignProfile()), never self-registered, same
+  // trust-bearing-identity gating as HUB/AGENT/TRANSPORT_PROVIDER.
+  BRAND = 'brand',
 }
 
 export enum CommerceProfileStatus {
@@ -129,6 +133,9 @@ export class CommerceProfile {
 
   @Column({ type: 'int', nullable: true })
   superAgentId: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  brandId: number | null;
 
   @CreateDateColumn()
   createdAt: Date;

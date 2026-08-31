@@ -540,6 +540,22 @@
     "earnings": "Mapato",
     "my_services": "Huduma Zangu"
   },
+  "brand_dashboard": {
+    "title": "Dashibodi ya Chapa",
+    "loading": "Inapakia shughuli za chapa...",
+    "load_failed": "Imeshindwa kupakia shughuli za chapa",
+    "authorized_businesses_section": "Biashara Zilizoidhinishwa",
+    "total_label": "Jumla",
+    "active_label": "Zinazofanya kazi",
+    "pending_label": "Zinazosubiri",
+    "suspended_label": "Zilizosimamishwa",
+    "coverage_section": "Maeneo",
+    "no_cities": "Hakuna uidhinishaji ulioidhinishwa wenye eneo bado",
+    "commerce_section": "Biashara",
+    "products_label": "Bidhaa",
+    "orders_label": "Maagizo",
+    "revenue_label": "Mapato"
+  },
   "profile_switcher": {
     "title": "Badilisha wasifu",
     "type_personal": "Binafsi",
@@ -1051,6 +1067,8 @@
     "hub_dashboard_label": "Hub Dashboard",
     "hub_parcels_label2": "Vifurushi vya Hub",
     "arrange_transport_label": "Panga Transport",
+    "brand_dashboard_label": "Dashibodi ya Chapa",
+    "brand_dashboard_sub": "Biashara zilizoidhinishwa na maeneo",
     "routes_dashboard_label": "Dashibodi ya Routes",
     "my_routes_label": "Njia Zangu",
     "cargo_orders_label": "Orders ya Mizigo",
