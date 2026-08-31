@@ -30,7 +30,8 @@ import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { BrandAuthorizationsService } from '../brands/brand-authorizations.service';
 import { BrandsService } from '../brands/brands.service';
-import { validateAttributes } from '../categories/categories.data';
+import { validateAttributes, validateVariantAttributes } from '../categories/categories.data';
+import { ProductVariantGroup } from './entities/product-variant-group.entity';
 
 @Injectable()
 export class ProductsService {
@@ -49,6 +50,9 @@ export class ProductsService {
 
     @InjectRepository(DigitalProductAsset)
     private digitalAssetRepo: Repository<DigitalProductAsset>,
+
+    @InjectRepository(ProductVariantGroup)
+    private variantGroupRepo: Repository<ProductVariantGroup>,
 
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
@@ -279,10 +283,74 @@ export class ProductsService {
       ? await this.brands.findOne(product.brandId).catch(() => null)
       : null;
 
+    // ── Variants (Phase B) — sibling Product rows sharing this row's
+    // variantGroupId, minimal fields only (this is a picker, not a full
+    // product page). Never includes itself. ─────────────────────────────
+    const variantGroupId = (product as any).variantGroupId as number | null;
+    const variants = variantGroupId
+      ? (
+          await this.repo.find({
+            where: { variantGroupId },
+            order: { id: 'ASC' },
+          })
+        )
+          .filter((v) => v.id !== product.id)
+          .map((v) => ({
+            id: v.id,
+            variantAttributes: v.variantAttributes,
+            basePrice: v.basePrice,
+            displayPrice: v.displayPrice,
+            stock: v.stock,
+            image: v.images?.[0] || null,
+            isAvailable: v.isAvailable,
+          }))
+      : [];
+
+    // ── Other sellers' offers on the same official catalog item (Phase B,
+    // spec §21-22's "compare offers") — never includes this row's own
+    // seller. Resolved per-row rather than batched: officialProductId is
+    // rare today (brand-managed catalog is admin-only, Phase A/B), so the
+    // extra profile lookups are never more than a handful. ──────────────
+    const officialProductId = (product as any).officialProductId as number | null;
+    let otherOffers: any[] = [];
+    if (officialProductId) {
+      const others = await this.repo.find({
+        where: { officialProductId },
+        relations: { seller: true },
+        order: { basePrice: 'ASC' },
+      });
+      otherOffers = (
+        await Promise.all(
+          others
+            .filter((o) => o.id !== product.id)
+            .map(async (o) => {
+              const offerProfile = o.commerceProfileId
+                ? await this.commerceProfiles.findById(o.commerceProfileId).catch(() => null)
+                : o.seller
+                  ? await this.commerceProfiles
+                      .findForUserByType(o.seller.id, CommerceProfileType.BUSINESS)
+                      .catch(() => null)
+                  : null;
+              return {
+                productId: o.id,
+                commerceProfile: offerProfile
+                  ? { id: offerProfile.id, displayName: offerProfile.displayName, photoUrl: offerProfile.photoUrl, rating: offerProfile.rating }
+                  : null,
+                basePrice: o.basePrice,
+                displayPrice: o.displayPrice,
+                stock: o.stock,
+              };
+            }),
+        )
+      );
+    }
+
     return {
       ...product,
       brandAuthorizationBadge,
       brand: brand ? { id: brand.id, name: brand.name, logoUrl: brand.logoUrl } : null,
+      variants,
+      otherOffers,
       commerceProfile: commerceProfile
         ? {
             id: commerceProfile.id,
@@ -489,6 +557,7 @@ export class ProductsService {
       subcategory: dto.subcategory || null,
       model: dto.model || null,
       brandId: dto.brandId ?? null,
+      officialProductId: dto.officialProductId ?? null,
       specs: dto.specs || null,
       features: dto.features || null,
       images: dto.images || [],
@@ -554,6 +623,114 @@ export class ProductsService {
         })
         .catch(() => {});
     }
+
+    this.searchIndex
+      .upsert('product', saved.id, [saved.name, saved.description, saved.category].filter(Boolean).join(' \n '))
+      .catch(() => {});
+
+    return saved;
+  }
+
+  // ── Variants (Phase B) ────────────────────────────────────────────────────
+  // A variant is just another independent Product row (own price/stock/
+  // images, own inventory-movement ledger) sharing a variantGroupId with
+  // its siblings — see products.entity.ts's own comment on why this was
+  // never a restructure of Product. Shared fields (name/category/brand/
+  // shipping) are inherited from the source product server-side; the
+  // caller only has to supply what actually differs.
+  async createVariant(
+    sourceProductId: number,
+    dto: {
+      variantAttributes: Record<string, string>;
+      basePrice?: number;
+      deliveryFee?: number;
+      stock?: number;
+      images?: string[];
+      sku?: string;
+      barcode?: string;
+      costPrice?: number;
+      minStockThreshold?: number;
+      specs?: Record<string, string>;
+    },
+    user: User,
+  ): Promise<Product> {
+    const source = await this.findOne(sourceProductId);
+    if (user.role !== UserRole.ADMIN) {
+      if (!source.seller || source.seller.id !== user.id) {
+        throw new ForbiddenException('You can only add variants to your own products');
+      }
+    }
+
+    const attrErrors = validateVariantAttributes(
+      source.category || 'general',
+      source.subcategory,
+      dto.variantAttributes,
+    );
+    if (attrErrors.length) {
+      throw new BadRequestException(attrErrors.join('; '));
+    }
+
+    // Create-if-missing, same idempotent pattern
+    // SuperAgentsService.createParcelForOrder() already uses — the FIRST
+    // variant created against a plain product retroactively backfills a
+    // group onto that original product too, so it joins its own variant's
+    // group instead of staying an orphan the picker never shows.
+    let variantGroupId = (source as any).variantGroupId as number | null;
+    if (!variantGroupId) {
+      const group = await this.variantGroupRepo.save(
+        this.variantGroupRepo.create({
+          name: source.name,
+          brandId: (source as any).brandId ?? null,
+          officialProductId: (source as any).officialProductId ?? null,
+          category: source.category || 'general',
+          subcategory: source.subcategory ?? null,
+        }),
+      );
+      variantGroupId = group.id;
+      await this.repo.update(sourceProductId, { variantGroupId });
+    }
+
+    const basePrice = dto.basePrice !== undefined ? Number(dto.basePrice) : Number(source.basePrice);
+    const deliveryFee = dto.deliveryFee !== undefined ? Number(dto.deliveryFee) : Number(source.deliveryFee);
+
+    const variant = this.repo.create({
+      name: source.name,
+      description: source.description,
+      basePrice,
+      deliveryFee,
+      displayPrice: basePrice + deliveryFee,
+      stock: dto.stock ?? 0,
+      productType: source.productType,
+      category: source.category,
+      subcategory: source.subcategory,
+      model: source.model,
+      brandId: (source as any).brandId ?? null,
+      officialProductId: (source as any).officialProductId ?? null,
+      variantGroupId,
+      variantAttributes: dto.variantAttributes,
+      specs: dto.specs ?? source.specs,
+      features: source.features,
+      images: dto.images ?? [],
+      isAvailable: true,
+      isActive: true,
+      shippingMethod: source.shippingMethod,
+      estimatedDelivery: source.estimatedDelivery,
+      shippingNotes: source.shippingNotes,
+      weightKg: source.weightKg,
+      bodaFee: Number(source.bodaFee || 0),
+      sellerCity: source.sellerCity,
+      seller: source.seller,
+      commerceProfileId: (source as any).commerceProfileId ?? null,
+      sku: dto.sku || null,
+      barcode: dto.barcode || null,
+      costPrice: dto.costPrice ?? null,
+      minStockThreshold: dto.minStockThreshold || 0,
+      availableOnline: source.availableOnline,
+      availableInStore: source.availableInStore,
+      codEnabled: source.codEnabled,
+    } as any);
+
+    const saved = (await this.repo.save(variant)) as unknown as Product;
 
     this.searchIndex
       .upsert('product', saved.id, [saved.name, saved.description, saved.category].filter(Boolean).join(' \n '))

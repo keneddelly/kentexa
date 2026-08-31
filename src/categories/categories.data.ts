@@ -745,3 +745,52 @@ export function validateAttributes(
   }
   return errors;
 }
+
+// ── Product Variants (Phase B) ──────────────────────────────────────────────
+// Which of a category's attributes are legitimate variant axes (Color,
+// Size, Storage, ...) — the isVariantAttribute flag was added back in the
+// 2026-08-28 category-aware product creation pass specifically to mark
+// these ahead of this phase, so no new schema is needed here.
+export function getVariantAttributeDefs(
+  categoryKey: string,
+  subcategoryKey: string | null | undefined,
+): AttributeDef[] {
+  const cat = CATEGORIES[categoryKey];
+  if (!cat) return [];
+  const sub = subcategoryKey ? cat.subcategories[subcategoryKey] : undefined;
+  return (sub?.attributes || []).filter((a) => a.isVariantAttribute);
+}
+
+// A variant picks exactly ONE value per axis (e.g. "White", not
+// "White,Black" — that multiselect shape is for a single listing
+// describing everything it comes in, the opposite of what a real variant
+// row means), so allowedValues is checked as a single value regardless of
+// the attribute's own declared `type`. Requires at least one recognized
+// variant key — an empty variantAttributes object isn't a real variant.
+export function validateVariantAttributes(
+  categoryKey: string,
+  subcategoryKey: string | null | undefined,
+  variantAttributes: Record<string, string> | null | undefined,
+): string[] {
+  const defs = getVariantAttributeDefs(categoryKey, subcategoryKey);
+  const defByKey = new Map(defs.map((d) => [d.key, d]));
+  const entries = Object.entries(variantAttributes || {}).filter(([, v]) => String(v || '').trim());
+  const errors: string[] = [];
+
+  if (entries.length === 0) {
+    errors.push('At least one variant attribute (e.g. Color or Size) is required');
+    return errors;
+  }
+
+  for (const [key, value] of entries) {
+    const def = defByKey.get(key);
+    if (!def) {
+      errors.push(`"${key}" is not a variant attribute for this category`);
+      continue;
+    }
+    if (def.allowedValues?.length && !def.allowedValues.includes(String(value))) {
+      errors.push(`${def.label}: "${value}" is not a valid option`);
+    }
+  }
+  return errors;
+}

@@ -307,6 +307,26 @@ export class ProductsController {
     } as User);
   }
 
+  // Adds a real variant (own price/stock/images) linked to :id's product,
+  // e.g. the same shirt in a different color — see products.entity.ts's
+  // own comment on why this is a new Product row, not a restructure.
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/variants')
+  async createVariant(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: any,
+    @Request() req,
+  ) {
+    const sellerId = await this.sellerScope.resolve(
+      req.user,
+      'canManageProducts',
+    );
+    return this.service.createVariant(id, dto, {
+      id: sellerId,
+      role: req.user.role,
+    } as User);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {

@@ -432,6 +432,32 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                   ✓ {t('product_detail.kentexa_verified_badge')}
                 </div>
               )}
+              {/* Variant picker (src/products/ Phase B) — each variant is
+                  still its own real Product id/page (own price/stock),
+                  never a client-side swap — see products.entity.ts's own
+                  comment on why. */}
+              {product.variants?.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase' }}>
+                    {t('product_detail.variants_label')}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ padding: '8px 12px', borderRadius: 8, border: '2px solid #1d4ed8', backgroundColor: '#eff6ff', fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
+                      {Object.values(product.variantAttributes || {}).join(' / ') || t('product_detail.this_option')}
+                    </div>
+                    {product.variants.map(v => (
+                      <button key={v.id} onClick={() => onNavigate(`ProductDetail-${v.id}`)}
+                        disabled={!v.isAvailable || v.stock <= 0}
+                        style={{ padding: '8px 12px', borderRadius: 8, border: '2px solid #e2e8f0',
+                          backgroundColor: (!v.isAvailable || v.stock <= 0) ? '#f8fafc' : '#fff',
+                          cursor: (!v.isAvailable || v.stock <= 0) ? 'not-allowed' : 'pointer',
+                          fontSize: 12, fontWeight: 700, color: (!v.isAvailable || v.stock <= 0) ? '#cbd5e1' : '#475569' }}>
+                        {Object.values(v.variantAttributes || {}).join(' / ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <SocialProofBadge viewsToday={product.viewsToday} salesCount={product.salesCount} createdAt={product.createdAt} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <Stars rating={avgRating || sellerRating} />
@@ -443,6 +469,32 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                 <span style={{ fontSize: 26, fontWeight: 900, color: '#1d4ed8' }}>TZS {displayPrice.toLocaleString()}</span>
                 {discount > 0 && <span style={{ fontSize: 13, color: '#94a3b8', textDecoration: 'line-through' }}>TZS {originalPrice.toLocaleString()}</span>}
               </div>
+
+              {/* Compare offers (src/products/ Phase B, spec §21-22) — other
+                  sellers' Product rows linked to the same officialProductId.
+                  Each is its own real listing/page; picking one is just a
+                  normal navigation, no cart/checkout logic changes. */}
+              {product.otherOffers?.length > 0 && (
+                <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase' }}>
+                    {t('product_detail.other_offers_label', { count: product.otherOffers.length })}
+                  </div>
+                  {product.otherOffers.map(offer => (
+                    <div key={offer.productId} onClick={() => onNavigate(`ProductDetail-${offer.productId}`)}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                        {offer.commerceProfile?.photoUrl && (
+                          <img src={offer.commerceProfile.photoUrl} alt="" style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }} />
+                        )}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {offer.commerceProfile?.displayName || t('product_detail.another_seller')}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 900, color: '#1d4ed8', flexShrink: 0 }}>TZS {Number(offer.displayPrice || offer.basePrice || 0).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                 <span style={{ backgroundColor: '#dcfce7', color: '#16a34a', padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 800 }}>🚚 {t('product_detail.free_delivery')}</span>
                 {product.estimatedDelivery && (

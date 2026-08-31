@@ -116,6 +116,30 @@ export class Product {
   @Column({ type: 'int', nullable: true })
   brandId: number | null;
 
+  // ── Variants (Phase B) ──────────────────────────────────────────────────
+  // Deliberately NOT a restructure of Product itself — a "variant" is just
+  // another independent Product row (own price/stock/images, same
+  // inventory-movement ledger as any other product) that happens to share
+  // a variantGroupId with its siblings. Keeps every existing consumer of
+  // Product (Order, Sale/POS, Inventory, Search, ...) completely
+  // unaffected. See src/products/entities/product-variant-group.entity.ts.
+  @Column({ type: 'int', nullable: true })
+  variantGroupId: number | null;
+
+  // e.g. { color: "White", size: "M" } — keys must be attributes flagged
+  // isVariantAttribute: true for this product's category (categories.data.ts
+  // getVariantAttributeDefs()/validateVariantAttributes()), never a
+  // separate ad-hoc naming scheme.
+  @Column({ type: 'jsonb', nullable: true })
+  variantAttributes: Record<string, string> | null;
+
+  // Optional link to the brand's own canonical catalog entry — when set,
+  // other sellers' Product rows sharing the same officialProductId are
+  // surfaced as otherOffers on this product's read (ProductsService.
+  // findOne()). See src/products/entities/official-product.entity.ts.
+  @Column({ type: 'int', nullable: true })
+  officialProductId: number | null;
+
   // ── Product Specs (JSON: { "Resolution": "1080P", "Battery": "2hrs" }) ──
   @Column({ type: 'json', nullable: true })
   specs: Record<string, string> | null;

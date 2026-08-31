@@ -138,6 +138,14 @@ export class CreateProductDto {
   @IsInt()
   brandId?: number;
 
+  // Optional link to the brand's own canonical catalog entry
+  // (src/products/entities/official-product.entity.ts) — never required.
+  // When set, other sellers' listings on the same official item are
+  // surfaced as otherOffers on this product's read.
+  @IsOptional()
+  @IsInt()
+  officialProductId?: number;
+
   // ── Unified inventory (BIS Local Shop POS) ──────────────────────────────
   @IsOptional()
   @IsString()

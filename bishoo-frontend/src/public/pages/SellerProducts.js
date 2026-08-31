@@ -33,7 +33,7 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', b
 
 const EMPTY_FORM = {
   name: '', description: '', basePrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
-  displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '', brandId: null,
+  displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '', brandId: null, officialProductId: null,
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
   sku: '', barcode: '', costPrice: '', minStockThreshold: '0',
   availableOnline: true, availableInStore: true, codEnabled: false,
@@ -72,6 +72,19 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   // conversation list already uses for its own per-row action menu.
   const [menuForProductId, setMenuForProductId] = useState(null);
 
+  // ── Add Variant (src/products/ Phase B) — a separate, minimal modal
+  // rather than reusing the big create-product form, since only a
+  // handful of fields ever differ between variants (the rest is
+  // inherited server-side from the source product — see
+  // ProductsService.createVariant()). ──────────────────────────────────
+  const [variantModalProduct, setVariantModalProduct] = useState(null);
+  const [variantAttrs, setVariantAttrs] = useState({});
+  const [variantBasePrice, setVariantBasePrice] = useState('');
+  const [variantStock, setVariantStock] = useState('');
+  const [variantImages, setVariantImages] = useState([]);
+  const [variantUploading, setVariantUploading] = useState(false);
+  const [variantSaving, setVariantSaving] = useState(false);
+
   // ── Brand picker (src/brands/) — optional, never blocks submission.
   // selectedBrand carries the name so the picker can show it without a
   // second lookup; brandBadge is the LIVE, server-computed authorization
@@ -81,6 +94,13 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [brandResults, setBrandResults] = useState([]);
   const [selectedBrand, setSelectedBrand] = useState(null);
   const [brandBadge, setBrandBadge] = useState(null);
+
+  // ── Official Product Catalog link (Phase B) — optional, lets a seller's
+  // listing be compared against other sellers' offers on the identical
+  // brand item (ProductsService.findOne()'s otherOffers).
+  const [officialProductQuery, setOfficialProductQuery] = useState('');
+  const [officialProductResults, setOfficialProductResults] = useState([]);
+  const [selectedOfficialProduct, setSelectedOfficialProduct] = useState(null);
 
   // Boda fee suggestions
   const [bodaSuggestions, setBodaSuggestions]   = useState([]);
@@ -171,6 +191,19 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     }, 250);
     return () => clearTimeout(handle);
   }, [brandQuery, selectedBrand]);
+
+  // Debounced official-product search — scoped to the chosen brand when
+  // one is selected, since an official catalog entry always belongs to
+  // exactly one brand.
+  useEffect(() => {
+    if (selectedOfficialProduct) return;
+    const handle = setTimeout(() => {
+      api.get('/official-products', { params: { search: officialProductQuery || undefined, brandId: selectedBrand?.id || undefined } })
+        .then(r => setOfficialProductResults(r.data || []))
+        .catch(() => setOfficialProductResults([]));
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [officialProductQuery, selectedOfficialProduct, selectedBrand]);
 
   // Live authorization-status hint — never trusted/derived client-side.
   // Refetches whenever the brand/category/model changes so the hint stays
@@ -334,6 +367,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     setShowForm(false); setEditProduct(null);
     setImagePreviews([]); setForm(EMPTY_FORM);
     setSelectedBrand(null); setBrandQuery(''); setBrandResults([]); setBrandBadge(null);
+    setSelectedOfficialProduct(null); setOfficialProductQuery(''); setOfficialProductResults([]);
     setFeatureInput(''); setShippingEstimate(null);
     setCategoryManuallySet(false); setCategorySuggested(false);
   };
@@ -370,6 +404,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         subcategory:  form.subcategory,
         model:        form.model,
         brandId:      form.brandId || undefined,
+        officialProductId: form.officialProductId || undefined,
         isAvailable:  form.isZipo,
         shippingMethod: form.shippingMethod,
         estimatedDelivery: form.estimatedDelivery,
@@ -468,6 +503,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       subcategory:  product.subcategory || '',
       model:        product.model || '',
       brandId:      product.brandId || null,
+      officialProductId: product.officialProductId || null,
       specs:        migratedSpecs,
       features:     product.features || [],
       images:       product.images || [],
@@ -495,6 +531,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     } else {
       setSelectedBrand(null);
     }
+    if (product.officialProductId) {
+      api.get(`/official-products/${product.officialProductId}`).then(r => setSelectedOfficialProduct(r.data)).catch(() => setSelectedOfficialProduct(null));
+    } else {
+      setSelectedOfficialProduct(null);
+    }
     setShowForm(true);
   };
 
@@ -510,6 +551,58 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       setMessage(!product.isZipo ? t('seller_products.marked_available') : t('seller_products.marked_unavailable'));
       fetchMyProducts();
     } catch { setError(t('seller_products.update_failed')); }
+  };
+
+  // ── Add Variant ──────────────────────────────────────────────────────────
+  const openVariantModal = (product) => {
+    setVariantModalProduct(product);
+    setVariantAttrs({});
+    setVariantBasePrice(String(product.basePrice || product.price || ''));
+    setVariantStock('');
+    setVariantImages([]);
+  };
+
+  const closeVariantModal = () => {
+    setVariantModalProduct(null);
+  };
+
+  const variantAttrFields = variantModalProduct
+    ? (CATEGORIES[variantModalProduct.category]?.subcategories?.[variantModalProduct.subcategory]?.attributes || []).filter(a => a.isVariantAttribute)
+    : [];
+
+  const handleVariantImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    try {
+      setVariantUploading(true);
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+      const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setVariantImages(prev => [...prev, ...res.data.urls]);
+    } catch { setError(t('seller_products.image_upload_failed')); }
+    finally { setVariantUploading(false); }
+  };
+
+  const handleCreateVariant = async () => {
+    if (!variantModalProduct) return;
+    if (!Object.values(variantAttrs).some(v => String(v || '').trim())) {
+      setError(t('seller_products.variant_attr_required'));
+      return;
+    }
+    try {
+      setVariantSaving(true);
+      await api.post(`/products/${variantModalProduct.id}/variants`, {
+        variantAttributes: variantAttrs,
+        basePrice: variantBasePrice ? Number(variantBasePrice) : undefined,
+        stock: variantStock ? Number(variantStock) : 0,
+        images: variantImages,
+      });
+      setMessage(t('seller_products.variant_created'));
+      closeVariantModal();
+      fetchMyProducts();
+    } catch (err) {
+      setError(err?.response?.data?.message || t('seller_products.variant_create_failed'));
+    } finally { setVariantSaving(false); }
   };
 
   const updatePrices = (field, value) => {
@@ -620,6 +713,10 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     <div onClick={() => { setMenuForProductId(null); handleEdit(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
                       {`✏️ ${t('seller_products.edit')}`}
+                    </div>
+                    <div onClick={() => { setMenuForProductId(null); openVariantModal(product); }}
+                      style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
+                      {`➕ ${t('seller_products.add_variant')}`}
                     </div>
                     <div onClick={() => { setMenuForProductId(null); handleToggleZipo(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: product.isZipo ? '#dc2626' : '#16a34a', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
@@ -773,6 +870,35 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               )}
               {selectedBrand && brandBadge !== 'brand_authorized' && (
                 <div style={{ marginTop: 6, fontSize: 12, color: '#94a3b8' }}>{t('seller_products.brand_not_authorized_hint')}</div>
+              )}
+            </div>
+
+            {/* Official Product Catalog link (src/products/ Phase B) —
+                optional; when linked, this listing shows up alongside
+                other sellers' offers on the same official item. */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={labelStyle}>{t('seller_products.official_product_label')}</label>
+              {selectedOfficialProduct ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', borderRadius: 10, border: '2px solid #e2e8f0' }}>
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>{selectedOfficialProduct.name}</span>
+                  <button type="button" onClick={() => { setSelectedOfficialProduct(null); setForm(f => ({ ...f, officialProductId: null })); }}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 16 }}>×</button>
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <input type="text" value={officialProductQuery} onChange={e => setOfficialProductQuery(e.target.value)}
+                    placeholder={t('seller_products.official_product_search_placeholder')} style={inputStyle} />
+                  {officialProductResults.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: 4, zIndex: 20, maxHeight: 200, overflowY: 'auto' }}>
+                      {officialProductResults.map(p => (
+                        <div key={p.id} onClick={() => { setSelectedOfficialProduct(p); setForm(f => ({ ...f, officialProductId: p.id })); setOfficialProductResults([]); setOfficialProductQuery(''); }}
+                          style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', fontSize: 13, fontWeight: 600 }}>
+                          {p.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1178,6 +1304,59 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           onClose={() => setShowVerifyIdentity(false)}
           onVerified={() => { setShowVerifyIdentity(false); handleSubmit(); }}
         />
+      )}
+
+      {/* ── ADD VARIANT MODAL ── */}
+      {variantModalProduct && (
+        <div onClick={closeVariantModal}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 2000 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ backgroundColor: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 900 }}>{t('seller_products.add_variant_title', { name: variantModalProduct.name })}</div>
+              <button onClick={closeVariantModal} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+
+            {variantAttrFields.length === 0 ? (
+              <div style={{ padding: 14, backgroundColor: '#fef9c3', borderRadius: 10, fontSize: 12, color: '#92400e', marginBottom: 14 }}>
+                {t('seller_products.no_variant_attrs')}
+              </div>
+            ) : (
+              variantAttrFields.map(attr => (
+                <div key={attr.key} style={{ marginBottom: 12 }}>
+                  <label style={labelStyle}>{attr.label}</label>
+                  {attr.allowedValues?.length ? (
+                    <select value={variantAttrs[attr.key] || ''} onChange={e => setVariantAttrs(prev => ({ ...prev, [attr.key]: e.target.value }))} style={inputStyle}>
+                      <option value="">{t('seller_products.select_placeholder')}</option>
+                      {attr.allowedValues.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  ) : (
+                    <input type="text" value={variantAttrs[attr.key] || ''} onChange={e => setVariantAttrs(prev => ({ ...prev, [attr.key]: e.target.value }))} style={inputStyle} />
+                  )}
+                </div>
+              ))
+            )}
+
+            <label style={labelStyle}>{t('seller_products.base_price')}</label>
+            <input type="number" value={variantBasePrice} onChange={e => setVariantBasePrice(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
+
+            <label style={labelStyle}>{t('seller_products.stock')}</label>
+            <input type="number" value={variantStock} onChange={e => setVariantStock(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
+
+            <label style={labelStyle}>{t('seller_products.photos')}</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              {variantImages.map((img, i) => (
+                <img key={i} src={img} alt="" style={{ width: 56, height: 56, borderRadius: 8, objectFit: 'cover' }} />
+              ))}
+            </div>
+            <input type="file" accept="image/*" multiple onChange={handleVariantImageUpload} style={{ marginBottom: 16, fontSize: 12 }} disabled={variantUploading} />
+
+            <button onClick={handleCreateVariant} disabled={variantSaving || variantUploading}
+              style={{ width: '100%', padding: 14, background: variantSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+              {variantSaving ? t('seller_products.please_wait') : `+ ${t('seller_products.create_variant_button')}`}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

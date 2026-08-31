@@ -89,6 +89,7 @@ import AdminServices from './admin/pages/Services';
 import IdentityVerifications from './admin/pages/IdentityVerifications';
 import AdminBrands from './admin/pages/AdminBrands';
 import AdminBrandAuthorizations from './admin/pages/AdminBrandAuthorizations';
+import OfficialProducts from './admin/pages/OfficialProducts';
 import Agents from './admin/pages/Agents';
 import SuperAgentDashboard from './public/pages/SuperAgentDashboard';
 import TrackParcel from './public/pages/TrackParcel';
@@ -762,6 +763,7 @@ function App() {
       case 'IdentityVerifications': return requireAdmin(<IdentityVerifications activePage={page} {...adminProps} />);
       case 'AdminBrands': return requireAdmin(<AdminBrands activePage={page} {...adminProps} />);
       case 'AdminBrandAuthorizations': return requireAdmin(<AdminBrandAuthorizations activePage={page} {...adminProps} />);
+      case 'OfficialProducts': return requireAdmin(<OfficialProducts activePage={page} {...adminProps} />);
       case 'Agents':      return requireAdmin(<Agents activePage={page} {...adminProps} />);
       case 'Profile':     return requireLogin(<Profile activePage={page} {...adminProps} />);
       case 'TrackParcel': return <TrackParcel {...publicProps} />;
