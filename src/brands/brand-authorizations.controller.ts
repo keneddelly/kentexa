@@ -60,6 +60,16 @@ export class BrandAuthorizationsController {
     return this.service.findAllAdmin(status);
   }
 
+  // Full audit trail for one authorization — spec §24's "Audit — full
+  // history" admin capability. The data was already written correctly by
+  // every transition; this is the first endpoint that exposes it.
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get(':id/audit')
+  getAuditLog(@Param('id', ParseIntPipe) id: number) {
+    return this.service.getAuditLog(id);
+  }
+
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch(':id/approve')

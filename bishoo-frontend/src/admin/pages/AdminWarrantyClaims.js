@@ -17,6 +17,8 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selected, setSelected] = useState(null);
+  const [auditLog, setAuditLog] = useState([]);
 
   useEffect(() => { fetchRows(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -27,6 +29,14 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
       setRows(res.data || []);
     } catch { setError('Failed to load warranty claims'); }
     finally { setLoading(false); }
+  };
+
+  // Audit history (spec §24) — same "click row -> right-side drawer"
+  // pattern AdminBrandAuthorizations.js already uses.
+  const openDetail = (row) => {
+    setSelected(row);
+    setAuditLog([]);
+    api.get(`/warranty/claims/${row.id}/audit`).then(r => setAuditLog(r.data || [])).catch(() => setAuditLog([]));
   };
 
   return (
@@ -68,7 +78,8 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
                 {rows.map((r, idx) => {
                   const ss = STATUS_STYLE[r.status] || STATUS_STYLE.submitted;
                   return (
-                    <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    <tr key={r.id} onClick={() => openDetail(r)}
+                      style={{ borderBottom: '1px solid #f1f5f9', backgroundColor: idx % 2 === 0 ? '#fff' : '#fafafa', cursor: 'pointer' }}>
                       <td style={{ padding: '14px 16px', fontSize: 13, fontWeight: 700, color: '#0f172a' }}>#{r.registrationId}</td>
                       <td style={{ padding: '14px 16px', fontSize: 12, color: '#475569', maxWidth: 320 }}>{r.reason}</td>
                       <td style={{ padding: '14px 16px' }}>
@@ -88,6 +99,72 @@ const AdminWarrantyClaims = ({ activePage, onNavigate, onLogout }) => {
           </div>
         )}
       </main>
+
+      {/* Detail drawer — reason/evidence/resolution already come back on
+          the list row itself; the audit history is fetched fresh. */}
+      {selected && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 9998, display: 'flex', justifyContent: 'flex-end' }}
+          onClick={() => setSelected(null)}>
+          <div style={{ width: 440, backgroundColor: '#fff', height: '100%', overflowY: 'auto', padding: 28, boxShadow: '-4px 0 24px rgba(0,0,0,0.12)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: 0 }}>Claim #{selected.id}</h2>
+              <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8' }}>×</button>
+            </div>
+
+            {(() => { const ss = STATUS_STYLE[selected.status] || STATUS_STYLE.submitted; return (
+              <div style={{ backgroundColor: ss.bg, color: ss.color, padding: '10px 14px', borderRadius: 10, fontWeight: 700, fontSize: 13, marginBottom: 20 }}>
+                {ss.label}
+              </div>
+            ); })()}
+
+            {[
+              { label: 'Registration', value: `#${selected.registrationId}` },
+              { label: 'Reason',       value: selected.reason },
+              { label: 'Resolution',   value: selected.resolution },
+              { label: 'Submitted',    value: selected.createdAt ? new Date(selected.createdAt).toLocaleString() : null },
+              { label: 'Reviewed',     value: selected.reviewedAt ? new Date(selected.reviewedAt).toLocaleString() : null },
+            ].filter(f => f.value).map(field => (
+              <div key={field.label} style={{ marginBottom: 14, padding: '10px 14px', backgroundColor: '#f8fafc', borderRadius: 8 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 3 }}>{field.label.toUpperCase()}</div>
+                <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{field.value}</div>
+              </div>
+            ))}
+
+            {selected.evidenceImages?.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>EVIDENCE</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {selected.evidenceImages.map((img, i) => (
+                    <img key={i} src={img} alt="" style={{ width: 64, height: 64, borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }}
+                      onClick={() => window.open(img, '_blank')} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Audit History — spec §24's "Audit — full history" admin
+                capability. Every transition reviewClaim()/fileClaim() has
+                ever written for this claim, oldest first. */}
+            {auditLog.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>AUDIT HISTORY</div>
+                {auditLog.map(entry => (
+                  <div key={entry.id} style={{ padding: '10px 14px', marginBottom: 6, backgroundColor: '#f8fafc', borderRadius: 8, fontSize: 12 }}>
+                    <div style={{ fontWeight: 700, color: '#1e293b' }}>
+                      {entry.previousStatus} → {entry.newStatus}
+                    </div>
+                    <div style={{ color: '#64748b', marginTop: 2 }}>
+                      {entry.actorUserId ? `User #${entry.actorUserId}` : 'System'} · {new Date(entry.createdAt).toLocaleString()}
+                    </div>
+                    {entry.reason && <div style={{ color: '#64748b', marginTop: 2 }}>Note: {entry.reason}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

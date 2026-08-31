@@ -214,6 +214,18 @@ export class BrandAuthorizationsService {
     });
   }
 
+  // Full audit trail for one authorization (spec §24's "Audit — full
+  // history" admin capability) — every transition recordTransition() has
+  // ever written for this row, oldest first. Raw actorUserId, not resolved
+  // to a name — this service has no User repo and the admin can already
+  // cross-reference ids elsewhere in this same page.
+  async getAuditLog(authorizationId: number): Promise<BrandAuthorizationAuditLog[]> {
+    return this.auditRepo.find({
+      where: { authorization: { id: authorizationId } },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
   private async transition(
     id: number,
     admin: User,

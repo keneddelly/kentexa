@@ -31,6 +31,17 @@ export class WarrantyController {
     return this.service.findAllClaimsAdmin();
   }
 
+  // Full audit trail for one claim — spec §24's "Audit — full history"
+  // admin capability. Declared with a literal 'claims' prefix, same as
+  // the existing PATCH 'claims/:claimId/review' route below — no
+  // ordering conflict with the bare ':id' catch-all further down.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('claims/:claimId/audit')
+  getClaimAudit(@Param('claimId', ParseIntPipe) claimId: number) {
+    return this.service.getClaimAudit(claimId);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('register')
   register(@Body('orderId', ParseIntPipe) orderId: number, @Body('serialNumber') serialNumber: string, @Request() req) {

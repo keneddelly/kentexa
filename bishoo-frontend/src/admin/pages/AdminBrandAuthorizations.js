@@ -17,6 +17,7 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
   const [filter, setFilter]         = useState('pending');
   const [selected, setSelected]     = useState(null);
   const [evidence, setEvidence]     = useState([]);
+  const [auditLog, setAuditLog]     = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage]       = useState('');
   const [error, setError]           = useState('');
@@ -40,7 +41,9 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
   const openDetail = (row) => {
     setSelected(row);
     setEvidence([]);
+    setAuditLog([]);
     api.get(`/brand-authorizations/${row.id}/evidence`).then(r => setEvidence(r.data || [])).catch(() => setEvidence([]));
+    api.get(`/brand-authorizations/${row.id}/audit`).then(r => setAuditLog(r.data || [])).catch(() => setAuditLog([]));
   };
 
   const viewEvidence = async (ev) => {
@@ -202,6 +205,26 @@ const AdminBrandAuthorizations = ({ activePage, onNavigate, onLogout }) => {
                     style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px', marginBottom: 6, backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#1d4ed8' }}>
                     📄 {ev.documentType} — view (signed link, expires in 5 min)
                   </button>
+                ))}
+              </div>
+            )}
+
+            {/* Audit History — spec §24's "Audit — full history" admin
+                capability. Every transition recordTransition() has ever
+                written for this authorization, oldest first. */}
+            {auditLog.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 6 }}>AUDIT HISTORY</div>
+                {auditLog.map(entry => (
+                  <div key={entry.id} style={{ padding: '10px 14px', marginBottom: 6, backgroundColor: '#f8fafc', borderRadius: 8, fontSize: 12 }}>
+                    <div style={{ fontWeight: 700, color: '#1e293b' }}>
+                      {entry.previousStatus} → {entry.newStatus}
+                    </div>
+                    <div style={{ color: '#64748b', marginTop: 2 }}>
+                      {entry.actorUserId ? `User #${entry.actorUserId}` : 'System'} · {new Date(entry.createdAt).toLocaleString()}
+                    </div>
+                    {entry.reason && <div style={{ color: '#64748b', marginTop: 2 }}>Reason: {entry.reason}</div>}
+                  </div>
                 ))}
               </div>
             )}

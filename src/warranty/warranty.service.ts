@@ -250,6 +250,17 @@ export class WarrantyService {
     return this.claimRepo.find({ order: { createdAt: 'DESC' } });
   }
 
+  // Full audit trail for one claim — spec §24's "Audit — full history"
+  // admin capability, same as BrandAuthorizationsService.getAuditLog().
+  // Raw actorUserId, not resolved to a name — no User repo in this
+  // service, and the admin can already cross-reference ids elsewhere.
+  async getClaimAudit(claimId: number): Promise<WarrantyClaimAuditLog[]> {
+    return this.auditRepo.find({
+      where: { claim: { id: claimId } },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
   // Layer 2 building block for BrandDashboardService — the metric Phase C's
   // own comment said was intentionally missing until this system existed.
   async countForBrand(brandId: number): Promise<number> {
