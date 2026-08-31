@@ -723,6 +723,36 @@ export class OrdersService {
       order.trackingNumber || `Order #${orderId}`,
     );
 
+    // 🔔 In-app + push for the buyer — via the Communication Engine
+    // (Phase E). Email above stays untouched; this event previously had
+    // zero in-app coverage at all (not even a dead method existed).
+    try {
+      if (order.buyer?.id) {
+        await this.communicationEngine.dispatch({
+          eventType: 'OUT_FOR_DELIVERY',
+          sourceType: 'order',
+          sourceId: orderId,
+          recipients: [
+            {
+              userId: order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(orderId),
+            },
+          ],
+          context: {
+            orderId,
+            trackingNumber: order.trackingNumber || `Order #${orderId}`,
+          },
+        });
+      }
+    } catch (err: any) {
+      console.error(
+        `Communication engine dispatch failed for out-for-delivery order #${orderId}:`,
+        err.message,
+      );
+    }
+
     return { message: 'Order marked as shipped. Buyer notified.' };
   }
 
