@@ -32,6 +32,7 @@ import { BrandAuthorizationsService } from '../brands/brand-authorizations.servi
 import { BrandsService } from '../brands/brands.service';
 import { validateAttributes, validateVariantAttributes } from '../categories/categories.data';
 import { ProductVariantGroup } from './entities/product-variant-group.entity';
+import { ProductSerial, ProductSerialStatus } from './entities/product-serial.entity';
 
 @Injectable()
 export class ProductsService {
@@ -53,6 +54,9 @@ export class ProductsService {
 
     @InjectRepository(ProductVariantGroup)
     private variantGroupRepo: Repository<ProductVariantGroup>,
+
+    @InjectRepository(ProductSerial)
+    private serialRepo: Repository<ProductSerial>,
 
     private readonly feedService: FeedService,
     private readonly commerceProfiles: CommerceProfilesService,
@@ -345,12 +349,18 @@ export class ProductsService {
       );
     }
 
+    // Cheap existence check only — the seller's own management list (which
+    // serials, their status) lives behind GET /products/:id/serials, never
+    // exposed on this public read.
+    const hasRegisteredSerials = await this.serialRepo.exists({ where: { productId: product.id } });
+
     return {
       ...product,
       brandAuthorizationBadge,
       brand: brand ? { id: brand.id, name: brand.name, logoUrl: brand.logoUrl } : null,
       variants,
       otherOffers,
+      hasRegisteredSerials,
       commerceProfile: commerceProfile
         ? {
             id: commerceProfile.id,
@@ -1019,5 +1029,174 @@ export class ProductsService {
     });
 
     return { downloadUrl, expiresAt };
+  }
+
+  // ── Serial/IMEI authenticity tracking (spec §14) ─────────────────────────
+  // Deliberately NOT wired into OrdersService/SalesService's transaction
+  // path — assignSerial() below is always a manual seller action, keeping
+  // this feature fully out of checkout/POS's transaction-critical code.
+
+  private normalizeSerial(raw: string): string {
+    return String(raw || '').trim().toUpperCase();
+  }
+
+  async registerSerials(
+    productId: number,
+    serialNumbers: string[],
+    user: User,
+  ): Promise<{ registered: string[]; duplicates: string[] }> {
+    const product = await this.findOne(productId);
+    if (user.role !== UserRole.ADMIN) {
+      if (!product.seller || product.seller.id !== user.id) {
+        throw new ForbiddenException('You can only register serials for your own products');
+      }
+    }
+
+    const registered: string[] = [];
+    const duplicates: string[] = [];
+
+    for (const raw of serialNumbers || []) {
+      const serialNumber = this.normalizeSerial(raw);
+      if (!serialNumber) continue;
+
+      const existing = await this.serialRepo.findOne({ where: { serialNumber } });
+      if (existing) {
+        duplicates.push(serialNumber);
+        // A serial already registered elsewhere being submitted again is a
+        // fraud signal (counterfeit/relabeled unit, or a copied real one) —
+        // never silently allowed, and never lets the rest of a batch fail.
+        this.activityEvents.record({
+          eventType: 'DUPLICATE_SERIAL_REGISTRATION_ATTEMPT',
+          category: ActivityCategory.SECURITY,
+          actorId: user.id,
+          targetType: 'product',
+          targetId: productId,
+          metadata: {
+            serialNumber,
+            existingProductId: existing.productId,
+            attemptedProductId: productId,
+          },
+        });
+        continue;
+      }
+
+      await this.serialRepo.save(
+        this.serialRepo.create({
+          productId,
+          serialNumber,
+          status: ProductSerialStatus.IN_STOCK,
+          registeredByUserId: user.id,
+        }),
+      );
+      registered.push(serialNumber);
+    }
+
+    return { registered, duplicates };
+  }
+
+  async getSerials(productId: number, user: User): Promise<ProductSerial[]> {
+    const product = await this.findOne(productId);
+    if (user.role !== UserRole.ADMIN) {
+      if (!product.seller || product.seller.id !== user.id) {
+        throw new ForbiddenException('You can only view serials for your own products');
+      }
+    }
+    return this.serialRepo.find({ where: { productId }, order: { createdAt: 'DESC' } });
+  }
+
+  private async loadOwnedSerial(serialId: number, user: User): Promise<ProductSerial> {
+    const serial = await this.serialRepo.findOne({ where: { id: serialId } });
+    if (!serial) throw new NotFoundException('Serial not found');
+    const product = await this.findOne(serial.productId);
+    if (user.role !== UserRole.ADMIN) {
+      if (!product.seller || product.seller.id !== user.id) {
+        throw new ForbiddenException('You can only manage serials for your own products');
+      }
+    }
+    return serial;
+  }
+
+  async assignSerial(
+    serialId: number,
+    dto: { orderId?: number; saleId?: number },
+    user: User,
+  ): Promise<ProductSerial> {
+    const serial = await this.loadOwnedSerial(serialId, user);
+    if (!dto.orderId && !dto.saleId) {
+      throw new BadRequestException('orderId or saleId is required');
+    }
+    serial.status = ProductSerialStatus.SOLD;
+    serial.soldReferenceType = dto.orderId ? 'order' : 'sale';
+    serial.soldReferenceId = dto.orderId ?? dto.saleId ?? null;
+    serial.soldAt = new Date();
+    return this.serialRepo.save(serial);
+  }
+
+  async reportSerial(
+    serialId: number,
+    status: ProductSerialStatus.REPORTED_LOST | ProductSerialStatus.REPORTED_STOLEN,
+    user: User,
+  ): Promise<ProductSerial> {
+    const serial = await this.loadOwnedSerial(serialId, user);
+    serial.status = status;
+    return this.serialRepo.save(serial);
+  }
+
+  // Public — no auth. A customer scans/types a serial and learns whether
+  // it's a genuine registered unit, sold by whom, and whether it's been
+  // reported lost/stolen. Never returns buyer identity or order details —
+  // this is an authenticity check, not an order lookup. A not-found result
+  // never distinguishes "no such serial" from "serial exists but belongs
+  // to a product/seller we won't describe" — both look identical.
+  async verifySerial(code: string) {
+    const serialNumber = this.normalizeSerial(code);
+    if (!serialNumber) return { found: false };
+
+    const serial = await this.serialRepo.findOne({ where: { serialNumber } });
+    if (!serial) return { found: false };
+
+    const product = await this.repo.findOne({ where: { id: serial.productId }, relations: { seller: true } });
+    if (!product) return { found: false };
+
+    const commerceProfile = product.commerceProfileId
+      ? await this.commerceProfiles.findById(product.commerceProfileId).catch(() => null)
+      : product.seller
+        ? await this.commerceProfiles
+            .findForUserByType(product.seller.id, CommerceProfileType.BUSINESS)
+            .catch(() => null)
+        : null;
+
+    const brandAuthorizationBadge =
+      product.brandId && commerceProfile
+        ? (
+            await this.brandAuthorizations.getBadgeStatus(commerceProfile.id, {
+              brandId: product.brandId,
+              category: product.category || undefined,
+              model: product.model || undefined,
+            })
+          ).badge
+        : commerceProfile?.isVerified
+          ? 'kentexa_verified'
+          : null;
+
+    const brand = product.brandId ? await this.brands.findOne(product.brandId).catch(() => null) : null;
+
+    return {
+      found: true,
+      status: serial.status,
+      soldAt: serial.soldAt,
+      product: { id: product.id, name: product.name, image: product.images?.[0] || null },
+      brand: brand ? { id: brand.id, name: brand.name, logoUrl: brand.logoUrl } : null,
+      brandAuthorizationBadge,
+      seller: commerceProfile
+        ? {
+            commerceProfileId: commerceProfile.id,
+            ownerId: commerceProfile.ownerId,
+            displayName: commerceProfile.displayName,
+            photoUrl: commerceProfile.photoUrl,
+            isVerified: commerceProfile.isVerified,
+          }
+        : null,
+    };
   }
 }

@@ -432,6 +432,15 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
                   ✓ {t('product_detail.kentexa_verified_badge')}
                 </div>
               )}
+              {/* Registered serials exist for this listing (spec §14) — links
+                  to the same public checker a QR code on the physical unit
+                  points to, just without a code pre-filled. */}
+              {product.hasRegisteredSerials && (
+                <div onClick={() => onNavigate('VerifyProduct')}
+                  style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', cursor: 'pointer', marginBottom: 8 }}>
+                  🔍 {t('product_detail.supports_serial_verification')}
+                </div>
+              )}
               {/* Variant picker (src/products/ Phase B) — each variant is
                   still its own real Product id/page (own price/stock),
                   never a client-side swap — see products.entity.ts's own

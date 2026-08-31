@@ -30,6 +30,7 @@ import { resolveCategoryKey } from '../categories/categories.data';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
+import { ProductSerialStatus } from './entities/product-serial.entity';
 
 @Controller('products')
 export class ProductsController {
@@ -57,6 +58,16 @@ export class ProductsController {
     @Query('city') city?: string,
   ) {
     return this.service.getBrandStatus({ commerceProfileId, brandId, category, model, city });
+  }
+
+  // Public authenticity check (spec §14) — a customer scans a QR code or
+  // types a serial/IMEI and learns whether it's a genuine registered unit
+  // and who sold it, without needing an account. Declared before `:id` so
+  // it isn't swallowed by that catch-all, same rule 'brand-status'/'search'
+  // above already follow.
+  @Get('verify/:code')
+  verifySerial(@Param('code') code: string) {
+    return this.service.verifySerial(code);
   }
 
   @Get('search')
@@ -325,6 +336,54 @@ export class ProductsController {
       id: sellerId,
       role: req.user.role,
     } as User);
+  }
+
+  // ── Serial/IMEI authenticity tracking (spec §14) ─────────────────────────
+  // Registration/assignment/reporting are all seller-scoped, mirroring
+  // createVariant()'s exact sellerScope.resolve() + ownership-check shape
+  // above. The matching public read is 'verify/:code' near the top of this
+  // controller.
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/serials')
+  async registerSerials(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('serialNumbers') serialNumbers: string[],
+    @Request() req,
+  ) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
+    return this.service.registerSerials(id, serialNumbers, {
+      id: sellerId,
+      role: req.user.role,
+    } as User);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/serials')
+  async getSerials(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
+    return this.service.getSerials(id, { id: sellerId, role: req.user.role } as User);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('serials/:serialId/assign')
+  async assignSerial(
+    @Param('serialId', ParseIntPipe) serialId: number,
+    @Body() dto: { orderId?: number; saleId?: number },
+    @Request() req,
+  ) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
+    return this.service.assignSerial(serialId, dto, { id: sellerId, role: req.user.role } as User);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('serials/:serialId/report')
+  async reportSerial(
+    @Param('serialId', ParseIntPipe) serialId: number,
+    @Body('status') status: ProductSerialStatus.REPORTED_LOST | ProductSerialStatus.REPORTED_STOLEN,
+    @Request() req,
+  ) {
+    const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
+    return this.service.reportSerial(serialId, status, { id: sellerId, role: req.user.role } as User);
   }
 
   @UseGuards(JwtAuthGuard)

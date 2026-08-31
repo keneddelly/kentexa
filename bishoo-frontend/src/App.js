@@ -64,6 +64,7 @@ import VerifyReceipt from './public/pages/VerifyReceipt';
 import SellerProducts from './public/pages/SellerProducts';
 import MyBrands from './public/pages/MyBrands';
 import BrandDashboard from './public/pages/BrandDashboard';
+import VerifyProduct from './public/pages/VerifyProduct';
 import POS from './public/pages/POS';
 import SellerClassifieds from './public/pages/SellerClassifieds';
 import SellerOrders from './public/pages/SellerOrders';
@@ -500,6 +501,22 @@ function App() {
     } catch { /* no window — SSR */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Boot-time /verify/:code routing (spec §14 serial/IMEI authenticity) —
+  // a QR code printed on a physical unit points here. No network round
+  // trip needed to resolve the route itself (unlike /@username above) —
+  // VerifyProduct.js does its own GET /products/verify/:code — so this
+  // just needs to recognize the path and hand off the raw code. A serial
+  // can contain letters/digits/hyphens, so this can't reuse urlSync.js's
+  // PREFIX_TO_SEGMENT map (which assumes a trailing numeric id).
+  useEffect(() => {
+    try {
+      const match = window.location.pathname.match(/^\/verify\/([A-Za-z0-9-]+)\/?$/);
+      if (!match) return;
+      setNavParams({ code: match[1] });
+      setPage('VerifyProduct');
+    } catch { /* no window — SSR */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Lets any page (profile edit, avatar upload, etc.) push a fresh user
   // object up into App's currentUser state after a save — without this,
   // BottomNav/HomeFeed keep reading the currentUser snapshot taken at
@@ -696,6 +713,7 @@ function App() {
       case 'ClassifiedDetail':     return <ClassifiedDetail {...publicProps} />;
       case 'ServiceDetail':        return <ServiceDetail {...publicProps} />;
       case 'ProductDetail':        return <ProductDetail {...publicProps} />;
+      case 'VerifyProduct':        return <VerifyProduct {...publicProps} code={navParams?.code} />;
       case 'OrderTracking':        return requireLogin(<OrderTracking {...publicProps} />);
 
       case 'Discover':          return <Search {...publicProps} track={track} />;

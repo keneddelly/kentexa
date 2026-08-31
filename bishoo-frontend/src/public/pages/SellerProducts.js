@@ -85,6 +85,15 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [variantUploading, setVariantUploading] = useState(false);
   const [variantSaving, setVariantSaving] = useState(false);
 
+  // ── Manage Serials (spec §14 authenticity tracking) — opt-in per
+  // product, same "separate small modal" reasoning as Add Variant above.
+  const [serialsModalProduct, setSerialsModalProduct] = useState(null);
+  const [serialsList, setSerialsList] = useState([]);
+  const [serialsLoading, setSerialsLoading] = useState(false);
+  const [serialsInput, setSerialsInput] = useState('');
+  const [serialsSaving, setSerialsSaving] = useState(false);
+  const [qrForSerial, setQrForSerial] = useState(null); // which serial's QR is expanded inline
+
   // ── Brand picker (src/brands/) — optional, never blocks submission.
   // selectedBrand carries the name so the picker can show it without a
   // second lookup; brandBadge is the LIVE, server-computed authorization
@@ -605,6 +614,76 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     } finally { setVariantSaving(false); }
   };
 
+  // ── Manage Serials ────────────────────────────────────────────────────────
+  const fetchSerials = async (productId) => {
+    try {
+      setSerialsLoading(true);
+      const res = await api.get(`/products/${productId}/serials`);
+      setSerialsList(res.data || []);
+    } catch { setError(t('seller_products.serials_load_failed')); }
+    finally { setSerialsLoading(false); }
+  };
+
+  const openSerialsModal = (product) => {
+    setSerialsModalProduct(product);
+    setSerialsInput('');
+    setQrForSerial(null);
+    fetchSerials(product.id);
+  };
+
+  const closeSerialsModal = () => {
+    setSerialsModalProduct(null);
+    setSerialsList([]);
+  };
+
+  const handleRegisterSerials = async () => {
+    if (!serialsModalProduct) return;
+    const serialNumbers = serialsInput.split('\n').map(s => s.trim()).filter(Boolean);
+    if (!serialNumbers.length) return;
+    try {
+      setSerialsSaving(true);
+      const res = await api.post(`/products/${serialsModalProduct.id}/serials`, { serialNumbers });
+      const { registered = [], duplicates = [] } = res.data || {};
+      setMessage(
+        duplicates.length
+          ? t('seller_products.serials_registered_with_duplicates', { registered: registered.length, duplicates: duplicates.length })
+          : t('seller_products.serials_registered', { count: registered.length }),
+      );
+      setSerialsInput('');
+      fetchSerials(serialsModalProduct.id);
+    } catch (err) {
+      setError(err?.response?.data?.message || t('seller_products.serials_register_failed'));
+    } finally { setSerialsSaving(false); }
+  };
+
+  const handleAssignSerial = async (serial) => {
+    const orderId = window.prompt(t('seller_products.assign_serial_prompt'));
+    if (!orderId || !/^\d+$/.test(orderId.trim())) return;
+    try {
+      await api.patch(`/products/serials/${serial.id}/assign`, { orderId: Number(orderId) });
+      fetchSerials(serialsModalProduct.id);
+    } catch (err) {
+      setError(err?.response?.data?.message || t('seller_products.serials_register_failed'));
+    }
+  };
+
+  const handleReportSerial = async (serial, status) => {
+    try {
+      await api.patch(`/products/serials/${serial.id}/report`, { status });
+      fetchSerials(serialsModalProduct.id);
+    } catch (err) {
+      setError(err?.response?.data?.message || t('seller_products.serials_register_failed'));
+    }
+  };
+
+  const SERIAL_STATUS_META = {
+    in_stock:        { label: t('seller_products.serial_status_in_stock'),        color: '#64748b', bg: '#f1f5f9' },
+    sold:            { label: t('seller_products.serial_status_sold'),            color: '#16a34a', bg: '#f0fdf4' },
+    reported_lost:   { label: t('seller_products.serial_status_reported_lost'),   color: '#ca8a04', bg: '#fef9c3' },
+    reported_stolen: { label: t('seller_products.serial_status_reported_stolen'), color: '#dc2626', bg: '#fee2e2' },
+    deactivated:     { label: t('seller_products.serial_status_deactivated'),     color: '#94a3b8', bg: '#f1f5f9' },
+  };
+
   const updatePrices = (field, value) => {
     const base     = field === 'basePrice'   ? Number(value) || 0 : Number(form.basePrice)   || 0;
     const delivery = field === 'deliveryFee' ? Number(value) || 0 : Number(form.deliveryFee) || 0;
@@ -717,6 +796,10 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                     <div onClick={() => { setMenuForProductId(null); openVariantModal(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
                       {`➕ ${t('seller_products.add_variant')}`}
+                    </div>
+                    <div onClick={() => { setMenuForProductId(null); openSerialsModal(product); }}
+                      style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: '#1e293b', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
+                      {`🔢 ${t('seller_products.manage_serials')}`}
                     </div>
                     <div onClick={() => { setMenuForProductId(null); handleToggleZipo(product); }}
                       style={{ padding: '9px 12px', fontSize: 12, fontWeight: 700, color: product.isZipo ? '#dc2626' : '#16a34a', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
@@ -1354,6 +1437,93 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <button onClick={handleCreateVariant} disabled={variantSaving || variantUploading}
               style={{ width: '100%', padding: 14, background: variantSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
               {variantSaving ? t('seller_products.please_wait') : `+ ${t('seller_products.create_variant_button')}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MANAGE SERIALS MODAL (spec §14) ── */}
+      {serialsModalProduct && (
+        <div onClick={closeSerialsModal}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 2000 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ backgroundColor: '#fff', borderRadius: '16px 16px 0 0', width: '100%', maxWidth: 480, maxHeight: '90vh', overflowY: 'auto', padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 900 }}>{t('seller_products.manage_serials_title', { name: serialsModalProduct.name })}</div>
+              <button onClick={closeSerialsModal} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#64748b' }}>×</button>
+            </div>
+
+            <p style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>{t('seller_products.serials_intro')}</p>
+
+            {serialsLoading ? (
+              <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8', fontSize: 12 }}>{t('seller_products.loading')}</div>
+            ) : serialsList.length === 0 ? (
+              <div style={{ padding: 14, backgroundColor: '#f8fafc', borderRadius: 10, fontSize: 12, color: '#64748b', marginBottom: 14 }}>
+                {t('seller_products.no_serials_yet')}
+              </div>
+            ) : (
+              <div style={{ marginBottom: 14 }}>
+                {serialsList.map(serial => {
+                  const meta = SERIAL_STATUS_META[serial.status] || SERIAL_STATUS_META.in_stock;
+                  const verifyUrl = `https://kentexa.com/verify/${encodeURIComponent(serial.serialNumber)}`;
+                  return (
+                    <div key={serial.id} style={{ border: '1px solid #f1f5f9', borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>{serial.serialNumber}</div>
+                        <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, color: meta.color, backgroundColor: meta.bg }}>
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                        {serial.status === 'in_stock' && (
+                          <>
+                            <button onClick={() => handleAssignSerial(serial)}
+                              style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #93c5fd', backgroundColor: '#eff6ff', color: '#1d4ed8', cursor: 'pointer' }}>
+                              {t('seller_products.assign_to_order')}
+                            </button>
+                            <button onClick={() => handleReportSerial(serial, 'reported_lost')}
+                              style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #fde68a', backgroundColor: '#fef9c3', color: '#92400e', cursor: 'pointer' }}>
+                              {t('seller_products.report_lost')}
+                            </button>
+                            <button onClick={() => handleReportSerial(serial, 'reported_stolen')}
+                              style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #fecaca', backgroundColor: '#fee2e2', color: '#dc2626', cursor: 'pointer' }}>
+                              {t('seller_products.report_stolen')}
+                            </button>
+                          </>
+                        )}
+                        <button onClick={() => setQrForSerial(id => id === serial.id ? null : serial.id)}
+                          style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 8, border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#334155', cursor: 'pointer' }}>
+                          {t('seller_products.show_qr')}
+                        </button>
+                      </div>
+                      {qrForSerial === serial.id && (
+                        <div style={{ marginTop: 10, textAlign: 'center' }}>
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(verifyUrl)}&color=0F172A&bgcolor=FFFFFF`}
+                            alt="QR Code"
+                            style={{ borderRadius: 8, border: '1px solid #f1f5f9' }}
+                          />
+                          <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 6, wordBreak: 'break-all' }}>{verifyUrl}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <label style={labelStyle}>{t('seller_products.register_serials_label')}</label>
+            <textarea
+              value={serialsInput}
+              onChange={e => setSerialsInput(e.target.value)}
+              placeholder={t('seller_products.register_serials_placeholder')}
+              rows={4}
+              style={{ ...inputStyle, marginBottom: 12, resize: 'vertical' }}
+            />
+
+            <button onClick={handleRegisterSerials} disabled={serialsSaving || !serialsInput.trim()}
+              style={{ width: '100%', padding: 14, background: serialsSaving ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
+              {serialsSaving ? t('seller_products.please_wait') : `+ ${t('seller_products.register_serials_button')}`}
             </button>
           </div>
         </div>

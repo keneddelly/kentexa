@@ -10,6 +10,7 @@ import { ProductReview } from './entities/product-review.entity';
 import { DigitalProductAsset } from './entities/digital-product-asset.entity';
 import { ProductVariantGroup } from './entities/product-variant-group.entity';
 import { OfficialProduct } from './entities/official-product.entity';
+import { ProductSerial } from './entities/product-serial.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Order } from '../orders/entities/order.entity';
 import { SellerRankingService } from './seller-ranking.service';
@@ -25,7 +26,7 @@ import { BrandsModule } from '../brands/brands.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product, ProductReview, DigitalProductAsset, SellerProfile, Order, ProductVariantGroup, OfficialProduct]),
+    TypeOrmModule.forFeature([Product, ProductReview, DigitalProductAsset, SellerProfile, Order, ProductVariantGroup, OfficialProduct, ProductSerial]),
     FeedModule,
     AiModule,
     BusinessModule,
