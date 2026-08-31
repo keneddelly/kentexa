@@ -686,6 +686,40 @@ export class OrdersService {
       data.courierName || chosenMethod,
     );
 
+    // 🔔 In-app + push for the buyer — via the Communication Engine
+    // (Phase F). Email above stays untouched; this event previously had
+    // zero in-app coverage at all. Uses order.trackingNumber (Kentexa's
+    // own, never-overwritten number) rather than data.trackingNumber
+    // (the courier's external ref, stored separately) — same tracking
+    // number every other phase's context has used.
+    try {
+      if (order.buyer?.id) {
+        await this.communicationEngine.dispatch({
+          eventType: 'SHIPPING_PROOF_UPLOADED',
+          sourceType: 'order',
+          sourceId: orderId,
+          recipients: [
+            {
+              userId: order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(orderId),
+            },
+          ],
+          context: {
+            orderId,
+            trackingNumber: order.trackingNumber || `Order #${orderId}`,
+            courierName: data.courierName || chosenMethod,
+          },
+        });
+      }
+    } catch (err: any) {
+      console.error(
+        `Communication engine dispatch failed for shipping-proof order #${orderId}:`,
+        err.message,
+      );
+    }
+
     return {
       message: 'Shipping proof uploaded. Mark as shipped when ready.',
       shippingMethod: chosenMethod,
@@ -1078,6 +1112,32 @@ export class OrdersService {
       originCity,
       destinationCity,
     );
+
+    // 🔔 In-app + push for the buyer — via the Communication Engine
+    // (Phase F). Email above stays untouched.
+    try {
+      if (order.buyer?.id) {
+        await this.communicationEngine.dispatch({
+          eventType: 'PARCEL_DISPATCHED',
+          sourceType: 'order',
+          sourceId: order.id,
+          recipients: [
+            {
+              userId: order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(order.id),
+            },
+          ],
+          context: { orderId: order.id, trackingNumber, originCity, destinationCity },
+        });
+      }
+    } catch (err: any) {
+      console.error(
+        `Communication engine dispatch failed for parcel-dispatched order #${orderId}:`,
+        err.message,
+      );
+    }
 
     // ── Earnings: record what the Super Agent earns on this parcel.
     // IMPORTANT: KenteXa does NOT pay Super Agents — they are independent businesses.

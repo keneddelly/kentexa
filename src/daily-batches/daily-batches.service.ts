@@ -593,15 +593,49 @@ export class DailyBatchesService {
 
     // Notify buyers — email only, this is a status update not a critical event
     for (const parcel of batch.parcels) {
+      const trackingNumber = parcel.trackingNumber || `Order #${parcel.order.id}`;
+      const originCity = 'Kariakoo';
+      const destinationCity = parcel.order.deliveryAddress || 'your area';
       try {
         await this.notificationsService.parcelDispatched(
           { email: parcel.order.buyer?.email, name: parcel.order.buyer?.name },
-          parcel.trackingNumber || `Order #${parcel.order.id}`,
-          'Kariakoo',
-          parcel.order.deliveryAddress || 'your area',
+          trackingNumber,
+          originCity,
+          destinationCity,
         );
       } catch (e) {
         console.error('Dispatch notification failed:', e.message);
+      }
+
+      // 🔔 In-app + push for the buyer — via the Communication Engine
+      // (Phase F). Email above stays untouched.
+      try {
+        if (parcel.order.buyer?.id) {
+          await this.communicationEngine.dispatch({
+            eventType: 'PARCEL_DISPATCHED',
+            sourceType: 'order',
+            sourceId: parcel.order.id,
+            recipients: [
+              {
+                userId: parcel.order.buyer.id,
+                role: 'buyer',
+                actionPage: 'MyOrders',
+                actionParam: String(parcel.order.id),
+              },
+            ],
+            context: {
+              orderId: parcel.order.id,
+              trackingNumber,
+              originCity,
+              destinationCity,
+            },
+          });
+        }
+      } catch (e: any) {
+        console.error(
+          `Communication engine dispatch failed for parcel-dispatched order #${parcel.order.id}:`,
+          e.message,
+        );
       }
     }
 

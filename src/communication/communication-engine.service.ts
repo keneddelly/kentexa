@@ -77,6 +77,18 @@ const SEED_TEMPLATES: Array<
     titleTemplate: '🚚 Bidhaa Iko Njiani',
     bodyTemplate: 'Kifurushi chako {trackingNumber} (Agizo #{orderId}) kiko njiani kukufikia leo.',
   },
+  {
+    eventType: 'SHIPPING_PROOF_UPLOADED',
+    recipientRole: 'buyer',
+    titleTemplate: '📦 Bidhaa Inaandaliwa',
+    bodyTemplate: 'Agizo lako #{orderId} linaandaliwa kutumwa kupitia {courierName}. Nambari ya ufuatiliaji: {trackingNumber}.',
+  },
+  {
+    eventType: 'PARCEL_DISPATCHED',
+    recipientRole: 'buyer',
+    titleTemplate: '📦 Kifurushi Kimetumwa',
+    bodyTemplate: 'Kifurushi chako {trackingNumber} kimeondoka {originCity} kuelekea {destinationCity}.',
+  },
 ];
 
 // Phase A of the Kentexa Communication Engine (see spec §1-58 audit).
