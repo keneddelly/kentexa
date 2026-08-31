@@ -64,6 +64,7 @@ import VerifyReceipt from './public/pages/VerifyReceipt';
 import SellerProducts from './public/pages/SellerProducts';
 import MyBrands from './public/pages/MyBrands';
 import BrandDashboard from './public/pages/BrandDashboard';
+import BrandCatalog from './public/pages/BrandCatalog';
 import VerifyProduct from './public/pages/VerifyProduct';
 import MyWarranties from './public/pages/MyWarranties';
 import SellerWarrantyClaims from './public/pages/SellerWarrantyClaims';
@@ -764,6 +765,7 @@ function App() {
       case 'SellerProducts':    return requireVerifiedSeller(<SellerProducts {...publicProps} />);
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
       case 'BrandDashboard':    return requireLogin(<BrandDashboard {...publicProps} />);
+      case 'BrandCatalog':      return requireLogin(<BrandCatalog {...publicProps} />);
       case 'POS':               return requireVerifiedSeller(<POS {...publicProps} />);
       case 'SellerClassifieds': return requireVerifiedSeller(<SellerClassifieds {...publicProps} />);
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);

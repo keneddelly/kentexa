@@ -547,6 +547,7 @@
   },
   "brand_dashboard": {
     "title": "Dashibodi ya Chapa",
+    "manage_catalog_button": "Simamia Katalogi Rasmi",
     "loading": "Inapakia shughuli za chapa...",
     "load_failed": "Imeshindwa kupakia shughuli za chapa",
     "authorized_businesses_section": "Biashara Zilizoidhinishwa",
@@ -561,6 +562,28 @@
     "orders_label": "Maagizo",
     "revenue_label": "Mapato",
     "warranty_registrations_label": "Usajili wa Udhamini"
+  },
+  "brand_catalog": {
+    "title": "Katalogi Rasmi",
+    "intro": "Bidhaa halisi za chapa yako mwenyewe — wauzaji wanaunganisha matangazo yao na hizi ili ofa ziweze kulinganishwa.",
+    "new_item_button": "Bidhaa Mpya",
+    "loading": "Inapakia...",
+    "load_failed": "Imeshindwa kupakia katalogi yako",
+    "no_items_desc": "Hakuna bidhaa za katalogi bado — ongeza ya kwanza.",
+    "status_active": "Inatumika",
+    "status_inactive": "Haitumiki",
+    "deactivate_button": "Zima",
+    "activate_button": "Washa",
+    "new_item_title": "Bidhaa Mpya ya Katalogi",
+    "name_placeholder": "Jina/Modeli * (mfano OLED55C4)",
+    "category_placeholder": "Kategoria * (mfano electronics)",
+    "subcategory_placeholder": "Kategoria ndogo (hiari)",
+    "name_category_required": "Jina na kategoria vinahitajika",
+    "saving": "Inahifadhi...",
+    "create_button": "Unda",
+    "item_created": "✅ Bidhaa ya katalogi imeundwa",
+    "create_failed": "Imeshindwa kuunda bidhaa",
+    "update_failed": "Imeshindwa kusasisha bidhaa"
   },
   "verify_product": {
     "title": "Thibitisha Uhalisi",

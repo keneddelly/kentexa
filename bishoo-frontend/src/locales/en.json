@@ -701,6 +701,7 @@
   },
   "brand_dashboard": {
     "title": "Brand Dashboard",
+    "manage_catalog_button": "Manage Official Catalog",
     "loading": "Loading brand activity...",
     "load_failed": "Couldn't load brand activity",
     "authorized_businesses_section": "Authorized Businesses",
@@ -715,6 +716,28 @@
     "orders_label": "Orders",
     "revenue_label": "Revenue",
     "warranty_registrations_label": "Warranty Registrations"
+  },
+  "brand_catalog": {
+    "title": "Official Catalog",
+    "intro": "Your brand's own canonical items — sellers link their listings to these so offers can be compared.",
+    "new_item_button": "New Item",
+    "loading": "Loading...",
+    "load_failed": "Couldn't load your catalog",
+    "no_items_desc": "No catalog items yet — add your first one.",
+    "status_active": "Active",
+    "status_inactive": "Inactive",
+    "deactivate_button": "Deactivate",
+    "activate_button": "Activate",
+    "new_item_title": "New Catalog Item",
+    "name_placeholder": "Name/Model * (e.g. OLED55C4)",
+    "category_placeholder": "Category * (e.g. electronics)",
+    "subcategory_placeholder": "Subcategory (optional)",
+    "name_category_required": "Name and category are required",
+    "saving": "Saving...",
+    "create_button": "Create",
+    "item_created": "✅ Catalog item created",
+    "create_failed": "Failed to create item",
+    "update_failed": "Failed to update item"
   },
   "verify_product": {
     "title": "Verify Authenticity",

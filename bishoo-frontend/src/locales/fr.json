@@ -697,6 +697,7 @@
   },
   "brand_dashboard": {
     "title": "Tableau de Bord de la Marque",
+    "manage_catalog_button": "Gérer le Catalogue Officiel",
     "loading": "Chargement de l'activité de la marque...",
     "load_failed": "Échec du chargement de l'activité de la marque",
     "authorized_businesses_section": "Entreprises Autorisées",
@@ -711,6 +712,28 @@
     "orders_label": "Commandes",
     "revenue_label": "Revenu",
     "warranty_registrations_label": "Enregistrements de Garantie"
+  },
+  "brand_catalog": {
+    "title": "Catalogue Officiel",
+    "intro": "Les articles canoniques de votre propre marque — les vendeurs relient leurs annonces à ceux-ci pour comparer les offres.",
+    "new_item_button": "Nouvel Article",
+    "loading": "Chargement...",
+    "load_failed": "Impossible de charger votre catalogue",
+    "no_items_desc": "Aucun article de catalogue pour l'instant — ajoutez-en un premier.",
+    "status_active": "Actif",
+    "status_inactive": "Inactif",
+    "deactivate_button": "Désactiver",
+    "activate_button": "Activer",
+    "new_item_title": "Nouvel Article de Catalogue",
+    "name_placeholder": "Nom/Modèle * (ex. OLED55C4)",
+    "category_placeholder": "Catégorie * (ex. electronics)",
+    "subcategory_placeholder": "Sous-catégorie (optionnel)",
+    "name_category_required": "Le nom et la catégorie sont requis",
+    "saving": "Enregistrement...",
+    "create_button": "Créer",
+    "item_created": "✅ Article de catalogue créé",
+    "create_failed": "Échec de la création de l'article",
+    "update_failed": "Échec de la mise à jour de l'article"
   },
   "verify_product": {
     "title": "Vérifier l'Authenticité",

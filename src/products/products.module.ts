@@ -13,6 +13,10 @@ import { OfficialProduct } from './entities/official-product.entity';
 import { ProductSerial } from './entities/product-serial.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Order } from '../orders/entities/order.entity';
+// Repo-only — CommerceProfilesModule (imported below) already exports the
+// services OfficialProductsService needs (CommerceProfileScopeService);
+// this is just for reading the profile row itself (type/brandId check).
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SellerRankingService } from './seller-ranking.service';
 import { FeedModule } from '../feed/feed.module';
 import { AiModule } from '../ai/ai.module';
@@ -26,7 +30,7 @@ import { BrandsModule } from '../brands/brands.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Product, ProductReview, DigitalProductAsset, SellerProfile, Order, ProductVariantGroup, OfficialProduct, ProductSerial]),
+    TypeOrmModule.forFeature([Product, ProductReview, DigitalProductAsset, SellerProfile, Order, ProductVariantGroup, OfficialProduct, ProductSerial, CommerceProfile]),
     FeedModule,
     AiModule,
     BusinessModule,

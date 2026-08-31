@@ -37,6 +37,10 @@ const BrandDashboard = ({ onNavigate, activeProfileId, activeProfile }) => {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>
       <BackBar onBack={() => onNavigate('back')} title={activeProfile?.displayName || t('brand_dashboard.title')} top={0} />
       <div style={{ padding: 16, maxWidth: 640, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+        <button onClick={() => onNavigate('BrandCatalog')}
+          style={{ width: '100%', backgroundColor: '#fff', color: '#1d4ed8', border: '1px solid #93c5fd', borderRadius: 12, padding: '12px 16px', marginBottom: 16, cursor: 'pointer', fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          📋 {t('brand_dashboard.manage_catalog_button')}
+        </button>
         {error && <div style={{ backgroundColor: '#fee2e2', color: '#dc2626', padding: '10px 14px', borderRadius: 10, fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
         {loading ? (
