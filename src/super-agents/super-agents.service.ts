@@ -83,6 +83,37 @@ const DESTINATION_ONLY_STATUSES = new Set([
   ParcelStatus.DELIVERED,
 ]);
 
+// Stage-based gating — separate from (and in addition to) the role-based
+// sets above. The role check alone can never fire for a single-hub
+// same-city parcel (myRole: 'both', no separate destinationSuperAgent
+// ever assigned), which let a Super Agent mistakenly jump straight to
+// "arrived at hub" mid-shipment (before ever dispatching) or re-apply an
+// intake step after the parcel had already moved on. These sets gate on
+// what stage the parcel is ACTUALLY at, regardless of who's clicking.
+// Deliberately does not touch DISPATCHED/IN_TRANSIT/TRANSFERRED_HUB —
+// this method's own multi-hop transit-hub flow legitimately re-applies
+// those for each additional leg of the journey.
+const PRE_DISPATCH_STATUSES = new Set([
+  ParcelStatus.PENDING,
+  ParcelStatus.COLLECTION_REQUESTED,
+  ParcelStatus.COLLECTED_BY_AGENT,
+  ParcelStatus.RECEIVED_AT_HUB,
+  ParcelStatus.VERIFIED,
+  ParcelStatus.READY_FOR_DISPATCH,
+]);
+const ORIGIN_INTAKE_STATUSES = new Set([
+  ParcelStatus.RECEIVED_AT_HUB,
+  ParcelStatus.VERIFIED,
+  ParcelStatus.READY_FOR_DISPATCH,
+]);
+const DESTINATION_REACHED_STATUSES = new Set([
+  ParcelStatus.ARRIVED_AT_HUB,
+  ParcelStatus.AWAITING_BUYER,
+  ParcelStatus.OUT_FOR_DELIVERY,
+  ParcelStatus.DELIVERED,
+  ParcelStatus.SELF_PICKUP,
+]);
+
 // Internal AI Intelligence architecture (CLAUDE.md) — only the Logistics
 // milestones it actually names get an ActivityEvent, not every one of
 // ParcelStatus's ~15 operational states. Emitting all of them per parcel
@@ -2862,6 +2893,37 @@ export class SuperAgentsService {
             'Hali hii inaweza kubadilishwa na hub ya kupokea pekee.',
           );
         }
+      }
+    }
+
+    // Stage-based gating — WHAT stage the parcel is actually at, not just
+    // WHO is clicking. Catches the case the role check above can't: a
+    // single-hub same-city parcel (myRole: 'both') where the same agent
+    // is both origin and destination, so the role check never fires.
+    if (!isAdmin) {
+      if (
+        DESTINATION_ONLY_STATUSES.has(dto.status) &&
+        PRE_DISPATCH_STATUSES.has(parcel.status)
+      ) {
+        throw new BadRequestException(
+          'Kifurushi bado hakijatumwa (dispatched) — hakiwezi kuwekwa kama kimefika mpaka kitumwe kwanza.',
+        );
+      }
+      if (
+        ORIGIN_INTAKE_STATUSES.has(dto.status) &&
+        !PRE_DISPATCH_STATUSES.has(parcel.status)
+      ) {
+        throw new BadRequestException(
+          'Kifurushi tayari kimeendelea zaidi ya hatua hii — haiwezi kurudishwa nyuma.',
+        );
+      }
+      if (
+        ORIGIN_ONLY_STATUSES.has(dto.status) &&
+        DESTINATION_REACHED_STATUSES.has(parcel.status)
+      ) {
+        throw new BadRequestException(
+          'Kifurushi tayari kimefika upande wa mpokeaji — hatua za awali hazitumiki tena.',
+        );
       }
     }
 

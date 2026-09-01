@@ -2510,26 +2510,46 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               }}
               style={{ ...inp, marginBottom: 12 }}>
               <option value="">— Chagua Hali Mpya —</option>
-              {[
-                // Origin-side statuses — only offered when this hub is the
-                // sender (or both), matching the backend's ownership check.
-                ...(statusParcel.myRole !== 'destination' ? [
-                  ['received_at_hub',   '📥 Imepokewa Hubuni'],
-                  ['verified',         '✅ Imethibitishwa'],
-                  ['ready_for_dispatch','📦 Tayari Kutuma'],
-                  ['dispatched',       '🚌 Imetumwa'],
-                  ['in_transit',       '🚚 Njiani'],
-                ] : []),
-                // Destination-side statuses — only offered when this hub is
-                // the receiver (or both). Marking "arrived"/"delivered" is
-                // the receiving hub's job, never the sender's.
-                ...(statusParcel.myRole !== 'origin' ? [
-                  ['arrived_at_hub',   '🏢 Imefika Hubuni'],
-                  ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
-                  ['out_for_delivery', '🏍️ Inafikishwa'],
-                  ['delivered',        '✅ Imefikishwa'],
-                ] : []),
-              ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {(() => {
+                // Stage-based gating, mirroring the backend's PRE_DISPATCH_
+                // STATUSES guard in updateParcelStatus() — for a single-hub
+                // parcel (myRole: 'both'), the role filters below never
+                // narrow anything down, so without this an agent could see
+                // (and mistakenly pick) "Imefika Hubuni" while the parcel
+                // hasn't even been dispatched yet, or re-pick an intake step
+                // after it already has been. This only hides options the
+                // backend would reject anyway — it's a UX guard, not the
+                // safety net.
+                const preDispatch = [
+                  'pending', 'collection_requested', 'collected_by_agent',
+                  'received_at_hub', 'verified', 'ready_for_dispatch',
+                ].includes(statusParcel.status);
+                return [
+                  // Origin-side statuses — only offered when this hub is the
+                  // sender (or both), matching the backend's ownership check.
+                  ...(statusParcel.myRole !== 'destination' ? [
+                    // Intake steps only make sense before the parcel has
+                    // ever been dispatched — hidden afterward.
+                    ...(preDispatch ? [
+                      ['received_at_hub',   '📥 Imepokewa Hubuni'],
+                      ['verified',         '✅ Imethibitishwa'],
+                      ['ready_for_dispatch','📦 Tayari Kutuma'],
+                    ] : []),
+                    ['dispatched',       '🚌 Imetumwa'],
+                    ['in_transit',       '🚚 Njiani'],
+                  ] : []),
+                  // Destination-side statuses — only offered when this hub is
+                  // the receiver (or both). Marking "arrived"/"delivered" is
+                  // the receiving hub's job, never the sender's — and never
+                  // possible before the parcel has actually been dispatched.
+                  ...(statusParcel.myRole !== 'origin' && !preDispatch ? [
+                    ['arrived_at_hub',   '🏢 Imefika Hubuni'],
+                    ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
+                    ['out_for_delivery', '🏍️ Inafikishwa'],
+                    ['delivered',        '✅ Imefikishwa'],
+                  ] : []),
+                ].map(([v, l]) => <option key={v} value={v}>{l}</option>);
+              })()}
             </select>
             {needsCodBalance && (
               <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 12, marginBottom: 12 }}>
