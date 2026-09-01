@@ -39,6 +39,11 @@ import { AnnouncementsModule } from './announcements/announcements.module';
 import { BodaRatesModule } from './boda-rates/boda-rates.module';
 import { ContactModule } from './contact/contact.module';
 import { ActivityModule } from './activity/activity.module';
+import { RoleContextModule } from './role-context/role-context.module';
+
+const allowDevelopmentSchemaSync =
+  process.env.NODE_ENV === 'development' &&
+  process.env.TYPEORM_SYNCHRONIZE === 'true';
 
 @Module({
   imports: [
@@ -53,7 +58,9 @@ import { ActivityModule } from './activity/activity.module';
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'kentexa',
       autoLoadEntities: true,
-      synchronize: true,
+      // Production and all non-development environments are migration-only.
+      // Disposable local databases may opt in explicitly with both variables.
+      synchronize: allowDevelopmentSchemaSync,
       extra: {
         query_timeout: 30000,
         statement_timeout: 30000,
@@ -95,6 +102,7 @@ import { ActivityModule } from './activity/activity.module';
     BodaRatesModule,
     ContactModule,
     ActivityModule,
+    RoleContextModule,
   ],
 })
 export class AppModule {}

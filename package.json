@@ -18,7 +18,11 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "seed:locations": "ts-node src/tz-location/run-location-seed.ts"
+    "seed:locations": "ts-node src/tz-location/run-location-seed.ts",
+    "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
+    "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
+    "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
+    "migration:baseline:adopt": "ts-node src/database/adopt-live-baseline.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -40,6 +44,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cloudinary": "^2.10.0",
+    "dotenv": "17.4.1",
     "jwt-decode": "^4.0.0",
     "multer": "^2.1.1",
     "nodemailer": "^9.0.0",

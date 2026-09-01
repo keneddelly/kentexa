@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { User } from '../users/entities/user.entity';
 import { SmsModule } from '../sms/sms.module';
 import { MailModule } from '../mail/mail.module';
+import { RoleContextModule } from '../role-context/role-context.module';
 
 @Module({
   imports: [
@@ -26,12 +27,13 @@ import { MailModule } from '../mail/mail.module';
         }
         return {
           secret,
-          signOptions: { expiresIn: '7d' },
+          signOptions: { expiresIn: '30m' },
         };
       },
     }),
     SmsModule,
     MailModule,
+    RoleContextModule,
   ],
   providers: [AuthService, JwtStrategy],
   controllers: [AuthController],

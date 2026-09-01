@@ -3,8 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
+import { AccountRole } from '../../role-context/entities/account-role.entity';
+import { ActiveRoleSession } from '../../role-context/entities/active-role-session.entity';
 
 export enum UserRole {
   USER = 'user',
@@ -163,6 +166,14 @@ export class User {
 
   @Column({ type: 'int', default: 95 })
   responseRate: number;
+
+  // Phase A only: memberships/sessions coexist with legacy role fields until
+  // later authorization migration phases deliberately adopt them.
+  @OneToMany(() => AccountRole, (accountRole) => accountRole.user)
+  accountRoles: AccountRole[];
+
+  @OneToMany(() => ActiveRoleSession, (session) => session.user)
+  activeRoleSessions: ActiveRoleSession[];
 
   // ✅ Gallery images (JSON array of URLs)
   @Column({ type: 'jsonb', nullable: true, default: () => "'[]'" })

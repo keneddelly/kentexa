@@ -5,9 +5,12 @@ import {
   Body,
   UseGuards,
   Request,
+  Req,
 } from '@nestjs/common';
 import { JwtAuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { RoleContext } from '../role-context/role-context.types';
 
 @Controller('auth')
 export class AuthController {
@@ -64,10 +67,39 @@ export class AuthController {
       email?: string;
       identifier?: string;
       password: string;
+      deviceId?: string;
     },
+    @Req() req: any,
   ) {
     const id = body.identifier || body.phone || body.email || '';
-    return this.authService.login(id, body.password);
+    return this.authService.login(id, body.password, this.requestMetadata(req, body.deviceId));
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Get('me')
+  getMe(@Request() req: any) {
+    return this.authService.getCurrentUser(req.roleContext as RoleContext);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Get('roles')
+  getRoles(@Request() req: any) {
+    return this.authService.getAvailableRoles(req.roleContext.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Post('switch-role')
+  switchRole(@Body() body: { accountRoleId: number; deviceId?: string }, @Request() req: any) {
+    return this.authService.switchRole(
+      req.user, req.roleContext as RoleContext, Number(body.accountRoleId),
+      this.requestMetadata(req, body.deviceId),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  logout(@Request() req: any) {
+    return this.authService.logout(req.user?.authPayload);
   }
 
   // Forgot password
@@ -119,5 +151,13 @@ export class AuthController {
       body.otp,
       body.newPassword,
     );
+  }
+
+  private requestMetadata(req: any, deviceId?: string) {
+    return {
+      deviceId,
+      userAgent: req?.headers?.['user-agent'],
+      ip: req?.ip || req?.socket?.remoteAddress,
+    };
   }
 }
