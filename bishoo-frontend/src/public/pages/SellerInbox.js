@@ -12,6 +12,7 @@ import { io } from 'socket.io-client';
 import BackBar from '../components/BackBar';
 import LocationPicker from '../components/LocationPicker';
 import api from '../../api/api';
+import { getAccessToken } from '../../api/tokenStore';
 import { hasAnyRole } from '../utils/roles';
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
@@ -308,7 +309,7 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
   );
 };
 
-const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId, contextEpoch }) => {
   const { t, i18n } = useTranslation();
   const canSell = hasAnyRole(userRole, currentUser, ['seller', 'admin', 'manager']);
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
@@ -521,7 +522,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   useEffect(() => { activeRef.current = active; }, [active]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) return;
     const socket = io(SOCKET_URL, { auth: { token } });
     socketRef.current = socket;
@@ -563,7 +564,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
     });
 
     return () => socket.disconnect();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [contextEpoch]); // reconnect with the current ActiveRoleSession token
 
   // Joins/leaves the conversation:{id} room as the open thread changes —
   // the server re-verifies participation on every join, so this can't be

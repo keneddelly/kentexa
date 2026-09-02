@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import { getAccessToken } from '../../api/tokenStore';
 // eslint-disable-next-line no-unused-vars
 import { buildCreationMessage, buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whatsapp-link';
 
@@ -116,7 +117,7 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   const [collectingCodId, setCollectingCodId] = useState(null);
 
   useEffect(() => {
-    if (!localStorage.getItem('token')) { onNavigate('PublicLogin'); return; }
+    if (!getAccessToken()) { onNavigate('PublicLogin'); return; }
     fetchOrders();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

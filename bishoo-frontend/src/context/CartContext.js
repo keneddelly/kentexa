@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getAccessToken } from '../api/tokenStore';
 
 const CartContext = createContext(null);
 
@@ -6,7 +7,7 @@ const CartContext = createContext(null);
 // Falls back to a shared "guest" cart when no one is logged in.
 const getUserKey = () => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) return 'guest';
     const payload = JSON.parse(atob(token.split('.')[1]));
     return payload?.sub ? `user_${payload.sub}` : 'guest';

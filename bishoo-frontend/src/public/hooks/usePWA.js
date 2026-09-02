@@ -7,6 +7,7 @@
  *   {showInstallPrompt && <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} />}
  */
 import { useState, useEffect } from 'react';
+import { getAccessToken } from '../../api/tokenStore';
 
 
 // ── Push notification subscription ────────────────────────────────────────
@@ -17,7 +18,7 @@ export const subscribeToPush = async (apiBase = '') => {
 
     // Get VAPID public key from server
     const res = await fetch(`${apiBase}/notifications/push/vapid-key`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('kentexa_token')}` },
+      headers: { Authorization: `Bearer ${getAccessToken()}` },
     });
     if (!res.ok) return null;
     const { publicKey } = await res.json();
@@ -43,7 +44,7 @@ export const subscribeToPush = async (apiBase = '') => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('kentexa_token')}`,
+        Authorization: `Bearer ${getAccessToken()}`,
       },
       body: JSON.stringify({
         endpoint:  subObj.endpoint,

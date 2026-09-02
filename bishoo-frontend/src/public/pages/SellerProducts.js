@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import { getAccessToken } from '../../api/tokenStore';
 import { useTranslation } from 'react-i18next';
 import LocationPicker from '../components/LocationPicker';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
@@ -158,7 +159,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) { onNavigate('PublicLogin'); return; }
     fetchMyProducts();
     const saved = localStorage.getItem('sellerOriginCity');

@@ -47,8 +47,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
         ? { phone: identifier.trim(), password }
         : { email: identifier.trim(), password };
       const res = await api.post('/auth/login', payload);
-      localStorage.setItem('token', res.data.access_token);
-      if (onLoginSuccess) onLoginSuccess(res.data);
+      if (onLoginSuccess) await onLoginSuccess(res.data);
     } catch (err) {
       setError(err?.response?.data?.message || t('login.invalid_credentials'));
     } finally {

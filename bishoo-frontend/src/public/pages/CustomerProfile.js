@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
 import ReputationBadge from '../components/ReputationBadge';
 import api from '../../api/api';
+import { getAccessToken } from '../../api/tokenStore';
 import { useTranslation } from 'react-i18next';
 import { hasAnyRole } from '../utils/roles';
 
@@ -44,7 +45,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
   const [passwordForm, setPasswordForm] = useState({ newPassword: '', confirmPassword: '' });
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) { onNavigate('PublicLogin'); return; }
     fetchData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

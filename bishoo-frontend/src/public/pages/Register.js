@@ -77,7 +77,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       setOtpLoading(true);
       setError('');
       const res = await api.post('/auth/verify-otp', { identifier: identifier.trim(), otp });
-      localStorage.setItem('token', res.data.access_token);
+      if (onLoginSuccess) await onLoginSuccess(res.data, { deferNavigation: true });
       setVerifiedUserId(res.data.user?.id ?? null);
       setKentexaId(res.data.user?.kentexaId || '');
       setStep(3); // mandatory photo — onLoginSuccess fires only once that's done
@@ -111,7 +111,7 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       setFinishing(true);
       setError('');
       await api.patch(`/users/${verifiedUserId}`, { avatarUrl: photoUrl });
-      if (onLoginSuccess) onLoginSuccess('Home'); // navigates inside handleLoginSuccess
+      if (onLoginSuccess) onLoginSuccess(null, { targetPage: 'Home' });
     } catch (err) {
       setError(err?.response?.data?.message || t('register.photo_upload_failed'));
     } finally {

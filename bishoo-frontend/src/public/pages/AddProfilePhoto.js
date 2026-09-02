@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import { getAccessToken } from '../../api/tokenStore';
 
 // Same decode App.js's own login-time gate uses to decide Onboarding vs
 // Home — kept local (not exported/shared) to match how App.js already
@@ -58,7 +59,7 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
       // above describes. Finishing here used to always land on Home,
       // which silently skipped the entire Onboarding flow (city/interests/
       // follow-suggested-accounts) for every new account, every time.
-      const decoded = decodeToken(localStorage.getItem('token'));
+      const decoded = decodeToken(getAccessToken());
       onNavigate(decoded?.onboardingCompleted ? 'Home' : 'Onboarding');
     } catch (err) {
       setError(err?.response?.data?.message || t('register.photo_upload_failed'));

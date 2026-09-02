@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import './i18n'; // ← import i18n before App
+import { RoleContextProvider } from './context/RoleContext';
 
 // Temporary on-page error overlay — lets a real crash be read directly off
 // the phone screen (photographed/typed back) without needing Safari's
@@ -40,6 +41,8 @@ window.addEventListener('unhandledrejection', (e) => {
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <App />
+    <RoleContextProvider>
+      <App />
+    </RoleContextProvider>
   </React.StrictMode>
 );

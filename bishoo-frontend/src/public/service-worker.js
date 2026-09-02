@@ -53,6 +53,13 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   if (url.protocol === 'chrome-extension:') return;
 
+  // A bearer response belongs to one server-side role session. Never place it
+  // in a shared service-worker cache where another context could replay it.
+  if (request.headers.has('authorization')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   // API requests: network-first, cache as fallback
   if (url.hostname.includes('api.kentexa.com') || url.pathname.startsWith('/api/')) {
     event.respondWith(

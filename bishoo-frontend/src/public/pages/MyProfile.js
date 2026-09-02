@@ -79,7 +79,7 @@ const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => 
 );
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment, activeProfile }) => {
+const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment, activeProfile, availableRoles = [] }) => {
   const { t, i18n } = useTranslation();
   const TIERS = getTiers(t);
   const ROLE_META = getRoleMeta(t);
@@ -105,7 +105,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [sellerProfile, setSellerProfile] = useState(null);
 
-  const role = userRole || profile?.role || 'user';
+  const role = userRole || 'buyer';
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -191,15 +191,15 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
 
   const score = rep?.score || profile?.reputationScore || 0;
   const tier  = getTier(score);
-  const roles = [role, ...(profile?.activeRoles || [])].filter((r,i,a) => a.indexOf(r)===i);
+  const roles = availableRoles.filter(r => r.status === 'active').map(r => r.roleType);
 
   // "Businesses Zangu" is store/products/services/analytics — only means
   // anything if you actually run a store. "Finance" is payouts/invoices/
   // payout method — only means anything if you're paid by KenteXa (seller
   // or agent). Neither applied to a plain buyer, who saw them anyway with
   // zero content that worked for them.
-  const isBusinessOwner = roles.some(r => ['seller','admin','manager'].includes(r));
-  const isPaidRole      = roles.some(r => ['seller','admin','manager','agent'].includes(r));
+  const isBusinessOwner = ['seller','admin','manager'].includes(role);
+  const isPaidRole      = ['seller','admin','manager','agent'].includes(role);
 
   const NAV = [
     { key:'identity',      icon:'👤', label:t('my_profile.nav_identity') },

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
+import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
 
 const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) => {
@@ -21,7 +22,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
   const [disputeReason, setDisputeReason] = useState('');
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) { onNavigate('PublicLogin'); return; }
     if (orderId) fetchOrderData();
   }, [orderId]); // eslint-disable-line react-hooks/exhaustive-deps

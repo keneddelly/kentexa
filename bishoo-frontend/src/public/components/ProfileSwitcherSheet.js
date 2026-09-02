@@ -1,10 +1,10 @@
 /**
- * ProfileSwitcherSheet.js — pick which CommerceProfile the app acts as.
+ * ProfileSwitcherSheet.js — switch the server-authoritative AccountRole.
  *
  * One account, several independent public identities (personal + any
  * approved business/hub/agent/transport profiles). This is the single
  * place that switches between them — never re-authenticates, just
- * changes which profile the app shell renders as.
+ * Presentation profiles only enrich the AccountRole labels and artwork.
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
@@ -23,7 +23,7 @@ const TYPE_META = {
   service_provider:   { icon: '🔧', label: 'profile_switcher.type_service' },
 };
 
-const ProfileSwitcherSheet = ({ profiles, activeProfileId, onSwitch, onClose, onNavigate }) => {
+const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose, onNavigate, switching, error }) => {
   const { t } = useTranslation();
 
   return (
@@ -46,17 +46,20 @@ const ProfileSwitcherSheet = ({ profiles, activeProfileId, onSwitch, onClose, on
         </div>
 
         <div style={{ flex:1, overflowY:'auto', padding:'8px 16px 16px' }}>
+          {error && <div role="alert" style={{ margin:'4px 0 10px', padding:'9px 10px', borderRadius:10,
+            backgroundColor:'#FEE2E2', color:'#B91C1C', fontSize:11, fontWeight:700 }}>{error}</div>}
           {profiles.map(p => {
             const meta = TYPE_META[p.type] || TYPE_META.personal;
-            const isActive = p.id === activeProfileId;
+            const isActive = Number(p.accountRoleId) === Number(activeAccountRoleId);
+            const disabled = isActive || p.switchable !== true || switching;
             return (
-              <button key={p.id} onClick={() => onSwitch(p.id)}
-                disabled={isActive}
+              <button key={p.accountRoleId} onClick={() => onSwitch(p.accountRoleId)}
+                disabled={disabled}
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:12,
                   padding:'12px 10px', borderRadius:14, marginBottom:6,
                   border: isActive ? `2px solid ${B}` : '2px solid transparent',
                   backgroundColor: isActive ? '#EFF6FF' : WH,
-                  cursor: isActive ? 'default' : 'pointer', textAlign:'left' }}>
+                  cursor: disabled ? 'default' : 'pointer', opacity: disabled && !isActive ? 0.55 : 1, textAlign:'left' }}>
                 <div style={{ width:44, height:44, borderRadius:12, flexShrink:0,
                   backgroundColor:'#F1F5F9', overflow:'hidden', display:'flex',
                   alignItems:'center', justifyContent:'center', fontSize:22 }}>
@@ -78,6 +81,9 @@ const ProfileSwitcherSheet = ({ profiles, activeProfileId, onSwitch, onClose, on
                   <span style={{ fontSize:11, fontWeight:800, color:B }}>
                     {t('profile_switcher.active_label')}
                   </span>
+                )}
+                {!isActive && p.switchable !== true && (
+                  <span style={{ fontSize:10, fontWeight:700, color:GR }}>{p.status}</span>
                 )}
               </button>
             );

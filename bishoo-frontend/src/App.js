@@ -5,6 +5,10 @@ import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
 import { pageToPath, pathToPage, pathToNavParams } from './utils/urlSync';
+import { useRoleContext } from './context/RoleContext';
+import ContextEpochBoundary from './context/ContextEpochBoundary';
+import { contextTransitionState } from './context/contextTransition';
+import { getAccessToken } from './api/tokenStore';
 import HomeFeed           from './public/pages/HomeFeed';
 import Welcome            from './public/pages/Welcome';
 import MyProfile          from './public/pages/MyProfile';
@@ -124,30 +128,6 @@ import HowItWorks from './public/pages/HowItWorks';
 import TermsAndConditions from './public/pages/TermsAndConditions';
 import PrivacyPolicy from './public/pages/PrivacyPolicy';
 
-const decodeToken = (token) => {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch (e) {
-    return null;
-  }
-};
-
-const checkToken = () => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) return { loggedIn: false, role: null };
-    const decoded = decodeToken(token);
-    if (!decoded) return { loggedIn: false, role: null };
-    if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-      localStorage.removeItem('token');
-      return { loggedIn: false, role: null };
-    }
-    return { loggedIn: true, role: decoded.role };
-  } catch (e) {
-    return { loggedIn: false, role: null };
-  }
-};
-
 // Register service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -157,9 +137,22 @@ if ('serviceWorker' in navigator) {
 }
 
 function App() {
+  const roleContext = useRoleContext();
+  const {
+    status: authStatus,
+    isAuthenticated: isLoggedIn,
+    activeRoleType: userRole,
+    activeContext,
+    activeProfile,
+    roleOptions,
+    contextEpoch,
+    switching: roleSwitching,
+    acceptAuthResponse,
+    switchRole,
+    refreshContext,
+    logout: roleLogout,
+  } = roleContext;
   const { showInstallPrompt, handleInstall, handleDismiss } = usePWA();
-  const [isLoggedIn, setIsLoggedIn] = useState(() => checkToken().loggedIn);
-  const [userRole, setUserRole]     = useState(() => checkToken().role);
   const [showPostModal, setShowPostModal] = useState(false);
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [momentModalMode, setMomentModalMode] = useState('selling');
@@ -171,11 +164,7 @@ function App() {
   // (a different, never-reconciled number — see backend's
   // ConversationService.getUnreadConversationCount comment).
   const [inboxUnread, setInboxUnread] = useState(0);
-  const [currentUser, setCurrentUser] = useState(() => {
-    // Load cached user from localStorage so forms pre-fill immediately
-    try { return JSON.parse(localStorage.getItem('kentexa_user') || 'null'); }
-    catch { return null; }
-  });
+  const [currentUser, setCurrentUser] = useState(null);
   const [page, setPage]             = useState(() => {
     // Bootstrap from a real URL — lets external links (WhatsApp, SMS) deep-link
     // straight into tracking instead of always landing on Home.
@@ -205,49 +194,11 @@ function App() {
   // Show language picker only on first visit
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem('kentexa_lang'));
 
-  // ── Active commerce profile ───────────────────────────────────────────────
-  // Every account owns one PERSONAL profile plus whichever business/hub/
-  // agent/transport profiles it's had approved. "Active" is which one the
-  // app shell is currently acting as — it changes what BottomNav shows and
-  // what new posts get attributed to, but never re-authenticates: it's the
-  // same account, same JWT, just a different lens (same model as switching
-  // between a personal Facebook profile and a Page you manage).
-  const [myProfiles, setMyProfiles] = useState([]);
-  const [activeProfileId, setActiveProfileIdState] = useState(() => {
-    const v = localStorage.getItem('kentexa_active_profile_id');
-    return v ? Number(v) : null;
-  });
+  // Commerce profiles enrich labels and business-scope parameters only.
+  // Active authority is the server-issued AccountRole in RoleContextProvider.
+  const myProfiles = roleOptions;
   const [showProfileSwitcher, setShowProfileSwitcher] = useState(false);
-  const activeProfile = myProfiles.find(p => p.id === activeProfileId)
-    || myProfiles.find(p => p.type === 'personal')
-    || null;
-
-  const setActiveProfileId = (id) => {
-    setActiveProfileIdState(id);
-    if (id) localStorage.setItem('kentexa_active_profile_id', String(id));
-    else localStorage.removeItem('kentexa_active_profile_id');
-  };
-
-  // Loads every profile this account can act as, once logged in. Re-runs
-  // after login and can be called again after a new role gets approved
-  // (RoleActivation) so a freshly-created profile shows up in the switcher
-  // without requiring a full app reload.
-  const loadMyProfiles = () => {
-    api.get('/profiles/mine').then(res => {
-      const list = res.data || [];
-      setMyProfiles(list);
-      // First time ever (no stored choice) or the stored profile no longer
-      // exists (e.g. different browser/device) — default to personal.
-      if (!activeProfileId || !list.some(p => p.id === activeProfileId)) {
-        const personal = list.find(p => p.type === 'personal');
-        if (personal) setActiveProfileId(personal.id);
-      }
-    }).catch(() => {});
-  };
-
-  useEffect(() => {
-    if (isLoggedIn) loadMyProfiles();
-  }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [roleSwitchError, setRoleSwitchError] = useState('');
 
   const fetchInboxUnread = () => {
     if (!isLoggedIn) { setInboxUnread(0); return; }
@@ -256,7 +207,7 @@ function App() {
       .catch(() => {});
   };
 
-  useEffect(() => { fetchInboxUnread(); }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchInboxUnread(); }, [isLoggedIn, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Identity-verification architecture audit (2026-08-28): fetched once at
   // app level so requireVerifiedSeller() below can gate EVERY seller-
@@ -285,18 +236,23 @@ function App() {
     personal: 'Home',
   };
 
-  const handleSwitchProfile = (profileId) => {
-    setActiveProfileId(profileId);
-    setShowProfileSwitcher(false);
-    const p = myProfiles.find(x => x.id === profileId);
-    // Multi-role architecture Phase 2: a BUSINESS-type profile only goes
-    // to SellerDashboard once it has actually activated Seller -- same
-    // sellerProfileId check BottomNav.js uses, so switching profiles
-    // never hands a Business-only account a path to Ship Item/Products.
-    const dest = p?.type === 'business' && !p?.sellerProfileId
-      ? 'BusinessDashboard'
-      : DASHBOARD_BY_TYPE[p?.type] || 'Home';
-    handleNavigate(dest);
+  const handleSwitchProfile = async (accountRoleId) => {
+    try {
+      setRoleSwitchError('');
+      const context = await switchRole(accountRoleId);
+      setShowProfileSwitcher(false);
+      const p = myProfiles.find(x => Number(x.accountRoleId) === Number(context.accountRoleId));
+      const transition = contextTransitionState(p?.landingPage || DASHBOARD_BY_TYPE[p?.type] || 'Home');
+      setNavHistory(transition.navHistory);
+      setNavParams(transition.navParams);
+      setPage(transition.page);
+      syncUrl(transition.page, null);
+      window.scrollTo(0, 0);
+    } catch (error) {
+      if (error?.message !== 'ROLE_SWITCH_IN_PROGRESS') {
+        setRoleSwitchError(error?.response?.data?.message || error?.message || 'ROLE_SWITCH_FAILED');
+      }
+    }
   };
 
   // Analytics — tracks every page, click, scroll automatically
@@ -305,7 +261,7 @@ function App() {
     isLoggedIn,
     userId: (() => {
       try {
-        const token = localStorage.getItem('token');
+        const token = getAccessToken();
         if (!token) return null;
         return JSON.parse(atob(token.split('.')[1]))?.sub || null;
       } catch { return null; }
@@ -329,6 +285,18 @@ function App() {
   // regardless of what each page hard-codes as its back destination.
   // eslint-disable-next-line no-unused-vars
   const [navHistory, setNavHistory] = useState([]);
+
+  // One reset boundary for App-owned context state. Component-local state is
+  // discarded by the contextEpoch key around the protected page subtree.
+  useEffect(() => {
+    setNavHistory([]);
+    setInboxUnread(0);
+    setShowPostModal(false);
+    setShowMomentModal(false);
+    setShowProfileSwitcher(false);
+    setRoleSwitchError('');
+    setNavParams(null);
+  }, [contextEpoch]);
 
   // Syncs the visible browser URL for the 4 shareable content types
   // (product/classified/service/store) — every other page intentionally
@@ -390,13 +358,11 @@ function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const handleLoginSuccess = async (targetPage) => {
+  const handleLoginSuccess = async (data, options = {}) => {
     try {
-      const token   = localStorage.getItem('token');
-      const decoded = decodeToken(token);
-      if (decoded) {
-        setIsLoggedIn(true);
-        setUserRole(decoded.role);
+      if (data) await acceptAuthResponse(data);
+      if (options.refreshOnly) await refreshContext();
+      if (getAccessToken()) {
         // Fetch full profile first — avatarUrl can't be read from the JWT
         // (it's signed before the mandatory-photo step completes, so a baked-in
         // claim would go stale). Await it so the photo gate can act on live data.
@@ -418,7 +384,7 @@ function App() {
         setNavParams(null);
         if (profile && !profile.avatarUrl) {
           setPage('AddProfilePhoto');
-        } else if (!decoded.onboardingCompleted) {
+        } else if (!(data?.user?.onboardingCompleted ?? roleContext.user?.onboardingCompleted)) {
           // Was role === 'user' only — the Setup Wizard is now the real
           // first-time entry point for every role (it opens with "what do
           // you want to do on Kentexa?" and branches from there), not just
@@ -431,21 +397,21 @@ function App() {
             localStorage.removeItem('kentexa_after_login');
             setPage(intended);
           } else {
-            const dest = typeof targetPage === 'string' ? targetPage : 'Home';
+            const dest = options.targetPage || 'Home';
             setPage(dest);
           }
         }
-        window.dispatchEvent(new Event('kentexa-auth-changed'));
       }
     } catch (e) {
-      setIsLoggedIn(false);
-      setUserRole(null);
+      roleContext.clearLocalAuthority('login_initialization_failed');
+      throw e;
     }
   };
 
-  // Load profile on app start if token exists
+  // Load legacy/presentation profile only after the server has restored the
+  // authoritative ActiveRoleSession and AccountRole context.
   useEffect(() => {
-    if (isLoggedIn && !currentUser) {
+    if (isLoggedIn) {
       api.get('/auth/profile').then(res => {
         setCurrentUser(res.data);
         localStorage.setItem('kentexa_user', JSON.stringify(res.data));
@@ -454,7 +420,7 @@ function App() {
         }
       }).catch(() => {});
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-fetch the profile whenever the tab regains focus. currentUser.activeRoles
   // (what every role gate — hasAnyRole — actually checks) is otherwise only
@@ -532,15 +498,12 @@ function App() {
     localStorage.setItem('kentexa_user', JSON.stringify(updatedUser));
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await roleLogout();
     setCurrentUser(null);
     localStorage.removeItem('kentexa_user');
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
-    setUserRole(null);
     setPage('Home');
     setNavParams(null);
-    window.dispatchEvent(new Event('kentexa-auth-changed'));
   };
 
 
@@ -549,6 +512,8 @@ function App() {
     onNavigate: handleNavigate, isLoggedIn, onLogout: handleLogout, userRole, currentUser,
     onUserUpdated: handleUserUpdated,
     activeProfile, activeProfileId: activeProfile?.id,
+    activeContext, availableRoles: roleContext.availableRoles,
+    capabilities: roleContext.capabilities, contextEpoch,
     onOpenMoment: () => {
       if (!isLoggedIn) { handleNavigate('PublicLogin'); return; }
       setMomentModalMode('selling');
@@ -562,16 +527,15 @@ function App() {
   const loginPage = <PublicLogin onNavigate={handleNavigate} onLoginSuccess={handleLoginSuccess} />;
 
   const requireLogin = (component) => {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) return loginPage;
     return isLoggedIn ? component : loginPage;
   };
 
   const requireAdmin = (component) => {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) return loginPage;
-    const decoded = decodeToken(token);
-    const role = decoded?.role;
+    const role = activeContext?.roleType;
     if (role === 'admin' || role === 'manager') return component;
     return <HomeFeed {...publicProps} />;
   };
@@ -596,10 +560,9 @@ function App() {
   // inert, not a live regression — revisit if team accounts start
   // getting used and a legitimate unverified staff member gets blocked.
   const requireVerifiedSeller = (component) => {
-    const token = localStorage.getItem('token');
+    const token = getAccessToken();
     if (!token) return loginPage;
-    const decoded = decodeToken(token);
-    const role = decoded?.role;
+    const role = activeContext?.roleType;
     if (role === 'admin' || role === 'manager') return component;
     if (identityStatus === null) return null; // brief post-login load; avoid flashing either state
     if (identityStatus.level === 0) {
@@ -758,7 +721,7 @@ function App() {
       case 'MyOrders':          return requireLogin(<MyOrders {...publicProps} />);
       case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} />);
       case 'Checkout':          return requireLogin(<Checkout {...publicProps} />);
-      case 'StoreSettings':     return requireVerifiedSeller(<StoreSettings {...publicProps} userId={decodeToken(localStorage.getItem('token'))?.sub} />);
+      case 'StoreSettings':     return requireVerifiedSeller(<StoreSettings {...publicProps} userId={activeContext?.userId} />);
       case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
@@ -842,10 +805,14 @@ function App() {
     setShowLangPicker(false);
   };
 
+  if (authStatus === 'restoring') {
+    return <div role="status" style={{ minHeight:'100vh', display:'grid', placeItems:'center', color:'#64748b' }}>Loading…</div>;
+  }
+
   return (
     <OnboardingProvider currentUser={currentUser}>
     <CartProvider>
-      {renderPage()}
+      <ContextEpochBoundary contextEpoch={contextEpoch}>{renderPage()}</ContextEpochBoundary>
 
       {/* ── Social Commerce Navigation ─────────────────────── */}
       {/* Hidden during Onboarding — a focused setup wizard shouldn't show
@@ -880,15 +847,18 @@ function App() {
           activeProfile={activeProfile}
           myProfiles={myProfiles}
           onOpenSwitcher={() => setShowProfileSwitcher(true)}
+          switching={roleSwitching}
         />
       )}
       {showProfileSwitcher && (
         <ProfileSwitcherSheet
           profiles={myProfiles}
-          activeProfileId={activeProfile?.id}
+          activeAccountRoleId={activeContext?.accountRoleId}
           onSwitch={handleSwitchProfile}
           onClose={() => setShowProfileSwitcher(false)}
           onNavigate={handleNavigate}
+          switching={roleSwitching}
+          error={roleSwitchError}
         />
       )}
       {showPostModal && (

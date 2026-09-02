@@ -93,7 +93,7 @@ const getRoles = (t) => [
   },
 ];
 
-const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
+const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, availableRoles = [] }) => {
   const { t } = useTranslation();
   const ROLES = getRoles(t);
   const [selected, setSelected] = useState(null);
@@ -134,7 +134,7 @@ const RoleActivation = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUse
   };
 
   const role  = selected ? ROLES.find(r => r.key === selected) : null;
-  const activeRoles = currentUser?.activeRoles || [currentUser?.role || 'user'];
+  const activeRoles = availableRoles.filter(r => r.status === 'active').map(r => r.roleType);
 
   return (
     <div style={{ minHeight:'100vh', backgroundColor:'#f8fafc',
