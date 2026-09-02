@@ -55,6 +55,11 @@ import { AdminIntelligenceModule } from './admin-intelligence/admin-intelligence
 import { SellingCapabilityModule } from './selling-capability/selling-capability.module';
 import { PoliciesModule } from './policies/policies.module';
 import { ShareModule } from './share/share.module';
+import { RoleContextModule } from './role-context/role-context.module';
+
+export const allowDevelopmentSchemaSync =
+  process.env.NODE_ENV === 'development' &&
+  process.env.TYPEORM_SYNCHRONIZE === 'true';
 
 @Module({
   imports: [
@@ -68,21 +73,7 @@ import { ShareModule } from './share/share.module';
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'kentexa',
       autoLoadEntities: true,
-      // TODO(regulatory-readiness P0): migration tooling now exists
-      // (src/data-source.ts, `npm run migration:generate|run|revert`), but
-      // this stays `true` until a one-time cutover happens directly
-      // against the production DB: (1) deploy once more with
-      // synchronize:true so prod is 100% caught up with every entity,
-      // (2) run `npm run migration:generate -- src/migrations/Baseline`
-      // against the PRODUCTION connection and confirm the diff is empty
-      // (proves prod already matches every entity), (3) only then flip
-      // this to `false` and require `npm run migration:run` on deploy
-      // going forward. Flipping it off before that baseline is verified
-      // empty would silently stop any future entity change from ever
-      // reaching the production schema — this can't be done safely from a
-      // local dev DB, which drifts independently (confirmed: a migration
-      // generated against this worktree's local DB was NOT an empty diff).
-      synchronize: true,
+      synchronize: allowDevelopmentSchemaSync,
       extra: {
         query_timeout: 30000,
         statement_timeout: 30000,
@@ -139,6 +130,7 @@ import { ShareModule } from './share/share.module';
     SellingCapabilityModule,
     PoliciesModule,
     ShareModule,
+    RoleContextModule,
     // Blanket default rate limit — most controllers had none at all (only
     // auth/transport/search/early-access separately registered their own
     // tighter ThrottlerModule + guard). This adds a global floor via

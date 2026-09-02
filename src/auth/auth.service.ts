@@ -3,6 +3,7 @@ import {
   BadRequestException,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,6 +18,14 @@ import { PolicyVersionService } from '../policies/policy-version.service';
 import { PolicyType } from '../policies/entities/policy-version.entity';
 import { normalizeTzPhone } from '../common/utils/phone.util';
 import { VerificationService } from '../identity/verification.service';
+import { RoleContextService } from '../role-context/role-context.service';
+import { AccountRole } from '../role-context/entities/account-role.entity';
+import { ActiveRoleSession } from '../role-context/entities/active-role-session.entity';
+import {
+  RequestMetadata,
+  RoleContext,
+  RoleJwtPayload,
+} from '../role-context/role-context.types';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +38,7 @@ export class AuthService {
     private commerceProfiles: CommerceProfilesService,
     private policyVersions: PolicyVersionService,
     private verification: VerificationService,
+    private roleContextService: RoleContextService,
   ) {}
 
   // Stamps whatever Terms of Service version is currently active at the
@@ -46,14 +56,62 @@ export class AuthService {
     return { termsAcceptedVersion: active.version, termsAcceptedAt: new Date() };
   }
 
-  private signToken(user: User) {
+  private signToken(
+    user: User,
+    session: ActiveRoleSession,
+    role: AccountRole,
+  ) {
     return this.jwtService.sign({
       sub: user.id,
+      sid: session.id,
+      rid: role.id,
+      rt: role.roleType,
+      cv: role.contextVersion,
+    });
+  }
+
+  private serializeUser(user: User) {
+    return {
+      id: user.id,
       phone: user.phone,
       email: user.email,
+      name: user.name,
+      avatarUrl: user.avatarUrl || null,
+      kentexaId: user.kentexaId,
       role: user.role,
       onboardingCompleted: !!user.onboardingCompleted,
+    };
+  }
+
+  private async issueAuthenticatedResponse(
+    user: User,
+    metadata: RequestMetadata = {},
+  ) {
+    await this.roleContextService.ensureBuyerRole(user);
+    const role = await this.roleContextService.selectRoleForLogin(
+      user,
+      metadata.deviceId,
+    );
+    const session = await this.roleContextService.createSession(
+      user.id,
+      role,
+      metadata,
+    );
+    const accessToken = this.signToken(user, session, role);
+    const activeContext = await this.roleContextService.resolveContext({
+      sub: user.id,
+      sid: session.id,
+      rid: role.id,
+      rt: role.roleType,
+      cv: role.contextVersion,
     });
+    return {
+      accessToken,
+      access_token: accessToken,
+      user: this.serializeUser(user),
+      activeContext,
+      availableRoles: await this.roleContextService.listRoles(user.id),
+    };
   }
 
   // ── REGISTER WITH PHONE ───────────────────────────────────────────────
@@ -224,18 +282,10 @@ export class AuthService {
       // through here.
     }
 
-    const token = this.signToken(user);
+    const authenticated = await this.issueAuthenticatedResponse(user);
     return {
       message: 'Account verified successfully! Welcome to KenteXa.',
-      access_token: token,
-      user: {
-        id: user.id,
-        phone: user.phone,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        kentexaId: user.kentexaId,
-      },
+      ...authenticated,
     };
   }
 
@@ -284,7 +334,11 @@ export class AuthService {
   }
 
   // ── LOGIN ─────────────────────────────────────────────────────────────
-  async login(identifier: string, password: string) {
+  async login(
+    identifier: string,
+    password: string,
+    metadata: RequestMetadata = {},
+  ) {
     if (!identifier || !identifier.trim())
       throw new UnauthorizedException('Invalid credentials');
 
@@ -319,20 +373,69 @@ export class AuthService {
     const match = await bcrypt.compare(password, user.password);
     if (!match) throw new UnauthorizedException('Invalid credentials');
 
-    const token = this.signToken(user);
+    return this.issueAuthenticatedResponse(user, metadata);
+  }
+
+  async getCurrentUser(context: RoleContext) {
+    const user = await this.userRepo.findOne({
+      where: { id: context.userId },
+    });
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    return { user: this.serializeUser(user), activeContext: context };
+  }
+
+  async getAvailableRoles(userId: number) {
     return {
-      access_token: token,
-      user: {
-        id: user.id,
-        phone: user.phone,
-        email: user.email,
-        name: user.name,
-        avatarUrl: user.avatarUrl || null,
-        kentexaId: user.kentexaId,
-        role: user.role,
-        onboardingCompleted: !!user.onboardingCompleted,
-      },
+      availableRoles: await this.roleContextService.listRoles(userId),
     };
+  }
+
+  async switchRole(
+    user: User,
+    currentContext: RoleContext,
+    accountRoleId: number,
+    metadata: RequestMetadata = {},
+  ) {
+    const target = await this.roleContextService.getRoleForUser(
+      accountRoleId,
+      user.id,
+    );
+    if (!target || !(await this.roleContextService.isSwitchable(target))) {
+      throw new ForbiddenException({
+        code: 'ROLE_NOT_SWITCHABLE',
+        message: 'ROLE_NOT_SWITCHABLE',
+      });
+    }
+    await this.roleContextService.revokeCurrentSession(
+      currentContext.sessionId,
+      'role_switched',
+    );
+    const session = await this.roleContextService.createSession(
+      user.id,
+      target,
+      metadata,
+    );
+    const accessToken = this.signToken(user, session, target);
+    const activeContext = await this.roleContextService.resolveContext({
+      sub: user.id,
+      sid: session.id,
+      rid: target.id,
+      rt: target.roleType,
+      cv: target.contextVersion,
+    });
+    return {
+      accessToken,
+      access_token: accessToken,
+      activeContext,
+      availableRoles: await this.roleContextService.listRoles(user.id),
+    };
+  }
+
+  async logout(payload: RoleJwtPayload | undefined) {
+    if (payload?.sid && payload?.sub) {
+      await this.roleContextService.revokeCurrentSession(payload.sid, 'logout');
+    }
+    return { success: true };
   }
 
   // ── FORGOT PASSWORD ───────────────────────────────────────────────────

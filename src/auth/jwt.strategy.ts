@@ -33,6 +33,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!payload?.sub) return null;
     const user = await this.userRepo.findOne({ where: { id: payload.sub } });
     if (!user) return null;
+    Object.defineProperty(user, 'authPayload', {
+      value: payload,
+      enumerable: false,
+    });
     return user;
   }
 }

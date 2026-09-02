@@ -3,8 +3,11 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
+import { AccountRole } from '../../role-context/entities/account-role.entity';
+import { ActiveRoleSession } from '../../role-context/entities/active-role-session.entity';
 
 export enum UserRole {
   USER = 'user',
@@ -142,6 +145,12 @@ export class User {
 
   @Column({ type: 'simple-array', nullable: true })
   activeRoles: string[] | null; // ['buyer','seller','agent'] — activated roles
+
+  @OneToMany(() => AccountRole, (accountRole) => accountRole.user)
+  accountRoles: AccountRole[];
+
+  @OneToMany(() => ActiveRoleSession, (session) => session.user)
+  activeRoleSessions: ActiveRoleSession[];
 
   @Column({ type: 'varchar', nullable: true })
   kycLevel: string | null; // 'none' | 'phone' | 'id_document' | 'business'

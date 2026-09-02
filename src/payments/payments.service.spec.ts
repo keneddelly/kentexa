@@ -163,7 +163,15 @@ describe('PaymentsService', () => {
         status: PaymentStatus.PENDING,
         order: { id: 5 },
       });
-      orderRepo.findOne.mockResolvedValue(null);
+      orderRepo.findOne.mockResolvedValue({
+        id: 5,
+        status: 'paid',
+        paymentMethod: 'online',
+        buyer: null,
+        seller: null,
+        product: { name: 'Fixture Product' },
+        totalAmount: 1000,
+      });
       process.env.NODE_ENV = 'production';
 
       const result = await service.handleCallback({}, 'selcom');

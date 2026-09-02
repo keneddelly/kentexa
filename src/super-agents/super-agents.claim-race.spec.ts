@@ -37,6 +37,7 @@ describe('SuperAgentsService.claimParcel() atomicity', () => {
     const noop = {} as any;
     service = new SuperAgentsService(
       noop, // superAgentRepo
+      noop, // transportAssignmentRepo
       parcelRepo,
       trackingRepo,
       noop, // rateRepo
@@ -47,10 +48,20 @@ describe('SuperAgentsService.claimParcel() atomicity', () => {
       noop, // agentTransactionRepo
       noop, // batchParcelRepo
       noop, // userRepo
+      noop, // paymentRepo
+      noop, // sellerProfileRepo
+      noop, // saleRepo
       { sendSms: jest.fn() }, // smsService
       noop, // dataSource
       noop, // businessCustomerService
       { create: jest.fn() }, // inAppNotif
+      noop, // commerceProfiles
+      noop, // profileScope
+      noop, // invoicesService
+      noop, // auditLog
+      noop, // verification
+      noop, // activityEvents
+      noop, // walletService
     );
   });
 

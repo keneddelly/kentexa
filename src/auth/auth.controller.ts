@@ -5,6 +5,7 @@ import {
   Body,
   UseGuards,
   Request,
+  Req,
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from './auth.guard';
@@ -18,6 +19,8 @@ import {
   ResetPasswordDto,
 } from './dto/otp.dto';
 import { LoginDto } from './dto/login.dto';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { RoleContext } from '../role-context/role-context.types';
 
 @Controller('auth')
 export class AuthController {
@@ -72,9 +75,45 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 20, ttl: 3600000 } })
   @Post('login')
-  login(@Body() body: LoginDto) {
+  login(@Body() body: LoginDto, @Req() req: any) {
     const id = body.identifier || body.phone || body.email || '';
-    return this.authService.login(id, body.password);
+    return this.authService.login(
+      id,
+      body.password,
+      this.requestMetadata(req, body.deviceId),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Get('me')
+  getMe(@Request() req: any) {
+    return this.authService.getCurrentUser(req.roleContext as RoleContext);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Get('roles')
+  getRoles(@Request() req: any) {
+    return this.authService.getAvailableRoles(req.roleContext.userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @Post('switch-role')
+  switchRole(
+    @Body() body: { accountRoleId: number; deviceId?: string },
+    @Request() req: any,
+  ) {
+    return this.authService.switchRole(
+      req.user,
+      req.roleContext as RoleContext,
+      Number(body.accountRoleId),
+      this.requestMetadata(req, body.deviceId),
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  logout(@Request() req: any) {
+    return this.authService.logout(req.user?.authPayload);
   }
 
   // Forgot password — costs a real SMS/email send
@@ -133,5 +172,13 @@ export class AuthController {
       body.otp,
       body.newPassword,
     );
+  }
+
+  private requestMetadata(req: any, deviceId?: string) {
+    return {
+      deviceId,
+      userAgent: req?.headers?.['user-agent'],
+      ip: req?.ip || req?.socket?.remoteAddress,
+    };
   }
 }

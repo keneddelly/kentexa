@@ -14,6 +14,7 @@ import { ProfileModule } from '../profile/profile.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { PoliciesModule } from '../policies/policies.module';
 import { IdentityModule } from '../identity/identity.module';
+import { RoleContextModule } from '../role-context/role-context.module';
 
 @Module({
   imports: [
@@ -36,11 +37,12 @@ import { IdentityModule } from '../identity/identity.module';
             'JWT_SECRET is not set. Refusing to start with a fallback signing secret.',
           );
         }
-        return { secret, signOptions: { expiresIn: '7d' } };
+        return { secret, signOptions: { expiresIn: '30m' } };
       },
     }),
     SmsModule,
     MailModule,
+    RoleContextModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 3600000, limit: 100 }]),
   ],
   providers: [AuthService, JwtStrategy],
