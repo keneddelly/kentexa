@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCart } from '../../context/CartContext';
+import { navigationForRole } from '../../navigation/navigationRegistry';
 
 const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,15 +49,10 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
       { label: '🛒 My Orders', page: 'MyOrders' },
       { label: '👤 Profile',   page: 'CustomerProfile' },
     ];
-    if (userRole === 'seller' || userRole === 'admin' || userRole === 'manager')
-      loggedIn.push({ label: '🏪 Seller Dashboard', page: 'SellerDashboard' });
-    if (userRole === 'agent' || userRole === 'admin' || userRole === 'manager')
-      loggedIn.push({ label: '🤝 Agent Dashboard', page: 'AgentDashboard' });
-    if (userRole === 'super_agent')
-      loggedIn.push({ label: '🏢 Super Agent Hub', page: 'SuperAgentDashboard' });
-    if (userRole === 'admin' || userRole === 'manager')
-      loggedIn.push({ label: '🛡️ Admin Panel', page: 'Dashboard' });
-    if (userRole === 'user' || !userRole) {
+    const roleNavigation = navigationForRole(userRole);
+    if (roleNavigation.home !== 'Home')
+      loggedIn.push({ label: '📊 Current role dashboard', page: roleNavigation.home });
+    if (userRole === 'buyer' || !userRole) {
       loggedIn.push({ label: '🏪 Become a Seller',      page: 'BecomeSeller' });
       loggedIn.push({ label: '🤝 Become an Agent',      page: 'BecomeAgent' });
       loggedIn.push({ label: '🏢 Become a Super Agent', page: 'BecomeSuperAgentInfo' });

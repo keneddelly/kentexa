@@ -9,6 +9,9 @@ import { useRoleContext } from './context/RoleContext';
 import ContextEpochBoundary from './context/ContextEpochBoundary';
 import { contextTransitionState } from './context/contextTransition';
 import { getAccessToken } from './api/tokenStore';
+import useNavigationShell from './navigation/NavigationShell';
+import { homeForRole } from './navigation/navigationRegistry';
+import { evaluateDestination } from './navigation/navigationPolicy';
 import HomeFeed           from './public/pages/HomeFeed';
 import Welcome            from './public/pages/Welcome';
 import MyProfile          from './public/pages/MyProfile';
@@ -191,6 +194,7 @@ function App() {
       return pathToNavParams(window.location.pathname, window.location.search);
     } catch { return null; }
   });
+  const [navHistory, setNavHistory] = useState([]);
   // Show language picker only on first visit
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem('kentexa_lang'));
 
@@ -225,24 +229,12 @@ function App() {
   };
   useEffect(() => { fetchIdentityStatus(); }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Which page each profile type lands on when it becomes active — the
-  // "home base" for that identity, same idea as roleHome() below but keyed
-  // to the profile actually being switched to, not the account's overall role.
-  const DASHBOARD_BY_TYPE = {
-    business: 'SellerDashboard',
-    hub: 'SuperAgentDashboard',
-    transport_provider: 'TransportProviderDashboard',
-    agent: 'AgentDashboard',
-    personal: 'Home',
-  };
-
   const handleSwitchProfile = async (accountRoleId) => {
     try {
       setRoleSwitchError('');
       const context = await switchRole(accountRoleId);
       setShowProfileSwitcher(false);
-      const p = myProfiles.find(x => Number(x.accountRoleId) === Number(context.accountRoleId));
-      const transition = contextTransitionState(p?.landingPage || DASHBOARD_BY_TYPE[p?.type] || 'Home');
+      const transition = contextTransitionState(homeForRole(context.roleType));
       setNavHistory(transition.navHistory);
       setNavParams(transition.navParams);
       setPage(transition.page);
@@ -268,24 +260,6 @@ function App() {
     })(),
   });
 
-  // ── Role-based home — where to go when history is empty ─────────────────
-  const roleHome = () => {
-    if (!isLoggedIn) return 'Home';
-    switch (userRole) {
-      case 'admin':       return 'Dashboard';
-      case 'super_agent': return 'SuperAgentDashboard';
-      case 'agent':       return 'AgentDashboard';
-      case 'seller':      return 'SellerDashboard';
-      default:            return 'Home';
-    }
-  };
-
-  // ── Navigation history stack ──────────────────────────────────────────────
-  // Enables onNavigate('back') to always return to the correct previous page
-  // regardless of what each page hard-codes as its back destination.
-  // eslint-disable-next-line no-unused-vars
-  const [navHistory, setNavHistory] = useState([]);
-
   // One reset boundary for App-owned context state. Component-local state is
   // discarded by the contextEpoch key around the protected page subtree.
   useEffect(() => {
@@ -296,39 +270,39 @@ function App() {
     setShowProfileSwitcher(false);
     setRoleSwitchError('');
     setNavParams(null);
-  }, [contextEpoch]);
+    if (activeContext?.roleType) setPage(homeForRole(activeContext.roleType));
+  }, [contextEpoch, activeContext?.roleType]);
 
   // Syncs the visible browser URL for the 4 shareable content types
   // (product/classified/service/store) — every other page intentionally
   // leaves the URL untouched, matching today's behavior.
-  const syncUrl = (pageName, params) => {
+  const syncUrl = (pageName, params, state = { page: pageName }, mode = 'push') => {
     const path = pageToPath(pageName, params);
-    if (path) window.history.pushState({ page: pageName }, '', path);
+    if (path) window.history[mode === 'replace' ? 'replaceState' : 'pushState'](state, '', path);
   };
+
+  const navigation = useNavigationShell({
+    page, setPage, navParams, setNavParams, navHistory, setNavHistory,
+    isAuthenticated: isLoggedIn, activeContext, capabilities: roleContext.capabilities,
+    contextEpoch, syncUrl,
+  });
+
+  // Direct boot/auth/deep-link state changes pass through the same policy as
+  // onNavigate. This prevents a stale bookmark or notification from rendering
+  // one frame of another role's operational UI.
+  useEffect(() => {
+    if (authStatus === 'restoring') return;
+    const decision = evaluateDestination({
+      page, isAuthenticated: isLoggedIn, roleType: activeContext?.roleType,
+      capabilities: roleContext.capabilities,
+    });
+    if (!decision.allowed) navigation.replace(page, null, 'replace');
+  }, [page, authStatus, isLoggedIn, activeContext?.roleType, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNavigate = (pageName, params = null) => {
     if (pageName === 'back') {
-      // Pop the history stack
-      setNavHistory(h => {
-        const prev = [...h];
-        const destination = prev.pop() || roleHome();
-        setNavParams(null);
-        setPage(destination);
-        syncUrl(destination, null);
-        window.scrollTo(0, 0);
-        return prev;
-      });
-      return;
+      return navigation.back();
     }
-    // Push current page to history before navigating
-    // Don't push if navigating to same page or going to login
-    setNavHistory(h => {
-      const current = page;
-      if (current === pageName || pageName === 'PublicLogin') return h;
-      // Cap history at 10 entries to avoid memory issues
-      const next = [...h, current].slice(-10);
-      return next;
-    });
     // Leaving the inbox is the one moment we know for sure messages might
     // have just been read (their unreadCount reset server-side) — refetch
     // the badge count now instead of waiting for the next full page load.
@@ -336,10 +310,7 @@ function App() {
       && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller'));
     if (leavingInbox && pageName !== page) fetchInboxUnread();
 
-    setNavParams(params);
-    setPage(pageName);
-    syncUrl(pageName, params);
-    window.scrollTo(0, 0);
+    return navigation.navigate(pageName, params);
   };
 
   // Browser back/forward — re-derive the page from the URL the user landed
@@ -350,13 +321,13 @@ function App() {
     const onPopState = () => {
       const next = pathToPage(window.location.pathname);
       if (next) {
-        setNavParams(pathToNavParams(window.location.pathname, window.location.search));
-        setPage(next);
+        navigation.handleBrowserDestination(next,
+          pathToNavParams(window.location.pathname, window.location.search), window.history.state);
       }
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  }, [navigation]);
 
   const handleLoginSuccess = async (data, options = {}) => {
     try {
@@ -579,7 +550,13 @@ function App() {
 
   const renderPage = () => {
     const pageStr = typeof page === 'string' ? page : 'Home';
-    if (pageStr !== page) { setPage('Home'); return <HomeFeed {...publicProps} />; }
+    const policyDecision = evaluateDestination({
+      page: pageStr, isAuthenticated: isLoggedIn, roleType: activeContext?.roleType,
+      capabilities: roleContext.capabilities,
+    });
+    // The effect above replaces invalid state with the current role home. Render
+    // nothing during that transition so wrong-context operational UI never flashes.
+    if (pageStr !== page || !policyDecision.allowed) return null;
 
     // ── Dynamic routes (single source of truth — do not duplicate below) ────
     // "New comment"/"New save" notifications append "-comments" so the
@@ -837,11 +814,12 @@ function App() {
           // navigation instance" true structurally, not just by convention,
           // so a future change that DOES add local nav state can't
           // reintroduce the leak-across-switches bug this key guards against.
-          key={activeProfile ? `${activeProfile.type}-${activeProfile.id}` : 'no-profile'}
+          key={activeContext ? `role-${activeContext.accountRoleId}-${contextEpoch}` : 'no-context'}
           currentPage={page}
           onNavigate={handleNavigate}
           isLoggedIn={isLoggedIn}
           userRole={userRole}
+          activeContext={activeContext}
           currentUser={currentUser}
           onPostClick={() => setShowPostModal(true)}
           activeProfile={activeProfile}

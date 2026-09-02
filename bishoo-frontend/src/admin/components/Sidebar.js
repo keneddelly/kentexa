@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ADMIN_NAVIGATION } from '../../navigation/navigationRegistry';
 
 // Mobile responsiveness — the sidebar was a fixed 250px column + every
 // admin page's <main> hardcoded marginLeft:250 inline. On a phone-width
@@ -35,7 +36,7 @@ const RESPONSIVE_CSS = `
 const Sidebar = ({ activePage, onNavigate, onLogout }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const menuItems = [
+  const menuPresentation = [
     { icon: '📊', label: 'Dashboard',         page: 'Dashboard' },
     { icon: '👥', label: 'Users',             page: 'Users' },
     { icon: '🏪', label: 'Sellers',           page: 'Sellers' },
@@ -65,6 +66,10 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
     { icon: '🗺️', label: 'Zones (Dar)',       page: 'ZoneManagement' },
     { icon: '👤', label: 'Profile',           page: 'Profile' },
   ];
+  const menuItems = ADMIN_NAVIGATION.map((entry) => {
+    const presentation = menuPresentation.find((item) => item.page === entry.destination);
+    return { ...entry, page: entry.destination, icon: presentation?.icon || '•' };
+  });
 
   const navigate = (page) => {
     setMobileOpen(false);

@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import api, { cancelContextRequests, configureAuthLifecycle } from '../api/api';
 import { clearAccessToken, getAccessToken, setAccessToken } from '../api/tokenStore';
-import { adaptAvailableRoles, landingPageForContext, presentationForRole } from './rolePresentation';
+import { adaptAvailableRoles, presentationForRole } from './rolePresentation';
+import { homeForRole } from '../navigation/navigationRegistry';
 
 const RoleContextState = createContext(null);
 
@@ -136,7 +137,7 @@ export const RoleContextProvider = ({ children }) => {
           detail: {
             contextEpoch: nextEpoch,
             activeContext: response.data.activeContext,
-            landingPage: landingPageForContext(response.data.activeContext),
+            landingPage: homeForRole(response.data.activeContext.roleType),
           },
         }));
       }

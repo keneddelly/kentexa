@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import LanguageSwitcher, { LANGUAGES } from '../components/LanguageSwitcher';
+import { homeForRole } from '../../navigation/navigationRegistry';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -140,13 +141,13 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   // the right summary loads whenever it actually becomes known, instead of
   // being decided once against a possibly-still-null activeProfile.
   useEffect(() => {
-    if (activeProfile?.type === 'agent')
+    if (role === 'agent')
       api.get('/agents/my-profile').then(res => setAgentData(res.data)).catch(()=>{});
-    if (activeProfile?.type === 'hub')
+    if (role === 'super_agent')
       api.get('/super-agents/my-profile').then(res => setSaData(res.data)).catch(()=>{});
-    if (activeProfile?.type === 'transport_provider')
+    if (role === 'transport_provider')
       api.get('/transport/my-profile').then(res => setTpData(res.data)).catch(()=>{});
-  }, [activeProfile?.type]);
+  }, [role]);
 
   // Lazy load section data
   useEffect(() => {
@@ -198,8 +199,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   // payout method — only means anything if you're paid by KenteXa (seller
   // or agent). Neither applied to a plain buyer, who saw them anyway with
   // zero content that worked for them.
-  const isBusinessOwner = ['seller','admin','manager'].includes(role);
-  const isPaidRole      = ['seller','admin','manager','agent'].includes(role);
+  const isBusinessOwner = role === 'seller';
+  const isPaidRole      = ['seller','agent'].includes(role);
 
   const NAV = [
     { key:'identity',      icon:'👤', label:t('my_profile.nav_identity') },
@@ -322,14 +323,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         // not just accounts already promoted to role='seller'. That role
         // gate was the exact same "verification as permission" bug already
         // fixed on the dashboard itself; this is the other place it lived.
-        actions.push({
+        if (role === 'seller') actions.push({
           icon:'🏪', label:t('my_profile.seller_center_label'),
           value: sellerStats?.stats?.pendingOrders > 0 ? String(sellerStats.stats.pendingOrders) : t('my_profile.manage_sales_sub'),
           sub: sellerStats?.stats?.pendingOrders > 0 ? t('my_profile.tap_to_view') : t('my_profile.sell_on_kentexa_sub'),
           color:B, bg:'#EFF6FF',
           onAction:()=>onNavigate('SellerDashboard'),
         });
-        if (['seller','admin','manager'].some(r => roles.includes(r))) {
+        if (role === 'seller') {
           actions.push({
             icon:'💰', label:t('my_profile.revenue_label'),
             value: sellerStats?.stats?.totalRevenue != null ? `TZS ${fmt(sellerStats.stats.totalRevenue)}` : '—',
@@ -350,7 +351,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         // isn't tied to a single profile the way Agent/Super Agent/Transport
         // Provider dashboards are); Admin Panel below stays role-based since
         // admin isn't a CommerceProfile type you switch into at all.
-        if (activeProfile?.type === 'agent') {
+        if (role === 'agent') {
           actions.push({
             icon:'🏍️', label:t('my_profile.my_jobs_label'),
             value:'View', sub:t('my_profile.available_near_you'), color:'#A21CAF', bg:'#FDF2F8',
@@ -363,25 +364,18 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             onAction:()=>onNavigate('AgentEarnings'),
           });
         }
-        if (activeProfile?.type === 'hub') {
+        if (role === 'super_agent') {
           actions.push({
             icon:'📦', label:t('my_profile.hub_parcels_label'),
             value:'View', sub: saData?.city || t('my_profile.your_hub_fallback'), color:'#7C3AED', bg:'#F5F3FF',
             onAction:()=>onNavigate('SuperAgentDashboard'),
           });
         }
-        if (activeProfile?.type === 'transport_provider') {
+        if (role === 'transport_provider') {
           actions.push({
             icon:'🚌', label:t('my_profile.todays_routes_label'),
             value:'View', sub:t('my_profile.assignments_sub'), color:'#D97706', bg:'#FEF3C7',
             onAction:()=>onNavigate('TransportProviderDashboard'),
-          });
-        }
-        if (activeProfile?.type === 'brand') {
-          actions.push({
-            icon:'🏷️', label:t('my_profile.brand_dashboard_label'),
-            value:'View', sub:t('my_profile.brand_dashboard_sub'), color:'#1D4ED8', bg:'#EFF6FF',
-            onAction:()=>onNavigate('BrandDashboard'),
           });
         }
         // The old Navbar.js hamburger menu (which had a "🛡️ Admin Panel"
@@ -390,7 +384,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
         // accounts with no way to reach the admin pages (Dashboard,
         // Products, Users, Orders, etc. — still fully wired in App.js's
         // renderPage(), just orphaned from the UI). This is that entry point.
-        if (roles.includes('admin') || roles.includes('manager')) {
+        if (role === 'admin' || role === 'manager') {
           actions.push({
             icon:'🛡️', label:t('my_profile.admin_panel_label'),
             value:'Open', sub:t('my_profile.admin_panel_sub'), color:'#7C3AED', bg:'#F5F3FF',
@@ -552,18 +546,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                         {t('my_profile.active_working_badge')}
                       </div>
                     </div>
-                    <button onClick={() => {
-                      const pages = {
-                        seller:'SellerDashboard', agent:'AgentDashboard',
-                        super_agent:'SuperAgentDashboard',
-                        transport_provider:'TransportProviderDashboard',
-                      };
-                      if (pages[r]) onNavigate(pages[r]);
-                    }}
+                    <button onClick={() => r === role && onNavigate(homeForRole(r))}
+                      disabled={r !== role}
                       style={{ backgroundColor:m.color, color:WH, border:'none',
                         borderRadius:8, padding:'7px 14px', cursor:'pointer',
-                        fontSize:12, fontWeight:700 }}>
-                      {t('my_profile.go_button')}
+                        fontSize:12, fontWeight:700, opacity:r === role ? 1 : 0.45 }}>
+                      {r === role ? t('profile_switcher.active_label') : t('my_profile.go_button')}
                     </button>
                   </div>
                 );

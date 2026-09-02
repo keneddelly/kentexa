@@ -1,14 +1,14 @@
 const ROLE_PRESENTATION = {
-  buyer: { type: 'personal', icon: '👤', landingPage: 'Home', link: 'ownerId' },
-  seller: { type: 'business', icon: '🏪', landingPage: 'SellerDashboard', link: 'sellerProfileId' },
-  agent: { type: 'agent', icon: '🏍️', landingPage: 'AgentDashboard', link: 'agentId' },
-  super_agent: { type: 'hub', icon: '🏢', landingPage: 'SuperAgentDashboard', link: 'superAgentId' },
-  transport_provider: { type: 'transport_provider', icon: '🚌', landingPage: 'TransportProviderDashboard', link: 'transportProviderId' },
-  service_provider: { type: 'service_provider', icon: '🔧', landingPage: 'MyServices', link: null },
-  admin: { type: 'personal', icon: '🛡️', landingPage: 'Dashboard', link: 'ownerId' },
-  manager: { type: 'personal', icon: '🛡️', landingPage: 'Dashboard', link: 'ownerId' },
-  customer_care: { type: 'personal', icon: '🎧', landingPage: 'Home', link: 'ownerId' },
-  arbitrator: { type: 'personal', icon: '⚖️', landingPage: 'Home', link: 'ownerId' },
+  buyer: { type: 'personal', icon: '👤', link: 'ownerId' },
+  seller: { type: 'business', icon: '🏪', link: 'sellerProfileId' },
+  agent: { type: 'agent', icon: '🏍️', link: 'agentId' },
+  super_agent: { type: 'hub', icon: '🏢', link: 'superAgentId' },
+  transport_provider: { type: 'transport_provider', icon: '🚌', link: 'transportProviderId' },
+  service_provider: { type: 'service_provider', icon: '🔧', link: null },
+  admin: { type: 'personal', icon: '🛡️', link: 'ownerId' },
+  manager: { type: 'personal', icon: '🛡️', link: 'ownerId' },
+  customer_care: { type: 'personal', icon: '🎧', link: 'ownerId' },
+  arbitrator: { type: 'personal', icon: '⚖️', link: 'ownerId' },
 };
 
 export const presentationForRole = (role, profiles = [], user = null) => {
@@ -40,15 +40,11 @@ export const presentationForRole = (role, profiles = [], user = null) => {
     icon: meta.icon,
     displayName: presentation?.displayName || user?.name || role.roleType,
     photoUrl: presentation?.photoUrl || user?.avatarUrl || null,
-    landingPage: meta.landingPage,
     presentationResolved: !!presentation,
   };
 };
 
 export const adaptAvailableRoles = (roles = [], profiles = [], user = null) =>
   roles.map((role) => presentationForRole(role, profiles, user));
-
-export const landingPageForContext = (context) =>
-  (ROLE_PRESENTATION[context?.roleType] || ROLE_PRESENTATION.buyer).landingPage;
 
 export { ROLE_PRESENTATION };

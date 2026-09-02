@@ -12,6 +12,7 @@
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { itemsForRole } from '../../navigation/navigationRegistry';
 
 const B = '#2563EB';
 
@@ -39,120 +40,17 @@ const PROFILE_TYPE_ICON = {
   brand: '🏷️',
 };
 
-// Position 1 is fixed to Home (discovery, every type). Position 2 is that
-// profile's own Dashboard — the real management hub for the identity
-// that's active, one tap past discovery. Position 4 stays a quick-jump to
-// whichever single sub-page is used most for that type (Orders, Settings,
-// etc.) — a shortcut past the dashboard's own navigation, not a duplicate
-// of it.
-const TYPE_TABS = (t) => {
-  const first = { page: 'Home', icon: HomeIcon, label: t('nav.home') };
-  return {
-    personal: {
-      first,
-      second: { page: 'Search',     icon: SearchIcon,   label: t('common.search') },
-      // Was Activity (notifications) — HomeFeed.js's own header already has
-      // a bell icon with the same unread badge routing to the same page
-      // (and MyProfile.js has its own links to it too), so notifications
-      // didn't actually need a dedicated bottom-nav slot; Inbox did, since
-      // even a Personal profile can be a buyer messaging sellers or an
-      // individual seller with their own conversations.
-      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
-    },
-    business: {
-      first,
-      second: { page: 'SellerDashboard', icon: emojiIcon('📊'), label: t('bottom_nav.dashboard') },
-      fourth: { page: 'SellerInbox',     icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
-    },
-    hub: {
-      first,
-      second: { page: 'SuperAgentDashboard', icon: emojiIcon('🏢'), label: t('bottom_nav.dashboard') },
-      // Was SuperAgentSettings — a Super Agent talks to customers about
-      // shipments constantly, same as a Business talks to buyers, so Inbox
-      // earns the dedicated bottom-nav slot the same way it already does
-      // for `business` above. Settings stays one tap away via the ⚙️ icon
-      // already in SuperAgentDashboard's own header, matching how
-      // BusinessDashboard.js already has BOTH a bottom-nav Inbox tab AND
-      // its own in-page Messages row — not a new inconsistency.
-      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
-    },
-    transport_provider: {
-      first,
-      second: { page: 'TransportProviderDashboard', icon: emojiIcon('🚌'), label: t('bottom_nav.dashboard') },
-      // Was RouteCoverageMap — same Inbox-earns-the-slot reasoning as hub
-      // above. RouteCoverageMap moved to an in-page 🗺️ shortcut inside
-      // TransportProviderDashboard's own header (next to ⚙️/💬) so it isn't
-      // silently dropped again the way it was the first time this slot
-      // pointed elsewhere (see the git history of this exact line).
-      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
-    },
-    agent: {
-      first,
-      second: { page: 'AgentDashboard', icon: emojiIcon('🏍️'), label: t('bottom_nav.dashboard') },
-      // Was AgentEarnings — same reasoning; AgentEarnings already has its
-      // own in-page link inside AgentDashboard.js (a pre-existing button,
-      // not something this change needed to add), so nothing is stranded.
-      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
-    },
-    // No dedicated service-provider dashboard/inbox page exists yet (no
-    // operational entity behind this type — see services.service.ts) —
-    // MyServices (manage own ads) is the closest thing to their own
-    // dashboard, since it's the one surface that's actually theirs to run.
-    service_provider: {
-      first,
-      second: { page: 'MyServices', icon: emojiIcon('🔧'), label: t('bottom_nav.my_services') },
-      // Was Activity — same reasoning as `personal` above (Home's own bell
-      // icon already covers notifications).
-      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
-    },
-    // Brand & Authorization Network Phase C — always admin-provisioned
-    // (BrandsService.createOrReassignProfile()), never self-registered.
-    // Read-only visibility for now (see BrandDashboard.js) — same
-    // Inbox-earns-the-slot reasoning as the other identity types above.
-    brand: {
-      first,
-      second: { page: 'BrandDashboard', icon: emojiIcon('🏷️'), label: t('bottom_nav.dashboard') },
-      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.inbox') },
-    },
-  };
-};
-
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,
-  activeProfile, onOpenSwitcher, myProfiles, inboxUnread }) => {
+  activeProfile, activeContext, onOpenSwitcher, myProfiles, inboxUnread }) => {
   const { t } = useTranslation();
-  let cfg = TYPE_TABS(t)[activeProfile?.type] || TYPE_TABS(t).personal;
-
-  // Multi-role architecture Phase 2: a BUSINESS-type profile only gets the
-  // Seller dashboard/inbox tabs once it has actually activated Seller
-  // (activeProfile.sellerProfileId set) -- a Business created via
-  // POST /business/create with no Seller must never get a one-tap path to
-  // Ship Item/Products/Payouts just for being a Business (spec: "Ship
-  // Product must never appear merely because someone is a Business").
-  // Tab 4 routes to SellerInbox — the same page BusinessDashboard.js's own
-  // Messages row uses — not back to BusinessDashboard itself. It used to
-  // duplicate `second`'s destination, which produced two tabs sharing one
-  // React key (the exact "must never have two tabs with the same key"
-  // regression this component now guards against below) and made the
-  // messages tab visibly do nothing when tapped from the dashboard.
-  if (activeProfile?.type === 'business' && !activeProfile?.sellerProfileId) {
-    cfg = {
-      ...cfg,
-      second: { page: 'BusinessDashboard', icon: emojiIcon('🏢'), label: t('bottom_nav.dashboard') },
-      fourth: { page: 'SellerInbox', icon: emojiIcon('💬'), label: t('bottom_nav.messages') },
-    };
-  }
-
-  // Built fresh from `cfg` (itself freshly selected from activeProfile.type
-  // above) on every render — no useState, no accumulation possible by
-  // construction. The dedupe pass below is a defensive safeguard only, in
-  // case a future edit to TYPE_TABS/the override above reintroduces a
-  // collision like the BusinessDashboard one just fixed.
-  const rawTabs = [
-    { key: cfg.first.page,  icon: cfg.first.icon,  label: cfg.first.label },
-    { key: cfg.second.page, icon: cfg.second.icon, label: cfg.second.label },
-    {
-      key:   '__POST__',
-      icon:  () => (
+  const semanticIcon = {
+    home: HomeIcon, search: SearchIcon, inbox: emojiIcon('💬'), dashboard: emojiIcon('📊'),
+    agent: emojiIcon('🏍️'), hub: emojiIcon('🏢'), transport: emojiIcon('🚌'),
+    services: emojiIcon('🔧'), admin: emojiIcon('🛡️'),
+  };
+  const rawTabs = itemsForRole(activeContext?.roleType).map(entry => {
+    if (entry.destination === '__POST__') return {
+      key: '__POST__', icon: () => (
         <div style={{
           width: 48, height: 48, borderRadius: 14,
           background: `linear-gradient(135deg, ${B}, #7C3AED)`,
@@ -168,11 +66,9 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
         </div>
       ),
       label: '',
-    },
-    { key: cfg.fourth.page, icon: cfg.fourth.icon, label: cfg.fourth.label },
-    {
-      key:   'MyProfile',
-      icon:  (active) => (currentUser?.avatarUrl || currentUser?.logo)
+    };
+    if (entry.destination === 'MyProfile') return {
+      key: 'MyProfile', icon: (active) => (currentUser?.avatarUrl || currentUser?.logo)
         ? <img src={currentUser.avatarUrl || currentUser.logo} alt=""
             style={{ width:26, height:26, borderRadius:'50%', objectFit:'cover',
               border: active ? `2px solid ${B}` : '2px solid #e2e8f0' }} />
@@ -186,9 +82,10 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
             {(currentUser?.name || currentUser?.storeName || 'U').charAt(0).toUpperCase()}
           </div>
         ),
-      label: t('nav.profile'),
-    },
-  ];
+      label: t(entry.labelKey),
+    };
+    return { key: entry.destination, icon: semanticIcon[entry.iconId] || emojiIcon('•'), label: t(entry.labelKey) };
+  });
 
   const seenKeys = new Set();
   const tabs = rawTabs.filter(tab => {

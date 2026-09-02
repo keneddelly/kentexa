@@ -1,4 +1,5 @@
-import { adaptAvailableRoles, landingPageForContext, presentationForRole } from './rolePresentation';
+import { adaptAvailableRoles, presentationForRole } from './rolePresentation';
+import { homeForRole } from '../navigation/navigationRegistry';
 
 const profiles = [
   { id: 10, ownerId: 2, type: 'personal', displayName: 'Personal' },
@@ -16,9 +17,9 @@ test('an ambiguous presentation does not invent a profile identity', () => {
   expect(p).toMatchObject({ accountRoleId: 4, id: null, roleType: 'seller', presentationResolved: false });
 });
 
-test('transport and seller landing pages derive from server role type', () => {
-  expect(landingPageForContext({ roleType: 'transport_provider' })).toBe('TransportProviderDashboard');
-  expect(landingPageForContext({ roleType: 'seller' })).toBe('SellerDashboard');
+test('navigation registry, not presentation, owns role homes', () => {
+  expect(homeForRole('transport_provider')).toBe('TransportProviderDashboard');
+  expect(homeForRole('seller')).toBe('SellerDashboard');
 });
 
 test('pending memberships remain non-switchable after presentation enrichment', () => {
