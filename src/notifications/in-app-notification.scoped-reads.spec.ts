@@ -30,10 +30,11 @@ describe('InAppNotificationService scoped reads (Stage 2B checkpoint 4/5)', () =
 
   const build = (flagOverride: boolean | null = null) => {
     const repo: any = { createQueryBuilder: jest.fn(), update: jest.fn(), count: jest.fn() };
+    const accountRoleRepo: any = { findOne: jest.fn().mockResolvedValue(null) };
     const push: any = { sendToUser: jest.fn().mockResolvedValue(undefined) };
     const flags: any = { isEnabled: jest.fn(() => (flagOverride === null ? true : flagOverride)) };
-    const service = new InAppNotificationService(repo, push, flags);
-    return { service, repo, flags };
+    const service = new InAppNotificationService(repo, accountRoleRepo, push, flags);
+    return { service, repo, accountRoleRepo, flags };
   };
 
   describe('getMyNotifications', () => {

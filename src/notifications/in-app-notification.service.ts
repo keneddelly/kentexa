@@ -14,7 +14,7 @@ import { Notification, NotificationAudienceScope, NotificationType } from './ent
 import { PushService } from './push.service';
 import { CommunicationFeatureFlagsService } from '../communication/communication-feature-flags.service';
 import { RoleContext } from '../role-context/role-context.types';
-import { RoleProfileType } from '../role-context/entities/account-role.entity';
+import { AccountRole, AccountRoleStatus, AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
 
 export interface NotifyTarget {
   email?: string;
@@ -27,6 +27,8 @@ export class InAppNotificationService {
   constructor(
     @InjectRepository(Notification)
     private repo: Repository<Notification>,
+    @InjectRepository(AccountRole)
+    private accountRoleRepo: Repository<AccountRole>,
     private readonly push: PushService,
     private readonly flags: CommunicationFeatureFlagsService,
   ) {}
@@ -75,6 +77,38 @@ export class InAppNotificationService {
         }
       }),
     );
+  }
+
+  /**
+   * Stage 2B item 6: resolves ROLE-scoped audience params for the event
+   * helper methods below (orderPlaced, orderPaid, payoutReleased, etc.) --
+   * their callers (orders.service.ts, warranty.service.ts, super-agents.
+   * service.ts, ...) are NOT touched; the audience is resolved HERE,
+   * inside the notification layer itself, which already has everything it
+   * needs (the recipient's userId and which side of the transaction they
+   * are). Returns {} (falls back to ACCOUNT/legacy_unscoped, exactly Stage
+   * 2A's original behavior) if the recipient has no active AccountRole of
+   * that type yet -- never guesses, never blocks the notification.
+   */
+  private async resolveRoleAudience(
+    userId: number | undefined | null,
+    roleType: AccountRoleType,
+  ): Promise<{
+    audienceScope?: NotificationAudienceScope;
+    recipientAccountRoleId?: number;
+    recipientWorkspaceType?: string;
+    recipientWorkspaceId?: number;
+  }> {
+    if (!userId) return {};
+    const role = await this.accountRoleRepo.findOne({
+      where: { userId, roleType, status: AccountRoleStatus.ACTIVE },
+    });
+    if (!role) return {};
+    const workspace =
+      role.profileType && role.profileType !== RoleProfileType.USER && role.profileId != null
+        ? { recipientWorkspaceType: role.profileType as string, recipientWorkspaceId: role.profileId }
+        : {};
+    return { audienceScope: NotificationAudienceScope.ROLE, recipientAccountRoleId: role.id, ...workspace };
   }
 
   // ── Core notify — saves in-app + fires push ───────────────────────────────
@@ -168,6 +202,9 @@ export class InAppNotificationService {
         actionParam: String(orderId),
         orderId,
         icon: '📦',
+        sourceType: 'order',
+        sourceId: orderId,
+        ...(await this.resolveRoleAudience(buyerUser.id, AccountRoleType.BUYER)),
       });
     }
     if (sellerUser) {
@@ -181,6 +218,9 @@ export class InAppNotificationService {
         actionCommerceProfileId: sellerCommerceProfileId || undefined,
         orderId,
         icon: '🛒',
+        sourceType: 'order',
+        sourceId: orderId,
+        ...(await this.resolveRoleAudience(sellerUser.id, AccountRoleType.SELLER)),
       });
     }
   }
@@ -204,6 +244,9 @@ export class InAppNotificationService {
         actionCommerceProfileId: sellerCommerceProfileId || undefined,
         orderId,
         icon: '💰',
+        sourceType: 'order',
+        sourceId: orderId,
+        ...(await this.resolveRoleAudience(sellerUser.id, AccountRoleType.SELLER)),
       });
     }
   }
@@ -229,6 +272,9 @@ export class InAppNotificationService {
         actionCommerceProfileId: sellerCommerceProfileId || undefined,
         orderId,
         icon: '🎉',
+        sourceType: 'order',
+        sourceId: orderId,
+        ...(await this.resolveRoleAudience(sellerUser.id, AccountRoleType.SELLER)),
       });
     }
     if (buyerUser) {
@@ -241,6 +287,9 @@ export class InAppNotificationService {
         actionParam: String(orderId),
         orderId,
         icon: '⭐',
+        sourceType: 'order',
+        sourceId: orderId,
+        ...(await this.resolveRoleAudience(buyerUser.id, AccountRoleType.BUYER)),
       });
     }
   }
@@ -305,6 +354,7 @@ export class InAppNotificationService {
       actionParam: productId ? String(productId) : undefined,
       actionCommerceProfileId: commerceProfileId || undefined,
       icon: '⭐',
+      ...(await this.resolveRoleAudience(sellerId, AccountRoleType.SELLER)),
     });
   }
 
@@ -500,6 +550,9 @@ export class InAppNotificationService {
       actionCommerceProfileId: sellerCommerceProfileId || undefined,
       orderId,
       icon: rating ? '⭐' : '🎉',
+      sourceType: 'order',
+      sourceId: orderId,
+      ...(await this.resolveRoleAudience(sellerId, AccountRoleType.SELLER)),
     });
   }
 
@@ -523,6 +576,9 @@ export class InAppNotificationService {
       actionCommerceProfileId: sellerCommerceProfileId || undefined,
       orderId,
       icon: '🛒',
+      sourceType: 'order',
+      sourceId: orderId,
+      ...(await this.resolveRoleAudience(sellerId, AccountRoleType.SELLER)),
     });
   }
 
@@ -543,6 +599,9 @@ export class InAppNotificationService {
       actionCommerceProfileId: sellerCommerceProfileId || undefined,
       orderId,
       icon: '⚠️',
+      sourceType: 'order',
+      sourceId: orderId,
+      ...(await this.resolveRoleAudience(sellerId, AccountRoleType.SELLER)),
     });
   }
 
@@ -563,6 +622,9 @@ export class InAppNotificationService {
       actionCommerceProfileId: sellerCommerceProfileId || undefined,
       orderId,
       icon: '💸',
+      sourceType: 'order',
+      sourceId: orderId,
+      ...(await this.resolveRoleAudience(sellerId, AccountRoleType.SELLER)),
     });
   }
 
@@ -583,6 +645,7 @@ export class InAppNotificationService {
       actionParam: trackingNumber,
       trackingNumber,
       icon: '📦',
+      ...(await this.resolveRoleAudience(buyerId, AccountRoleType.BUYER)),
     });
   }
 
