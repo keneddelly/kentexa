@@ -11,8 +11,8 @@ import { User } from '../../users/entities/user.entity';
 import { AccountRole } from './account-role.entity';
 
 /**
- * Phase A persistence only. Session validation/enforcement is intentionally
- * deferred to Phase B.
+ * Validated on every RoleContextGuard-protected request by
+ * RoleContextService.resolveContext (revocation, expiry, contextVersion).
  */
 @Entity('active_role_session')
 @Index('IDX_active_role_session_user_revoked', ['userId', 'revokedAt'])

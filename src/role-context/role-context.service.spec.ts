@@ -34,6 +34,14 @@ describe('RoleContextService', () => {
       .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_REVOKED' } });
   });
 
+  it('rejects a suspended AccountRole even with a valid session', async () => {
+    const r = repos();
+    r.roleRepo.findOne.mockResolvedValue({ ...role, status: AccountRoleStatus.SUSPENDED });
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo);
+    await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.BUYER, cv: 1 }))
+      .rejects.toMatchObject({ response: { code: 'ROLE_NOT_ACTIVE' } });
+  });
+
   it('rejects a context-version mismatch', async () => {
     const r = repos();
     const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo);
@@ -57,5 +65,21 @@ describe('RoleContextService', () => {
     const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo);
     await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 }))
       .rejects.toMatchObject({ response: { code: 'ROLE_PROFILE_INVALID' } });
+  });
+
+  it('resolves only the session-bound role, never a different role the same account also possesses', async () => {
+    // The account holds BOTH a BUYER role (id 10, this session) and an ADMIN role (id 99).
+    // resolveContext is keyed strictly off payload.rid/session.accountRoleId, so it can never
+    // "pick up" the account's other role no matter what that other role's status/type is.
+    const r = repos();
+    r.roleRepo.findOne.mockImplementation(({ where }: any) => {
+      if (where.id === 10) return Promise.resolve(role);
+      if (where.id === 99) return Promise.resolve({ ...role, id: 99, roleType: AccountRoleType.ADMIN });
+      return Promise.resolve(null);
+    });
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo);
+    const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.BUYER, cv: 1 });
+    expect(context.roleType).toBe(AccountRoleType.BUYER);
+    expect(context.accountRoleId).toBe(10);
   });
 });

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AccountRole } from './entities/account-role.entity';
 import { ActiveRoleSession } from './entities/active-role-session.entity';
@@ -11,8 +11,16 @@ import { TransportProvider } from '../transport/entities/transport-provider.enti
 import { RoleContextService } from './role-context.service';
 import { RoleContextGuard } from './role-context.guard';
 import { CapabilityGuard } from './capability.guard';
+import { ActiveRoleGuard } from './active-role.guard';
 
-/** Phase A persistence registration; no runtime role-context enforcement. */
+/**
+ * Runtime role-context enforcement primitives: RoleContextGuard resolves the
+ * caller's current session/role from the JWT and DB; ActiveRoleGuard and
+ * CapabilityGuard authorize against that resolved context, never against
+ * possessed-but-inactive roles. Global so every domain module can consult
+ * RoleContextService/guards without individually importing this module.
+ */
+@Global()
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -26,7 +34,7 @@ import { CapabilityGuard } from './capability.guard';
       TransportProvider,
     ]),
   ],
-  providers: [RoleContextService, RoleContextGuard, CapabilityGuard],
-  exports: [TypeOrmModule, RoleContextService, RoleContextGuard, CapabilityGuard],
+  providers: [RoleContextService, RoleContextGuard, CapabilityGuard, ActiveRoleGuard],
+  exports: [TypeOrmModule, RoleContextService, RoleContextGuard, CapabilityGuard, ActiveRoleGuard],
 })
 export class RoleContextModule {}
