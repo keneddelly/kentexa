@@ -60,6 +60,7 @@ import {
   AccountRoleType,
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
+import { RoleContext } from '../role-context/role-context.types';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -1332,11 +1333,26 @@ export class SuperAgentsService {
   // DASHBOARD — what the Super Agent sees on login
   // ══════════════════════════════════════════════════════════════════════════
 
-  async getDashboard(user: User) {
+  // roleContext is optional so this stays usable from any context that
+  // hasn't resolved one, but real operational data (parcels, buyer/seller
+  // info) is only ever returned when the caller is CURRENTLY ACTIVE as
+  // super_agent/admin -- possessing an approved SuperAgent profile is not
+  // enough on its own. An applicant with no profile at all still gets the
+  // plain 'not_applied' status regardless of active role, same as an
+  // approved-but-inactive Super Agent still gets their real status back
+  // (just without the operational payload) so the UI can say "switch to
+  // Super Agent mode to see your dashboard" instead of a bare 403.
+  async getDashboard(user: User, roleContext?: RoleContext) {
     const agent = await this.superAgentRepo.findOne({
       where: { user: { id: user.id } },
     });
     if (!agent) return { status: 'not_applied' };
+    const isActiveAsSuperAgent =
+      roleContext?.roleType === AccountRoleType.SUPER_AGENT ||
+      roleContext?.roleType === AccountRoleType.ADMIN;
+    if (!isActiveAsSuperAgent) {
+      return { status: agent.status, activeRoleRequired: true };
+    }
 
     const [originParcels, destParcels] = await Promise.all([
       this.parcelRepo.find({

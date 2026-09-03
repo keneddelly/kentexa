@@ -24,6 +24,8 @@ import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import type { RoleContext } from '../role-context/role-context.types';
 
 @Controller('super-agents')
 export class SuperAgentsController {
@@ -126,8 +128,11 @@ export class SuperAgentsController {
 
   // Other active Super Agent hubs in a city — lets a dispatching Super
   // Agent pick who should receive a bus/courier parcel at the destination,
-  // instead of only relying on auto-assignment by city.
-  @UseGuards(JwtAuthGuard)
+  // instead of only relying on auto-assignment by city. Genuinely
+  // operational dispatch tooling, not a general-purpose public lookup, so
+  // it requires active super_agent context like the rest of this section.
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Get('hubs/:city')
   async getHubsInCity(@Param('city') city: string, @Request() req) {
     const mine = await this.service.getMyProfile(req.user).catch(() => null);
@@ -137,16 +142,26 @@ export class SuperAgentsController {
     );
   }
 
-  // Super agent dashboard
-  @UseGuards(JwtAuthGuard)
+  // Super agent dashboard -- deliberately NOT hard-gated by ActiveRoleGuard:
+  // it doubles as the application/status-check endpoint (returns
+  // 'not_applied' with no profile at all). RoleContextGuard only resolves
+  // the caller's current context (never denies on its own -- every user
+  // always has at least an active buyer session); getDashboard() itself
+  // withholds the real operational parcel/revenue payload unless the
+  // resolved context is currently active as super_agent/admin, returning
+  // just {status, activeRoleRequired: true} otherwise.
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('dashboard')
-  getDashboard(@Request() req) {
-    return this.service.getDashboard(req.user);
+  getDashboard(@Request() req, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.service.getDashboard(req.user, roleContext);
   }
 
   // Real today/week/month/total revenue — computed from actual parcel
   // records and timestamps, not the dashboard's capped recent-parcel list.
-  @UseGuards(JwtAuthGuard)
+  // Purely operational (throws for anyone without a profile at all, no
+  // pending-status use case), so this one IS hard-gated.
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Get('revenue')
   getRevenue(@Request() req) {
     return this.service.getRevenueSummary(req.user);
@@ -271,11 +286,15 @@ export class SuperAgentsController {
   }
 
   // ── Bulk shipments ────────────────────────────────────────────────────────
+  // All five are purely operational (each throws BadRequestException for
+  // anyone without an approved SuperAgent profile already), no pending-
+  // status use case, so all are hard-gated.
 
   // This agent's own arrived/verified parcels not yet dispatched or already
   // in another bulk shipment — the pick-list for "which orders go in this
   // consolidated shipment".
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Get('bulk-shipments/candidates')
   getBulkShipmentCandidates(
     @Request() req,
@@ -286,20 +305,23 @@ export class SuperAgentsController {
 
   // This agent's own OPEN shipments — so the UI can offer "add to the
   // batch already headed to Iringa" instead of always starting a new one.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Get('bulk-shipments/open')
   getMyOpenBulkShipments(@Request() req) {
     return this.service.getMyOpenBulkShipments(req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Post('bulk-shipments')
   createBulkShipment(@Request() req, @Body() dto: any) {
     return this.service.createBulkShipment(req.user, dto);
   }
 
   // Add more parcels to an already-open shipment later the same day.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Post('bulk-shipments/:id/add-parcels')
   addParcelsToShipment(
     @Request() req,
@@ -310,7 +332,8 @@ export class SuperAgentsController {
   }
 
   // Dispatch a sealed bulk shipment with courier cost + receipt
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Patch('bulk-shipments/:id/dispatch')
   dispatchBulkShipment(
     @Request() req,
