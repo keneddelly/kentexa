@@ -9,9 +9,12 @@
  */
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { Notification, NotificationAudienceScope, NotificationType } from './entities/notification.entity';
 import { PushService } from './push.service';
+import { CommunicationFeatureFlagsService } from '../communication/communication-feature-flags.service';
+import { RoleContext } from '../role-context/role-context.types';
+import { RoleProfileType } from '../role-context/entities/account-role.entity';
 
 export interface NotifyTarget {
   email?: string;
@@ -25,7 +28,54 @@ export class InAppNotificationService {
     @InjectRepository(Notification)
     private repo: Repository<Notification>,
     private readonly push: PushService,
+    private readonly flags: CommunicationFeatureFlagsService,
   ) {}
+
+  /**
+   * Stage 2B item 4: the current permitted audience for a resolved
+   * RoleContext. ACCOUNT is always included (never gated by active role);
+   * ROLE/TRANSACTION match this exact accountRoleId; WORKSPACE matches this
+   * exact workspace (RoleContext.profileType/profileId, same descriptor
+   * Stage 1 already resolves for every operational role). Applied as a
+   * WHERE clause on the query itself -- never "fetch userId-wide then
+   * filter after the fact".
+   */
+  private applyAudienceScope(qb: ReturnType<Repository<Notification>['createQueryBuilder']>, roleContext: RoleContext): void {
+    qb.andWhere(
+      new Brackets((sub) => {
+        sub.where('n.audienceScope = :accountScope', { accountScope: NotificationAudienceScope.ACCOUNT });
+        sub.orWhere(
+          '(n.audienceScope IN (:...roleScopes) AND n.recipientAccountRoleId = :accountRoleId)',
+          { roleScopes: [NotificationAudienceScope.ROLE, NotificationAudienceScope.TRANSACTION], accountRoleId: roleContext.accountRoleId },
+        );
+        if (roleContext.profileType !== RoleProfileType.USER) {
+          sub.orWhere(
+            '(n.audienceScope = :workspaceScope AND n."recipientWorkspaceType" = :wsType AND n."recipientWorkspaceId" = :wsId)',
+            { workspaceScope: NotificationAudienceScope.WORKSPACE, wsType: roleContext.profileType, wsId: roleContext.profileId },
+          );
+        }
+      }),
+    );
+  }
+
+  /** Same audience condition as applyAudienceScope, unaliased for use inside an UPDATE query builder. */
+  private applyAudienceScopeUpdate(qb: any, roleContext: RoleContext): void {
+    qb.andWhere(
+      new Brackets((sub: any) => {
+        sub.where('"audienceScope" = :accountScope', { accountScope: NotificationAudienceScope.ACCOUNT });
+        sub.orWhere(
+          '("audienceScope" IN (:...roleScopes) AND "recipientAccountRoleId" = :accountRoleId)',
+          { roleScopes: [NotificationAudienceScope.ROLE, NotificationAudienceScope.TRANSACTION], accountRoleId: roleContext.accountRoleId },
+        );
+        if (roleContext.profileType !== RoleProfileType.USER) {
+          sub.orWhere(
+            '("audienceScope" = :workspaceScope AND "recipientWorkspaceType" = :wsType AND "recipientWorkspaceId" = :wsId)',
+            { workspaceScope: NotificationAudienceScope.WORKSPACE, wsType: roleContext.profileType, wsId: roleContext.profileId },
+          );
+        }
+      }),
+    );
+  }
 
   // ── Core notify — saves in-app + fires push ───────────────────────────────
   // Stage 2: audience params are all optional and additive. A call site
@@ -339,24 +389,54 @@ export class InAppNotificationService {
   }
 
   // ── Read management ───────────────────────────────────────────────────────
-  async getMyNotifications(userId: number, page = 1, limit = 30) {
-    const [items, total] = await this.repo.findAndCount({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      take: limit,
-      skip: (page - 1) * limit,
-    });
+  // Stage 2B: roleContext is optional on every method below. Omitted (every
+  // pre-Stage-2B caller), behavior is byte-for-byte unchanged -- the
+  // account-wide userId query. Passed AND SCOPED_NOTIFICATION_READ is on,
+  // the query itself (not a post-fetch filter) is additionally constrained
+  // to ACCOUNT-scope rows plus ROLE/WORKSPACE/TRANSACTION rows matching the
+  // resolved context -- never `notification.userId = currentUser` alone for
+  // an operational (non-ACCOUNT) row.
+  async getMyNotifications(userId: number, page = 1, limit = 30, roleContext?: RoleContext) {
+    const qb = this.repo.createQueryBuilder('n').where('n.userId = :userId', { userId });
+    if (roleContext && this.flags.isEnabled('SCOPED_NOTIFICATION_READ')) {
+      this.applyAudienceScope(qb, roleContext);
+    }
+    const [items, total] = await qb
+      .orderBy('n.createdAt', 'DESC')
+      .take(limit)
+      .skip((page - 1) * limit)
+      .getManyAndCount();
     return { items, total, unread: items.filter((n) => !n.isRead).length };
   }
 
-  async markRead(userId: number, notifId: number) {
+  async markRead(userId: number, notifId: number, roleContext?: RoleContext) {
+    if (roleContext && this.flags.isEnabled('SCOPED_NOTIFICATION_READ')) {
+      const qb = this.repo
+        .createQueryBuilder()
+        .update(Notification)
+        .set({ isRead: true, readAt: new Date() })
+        .where('id = :notifId AND "userId" = :userId', { notifId, userId });
+      this.applyAudienceScopeUpdate(qb, roleContext);
+      await qb.execute();
+      return;
+    }
     await this.repo.update(
       { id: notifId, userId },
       { isRead: true, readAt: new Date() },
     );
   }
 
-  async markAllRead(userId: number) {
+  async markAllRead(userId: number, roleContext?: RoleContext) {
+    if (roleContext && this.flags.isEnabled('SCOPED_NOTIFICATION_READ')) {
+      const qb = this.repo
+        .createQueryBuilder()
+        .update(Notification)
+        .set({ isRead: true, readAt: new Date() })
+        .where('"userId" = :userId AND "isRead" = false', { userId });
+      this.applyAudienceScopeUpdate(qb, roleContext);
+      await qb.execute();
+      return;
+    }
     await this.repo.update(
       { userId, isRead: false },
       { isRead: true, readAt: new Date() },
@@ -384,7 +464,14 @@ export class InAppNotificationService {
     );
   }
 
-  async getUnreadCount(userId: number): Promise<number> {
+  async getUnreadCount(userId: number, roleContext?: RoleContext): Promise<number> {
+    if (roleContext && this.flags.isEnabled('SCOPED_NOTIFICATION_READ')) {
+      const qb = this.repo
+        .createQueryBuilder('n')
+        .where('n.userId = :userId AND n.isRead = false', { userId });
+      this.applyAudienceScope(qb, roleContext);
+      return qb.getCount();
+    }
     return this.repo.count({ where: { userId, isRead: false } });
   }
 
@@ -499,12 +586,10 @@ export class InAppNotificationService {
     });
   }
 
-  // markAllRead without second arg (controller calls with just userId)
-  async markAllReadById(userId: number) {
-    await this.repo.update(
-      { userId, isRead: false },
-      { isRead: true, readAt: new Date() },
-    );
+  // markAllRead without second arg (controller calls with just userId) --
+  // delegates straight to the scoped-capable markAllRead above.
+  async markAllReadById(userId: number, roleContext?: RoleContext) {
+    return this.markAllRead(userId, roleContext);
   }
 
   // ── Helper ────────────────────────────────────────────────────────────────

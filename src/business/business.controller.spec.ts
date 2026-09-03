@@ -19,10 +19,11 @@ describe('BusinessController — resolveSellerActorId fail-closed regression', (
     const sellerScope: any = { resolve: jest.fn(resolveImpl) };
     const businessService: any = {};
     const businessBackfill: any = {};
+    const flags: any = { isEnabled: jest.fn().mockReturnValue(false) };
     const controller = new BusinessController(
-      customerService, conversationService, sellerScope, businessService, businessBackfill,
+      customerService, conversationService, sellerScope, businessService, businessBackfill, flags,
     );
-    return { controller, customerService, conversationService, sellerScope };
+    return { controller, customerService, conversationService, sellerScope, flags };
   };
 
   it('propagates ForbiddenException from sellerScope.resolve() instead of silently falling back to req.user.id', async () => {

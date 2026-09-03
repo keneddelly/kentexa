@@ -45,8 +45,13 @@ describe('ConversationService dual-write (Stage 2 checkpoint B/E)', () => {
         return Promise.resolve(null);
       }),
     };
+    const participantRepo: any = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
+    const participantStateRepo: any = { find: jest.fn().mockResolvedValue([]), update: jest.fn() };
     const customerService: any = { findOrCreateForChat: jest.fn() };
-    const notifService: any = { notify: jest.fn().mockResolvedValue(undefined), markReadByAction: jest.fn().mockResolvedValue(undefined) };
+    const notifService: any = {
+      notify: jest.fn().mockResolvedValue(undefined),
+      markReadByAction: jest.fn().mockResolvedValue(undefined),
+    };
     const commerceProfiles: any = { findById: jest.fn() };
     const gateway: any = { emitNewMessage: jest.fn() };
     const participants: any = {
@@ -56,6 +61,7 @@ describe('ConversationService dual-write (Stage 2 checkpoint B/E)', () => {
       ensureExternalContactParticipant: jest.fn(),
       incrementUnread: jest.fn().mockResolvedValue(undefined),
       markRead: jest.fn().mockResolvedValue(undefined),
+      getOrInitState: jest.fn().mockResolvedValue({ pinned: false, muted: false }),
     };
     const defaultsOn = new Set(['SCOPED_CONVERSATION_DUAL_WRITE', 'SCOPED_NOTIFICATION_DUAL_WRITE']);
     const flags: any = {
@@ -63,9 +69,10 @@ describe('ConversationService dual-write (Stage 2 checkpoint B/E)', () => {
     };
     const service = new ConversationService(
       convoRepo, msgRepo, customerRepo, teamMemberRepo, productRepo, classifiedRepo, serviceAdRepo,
-      accountRoleRepo, customerService, notifService, commerceProfiles, gateway, participants, flags,
+      accountRoleRepo, participantRepo, participantStateRepo,
+      customerService, notifService, commerceProfiles, gateway, participants, flags,
     );
-    return { service, convoRepo, msgRepo, customerRepo, accountRoleRepo, participants, flags, gateway, notifService };
+    return { service, convoRepo, msgRepo, customerRepo, accountRoleRepo, participantRepo, participantStateRepo, participants, flags, gateway, notifService };
   };
 
   describe('getOrCreateConversation', () => {

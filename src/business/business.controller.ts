@@ -23,6 +23,9 @@ import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { CommunicationFeatureFlagsService } from '../communication/communication-feature-flags.service';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import type { RoleContext } from '../role-context/role-context.types';
 
 /**
  * BusinessController — Seller Business Platform API
@@ -39,6 +42,7 @@ export class BusinessController {
     private sellerScope: SellerScopeService,
     private businessService: BusinessService,
     private businessBackfill: BusinessBackfillService,
+    private flags: CommunicationFeatureFlagsService,
   ) {}
 
   // ── Multi-role architecture: Business as its own entity ─────────────────
@@ -234,12 +238,23 @@ export class BusinessController {
   // conversation counts. Deliberately NOT the generic
   // /notifications/unread-count (a different, never-reconciled number —
   // see ConversationService.getUnreadConversationCount's own comment).
+  // Stage 2B: when SCOPED_CONVERSATION_READ is off (default during rollout),
+  // this stays exactly the legacy combined seller+buyer count. When on, the
+  // seller half comes from ConversationParticipantState via
+  // ConversationService.getScopedSellerInbox's own unread field --
+  // getUnreadConversationCount's buyer half is untouched here since this
+  // route is seller-scoped (buyer unread is read via the buyer's own
+  // my-conversations call, not merged in here).
   @Get('inbox/unread-count')
   async getInboxUnreadCount(@Request() req) {
     const sellerId = await this.resolveSellerActorId(
       req.user,
       'canSendMessages',
     );
+    if (this.flags.isEnabled('SCOPED_UNREAD_READ')) {
+      const unread = await this.conversationService.getScopedUnreadCountForSeller(sellerId);
+      return { unread };
+    }
     const unread = await this.conversationService.getUnreadConversationCount(
       sellerId,
       req.user.id,
@@ -263,13 +278,22 @@ export class BusinessController {
       req.user,
       'canSendMessages',
     );
-    return this.conversationService.getSellerInbox(sellerId, {
+    const scopedParams = {
       status,
       search,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : undefined,
       assignedToId: mine === 'true' ? req.user.id : undefined,
-    });
+    };
+    // Authorization for WHICH business (sellerId) already happened above via
+    // resolveSellerActorId, fail-closed since Stage 2A. This flag only
+    // decides HOW that business's conversations are found: the new
+    // participant-graph query (server-side entitlement, item 1) vs the
+    // legacy raw seller_id scan.
+    if (this.flags.isEnabled('SCOPED_CONVERSATION_READ')) {
+      return this.conversationService.getScopedSellerInbox(sellerId, scopedParams);
+    }
+    return this.conversationService.getSellerInbox(sellerId, scopedParams);
   }
 
   @Post('inbox/start')
@@ -411,12 +435,17 @@ export class BusinessController {
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @CurrentRoleContext() roleContext?: RoleContext,
   ) {
-    return this.conversationService.getMyConversations(req.user.id, {
+    const params = {
       search,
       page: page ? Number(page) : 1,
       limit: limit ? Number(limit) : undefined,
-    });
+    };
+    if (this.flags.isEnabled('SCOPED_CONVERSATION_READ') && roleContext) {
+      return this.conversationService.getScopedBuyerConversations(req.user.id, roleContext, params);
+    }
+    return this.conversationService.getMyConversations(req.user.id, params);
   }
 
   @UseGuards(RoleContextGuard, ActiveRoleGuard)

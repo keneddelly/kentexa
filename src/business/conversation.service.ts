@@ -35,13 +35,27 @@ import {
   ConversationClassificationStatus,
 } from './entities/conversation.entity';
 import { ParticipantResolutionService } from './participant-resolution.service';
-import { ParticipantKind } from './entities/conversation-participant.entity';
+import {
+  ConversationParticipant,
+  ParticipantKind,
+  ParticipantPrincipalType,
+  ParticipantStatus,
+} from './entities/conversation-participant.entity';
+import { ConversationParticipantState } from './entities/conversation-participant-state.entity';
 import { CommunicationFeatureFlagsService } from '../communication/communication-feature-flags.service';
 import { AccountRole, AccountRoleStatus, AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
+import { RoleContext } from '../role-context/role-context.types';
 
 export interface ConversationContext {
   type: 'product' | 'classified' | 'service';
   id: number;
+}
+
+export interface ScopedInboxResult {
+  conversations: any[];
+  total: number;
+  page: number;
+  unread: number;
 }
 
 @Injectable()
@@ -63,6 +77,10 @@ export class ConversationService {
     private serviceAdRepo: Repository<ServiceAd>,
     @InjectRepository(AccountRole)
     private accountRoleRepo: Repository<AccountRole>,
+    @InjectRepository(ConversationParticipant)
+    private participantRepo: Repository<ConversationParticipant>,
+    @InjectRepository(ConversationParticipantState)
+    private participantStateRepo: Repository<ConversationParticipantState>,
     private customerService: BusinessCustomerService,
     private notifService: InAppNotificationService,
     private commerceProfiles: CommerceProfilesService,
@@ -384,6 +402,254 @@ export class ConversationService {
     ]);
     return asSeller + asBuyer;
   }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // Stage 2B — SCOPED READS (gated by SCOPED_CONVERSATION_READ /
+  // SCOPED_UNREAD_READ, default OFF). Authorization happens server-side, in
+  // the query itself, never by fetching a wider dataset and filtering after
+  // the fact. A conversation is included only when either (a) a real,
+  // active ConversationParticipant row exists for the resolved AccountRole,
+  // or (b) — the ONLY sanctioned fallback, see item 2 — the conversation is
+  // still classificationStatus=LEGACY_UNSCOPED (the classifier hasn't
+  // evaluated it yet) AND the raw legacy ownership column deterministically
+  // matches. AMBIGUOUS/EXTERNAL_CONTACT-without-a-participant rows satisfy
+  // neither condition and are correctly excluded -- "quarantined" is a
+  // property of this WHERE clause, not a separate filter step.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Seller-side scoped inbox. `sellerId` is the ALREADY-AUTHORIZED business
+   * id (from SellerScopeService.resolve() via the controller -- covers the
+   * seller-acting-as-themselves, admin-override, and team-member-delegation
+   * cases, none of which this method re-derives). This method's own
+   * contribution is HOW conversations for that business are found: via the
+   * seller's AccountRole + ConversationParticipant graph, not a raw
+   * seller_id column scan. If the business has no active SELLER AccountRole
+   * at all yet (should not normally happen post Stage-1 sync, but a team
+   * member could be delegated for an account mid-migration), falls back to
+   * the legacy getSellerInbox() wholesale -- safe, since sellerId itself was
+   * already properly authorized upstream; nothing here re-derives identity
+   * from a client-supplied id.
+   */
+  async getScopedSellerInbox(
+    sellerId: number,
+    params: { status?: string; search?: string; page?: number; limit?: number; assignedToId?: number },
+  ): Promise<ScopedInboxResult> {
+    const sellerRole = await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER);
+    if (!sellerRole) {
+      return this.getSellerInbox(sellerId, params);
+    }
+    return this.getScopedInboxByAccountRole(sellerRole, ParticipantKind.SELLER, sellerId, params);
+  }
+
+  /**
+   * Buyer-side scoped conversations. userId/roleContext come straight from
+   * the caller's own resolved RoleContext (Stage 1) -- no team-delegation
+   * concept exists for buyers, so this is simpler than the seller path.
+   */
+  async getScopedBuyerConversations(
+    userId: number,
+    roleContext: RoleContext,
+    params: { search?: string; page?: number; limit?: number },
+  ): Promise<ScopedInboxResult> {
+    if (roleContext.roleType !== AccountRoleType.BUYER) {
+      // Defense in depth -- the controller's RequireActiveRole(BUYER) gate
+      // is the real boundary; this never trusts being called correctly.
+      return { conversations: [], total: 0, page: params.page || 1, unread: 0 };
+    }
+    const buyerRole = await this.resolveAccountRoleFor(userId, AccountRoleType.BUYER);
+    if (!buyerRole) {
+      return this.getMyConversations(userId, params);
+    }
+    return this.getScopedInboxByAccountRole(buyerRole, ParticipantKind.BUYER, userId, params);
+  }
+
+  /**
+   * Scoped read entry point for ANY active role, including ones with no
+   * conversation product surface at all (agent/super_agent/transport_
+   * provider/service_provider/admin/manager/customer_care/arbitrator) --
+   * those deterministically return an empty, valid dataset rather than ever
+   * reaching a seller/buyer query. Kept separate from
+   * getScopedSellerInbox/getScopedBuyerConversations (which the existing,
+   * already-authorized /business/inbox and /business/my-conversations
+   * routes call directly) so a future unified "my communications" surface
+   * has one obvious place to route through for whatever role is active.
+   */
+  async getScopedConversationsForActiveRole(
+    roleContext: RoleContext,
+    params: { status?: string; search?: string; page?: number; limit?: number },
+  ): Promise<ScopedInboxResult> {
+    if (roleContext.roleType === AccountRoleType.SELLER) {
+      return this.getScopedSellerInbox(roleContext.userId, params);
+    }
+    if (roleContext.roleType === AccountRoleType.BUYER) {
+      return this.getScopedBuyerConversations(roleContext.userId, roleContext, params);
+    }
+    // Agent/Super Agent/Transport Provider/Service Provider/staff roles:
+    // no ConversationParticipant of any of their kinds is ever created
+    // (nothing in this codebase attaches a conversation to those roles),
+    // so this is a real, permanent, valid empty state -- not a placeholder
+    // for a future query that was simply never written.
+    return { conversations: [], total: 0, page: params.page || 1, unread: 0 };
+  }
+
+  private async getScopedInboxByAccountRole(
+    role: AccountRole,
+    kind: typeof ParticipantKind.SELLER | typeof ParticipantKind.BUYER,
+    legacyOwnerId: number,
+    params: { status?: string; search?: string; page?: number; limit?: number; assignedToId?: number },
+  ): Promise<ScopedInboxResult> {
+    const page = params.page || 1;
+    const limit = params.limit || 20;
+    const skip = (page - 1) * limit;
+    const legacyFallback = this.flags.isEnabled('LEGACY_COMMUNICATION_READ_FALLBACK');
+    const isSeller = kind === ParticipantKind.SELLER;
+
+    const qb = this.convoRepo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.customer', 'customer')
+      .leftJoinAndSelect('c.seller', 'seller')
+      .leftJoinAndSelect('c.assignedTo', 'assignedTo')
+      .leftJoin(
+        ConversationParticipant,
+        'cp',
+        'cp.conversation_id = c.id AND cp.account_role_id = :accountRoleId AND cp.status = :active AND cp."principalType" = :principalType',
+        { accountRoleId: role.id, active: ParticipantStatus.ACTIVE, principalType: ParticipantPrincipalType.ACCOUNT_ROLE },
+      );
+
+    // The one sanctioned fallback (item 2): ONLY for rows the classifier
+    // has never evaluated (LEGACY_UNSCOPED) AND whose raw legacy ownership
+    // column deterministically matches. A RESOLVED row always has a real
+    // participant already (dual-write/classifier both guarantee this), so
+    // it's covered by the cp.id IS NOT NULL branch, never by this one. An
+    // AMBIGUOUS row satisfies neither branch -- excluded, not "shown unless
+    // proven unsafe".
+    if (legacyFallback) {
+      qb.where(
+        isSeller
+          ? `cp.id IS NOT NULL OR (c."classificationStatus" = :legacyStatus AND c.seller_id = :legacyOwnerId)`
+          : `cp.id IS NOT NULL OR (c."classificationStatus" = :legacyStatus AND customer.user_id = :legacyOwnerId)`,
+        { legacyStatus: ConversationClassificationStatus.LEGACY_UNSCOPED, legacyOwnerId },
+      );
+    } else {
+      qb.where('cp.id IS NOT NULL');
+    }
+
+    if (params.status) qb.andWhere('c.status = :status', { status: params.status });
+    if (isSeller && params.search) {
+      qb.andWhere('(LOWER(customer.name) LIKE :q OR customer.phone LIKE :q)', { q: `%${params.search.toLowerCase()}%` });
+    } else if (!isSeller && params.search) {
+      qb.andWhere('(LOWER(seller.storeName) LIKE :q OR LOWER(seller.name) LIKE :q)', { q: `%${params.search.toLowerCase()}%` });
+    }
+    if (isSeller && params.assignedToId) {
+      qb.andWhere('c.assigned_to_id = :assignedToId', { assignedToId: params.assignedToId });
+    }
+
+    const pinCol = isSeller ? 'c.sellerPinned' : 'c.buyerPinned';
+    const [conversations, total] = await qb
+      .orderBy(pinCol, 'DESC')
+      .addOrderBy('c.lastMessageAt', 'DESC', 'NULLS LAST')
+      .addOrderBy('c.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit)
+      .getManyAndCount();
+
+    const unread = this.flags.isEnabled('SCOPED_UNREAD_READ')
+      ? await this.getScopedUnreadCountForAccountRole(role.id)
+      : isSeller
+        ? await this.legacySellerUnread(legacyOwnerId)
+        : await this.legacyBuyerUnread(legacyOwnerId);
+
+    return { conversations: await this.attachCommerceProfiles(conversations), total, page, unread };
+  }
+
+  private async legacySellerUnread(sellerId: number): Promise<number> {
+    return this.convoRepo
+      .createQueryBuilder('c')
+      .where('c.seller_id = :sellerId', { sellerId })
+      .andWhere('c.unreadCount > 0')
+      .getCount();
+  }
+
+  private async legacyBuyerUnread(userId: number): Promise<number> {
+    return this.convoRepo
+      .createQueryBuilder('c')
+      .leftJoin('c.customer', 'customer')
+      .where('customer.user_id = :userId', { userId })
+      .andWhere('c.buyerUnreadCount > 0')
+      .getCount();
+  }
+
+  /** Efficient standalone count for a seller (already-authorized business id), without fetching a page of conversations. */
+  async getScopedUnreadCountForSeller(sellerId: number): Promise<number> {
+    const role = await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER);
+    if (!role) return this.legacySellerUnread(sellerId);
+    return this.getScopedUnreadCountForAccountRole(role.id);
+  }
+
+  /**
+   * ConversationParticipantState as the sole authority (item 3): sums
+   * unreadCount across every ACTIVE participant row for this exact
+   * accountRoleId. A Seller's read-all/mark-read can only ever touch ITS
+   * OWN participant rows (see markConversationReadScoped below) -- there is
+   * no code path here that can read or mutate a different accountRoleId's
+   * state.
+   */
+  async getScopedUnreadCountForAccountRole(accountRoleId: number): Promise<number> {
+    const rows = await this.participantRepo.find({
+      where: { accountRoleId, principalType: ParticipantPrincipalType.ACCOUNT_ROLE, status: ParticipantStatus.ACTIVE },
+    });
+    if (!rows.length) return 0;
+    const states = await this.participantStateRepo.find({
+      where: rows.map((r) => ({ conversationParticipantId: r.id })),
+    });
+    // Muted conversations keep their own indicator but don't count toward
+    // the combined badge, matching legacy getUnreadConversationCount's
+    // exact behavior. pinned/muted live on the participant STATE now, not
+    // the legacy Conversation row, for a scoped-read caller.
+    const participantById = new Map(rows.map((r) => [r.id, r]));
+    let total = 0;
+    for (const state of states) {
+      const participant = participantById.get(state.conversationParticipantId);
+      if (!participant) continue;
+      if (state.muted) continue;
+      total += state.unreadCount || 0;
+    }
+    return total;
+  }
+
+  /**
+   * Scoped mark-read (item 3): resolves the CALLER's own participant for
+   * this conversation via their own accountRoleId and marks only that row.
+   * A Seller marking a thread read can never touch the Buyer's (or any
+   * other role's) ConversationParticipantState row for the same
+   * conversation -- there are two separate participant rows, and this only
+   * ever looks up the one matching `accountRoleId`.
+   */
+  async markConversationReadScoped(conversationId: number, accountRoleId: number, lastReadMessageId?: number): Promise<void> {
+    const participant = await this.participantRepo.findOne({
+      where: {
+        conversationId,
+        accountRoleId,
+        principalType: ParticipantPrincipalType.ACCOUNT_ROLE,
+        status: ParticipantStatus.ACTIVE,
+      },
+    });
+    if (!participant) return; // no participant yet for this role on this thread -- nothing to mark
+    await this.participants.markRead(participant.id, lastReadMessageId);
+  }
+
+  // Note: there is deliberately no separate "scoped pin/mute" entry point.
+  // togglePin/toggleMute/togglePinAsBuyer/toggleMuteAsBuyer (below) already
+  // do the real ownership check (a raw conversationId+sellerId/customer.
+  // userId lookup) AND dual-write the result onto ConversationParticipantState
+  // via dualWriteParticipantFlag -- legacy stays authoritative for the
+  // returned value, participant state is kept in lockstep. An earlier draft
+  // of this method added a second, independently-toggleable participant-
+  // state path with NO ownership check of its own (only a bare
+  // conversationId+accountRoleId lookup, which a caller could reach for
+  // ANY conversation once a participant row exists) -- removed as a real
+  // authorization gap, not shipped.
 
   // ── Get or create conversation ────────────────────────────────────────────
 
@@ -1058,6 +1324,7 @@ export class ConversationService {
     if (!convo) throw new NotFoundException('Conversation not found');
     convo.sellerPinned = !convo.sellerPinned;
     await this.convoRepo.save(convo);
+    await this.dualWriteParticipantFlag(conversationId, sellerId, AccountRoleType.SELLER, 'pinned', convo.sellerPinned);
     return { pinned: convo.sellerPinned };
   }
 
@@ -1066,6 +1333,7 @@ export class ConversationService {
     if (!convo) throw new NotFoundException('Conversation not found');
     convo.sellerMuted = !convo.sellerMuted;
     await this.convoRepo.save(convo);
+    await this.dualWriteParticipantFlag(conversationId, sellerId, AccountRoleType.SELLER, 'muted', convo.sellerMuted);
     return { muted: convo.sellerMuted };
   }
 
@@ -1079,6 +1347,7 @@ export class ConversationService {
     }
     convo.buyerPinned = !convo.buyerPinned;
     await this.convoRepo.save(convo);
+    await this.dualWriteParticipantFlag(conversationId, userId, AccountRoleType.BUYER, 'pinned', convo.buyerPinned);
     return { pinned: convo.buyerPinned };
   }
 
@@ -1092,7 +1361,41 @@ export class ConversationService {
     }
     convo.buyerMuted = !convo.buyerMuted;
     await this.convoRepo.save(convo);
+    await this.dualWriteParticipantFlag(conversationId, userId, AccountRoleType.BUYER, 'muted', convo.buyerMuted);
     return { muted: convo.buyerMuted };
+  }
+
+  /**
+   * Mirrors a legacy sellerPinned/sellerMuted/buyerPinned/buyerMuted toggle
+   * onto ConversationParticipantState -- legacy stays authoritative for the
+   * RETURN value (avoids the two systems being independently toggle-able
+   * and drifting out of sync), the participant row is just kept in lockstep
+   * so a future cutover to reading pin/mute from participant state has
+   * correct data already. Best-effort, wrapped so a resolver hiccup never
+   * breaks the legacy toggle that already succeeded.
+   */
+  private async dualWriteParticipantFlag(
+    conversationId: number,
+    userId: number,
+    roleType: AccountRoleType,
+    flag: 'pinned' | 'muted',
+    value: boolean,
+  ): Promise<void> {
+    if (!this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) return;
+    try {
+      const role = await this.resolveAccountRoleFor(userId, roleType);
+      if (!role) return;
+      const participant = await this.participants.ensureAccountRoleParticipant(
+        conversationId,
+        role.id,
+        roleType === AccountRoleType.SELLER ? ParticipantKind.SELLER : ParticipantKind.BUYER,
+      );
+      await this.participants.getOrInitState(participant.id);
+      await this.participantStateRepo.update({ conversationParticipantId: participant.id }, { [flag]: value });
+    } catch {
+      // Non-critical -- the legacy toggle above already succeeded and is
+      // still the source of truth for the response.
+    }
   }
 
   // ── Assign conversation to team member ────────────────────────────────────
