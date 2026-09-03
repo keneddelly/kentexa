@@ -20,6 +20,10 @@ import { UserRole } from '../users/entities/user.entity';
 import { ParcelStatus } from './entities/parcel.entity';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('super-agents')
 export class SuperAgentsController {
@@ -149,7 +153,8 @@ export class SuperAgentsController {
   }
 
   // Set shipping rates
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Post('rates')
   setRates(@Request() req, @Body() body: { rates: any[] }) {
     return this.service.setShippingRates(req.user, body.rates);
@@ -215,30 +220,42 @@ export class SuperAgentsController {
   }
 
   // ── Local agent — last-mile delivery ────────────────────────────────────────
+  // These four had NO role gate at all -- any authenticated user, including a
+  // plain buyer, could list hub-arrived parcels (with buyer PII) for any city,
+  // claim one for delivery, and mark it delivered, since claimParcel()/
+  // updateMyDeliveryStatus() never verified the caller even has an Agent
+  // profile. RequireActiveRole(AGENT) closes this: RoleContextService only
+  // ever resolves an AGENT-active context when the linked Agent profile is
+  // valid and belongs to this user, so an active agent context here is
+  // sufficient proof a real, owned Agent profile exists.
 
   // Parcels that arrived at hub in this city, not yet claimed
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT, AccountRoleType.ADMIN)
   @Get('incoming-parcels')
   getIncomingParcels(@Query('city') city: string) {
     return this.service.getIncomingParcels(city);
   }
 
   // My claimed deliveries (out for delivery)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT, AccountRoleType.ADMIN)
   @Get('my-deliveries')
   getMyDeliveries(@Request() req) {
     return this.service.getMyDeliveries(req.user.id);
   }
 
   // Claim a parcel for last-mile delivery
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
   @Patch('parcels/:trackingNumber/claim')
   claimParcel(@Request() req, @Param('trackingNumber') tn: string) {
     return this.service.claimParcel(req.user, tn);
   }
 
   // Mark out-for-delivery / delivered (only my claimed parcels)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
   @Patch('parcels/:trackingNumber/delivery-status')
   updateMyDeliveryStatus(
     @Request() req,
