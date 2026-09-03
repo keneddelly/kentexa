@@ -5,6 +5,7 @@ import { CommunicationTemplate } from './entities/communication-template.entity'
 import { CommunicationLog } from './entities/communication-log.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { CommunicationFeatureFlagsService } from './communication-feature-flags.service';
+import { AccountRole, AccountRoleStatus, AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
 
 export interface DispatchRecipient {
   userId: number;
@@ -118,9 +119,36 @@ export class CommunicationEngineService implements OnModuleInit {
     private templateRepo: Repository<CommunicationTemplate>,
     @InjectRepository(CommunicationLog)
     private logRepo: Repository<CommunicationLog>,
+    @InjectRepository(AccountRole)
+    private accountRoleRepo: Repository<AccountRole>,
     private inAppNotifications: InAppNotificationService,
     private flags: CommunicationFeatureFlagsService,
   ) {}
+
+  /**
+   * Stage 2B item 7: recipient.role is already 'seller'/'buyer' (matching
+   * AccountRoleType's own string values exactly, and CommunicationTemplate.
+   * recipientRole). Resolving the accountRoleId HERE, inside dispatch(),
+   * means orders.service.ts/payments.service.ts/daily-batches.service.ts
+   * (11 call sites across 3 files) need zero changes -- the same pattern
+   * that worked for InAppNotificationService's event helpers (item 6).
+   * Never overrides an accountRoleId a caller already resolved and passed
+   * explicitly.
+   */
+  private async resolveRecipientAudience(recipient: DispatchRecipient): Promise<DispatchRecipient> {
+    if (recipient.accountRoleId) return recipient;
+    const roleType = recipient.role as AccountRoleType;
+    if (!Object.values(AccountRoleType).includes(roleType)) return recipient;
+    const role = await this.accountRoleRepo.findOne({
+      where: { userId: recipient.userId, roleType, status: AccountRoleStatus.ACTIVE },
+    });
+    if (!role) return recipient;
+    const workspace =
+      role.profileType && role.profileType !== RoleProfileType.USER && role.profileId != null
+        ? { workspaceType: role.profileType as string, workspaceId: role.profileId }
+        : {};
+    return { ...recipient, accountRoleId: role.id, audienceScope: recipient.audienceScope ?? 'ROLE', ...workspace };
+  }
 
   async onModuleInit() {
     await this.seedTemplates();
@@ -159,7 +187,10 @@ export class CommunicationEngineService implements OnModuleInit {
 
   async dispatch(params: DispatchParams): Promise<void> {
     const channel = 'in_app';
-    for (const recipient of params.recipients) {
+    for (let recipient of params.recipients) {
+      if (this.flags.isEnabled('SCOPED_NOTIFICATION_DUAL_WRITE')) {
+        recipient = await this.resolveRecipientAudience(recipient);
+      }
       const audienceFields =
         this.flags.isEnabled('SCOPED_NOTIFICATION_DUAL_WRITE') && recipient.accountRoleId
           ? {
