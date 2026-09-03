@@ -29,6 +29,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { AiModule } from '../ai/ai.module';
 import { ConversationGateway } from './conversation.gateway';
 import { ParticipantResolutionService } from './participant-resolution.service';
+import { ConversationClassifierService } from './conversation-classifier.service';
 
 @Module({
   imports: [
@@ -80,7 +81,8 @@ import { ParticipantResolutionService } from './participant-resolution.service';
     BusinessBackfillService,
     ConversationGateway,
     ParticipantResolutionService,
+    ConversationClassifierService,
   ],
-  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, ParticipantResolutionService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, ParticipantResolutionService, ConversationClassifierService],
 })
 export class BusinessModule {}
