@@ -22,6 +22,10 @@ import { parseOrderIdParam } from '../common/utils/order-id.util';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
 import { CodCalculationService } from '../cod/cod-calculation.service';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('orders')
 export class OrdersController {
@@ -33,8 +37,18 @@ export class OrdersController {
   ) {}
 
   // ── Customer ──────────────────────────────────────────────────────────────
+  // Security closure pass, item 2: private buyer commerce must not silently
+  // stay reachable while the account is operating as another role. create/
+  // my-orders/rate-seller are strictly buyer-owned (verified against their
+  // services: findMyOrders filters by buyer.id, rateSellerForOrder throws
+  // unless order.buyer.id === caller). getOrderDetail below is deliberately
+  // NOT gated the same way -- it's a genuine multi-party endpoint (buyer,
+  // seller, admin, order creator, or authorized seller staff can all view
+  // the same order), each already checked by real ownership inside the
+  // service, not by active role.
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Post()
   create(@Body() dto: CreateOrderDto, @Request() req) {
     return this.ordersService.create(dto, req.user);
@@ -64,7 +78,8 @@ export class OrdersController {
     }
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Post(':id/rate-seller')
   rateSeller(
     @Param('id', ParseIntPipe) id: number,
@@ -79,7 +94,8 @@ export class OrdersController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Get('my-orders')
   getMyOrders(@Request() req) {
     return this.ordersService.findMyOrders(req.user);

@@ -15,14 +15,27 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { InvoiceLookupResult } from './payments.service';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('payments')
 export class PaymentsController {
   constructor(private paymentsService: PaymentsService) {}
 
   // ─── Online Payment ─────────────────────────────────────────────────────
+  // Security closure pass, item 2: initiate/my-payments/order/:orderId are
+  // strictly the caller's own buyer-side payment history (verified against
+  // their services: each filters by buyer.id/user.id server-side), so they
+  // require active Buyer context. customerPayInvoice below is deliberately
+  // left ungated -- its own comment documents "(any logged-in user)" as
+  // intentional (paying an invoice, including on someone else's behalf, is
+  // not exclusively "my own buyer history" the way these three are), and
+  // agent/* below are a separate Agent-role surface, not buyer commerce.
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Post('initiate')
   initiatePayment(@Body() dto: InitiatePaymentDto, @Request() req) {
     return this.paymentsService.initiatePayment(dto, req.user);
@@ -33,7 +46,8 @@ export class PaymentsController {
     return this.paymentsService.handleCallback(body, provider);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Get('my-payments')
   getMyPayments(@Request() req) {
     return this.paymentsService.getMyPayments(req.user);
@@ -47,7 +61,8 @@ export class PaymentsController {
     return this.paymentsService.getAllPayments();
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Get('order/:orderId')
   getPaymentByOrder(
     @Param('orderId', ParseIntPipe) orderId: number,
