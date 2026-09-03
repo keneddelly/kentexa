@@ -207,6 +207,32 @@ describe('ConversationService dual-write (Stage 2 checkpoint B/E)', () => {
     });
   });
 
+  describe('emitSystemMessage (Stage 2B item 8: addOrderMessage/addInvoiceMessage)', () => {
+    it('resolves and passes both seller and buyer AccountRole ids, never falling back to a generic user room', async () => {
+      const { service, convoRepo, msgRepo, gateway } = build();
+      convoRepo.findOne.mockResolvedValue({ id: 501, sellerId: 1, customerId: 55, customer: { id: 55, userId: 2 } });
+      msgRepo.save.mockResolvedValue({ id: 900 });
+
+      await service.addOrderMessage(501, { id: 42, trackingNumber: 'KTX-1', totalAmount: 1000, status: 'paid' });
+
+      expect(gateway.emitNewMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ conversationId: 501, sellerAccountRoleId: 10, buyerAccountRoleId: 20 }),
+      );
+    });
+
+    it('resolution failure for a side is caught, never throws, never blocks the message being persisted', async () => {
+      const { service, convoRepo, msgRepo, accountRoleRepo, gateway } = build();
+      convoRepo.findOne.mockResolvedValue({ id: 501, sellerId: 1, customerId: 55, customer: { id: 55, userId: 2 } });
+      msgRepo.save.mockResolvedValue({ id: 900 });
+      accountRoleRepo.findOne.mockRejectedValue(new Error('db exploded'));
+
+      await expect(
+        service.addOrderMessage(501, { id: 42, trackingNumber: 'KTX-1', totalAmount: 1000, status: 'paid' }),
+      ).resolves.toBeUndefined();
+      expect(gateway.emitNewMessage).not.toHaveBeenCalled(); // caught by emitSystemMessage's own try/catch
+    });
+  });
+
   describe('getMessages / getMessagesAsBuyer mark-read parity', () => {
     it('mirrors a seller-side mark-read reset onto ConversationParticipantState', async () => {
       const { service, convoRepo, participants } = build();

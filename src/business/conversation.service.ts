@@ -1200,6 +1200,17 @@ export class ConversationService {
   // payment webhooks), so unlike sendMessage/sendMessageAsBuyer they need to
   // fetch sellerId/buyerUserId themselves before they can push live. Kept as
   // one helper so this fetch-and-emit logic isn't duplicated per card type.
+  // Stage 2B item 8: previously emitted with no accountRoleId at all, so
+  // the gateway's "operational events must route to scoped rooms, never a
+  // generic user room" rule (item 17) meant this nudge was silently
+  // dropped entirely whenever ROLE_CONTEXT_SOCKET_ROOMS was on -- the
+  // message itself still arrived via the conversation:{id} room (delivery
+  // was never broken), only the inbox-list "you have new activity" nudge
+  // was missing. Now resolves the same seller/buyer AccountRole ids every
+  // other send path resolves, server-side, before emitting -- if
+  // resolution fails for either side, that side's nudge is skipped (never
+  // falls back to a generic user:{id} room; see emitNewMessage's own
+  // comment for why that's the correct failure mode here).
   private async emitSystemMessage(
     conversationId: number,
     msg: ConversationMessage,
@@ -1210,12 +1221,20 @@ export class ConversationService {
         relations: { customer: true },
       });
       if (!convo) return;
+      const [sellerRole, buyerRole] = await Promise.all([
+        this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER),
+        convo.customer?.userId
+          ? this.resolveAccountRoleFor(convo.customer.userId, AccountRoleType.BUYER)
+          : Promise.resolve(null),
+      ]);
       this.gateway.emitNewMessage({
         conversationId,
         sellerId: convo.sellerId,
         buyerUserId: convo.customer?.userId ?? null,
         message: msg,
         isNote: false,
+        sellerAccountRoleId: sellerRole?.id ?? null,
+        buyerAccountRoleId: buyerRole?.id ?? null,
       });
     } catch {
       // Non-critical — the message is already durably persisted above.
