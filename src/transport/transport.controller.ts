@@ -25,6 +25,10 @@ import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('transport')
 export class TransportController {
@@ -46,6 +50,10 @@ export class TransportController {
     return this.svc.register(req.user, dto);
   }
 
+  // Self-status-check, same precedent as SellerController.getMyProfile: a
+  // pending applicant is active as buyer (their transport_provider
+  // AccountRole isn't ACTIVE yet) and must still see their own application
+  // status, so this is deliberately not gated by active role.
   @Get('my-profile')
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req) {
@@ -53,20 +61,23 @@ export class TransportController {
   }
 
   @Patch('my-profile')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   updateProfile(@Request() req, @Body() dto: any) {
     return this.svc.updateProfile(req.user.id, dto);
   }
 
   // ── ROUTES ────────────────────────────────────────────────────────────────
   @Post('routes')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   addRoute(@Request() req, @Body() dto: any) {
     return this.svc.addRoute(req.user.id, dto);
   }
 
   @Get('routes')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   getRoutes(@Request() req) {
     return this.svc.getMyRoutes(req.user.id);
   }
@@ -78,7 +89,8 @@ export class TransportController {
   }
 
   @Patch('routes/:id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   updateRoute(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
@@ -89,19 +101,22 @@ export class TransportController {
 
   // ── AVAILABILITY ─────────────────────────────────────────────────────────
   @Post('availability')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   publishAvailability(@Request() req, @Body() dto: any) {
     return this.svc.publishAvailability(req.user.id, dto);
   }
 
   @Get('availability')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   getMyAvailability(@Request() req, @Query('days') days?: string) {
     return this.svc.getMyAvailability(req.user.id, days ? Number(days) : 7);
   }
 
   @Patch('availability/:id/status')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   updateAvailStatus(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
@@ -150,13 +165,15 @@ export class TransportController {
   }
 
   @Get('assignments')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   getAssignments(@Request() req, @Query('status') status?: string) {
     return this.svc.getMyAssignments(req.user.id, status);
   }
 
   @Patch('assignments/:id/respond')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN)
   respondToAssignment(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
@@ -170,8 +187,19 @@ export class TransportController {
     );
   }
 
+  // svc.updateAssignmentStatus() legitimately authorizes three different
+  // active parties for the SAME assignment: the owning transport provider,
+  // the Super Agent who created it, or an admin/manager -- all three active
+  // roles must stay allowed here, the service's own ownership check (not
+  // this gate) is what ties the caller to the specific assignment.
   @Patch('assignments/:id/status')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(
+    AccountRoleType.TRANSPORT_PROVIDER,
+    AccountRoleType.SUPER_AGENT,
+    AccountRoleType.ADMIN,
+    AccountRoleType.MANAGER,
+  )
   updateAssignmentStatus(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
