@@ -15,13 +15,34 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+
+// "Hub staff" / "Dispatcher" / "Zone agent" (the roles these comments name)
+// have no dedicated AccountRoleType of their own -- this is Dar es Salaam
+// hub-based last-mile logistics, operationally closest to Agent/Super
+// Agent. None of markReceivedAtHub/getTodaysManifest/departVan/
+// markZoneArrival/markParcelDelivered take a user param at all, so there is
+// no per-zone/per-batch entitlement to check yet (a real gap -- see the
+// closure report); this gate closes the "any authenticated buyer can mark
+// any parcel delivered" hole at the role level without inventing a
+// per-resource ownership model that isn't wired into the service.
+const HUB_OPERATIONAL_ROLES = [
+  AccountRoleType.AGENT,
+  AccountRoleType.SUPER_AGENT,
+  AccountRoleType.ADMIN,
+  AccountRoleType.MANAGER,
+];
 
 @Controller('daily-batches')
 export class DailyBatchesController {
   constructor(private service: DailyBatchesService) {}
 
   // ── Seller/Super Agent: create an offline (walk-in/cash) order ───────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SELLER, AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Post('offline-order')
   createOfflineOrder(
     @Body()
@@ -40,28 +61,32 @@ export class DailyBatchesController {
   }
 
   // ── Seller: assign order to today's/tomorrow's batch ─────────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SELLER, AccountRoleType.ADMIN)
   @Post('assign/:orderId')
   assignOrder(@Param('orderId', ParseIntPipe) orderId: number, @Request() req) {
     return this.service.assignOrderToBatch(orderId, req.user);
   }
 
   // ── Hub staff: mark parcel received at Kariakoo hub ───────────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(...HUB_OPERATIONAL_ROLES)
   @Patch('parcels/:parcelId/received')
   markReceived(@Param('parcelId', ParseIntPipe) parcelId: number) {
     return this.service.markReceivedAtHub(parcelId);
   }
 
   // ── Dispatcher: today's manifest, grouped by zone ─────────────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(...HUB_OPERATIONAL_ROLES)
   @Get('manifest/today')
   getTodaysManifest() {
     return this.service.getTodaysManifest();
   }
 
   // ── Dispatcher: mark van departed ─────────────────────────────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(...HUB_OPERATIONAL_ROLES)
   @Patch(':batchId/depart')
   departVan(
     @Param('batchId', ParseIntPipe) batchId: number,
@@ -72,7 +97,8 @@ export class DailyBatchesController {
   }
 
   // ── Zone agent: mark their zone as arrived ────────────────────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(...HUB_OPERATIONAL_ROLES)
   @Patch(':batchId/zones/:zoneId/arrived')
   markZoneArrival(
     @Param('batchId', ParseIntPipe) batchId: number,
@@ -82,7 +108,8 @@ export class DailyBatchesController {
   }
 
   // ── Zone agent: mark individual parcel delivered ──────────────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(...HUB_OPERATIONAL_ROLES)
   @Patch('parcels/:parcelId/delivered')
   markDelivered(@Param('parcelId', ParseIntPipe) parcelId: number) {
     return this.service.markParcelDelivered(parcelId);
@@ -91,8 +118,8 @@ export class DailyBatchesController {
   // ── Buyer: track their parcel's batch status ──────────────────────────────
   @UseGuards(JwtAuthGuard)
   @Get('order/:orderId/status')
-  getStatusForOrder(@Param('orderId', ParseIntPipe) orderId: number) {
-    return this.service.getParcelStatusForOrder(orderId);
+  getStatusForOrder(@Param('orderId', ParseIntPipe) orderId: number, @Request() req) {
+    return this.service.getParcelStatusForOrder(orderId, req.user);
   }
 
   // ── Public: list active zones ────────────────────────────────────────────

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -10,6 +11,7 @@ import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { InvoiceCounter } from './entities/invoice-counter.entity';
 import { ReceiptCounter } from './entities/receipt-counter.entity';
 import { Order, OrderStatus, EscrowStatus } from '../orders/entities/order.entity';
+import { User } from '../users/entities/user.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
 import { ActivityEventService } from '../activity/activity-event.service';
@@ -186,6 +188,29 @@ export class InvoicesService {
       where: { invoiceNumber },
     });
     if (!invoice) throw new NotFoundException('Invoice not found');
+    return invoice;
+  }
+
+  // Security closure pass: the controller's number/:invoiceNumber and
+  // order/:orderId JSON routes previously called findByInvoiceNumber/
+  // findByOrderId directly with no ownership check at all -- any logged-in
+  // user could view any other user's invoice (amount, buyer info) by
+  // guessing an orderId or invoice number. Kept as a separate assertion
+  // (rather than baking the check into findByOrderId/findByInvoiceNumber
+  // themselves) because those two are also called internally by
+  // system/admin paths (cancel, markPaid, PDF generation, super-agents and
+  // payments services) with no end-user "caller" to check ownership
+  // against. The PDF download siblings are deliberately public with the
+  // invoice number itself as the access key (documented above them,
+  // needed for plain <a href> links); these JSON routes were never meant
+  // to follow that model -- findMyInvoices already filters by buyer.id,
+  // implying invoices are private to their buyer/seller by design.
+  assertInvoiceOwner(invoice: Invoice, user: User): Invoice {
+    const isBuyer = invoice.buyer?.id === user.id;
+    const isSeller = invoice.order?.seller?.id === user.id;
+    if (!isBuyer && !isSeller) {
+      throw new ForbiddenException('Not your invoice');
+    }
     return invoice;
   }
 

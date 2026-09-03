@@ -47,18 +47,22 @@ export class InvoicesController {
     return this.invoicesService.findMyInvoices(req.user.id);
   }
 
-  // Get Invoice by Number
+  // Get Invoice by Number — was reachable by any authenticated user for any
+  // invoice number with no ownership check; now requires the caller be the
+  // invoice's buyer or the order's seller (see assertInvoiceOwner's comment).
   @UseGuards(JwtAuthGuard)
   @Get('number/:invoiceNumber')
-  findByNumber(@Param('invoiceNumber') invoiceNumber: string) {
-    return this.invoicesService.findByInvoiceNumber(invoiceNumber);
+  async findByNumber(@Param('invoiceNumber') invoiceNumber: string, @Request() req) {
+    const invoice = await this.invoicesService.findByInvoiceNumber(invoiceNumber);
+    return this.invoicesService.assertInvoiceOwner(invoice, req.user);
   }
 
-  // Get Invoice by Order ID
+  // Get Invoice by Order ID — same fix as findByNumber above.
   @UseGuards(JwtAuthGuard)
   @Get('order/:orderId')
-  findByOrder(@Param('orderId') orderId: string) {
-    return this.invoicesService.findByOrderId(Number(orderId));
+  async findByOrder(@Param('orderId') orderId: string, @Request() req) {
+    const invoice = await this.invoicesService.findByOrderId(Number(orderId));
+    return this.invoicesService.assertInvoiceOwner(invoice, req.user);
   }
 
   // ✅ Download Invoice PDF — public, same as receipt.

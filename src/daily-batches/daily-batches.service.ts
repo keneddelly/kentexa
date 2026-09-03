@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -724,7 +725,24 @@ export class DailyBatchesService {
   }
 
   // ── Get batch status for a buyer's tracking page ──────────────────────────
-  async getParcelStatusForOrder(orderId: number) {
+  // Security closure pass: this previously took no user at all -- any
+  // authenticated user could look up any order's delivery zone/batch status
+  // by guessing orderId. Now requires the caller be the order's buyer or
+  // seller (the two parties who legitimately track it); UserRole.ADMIN is
+  // intentionally not special-cased here since this is a narrow single-
+  // order lookup, not an operational admin surface.
+  async getParcelStatusForOrder(orderId: number, user: User) {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: { buyer: true, seller: true },
+    });
+    if (!order) throw new NotFoundException('Order not found');
+    const isBuyer = order.buyer?.id === user.id;
+    const isSeller = order.seller?.id === user.id;
+    if (!isBuyer && !isSeller) {
+      throw new ForbiddenException('Not your order');
+    }
+
     const parcel = await this.parcelRepo.findOne({
       where: { order: { id: orderId } },
       relations: { batch: true, zone: true },
