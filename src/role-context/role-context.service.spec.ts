@@ -67,6 +67,67 @@ describe('RoleContextService', () => {
       .rejects.toMatchObject({ response: { code: 'ROLE_PROFILE_INVALID' } });
   });
 
+  describe('syncOperationalRole', () => {
+    const syncRepos = (existing: any = null) => {
+      const roleRepo: any = {
+        findOne: jest.fn().mockResolvedValue(existing),
+        merge: jest.fn((target, patch) => Object.assign(target, patch)),
+        create: jest.fn((data) => data),
+        save: jest.fn((data) => Promise.resolve({ id: existing?.id ?? 99, ...data })),
+      };
+      const sessionRepo: any = { update: jest.fn() };
+      const other: any = { findOne: jest.fn() };
+      return {
+        service: new RoleContextService(other, roleRepo, sessionRepo, other, other, other, other),
+        roleRepo,
+        sessionRepo,
+      };
+    };
+
+    it('creates a new AccountRole (contextVersion 1) when the user has never held this role before', async () => {
+      const { service, roleRepo, sessionRepo } = syncRepos(null);
+      const saved = await service.syncOperationalRole({
+        userId: 5, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.SELLER_PROFILE, profileId: 77,
+      });
+      expect(saved).toMatchObject({ userId: 5, roleType: AccountRoleType.SELLER, contextVersion: 1 });
+      expect(sessionRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('bumps contextVersion and revokes existing sessions when re-approving a previously-known role', async () => {
+      const existing = {
+        id: 42, userId: 5, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.SUSPENDED,
+        profileType: RoleProfileType.SELLER_PROFILE, profileId: 77, contextVersion: 3,
+      };
+      const { service, sessionRepo } = syncRepos(existing);
+      const saved = await service.syncOperationalRole({
+        userId: 5, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.SELLER_PROFILE, profileId: 77,
+      });
+      expect(saved.contextVersion).toBe(4);
+      expect(sessionRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ accountRoleId: 42 }),
+        expect.objectContaining({ revokeReason: 'role_status_synced_active' }),
+      );
+    });
+
+    it('suspending an active role also revokes its sessions, invalidating any outstanding authority', async () => {
+      const existing = {
+        id: 42, userId: 5, roleType: AccountRoleType.AGENT, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.AGENT, profileId: 12, contextVersion: 1,
+      };
+      const { service, sessionRepo } = syncRepos(existing);
+      await service.syncOperationalRole({
+        userId: 5, roleType: AccountRoleType.AGENT, status: AccountRoleStatus.SUSPENDED,
+        profileType: RoleProfileType.AGENT, profileId: 12,
+      });
+      expect(sessionRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ accountRoleId: 42 }),
+        expect.objectContaining({ revokeReason: 'role_status_synced_suspended' }),
+      );
+    });
+  });
+
   it('resolves only the session-bound role, never a different role the same account also possesses', async () => {
     // The account holds BOTH a BUYER role (id 10, this session) and an ADMIN role (id 99).
     // resolveContext is keyed strictly off payload.rid/session.accountRoleId, so it can never

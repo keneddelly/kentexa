@@ -54,6 +54,12 @@ import { Sale, SaleStatus } from '../sales/entities/sale.entity';
 import { VerificationService } from '../identity/verification.service';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { RoleContextService } from '../role-context/role-context.service';
+import {
+  AccountRoleStatus,
+  AccountRoleType,
+  RoleProfileType,
+} from '../role-context/entities/account-role.entity';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -165,6 +171,7 @@ export class SuperAgentsService {
     private verification: VerificationService,
     private activityEvents: ActivityEventService,
     private walletService: WalletService,
+    private roleContextService: RoleContextService,
   ) {}
 
   // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
@@ -1063,6 +1070,17 @@ export class SuperAgentsService {
         role: UserRole.SUPER_AGENT,
         activeRoles: mergeActiveRole(agent.user.activeRoles, 'super_agent'),
       });
+      // Not best-effort: without an AccountRole, this Super Agent has
+      // nothing to ever resolve/switch into and stays locked out of the
+      // role they were just approved for. See
+      // RoleContextService.syncOperationalRole.
+      await this.roleContextService.syncOperationalRole({
+        userId: agent.user.id,
+        roleType: AccountRoleType.SUPER_AGENT,
+        status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.SUPER_AGENT,
+        profileId: agent.id,
+      });
     }
     await this.commerceProfiles
       .syncStatusByLink('superAgentId', id, CommerceProfileStatus.ACTIVE)
@@ -1082,6 +1100,15 @@ export class SuperAgentsService {
     if (!agent) throw new NotFoundException('Super agent not found');
     agent.status = SuperAgentStatus.SUSPENDED;
     agent.rejectionReason = reason;
+    if (agent.user) {
+      await this.roleContextService.syncOperationalRole({
+        userId: agent.user.id,
+        roleType: AccountRoleType.SUPER_AGENT,
+        status: AccountRoleStatus.SUSPENDED,
+        profileType: RoleProfileType.SUPER_AGENT,
+        profileId: agent.id,
+      }).catch(() => {});
+    }
     await this.commerceProfiles
       .syncStatusByLink('superAgentId', id, CommerceProfileStatus.SUSPENDED)
       .catch(() => {});

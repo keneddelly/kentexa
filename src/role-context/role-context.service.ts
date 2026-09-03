@@ -116,6 +116,61 @@ export class RoleContextService {
     return this.toContext(session, role);
   }
 
+  /**
+   * The only ongoing write path for operational (seller/agent/super_agent/
+   * transport_provider) AccountRole rows. The Phase A migration backfilled
+   * these once from the legacy profile tables at deploy time, but nothing
+   * since then kept them in sync -- SellerService.approve()/suspend(),
+   * AgentsService.approve()/suspend()/reject(),
+   * SuperAgentsService.approve()/suspend(), and TransportService.adminVerify()
+   * all only ever wrote User.role/activeRoles. Any user approved after that
+   * one-time migration ran would have no AccountRole for their new role at
+   * all, and would be unable to ever resolve or switch into it. Call this
+   * from every one of those status-changing methods, alongside (not instead
+   * of) their existing legacy-field writes.
+   *
+   * Always bumps contextVersion on an existing row and revokes its sessions
+   * -- any change in status (approved, suspended, rejected, reactivated)
+   * must invalidate whatever the caller was previously authorized to do as
+   * that role, never silently carry old authority forward.
+   */
+  async syncOperationalRole(params: {
+    userId: number;
+    roleType: AccountRoleType;
+    status: AccountRoleStatus;
+    profileType: RoleProfileType;
+    profileId: number;
+    statusReason?: string | null;
+  }): Promise<AccountRole> {
+    const existing = await this.roleRepo.findOne({
+      where: { userId: params.userId, roleType: params.roleType },
+    });
+    const saved = await this.roleRepo.save(
+      existing
+        ? this.roleRepo.merge(existing, {
+            status: params.status,
+            profileType: params.profileType,
+            profileId: params.profileId,
+            statusReason: params.statusReason ?? null,
+            contextVersion: existing.contextVersion + 1,
+          })
+        : this.roleRepo.create({
+            userId: params.userId,
+            roleType: params.roleType,
+            status: params.status,
+            profileType: params.profileType,
+            profileId: params.profileId,
+            statusReason: params.statusReason ?? null,
+            capabilities: {},
+            contextVersion: 1,
+          }),
+    );
+    if (existing) {
+      await this.revokeSessionsForAccountRole(saved.id, `role_status_synced_${params.status}`);
+    }
+    return saved;
+  }
+
   async getRoleForUser(accountRoleId: number, userId: number): Promise<AccountRole | null> {
     return this.roleRepo.findOne({ where: { id: accountRoleId, userId } });
   }

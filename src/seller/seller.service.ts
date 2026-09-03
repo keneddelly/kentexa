@@ -30,6 +30,12 @@ import {
   SellingCapabilityType,
   SellingCapabilityVerificationLevel,
 } from '../selling-capability/entities/selling-capability.entity';
+import { RoleContextService } from '../role-context/role-context.service';
+import {
+  AccountRoleStatus,
+  AccountRoleType,
+  RoleProfileType,
+} from '../role-context/entities/account-role.entity';
 
 @Injectable()
 export class SellerService {
@@ -50,6 +56,7 @@ export class SellerService {
     private commerceProfiles: CommerceProfilesService,
     private verification: VerificationService,
     private sellingCapability: SellingCapabilityService,
+    private roleContextService: RoleContextService,
   ) {}
 
   // ── Public: all approved sellers (raw profiles) ──────────────────────────
@@ -776,7 +783,20 @@ export class SellerService {
         .catch(() => {});
     }
 
-    return this.profileRepo.save(profile);
+    const saved = await this.profileRepo.save(profile);
+    // Not best-effort like the side syncs above: without this, the seller
+    // has no AccountRole to ever resolve/switch into and stays functionally
+    // locked out of the role they were just approved for (see
+    // RoleContextService.syncOperationalRole's doc comment). A failure here
+    // should surface as a real approve() error, not a silent success.
+    await this.roleContextService.syncOperationalRole({
+      userId: profile.user.id,
+      roleType: AccountRoleType.SELLER,
+      status: AccountRoleStatus.ACTIVE,
+      profileType: RoleProfileType.SELLER_PROFILE,
+      profileId: profile.id,
+    });
+    return saved;
   }
 
   // ── Admin: reject seller ──────────────────────────────────────────────────
@@ -790,7 +810,15 @@ export class SellerService {
     await this.commerceProfiles
       .syncStatusByLink('sellerProfileId', profile.id, CommerceProfileStatus.REJECTED)
       .catch(() => {});
-    return this.profileRepo.save(profile);
+    const saved = await this.profileRepo.save(profile);
+    await this.roleContextService.syncOperationalRole({
+      userId: profile.user.id,
+      roleType: AccountRoleType.SELLER,
+      status: AccountRoleStatus.REJECTED,
+      profileType: RoleProfileType.SELLER_PROFILE,
+      profileId: profile.id,
+    }).catch(() => {});
+    return saved;
   }
 
   // ── Admin: suspend seller ─────────────────────────────────────────────────

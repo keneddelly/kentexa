@@ -62,6 +62,7 @@ describe('SuperAgentsService.claimParcel() atomicity', () => {
       noop, // verification
       noop, // activityEvents
       noop, // walletService
+      noop, // roleContextService
     );
   });
 

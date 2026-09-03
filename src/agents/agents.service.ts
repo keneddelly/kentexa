@@ -21,6 +21,12 @@ import {
 import { FRONTEND_URL } from '../config/urls.config';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
+import { RoleContextService } from '../role-context/role-context.service';
+import {
+  AccountRoleStatus,
+  AccountRoleType,
+  RoleProfileType,
+} from '../role-context/entities/account-role.entity';
 
 @Injectable()
 export class AgentsService {
@@ -32,6 +38,7 @@ export class AgentsService {
     private smsService: SmsService,
     private commerceProfiles: CommerceProfilesService,
     private activityEvents: ActivityEventService,
+    private roleContextService: RoleContextService,
   ) {}
 
   // ── Agent: register ────────────────────────────────────────────────────────
@@ -247,11 +254,22 @@ export class AgentsService {
       agentCode,
       rejectionReason: null,
     });
-    if (agent.user)
+    if (agent.user) {
       await this.userRepo.update(agent.user.id, {
         role: 'agent' as any,
         activeRoles: mergeActiveRole(agent.user.activeRoles, 'agent'),
       });
+      // Not best-effort: without an AccountRole, this agent has nothing to
+      // ever resolve/switch into and stays locked out of the role they were
+      // just approved for. See RoleContextService.syncOperationalRole.
+      await this.roleContextService.syncOperationalRole({
+        userId: agent.user.id,
+        roleType: AccountRoleType.AGENT,
+        status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.AGENT,
+        profileId: agent.id,
+      });
+    }
     await this.commerceProfiles
       .syncStatusByLink('agentId', agentId, CommerceProfileStatus.ACTIVE)
       .catch(() => {});
@@ -280,6 +298,15 @@ export class AgentsService {
       status: AgentStatus.REJECTED,
       rejectionReason: reason,
     });
+    if (agent.user) {
+      await this.roleContextService.syncOperationalRole({
+        userId: agent.user.id,
+        roleType: AccountRoleType.AGENT,
+        status: AccountRoleStatus.REJECTED,
+        profileType: RoleProfileType.AGENT,
+        profileId: agent.id,
+      }).catch(() => {});
+    }
     await this.commerceProfiles
       .syncStatusByLink('agentId', agentId, CommerceProfileStatus.REJECTED)
       .catch(() => {});
@@ -307,6 +334,15 @@ export class AgentsService {
     await this.agentRepo.update(agentId, {
       status: AgentStatus.SUSPENDED,
     });
+    if (agent.user) {
+      await this.roleContextService.syncOperationalRole({
+        userId: agent.user.id,
+        roleType: AccountRoleType.AGENT,
+        status: AccountRoleStatus.SUSPENDED,
+        profileType: RoleProfileType.AGENT,
+        profileId: agent.id,
+      }).catch(() => {});
+    }
     const phone = agent.phone || agent.user?.phone;
     if (phone) {
       await this.smsService

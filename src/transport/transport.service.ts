@@ -44,6 +44,12 @@ import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
+import { RoleContextService } from '../role-context/role-context.service';
+import {
+  AccountRoleStatus,
+  AccountRoleType,
+  RoleProfileType,
+} from '../role-context/entities/account-role.entity';
 
 @Injectable()
 export class TransportService {
@@ -66,6 +72,7 @@ export class TransportService {
     private readonly reputationService: ReputationService,
     private commerceProfiles: CommerceProfilesService,
     private readonly tzLocation: TzLocationService,
+    private readonly roleContextService: RoleContextService,
   ) {}
 
   // ── Safe, credential-free provider projection ────────────────────────────
@@ -1151,7 +1158,26 @@ export class TransportService {
           role: UserRole.TRANSPORT_PROVIDER,
           activeRoles: mergeActiveRole(user.activeRoles, 'transport_provider'),
         });
+        // Not best-effort: without an AccountRole, this provider has
+        // nothing to ever resolve/switch into and stays locked out of the
+        // role they were just approved for. See
+        // RoleContextService.syncOperationalRole.
+        await this.roleContextService.syncOperationalRole({
+          userId: p.userId,
+          roleType: AccountRoleType.TRANSPORT_PROVIDER,
+          status: AccountRoleStatus.ACTIVE,
+          profileType: RoleProfileType.TRANSPORT_PROVIDER,
+          profileId: p.id,
+        });
       }
+    } else if (!approve && p.userId) {
+      await this.roleContextService.syncOperationalRole({
+        userId: p.userId,
+        roleType: AccountRoleType.TRANSPORT_PROVIDER,
+        status: AccountRoleStatus.REJECTED,
+        profileType: RoleProfileType.TRANSPORT_PROVIDER,
+        profileId: p.id,
+      }).catch(() => {});
     }
     await this.commerceProfiles
       .syncStatusByLink(
