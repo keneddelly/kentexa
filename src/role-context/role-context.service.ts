@@ -17,6 +17,7 @@ import { ActiveRoleSession } from './entities/active-role-session.entity';
 import { ROLE_CAPABILITY_REGISTRY } from './capabilities';
 import { RoleContextException } from './role-context.exception';
 import { RequestMetadata, RoleContext, RoleJwtPayload } from './role-context.types';
+import { RoleSessionEventsService } from './role-session-events.service';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -30,6 +31,7 @@ export class RoleContextService {
     @InjectRepository(Agent) private readonly agentRepo: Repository<Agent>,
     @InjectRepository(SuperAgent) private readonly superAgentRepo: Repository<SuperAgent>,
     @InjectRepository(TransportProvider) private readonly transportRepo: Repository<TransportProvider>,
+    private readonly sessionEvents: RoleSessionEventsService,
   ) {}
 
   async ensureBuyerRole(user: User): Promise<AccountRole> {
@@ -88,10 +90,19 @@ export class RoleContextService {
 
   async revokeCurrentSession(sessionId: string, reason: string = 'logout'): Promise<void> {
     await this.sessionRepo.update({ id: sessionId, revokedAt: IsNull() }, { revokedAt: new Date(), revokeReason: reason });
+    // Realtime layers (ConversationGateway) listen for this to disconnect
+    // the matching socket immediately -- a revoked session must not keep
+    // receiving scoped-room events just because the socket itself is still
+    // technically connected (Stage 2 socket-switch requirement).
+    this.sessionEvents.emitRevoked({ sessionId, reason });
   }
 
   async revokeSessionsForAccountRole(accountRoleId: number, reason: string): Promise<void> {
     await this.sessionRepo.update({ accountRoleId, revokedAt: IsNull() }, { revokedAt: new Date(), revokeReason: reason });
+    // Bulk revocation (suspend/reject/reactivate via syncOperationalRole) has
+    // no single sessionId to target -- announce by accountRoleId instead so
+    // every connected socket currently in that role's rooms gets dropped.
+    this.sessionEvents.emitRevoked({ accountRoleId, reason });
   }
 
   async resolveContext(payload: RoleJwtPayload): Promise<RoleContext> {

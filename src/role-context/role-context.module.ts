@@ -12,6 +12,7 @@ import { RoleContextService } from './role-context.service';
 import { RoleContextGuard } from './role-context.guard';
 import { CapabilityGuard } from './capability.guard';
 import { ActiveRoleGuard } from './active-role.guard';
+import { RoleSessionEventsService } from './role-session-events.service';
 
 /**
  * Runtime role-context enforcement primitives: RoleContextGuard resolves the
@@ -34,7 +35,7 @@ import { ActiveRoleGuard } from './active-role.guard';
       TransportProvider,
     ]),
   ],
-  providers: [RoleContextService, RoleContextGuard, CapabilityGuard, ActiveRoleGuard],
-  exports: [TypeOrmModule, RoleContextService, RoleContextGuard, CapabilityGuard, ActiveRoleGuard],
+  providers: [RoleContextService, RoleContextGuard, CapabilityGuard, ActiveRoleGuard, RoleSessionEventsService],
+  exports: [TypeOrmModule, RoleContextService, RoleContextGuard, CapabilityGuard, ActiveRoleGuard, RoleSessionEventsService],
 })
 export class RoleContextModule {}
