@@ -6,8 +6,18 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '../users/entities/user.entity';
+import { RoleContextService } from '../role-context/role-context.service';
+import { RoleContextException } from '../role-context/role-context.exception';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { RoleJwtPayload } from '../role-context/role-context.types';
 
-const ROLE_HIERARCHY: Record<string, string[]> = {
+/**
+ * Authority hierarchy evaluated against a single CURRENTLY ACTIVE role, never
+ * a union of every role an account happens to possess. An admin operating as
+ * seller does not get admin authority back until they switch the active role
+ * to admin again.
+ */
+const ACTIVE_ROLE_HIERARCHY: Record<string, string[]> = {
   [UserRole.ADMIN]: [
     UserRole.ADMIN,
     UserRole.MANAGER,
@@ -16,6 +26,7 @@ const ROLE_HIERARCHY: Record<string, string[]> = {
     UserRole.AGENT,
     UserRole.TRANSPORT_PROVIDER,
     UserRole.SELLER,
+    UserRole.ARBITRATOR,
     UserRole.USER,
   ],
   [UserRole.MANAGER]: [
@@ -32,14 +43,31 @@ const ROLE_HIERARCHY: Record<string, string[]> = {
   [UserRole.AGENT]: [UserRole.AGENT, UserRole.USER],
   [UserRole.TRANSPORT_PROVIDER]: [UserRole.TRANSPORT_PROVIDER, UserRole.USER],
   [UserRole.SELLER]: [UserRole.SELLER, UserRole.USER],
+  [UserRole.ARBITRATOR]: [UserRole.ARBITRATOR, UserRole.USER],
   [UserRole.USER]: [UserRole.USER],
+};
+
+/** AccountRoleType (the new active-role space) has no legacy USER/service_provider counterpart used by @Roles(). */
+const ACCOUNT_ROLE_TO_USER_ROLE: Partial<Record<AccountRoleType, UserRole>> = {
+  [AccountRoleType.BUYER]: UserRole.USER,
+  [AccountRoleType.SELLER]: UserRole.SELLER,
+  [AccountRoleType.AGENT]: UserRole.AGENT,
+  [AccountRoleType.SUPER_AGENT]: UserRole.SUPER_AGENT,
+  [AccountRoleType.TRANSPORT_PROVIDER]: UserRole.TRANSPORT_PROVIDER,
+  [AccountRoleType.CUSTOMER_CARE]: UserRole.CUSTOMER_CARE,
+  [AccountRoleType.MANAGER]: UserRole.MANAGER,
+  [AccountRoleType.ADMIN]: UserRole.ADMIN,
+  [AccountRoleType.ARBITRATOR]: UserRole.ARBITRATOR,
 };
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private readonly roleContextService: RoleContextService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const required = this.reflector.getAllAndOverride<UserRole[]>('roles', [
       context.getHandler(),
       context.getClass(),
@@ -52,27 +80,28 @@ export class RolesGuard implements CanActivate {
 
     if (!user) throw new ForbiddenException('Not authenticated');
 
-    // user.role (singular) is last-writer-wins — every role-approval flow
-    // (seller/agent/super-agent/transport) unconditionally overwrites it to
-    // its own value, while those same flows also correctly ADD to
-    // user.activeRoles (a Set union, never removes prior entries — see
-    // mergeActiveRole / SellerScopeService.resolve()'s comment for the full
-    // story). Checking user.role alone means an account that became a
-    // seller and was LATER also approved as e.g. transport provider loses
-    // access to every seller-gated endpoint, even though activeRoles still
-    // genuinely lists 'seller'. Union in the hierarchy for every role the
-    // user actually holds, not just their current primary one — this only
-    // ever WIDENS what role alone would have allowed, never narrows it.
-    const userRole = user.role as string;
-    const allowedRoles = new Set<string>(ROLE_HIERARCHY[userRole] || [userRole]);
-    for (const r of user.activeRoles || []) {
-      for (const allowed of ROLE_HIERARCHY[r] || [r]) allowedRoles.add(allowed);
+    // Authority is resolved from the caller's CURRENT active role/session,
+    // never from user.role or user.activeRoles (legacy, additive-only fields
+    // that keep every role a user was ever approved for — see
+    // SellerScopeService.resolve()'s comment for the full history of that
+    // problem). A forged/stale `rt` claim cannot substitute: roleType always
+    // comes from the DB row RoleContextService resolves via sid/rid/cv.
+    const payload = user.authPayload as RoleJwtPayload | undefined;
+    if (!payload?.sub || !payload.sid || !payload.rid || payload.cv === undefined) {
+      throw new RoleContextException('ROLE_CONTEXT_MISSING');
     }
+    const roleContext = await this.roleContextService.resolveContext(payload);
+    request.roleContext = roleContext;
+
+    const activeUserRole = ACCOUNT_ROLE_TO_USER_ROLE[roleContext.roleType];
+    const allowedRoles = new Set<string>(
+      (activeUserRole && ACTIVE_ROLE_HIERARCHY[activeUserRole]) || (activeUserRole ? [activeUserRole] : []),
+    );
     const hasPermission = required.some((role) => allowedRoles.has(role));
 
     if (!hasPermission) {
       throw new ForbiddenException(
-        `Access denied. Required: ${required.join(' or ')}. Your role: ${userRole}`,
+        `Access denied. Required: ${required.join(' or ')}. Your active role: ${roleContext.roleType}`,
       );
     }
 
