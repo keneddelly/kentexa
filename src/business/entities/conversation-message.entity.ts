@@ -48,6 +48,23 @@ export class ConversationMessage {
   @Column({ name: 'sender_id', nullable: true })
   senderId: number | null;
 
+  // ── Stage 2: authoritative sender principal (additive, dual-write) ──────────
+  // Resolved server-side ONLY, from the caller's current RoleContext at send
+  // time -- never from a client-supplied role/workspace id. senderId/
+  // senderType above are kept as the legacy attribution during the
+  // transition; these are the participant-scoped equivalents.
+  @Column({ type: 'int', nullable: true })
+  senderParticipantId: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  senderAccountRoleId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  senderWorkspaceType: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  senderWorkspaceId: number | null;
+
   // ── Content ───────────────────────────────────────────────────────────────
   @Column({ type: 'varchar', default: MessageType.TEXT })
   type: string;

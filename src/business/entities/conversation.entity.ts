@@ -25,6 +25,22 @@ export enum ConversationChannel {
   MANUAL = 'manual',
 }
 
+// Stage 2 communication isolation: whether this conversation's ownership
+// has been resolved to a specific active-role/workspace principal.
+// RESOLVED = the ownerWorkspaceType/Id below (or a real ConversationParticipant
+// row) is trustworthy. Existing rows default to LEGACY_UNSCOPED until the
+// historical classifier runs against them (see ConversationClassifierService)
+// -- never guessed automatically. AMBIGUOUS/LEGACY_UNSCOPED conversations
+// are quarantined from scoped reads (SCOPED_CONVERSATION_READ) until
+// resolved; they remain fully visible through the existing legacy read path.
+export enum ConversationClassificationStatus {
+  RESOLVED = 'resolved',
+  ACCOUNT_WIDE = 'account_wide',
+  EXTERNAL_CONTACT = 'external_contact',
+  AMBIGUOUS = 'ambiguous',
+  LEGACY_UNSCOPED = 'legacy_unscoped',
+}
+
 // Application-level find-or-create (ConversationService.getOrCreateConversation)
 // only checks-then-creates — a double-tap on "Message Seller" or a client
 // retry after a slow/timed-out first request could still race past the
@@ -154,6 +170,38 @@ export class Conversation {
 
   @Column({ type: 'varchar', nullable: true })
   linkedContextImage: string | null;
+
+  // ── Stage 2: scope / ownership classification (additive, dual-write) ────────
+  // scopeType/sourceType/sourceId describe WHAT created this thread ('seller_
+  // buyer', 'order', 'dispute', ...) -- distinct from ownerWorkspace*, which
+  // is WHO structurally owns the seller side (mirrors RoleContext.profileType/
+  // profileId: 'seller_profile'|'agent'|'super_agent'|'transport_provider' +
+  // id). Both are set at creation time by ConversationService for every
+  // conversation created after Stage 2 shipped; never backfilled by guessing
+  // for pre-existing rows (see ConversationClassificationStatus above).
+  @Column({ type: 'varchar', nullable: true })
+  scopeType: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  sourceType: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  sourceId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  ownerWorkspaceType: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  ownerWorkspaceId: number | null;
+
+  @Column({ type: 'varchar', default: ConversationClassificationStatus.LEGACY_UNSCOPED })
+  classificationStatus: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  classificationReason: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  classifiedAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;

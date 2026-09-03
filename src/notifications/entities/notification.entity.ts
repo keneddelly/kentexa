@@ -15,6 +15,18 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
+// Stage 2 communication isolation. ACCOUNT = account-wide (security/policy/
+// auth notices, follows, generic system messages) -- always visible
+// regardless of active role, never gated. ROLE/WORKSPACE/TRANSACTION are
+// operational and must only surface while the resolved recipient
+// AccountRole/workspace/transaction is the caller's CURRENT active context.
+export enum NotificationAudienceScope {
+  ACCOUNT = 'ACCOUNT',
+  ROLE = 'ROLE',
+  WORKSPACE = 'WORKSPACE',
+  TRANSACTION = 'TRANSACTION',
+}
+
 export enum NotificationType {
   ORDER_PLACED = 'order_placed',
   ORDER_PAID = 'order_paid',
@@ -88,6 +100,44 @@ export class Notification {
 
   @Column({ type: 'timestamp', nullable: true })
   readAt: Date | null;
+
+  // ── Stage 2: audience (additive, dual-write) ─────────────────────────────
+  // Defaults to ACCOUNT so every pre-Stage-2 row (and any call site not yet
+  // updated to pass audience info) stays visible account-wide -- the safe
+  // default, since ACCOUNT is the ONE scope that's never gated by active
+  // role. Only new call sites that resolve a real operational recipient
+  // (e.g. ConversationService's message notifications) set ROLE/WORKSPACE/
+  // TRANSACTION explicitly.
+  @Column({ type: 'varchar', default: NotificationAudienceScope.ACCOUNT })
+  audienceScope: string;
+
+  @Column({ type: 'int', nullable: true })
+  recipientAccountRoleId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  recipientWorkspaceType: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  recipientWorkspaceId: number | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  sourceType: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  sourceId: number | null;
+
+  // Typed replacement for actionPage/actionParam -- a server-issued key the
+  // frontend maps to a route, plus structured params, rather than a raw
+  // page name the frontend already treats as authoritative. actionPage/
+  // actionParam are kept unchanged during the transition.
+  @Column({ type: 'varchar', nullable: true })
+  actionRouteKey: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  actionParams: Record<string, any> | null;
+
+  @Column({ type: 'varchar', default: 'legacy_unscoped' })
+  classificationStatus: string;
 
   @CreateDateColumn()
   createdAt: Date;

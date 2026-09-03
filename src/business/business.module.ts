@@ -5,6 +5,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BusinessCustomer } from './entities/business-customer.entity';
 import { Conversation } from './entities/conversation.entity';
 import { ConversationMessage } from './entities/conversation-message.entity';
+import { ConversationParticipant } from './entities/conversation-participant.entity';
+import { ConversationParticipantState } from './entities/conversation-participant-state.entity';
 import { BusinessTeamMember } from './entities/business-team-member.entity';
 import { Business } from './entities/business.entity';
 import { Order } from '../orders/entities/order.entity';
@@ -26,6 +28,7 @@ import { ActivityModule } from '../activity/activity.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AiModule } from '../ai/ai.module';
 import { ConversationGateway } from './conversation.gateway';
+import { ParticipantResolutionService } from './participant-resolution.service';
 
 @Module({
   imports: [
@@ -33,6 +36,8 @@ import { ConversationGateway } from './conversation.gateway';
       BusinessCustomer,
       Conversation,
       ConversationMessage,
+      ConversationParticipant,
+      ConversationParticipantState,
       BusinessTeamMember,
       Business,
       Order,
@@ -74,7 +79,8 @@ import { ConversationGateway } from './conversation.gateway';
     BusinessService,
     BusinessBackfillService,
     ConversationGateway,
+    ParticipantResolutionService,
   ],
-  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, ParticipantResolutionService],
 })
 export class BusinessModule {}
