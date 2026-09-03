@@ -2,7 +2,10 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BusinessTeamMember } from './entities/business-team-member.entity';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
+import { RoleContextService } from '../role-context/role-context.service';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { RoleJwtPayload } from '../role-context/role-context.types';
 
 // Keep in sync with BusinessTeamMember.permissions and
 // bishoo-frontend/src/public/pages/SellerTeam.js's PERMS list — these are
@@ -19,10 +22,10 @@ export type SellerPermission =
   | 'canOperatePOS' // create local-shop/manual sales
   | 'canManageInventory'; // adjust stock, edit cost price, void/refund sales
 
-const OWNS_THEIR_OWN_BUSINESS = [
-  UserRole.SELLER,
-  UserRole.ADMIN,
-  UserRole.MANAGER,
+const OWNS_THEIR_OWN_BUSINESS: AccountRoleType[] = [
+  AccountRoleType.SELLER,
+  AccountRoleType.ADMIN,
+  AccountRoleType.MANAGER,
 ];
 
 @Injectable()
@@ -30,33 +33,36 @@ export class SellerScopeService {
   constructor(
     @InjectRepository(BusinessTeamMember)
     private teamRepo: Repository<BusinessTeamMember>,
+    private readonly roleContextService: RoleContextService,
   ) {}
 
   // Resolves which seller's business `user` may act on right now: their own
-  // (if they're a seller/admin/manager themselves) or an employer's — if
-  // they're an active BusinessTeamMember with the required permission.
-  // Throws 403 otherwise. A seller who is ALSO staff elsewhere always
-  // resolves to their own business here — there's no context switcher yet,
-  // so acting on an employer's business currently requires the staff
-  // account not itself be a seller.
+  // (if their CURRENTLY ACTIVE role is seller/admin/manager) or an
+  // employer's — if they're an active BusinessTeamMember with the required
+  // permission. Throws 403 otherwise. A seller who is ALSO staff elsewhere
+  // always resolves to their own business here — there's no context
+  // switcher yet, so acting on an employer's business currently requires
+  // the staff account not itself be active as seller.
   //
-  // user.role (singular) is last-writer-wins: every role-approval flow
-  // (seller/agent/super-agent/transport) unconditionally overwrites it to
-  // its own value, even though each of those SAME flows also correctly
-  // ADDS to user.activeRoles (a Set union via mergeActiveRole — see
-  // seller.service.ts/agents.service.ts/etc.) without removing prior
-  // entries. So an account that became a seller and was LATER also
-  // approved as e.g. a transport provider ends up with role='transport_
-  // provider' but activeRoles still containing 'seller' — checking role
-  // alone wrongly locks a real seller out of managing their own products/
-  // orders the moment they pick up a second role, which the CommerceProfile
-  // system explicitly encourages. Check both.
+  // "Owns own business" is decided from the resolved RoleContext, never
+  // from user.role/user.activeRoles: those are legacy, additive-only
+  // fields — every role-approval flow (seller/agent/super-agent/transport)
+  // unions into activeRoles via mergeActiveRole and never removes prior
+  // entries, so an account ever approved as seller keeps 'seller' in
+  // activeRoles forever, regardless of which role it's actually operating
+  // as now. Trusting that would mean "possessing seller" grants seller
+  // authority permanently, exactly what role-switching must prevent — an
+  // admin who was once a seller must not silently get seller authority
+  // back just because activeRoles never forgot it. Client requests carry
+  // no sellerId/profileId of their own here; identity comes only from the
+  // server-resolved session (req.user.authPayload -> RoleContextService).
   async resolve(user: User, permission?: SellerPermission): Promise<number> {
-    const ownsOwnBusiness =
-      OWNS_THEIR_OWN_BUSINESS.includes(user.role) ||
-      (user.activeRoles || []).some((r) =>
-        OWNS_THEIR_OWN_BUSINESS.includes(r as UserRole),
-      );
+    const payload = (user as any).authPayload as RoleJwtPayload | undefined;
+    let ownsOwnBusiness = false;
+    if (payload?.sub && payload.sid && payload.rid && payload.cv !== undefined) {
+      const roleContext = await this.roleContextService.resolveContext(payload);
+      ownsOwnBusiness = OWNS_THEIR_OWN_BUSINESS.includes(roleContext.roleType);
+    }
     if (ownsOwnBusiness) return user.id;
 
     const membership = await this.teamRepo.findOne({
