@@ -19,6 +19,10 @@ import { SellerScopeService, SellerPermission } from './seller-scope.service';
 import { BusinessService } from './business.service';
 import { BusinessBackfillService } from './business-backfill.service';
 import { User, UserRole } from '../users/entities/user.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 /**
  * BusinessController — Seller Business Platform API
@@ -98,25 +102,32 @@ export class BusinessController {
     return this.businessBackfill.run();
   }
 
-  // Customers/inbox are "communicate with buyers about my own listings" —
-  // the same category as classifieds, not a formal business capability.
-  // Mirrors classifieds.controller.ts's resolveClassifiedActorId(): try the
-  // normal business-delegation path first (so a seller or an active team
-  // member with the right permission keeps working exactly as before), and
-  // a plain, unverified user who owns no business simply falls back to
-  // managing their own customers/conversations under their own account id
-  // instead of being blocked entirely. Team-management actions (assigning
-  // a conversation to a teammate) deliberately do NOT use this — that's a
-  // genuinely multi-person business feature.
+  // Stage 2 communication isolation fix: this previously caught ANY
+  // failure from sellerScope.resolve() -- including the Stage 1 active-
+  // role-context denial for an account that is a real approved seller but
+  // is NOT currently active as seller/admin/manager -- and silently fell
+  // back to `user.id` regardless. Because every Conversation/BusinessCustomer
+  // row is keyed on sellerId === the seller's own User.id (never a separate
+  // namespace), that fallback reproduced the exact same result
+  // sellerScope.resolve()'s "owns own business" branch would have, just
+  // without requiring active seller context at all -- i.e. it silently
+  // undid Stage 1's fix for every endpoint below: SellerInbox stayed fully
+  // reachable while the account was active as buyer/agent/transport/
+  // whatever else, exactly the "operational roles can observe communication
+  // belonging to another active context" problem this pass exists to close.
+  //
+  // Now fails closed: sellerScope.resolve()'s ForbiddenException (no active
+  // seller/admin/manager context AND no team membership) propagates as a
+  // real 403, same as every other Stage 1/2 operational gate. None of the
+  // 16 call sites below are a "pending status" self-check (that's
+  // seller.controller.ts's own my-profile/dashboard, which deliberately
+  // keep their own softer fallback) -- these are all genuinely operational
+  // seller actions (CRM, inbox read/write/pin/mute).
   private async resolveSellerActorId(
     user: User,
     permission?: SellerPermission,
   ): Promise<number> {
-    try {
-      return await this.sellerScope.resolve(user, permission);
-    } catch {
-      return user.id;
-    }
+    return this.sellerScope.resolve(user, permission);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -383,8 +394,17 @@ export class BusinessController {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // MY CONVERSATIONS (as the buyer — same inbox, other side of the table)
+  // Stage 2 item 12: buyer private conversations belong to Buyer/transaction
+  // context. Previously reachable via nothing but req.user.id with zero
+  // active-role gate at all -- a user currently operating as Seller/Agent/
+  // Transport/SuperAgent could still freely read/send on their own buyer
+  // conversations without switching back to Buyer mode. Every handler below
+  // now requires @RequireActiveRole(BUYER); no ADMIN override -- there's no
+  // legitimate admin need to act as a private buyer.
   // ═══════════════════════════════════════════════════════════════════════════
 
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Get('my-conversations')
   getMyConversations(
     @Request() req,
@@ -399,6 +419,8 @@ export class BusinessController {
     });
   }
 
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Post('my-conversations/start')
   startConversationAsBuyer(
     @Request() req,
@@ -419,6 +441,8 @@ export class BusinessController {
     );
   }
 
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Get('my-conversations/:id/messages')
   getMyConversationMessages(
     @Request() req,
@@ -432,6 +456,8 @@ export class BusinessController {
     );
   }
 
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Post('my-conversations/:id/messages')
   sendMyConversationMessage(
     @Request() req,
@@ -453,11 +479,15 @@ export class BusinessController {
     );
   }
 
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Patch('my-conversations/:id/pin')
   togglePinAsBuyer(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.conversationService.togglePinAsBuyer(req.user.id, id);
   }
 
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.BUYER)
   @Patch('my-conversations/:id/mute')
   toggleMuteAsBuyer(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.conversationService.toggleMuteAsBuyer(req.user.id, id);
