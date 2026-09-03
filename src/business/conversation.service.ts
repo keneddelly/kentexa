@@ -124,7 +124,7 @@ export class ConversationService {
     msg: ConversationMessage,
     side: 'seller' | 'buyer',
     isNote: boolean,
-  ): Promise<AccountRole | null> {
+  ): Promise<{ senderRole: AccountRole | null; recipientRole: AccountRole | null }> {
     const senderRole =
       side === 'seller'
         ? await this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER)
@@ -147,7 +147,7 @@ export class ConversationService {
       });
     }
 
-    if (isNote) return null; // internal notes never reach the other side, so never bump its unread
+    if (isNote) return { senderRole, recipientRole: null }; // internal notes never reach the other side, so never bump its unread
 
     const recipientRole =
       side === 'seller'
@@ -163,7 +163,7 @@ export class ConversationService {
       );
       await this.participants.incrementUnread(recipientParticipant.id);
     }
-    return recipientRole;
+    return { senderRole, recipientRole };
   }
 
   // Never trust a client-supplied contextId blindly — same posture as
@@ -737,8 +737,13 @@ export class ConversationService {
     // ConversationParticipantState. Best-effort: never blocks sending,
     // which the legacy writes above already completed.
     let buyerRecipientRole: AccountRole | null = null;
+    let sellerSenderRole: AccountRole | null = null;
     if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
-      buyerRecipientRole = await this.dualWriteMessageAttribution(convo, msg, 'seller', !!dto.isNote).catch(() => null);
+      const attribution = await this.dualWriteMessageAttribution(convo, msg, 'seller', !!dto.isNote).catch(
+        () => ({ senderRole: null, recipientRole: null }) as { senderRole: AccountRole | null; recipientRole: AccountRole | null },
+      );
+      buyerRecipientRole = attribution.recipientRole;
+      sellerSenderRole = attribution.senderRole;
     }
 
     // Notify the buyer — internal notes are seller-only, never surfaced.
@@ -785,6 +790,8 @@ export class ConversationService {
         buyerUserId: convo.customer?.userId ?? null,
         message: msg,
         isNote: !!dto.isNote,
+        sellerAccountRoleId: sellerSenderRole?.id ?? null,
+        buyerAccountRoleId: buyerRecipientRole?.id ?? null,
       });
     } catch {
       // Non-critical — the message is already durably persisted above.
@@ -834,8 +841,13 @@ export class ConversationService {
     });
 
     let sellerRecipientRole: AccountRole | null = null;
+    let buyerSenderRole: AccountRole | null = null;
     if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
-      sellerRecipientRole = await this.dualWriteMessageAttribution(convo, msg, 'buyer', false).catch(() => null);
+      const attribution = await this.dualWriteMessageAttribution(convo, msg, 'buyer', false).catch(
+        () => ({ senderRole: null, recipientRole: null }) as { senderRole: AccountRole | null; recipientRole: AccountRole | null },
+      );
+      sellerRecipientRole = attribution.recipientRole;
+      buyerSenderRole = attribution.senderRole;
     }
 
     // Notify the seller — "SellerInbox-{customerId}" is the exact route
@@ -869,6 +881,8 @@ export class ConversationService {
         buyerUserId: userId,
         message: msg,
         isNote: false,
+        sellerAccountRoleId: sellerRecipientRole?.id ?? null,
+        buyerAccountRoleId: buyerSenderRole?.id ?? null,
       });
     } catch {
       // Non-critical — the message is already durably persisted above.
