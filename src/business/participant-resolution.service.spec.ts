@@ -52,7 +52,7 @@ describe('ParticipantResolutionService', () => {
     it('creates a new participant with the resolved accountRoleId, never a client-supplied id', async () => {
       const { service, participantRepo } = build();
       participantRepo.findOne.mockResolvedValue(null);
-      const participant = await service.ensureAccountRoleParticipant(5, sellerRoleContext, ParticipantKind.SELLER);
+      const participant = await service.ensureAccountRoleParticipant(5, 10, ParticipantKind.SELLER);
       expect(participantRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
           conversationId: 5,
@@ -69,7 +69,7 @@ describe('ParticipantResolutionService', () => {
       const { service, participantRepo } = build();
       const existing = { id: 42, conversationId: 5, accountRoleId: 10, status: ParticipantStatus.ACTIVE };
       participantRepo.findOne.mockResolvedValue(existing);
-      const participant = await service.ensureAccountRoleParticipant(5, sellerRoleContext, ParticipantKind.SELLER);
+      const participant = await service.ensureAccountRoleParticipant(5, 10, ParticipantKind.SELLER);
       expect(participant.id).toBe(42);
       expect(participantRepo.save).not.toHaveBeenCalled();
     });
@@ -78,7 +78,7 @@ describe('ParticipantResolutionService', () => {
       const { service, participantRepo } = build();
       const existing = { id: 42, conversationId: 5, accountRoleId: 10, status: ParticipantStatus.LEFT };
       participantRepo.findOne.mockResolvedValue(existing);
-      const participant = await service.ensureAccountRoleParticipant(5, sellerRoleContext, ParticipantKind.SELLER);
+      const participant = await service.ensureAccountRoleParticipant(5, 10, ParticipantKind.SELLER);
       expect(participantRepo.update).toHaveBeenCalledWith(42, expect.objectContaining({ status: ParticipantStatus.ACTIVE }));
       expect(participant.status).toBe(ParticipantStatus.ACTIVE);
     });

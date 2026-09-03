@@ -31,6 +31,13 @@ import { ConversationGateway } from './conversation.gateway';
 import { Product } from '../products/entities/products.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
+import {
+  ConversationClassificationStatus,
+} from './entities/conversation.entity';
+import { ParticipantResolutionService } from './participant-resolution.service';
+import { ParticipantKind } from './entities/conversation-participant.entity';
+import { CommunicationFeatureFlagsService } from '../communication/communication-feature-flags.service';
+import { AccountRole, AccountRoleStatus, AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
 
 export interface ConversationContext {
   type: 'product' | 'classified' | 'service';
@@ -54,11 +61,110 @@ export class ConversationService {
     private classifiedRepo: Repository<Classified>,
     @InjectRepository(ServiceAd)
     private serviceAdRepo: Repository<ServiceAd>,
+    @InjectRepository(AccountRole)
+    private accountRoleRepo: Repository<AccountRole>,
     private customerService: BusinessCustomerService,
     private notifService: InAppNotificationService,
     private commerceProfiles: CommerceProfilesService,
     private gateway: ConversationGateway,
+    private participants: ParticipantResolutionService,
+    private flags: CommunicationFeatureFlagsService,
   ) {}
+
+  // ── Stage 2 dual-write helpers ───────────────────────────────────────────
+  // A conversation side's workspace is a STRUCTURAL fact (which seller's
+  // business, which buyer's account this thread belongs to) -- resolved by
+  // server-side lookup keyed on the already-trusted sellerId/customer.userId,
+  // never from a client-supplied accountRoleId. Returns null (never throws)
+  // so dual-write can no-op cleanly for an account that somehow has no
+  // matching AccountRole yet (should not happen post Stage-1 sync, but this
+  // path must never be able to break the legacy send/create flow it rides
+  // alongside).
+  private async resolveAccountRoleFor(
+    userId: number,
+    roleType: AccountRoleType,
+  ): Promise<AccountRole | null> {
+    return this.accountRoleRepo.findOne({
+      where: { userId, roleType, status: AccountRoleStatus.ACTIVE },
+    });
+  }
+
+  private workspaceOf(role: AccountRole | null): { workspaceType: string; workspaceId: number } | null {
+    if (!role || role.profileType === RoleProfileType.USER || role.profileId == null) return null;
+    return { workspaceType: role.profileType as string, workspaceId: role.profileId };
+  }
+
+  /** Mirrors a legacy unreadCount/buyerUnreadCount reset onto ConversationParticipantState. */
+  private async dualWriteMarkRead(
+    conversationId: number,
+    userId: number,
+    roleType: AccountRoleType,
+  ): Promise<void> {
+    const role = await this.resolveAccountRoleFor(userId, roleType);
+    if (!role) return;
+    const participant = await this.participants.ensureAccountRoleParticipant(
+      conversationId,
+      role.id,
+      roleType === AccountRoleType.SELLER ? ParticipantKind.SELLER : ParticipantKind.BUYER,
+    );
+    await this.participants.markRead(participant.id);
+  }
+
+  /**
+   * Ensures the sending side's participant/message attribution AND bumps
+   * the recipient side's ConversationParticipantState.unreadCount (mirroring
+   * the legacy Conversation.unreadCount/buyerUnreadCount bump). Idempotent
+   * ensure calls here also mean a legacy (pre-Stage-2) conversation
+   * organically gains real participants the first time new activity
+   * touches it, without any separate backfill step -- complementary to,
+   * not a replacement for, the deliberate historical classifier.
+   */
+  private async dualWriteMessageAttribution(
+    convo: Conversation,
+    msg: ConversationMessage,
+    side: 'seller' | 'buyer',
+    isNote: boolean,
+  ): Promise<AccountRole | null> {
+    const senderRole =
+      side === 'seller'
+        ? await this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER)
+        : convo.customer?.userId
+          ? await this.resolveAccountRoleFor(convo.customer.userId, AccountRoleType.BUYER)
+          : null;
+
+    if (senderRole) {
+      const senderParticipant = await this.participants.ensureAccountRoleParticipant(
+        convo.id,
+        senderRole.id,
+        side === 'seller' ? ParticipantKind.SELLER : ParticipantKind.BUYER,
+      );
+      const workspace = this.workspaceOf(senderRole);
+      await this.msgRepo.update(msg.id, {
+        senderParticipantId: senderParticipant.id,
+        senderAccountRoleId: senderRole.id,
+        senderWorkspaceType: workspace?.workspaceType ?? null,
+        senderWorkspaceId: workspace?.workspaceId ?? null,
+      });
+    }
+
+    if (isNote) return null; // internal notes never reach the other side, so never bump its unread
+
+    const recipientRole =
+      side === 'seller'
+        ? convo.customer?.userId
+          ? await this.resolveAccountRoleFor(convo.customer.userId, AccountRoleType.BUYER)
+          : null
+        : await this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER);
+    if (recipientRole) {
+      const recipientParticipant = await this.participants.ensureAccountRoleParticipant(
+        convo.id,
+        recipientRole.id,
+        side === 'seller' ? ParticipantKind.BUYER : ParticipantKind.SELLER,
+      );
+      await this.participants.incrementUnread(recipientParticipant.id);
+    }
+    return recipientRole;
+  }
 
   // Never trust a client-supplied contextId blindly — same posture as
   // verifiedProfileId in getOrCreateConversation below: the listing must
@@ -361,9 +467,48 @@ export class ConversationService {
         if (!winner) throw err;
         convo = winner;
       }
+
+      // Dual-write, new conversations only (checkpoint B) -- a pre-existing
+      // legacy conversation found above is NOT retroactively touched here;
+      // that's the separate, deliberately-manual classifier/backfill path.
+      // Best-effort: a Stage 2 resolver hiccup must never break opening a
+      // conversation, which the legacy write above already completed.
+      if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+        await this.dualWriteNewConversation(convo).catch(() => {});
+      }
     }
 
     return convo;
+  }
+
+  private async dualWriteNewConversation(convo: Conversation): Promise<void> {
+    const sellerRole = await this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER);
+    const sellerWorkspace = this.workspaceOf(sellerRole);
+    await this.convoRepo.update(convo.id, {
+      scopeType: 'seller_buyer',
+      sourceType: 'message_seller',
+      ownerWorkspaceType: sellerWorkspace?.workspaceType ?? null,
+      ownerWorkspaceId: sellerWorkspace?.workspaceId ?? null,
+      classificationStatus: ConversationClassificationStatus.RESOLVED,
+      classificationReason: 'created_by_conversation_service',
+      classifiedAt: new Date(),
+    });
+    if (sellerRole) {
+      await this.participants.ensureAccountRoleParticipant(convo.id, sellerRole.id, ParticipantKind.SELLER);
+    }
+
+    if (convo.customerId) {
+      const customer = convo.customer ?? (await this.customerRepo.findOne({ where: { id: convo.customerId } }));
+      if (customer?.userId) {
+        const buyerRole = await this.resolveAccountRoleFor(customer.userId, AccountRoleType.BUYER);
+        if (buyerRole) {
+          await this.participants.ensureAccountRoleParticipant(convo.id, buyerRole.id, ParticipantKind.BUYER);
+        }
+      } else if (customer) {
+        // No linked User account -- a WhatsApp/manual contact.
+        await this.participants.ensureExternalContactParticipant(convo.id, customer.id);
+      }
+    }
   }
 
   // ── Get or create conversation, initiated by a BUYER ──────────────────────
@@ -489,6 +634,9 @@ export class ConversationService {
           .markReadByAction(sellerId, 'SellerInbox', String(convo.customerId))
           .catch(() => {});
       }
+      if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+        this.dualWriteMarkRead(conversationId, sellerId, AccountRoleType.SELLER).catch(() => {});
+      }
     }
 
     const [conversation] = await this.attachCommerceProfiles([convo]);
@@ -523,6 +671,9 @@ export class ConversationService {
       this.notifService
         .markReadByAction(userId, 'MessageSeller', String(convo.sellerId))
         .catch(() => {});
+      if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+        this.dualWriteMarkRead(conversationId, userId, AccountRoleType.BUYER).catch(() => {});
+      }
     }
 
     const [conversation] = await this.attachCommerceProfiles([convo]);
@@ -578,6 +729,18 @@ export class ConversationService {
           },
     );
 
+    // Dual-write (checkpoint B): attribute the message to the seller's
+    // workspace (not the live sender's own active role -- a delegated team
+    // member sending on the seller's behalf must attribute to the seller's
+    // workspace, not their own personal role, see resolveAccountRoleFor's
+    // comment) and mirror the buyer-side unread bump onto
+    // ConversationParticipantState. Best-effort: never blocks sending,
+    // which the legacy writes above already completed.
+    let buyerRecipientRole: AccountRole | null = null;
+    if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+      buyerRecipientRole = await this.dualWriteMessageAttribution(convo, msg, 'seller', !!dto.isNote).catch(() => null);
+    }
+
     // Notify the buyer — internal notes are seller-only, never surfaced.
     // "MessageSeller-{sellerId}" is the exact route SellerInbox.js already
     // uses to open this conversation as the buyer. The conversation's own
@@ -597,6 +760,16 @@ export class ConversationService {
           icon: '💬',
           actionPage: 'MessageSeller',
           actionParam: String(sellerId),
+          ...(this.flags.isEnabled('SCOPED_NOTIFICATION_DUAL_WRITE') && buyerRecipientRole
+            ? {
+                audienceScope: 'ROLE',
+                recipientAccountRoleId: buyerRecipientRole.id,
+                sourceType: 'conversation_message',
+                sourceId: convo.id,
+                actionRouteKey: 'inbox.buyer.conversation',
+                actionParams: { sellerId, conversationId },
+              }
+            : {}),
         })
         .catch(() => {});
     }
@@ -660,6 +833,11 @@ export class ConversationService {
       unreadCount: () => '"unreadCount" + 1',
     });
 
+    let sellerRecipientRole: AccountRole | null = null;
+    if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+      sellerRecipientRole = await this.dualWriteMessageAttribution(convo, msg, 'buyer', false).catch(() => null);
+    }
+
     // Notify the seller — "SellerInbox-{customerId}" is the exact route
     // SellerInbox.js already uses to auto-open this conversation.
     this.notifService
@@ -671,6 +849,16 @@ export class ConversationService {
         icon: '💬',
         actionPage: 'SellerInbox',
         actionParam: String(convo.customer.id),
+        ...(this.flags.isEnabled('SCOPED_NOTIFICATION_DUAL_WRITE') && sellerRecipientRole
+          ? {
+              audienceScope: 'ROLE',
+              recipientAccountRoleId: sellerRecipientRole.id,
+              sourceType: 'conversation_message',
+              sourceId: convo.id,
+              actionRouteKey: 'inbox.seller.conversation',
+              actionParams: { customerId: convo.customer.id, conversationId },
+            }
+          : {}),
       })
       .catch(() => {});
 

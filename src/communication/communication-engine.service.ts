@@ -4,12 +4,22 @@ import { Repository } from 'typeorm';
 import { CommunicationTemplate } from './entities/communication-template.entity';
 import { CommunicationLog } from './entities/communication-log.entity';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { CommunicationFeatureFlagsService } from './communication-feature-flags.service';
 
 export interface DispatchRecipient {
   userId: number;
   role: string;
   actionPage?: string;
   actionParam?: string;
+  // Stage 2: optional server-resolved audience principal. Callers that
+  // don't yet resolve one keep dispatching exactly as before (recipientRole
+  // stays the only recipiency dimension); a caller that does pass one gets
+  // that recorded on both the Notification row and CommunicationLog, and
+  // folded into the scoped idempotency check below.
+  accountRoleId?: number;
+  workspaceType?: string;
+  workspaceId?: number;
+  audienceScope?: 'ACCOUNT' | 'ROLE' | 'WORKSPACE' | 'TRANSACTION';
 }
 
 export interface DispatchParams {
@@ -109,6 +119,7 @@ export class CommunicationEngineService implements OnModuleInit {
     @InjectRepository(CommunicationLog)
     private logRepo: Repository<CommunicationLog>,
     private inAppNotifications: InAppNotificationService,
+    private flags: CommunicationFeatureFlagsService,
   ) {}
 
   async onModuleInit() {
@@ -149,6 +160,17 @@ export class CommunicationEngineService implements OnModuleInit {
   async dispatch(params: DispatchParams): Promise<void> {
     const channel = 'in_app';
     for (const recipient of params.recipients) {
+      const audienceFields =
+        this.flags.isEnabled('SCOPED_NOTIFICATION_DUAL_WRITE') && recipient.accountRoleId
+          ? {
+              recipientAccountRoleId: recipient.accountRoleId,
+              recipientWorkspaceType: recipient.workspaceType ?? null,
+              recipientWorkspaceId: recipient.workspaceId ?? null,
+              audienceScope: recipient.audienceScope ?? 'ROLE',
+              transactionType: params.sourceType,
+              transactionId: params.sourceId,
+            }
+          : {};
       try {
         const existingLog = await this.logRepo.findOne({
           where: {
@@ -161,6 +183,23 @@ export class CommunicationEngineService implements OnModuleInit {
           },
         });
         if (existingLog) continue; // idempotency — already dispatched
+
+        // Scoped idempotency check (Stage 2): when a caller resolved a real
+        // accountRoleId, also guard against a retry racing past the check
+        // above on the accountRoleId identity specifically -- both checks
+        // must miss before a dispatch proceeds.
+        if (recipient.accountRoleId && this.flags.isEnabled('SCOPED_NOTIFICATION_DUAL_WRITE')) {
+          const existingScopedLog = await this.logRepo.findOne({
+            where: {
+              eventType: params.eventType,
+              sourceType: params.sourceType,
+              sourceId: params.sourceId,
+              recipientAccountRoleId: recipient.accountRoleId,
+              channel,
+            },
+          });
+          if (existingScopedLog) continue;
+        }
 
         const template = await this.templateRepo.findOne({
           where: {
@@ -183,6 +222,7 @@ export class CommunicationEngineService implements OnModuleInit {
               templateId: null,
               status: 'skipped_no_template',
               errorMessage: null,
+              ...audienceFields,
             }),
           );
           continue;
@@ -199,6 +239,16 @@ export class CommunicationEngineService implements OnModuleInit {
           actionPage: recipient.actionPage,
           actionParam: recipient.actionParam,
           orderId: params.sourceType === 'order' ? params.sourceId : undefined,
+          ...(audienceFields.recipientAccountRoleId
+            ? {
+                audienceScope: audienceFields.audienceScope,
+                recipientAccountRoleId: audienceFields.recipientAccountRoleId,
+                recipientWorkspaceType: audienceFields.recipientWorkspaceType ?? undefined,
+                recipientWorkspaceId: audienceFields.recipientWorkspaceId ?? undefined,
+                sourceType: params.sourceType,
+                sourceId: params.sourceId,
+              }
+            : {}),
         });
 
         await this.logRepo.save(
@@ -212,6 +262,7 @@ export class CommunicationEngineService implements OnModuleInit {
             templateId: template.id,
             status: 'sent',
             errorMessage: null,
+            ...audienceFields,
           }),
         );
       } catch (err: any) {
@@ -230,6 +281,7 @@ export class CommunicationEngineService implements OnModuleInit {
               templateId: null,
               status: 'failed',
               errorMessage: String(err.message || err).slice(0, 255),
+              ...audienceFields,
             }),
           )
           .catch(() => {});

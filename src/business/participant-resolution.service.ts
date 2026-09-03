@@ -55,10 +55,19 @@ export class ParticipantResolutionService {
    * provider all resolve through their AccountRole). Reactivates a
    * previously-LEFT row rather than creating a duplicate, since the unique
    * index only covers ACTIVE rows.
+   *
+   * Takes a bare accountRoleId, not a full RoleContext: a conversation's
+   * seller-side (or buyer-side) workspace is a STRUCTURAL fact -- "this
+   * thread belongs to seller X's business" -- independent of whose live
+   * session is doing the resolving right now (e.g. a delegated team member
+   * sending on the seller's behalf has their OWN active role, which may not
+   * even be 'seller'). Callers resolve the target AccountRole server-side
+   * (e.g. by sellerId + roleType=SELLER, never from a client-supplied id)
+   * and pass just its id.
    */
   async ensureAccountRoleParticipant(
     conversationId: number,
-    roleContext: RoleContext,
+    accountRoleId: number,
     participantKind: ParticipantKind | string,
     permissions: Record<string, boolean> = {},
   ): Promise<ConversationParticipant> {
@@ -66,7 +75,7 @@ export class ParticipantResolutionService {
       where: {
         conversationId,
         principalType: ParticipantPrincipalType.ACCOUNT_ROLE,
-        accountRoleId: roleContext.accountRoleId,
+        accountRoleId,
       },
     });
     if (existing) {
@@ -91,7 +100,7 @@ export class ParticipantResolutionService {
       this.participantRepo.create({
         conversationId,
         principalType: ParticipantPrincipalType.ACCOUNT_ROLE,
-        accountRoleId: roleContext.accountRoleId,
+        accountRoleId,
         workspaceType: null,
         workspaceId: null,
         userId: null,

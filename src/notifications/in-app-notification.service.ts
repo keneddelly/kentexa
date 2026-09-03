@@ -10,7 +10,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Notification, NotificationType } from './entities/notification.entity';
+import { Notification, NotificationAudienceScope, NotificationType } from './entities/notification.entity';
 import { PushService } from './push.service';
 
 export interface NotifyTarget {
@@ -28,6 +28,12 @@ export class InAppNotificationService {
   ) {}
 
   // ── Core notify — saves in-app + fires push ───────────────────────────────
+  // Stage 2: audience params are all optional and additive. A call site
+  // that doesn't pass them gets audienceScope: ACCOUNT (the entity's own
+  // default) -- i.e. every existing caller keeps behaving exactly as
+  // before, visible account-wide regardless of active role. Only call
+  // sites updated to resolve a real operational recipient (server-side,
+  // never a client-supplied id) pass ROLE/WORKSPACE/TRANSACTION explicitly.
   async notify(params: {
     userId: number;
     type: NotificationType | string;
@@ -39,6 +45,15 @@ export class InAppNotificationService {
     actionCommerceProfileId?: number;
     orderId?: number;
     trackingNumber?: string;
+    audienceScope?: NotificationAudienceScope | string;
+    recipientAccountRoleId?: number;
+    recipientWorkspaceType?: string;
+    recipientWorkspaceId?: number;
+    sourceType?: string;
+    sourceId?: number;
+    actionRouteKey?: string;
+    actionParams?: Record<string, any>;
+    classificationStatus?: string;
   }): Promise<Notification> {
     const notif = await this.repo.save(
       this.repo.create({
@@ -53,6 +68,15 @@ export class InAppNotificationService {
         orderId: params.orderId || null,
         trackingNumber: params.trackingNumber || null,
         isRead: false,
+        audienceScope: params.audienceScope || NotificationAudienceScope.ACCOUNT,
+        recipientAccountRoleId: params.recipientAccountRoleId ?? null,
+        recipientWorkspaceType: params.recipientWorkspaceType ?? null,
+        recipientWorkspaceId: params.recipientWorkspaceId ?? null,
+        sourceType: params.sourceType ?? null,
+        sourceId: params.sourceId ?? null,
+        actionRouteKey: params.actionRouteKey ?? null,
+        actionParams: params.actionParams ?? null,
+        classificationStatus: params.classificationStatus || (params.recipientAccountRoleId ? 'resolved' : 'legacy_unscoped'),
       }),
     );
 
