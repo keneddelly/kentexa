@@ -16,6 +16,10 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('service-providers')
 export class ServiceProvidersController {
@@ -27,14 +31,16 @@ export class ServiceProvidersController {
     return this.service.findByUserId(userId);
   }
 
-  // Apply to become a service provider
+  // Apply to become a service provider -- no ServiceProvider AccountRole
+  // exists yet, so this can't require one.
   @UseGuards(JwtAuthGuard)
   @Post('apply')
   apply(@Body() dto: CreateServiceProviderDto, @Request() req) {
     return this.service.apply(dto, req.user);
   }
 
-  // Get my service provider profile
+  // Self-status-check (pending/approved/rejected) -- a pending applicant is
+  // still active as buyer, same precedent as Seller/Agent/Transport.
   @UseGuards(JwtAuthGuard)
   @Get('my-profile')
   getMyProfile(@Request() req) {
@@ -42,8 +48,8 @@ export class ServiceProvidersController {
   }
 
   // Update my service provider profile
-  @UseGuards(JwtAuthGuard)
-  @Patch('my-profile')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SERVICE_PROVIDER, AccountRoleType.ADMIN)
   updateProfile(
     @Body() dto: Partial<CreateServiceProviderDto>,
     @Request() req,
