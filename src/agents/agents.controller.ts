@@ -15,6 +15,10 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('agents')
 @UseGuards(JwtAuthGuard)
@@ -22,12 +26,20 @@ export class AgentsController {
   constructor(private service: AgentsService) {}
 
   // ── Agent: toggle online/offline ─────────────────────────────────────────
+  // Operational action on an existing approved agent profile -- requires the
+  // caller to be CURRENTLY ACTIVE as agent, not merely to possess an agent
+  // AccountRole. A seller who also holds an agent role must switch into it
+  // before toggling online, same as any other agent-only operation.
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
   @Patch('toggle-online')
   toggleOnline(@Request() req) {
     return this.service.toggleOnline(req.user);
   }
 
   // ── Agent: update own profile ─────────────────────────────────────────────
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
   @Patch('my-profile')
   updateProfile(@Request() req, @Body() body: any) {
     return this.service.updateProfile(req.user, body);
@@ -52,12 +64,18 @@ export class AgentsController {
   }
 
   // ── Agent: apply ─────────────────────────────────────────────────────────
+  // Deliberately not gated by active role -- an applicant has no agent
+  // AccountRole yet, so requiring one would make it impossible to ever apply.
   @Post('register')
   register(@Request() req, @Body() body: any) {
     return this.service.register(req.user, body);
   }
 
   // ── Agent: my profile ─────────────────────────────────────────────────────
+  // Self-check (application status), always the caller's own record via
+  // user.id -- deliberately not gated by active role, same reasoning as
+  // SellerController.getMyProfile: a pending applicant is active as buyer
+  // and must still be able to see their own application status.
   @Get('my-profile')
   getMyProfile(@Request() req) {
     return this.service.getMyProfile(req.user);
