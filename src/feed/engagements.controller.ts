@@ -69,6 +69,10 @@ import {
   CommerceProfilesService,
 } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import type { RoleContext } from '../role-context/role-context.types';
 
 export type CommentFilter = 'all' | 'reviews' | 'questions' | 'media';
 
@@ -1024,15 +1028,25 @@ export class CommentsController {
   }
 
   // ── Delete (soft) — NEW ───────────────────────────────────────────────────
+  // Security closure pass: the admin/manager bypass previously read
+  // req.user.role directly (a legacy, last-writer-wins field), meaning an
+  // admin currently operating as another role could still trip it purely
+  // from a stale `role` column value. Now resolved from RoleContext.
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  async remove(@Request() req, @Param('id') id: string) {
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  async remove(
+    @Request() req,
+    @Param('id') id: string,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
     const commentId = Number(id);
     const comment = await this.commentRepo.findOne({
       where: { id: commentId },
     });
     if (!comment) throw new NotFoundException('Comment not found');
-    const isAdmin = req.user.role === 'admin' || req.user.role === 'manager';
+    const isAdmin =
+      roleContext?.roleType === AccountRoleType.ADMIN ||
+      roleContext?.roleType === AccountRoleType.MANAGER;
     if (comment.authorId !== req.user.id && !isAdmin) {
       throw new ForbiddenException('You can only delete your own comment.');
     }

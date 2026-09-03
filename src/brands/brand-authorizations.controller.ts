@@ -15,6 +15,10 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { BrandAuthorizationsService } from './brand-authorizations.service';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import type { RoleContext } from '../role-context/role-context.types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('brand-authorizations')
@@ -41,14 +45,22 @@ export class BrandAuthorizationsController {
     return this.service.addEvidence(req.user.id, id, dto);
   }
 
+  // Security closure pass: `isAdmin` previously came from
+  // req.user.role/activeRoles -- legacy, additive-only fields that keep
+  // 'admin' forever once ever granted, regardless of the account's current
+  // active role. If true, the service SKIPS its ownership/scope check
+  // entirely (see brand-authorizations.service.ts), so this was a real
+  // "possession, not active context, grants authority" bypass -- exactly
+  // the bug this whole pass exists to close. Now resolved from RoleContext.
+  @UseGuards(RoleContextGuard)
   @Get(':id/evidence/:evidenceId/signed-url')
   getSignedEvidenceUrl(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
     @Param('evidenceId', ParseIntPipe) evidenceId: number,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    const isAdmin =
-      req.user.role === UserRole.ADMIN || !!req.user.activeRoles?.includes(UserRole.ADMIN);
+    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     return this.service.getSignedEvidenceUrl(req.user.id, isAdmin, id, evidenceId);
   }
 

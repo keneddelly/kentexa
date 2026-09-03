@@ -20,6 +20,10 @@ import { UserRole } from '../users/entities/user.entity';
 import { CommerceProfilesService } from './commerce-profiles.service';
 import { CommerceProfilesBackfillService } from './commerce-profiles-backfill.service';
 import { CommerceProfileScopeService } from './commerce-profile-scope.service';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import type { RoleContext } from '../role-context/role-context.types';
 
 @Controller('profiles')
 export class CommerceProfilesController {
@@ -90,8 +94,15 @@ export class CommerceProfilesController {
     return this.service.toggleFollow(req.user.id, id);
   }
 
+  // Security closure pass: the admin bypass previously read req.user.role
+  // directly (a raw literal-string comparison against a legacy,
+  // last-writer-wins field) instead of the caller's current active role,
+  // meaning an admin currently operating as e.g. seller could still trip
+  // it purely because the stale `role` column happened to say 'admin'.
+  // Now resolved from RoleContext, same as every other operational gate
+  // in this pass.
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   async update(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
@@ -103,13 +114,15 @@ export class CommerceProfilesController {
       bio?: string;
       location?: string;
     },
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const profile = await this.service.findById(id);
     // Ownership only for now — CommerceProfileMember-based delegation
     // (staff editing a profile's public info) is a natural extension of
     // this check once that flow has a UI, same shape as
     // SellerScopeService.resolve() already used elsewhere.
-    if (profile.ownerId !== req.user.id && req.user.role !== 'admin') {
+    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
+    if (profile.ownerId !== req.user.id && !isAdmin) {
       throw new ForbiddenException('You do not manage this profile');
     }
     return this.service.updatePublicFields(id, dto);
