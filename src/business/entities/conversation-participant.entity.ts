@@ -56,10 +56,10 @@ export enum ParticipantStatus {
 // two different ways depending on which field it happens to check first.
 @Check(`
   (
-    ("principalType" = 'account' AND "userId" IS NOT NULL AND "accountRoleId" IS NULL AND "workspaceType" IS NULL AND "workspaceId" IS NULL AND "externalCustomerId" IS NULL)
-    OR ("principalType" = 'account_role' AND "accountRoleId" IS NOT NULL AND "userId" IS NULL AND "workspaceType" IS NULL AND "workspaceId" IS NULL AND "externalCustomerId" IS NULL)
-    OR ("principalType" = 'workspace' AND "workspaceType" IS NOT NULL AND "workspaceId" IS NOT NULL AND "userId" IS NULL AND "accountRoleId" IS NULL AND "externalCustomerId" IS NULL)
-    OR ("principalType" = 'external_contact' AND "externalCustomerId" IS NOT NULL AND "userId" IS NULL AND "accountRoleId" IS NULL AND "workspaceType" IS NULL AND "workspaceId" IS NULL)
+    ("principalType" = 'account' AND user_id IS NOT NULL AND account_role_id IS NULL AND "workspaceType" IS NULL AND "workspaceId" IS NULL AND external_customer_id IS NULL)
+    OR ("principalType" = 'account_role' AND account_role_id IS NOT NULL AND user_id IS NULL AND "workspaceType" IS NULL AND "workspaceId" IS NULL AND external_customer_id IS NULL)
+    OR ("principalType" = 'workspace' AND "workspaceType" IS NOT NULL AND "workspaceId" IS NOT NULL AND user_id IS NULL AND account_role_id IS NULL AND external_customer_id IS NULL)
+    OR ("principalType" = 'external_contact' AND external_customer_id IS NOT NULL AND user_id IS NULL AND account_role_id IS NULL AND "workspaceType" IS NULL AND "workspaceId" IS NULL)
   )
 `)
 // Duplicate-active-participant prevention, one partial unique index per
