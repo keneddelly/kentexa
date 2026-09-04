@@ -8,15 +8,12 @@
  */
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { io } from 'socket.io-client';
 import BackBar from '../components/BackBar';
 import LocationPicker from '../components/LocationPicker';
 import api from '../../api/api';
-import { getAccessToken } from '../../api/tokenStore';
-import { hasAnyRole } from '../utils/roles';
+import { useSocket } from '../../context/SocketProvider';
 
 const DATE_LOCALE_MAP = { en: 'en-GB', sw: 'sw-TZ', fr: 'fr-FR' };
-const SOCKET_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
 const ConversationItem = ({ convo, isActive, onClick, t, dateLocale, menuOpen, onOpenMenu, onCloseMenu, onPin, onMute, onArchive }) => {
   const STATUS_COLORS = {
@@ -309,9 +306,35 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
   );
 };
 
+// The active RoleContext decides which communication surface this renders —
+// never a client-side "which endpoints happened to succeed" heuristic (the
+// old dual-mode Promise.allSettled([inbox, my-conversations]) merge below
+// this component used to do exactly that, which is also why every
+// non-seller/non-buyer role silently fell through to an empty merged list
+// instead of an honest "not available" state). Seller/admin/manager share
+// the seller-side business inbox (/business/inbox*, the same three roles
+// business.controller.ts's sellerScope.resolve() already treats as "owns
+// their own business" — see its OWNS_THEIR_OWN_BUSINESS list); buyer gets
+// the buyer-side private conversations (/business/my-conversations*, guarded
+// server-side by @RequireActiveRole(BUYER)). No other role has a backend
+// communication surface yet, so it fails closed here rather than either
+// endpoint set 403ing per-request or, worse, silently reusing this seller
+// UI shell for a role it was never scoped for.
+const resolveInboxMode = (userRole) => {
+  if (userRole === 'seller' || userRole === 'admin' || userRole === 'manager') return 'seller';
+  if (userRole === 'buyer') return 'buyer';
+  return 'unsupported';
+};
+
 const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId, contextEpoch }) => {
   const { t, i18n } = useTranslation();
-  const canSell = hasAnyRole(userRole, currentUser, ['seller', 'admin', 'manager']);
+  // Deep links carry their own implied mode regardless of the bare-inbox
+  // default for the active role — "message this specific seller" is always
+  // a buyer action, "open this specific CRM customer thread" is always a
+  // seller action. Both remain fail-closed server-side (wrong active role
+  // still 403s there); this only decides which endpoint family and which UI
+  // this component renders while the deep link resolves.
+  const inboxMode = sellerId ? 'buyer' : initialCustomerId ? 'seller' : resolveInboxMode(userRole);
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);
@@ -357,6 +380,17 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       setLoading(true);
       setError('');
 
+      // No backend communication surface for this role yet (agent,
+      // super_agent, transport_provider, service_provider, customer_care,
+      // arbitrator) — fail closed with zero network calls rather than
+      // firing the seller/buyer requests and letting them 403, or worse,
+      // rendering this seller UI shell against whichever call happens not
+      // to fail.
+      if (inboxMode === 'unsupported') {
+        setConversations([]);
+        return;
+      }
+
       // ── Deep-linked: open/start a single conversation as the buyer ──────
       if (buyerDeepLink) {
         try {
@@ -399,39 +433,28 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
         return;
       }
 
-      // ── Bare inbox — merge both sides: my conversations as seller AND as buyer ──
-      // "Assigned to me" only means something on the seller side (it's a
-      // team-member working filter over the shared business inbox) — a
-      // buyer-side thread where I'm messaging some other seller has no
-      // assignment concept, so that fetch is skipped entirely while active
-      // rather than fetched and then discarded.
+      // ── Bare inbox — exactly one side, whichever the active RoleContext
+      // authorizes right now. Previously this fired BOTH /business/inbox
+      // and /business/my-conversations via Promise.allSettled and merged
+      // whatever survived — meaning a Buyer-active account silently ate a
+      // 403 from the seller-scoped call every time, an Agent/SuperAgent/
+      // TransportProvider got a merge of two 403s (an empty inbox with no
+      // explanation), and a Seller-active account with old buyer threads
+      // could still see them mixed into their business inbox. Only one
+      // request now fires, for only the mode this role is actually
+      // authorized for.
       const searchParam = debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : '';
-      const mineParam = mineOnly ? '&mine=true' : '';
-      const [sellerRes, buyerRes] = await Promise.allSettled([
-        api.get(`/business/inbox?status=${filter}&limit=30${searchParam}${mineParam}`),
-        mineOnly ? Promise.resolve({ data: { conversations: [] } }) : api.get(`/business/my-conversations?limit=30${searchParam}`),
-      ]);
-      const sellerList = sellerRes.status === 'fulfilled'
-        ? (sellerRes.value.data.conversations || []).map(c => ({ ...c, _mode: 'seller' }))
-        : [];
-      const buyerList = buyerRes.status === 'fulfilled'
-        ? (buyerRes.value.data.conversations || []).map(c => ({ ...c, _mode: 'buyer' }))
-        : [];
-      // Each side arrives already pin-sorted from the backend; merging by
-      // date alone would flatten that (a pinned older thread on one side
-      // could land below an unpinned newer one from the other side) — pin
-      // status wins first, exactly matching what a single-side view already
-      // shows, before falling back to recency.
-      const merged = [...sellerList, ...buyerList].sort((a, b) => {
-        const aPinned = a._mode === 'buyer' ? a.buyerPinned : a.sellerPinned;
-        const bPinned = b._mode === 'buyer' ? b.buyerPinned : b.sellerPinned;
-        if (aPinned !== bPinned) return aPinned ? -1 : 1;
-        return new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt);
-      });
-      setConversations(merged);
+      if (inboxMode === 'seller') {
+        const mineParam = mineOnly ? '&mine=true' : '';
+        const res = await api.get(`/business/inbox?status=${filter}&limit=30${searchParam}${mineParam}`);
+        setConversations((res.data.conversations || []).map(c => ({ ...c, _mode: 'seller' })));
+      } else {
+        const res = await api.get(`/business/my-conversations?limit=30${searchParam}`);
+        setConversations((res.data.conversations || []).map(c => ({ ...c, _mode: 'buyer' })));
+      }
     } catch {} finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter, initialCustomerId, sellerId, messageCommerceProfileId, messageContextType, messageContextId, debouncedSearch, mineOnly]);
+  }, [inboxMode, filter, initialCustomerId, sellerId, messageCommerceProfileId, messageContextType, messageContextId, debouncedSearch, mineOnly]);
 
   const fetchMessages = async (convo) => {
     try {
@@ -477,7 +500,10 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   useEffect(() => { fetchInbox(); }, [fetchInbox]);
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => {
-    if (!currentUser?.id) return;
+    // Seller-only CRM tool (the share-product/quick-invoice picker) — no
+    // point fetching a business's catalog for a buyer or an unsupported
+    // role that will never see the picker UI at all.
+    if (!currentUser?.id || inboxMode !== 'seller') return;
     // Was '/seller/products' — that route has never existed (the real
     // product-list endpoints all live under /products/*, e.g.
     // CreateMomentModal.js's own /products/profile/:id and
@@ -508,26 +534,28 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       }
       setProducts(items);
     });
-  }, [activeProfileId, currentUser?.id]);
+  }, [activeProfileId, currentUser?.id, inboxMode]);
 
   // ── Real-time — purely additive over the REST calls above. If the socket
   // never connects (offline, blocked, server restart), every send/receive
   // still works exactly as before this existed: fetch-on-open, fetch-on-
-  // reopen. This component is always rendered behind requireLogin() in
-  // App.js, so a token is guaranteed to exist whenever this mounts.
-  const socketRef = useRef(null);
-  // The socket effect below mounts once ([] deps) so it can't read `active`
-  // fresh via closure — this ref is the live pointer it reads instead.
+  // reopen. The connection itself is now owned by SocketProvider (a single
+  // shared instance for the whole app, torn down and reopened on every
+  // contextEpoch change) rather than by this component — this just
+  // attaches/detaches its own 'newMessage' listener on whatever the current
+  // context's socket is.
+  const { socket } = useSocket();
+  // The listener below re-registers whenever `socket` itself changes (a new
+  // instance after a context switch) but must still read the CURRENT
+  // `active` conversation, not whatever it was when the listener was
+  // attached — this ref is the live pointer it reads instead.
   const activeRef = useRef(null);
   useEffect(() => { activeRef.current = active; }, [active]);
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) return;
-    const socket = io(SOCKET_URL, { auth: { token } });
-    socketRef.current = socket;
+    if (!socket) return undefined;
 
-    socket.on('newMessage', ({ conversationId, message }) => {
+    const onNewMessage = ({ conversationId, message }) => {
       if (activeRef.current?.id === conversationId) {
         setMessages(prev =>
           // Dedupe against the sender's own optimistic append in
@@ -561,20 +589,20 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
             : {}),
         };
       }));
-    });
+    };
 
-    return () => socket.disconnect();
-  }, [contextEpoch]); // reconnect with the current ActiveRoleSession token
+    socket.on('newMessage', onNewMessage);
+    return () => socket.off('newMessage', onNewMessage);
+  }, [socket]);
 
   // Joins/leaves the conversation:{id} room as the open thread changes —
   // the server re-verifies participation on every join, so this can't be
   // used to eavesdrop by guessing ids.
   useEffect(() => {
-    const socket = socketRef.current;
     if (!socket || !active?.id) return;
     socket.emit('joinConversation', active.id);
     return () => socket.emit('leaveConversation', active.id);
-  }, [active?.id]);
+  }, [socket, active?.id]);
 
   // Was calling POST /super-agents/shipments (createSellerShipment) — a
   // Super Agent LOGISTICS endpoint requiring originCity/transportMethod/
@@ -817,7 +845,21 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
         margin: '0 auto', width: '100%' }}>
 
         {/* Conversation list — hidden when active on mobile */}
-        {!active && (
+        {!active && inboxMode === 'unsupported' ? (
+          // Fail closed: this role has no backend communication surface yet
+          // (see resolveInboxMode's comment above). No seller/buyer request
+          // ever fires for it, and it must never fall back to rendering the
+          // seller inbox against data it isn't scoped for.
+          <div style={{ width: '100%', padding: 40, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🚧</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
+              {t('seller_inbox.role_unsupported_title')}
+            </div>
+            <div style={{ fontSize: 12, color: '#64748b' }}>
+              {t('seller_inbox.role_unsupported_hint')}
+            </div>
+          </div>
+        ) : !active && (
           <div style={{ width: '100%', overflowY: 'auto', backgroundColor: '#fff' }}>
             {/* Search — debounced 300ms, see the effect above; searches by
                 person/business name (seller side: customer name/phone;
@@ -833,7 +875,10 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
               </div>
             </div>
 
-            {/* Filter tabs */}
+            {/* Filter tabs — status is a seller/CRM concept (Conversation.status),
+                meaningless on the buyer side (buyer-side conversations have
+                no status column at all — see Conversation entity). */}
+            {inboxMode === 'seller' && (
             <div style={{ display: 'flex', borderBottom: '1px solid #f1f5f9' }}>
               {['open','pending','resolved'].map(s => (
                 <button key={s} onClick={() => setFilter(s)}
@@ -846,12 +891,12 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                 </button>
               ))}
             </div>
+            )}
 
             {/* "Assigned to me" — a team member's own working view over the
                 shared business inbox (same conversations, filtered), not a
-                separate inbox. Meaningless on the buyer side, so toggling
-                this on skips that fetch entirely rather than showing an
-                always-empty buyer section. */}
+                separate inbox. Meaningless on the buyer side. */}
+            {inboxMode === 'seller' && (
             <div style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}>
               <button onClick={() => setMineOnly(v => !v)}
                 style={{ padding: '5px 12px', borderRadius: 100, cursor: 'pointer',
@@ -862,6 +907,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                 {t('seller_inbox.mine_only_toggle')}
               </button>
             </div>
+            )}
 
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: '#94a3b8' }}>{t('seller_inbox.loading')}</div>
@@ -872,9 +918,9 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
                   {t('seller_inbox.no_conversations')}
                 </div>
                 <div style={{ fontSize: 12, color: '#64748b' }}>
-                  {canSell ? t('seller_inbox.go_to_customer_hint') : t('seller_inbox.no_conversations_hint')}
+                  {inboxMode === 'seller' ? t('seller_inbox.go_to_customer_hint') : t('seller_inbox.no_conversations_hint')}
                 </div>
-                {canSell && (
+                {inboxMode === 'seller' && (
                   <button onClick={() => onNavigate('SellerCustomers')}
                     style={{ marginTop: 16, backgroundColor: '#1d4ed8', color: '#fff',
                       border: 'none', padding: '10px 20px', borderRadius: 10,

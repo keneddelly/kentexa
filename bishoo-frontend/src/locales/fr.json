@@ -4213,6 +4213,8 @@
     "go_to_customer_hint": "Allez sur un client et appuyez sur « Démarrer une Conversation »",
     "no_conversations_hint": "Les messages des vendeurs que vous avez contactés apparaîtront ici.",
     "view_customers": "👥 Voir les Clients",
+    "role_unsupported_title": "La messagerie n'est pas encore disponible pour ce rôle",
+    "role_unsupported_hint": "Passez à un rôle disposant d'une messagerie active pour voir les messages.",
     "start_conversation_prompt": "Démarrer la conversation",
     "quick_order_title": "🧾 Facture Rapide",
     "recipient_name_placeholder": "Nom du Destinataire",

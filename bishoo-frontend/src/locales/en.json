@@ -4217,6 +4217,8 @@
     "go_to_customer_hint": "Go to a customer and tap \"Start Conversation\"",
     "no_conversations_hint": "Messages from sellers you've contacted will show up here.",
     "view_customers": "👥 View Customers",
+    "role_unsupported_title": "Inbox isn't available for this role yet",
+    "role_unsupported_hint": "Switch to a role with an active communication surface to view messages.",
     "start_conversation_prompt": "Start the conversation",
     "quick_order_title": "🧾 Quick Invoice",
     "recipient_name_placeholder": "Recipient Name",

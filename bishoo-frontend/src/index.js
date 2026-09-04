@@ -4,6 +4,7 @@ import './index.css';
 import App from './App';
 import './i18n'; // ← import i18n before App
 import { RoleContextProvider } from './context/RoleContext';
+import { SocketProvider } from './context/SocketProvider';
 
 // Temporary on-page error overlay — lets a real crash be read directly off
 // the phone screen (photographed/typed back) without needing Safari's
@@ -42,7 +43,9 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <RoleContextProvider>
-      <App />
+      <SocketProvider>
+        <App />
+      </SocketProvider>
     </RoleContextProvider>
   </React.StrictMode>
 );

@@ -4063,6 +4063,8 @@
     "go_to_customer_hint": "Nenda kwa mteja na ubonyeze \"Anza Mazungumzo\"",
     "no_conversations_hint": "Ujumbe kutoka kwa wachuuzi uliowasiliana nao utaonekana hapa.",
     "view_customers": "👥 Ona Wateja",
+    "role_unsupported_title": "Ujumbe haupatikani bado kwa nafasi hii",
+    "role_unsupported_hint": "Badilisha kwenda nafasi yenye mawasiliano hai ili kuona ujumbe.",
     "start_conversation_prompt": "Anza mazungumzo",
     "quick_order_title": "🧾 Ankara ya Haraka",
     "recipient_name_placeholder": "Jina la Mpokeaji",

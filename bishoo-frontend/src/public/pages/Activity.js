@@ -32,19 +32,28 @@ const NOTIF_ICON = {
   default:        { icon: '🔔', color: '#64748b', bg: '#F8FAFC' },
 };
 
-const Activity = ({ onNavigate, isLoggedIn, currentUser }) => {
+const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
   const { t } = useTranslation();
   const [notifs,  setNotifs]  = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('all');
 
+  // GET /notifications/my is already server-scoped to the caller's current
+  // active role/workspace (RoleContextGuard + CurrentRoleContext, see
+  // notification.controller.ts) — refetching on every contextEpoch change is
+  // what actually surfaces the newly-scoped list after a role switch. This
+  // page also fully remounts via ContextEpochBoundary's key={context-...}
+  // wrapper in App.js, so in practice this effect already reruns from a
+  // clean slate either way; the explicit dependency is defensive so a role
+  // switch is never silently missed if that remount boundary ever changes.
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    setLoading(true);
     api.get('/notifications/my')
       .then(r => setNotifs(r.data?.items || r.data || []))
       .catch(() => setNotifs([]))
       .finally(() => setLoading(false));
-  }, []); // eslint-disable-line
+  }, [isLoggedIn, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markAllRead = async () => {
     try {
