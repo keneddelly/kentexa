@@ -5,6 +5,14 @@ import { evaluateMigration, FINGERPRINTS } from './reconcile-role-context-migrat
  * single table's presence, never guess on partial/incompatible schema,
  * and must recognize a migration already recorded under either its
  * current filename-derived name OR a known historical alias.
+ *
+ * Migration 4 specifically: `conversation`/`conversation_message`/
+ * `notification`/`communication_log` are pre-existing legacy tables this
+ * migration only adds columns to (confirmed directly from the migration's
+ * source — grep for CREATE TABLE finds only conversation_participant and
+ * conversation_participant_state). Their bare existence must never gate
+ * NOT_APPLICABLE/AMBIGUOUS the way a genuinely new table does; only their
+ * specific new columns matter, and are checked via requiredColumns.
  */
 describe('reconcile-role-context-migrations — evaluateMigration()', () => {
   const stage1Fp = FINGERPRINTS.find((f) => f.canonicalName.startsWith('AddAccountRoleAndActiveRoleSession'))!;
@@ -21,11 +29,13 @@ describe('reconcile-role-context-migrations — evaluateMigration()', () => {
     const tables = opts.tables ?? new Set<string>();
     const columns = opts.columns ?? new Set<string>();
     const constraints = opts.constraints ?? new Set<string>();
+    const queryLog: string[] = [];
 
     return {
       hasTable: jest.fn((t: string) => Promise.resolve(tables.has(t))),
       hasColumn: jest.fn((t: string, c: string) => Promise.resolve(columns.has(`${t}.${c}`))),
       query: jest.fn((sql: string, params?: any[]) => {
+        queryLog.push(sql);
         if (sql.includes('typeorm_migrations WHERE name = ANY')) {
           const requested: string[] = params?.[0] ?? [];
           const match = requested.find((n) => ledgerNames.has(n));
@@ -52,8 +62,12 @@ describe('reconcile-role-context-migrations — evaluateMigration()', () => {
         }
         return Promise.resolve([]);
       }),
+      __queryLog: queryLog,
     } as any;
   };
+
+  const fullStage2Columns = () =>
+    new Set(stage2Fp.requiredColumns.map((c) => `${c.table}.${c.column}`));
 
   // Scenario A — empty database.
   it('scenario A (empty database): NOT_APPLICABLE for every migration — nothing to adopt, real migration should run', async () => {
@@ -106,8 +120,8 @@ describe('reconcile-role-context-migrations — evaluateMigration()', () => {
   // Scenario D — Stage 2 schema present, ledger missing/mismatched.
   it('scenario D (Stage 2 schema present, ledger mismatched): ADOPTABLE only when the FULL footprint matches, not just conversation_participant', async () => {
     const qr = buildQueryRunner({
-      tables: new Set(stage2Fp.requiredTables),
-      columns: new Set(stage2Fp.requiredColumns.map((c) => `${c.table}.${c.column}`)),
+      tables: new Set(stage2Fp.newTables),
+      columns: fullStage2Columns(),
       constraints: new Set(stage2Fp.requiredConstraints),
     });
     const result = await evaluateMigration(qr, stage2Fp);
@@ -116,7 +130,7 @@ describe('reconcile-role-context-migrations — evaluateMigration()', () => {
 
   it('never marks Stage 2 ADOPTABLE from conversation_participant alone — missing notification/communication_log columns is AMBIGUOUS', async () => {
     const qr = buildQueryRunner({
-      tables: new Set(stage2Fp.requiredTables), // all tables "exist"
+      tables: new Set(stage2Fp.newTables), // both new tables "exist"
       columns: new Set([
         'conversation_participant.principalType',
         'conversation_participant.account_role_id',
@@ -141,9 +155,9 @@ describe('reconcile-role-context-migrations — evaluateMigration()', () => {
   });
 
   // Scenario F — partial/incompatible Stage 2 schema.
-  it('scenario F (partial Stage 2 schema — some tables missing): AMBIGUOUS, never guessed as adoptable', async () => {
+  it('scenario F (one of two new tables exists): AMBIGUOUS, never guessed as adoptable or not-applicable', async () => {
     const qr = buildQueryRunner({
-      tables: new Set(['conversation_participant']), // only one of six required tables
+      tables: new Set(['conversation_participant']), // only one of the two genuinely-new tables
     });
     const result = await evaluateMigration(qr, stage2Fp);
     expect(result.verdict).toBe('AMBIGUOUS');
@@ -151,13 +165,38 @@ describe('reconcile-role-context-migrations — evaluateMigration()', () => {
 
   it('scenario F (incompatible Stage 2 schema — tables exist but missing the CHECK constraint): AMBIGUOUS', async () => {
     const qr = buildQueryRunner({
-      tables: new Set(stage2Fp.requiredTables),
-      columns: new Set(stage2Fp.requiredColumns.map((c) => `${c.table}.${c.column}`)),
+      tables: new Set(stage2Fp.newTables),
+      columns: fullStage2Columns(),
       constraints: new Set(), // constraint missing
     });
     const result = await evaluateMigration(qr, stage2Fp);
     expect(result.verdict).toBe('AMBIGUOUS');
     expect(result.detail).toMatch(/CHK_conv_participant_one_principal/);
+  });
+
+  // --- The specific bug this fix closes ---------------------------------
+  // A production database that has ALWAYS had conversation/notification/
+  // communication_log (they predate this entire project) but has NEVER
+  // run Stage 2 must be NOT_APPLICABLE, not AMBIGUOUS, merely because
+  // those four legacy tables "exist."
+  it('a real-world production shape (legacy communication tables exist, nothing Stage-2 does) is NOT_APPLICABLE, not AMBIGUOUS', async () => {
+    const qr = buildQueryRunner({
+      tables: new Set(['conversation', 'conversation_message', 'notification', 'communication_log']),
+      // No conversation_participant, no conversation_participant_state,
+      // no Stage 2 columns on any of the four legacy tables.
+    });
+    const result = await evaluateMigration(qr, stage2Fp);
+    expect(result.verdict).toBe('NOT_APPLICABLE');
+  });
+
+  // both new tables absent but one Stage 2 column already exists -> AMBIGUOUS
+  it('both new tables absent but one Stage 2 column already exists on a legacy table: AMBIGUOUS, not NOT_APPLICABLE', async () => {
+    const qr = buildQueryRunner({
+      tables: new Set(['conversation', 'conversation_message', 'notification', 'communication_log']),
+      columns: new Set(['notification.audienceScope']), // one stray Stage 2 column, e.g. from a failed partial run
+    });
+    const result = await evaluateMigration(qr, stage2Fp);
+    expect(result.verdict).toBe('AMBIGUOUS');
   });
 
   it('the trivial UUID-default fix is ADOPTABLE once its target column state is already true', async () => {
@@ -167,5 +206,28 @@ describe('reconcile-role-context-migrations — evaluateMigration()', () => {
     });
     const result = await evaluateMigration(qr, fixUuidFp);
     expect(result.verdict).toBe('ADOPTABLE');
+  });
+
+  it('the trivial UUID-default fix is NOT_APPLICABLE when active_role_session does not exist yet (migration 2 has not run)', async () => {
+    const qr = buildQueryRunner({});
+    const result = await evaluateMigration(qr, fixUuidFp);
+    expect(result.verdict).toBe('NOT_APPLICABLE');
+  });
+
+  // Read-only guarantee: evaluateMigration must never issue a write.
+  it('evaluateMigration never issues an INSERT/UPDATE/DELETE/CREATE/ALTER/DROP query in any scenario', async () => {
+    const scenarios = [
+      buildQueryRunner({}),
+      buildQueryRunner({ ledgerNames: [stage2Fp.canonicalName] }),
+      buildQueryRunner({ tables: new Set(stage2Fp.newTables), columns: fullStage2Columns(), constraints: new Set(stage2Fp.requiredConstraints) }),
+      buildQueryRunner({ tables: new Set(['conversation_participant']) }),
+    ];
+    for (const qr of scenarios) {
+      await evaluateMigration(qr, stage2Fp);
+      const writes = (qr.__queryLog as string[]).filter((sql) =>
+        /\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE)\b/i.test(sql),
+      );
+      expect(writes).toEqual([]);
+    }
   });
 });

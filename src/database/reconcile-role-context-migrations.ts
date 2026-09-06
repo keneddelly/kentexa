@@ -46,12 +46,23 @@ interface MigrationFingerprint {
   /** Names this migration has been recorded under historically. Any one of
    *  these present in the ledger means RESOLVED — no action needed. */
   knownAliases: string[];
-  requiredTables: string[];
+  /**
+   * Tables this migration's up() actually `CREATE TABLE`s — confirmed
+   * directly from each migration's source (grep for CREATE TABLE), never
+   * assumed. Deliberately does NOT include tables the migration only adds
+   * columns to (e.g. AddCommunicationParticipantAudience's `ensureColumns`
+   * calls against `conversation`/`conversation_message`/`notification`/
+   * `communication_log` — those four tables predate Stage 2 entirely and
+   * exist in every real deployment regardless of this migration's status,
+   * so their bare existence carries no signal about whether it ran; only
+   * their specific new columns, listed in requiredColumns below, do).
+   * Together with requiredColumns this distinguishes "never applied"
+   * (every newTable AND every requiredColumn absent) from "partially
+   * applied" (anything present without the complete matching footprint).
+   */
+  newTables: string[];
   requiredColumns: ColumnFingerprint[];
   requiredConstraints?: string[];
-  /** True if ALL required tables must be present for this migration to be
-   *  considered "possibly applied" at all — if none are present, this
-   *  migration is NOT_APPLICABLE (the real migration should just run). */
   description: string;
 }
 
@@ -60,7 +71,9 @@ const FINGERPRINTS: MigrationFingerprint[] = [
     canonicalName: 'AddAccountRoleAndActiveRoleSession1788257400000',
     timestamp: 1788257400000,
     knownAliases: ['AddAccountRoleAndActiveRoleSession20260901101000'],
-    requiredTables: ['account_role', 'active_role_session', 'role_migration_audit'],
+    // All three are genuinely CREATE TABLE'd by this migration — none
+    // pre-exist it.
+    newTables: ['account_role', 'active_role_session', 'role_migration_audit'],
     requiredColumns: [
       { table: 'account_role', column: 'userId' },
       { table: 'account_role', column: 'roleType' },
@@ -82,7 +95,11 @@ const FINGERPRINTS: MigrationFingerprint[] = [
     canonicalName: 'FixActiveRoleSessionUuidDefault1788258000000',
     timestamp: 1788258000000,
     knownAliases: ['FixActiveRoleSessionUuidDefault20260901102000'],
-    requiredTables: ['active_role_session'],
+    // Creates nothing new — only ALTERs a column default on a table
+    // migration 2 already created. If that table doesn't exist yet
+    // either, this correctly falls out as NOT_APPLICABLE (nothing to fix
+    // yet) via the requiredColumns check below, not a separate table gate.
+    newTables: [],
     requiredColumns: [{ table: 'active_role_session', column: 'id' }],
     description: 'active_role_session.id DEFAULT gen_random_uuid() fix',
   },
@@ -90,14 +107,14 @@ const FINGERPRINTS: MigrationFingerprint[] = [
     canonicalName: 'AddCommunicationParticipantAudience1788258600000',
     timestamp: 1788258600000,
     knownAliases: [],
-    requiredTables: [
-      'conversation_participant',
-      'conversation_participant_state',
-      'conversation',
-      'conversation_message',
-      'notification',
-      'communication_log',
-    ],
+    // Confirmed via `grep -n "CREATE TABLE" 1788258600000-*.ts`: exactly
+    // these two. `conversation`/`conversation_message`/`notification`/
+    // `communication_log` are pre-existing legacy tables this migration
+    // only adds columns to (via `ensureColumns`) -- they exist in every
+    // real Kentexa database regardless of Stage 2 status and must NOT
+    // gate the never-applied/partial distinction the way a genuinely new
+    // table does. Their Stage 2 columns are still fully checked below.
+    newTables: ['conversation_participant', 'conversation_participant_state'],
     requiredColumns: [
       { table: 'conversation_participant', column: 'principalType' },
       { table: 'conversation_participant', column: 'account_role_id' },
@@ -203,50 +220,62 @@ export async function evaluateMigration(
   // Sequential, not Promise.all — a single QueryRunner holds one Postgres
   // connection, and concurrent queries on it are unsafe (pg warns and will
   // remove support for this entirely in a future major version).
-  const tablePresence: Array<{ table: string; present: boolean }> = [];
-  for (const t of fp.requiredTables) {
-    tablePresence.push({ table: t, present: await tableExists(queryRunner, t) });
+  const newTablePresence: Array<{ table: string; present: boolean }> = [];
+  for (const t of fp.newTables) {
+    newTablePresence.push({ table: t, present: await tableExists(queryRunner, t) });
   }
-  const presentCount = tablePresence.filter((t) => t.present).length;
 
-  if (presentCount === 0) {
+  const columnPresence: Array<{ table: string; column: string; present: boolean }> = [];
+  for (const col of fp.requiredColumns) {
+    columnPresence.push({
+      ...col,
+      present: await columnExists(queryRunner, col.table, col.column),
+    });
+  }
+
+  // NEVER APPLIED: every genuinely-new table this migration would create
+  // is absent, AND every column/addition it would make to any table
+  // (new or pre-existing) is also absent. Checking requiredColumns here
+  // too (not just newTables) is what correctly classifies "one Stage 2
+  // column already exists somewhere, but neither new table does" as a
+  // partial state below, rather than silently calling it never-applied.
+  const allNewTablesAbsent = newTablePresence.every((t) => !t.present);
+  const allColumnsAbsent = columnPresence.every((c) => !c.present);
+  if (allNewTablesAbsent && allColumnsAbsent) {
     return {
       migration: fp,
       verdict: 'NOT_APPLICABLE',
       detail:
-        `None of the required tables (${fp.requiredTables.join(', ')}) exist. ` +
+        `Nothing this migration would create or add exists yet ` +
+        `(new tables: ${fp.newTables.join(', ') || '(none)'}; columns: ` +
+        `${fp.requiredColumns.map((c) => `${c.table}.${c.column}`).join(', ') || '(none)'}). ` +
         `This migration has genuinely never run here — run it normally via migration:run.`,
     };
   }
 
-  const missingTables = tablePresence.filter((t) => !t.present).map((t) => t.table);
-  if (missingTables.length > 0) {
+  // Something related exists — this must now be a COMPLETE, exact match
+  // (every new table, every column, every constraint) to be ADOPTABLE.
+  // Any single gap means PARTIAL or INCOMPATIBLE, both AMBIGUOUS.
+  const missingNewTables = newTablePresence.filter((t) => !t.present).map((t) => t.table);
+  if (missingNewTables.length > 0) {
     return {
       migration: fp,
       verdict: 'AMBIGUOUS',
       detail:
-        `Some but not all required tables exist. Present: ${tablePresence
-          .filter((t) => t.present)
-          .map((t) => t.table)
-          .join(', ') || '(none)'}. Missing: ${missingTables.join(', ')}. ` +
-        `This is a partial/incompatible state — a human must investigate before ` +
-        `either running the migration or adopting the ledger.`,
+        `Some Stage-2 object(s) already exist, but expected new table(s) are ` +
+        `still missing: ${missingNewTables.join(', ')}. This is a partial state — ` +
+        `a human must investigate before either running the migration or adopting the ledger.`,
     };
   }
 
-  const missingColumns: string[] = [];
-  for (const col of fp.requiredColumns) {
-    if (!(await columnExists(queryRunner, col.table, col.column))) {
-      missingColumns.push(`${col.table}.${col.column}`);
-    }
-  }
+  const missingColumns = columnPresence.filter((c) => !c.present).map((c) => `${c.table}.${c.column}`);
   if (missingColumns.length > 0) {
     return {
       migration: fp,
       verdict: 'AMBIGUOUS',
       detail:
-        `All required tables exist, but expected column(s) are missing: ` +
-        `${missingColumns.join(', ')}. This table set does not match what this ` +
+        `All required new tables exist, but expected column(s) are missing: ` +
+        `${missingColumns.join(', ')}. This does not match what this ` +
         `migration would create — refusing to guess.`,
     };
   }
