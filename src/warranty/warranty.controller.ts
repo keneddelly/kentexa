@@ -16,6 +16,10 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { SellerScopeService } from '../business/seller-scope.service';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { RoleContext } from '../role-context/role-context.types';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('warranty')
 export class WarrantyController {
@@ -54,25 +58,39 @@ export class WarrantyController {
     return this.service.findMine(req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch('claims/:claimId/review')
   async reviewClaim(
     @Param('claimId', ParseIntPipe) claimId: number,
     @Body('status') status: WarrantyClaimStatus,
     @Body('resolution') resolution: string,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    // Same shim shape ProductsController uses: resolve the caller to their
-    // real seller identity (or an employer's, if permissioned staff), but
-    // carry the real role through so the service's ADMIN bypass still works.
+    // Resolve the caller to their real seller identity (or an employer's, if
+    // permissioned staff). Admin authority comes from the CURRENTLY ACTIVE
+    // RoleContext, never the legacy req.user.role field.
     const sellerId = await this.sellerScope.resolve(req.user, 'canViewOrders').catch(() => req.user.id);
-    return this.service.reviewClaim(claimId, { id: sellerId, role: req.user.role }, { status, resolution });
+    return this.service.reviewClaim(
+      claimId,
+      { id: sellerId },
+      { status, resolution },
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get(':id')
-  findOne(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.service.findOne(id, req.user);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.findOne(
+      id,
+      req.user,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

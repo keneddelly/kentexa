@@ -28,6 +28,10 @@ import { SellerScopeService } from '../business/seller-scope.service';
 import { resolveCategoryKey } from '../categories/categories.data';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { RoleContext } from '../role-context/role-context.types';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('classifieds')
 export class ClassifiedsController {
@@ -149,13 +153,18 @@ export class ClassifiedsController {
   // specific invoice (buyer, seller, or admin) — previously any logged-in
   // user could read another buyer's name/phone/email plus the seller's
   // contact info just by knowing/guessing a (sequential) invoice number.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('invoice/:invoiceNumber')
   getInvoiceByNumber(
     @Param('invoiceNumber') invoiceNumber: string,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.getInvoiceByNumber(invoiceNumber, req.user);
+    return this.service.getInvoiceByNumber(
+      invoiceNumber,
+      req.user,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -231,9 +240,15 @@ export class ClassifiedsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { status: string },
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    // Admin can change status — pass admin user so permission check passes
-    return this.service.update(id, { status: body.status } as any, req.user);
+    // RolesGuard already confirmed the caller's ACTIVE role is admin.
+    return this.service.update(
+      id,
+      { status: body.status } as any,
+      req.user,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
   // ─── Static POST routes — MUST be before :id ─────────────────────────────
@@ -355,20 +370,23 @@ export class ClassifiedsController {
     return this.service.requestInvoice(id, req.user, body);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: updateClassifiedDto,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    // service.update() short-circuits its ownership check for role===ADMIN —
-    // carry the real role through the shim so that bypass still works.
+    // service.update() short-circuits its ownership check when the CALLER'S
+    // CURRENTLY ACTIVE role is admin — never the legacy req.user.role field.
     const sellerId = await this.resolveClassifiedActorId(req.user);
-    return this.service.update(id, dto, {
-      id: sellerId,
-      role: req.user.role,
-    } as User);
+    return this.service.update(
+      id,
+      dto,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -378,14 +396,19 @@ export class ClassifiedsController {
     return this.service.markAsSold(id, { id: sellerId } as User);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
-    return this.service.remove(id, {
-      id: sellerId,
-      role: req.user.role,
-    } as User);
+    return this.service.remove(
+      id,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
   // ── Price suggestion ──────────────────────────────────────────────────────

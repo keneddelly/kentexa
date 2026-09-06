@@ -190,16 +190,24 @@ export class SuperAgentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Post('parcels/:trackingNumber/resend-sender-sms')
-  resendSenderSms(@Request() req, @Param('trackingNumber') tn: string) {
-    return this.service.resendSenderSms(req.user, tn);
+  resendSenderSms(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.resendSenderSms(req.user, tn, roleContext);
   }
 
   // Resend the receiver's shipment-confirmed SMS.
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Post('parcels/:trackingNumber/resend-receiver-sms')
-  resendReceiverSms(@Request() req, @Param('trackingNumber') tn: string) {
-    return this.service.resendReceiverSms(req.user, tn);
+  resendReceiverSms(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.resendReceiverSms(req.user, tn, roleContext);
   }
 
   // Super agent dispatches parcel
@@ -210,8 +218,9 @@ export class SuperAgentsController {
     @Request() req,
     @Param('trackingNumber') tn: string,
     @Body() dto: any,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.dispatchParcel(req.user, tn, dto);
+    return this.service.dispatchParcel(req.user, tn, dto, roleContext);
   }
 
   // Update parcel status — ownership/direction enforced in the service
@@ -230,8 +239,9 @@ export class SuperAgentsController {
       note?: string;
       codBalanceCollected?: number;
     },
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.updateParcelStatus(req.user, tn, dto);
+    return this.service.updateParcelStatus(req.user, tn, dto, roleContext);
   }
 
   // ── Local agent — last-mile delivery ────────────────────────────────────────
@@ -327,8 +337,9 @@ export class SuperAgentsController {
     @Request() req,
     @Param('id') id: string,
     @Body() dto: any,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.addParcelsToShipment(req.user, Number(id), dto);
+    return this.service.addParcelsToShipment(req.user, Number(id), dto, roleContext);
   }
 
   // Dispatch a sealed bulk shipment with courier cost + receipt
@@ -339,8 +350,9 @@ export class SuperAgentsController {
     @Request() req,
     @Param('id') id: string,
     @Body() dto: any,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.dispatchBulkShipment(req.user, Number(id), dto);
+    return this.service.dispatchBulkShipment(req.user, Number(id), dto, roleContext);
   }
 
   // ── Admin ─────────────────────────────────────────────────────────────────
@@ -560,10 +572,20 @@ export class SuperAgentsController {
   // administratively (billing tools), not as a commerce participant
   // shipping their own goods; an active SUPER_AGENT already clears any
   // level requirement automatically (getLevel() returns 4 for one).
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post('shipments')
-  async createSellerShipment(@Request() req, @Body() body: any) {
-    if (![UserRole.ADMIN, UserRole.MANAGER].includes(req.user.role)) {
+  async createSellerShipment(
+    @Request() req,
+    @Body() body: any,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    // Active-role authority, never the legacy req.user.role field — an
+    // admin/manager operating as another role must clear the same
+    // verification gate as everyone else.
+    const isActiveStaff =
+      roleContext?.roleType === AccountRoleType.ADMIN ||
+      roleContext?.roleType === AccountRoleType.MANAGER;
+    if (!isActiveStaff) {
       await this.verification.requireFeature(req.user.id, Feature.CREATE_SHIPMENT);
     }
     return this.service.createSellerShipment(req.user, body);
@@ -579,14 +601,15 @@ export class SuperAgentsController {
     return this.service.updateShipmentTransport(req.user, tn, body);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch('shipments/:trackingNumber/arrived')
   confirmArrived(
     @Param('trackingNumber') tn: string,
     @Request() req,
     @Body() body: { city?: string; note?: string },
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.confirmShipmentArrived(req.user, tn, body);
+    return this.service.confirmShipmentArrived(req.user, tn, body, roleContext);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -629,7 +652,7 @@ export class SuperAgentsController {
   }
 
   @Post('parcels/:trackingNumber/transfer-hub')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   transferToHub(
     @Request() req,
     @Param('trackingNumber') trackingNumber: string,
@@ -642,8 +665,9 @@ export class SuperAgentsController {
       transportCompany?: string;
       note?: string;
     },
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.transferToHub(req.user.id, trackingNumber, dto);
+    return this.service.transferToHub(req.user.id, trackingNumber, dto, roleContext);
   }
 
   // ── Admin: Hub Management ─────────────────────────────────────────────────

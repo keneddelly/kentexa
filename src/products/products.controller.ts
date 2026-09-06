@@ -31,6 +31,10 @@ import { SellerScopeService } from '../business/seller-scope.service';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
 import { ProductSerialStatus } from './entities/product-serial.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { RoleContext } from '../role-context/role-context.types';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('products')
 export class ProductsController {
@@ -297,45 +301,51 @@ export class ProductsController {
     return this.service.create(dto, { id: sellerId } as User);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch(':id')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateProductDto,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    // service.update() short-circuits its ownership check for role===ADMIN —
-    // carry the real role through the shim so that bypass still works,
+    // service.update() short-circuits its ownership check when the CALLER'S
+    // CURRENTLY ACTIVE role is admin — never the legacy req.user.role field,
     // since sellerScope.resolve() gives an admin back their own id, not a
     // license to edit anyone's product.
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canManageProducts',
     );
-    return this.service.update(id, dto, {
-      id: sellerId,
-      role: req.user.role,
-    } as User);
+    return this.service.update(
+      id,
+      dto,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
   // Adds a real variant (own price/stock/images) linked to :id's product,
   // e.g. the same shirt in a different color — see products.entity.ts's
   // own comment on why this is a new Product row, not a restructure.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post(':id/variants')
   async createVariant(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: any,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canManageProducts',
     );
-    return this.service.createVariant(id, dto, {
-      id: sellerId,
-      role: req.user.role,
-    } as User);
+    return this.service.createVariant(
+      id,
+      dto,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
   // ── Serial/IMEI authenticity tracking (spec §14) ─────────────────────────
@@ -343,59 +353,87 @@ export class ProductsController {
   // createVariant()'s exact sellerScope.resolve() + ownership-check shape
   // above. The matching public read is 'verify/:code' near the top of this
   // controller.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post(':id/serials')
   async registerSerials(
     @Param('id', ParseIntPipe) id: number,
     @Body('serialNumbers') serialNumbers: string[],
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
-    return this.service.registerSerials(id, serialNumbers, {
-      id: sellerId,
-      role: req.user.role,
-    } as User);
+    return this.service.registerSerials(
+      id,
+      serialNumbers,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get(':id/serials')
-  async getSerials(@Param('id', ParseIntPipe) id: number, @Request() req) {
+  async getSerials(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
-    return this.service.getSerials(id, { id: sellerId, role: req.user.role } as User);
+    return this.service.getSerials(
+      id,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch('serials/:serialId/assign')
   async assignSerial(
     @Param('serialId', ParseIntPipe) serialId: number,
     @Body() dto: { orderId?: number; saleId?: number },
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
-    return this.service.assignSerial(serialId, dto, { id: sellerId, role: req.user.role } as User);
+    return this.service.assignSerial(
+      serialId,
+      dto,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch('serials/:serialId/report')
   async reportSerial(
     @Param('serialId', ParseIntPipe) serialId: number,
     @Body('status') status: ProductSerialStatus.REPORTED_LOST | ProductSerialStatus.REPORTED_STOLEN,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
-    return this.service.reportSerial(serialId, status, { id: sellerId, role: req.user.role } as User);
+    return this.service.reportSerial(
+      serialId,
+      status,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Delete(':id')
-  async remove(@Param('id', ParseIntPipe) id: number, @Request() req) {
+  async remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canManageProducts',
     );
-    return this.service.remove(id, {
-      id: sellerId,
-      role: req.user.role,
-    } as User);
+    return this.service.remove(
+      id,
+      { id: sellerId } as User,
+      roleContext?.roleType === AccountRoleType.ADMIN,
+    );
   }
 }

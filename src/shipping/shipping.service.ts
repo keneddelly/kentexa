@@ -12,7 +12,7 @@ import {
   OrderStatus,
   EscrowStatus,
 } from '../orders/entities/order.entity';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DisputesService } from '../disputes/disputes.service';
 import {
@@ -20,6 +20,8 @@ import {
   DisputeResolution,
 } from '../disputes/entities/dispute.entity';
 import { SellerScopeService } from '../business/seller-scope.service';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { RoleContext } from '../role-context/role-context.types';
 
 @Injectable()
 export class ShippingService {
@@ -168,7 +170,11 @@ export class ShippingService {
   // (incl. escrow/dispute state) by ID-guessing. requestingUser is optional
   // only so existing internal callers keep working; the controller always
   // passes it.
-  async getOrderTracking(orderId: number, requestingUser?: User) {
+  async getOrderTracking(
+    orderId: number,
+    requestingUser?: User,
+    roleContext?: RoleContext,
+  ) {
     const order = await this.orderRepo.findOne({
       where: { id: orderId },
       relations: { buyer: true, seller: true },
@@ -180,8 +186,8 @@ export class ShippingService {
         order.buyer?.id === requestingUser.id ||
         order.seller?.id === requestingUser.id;
       const isAdmin =
-        requestingUser.role === UserRole.ADMIN ||
-        requestingUser.role === UserRole.MANAGER;
+        roleContext?.roleType === AccountRoleType.ADMIN ||
+        roleContext?.roleType === AccountRoleType.MANAGER;
       const isAuthorizedStaff =
         !isOwner &&
         !isAdmin &&

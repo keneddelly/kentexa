@@ -16,6 +16,8 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { RoleContext } from '../role-context/role-context.types';
 
 @Controller('disputes')
 @UseGuards(JwtAuthGuard)
@@ -93,7 +95,8 @@ export class DisputesController {
       resolutionNote: string;
       refundAmount?: number;
     },
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.resolve(req.user, id, body);
+    return this.service.resolve(req.user, id, body, roleContext);
   }
 }

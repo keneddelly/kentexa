@@ -1603,6 +1603,7 @@ export class SuperAgentsService {
       dispatchMode?: string;
       notes?: string;
     },
+    roleContext?: RoleContext,
   ) {
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
@@ -1617,7 +1618,7 @@ export class SuperAgentsService {
     // Ownership check — a Super Agent may only dispatch parcels registered
     // under their own hub; ADMIN can act on any parcel. This did not exist
     // anywhere in the parcel-action code paths before.
-    const agent = await this.assertOwnsParcel(user, parcel);
+    const agent = await this.assertOwnsParcel(user, parcel, roleContext);
 
     const updates: any = {
       status: ParcelStatus.DISPATCHED,
@@ -1836,13 +1837,18 @@ export class SuperAgentsService {
 
   // Shared ownership check for the resend actions below — a Super Agent
   // may only act on their own hub's parcels; ADMIN may act on any.
-  private async assertOwnsParcel(user: User, parcel: Parcel) {
+  private async assertOwnsParcel(
+    user: User,
+    parcel: Parcel,
+    roleContext?: RoleContext,
+  ) {
     const agent = await this.superAgentRepo.findOne({
       where: { user: { id: user.id } },
     });
-    const isAdmin =
-      user.role === UserRole.ADMIN ||
-      (user as any).activeRoles?.includes(UserRole.ADMIN);
+    // Active-role authority, never the legacy user.role/activeRoles fields —
+    // an admin operating as another role loses this cross-hub override
+    // until they switch back.
+    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     if (!isAdmin && parcel.superAgent?.id !== agent?.id) {
       throw new ForbiddenException(
         'You can only act on parcels registered under your own hub.',
@@ -1875,13 +1881,17 @@ export class SuperAgentsService {
   // retry" — these two re-run the exact same message a second (or third)
   // time without touching parcel status or re-charging/re-counting
   // anything; each attempt gets its own audit-log entry.
-  async resendSenderSms(user: User, trackingNumber: string) {
+  async resendSenderSms(
+    user: User,
+    trackingNumber: string,
+    roleContext?: RoleContext,
+  ) {
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
       relations: { order: true, superAgent: true },
     });
     if (!parcel) throw new NotFoundException('Parcel not found');
-    await this.assertOwnsParcel(user, parcel);
+    await this.assertOwnsParcel(user, parcel, roleContext);
     if (!parcel.senderPhone)
       throw new BadRequestException('This parcel has no sender phone on file.');
 
@@ -1916,13 +1926,17 @@ export class SuperAgentsService {
     return { senderSmsSent };
   }
 
-  async resendReceiverSms(user: User, trackingNumber: string) {
+  async resendReceiverSms(
+    user: User,
+    trackingNumber: string,
+    roleContext?: RoleContext,
+  ) {
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
       relations: { superAgent: true },
     });
     if (!parcel) throw new NotFoundException('Parcel not found');
-    await this.assertOwnsParcel(user, parcel);
+    await this.assertOwnsParcel(user, parcel, roleContext);
     if (!parcel.buyerPhone)
       throw new BadRequestException('This parcel has no receiver phone on file.');
     if (parcel.status === ParcelStatus.PENDING || parcel.status === ParcelStatus.RECEIVED_AT_HUB) {
@@ -2482,6 +2496,7 @@ export class SuperAgentsService {
     user: User,
     shipmentId: number,
     dto: { trackingNumbers: string[] },
+    roleContext?: RoleContext,
   ) {
     if (!dto.trackingNumbers?.length) {
       throw new BadRequestException('At least one order/parcel is required');
@@ -2491,7 +2506,7 @@ export class SuperAgentsService {
       relations: { superAgent: true, lastMileSuperAgent: true },
     });
     if (!shipment) throw new NotFoundException('Bulk shipment not found');
-    const agent = await this.assertOwnsBulkShipment(user, shipment);
+    const agent = await this.assertOwnsBulkShipment(user, shipment, roleContext);
     if (!agent) throw new BadRequestException('Super Agent profile not found');
     if (shipment.status !== BulkShipmentStatus.OPEN) {
       throw new BadRequestException(
@@ -2659,13 +2674,14 @@ export class SuperAgentsService {
       courierCostReceipt?: string;
       notes?: string;
     },
+    roleContext?: RoleContext,
   ) {
     const shipment = await this.bulkRepo.findOne({
       where: { id: shipmentId },
       relations: { superAgent: true, lastMileSuperAgent: true },
     });
     if (!shipment) throw new NotFoundException('Bulk shipment not found');
-    const agent = await this.assertOwnsBulkShipment(user, shipment);
+    const agent = await this.assertOwnsBulkShipment(user, shipment, roleContext);
     if (shipment.status !== BulkShipmentStatus.OPEN) {
       throw new BadRequestException('This shipment has already been dispatched');
     }
@@ -2763,8 +2779,14 @@ export class SuperAgentsService {
   // Ownership check for bulk shipments, mirroring assertOwnsParcel — a
   // Super Agent may only act on their own hub's consolidated shipments;
   // ADMIN may act on any.
-  private async assertOwnsBulkShipment(user: User, shipment: BulkShipment) {
-    if (user.role === UserRole.ADMIN) return shipment.superAgent || null;
+  private async assertOwnsBulkShipment(
+    user: User,
+    shipment: BulkShipment,
+    roleContext?: RoleContext,
+  ) {
+    if (roleContext?.roleType === AccountRoleType.ADMIN) {
+      return shipment.superAgent || null;
+    }
     const agent = await this.superAgentRepo.findOne({
       where: { user: { id: user.id } },
     });
@@ -2890,6 +2912,7 @@ export class SuperAgentsService {
       // COD order DELIVERED; ignored for every other status/order.
       codBalanceCollected?: number;
     },
+    roleContext?: RoleContext,
   ) {
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
@@ -2914,9 +2937,7 @@ export class SuperAgentsService {
     const handlerAgent = await this.superAgentRepo
       .findOne({ where: { user: { id: user.id } } })
       .catch(() => null);
-    const isAdmin =
-      user.role === UserRole.ADMIN ||
-      (user as any).activeRoles?.includes(UserRole.ADMIN);
+    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     if (!isAdmin) {
       const isOriginAgent = parcel.superAgent?.id === handlerAgent?.id;
       const isDestinationAgent =
@@ -4106,6 +4127,7 @@ export class SuperAgentsService {
       city?: string;
       note?: string;
     },
+    roleContext?: RoleContext,
   ) {
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
@@ -4128,9 +4150,7 @@ export class SuperAgentsService {
     // Agent's own hub city matches the parcel's real destinationCity —
     // the next-best proxy for "the hub that's actually supposed to have
     // this parcel," never an arbitrary unrelated agent.
-    const isAdmin =
-      user.role === UserRole.ADMIN ||
-      (user as any).activeRoles?.includes(UserRole.ADMIN);
+    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     let callingAgent: SuperAgent | null = null;
     if (!isAdmin) {
       callingAgent = await this.superAgentRepo.findOne({
@@ -4428,6 +4448,7 @@ export class SuperAgentsService {
       transportCompany?: string;
       note?: string;
     },
+    roleContext?: RoleContext,
   ) {
     const sa = await this.superAgentRepo.findOne({
       where: { user: { id: userId } },
@@ -4441,9 +4462,8 @@ export class SuperAgentsService {
     });
     if (!parcel)
       throw new NotFoundException(`Kifurushi ${trackingNumber} hakijapatikana`);
-    const isAdmin =
-      (await this.userRepo.findOne({ where: { id: userId } }))?.role ===
-      UserRole.ADMIN;
+    // Active-role authority, never the legacy user.role field.
+    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     if (!isAdmin && (parcel as any).superAgent?.id !== sa.id) {
       throw new ForbiddenException(
         'You can only hand off parcels registered under your own hub.',

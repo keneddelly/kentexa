@@ -13,7 +13,7 @@ import { DigitalProductAsset } from './entities/digital-product-asset.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateReviewDto } from './dto/create-review.dto';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
@@ -676,9 +676,10 @@ export class ProductsService {
       specs?: Record<string, string>;
     },
     user: User,
+    isActiveAdmin = false,
   ): Promise<Product> {
     const source = await this.findOne(sourceProductId);
-    if (user.role !== UserRole.ADMIN) {
+    if (!isActiveAdmin) {
       if (!source.seller || source.seller.id !== user.id) {
         throw new ForbiddenException('You can only add variants to your own products');
       }
@@ -766,10 +767,11 @@ export class ProductsService {
     id: number,
     dto: UpdateProductDto,
     user: User,
+    isActiveAdmin = false,
   ): Promise<Product> {
     const product = await this.findOne(id);
 
-    if (user.role !== UserRole.ADMIN) {
+    if (!isActiveAdmin) {
       if (!product.seller || product.seller.id !== user.id) {
         throw new ForbiddenException('You can only edit your own products');
       }
@@ -803,13 +805,13 @@ export class ProductsService {
     return saved;
   }
 
-  async remove(id: number, user: User) {
+  async remove(id: number, user: User, isActiveAdmin = false) {
     const product = await this.repo.findOne({
       where: { id },
       relations: { seller: true },
     });
     if (!product) throw new NotFoundException('Product not found');
-    if (user.role !== UserRole.ADMIN && product.seller?.id !== user.id) {
+    if (!isActiveAdmin && product.seller?.id !== user.id) {
       throw new ForbiddenException('You can only delete your own products');
     }
     await this.repo.remove(product);
@@ -1057,9 +1059,10 @@ export class ProductsService {
     productId: number,
     serialNumbers: string[],
     user: User,
+    isActiveAdmin = false,
   ): Promise<{ registered: string[]; duplicates: string[] }> {
     const product = await this.findOne(productId);
-    if (user.role !== UserRole.ADMIN) {
+    if (!isActiveAdmin) {
       if (!product.seller || product.seller.id !== user.id) {
         throw new ForbiddenException('You can only register serials for your own products');
       }
@@ -1107,9 +1110,13 @@ export class ProductsService {
     return { registered, duplicates };
   }
 
-  async getSerials(productId: number, user: User): Promise<ProductSerial[]> {
+  async getSerials(
+    productId: number,
+    user: User,
+    isActiveAdmin = false,
+  ): Promise<ProductSerial[]> {
     const product = await this.findOne(productId);
-    if (user.role !== UserRole.ADMIN) {
+    if (!isActiveAdmin) {
       if (!product.seller || product.seller.id !== user.id) {
         throw new ForbiddenException('You can only view serials for your own products');
       }
@@ -1117,11 +1124,18 @@ export class ProductsService {
     return this.serialRepo.find({ where: { productId }, order: { createdAt: 'DESC' } });
   }
 
-  private async loadOwnedSerial(serialId: number, user: User): Promise<ProductSerial> {
+  // isActiveAdmin comes from the caller's CURRENTLY ACTIVE RoleContext
+  // (resolved in the controller), never the legacy user.role field — an
+  // admin operating as another role must not retain this override.
+  private async loadOwnedSerial(
+    serialId: number,
+    user: User,
+    isActiveAdmin = false,
+  ): Promise<ProductSerial> {
     const serial = await this.serialRepo.findOne({ where: { id: serialId } });
     if (!serial) throw new NotFoundException('Serial not found');
     const product = await this.findOne(serial.productId);
-    if (user.role !== UserRole.ADMIN) {
+    if (!isActiveAdmin) {
       if (!product.seller || product.seller.id !== user.id) {
         throw new ForbiddenException('You can only manage serials for your own products');
       }
@@ -1133,8 +1147,9 @@ export class ProductsService {
     serialId: number,
     dto: { orderId?: number; saleId?: number },
     user: User,
+    isActiveAdmin = false,
   ): Promise<ProductSerial> {
-    const serial = await this.loadOwnedSerial(serialId, user);
+    const serial = await this.loadOwnedSerial(serialId, user, isActiveAdmin);
     if (!dto.orderId && !dto.saleId) {
       throw new BadRequestException('orderId or saleId is required');
     }
@@ -1149,8 +1164,9 @@ export class ProductsService {
     serialId: number,
     status: ProductSerialStatus.REPORTED_LOST | ProductSerialStatus.REPORTED_STOLEN,
     user: User,
+    isActiveAdmin = false,
   ): Promise<ProductSerial> {
-    const serial = await this.loadOwnedSerial(serialId, user);
+    const serial = await this.loadOwnedSerial(serialId, user, isActiveAdmin);
     serial.status = status;
     return this.serialRepo.save(serial);
   }

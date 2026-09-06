@@ -45,6 +45,8 @@ import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/p
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
 import { RoleContextService } from '../role-context/role-context.service';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { RoleContext } from '../role-context/role-context.types';
 import {
   AccountRoleStatus,
   AccountRoleType,
@@ -938,6 +940,7 @@ export class TransportService {
       proofUrl?: string;
       notes?: string;
     },
+    roleContext?: RoleContext,
   ) {
     const a = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
     if (!a) throw new NotFoundException('Mgawo haukupatikana');
@@ -948,7 +951,12 @@ export class TransportService {
     const isOwningProvider = !!providerProfile && providerProfile.id === a.providerId;
     const isCreatingSuperAgent =
       a.assignedById === caller.id && !!(await this.findCallerSuperAgent(caller.id));
-    const isAdmin = [UserRole.ADMIN, UserRole.MANAGER].includes(caller.role);
+    // Active-role authority, never the legacy caller.role field — an admin
+    // operating as another role loses the state-machine-skip privilege below
+    // until they switch back.
+    const isAdmin =
+      roleContext?.roleType === AccountRoleType.ADMIN ||
+      roleContext?.roleType === AccountRoleType.MANAGER;
     if (!isOwningProvider && !isCreatingSuperAgent && !isAdmin) {
       throw new ForbiddenException('Not authorized to update this transport assignment');
     }

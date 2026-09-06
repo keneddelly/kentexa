@@ -29,6 +29,8 @@ import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { RoleContext } from '../role-context/role-context.types';
 
 @Controller('transport')
 export class TransportController {
@@ -205,8 +207,9 @@ export class TransportController {
     @Param('id', ParseIntPipe) id: number,
     @Body()
     dto: { status: AssignmentStatus; proofUrl?: string; notes?: string },
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.svc.updateAssignmentStatus(req.user, id, dto);
+    return this.svc.updateAssignmentStatus(req.user, id, dto, roleContext);
   }
 
   @Get('assignments/track/:trackingNumber')

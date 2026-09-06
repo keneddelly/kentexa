@@ -16,7 +16,7 @@ import { WarrantyClaim, WarrantyClaimStatus } from './entities/warranty-claim.en
 import { WarrantyClaimAuditLog } from './entities/warranty-claim-audit-log.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Product } from '../products/entities/products.entity';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { BrandsService } from '../brands/brands.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { ActivityEventService } from '../activity/activity-event.service';
@@ -105,11 +105,15 @@ export class WarrantyService {
     return this.repo.find({ where: { buyerId: userId }, order: { createdAt: 'DESC' } });
   }
 
-  async findOne(id: number, user: User): Promise<WarrantyRegistration> {
+  async findOne(
+    id: number,
+    user: User,
+    isActiveAdmin = false,
+  ): Promise<WarrantyRegistration> {
     const registration = await this.repo.findOne({ where: { id } });
     if (!registration) throw new NotFoundException('Warranty registration not found');
     if (
-      user.role !== UserRole.ADMIN &&
+      !isActiveAdmin &&
       registration.buyerId !== user.id &&
       registration.sellerId !== user.id
     ) {
@@ -193,15 +197,16 @@ export class WarrantyService {
   // against product.seller.id.
   async reviewClaim(
     claimId: number,
-    caller: { id: number; role: UserRole },
+    caller: { id: number },
     dto: { status: WarrantyClaimStatus; resolution?: string },
+    isActiveAdmin = false,
   ): Promise<WarrantyClaim> {
     const claim = await this.claimRepo.findOne({ where: { id: claimId } });
     if (!claim) throw new NotFoundException('Warranty claim not found');
     const registration = await this.repo.findOne({ where: { id: claim.registrationId } });
     if (!registration) throw new NotFoundException('Warranty registration not found');
 
-    if (caller.role !== UserRole.ADMIN && registration.sellerId !== caller.id) {
+    if (!isActiveAdmin && registration.sellerId !== caller.id) {
       throw new ForbiddenException('You cannot review this claim');
     }
     if (

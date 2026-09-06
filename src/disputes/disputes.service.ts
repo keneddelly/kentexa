@@ -22,6 +22,8 @@ import { REFUSED_DELIVERY_UPFRONT_REFUNDABLE } from '../cod/cod-policy.config';
 import { User, UserRole } from '../users/entities/user.entity';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { SmsService } from '../sms/sms.service';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { RoleContext } from '../role-context/role-context.types';
 
 @Injectable()
 export class DisputesService {
@@ -229,6 +231,7 @@ export class DisputesService {
       resolutionNote: string;
       refundAmount?: number;
     },
+    roleContext?: RoleContext,
   ) {
     const dispute = await this.disputeRepo.findOne({
       where: { id: disputeId },
@@ -240,9 +243,13 @@ export class DisputesService {
     });
     if (!dispute) throw new NotFoundException('Dispute not found');
 
-    // Only admin or assigned arbitrator can resolve
+    // Only admin or assigned arbitrator can resolve. The route's RolesGuard
+    // already confirms the caller's ACTIVE role is admin/manager/arbitrator;
+    // this defense-in-depth check reuses that SAME resolved RoleContext,
+    // never the legacy user.role field.
     const isAdmin =
-      user.role === UserRole.ADMIN || user.role === UserRole.MANAGER;
+      roleContext?.roleType === AccountRoleType.ADMIN ||
+      roleContext?.roleType === AccountRoleType.MANAGER;
     const isArbitrator = dispute.arbitrator?.id === user.id;
     if (!isAdmin && !isArbitrator)
       throw new ForbiddenException('Not authorised to resolve this dispute');

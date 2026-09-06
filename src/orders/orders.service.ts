@@ -20,6 +20,8 @@ import { CreateOrderDto, CheckoutPaymentMethod } from './dto/create-order.dto';
 import { ProductsService } from '../products/products.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { RoleContext } from '../role-context/role-context.types';
 import { InvoicesService } from '../invoices/invoices.service';
 import { Payout } from '../payouts/entities/payout.entity';
 import { Review } from '../store/review.entity';
@@ -1660,6 +1662,7 @@ export class OrdersService {
   async generateConfirmationLink(
     orderId: number,
     seller: User,
+    roleContext?: RoleContext,
   ): Promise<{
     confirmationUrl: string;
     buyerPhone: string | null;
@@ -1670,11 +1673,13 @@ export class OrdersService {
     });
     if (!order) throw new NotFoundException('Order not found');
 
-    // Allow seller OR admin OR an authorized team member to generate
+    // Allow seller OR admin OR an authorized team member to generate. Admin
+    // authority comes from the CURRENTLY ACTIVE RoleContext, never the
+    // legacy User.role field.
     const isSeller =
       (order.seller as any)?.id === seller.id ||
       (order as any).createdByUserId === seller.id;
-    const isAdmin = seller.role === 'admin';
+    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     const isAuthorizedStaff =
       !isSeller &&
       !isAdmin &&
@@ -2666,7 +2671,11 @@ export class OrdersService {
   }
 
   // ── Get Order Detail ────────────────────────────────────────────────────── ──────────────────────────────────────────────────────
-  async getOrderDetail(orderId: number, user: User): Promise<Order> {
+  async getOrderDetail(
+    orderId: number,
+    user: User,
+    roleContext?: RoleContext,
+  ): Promise<Order> {
     const order = await this.repo.findOne({
       where: { id: orderId },
       relations: { product: true, seller: true, buyer: true },
@@ -2674,11 +2683,13 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order not found');
 
     // Allow: buyer, seller, admin, creator of offline order, or an
-    // authorized team member of the seller
+    // authorized team member of the seller. Admin authority comes from the
+    // CURRENTLY ACTIVE RoleContext, never the legacy User.role field — an
+    // admin operating as buyer/seller must not retain this override.
     const isBuyer = order.buyer && order.buyer.id === user.id;
     const isSeller = order.seller && order.seller.id === user.id;
     const isCreator = order.createdByUserId === user.id;
-    const isAdmin = user.role === UserRole.ADMIN;
+    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     const isAuthorizedStaff =
       !isBuyer &&
       !isSeller &&
@@ -2707,13 +2718,11 @@ export class OrdersService {
   }
 
   // ── Cancel Order ──────────────────────────────────────────────────────────
-  async cancel(id: number, user: User) {
+  async cancel(id: number, user: User, roleContext?: RoleContext) {
     const order = await this.repo.findOne({ where: { id } });
     if (!order) throw new NotFoundException('Order not found');
-    if (
-      !order.buyer ||
-      (order.buyer.id !== user.id && user.role !== UserRole.ADMIN)
-    )
+    const isActiveAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
+    if (!order.buyer || (order.buyer.id !== user.id && !isActiveAdmin))
       throw new ForbiddenException('Access denied');
     if (order.status !== OrderStatus.PENDING_PAYMENT)
       throw new BadRequestException('Only pending orders can be cancelled');
@@ -2728,7 +2737,7 @@ export class OrdersService {
       eventType: 'ORDER_CANCELLED',
       category: ActivityCategory.COMMERCE,
       actorId: user.id,
-      actorType: user.role === UserRole.ADMIN ? 'admin' : 'buyer',
+      actorType: isActiveAdmin ? 'admin' : 'buyer',
       businessId: cancelledSellerProfile?.id ?? null,
       relatedUserId: order.seller?.id ?? null,
       targetType: 'order',
@@ -3040,8 +3049,19 @@ export class OrdersService {
   }
 
   // ── Admin: force change order status ────────────────────────────────────
-  async adminChangeStatus(orderId: number, status: string, admin: User) {
-    if (!['admin', 'manager'].includes(admin.role)) {
+  // Route is already gated by RolesGuard/@Roles(ADMIN, MANAGER) — this check
+  // is defense-in-depth against the SAME resolved RoleContext, never the
+  // legacy admin.role field (an admin operating as another role loses this
+  // override until they switch back).
+  async adminChangeStatus(
+    orderId: number,
+    status: string,
+    roleContext: RoleContext,
+  ) {
+    if (
+      roleContext?.roleType !== AccountRoleType.ADMIN &&
+      roleContext?.roleType !== AccountRoleType.MANAGER
+    ) {
       throw new ForbiddenException('Admin only');
     }
     const order = await this.repo.findOne({ where: { id: orderId } });

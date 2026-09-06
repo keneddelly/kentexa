@@ -24,7 +24,7 @@ import {
 } from '../orders/entities/order.entity';
 import { CreateClassifiedDto } from './dto/create-classified.dto';
 import { updateClassifiedDto } from './dto/update-classified.dto';
-import { User, UserRole } from '../users/entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
@@ -391,9 +391,14 @@ export class ClassifiedsService {
   }
 
   // ─── Update ───────────────────────────────────────────────────────────────
-  async update(id: number, dto: updateClassifiedDto, user: User) {
+  async update(
+    id: number,
+    dto: updateClassifiedDto,
+    user: User,
+    isActiveAdmin = false,
+  ) {
     const listing = await this.findOne(id);
-    if (listing.seller.id !== user.id && user.role !== UserRole.ADMIN) {
+    if (listing.seller.id !== user.id && !isActiveAdmin) {
       throw new ForbiddenException('Not your listing');
     }
     if (dto.category || dto.subcategory || dto.specs) {
@@ -415,9 +420,9 @@ export class ClassifiedsService {
   }
 
   // ─── Remove ───────────────────────────────────────────────────────────────
-  async remove(id: number, user: User) {
+  async remove(id: number, user: User, isActiveAdmin = false) {
     const listing = await this.findOne(id);
-    if (listing.seller.id !== user.id && user.role !== UserRole.ADMIN) {
+    if (listing.seller.id !== user.id && !isActiveAdmin) {
       throw new ForbiddenException('Not your listing');
     }
     await this.repo.remove(listing);
@@ -799,7 +804,11 @@ export class ClassifiedsService {
   // seller, or admin) — invoice numbers are sequential, so without this
   // check any logged-in user could read another buyer's/seller's contact
   // info just by guessing a number.
-  async getInvoiceByNumber(invoiceNumber: string, user: User) {
+  async getInvoiceByNumber(
+    invoiceNumber: string,
+    user: User,
+    isActiveAdmin = false,
+  ) {
     const classifiedInvoice = await this.invoiceRequestRepo.findOne({
       where: { invoiceNumber },
       relations: { classified: true, buyer: true, seller: true },
@@ -807,7 +816,7 @@ export class ClassifiedsService {
 
     if (classifiedInvoice) {
       const isParty =
-        user.role === UserRole.ADMIN ||
+        isActiveAdmin ||
         classifiedInvoice.buyer?.id === user.id ||
         classifiedInvoice.seller?.id === user.id;
       if (!isParty) throw new ForbiddenException('Not your invoice');
@@ -856,7 +865,7 @@ export class ClassifiedsService {
 
     if (orderInvoice) {
       const isParty =
-        user.role === UserRole.ADMIN ||
+        isActiveAdmin ||
         orderInvoice.buyer?.id === user.id ||
         orderInvoice.order?.buyer?.id === user.id ||
         orderInvoice.order?.seller?.id === user.id;

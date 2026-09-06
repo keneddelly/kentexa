@@ -15,6 +15,10 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { SellerScopeService } from '../business/seller-scope.service';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { RoleContext } from '../role-context/role-context.types';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('shipping')
 export class ShippingController {
@@ -80,10 +84,14 @@ export class ShippingController {
   }
 
   // Buyer/seller on the order, or admin — not any logged-in user.
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('orders/:id/tracking')
-  getTracking(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.shippingService.getOrderTracking(id, req.user);
+  getTracking(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.shippingService.getOrderTracking(id, req.user, roleContext);
   }
 
   // Seller: Get my orders

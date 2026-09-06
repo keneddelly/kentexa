@@ -26,6 +26,8 @@ import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { RoleContext } from '../role-context/role-context.types';
 
 @Controller('orders')
 export class OrdersController {
@@ -101,10 +103,14 @@ export class OrdersController {
     return this.ordersService.findMyOrders(req.user);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get(':id/detail')
-  getOrderDetail(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.ordersService.getOrderDetail(id, req.user);
+  getOrderDetail(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.ordersService.getOrderDetail(id, req.user, roleContext);
   }
 
   // Find order by tracking number — public, for boda/personal tracking fallback
@@ -120,15 +126,19 @@ export class OrdersController {
     return this.ordersService.createOnBehalf(req.user, dto);
   }
 
-  // Admin: force change order status
-  @UseGuards(JwtAuthGuard)
+  // Admin: force change order status — requires the CURRENTLY ACTIVE role to
+  // be admin/manager (RolesGuard resolves this via RoleContext, never the
+  // account's legacy User.role — an admin operating as buyer/seller must not
+  // retain this override until they switch back).
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
   @Patch(':id/admin-status')
   adminChangeStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { status: string },
-    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.ordersService.adminChangeStatus(id, body.status, req.user);
+    return this.ordersService.adminChangeStatus(id, body.status, roleContext);
   }
 
   // Get available delivery methods for a buyer address + product
@@ -141,10 +151,14 @@ export class OrdersController {
     return this.ordersService.getDeliveryMethods(address, Number(productId));
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch(':id/cancel')
-  cancel(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.ordersService.cancel(id, req.user);
+  cancel(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.ordersService.cancel(id, req.user, roleContext);
   }
 
   // ── Buyer: Confirm receipt ────────────────────────────────────────────────
@@ -334,13 +348,14 @@ export class OrdersController {
   }
 
   // ── Seller: Generate confirmation link & send to buyer ───────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post(':id/send-confirmation')
   generateConfirmationLink(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.ordersService.generateConfirmationLink(id, req.user);
+    return this.ordersService.generateConfirmationLink(id, req.user, roleContext);
   }
 
   // ── Public: Get order info by confirmation token (no auth) ────────────────
