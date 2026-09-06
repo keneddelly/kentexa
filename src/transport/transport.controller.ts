@@ -30,7 +30,7 @@ import { ActiveRoleGuard } from '../role-context/active-role.guard';
 import { RequireActiveRole } from '../role-context/require-active-role.decorator';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
-import { RoleContext } from '../role-context/role-context.types';
+import type { RoleContext } from '../role-context/role-context.types';
 
 @Controller('transport')
 export class TransportController {

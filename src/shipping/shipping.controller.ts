@@ -17,7 +17,7 @@ import { UserRole } from '../users/entities/user.entity';
 import { SellerScopeService } from '../business/seller-scope.service';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
-import { RoleContext } from '../role-context/role-context.types';
+import type { RoleContext } from '../role-context/role-context.types';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Controller('shipping')

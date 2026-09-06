@@ -45,8 +45,7 @@ import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/p
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
 import { RoleContextService } from '../role-context/role-context.service';
-import { AccountRoleType } from '../role-context/entities/account-role.entity';
-import { RoleContext } from '../role-context/role-context.types';
+import type { RoleContext } from '../role-context/role-context.types';
 import {
   AccountRoleStatus,
   AccountRoleType,

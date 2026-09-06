@@ -25,7 +25,8 @@
     "migration:run": "typeorm-ts-node-commonjs migration:run -d src/database/data-source.ts",
     "migration:revert": "typeorm-ts-node-commonjs migration:revert -d src/database/data-source.ts",
     "migration:show": "typeorm-ts-node-commonjs migration:show -d src/database/data-source.ts",
-    "migration:baseline:adopt": "ts-node src/database/adopt-render-baseline.ts"
+    "migration:baseline:adopt": "ts-node src/database/adopt-render-baseline.ts",
+    "migration:reconcile": "ts-node src/database/reconcile-role-context-migrations.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
