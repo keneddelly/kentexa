@@ -711,16 +711,32 @@ export class ConversationService {
         subject: `Mazungumzo na ${customer.name}`,
         commerceProfileId: verifiedProfileId,
       });
+      // Explicit creation provenance -- never inferred from status,
+      // timestamps, id, or classificationReason. `createdNow` is true only
+      // when THIS call's own insert actually succeeded; it stays false on
+      // the 23505 recovery path below, even though `convo` still ends up
+      // holding a real row by the end of this block. This distinction
+      // matters because the "not found by the OPEN-only lookup above" case
+      // is not the same as "genuinely new": a real historical conversation
+      // sitting in a non-OPEN status (e.g. `pending`) is invisible to that
+      // lookup, so a fresh insert attempt against it lands on this exact
+      // 23505 path and recovers that pre-existing row as the "winner" --
+      // which must never be treated as if it had just been created.
+      let createdNow = false;
       try {
         convo = await this.convoRepo.save(convo);
         convo.customer = customer;
         convo.seller = customer.seller;
+        createdNow = true;
       } catch (err: any) {
-        // 23505 = unique_violation on the partial indexes above — a
+        // 23505 = unique_violation on the partial indexes above -- either a
         // concurrent request (double-tap, retry-on-timeout) won the race
-        // and already created the matching conversation. Not an error from
+        // and already created the matching conversation, OR (see comment
+        // above) a real pre-existing conversation in a non-OPEN status was
+        // invisible to the initial lookup. Either way, not an error from
         // the caller's point of view: re-fetch and hand back that row
-        // instead of throwing, exactly like a normal find-or-create result.
+        // instead of throwing, exactly like a normal find-or-create result
+        // -- but `createdNow` stays false, since this call did not create it.
         if (err?.code !== '23505') throw err;
         const winner = await this.convoRepo.findOne({
           where: {
@@ -737,9 +753,13 @@ export class ConversationService {
       // Dual-write, new conversations only (checkpoint B) -- a pre-existing
       // legacy conversation found above is NOT retroactively touched here;
       // that's the separate, deliberately-manual classifier/backfill path.
-      // Best-effort: a Stage 2 resolver hiccup must never break opening a
-      // conversation, which the legacy write above already completed.
-      if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+      // Gated on createdNow, not merely on reaching this branch: recovering
+      // an existing conversation via the 23505 path above must never run
+      // new-conversation initialization against it, regardless of that
+      // conversation's own classificationStatus. Best-effort: a Stage 2
+      // resolver hiccup must never break opening a conversation, which the
+      // legacy write above already completed.
+      if (createdNow && this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
         await this.dualWriteNewConversation(convo).catch(() => {});
       }
     }

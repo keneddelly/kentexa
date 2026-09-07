@@ -132,6 +132,112 @@ describe('ConversationService dual-write (Stage 2 checkpoint B/E)', () => {
 
       expect(participants.ensureAccountRoleParticipant).not.toHaveBeenCalled();
     });
+
+    // Legacy-conversation dual-write escape hatch (production conversation
+    // #5): getOrCreateConversation's initial lookup only matches
+    // status=OPEN. A real historical conversation sitting in a different
+    // status (e.g. 'pending') is invisible to it, so an insert attempt
+    // against the exact same (sellerId, customerId, commerceProfileId)
+    // collides with the partial unique index (23505), and the recovery
+    // path re-fetches that pre-existing row as the "winner" -- which must
+    // never be treated as newly created merely because this call's own
+    // insert didn't survive.
+    describe('23505 recovery must not run new-conversation initialization on a recovered pre-existing conversation', () => {
+      it('production conversation #5 equivalent: a pre-existing LEGACY_UNSCOPED conversation recovered after 23505 keeps its classification untouched and gains no synthesized participants', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        const preExistingWinner = {
+          id: 5, sellerId: 1, customerId: 55, status: 'pending', // NOT 'open' -- invisible to the initial lookup
+          classificationStatus: ConversationClassificationStatus.LEGACY_UNSCOPED,
+          customer: { id: 55, userId: 2 },
+        };
+        convoRepo.findOne
+          .mockResolvedValueOnce(null) // initial OPEN-only lookup: not found
+          .mockResolvedValueOnce(preExistingWinner); // 23505 recovery re-fetch: the real pre-existing row
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2, seller: { id: 1 } });
+        const conflict: any = new Error('duplicate key value violates unique constraint');
+        conflict.code = '23505';
+        convoRepo.save.mockRejectedValueOnce(conflict);
+
+        const result = await service.getOrCreateConversation(1, 55, null);
+
+        expect(result).toBe(preExistingWinner);
+        // The decisive assertions: no new-conversation initialization ran
+        // against the recovered row.
+        expect(convoRepo.update).not.toHaveBeenCalled();
+        expect(participants.ensureAccountRoleParticipant).not.toHaveBeenCalled();
+        expect(participants.ensureExternalContactParticipant).not.toHaveBeenCalled();
+      });
+
+      it('a 23505-recovered conversation that is ALREADY a modern, fully-scoped RESOLVED conversation also does not rerun initialization (idempotent, not merely lucky on legacy rows)', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        const alreadyScopedWinner = {
+          id: 900, sellerId: 1, customerId: 55, status: 'open',
+          classificationStatus: ConversationClassificationStatus.RESOLVED,
+          classificationReason: 'seller_and_buyer_account_roles_resolved',
+          customer: { id: 55, userId: 2 },
+        };
+        convoRepo.findOne
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(alreadyScopedWinner);
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2, seller: { id: 1 } });
+        const conflict: any = new Error('duplicate key value violates unique constraint');
+        conflict.code = '23505';
+        convoRepo.save.mockRejectedValueOnce(conflict);
+
+        const result = await service.getOrCreateConversation(1, 55, null);
+
+        expect(result).toBe(alreadyScopedWinner);
+        expect(convoRepo.update).not.toHaveBeenCalled();
+        expect(participants.ensureAccountRoleParticipant).not.toHaveBeenCalled();
+      });
+
+      it('retry/concurrency idempotency: a genuine 23505 double-tap still resolves to a single real conversation, with initialization attributed to exactly one of the two calls, never both, never a recovered row', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2, seller: { id: 1 } });
+
+        // First call: genuinely creates the row.
+        convoRepo.findOne.mockResolvedValueOnce(null);
+        convoRepo.save.mockResolvedValueOnce({ id: 501, sellerId: 1, customerId: 55, status: 'open' });
+        const first = await service.getOrCreateConversation(1, 55, null);
+        expect(first.id).toBe(501);
+        expect(convoRepo.update).toHaveBeenCalledTimes(1); // exactly one initialization
+
+        // Second call (the "double-tap"): the row now exists but this
+        // call's own OPEN lookup finds it directly (the normal case once
+        // status=open) -- no 23505 involved, no re-initialization.
+        convoRepo.findOne.mockResolvedValueOnce({ id: 501, sellerId: 1, customerId: 55, status: 'open' });
+        const second = await service.getOrCreateConversation(1, 55, null);
+        expect(second.id).toBe(501);
+        expect(convoRepo.update).toHaveBeenCalledTimes(1); // still exactly one -- not re-run
+        expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledTimes(2); // seller + buyer, from the FIRST call only
+      });
+
+      it('a genuinely NEW conversation (no prior row at all) still receives full initialization through the 23505 branch\'s sibling success path -- confirms the fix did not disable dual-write globally', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        convoRepo.findOne.mockResolvedValueOnce(null);
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2, seller: { id: 1 } });
+        // save() succeeds outright -- no 23505 at all.
+
+        await service.getOrCreateConversation(1, 55, null);
+
+        expect(convoRepo.update).toHaveBeenCalledWith(500, expect.objectContaining({ classificationStatus: ConversationClassificationStatus.RESOLVED }));
+        expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledWith(500, 10, ParticipantKind.SELLER);
+        expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledWith(500, 20, ParticipantKind.BUYER);
+      });
+
+      it('a genuine unique-violation with no recoverable winner (should be impossible, but the original error must still surface rather than being swallowed) still throws', async () => {
+        const { service, convoRepo, customerRepo } = build();
+        convoRepo.findOne
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce(null); // recovery re-fetch also finds nothing -- genuinely anomalous
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2, seller: { id: 1 } });
+        const conflict: any = new Error('duplicate key value violates unique constraint');
+        conflict.code = '23505';
+        convoRepo.save.mockRejectedValueOnce(conflict);
+
+        await expect(service.getOrCreateConversation(1, 55, null)).rejects.toThrow(conflict);
+      });
+    });
   });
 
   describe('sendMessage (seller side)', () => {
