@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
-import { parseArgs, main } from './backfill-conversation-classification';
+import { parseArgs, main, REQUIRED_CONFIRMATION_TOKEN } from './backfill-conversation-classification';
 import { Conversation, ConversationClassificationStatus } from '../business/entities/conversation.entity';
 import { BusinessCustomer } from '../business/entities/business-customer.entity';
 import {
@@ -22,14 +22,11 @@ import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 
 const SOURCE = fs.readFileSync(path.join(__dirname, 'backfill-conversation-classification.ts'), 'utf8');
+const CONFIRM = ['--confirm-production-backfill', REQUIRED_CONFIRMATION_TOKEN];
 
 describe('backfill-conversation-classification CLI — parseArgs (pure, no DB)', () => {
   it('defaults to dry-run (execute=false) when --execute is absent', () => {
     expect(parseArgs([]).execute).toBe(false);
-  });
-
-  it('sets execute=true only when --execute is explicitly passed', () => {
-    expect(parseArgs(['--execute']).execute).toBe(true);
   });
 
   it('rejects --offset entirely -- offset is structurally fixed at 0, not a CLI-configurable value', () => {
@@ -37,7 +34,7 @@ describe('backfill-conversation-classification CLI — parseArgs (pure, no DB)',
     expect(() => parseArgs(['--offset=5'])).toThrow(/--offset is not a supported flag/);
   });
 
-  it('parses --batch-size and --expect-* with the reviewed defaults (7/1/5) when omitted', () => {
+  it('parses --batch-size and --expect-* with the reviewed defaults (7/1/5) for dry-run when omitted', () => {
     const opts = parseArgs([]);
     expect(opts.batchSize).toBe(50);
     expect(opts.expectResolved).toBe(7);
@@ -45,12 +42,44 @@ describe('backfill-conversation-classification CLI — parseArgs (pure, no DB)',
     expect(opts.expectAmbiguous).toBe(5);
   });
 
-  it('parses explicit --batch-size / --expect-* overrides', () => {
+  it('parses explicit --batch-size / --expect-* overrides for dry-run', () => {
     const opts = parseArgs(['--batch-size', '20', '--expect-resolved', '3', '--expect-external=2', '--expect-ambiguous', '1']);
     expect(opts.batchSize).toBe(20);
     expect(opts.expectResolved).toBe(3);
     expect(opts.expectExternal).toBe(2);
     expect(opts.expectAmbiguous).toBe(1);
+  });
+
+  describe('--execute safeguards', () => {
+    it('--execute without any --expect-* flags fails before anything else is checked', () => {
+      expect(() => parseArgs(['--execute', ...CONFIRM])).toThrow(/requires explicit --expect-resolved, --expect-external, and --expect-ambiguous/);
+    });
+
+    it('--execute with only SOME --expect-* flags still fails (all three required)', () => {
+      expect(() => parseArgs(['--execute', '--expect-resolved', '7', ...CONFIRM])).toThrow(/requires explicit --expect-resolved, --expect-external, and --expect-ambiguous/);
+    });
+
+    it('--execute with all --expect-* but no confirmation token fails', () => {
+      expect(() => parseArgs(['--execute', '--expect-resolved', '7', '--expect-external', '1', '--expect-ambiguous', '5'])).toThrow(/requires --confirm-production-backfill/);
+    });
+
+    it('--execute with all --expect-* and the WRONG confirmation token fails', () => {
+      expect(() => parseArgs(['--execute', '--expect-resolved', '7', '--expect-external', '1', '--expect-ambiguous', '5', '--confirm-production-backfill', 'WRONG-TOKEN'])).toThrow(/requires --confirm-production-backfill/);
+    });
+
+    it('--execute with all --expect-* explicit AND the correct confirmation token succeeds in parsing', () => {
+      const opts = parseArgs(['--execute', '--expect-resolved', '7', '--expect-external', '1', '--expect-ambiguous', '5', ...CONFIRM]);
+      expect(opts.execute).toBe(true);
+      expect(opts.expectResolved).toBe(7);
+      expect(opts.expectExternal).toBe(1);
+      expect(opts.expectAmbiguous).toBe(5);
+      expect(opts.confirmToken).toBe(REQUIRED_CONFIRMATION_TOKEN);
+    });
+
+    it('dry-run (no --execute) never requires --expect-* or a confirmation token', () => {
+      expect(() => parseArgs([])).not.toThrow();
+      expect(() => parseArgs(['--batch-size', '10'])).not.toThrow();
+    });
   });
 });
 
@@ -77,6 +106,10 @@ describe('backfill-conversation-classification CLI — structural safety proofs 
   it('the execute path calls classifyAndBackfillBatch with stopOnError=true (literal, not merely documented)', () => {
     expect(SOURCE).toMatch(/classifyAndBackfillBatch\(opts\.batchSize,\s*0,\s*true\)/);
   });
+
+  it('the confirmation token is a literal string, never derived from a database URL/credential', () => {
+    expect(REQUIRED_CONFIRMATION_TOKEN).not.toMatch(/postgres|password|DB_|\/\//i);
+  });
 });
 
 describe('backfill-conversation-classification CLI — end-to-end against a disposable database', () => {
@@ -97,17 +130,72 @@ describe('backfill-conversation-classification CLI — end-to-end against a disp
   let adminClient: Client;
   let seq = 0; // makes each test's seed data non-colliding
 
+  const userRepo = () => dataSource.getRepository(User);
+  const roleRepo = () => dataSource.getRepository(AccountRole);
+  const customerRepo = () => dataSource.getRepository(BusinessCustomer);
+  const convoRepo = () => dataSource.getRepository(Conversation);
+  const participantRepo = () => dataSource.getRepository(ConversationParticipant);
+
+  const makeUser = async (tag: string) => {
+    const n = ++seq;
+    return userRepo().save(userRepo().create({
+      email: `${tag}${n}@cli-test.local`, phone: `+2557${String(n).padStart(8, '0')}`, password: 'x', name: tag,
+    } as any));
+  };
+
+  const makeSellerRole = async (userId: number) => roleRepo().save(roleRepo().create({
+    userId, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE, profileType: RoleProfileType.SELLER_PROFILE, profileId: ++seq,
+  } as any));
+
+  const makeBuyerRole = async (userId: number) => roleRepo().save(roleRepo().create({
+    userId, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE, profileType: RoleProfileType.USER, profileId: userId,
+  } as any));
+
+  const makeCustomer = async (sellerId: number, userId: number | null, name: string) => customerRepo().save(customerRepo().create({
+    sellerId, userId, name, channel: 'kentexa',
+  } as any));
+
+  const makeConvo = async (sellerId: number, customerId: number) => convoRepo().save(convoRepo().create({
+    sellerId, customerId, classificationStatus: ConversationClassificationStatus.LEGACY_UNSCOPED,
+  } as any));
+
+  const plantParticipant = async (conversationId: number, opts: Partial<ConversationParticipant> & { participantKind: string; principalType: string }) =>
+    participantRepo().save(participantRepo().create({
+      conversationId, status: ParticipantStatus.ACTIVE, permissions: {}, ...opts,
+    } as any));
+
+  /** Full RESOLVED shape: real seller + buyer, both independently resolvable. */
   const seedResolvedConversation = async () => {
-    seq++;
-    const userRepo = dataSource.getRepository(User);
-    const seller = await userRepo.save(userRepo.create({ email: `s${seq}@cli-test.local`, phone: `+2557${String(seq).padStart(6, '1')}`, password: 'x', name: 'S' } as any));
-    const buyer = await userRepo.save(userRepo.create({ email: `b${seq}@cli-test.local`, phone: `+2558${String(seq).padStart(6, '1')}`, password: 'x', name: 'B' } as any));
-    const accountRoleRepo = dataSource.getRepository(AccountRole);
-    const sellerRole = await accountRoleRepo.save(accountRoleRepo.create({ userId: seller.id, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE, profileType: RoleProfileType.SELLER_PROFILE, profileId: seq } as any));
-    const buyerRole = await accountRoleRepo.save(accountRoleRepo.create({ userId: buyer.id, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE, profileType: RoleProfileType.USER, profileId: buyer.id } as any));
-    const customer = await dataSource.getRepository(BusinessCustomer).save(dataSource.getRepository(BusinessCustomer).create({ sellerId: seller.id, userId: buyer.id, name: 'B', channel: 'kentexa' } as any));
-    const convo = await dataSource.getRepository(Conversation).save(dataSource.getRepository(Conversation).create({ sellerId: seller.id, customerId: customer.id, classificationStatus: ConversationClassificationStatus.LEGACY_UNSCOPED } as any));
+    const seller = await makeUser('S');
+    const buyer = await makeUser('B');
+    const sellerRole = await makeSellerRole(seller.id);
+    const buyerRole = await makeBuyerRole(buyer.id);
+    const customer = await makeCustomer(seller.id, buyer.id, 'B');
+    const convo = await makeConvo(seller.id, customer.id);
     return { convo, seller, buyer, sellerRole, buyerRole, customer };
+  };
+
+  /** EXTERNAL_CONTACT shape: real seller, customer with no linked user account. */
+  const seedExternalContactConversation = async () => {
+    const seller = await makeUser('ES');
+    const sellerRole = await makeSellerRole(seller.id);
+    const customer = await makeCustomer(seller.id, null, 'Manual Contact');
+    const convo = await makeConvo(seller.id, customer.id);
+    return { convo, seller, sellerRole, customer };
+  };
+
+  /**
+   * Conversation-2-equivalent AMBIGUOUS shape: seller with NO AccountRole
+   * at all, but a real buyer with an independently resolvable active Buyer
+   * AccountRole -- the exact production shape this whole review concerns.
+   */
+  const seedAmbiguousWithResolvableBuyer = async () => {
+    const ghostSeller = await makeUser('GhostSeller'); // deliberately: no seller role ever created
+    const buyer = await makeUser('RealBuyer');
+    const buyerRole = await makeBuyerRole(buyer.id);
+    const customer = await makeCustomer(ghostSeller.id, buyer.id, 'RealBuyer');
+    const convo = await makeConvo(ghostSeller.id, customer.id);
+    return { convo, ghostSeller, buyer, buyerRole, customer };
   };
 
   const resetToLegacyUnscopedOnly = async () => {
@@ -127,6 +215,8 @@ describe('backfill-conversation-classification CLI — end-to-end against a disp
       await dataSource.query('insert into typeorm_migrations (timestamp, name) values ($1, $2)', [Date.now(), name]);
     }
   };
+
+  const execArgs = (extra: string[]) => ['--execute', ...extra, ...CONFIRM];
 
   beforeAll(async () => {
     const probe = new Client({ host: DB_HOST, port: DB_PORT, user: DB_USERNAME, password: DB_PASSWORD, database: 'postgres' });
@@ -182,30 +272,52 @@ describe('backfill-conversation-classification CLI — end-to-end against a disp
     const code = await main(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
 
     expect(code).toBe(0);
-    const reloaded = await dataSource.getRepository(Conversation).findOne({ where: { id: convo.id } });
+    const reloaded = await convoRepo().findOne({ where: { id: convo.id } });
     expect(reloaded?.classificationStatus).toBe(ConversationClassificationStatus.LEGACY_UNSCOPED); // untouched
-    const participantCount = await dataSource.getRepository(ConversationParticipant).count();
-    expect(participantCount).toBe(0);
+    expect(await participantRepo().count()).toBe(0);
   }, 30000);
 
   it('absence of --execute cannot mutate -- identical seed, run WITHOUT --execute leaves everything untouched', async () => {
     if (!reachable) return;
     await seedResolvedConversation();
     await main(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
-    const participantCount = await dataSource.getRepository(ConversationParticipant).count();
-    expect(participantCount).toBe(0);
+    expect(await participantRepo().count()).toBe(0);
   }, 30000);
 
-  it('explicit --execute path writes the expected classification + participants', async () => {
+  it('execute without explicit --expect-* flags fails before opening a mutation path', async () => {
+    if (!reachable) return;
+    await seedResolvedConversation();
+    const code = await main(['--execute', '--batch-size', '10', ...CONFIRM], dataSource);
+    expect(code).toBe(1);
+    expect(await participantRepo().count()).toBe(0);
+  }, 30000);
+
+  it('execute without the confirmation token fails even with correct --expect-* flags', async () => {
+    if (!reachable) return;
+    await seedResolvedConversation();
+    const code = await main(['--execute', '--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
+    expect(code).toBe(1);
+    expect(await participantRepo().count()).toBe(0);
+  }, 30000);
+
+  it('execute with the WRONG confirmation token fails', async () => {
+    if (!reachable) return;
+    await seedResolvedConversation();
+    const code = await main(['--execute', '--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0', '--confirm-production-backfill', 'not-the-right-token'], dataSource);
+    expect(code).toBe(1);
+    expect(await participantRepo().count()).toBe(0);
+  }, 30000);
+
+  it('correct explicit --expect-* AND correct confirmation token together reach execution only after every invariant passes', async () => {
     if (!reachable) return;
     const { convo, sellerRole, buyerRole } = await seedResolvedConversation();
 
-    const code = await main(['--execute', '--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
+    const code = await main(execArgs(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0']), dataSource);
 
     expect(code).toBe(0);
-    const reloaded = await dataSource.getRepository(Conversation).findOne({ where: { id: convo.id } });
+    const reloaded = await convoRepo().findOne({ where: { id: convo.id } });
     expect(reloaded?.classificationStatus).toBe(ConversationClassificationStatus.RESOLVED);
-    const participants = await dataSource.getRepository(ConversationParticipant).find({ where: { conversationId: convo.id } });
+    const participants = await participantRepo().find({ where: { conversationId: convo.id } });
     expect(participants.map((p) => p.accountRoleId).sort()).toEqual([sellerRole.id, buyerRole.id].sort());
   }, 30000);
 
@@ -214,69 +326,152 @@ describe('backfill-conversation-classification CLI — end-to-end against a disp
     await seedResolvedConversation();
     await seedResolvedConversation(); // 2 LEGACY_UNSCOPED rows now exist
 
-    const code = await main(['--execute', '--batch-size', '1', '--expect-resolved', '2', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
+    const code = await main(execArgs(['--batch-size', '1', '--expect-resolved', '2', '--expect-external', '0', '--expect-ambiguous', '0']), dataSource);
 
     expect(code).toBe(1);
-    const participantCount = await dataSource.getRepository(ConversationParticipant).count();
-    expect(participantCount).toBe(0); // rejected before the pre-write gate ever ran
+    expect(await participantRepo().count()).toBe(0); // rejected before the pre-write gate ever ran
   }, 30000);
 
   it('rejects when the actual classification distribution does not match --expect-*, before any write', async () => {
     if (!reachable) return;
     await seedResolvedConversation(); // this will classify as RESOLVED, not AMBIGUOUS
 
-    const code = await main(['--execute', '--batch-size', '10', '--expect-resolved', '0', '--expect-external', '0', '--expect-ambiguous', '1'], dataSource);
+    const code = await main(execArgs(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '0', '--expect-ambiguous', '1']), dataSource);
 
     expect(code).toBe(1);
-    const participantCount = await dataSource.getRepository(ConversationParticipant).count();
-    expect(participantCount).toBe(0);
+    expect(await participantRepo().count()).toBe(0);
   }, 30000);
 
-  it('rejects when an existing active participant is NOT in the deterministic expected set (unexpected participant), before any write', async () => {
+  it('rejects when an existing active participant does not independently match ANY resolvable side (unexpected participant), before any write', async () => {
     if (!reachable) return;
     const { convo } = await seedResolvedConversation();
-    // Plant a bogus participant referencing an accountRoleId that does not
-    // belong to this conversation's deterministic expected set at all --
-    // a real, unrelated third-party user's own (unrelated) SELLER role.
-    const unrelatedUser = await dataSource.getRepository(User).save(
-      dataSource.getRepository(User).create({ email: 'unrelated@cli-test.local', phone: '+255700000099', password: 'x', name: 'Unrelated' } as any),
-    );
-    const bogusRole = await dataSource.getRepository(AccountRole).save(
-      dataSource.getRepository(AccountRole).create({ userId: unrelatedUser.id, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE, profileType: RoleProfileType.SELLER_PROFILE, profileId: 999 } as any),
-    );
-    await dataSource.getRepository(ConversationParticipant).save(
-      dataSource.getRepository(ConversationParticipant).create({
-        conversationId: convo.id, principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: bogusRole.id,
-        participantKind: ParticipantKind.SELLER, status: ParticipantStatus.ACTIVE, permissions: {},
-      } as any),
-    );
+    // A real, unrelated third-party user's own (unrelated) SELLER role --
+    // does not belong to this conversation's seller or buyer side at all.
+    const unrelatedUser = await makeUser('Unrelated');
+    const bogusRole = await makeSellerRole(unrelatedUser.id);
+    await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: bogusRole.id, participantKind: ParticipantKind.SELLER });
 
-    const code = await main(['--execute', '--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
+    const code = await main(execArgs(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0']), dataSource);
 
     expect(code).toBe(1);
-    // No NEW writes beyond the bogus row we planted ourselves.
-    const participantCount = await dataSource.getRepository(ConversationParticipant).count();
-    expect(participantCount).toBe(1);
+    expect(await participantRepo().count()).toBe(1); // no NEW writes beyond the bogus row we planted
   }, 30000);
 
-  it('rejects when a participant exists on an AMBIGUOUS conversation, before any write', async () => {
+  describe('participant-level canonicality on AMBIGUOUS conversations (Ambiguous Partial-Participant Semantics Review)', () => {
+    it('conversation-2-equivalent shape: a correct partial Buyer AccountRole participant on an AMBIGUOUS conversation is ACCEPTED, and the gate still passes', async () => {
+      const { convo, buyerRole } = await seedAmbiguousWithResolvableBuyer();
+      await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: buyerRole.id, participantKind: ParticipantKind.BUYER });
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '0', '--expect-ambiguous', '1'], dataSource);
+
+      expect(code).toBe(0); // dry-run gate passes -- the partial participant is canonical for its side
+      const reloaded = await convoRepo().findOne({ where: { id: convo.id } });
+      expect(reloaded?.classificationStatus).toBe(ConversationClassificationStatus.LEGACY_UNSCOPED); // dry-run: untouched
+    });
+
+    it('the SAME conversation with the WRONG Buyer AccountRole fails -- a participant is not automatically trusted merely because it exists', async () => {
+      const { convo } = await seedAmbiguousWithResolvableBuyer();
+      const someoneElse = await makeUser('SomeoneElse');
+      const wrongBuyerRole = await makeBuyerRole(someoneElse.id); // a real, active buyer role -- just not THIS conversation's buyer
+      await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: wrongBuyerRole.id, participantKind: ParticipantKind.BUYER });
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '0', '--expect-ambiguous', '1'], dataSource);
+
+      expect(code).toBe(1);
+    });
+
+    it('a Seller participant on conversation 2\'s shape fails, because the seller side cannot independently resolve -- the unresolved side must never be treated as trusted', async () => {
+      const { convo, buyerRole } = await seedAmbiguousWithResolvableBuyer();
+      // Fabricate a "seller" participant using the BUYER's own account role
+      // id (the only real active AccountRole in this fixture) -- there is
+      // no real seller AccountRole to reference, which is exactly the point:
+      // any seller-kind participant here is necessarily wrong.
+      await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: buyerRole.id, participantKind: ParticipantKind.SELLER });
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '0', '--expect-ambiguous', '1'], dataSource);
+
+      expect(code).toBe(1);
+    });
+
+    it('an unknown/unsupported principalType (workspace) fails closed, even though it satisfies the DB\'s own CHECK constraint on its own', async () => {
+      const { convo } = await seedAmbiguousWithResolvableBuyer();
+      // A structurally valid `workspace` principal (satisfies
+      // CHK_conv_participant_one_principal on its own) -- but the current
+      // classifier model neither produces nor validates workspace
+      // participants at all, so the gate must fail closed rather than
+      // silently accept an unrecognized shape.
+      await plantParticipant(convo.id, {
+        principalType: ParticipantPrincipalType.WORKSPACE,
+        workspaceType: 'seller_profile', workspaceId: 1,
+        participantKind: ParticipantKind.SELLER,
+      } as any);
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '0', '--expect-ambiguous', '1'], dataSource);
+
+      expect(code).toBe(1);
+    });
+
+    it('a wrong external-contact participant on an EXTERNAL_CONTACT-shaped conversation fails', async () => {
+      const { convo } = await seedExternalContactConversation();
+      const otherSeller = await makeUser('OtherSeller');
+      const otherCustomer = await makeCustomer(otherSeller.id, null, 'Different Contact'); // a real external contact, just the WRONG one
+
+      await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.EXTERNAL_CONTACT, externalCustomerId: otherCustomer.id, participantKind: ParticipantKind.EXTERNAL });
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '1', '--expect-ambiguous', '0'], dataSource);
+
+      expect(code).toBe(1);
+    });
+
+    it('a wrong Seller AccountRole on an otherwise-RESOLVED conversation fails', async () => {
+      const { convo, buyerRole } = await seedResolvedConversation();
+      const wrongSellerUser = await makeUser('WrongSeller');
+      const wrongSellerRole = await makeSellerRole(wrongSellerUser.id);
+      // Overwrite: plant an extra, WRONG seller participant alongside the correct buyer.
+      await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: wrongSellerRole.id, participantKind: ParticipantKind.SELLER });
+      void buyerRole;
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
+
+      expect(code).toBe(1);
+    });
+  });
+
+  it('RESOLVED conversations\' existing canonical participants continue to validate correctly (no regression)', async () => {
     if (!reachable) return;
-    // sellerId with no AccountRole at all -> AMBIGUOUS (no_active_seller_account_role)
-    const userRepo = dataSource.getRepository(User);
-    const ghostSeller = await userRepo.save(userRepo.create({ email: 'ghost@cli-test.local', phone: '+255799999999', password: 'x', name: 'Ghost' } as any));
-    const buyer = await userRepo.save(userRepo.create({ email: 'buyerx@cli-test.local', phone: '+255799999998', password: 'x', name: 'BuyerX' } as any));
-    const customer = await dataSource.getRepository(BusinessCustomer).save(dataSource.getRepository(BusinessCustomer).create({ sellerId: ghostSeller.id, userId: buyer.id, name: 'BuyerX', channel: 'kentexa' } as any));
-    const convo = await dataSource.getRepository(Conversation).save(dataSource.getRepository(Conversation).create({ sellerId: ghostSeller.id, customerId: customer.id, classificationStatus: ConversationClassificationStatus.LEGACY_UNSCOPED } as any));
-    // Plant a participant on this AMBIGUOUS-bound conversation anyway.
-    const someRole = await dataSource.getRepository(AccountRole).save(dataSource.getRepository(AccountRole).create({ userId: buyer.id, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE, profileType: RoleProfileType.USER, profileId: buyer.id } as any));
-    await dataSource.getRepository(ConversationParticipant).save(dataSource.getRepository(ConversationParticipant).create({
-      conversationId: convo.id, principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: someRole.id,
-      participantKind: ParticipantKind.BUYER, status: ParticipantStatus.ACTIVE, permissions: {},
-    } as any));
+    const { convo, sellerRole, buyerRole } = await seedResolvedConversation();
+    await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: sellerRole.id, participantKind: ParticipantKind.SELLER });
+    await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: buyerRole.id, participantKind: ParticipantKind.BUYER });
 
-    const code = await main(['--execute', '--batch-size', '10', '--expect-resolved', '0', '--expect-external', '0', '--expect-ambiguous', '1'], dataSource);
+    const code = await main(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
 
-    expect(code).toBe(1);
+    expect(code).toBe(0);
+  }, 30000);
+
+  it('EXTERNAL_CONTACT conversations\' existing canonical participants continue to validate correctly (no regression)', async () => {
+    if (!reachable) return;
+    const { convo, sellerRole, customer } = await seedExternalContactConversation();
+    await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: sellerRole.id, participantKind: ParticipantKind.SELLER });
+    await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.EXTERNAL_CONTACT, externalCustomerId: customer.id, participantKind: ParticipantKind.EXTERNAL });
+
+    const code = await main(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '1', '--expect-ambiguous', '0'], dataSource);
+
+    expect(code).toBe(0);
+  }, 30000);
+
+  it('the AMBIGUOUS write path still creates ZERO participants during --execute, even with an accepted partial Buyer participant already present', async () => {
+    if (!reachable) return;
+    const { convo, buyerRole } = await seedAmbiguousWithResolvableBuyer();
+    await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: buyerRole.id, participantKind: ParticipantKind.BUYER });
+
+    const code = await main(execArgs(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '0', '--expect-ambiguous', '1']), dataSource);
+
+    expect(code).toBe(0);
+    const reloaded = await convoRepo().findOne({ where: { id: convo.id } });
+    expect(reloaded?.classificationStatus).toBe(ConversationClassificationStatus.AMBIGUOUS); // status/reason only
+    const participants = await participantRepo().find({ where: { conversationId: convo.id } });
+    expect(participants).toHaveLength(1); // still exactly the one pre-existing Buyer row -- no Seller was synthesized
+    expect(participants[0].participantKind).toBe(ParticipantKind.BUYER);
   }, 30000);
 
   it('accepts a canonical pre-existing participant (does NOT require participant count == 0) and only creates the missing counterpart', async () => {
@@ -284,15 +479,12 @@ describe('backfill-conversation-classification CLI — end-to-end against a disp
     const { convo, sellerRole, buyerRole } = await seedResolvedConversation();
     // Pre-create ONLY the buyer participant, mirroring the real production
     // "participant #1" situation this hardening was built to accommodate.
-    await dataSource.getRepository(ConversationParticipant).save(dataSource.getRepository(ConversationParticipant).create({
-      conversationId: convo.id, principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: buyerRole.id,
-      participantKind: ParticipantKind.BUYER, status: ParticipantStatus.ACTIVE, permissions: {},
-    } as any));
+    await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: buyerRole.id, participantKind: ParticipantKind.BUYER });
 
-    const code = await main(['--execute', '--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
+    const code = await main(execArgs(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0']), dataSource);
 
     expect(code).toBe(0);
-    const participants = await dataSource.getRepository(ConversationParticipant).find({ where: { conversationId: convo.id } });
+    const participants = await participantRepo().find({ where: { conversationId: convo.id } });
     expect(participants).toHaveLength(2); // the pre-existing buyer row + the newly-created seller row
     expect(participants.map((p) => p.accountRoleId).sort()).toEqual([sellerRole.id, buyerRole.id].sort());
   }, 30000);
@@ -302,11 +494,10 @@ describe('backfill-conversation-classification CLI — end-to-end against a disp
     await seedResolvedConversation();
     await dataSource.query('delete from typeorm_migrations'); // simulate an unmigrated/mismatched database
 
-    const code = await main(['--execute', '--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
+    const code = await main(execArgs(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0']), dataSource);
 
     expect(code).toBe(1);
-    const participantCount = await dataSource.getRepository(ConversationParticipant).count();
-    expect(participantCount).toBe(0);
+    expect(await participantRepo().count()).toBe(0);
   }, 30000);
 
   it('the DataSource it builds itself always closes, on both success and failure, when main() is not given a dataSourceOverride', async () => {

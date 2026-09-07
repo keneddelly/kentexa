@@ -5,6 +5,7 @@ import { Conversation, ConversationClassificationStatus } from '../business/enti
 import { BusinessCustomer } from '../business/entities/business-customer.entity';
 import {
   ConversationParticipant,
+  ParticipantKind,
   ParticipantPrincipalType,
   ParticipantStatus,
 } from '../business/entities/conversation-participant.entity';
@@ -101,7 +102,17 @@ export interface CliOptions {
   expectResolved: number;
   expectExternal: number;
   expectAmbiguous: number;
+  confirmToken?: string;
 }
+
+// Purpose-specific confirmation required in addition to --execute. This is
+// deliberately not a secret, not a credential, and not derived from
+// anything production-specific -- it is a literal, unique, hard-to-type-
+// by-accident string whose only job is to make --execute alone
+// insufficient to mutate anything, the way "type the resource name to
+// confirm" patterns work elsewhere. It never touches a database URL or
+// credential of any kind.
+export const REQUIRED_CONFIRMATION_TOKEN = 'KENTEXA-CONVERSATION-BACKFILL';
 
 export function parseArgs(argv: string[]): CliOptions {
   const flag = (name: string): string | undefined => {
@@ -115,12 +126,41 @@ export function parseArgs(argv: string[]): CliOptions {
   if (argv.includes('--offset') || argv.some((a) => a.startsWith('--offset='))) {
     throw new Error('--offset is not a supported flag: offset is hard-coded to 0 by design (see file header comment).');
   }
+
+  const execute = argv.includes('--execute');
+  const rawResolved = flag('expect-resolved');
+  const rawExternal = flag('expect-external');
+  const rawAmbiguous = flag('expect-ambiguous');
+  const confirmToken = flag('confirm-production-backfill');
+
+  // --execute may never silently inherit the dry-run convenience defaults
+  // (7/1/5) -- an operator re-running this tool weeks later against a
+  // changed dataset must consciously state their current expectation, not
+  // rely on numbers baked in at review time. Checked here, before any
+  // DataSource is even constructed, so a missing/wrong value can never
+  // reach a mutation path.
+  if (execute && (rawResolved === undefined || rawExternal === undefined || rawAmbiguous === undefined)) {
+    throw new Error(
+      '--execute requires explicit --expect-resolved, --expect-external, and --expect-ambiguous -- ' +
+      'silently inheriting the dry-run defaults (7/1/5) during execution is not permitted.',
+    );
+  }
+  // A second, purpose-specific confirmation beyond --execute alone -- a
+  // single common flag is more susceptible to appearing in copy-pasted
+  // shell history than a unique, purpose-specific literal string.
+  if (execute && confirmToken !== REQUIRED_CONFIRMATION_TOKEN) {
+    throw new Error(
+      `--execute requires --confirm-production-backfill ${REQUIRED_CONFIRMATION_TOKEN} -- missing or incorrect confirmation.`,
+    );
+  }
+
   return {
-    execute: argv.includes('--execute'),
+    execute,
     batchSize: parseInt(flag('batch-size') ?? '50', 10),
-    expectResolved: parseInt(flag('expect-resolved') ?? '7', 10),
-    expectExternal: parseInt(flag('expect-external') ?? '1', 10),
-    expectAmbiguous: parseInt(flag('expect-ambiguous') ?? '5', 10),
+    expectResolved: rawResolved !== undefined ? parseInt(rawResolved, 10) : 7,
+    expectExternal: rawExternal !== undefined ? parseInt(rawExternal, 10) : 1,
+    expectAmbiguous: rawAmbiguous !== undefined ? parseInt(rawAmbiguous, 10) : 5,
+    confirmToken,
   };
 }
 
@@ -192,6 +232,76 @@ export async function computeExpectedParticipants(
   return { expected, distribution: { resolved, external, ambiguous } };
 }
 
+export interface ParticipantValidation {
+  participant: ConversationParticipant;
+  reason: string;
+}
+
+/**
+ * Participant-level canonicality gate (Ambiguous Partial-Participant
+ * Semantics Review). Replaces the earlier "AMBIGUOUS conversation ⇒
+ * expected participant set is empty" rule: every existing ACTIVE
+ * participant, on ANY conversation regardless of its overall classify()
+ * verdict, must independently match the deterministic per-side identity
+ * the classifier itself trusts (resolveSellerRole/resolveBuyerRole/
+ * resolveExternalContact) -- never merely because the row exists, never
+ * from User.role/activeRoles, never from historical ownership.
+ *
+ * This means an AMBIGUOUS conversation MAY legitimately retain an existing
+ * participant for whichever single side independently resolves (e.g.
+ * conversation 2's Buyer AccountRole 26 -- the Buyer side is deterministically
+ * known even though the Seller side, seller 10's missing AccountRole, is
+ * not) -- while the unresolved side is never treated as anything but
+ * absent. This function only VALIDATES what already exists; it never
+ * creates, repairs, or infers a missing participant for either side.
+ */
+export async function validateExistingParticipants(
+  dataSource: DataSource,
+  classifier: ConversationClassifierService,
+): Promise<{ valid: ConversationParticipant[]; invalid: ParticipantValidation[] }> {
+  const convoRepo = dataSource.getRepository(Conversation);
+  const existingActive = await dataSource.getRepository(ConversationParticipant).find({ where: { status: ParticipantStatus.ACTIVE } });
+
+  const valid: ConversationParticipant[] = [];
+  const invalid: ParticipantValidation[] = [];
+  const convoCache = new Map<number, Conversation | null>();
+
+  const getConvo = async (id: number): Promise<Conversation | null> => {
+    if (!convoCache.has(id)) convoCache.set(id, await convoRepo.findOne({ where: { id } }));
+    return convoCache.get(id) ?? null;
+  };
+
+  for (const p of existingActive) {
+    const convo = await getConvo(p.conversationId);
+    if (!convo) {
+      invalid.push({ participant: p, reason: `conversation ${p.conversationId} no longer exists` });
+      continue;
+    }
+
+    if (p.principalType === ParticipantPrincipalType.ACCOUNT_ROLE && p.participantKind === ParticipantKind.SELLER) {
+      const sellerRole = await classifier.resolveSellerRole(convo);
+      if (sellerRole && sellerRole.id === p.accountRoleId) valid.push(p);
+      else invalid.push({ participant: p, reason: 'accountRoleId does not match the independently resolved Seller AccountRole for this conversation' });
+    } else if (p.principalType === ParticipantPrincipalType.ACCOUNT_ROLE && p.participantKind === ParticipantKind.BUYER) {
+      const buyerRole = await classifier.resolveBuyerRole(convo);
+      if (buyerRole && buyerRole.id === p.accountRoleId) valid.push(p);
+      else invalid.push({ participant: p, reason: 'accountRoleId does not match the independently resolved Buyer AccountRole for this conversation' });
+    } else if (p.principalType === ParticipantPrincipalType.EXTERNAL_CONTACT) {
+      const externalCustomer = await classifier.resolveExternalContact(convo);
+      if (externalCustomer && externalCustomer.id === p.externalCustomerId) valid.push(p);
+      else invalid.push({ participant: p, reason: 'externalCustomerId does not match the independently resolved external-contact BusinessCustomer for this conversation' });
+    } else {
+      // ACCOUNT/WORKSPACE principals, or any other participantKind/
+      // principalType combination: not produced or required by the
+      // current classifier model at all. Fail closed rather than
+      // silently accepting an unrecognized shape.
+      invalid.push({ participant: p, reason: `unsupported/unknown principalType "${p.principalType}" / participantKind "${p.participantKind}" -- fails closed` });
+    }
+  }
+
+  return { valid, invalid };
+}
+
 /**
  * `argvOverride`/`dataSourceOverride` exist purely for testability (see
  * backfill-conversation-classification.spec.ts) -- the real CLI entrypoint
@@ -200,7 +310,19 @@ export async function computeExpectedParticipants(
  * from buildDataSource() exactly as before.
  */
 export async function main(argvOverride?: string[], dataSourceOverride?: DataSource): Promise<number> {
-  const opts = parseArgs(argvOverride ?? process.argv.slice(2));
+  // Argument validation (including the --execute safeguards) happens
+  // before a DataSource even exists, so a malformed/incomplete invocation
+  // fails closed with a clean, consistent exit code -- never an unhandled
+  // rejection -- and never opens any connection at all.
+  let opts;
+  try {
+    opts = parseArgs(argvOverride ?? process.argv.slice(2));
+  } catch (err: any) {
+    console.error('[classifier-backfill] FAILED:', err.message);
+    process.exitCode = 1;
+    return 1;
+  }
+
   const dataSource = dataSourceOverride ?? buildDataSource();
   let exitCode = 0;
 
@@ -257,39 +379,34 @@ export async function main(argvOverride?: string[], dataSourceOverride?: DataSou
       );
     }
 
-    const existingActive = await dataSource.getRepository(ConversationParticipant).find({ where: { status: ParticipantStatus.ACTIVE } });
-    const expectedKeySet = new Set(expected.map((e) => e.key));
+    // ── Participant-level canonicality gate ──────────────────────────────
+    // Every existing active participant, on ANY conversation regardless of
+    // its overall classify() verdict, must independently match the
+    // deterministic per-side identity the classifier trusts. This is what
+    // lets conversation 2's Buyer AccountRole 26 remain valid (Buyer side
+    // independently resolves) while still failing closed on anything that
+    // doesn't -- including a hypothetical Seller participant on the same
+    // AMBIGUOUS conversation, which would have no independently resolvable
+    // Seller AccountRole to match against.
+    const { valid, invalid } = await validateExistingParticipants(dataSource, classifier);
+    const expectedTotal = expected.length;
+    const alreadyPresentExpected = expected.filter((e) => valid.some((v) => {
+      const k = v.principalType === ParticipantPrincipalType.EXTERNAL_CONTACT
+        ? keyOf(v.conversationId, v.principalType, v.externalCustomerId as number)
+        : keyOf(v.conversationId, v.principalType, v.accountRoleId as number);
+      return k === e.key;
+    })).length;
 
-    // Re-derive AMBIGUOUS conversation ids directly via the real classify()
-    // call (already run once above inside computeExpectedParticipants;
-    // re-running it here is cheap for this dataset size and keeps this
-    // specific invariant check self-contained and easy to audit on its own).
-    const ambiguousConversationIds = new Set<number>();
-    const legacyRows = await convoRepo.find({ where: { classificationStatus: ConversationClassificationStatus.LEGACY_UNSCOPED } });
-    for (const convo of legacyRows) {
-      const result = await classifier.classify(convo);
-      if (result.status === ConversationClassificationStatus.AMBIGUOUS) ambiguousConversationIds.add(convo.id);
+    console.log(`[classifier-backfill] existing active participants: ${valid.length + invalid.length} (canonical for their side: ${valid.length}, invalid: ${invalid.length})`);
+    console.log(`[classifier-backfill] deterministic expected set for RESOLVED/EXTERNAL_CONTACT conversations: ${expectedTotal}; already present: ${alreadyPresentExpected}; would be newly created: ${expectedTotal - alreadyPresentExpected}`);
+
+    if (invalid.length > 0) {
+      throw new Error(
+        `Pre-write invariant violated: ${invalid.length} existing active participant(s) do not independently match the deterministic identity for the side they claim to represent: ` +
+        JSON.stringify(invalid.map((i) => ({ id: i.participant.id, conversationId: i.participant.conversationId, reason: i.reason }))),
+      );
     }
-
-    const unexpected = existingActive.filter((p) => {
-      const k = p.principalType === ParticipantPrincipalType.EXTERNAL_CONTACT
-        ? keyOf(p.conversationId, p.principalType, p.externalCustomerId as number)
-        : keyOf(p.conversationId, p.principalType, p.accountRoleId as number);
-      return !expectedKeySet.has(k);
-    });
-    const onAmbiguous = existingActive.filter((p) => ambiguousConversationIds.has(p.conversationId));
-    const canonicalExisting = existingActive.filter((p) => !unexpected.includes(p) );
-
-    console.log(`[classifier-backfill] existing active participants: ${existingActive.length} (canonical: ${canonicalExisting.length}, unexpected: ${unexpected.length}, on AMBIGUOUS conversations: ${onAmbiguous.length})`);
-    console.log(`[classifier-backfill] expected participant set size: ${expected.length}; missing (would be created): ${expected.length - canonicalExisting.length}`);
-
-    if (unexpected.length > 0) {
-      throw new Error(`Pre-write invariant violated: ${unexpected.length} existing active participant(s) are NOT in the deterministic expected set: ${JSON.stringify(unexpected.map((p) => ({ id: p.id, conversationId: p.conversationId })))}`);
-    }
-    if (onAmbiguous.length > 0) {
-      throw new Error(`Pre-write invariant violated: ${onAmbiguous.length} participant(s) exist on an AMBIGUOUS conversation, which must have zero participants.`);
-    }
-    console.log('[classifier-backfill] pre-write invariant satisfied: every existing active participant is canonical, zero participants on AMBIGUOUS conversations, zero unexpected. (Does NOT require participant count == 0.)');
+    console.log('[classifier-backfill] pre-write invariant satisfied: every existing active participant independently matches the deterministic identity for its side (participant-level canonicality) -- including any partially-canonical participant on an otherwise AMBIGUOUS conversation. Does NOT require participant count == 0, and does NOT require zero participants on AMBIGUOUS conversations -- only that any participant present is independently provable for its own side.');
 
     if (!opts.execute) {
       console.log('[classifier-backfill] DRY RUN complete. No writes performed. Re-run with --execute to apply.');

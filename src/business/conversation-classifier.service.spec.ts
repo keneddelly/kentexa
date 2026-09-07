@@ -93,6 +93,71 @@ describe('ConversationClassifierService', () => {
     });
   });
 
+  // Ambiguous Partial-Participant Semantics Review: participant-level
+  // resolution helpers extracted from classify()'s own logic, so a caller
+  // (the CLI's participant-canonicality gate) can ask "does THIS ONE side
+  // independently resolve?" without needing classify()'s whole-conversation
+  // verdict -- a conversation can be AMBIGUOUS overall while one specific
+  // side is still fully, independently provable via these exact criteria.
+  describe('resolveSellerRole / resolveBuyerRole / resolveExternalContact', () => {
+    it('resolveSellerRole returns the exact active Seller AccountRole, using the same criteria classify() trusts', async () => {
+      const { service } = build();
+      const role = await service.resolveSellerRole({ id: 1, sellerId: 1, customerId: 55 } as any);
+      expect(role).toEqual(sellerRole);
+    });
+
+    it('resolveSellerRole returns null when the seller has no active Seller AccountRole (conversation-2-equivalent shape)', async () => {
+      const { service } = build();
+      const role = await service.resolveSellerRole({ id: 2, sellerId: 999, customerId: 55 } as any);
+      expect(role).toBeNull();
+    });
+
+    it('resolveSellerRole returns null when sellerId is missing, never guesses', async () => {
+      const { service } = build();
+      const role = await service.resolveSellerRole({ id: 1, sellerId: null, customerId: 55 } as any);
+      expect(role).toBeNull();
+    });
+
+    it('resolveBuyerRole returns the exact active Buyer AccountRole for the conversation\'s customer, independently of whether the seller side resolves', async () => {
+      const { service, customerRepo } = build();
+      customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 999, userId: 2 });
+      // Note: sellerId=999 has no seller role at all (would make classify()
+      // return AMBIGUOUS) -- resolveBuyerRole must still independently
+      // resolve the buyer side, exactly matching conversation 2's real shape.
+      const role = await service.resolveBuyerRole({ id: 2, sellerId: 999, customerId: 55 } as any);
+      expect(role).toEqual(buyerRole);
+    });
+
+    it('resolveBuyerRole returns null when the customer has no linked user account', async () => {
+      const { service, customerRepo } = build();
+      customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: null });
+      const role = await service.resolveBuyerRole({ id: 1, sellerId: 1, customerId: 55 } as any);
+      expect(role).toBeNull();
+    });
+
+    it('resolveBuyerRole returns null when the customer has no active Buyer AccountRole', async () => {
+      const { service, customerRepo } = build();
+      customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 999 });
+      const role = await service.resolveBuyerRole({ id: 1, sellerId: 1, customerId: 55 } as any);
+      expect(role).toBeNull();
+    });
+
+    it('resolveExternalContact returns the BusinessCustomer only when it genuinely has no linked user account', async () => {
+      const { service, customerRepo } = build();
+      const customer = { id: 9, sellerId: 1, userId: null };
+      customerRepo.findOne.mockResolvedValue(customer);
+      const result = await service.resolveExternalContact({ id: 4, sellerId: 1, customerId: 9 } as any);
+      expect(result).toEqual(customer);
+    });
+
+    it('resolveExternalContact returns null when the customer DOES have a linked user account', async () => {
+      const { service, customerRepo } = build();
+      customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2 });
+      const result = await service.resolveExternalContact({ id: 1, sellerId: 1, customerId: 55 } as any);
+      expect(result).toBeNull();
+    });
+  });
+
   describe('classifyAndBackfillBatch', () => {
     it('RESOLVED creates BOTH the seller and buyer AccountRole participants, inside one transaction', async () => {
       const { service, convoRepo, customerRepo, participants, dataSource, manager } = build();

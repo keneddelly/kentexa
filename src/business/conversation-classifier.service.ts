@@ -51,18 +51,67 @@ export class ConversationClassifierService {
     @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
+  private async resolveCustomer(convo: Conversation): Promise<BusinessCustomer | null> {
+    if (!convo.customerId) return null;
+    return this.customerRepo.findOne({ where: { id: convo.customerId } });
+  }
+
+  /**
+   * Participant-level resolution helpers (Ambiguous Partial-Participant
+   * Semantics Review): these are the SAME authoritative, deterministic
+   * criteria classify() has always trusted -- extracted so a caller can ask
+   * "is THIS ONE side of this conversation independently provable right
+   * now?" without needing the whole-conversation verdict classify() itself
+   * produces. A conversation can be AMBIGUOUS (its overall administrative
+   * classification is incomplete) while one specific side is still fully,
+   * independently resolvable via these exact same criteria -- that is not
+   * a contradiction, it is two different questions over the same data
+   * (see backfill-conversation-classification.ts's participant gate, which
+   * validates existing participants against these helpers regardless of
+   * the conversation's overall classify() verdict).
+   *
+   * Never uses User.role/activeRoles, never infers from historical
+   * ownership, never infers from a participant row's mere existence --
+   * each call independently re-derives the answer from current AccountRole/
+   * BusinessCustomer state, exactly as classify() does below.
+   */
+
+  /** The exact active Seller AccountRole for this conversation's seller side, or null if unresolved. */
+  async resolveSellerRole(convo: Conversation): Promise<AccountRole | null> {
+    if (!convo.sellerId) return null;
+    return this.accountRoleRepo.findOne({
+      where: { userId: convo.sellerId, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
+    });
+  }
+
+  /** The exact active Buyer AccountRole for this conversation's customer side, or null if unresolved. */
+  async resolveBuyerRole(convo: Conversation): Promise<AccountRole | null> {
+    const customer = await this.resolveCustomer(convo);
+    if (!customer?.userId) return null;
+    return this.accountRoleRepo.findOne({
+      where: { userId: customer.userId, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE },
+    });
+  }
+
+  /** The exact BusinessCustomer this conversation's customer side represents, only when it genuinely has no linked User account. */
+  async resolveExternalContact(convo: Conversation): Promise<BusinessCustomer | null> {
+    const customer = await this.resolveCustomer(convo);
+    if (!customer || customer.userId) return null;
+    return customer;
+  }
+
   /**
    * Pure, side-effect-free classification of a single conversation. Every
    * branch is a deterministic, explainable fact -- never a heuristic guess
    * ("pick the first seller profile", "assume the most recent role").
+   * Delegates every actual resolution to the helpers above so there is one
+   * authoritative implementation, not duplicated logic.
    */
   async classify(convo: Conversation): Promise<ClassificationResult> {
     if (!convo.sellerId) {
       return { status: ConversationClassificationStatus.AMBIGUOUS, reason: 'missing_seller_id' };
     }
-    const sellerRole = await this.accountRoleRepo.findOne({
-      where: { userId: convo.sellerId, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
-    });
+    const sellerRole = await this.resolveSellerRole(convo);
     if (!sellerRole) {
       // Could be a seller whose AccountRole was never synced (pre-Stage-1
       // fix, see commit 7e7d4c9), or one currently suspended/rejected --
@@ -74,7 +123,7 @@ export class ConversationClassifierService {
     if (!convo.customerId) {
       return { status: ConversationClassificationStatus.AMBIGUOUS, reason: 'missing_customer_id' };
     }
-    const customer = await this.customerRepo.findOne({ where: { id: convo.customerId } });
+    const customer = await this.resolveCustomer(convo);
     if (!customer) {
       return { status: ConversationClassificationStatus.AMBIGUOUS, reason: 'customer_record_not_found' };
     }
@@ -83,9 +132,7 @@ export class ConversationClassifierService {
       // not ambiguous: this side simply has no AccountRole to resolve, ever.
       return { status: ConversationClassificationStatus.EXTERNAL_CONTACT, reason: 'customer_has_no_linked_user_account' };
     }
-    const buyerRole = await this.accountRoleRepo.findOne({
-      where: { userId: customer.userId, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE },
-    });
+    const buyerRole = await this.resolveBuyerRole(convo);
     if (!buyerRole) {
       return { status: ConversationClassificationStatus.AMBIGUOUS, reason: 'no_active_buyer_account_role' };
     }
