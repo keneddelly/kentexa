@@ -9,6 +9,10 @@ import { ConversationParticipant } from './entities/conversation-participant.ent
 import { ConversationParticipantState } from './entities/conversation-participant-state.entity';
 import { BusinessTeamMember } from './entities/business-team-member.entity';
 import { Business } from './entities/business.entity';
+import { OperationalWorkspace } from './entities/operational-workspace.entity';
+import { BusinessMembership } from './entities/business-membership.entity';
+import { WorkspaceAssignment } from './entities/workspace-assignment.entity';
+import { BusinessCapability } from './entities/business-capability.entity';
 import { Order } from '../orders/entities/order.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
@@ -41,6 +45,10 @@ import { ConversationClassifierService } from './conversation-classifier.service
       ConversationParticipantState,
       BusinessTeamMember,
       Business,
+      OperationalWorkspace,
+      BusinessMembership,
+      WorkspaceAssignment,
+      BusinessCapability,
       Order,
       SellerProfile,
       CommerceProfile,

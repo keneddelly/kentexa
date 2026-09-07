@@ -1,7 +1,11 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { DataSource, Repository, In } from 'typeorm';
 import { Business, BusinessStatus } from './entities/business.entity';
+import { OperationalWorkspace, OperationalWorkspaceStatus } from './entities/operational-workspace.entity';
+import { BusinessMembership, BusinessMembershipRoleTemplate, BusinessMembershipStatus } from './entities/business-membership.entity';
+import { WorkspaceAssignment, WorkspaceAssignmentStatus } from './entities/workspace-assignment.entity';
+import { AccountRole, AccountRoleStatus, AccountRoleType } from '../role-context/entities/account-role.entity';
 import { User } from '../users/entities/user.entity';
 import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
@@ -29,6 +33,7 @@ export class BusinessService {
     @InjectRepository(SellerProfile) private sellerProfileRepo: Repository<SellerProfile>,
     @InjectRepository(Invoice) private invoiceRepo: Repository<Invoice>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
+    private dataSource: DataSource,
     private commerceProfiles: CommerceProfilesService,
     private activityEvents: ActivityEventService,
     private analytics: AnalyticsService,
@@ -291,12 +296,68 @@ export class BusinessService {
     const existing = await this.findMine(user.id);
     if (existing) throw new ConflictException('You already have a Business');
 
-    const business = this.businessRepo.create({
-      ...dto,
-      user,
-      status: BusinessStatus.ACTIVE,
+    // Business-First Stage 1 foundation: every Business created from here
+    // on is bootstrapped with its default OperationalWorkspace + Owner
+    // BusinessMembership + the explicit WorkspaceAssignment that grants the
+    // Owner active operating authority over it, all in one transaction --
+    // so no Business created after this point ever needs the standalone
+    // backfill tool (backfill-business-first-foundation.ts) to catch up.
+    // Per the approved design, Owner access is never implicit: this is the
+    // one real WorkspaceAssignment row the Owner needs to operate their
+    // default workspace at all; a second workspace later would need its
+    // own explicit assignment the same way.
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const business = manager.getRepository(Business).create({
+        ...dto,
+        user,
+        status: BusinessStatus.ACTIVE,
+      });
+      const savedBusiness = await manager.getRepository(Business).save(business);
+
+      const membership = await manager.getRepository(BusinessMembership).save(
+        manager.getRepository(BusinessMembership).create({
+          businessId: savedBusiness.id,
+          userId: user.id,
+          roleTemplate: BusinessMembershipRoleTemplate.OWNER,
+          status: BusinessMembershipStatus.ACTIVE,
+        }),
+      );
+      const workspace = await manager.getRepository(OperationalWorkspace).save(
+        manager.getRepository(OperationalWorkspace).create({
+          businessId: savedBusiness.id,
+          name: 'Default Operations',
+          isDefault: true,
+          status: OperationalWorkspaceStatus.ACTIVE,
+        }),
+      );
+      const assignment = await manager.getRepository(WorkspaceAssignment).save(
+        manager.getRepository(WorkspaceAssignment).create({
+          businessMembershipId: membership.id,
+          workspaceId: workspace.id,
+          status: WorkspaceAssignmentStatus.ACTIVE,
+          permissions: {},
+        }),
+      );
+
+      // If this owner already has an active Seller AccountRole at the
+      // moment they create this Business, bind it now -- mirrors the
+      // standalone backfill tool's own rule exactly (see
+      // backfill-business-first-foundation.ts), so a Business created
+      // through this self-service path never depends on that tool to
+      // become organizationally resolvable. If no active Seller
+      // AccountRole exists yet, workspaceAssignmentId simply stays NULL
+      // until one is later approved -- never fabricated here.
+      const sellerRole = await manager.getRepository(AccountRole).findOne({
+        where: { userId: user.id, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
+      });
+      if (sellerRole) {
+        await manager.getRepository(AccountRole).update(sellerRole.id, {
+          workspaceAssignmentId: assignment.id,
+        });
+      }
+
+      return savedBusiness;
     });
-    const saved = await this.businessRepo.save(business);
 
     // Public presence alongside the operational record, same pattern
     // SellerService.apply() and CommerceProfilesBackfillService already
