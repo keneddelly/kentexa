@@ -167,6 +167,19 @@ export class ConversationClassifierService {
           }
         } else if (result.status === ConversationClassificationStatus.EXTERNAL_CONTACT) {
           report.externalContact++;
+          // Reaching EXTERNAL_CONTACT means classify() already deterministically
+          // confirmed an active SELLER AccountRole for convo.sellerId (that check
+          // happens before the customer-side checks that produce this status) --
+          // re-resolving it here (same lookup as the RESOLVED branch, never
+          // invented/inferred) and creating its participant row too, so the
+          // seller isn't excluded from their own conversation once scoped reads
+          // are ever enabled. Only the customer side is unresolvable here.
+          const sellerRole = await this.accountRoleRepo.findOne({
+            where: { userId: convo.sellerId, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
+          });
+          if (sellerRole) {
+            await this.participants.ensureAccountRoleParticipant(convo.id, sellerRole.id, ParticipantKind.SELLER);
+          }
           if (convo.customerId) {
             await this.participants.ensureExternalContactParticipant(convo.id, convo.customerId);
           }

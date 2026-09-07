@@ -84,6 +84,37 @@ describe('ParticipantResolutionService', () => {
     });
   });
 
+  describe('ensureExternalContactParticipant', () => {
+    it('creates a participant shaped to satisfy CHK_conv_participant_one_principal -- externalCustomerId set, every other principal field left unset', async () => {
+      const { service, participantRepo } = build();
+      participantRepo.findOne.mockResolvedValue(null);
+      const participant = await service.ensureExternalContactParticipant(4, 9);
+      expect(participantRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          conversationId: 4,
+          principalType: ParticipantPrincipalType.EXTERNAL_CONTACT,
+          externalCustomerId: 9,
+          status: ParticipantStatus.ACTIVE,
+        }),
+      );
+      const created = participantRepo.create.mock.calls[0][0];
+      expect(created.userId).toBeUndefined();
+      expect(created.accountRoleId).toBeUndefined();
+      expect(created.workspaceType).toBeUndefined();
+      expect(created.workspaceId).toBeUndefined();
+      expect(participant.externalCustomerId).toBe(9);
+    });
+
+    it('is idempotent -- a second call for the same conversation+externalCustomerId returns the existing row instead of duplicating', async () => {
+      const { service, participantRepo } = build();
+      const existing = { id: 77, conversationId: 4, externalCustomerId: 9, status: ParticipantStatus.ACTIVE };
+      participantRepo.findOne.mockResolvedValue(existing);
+      const participant = await service.ensureExternalContactParticipant(4, 9);
+      expect(participant.id).toBe(77);
+      expect(participantRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('isEntitled', () => {
     it('grants entitlement when an active account_role participant matches the resolved accountRoleId', async () => {
       const { service, participantRepo } = build();
