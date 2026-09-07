@@ -82,6 +82,34 @@ export class AccountRole {
   @Column({ type: 'jsonb', default: () => "'{}'" })
   capabilities: Record<string, boolean>;
 
+  // Business-First Stage 1 foundation (additive, nullable). Points directly
+  // at a WorkspaceAssignment -- never at Business/OperationalWorkspace/
+  // BusinessMembership directly -- so the authoritative operating chain is
+  // always AccountRole -> WorkspaceAssignment -> BusinessMembership ->
+  // OperationalWorkspace -> Business (see workspace-assignment.entity.ts).
+  // NULL for every role that is legitimately non-organizational (Buyer,
+  // Agent, every platform role, and any not-yet-migrated Seller/Transport
+  // Provider/Super Agent/Service Provider role) -- that is an expected,
+  // permanent state for most roles, not a migration gap to eventually
+  // close for all of them. When set, RoleContextService's organizational
+  // resolution requires the ENTIRE chain to be active and consistent or it
+  // fails closed (throws) rather than silently resolving businessId/
+  // workspaceId to null -- see RoleContextService.resolveOrganizationalContext().
+  //
+  // Deliberately a PLAIN column, not a decorated @ManyToOne relation --
+  // matching ConversationParticipant.workspaceId's own precedent (a plain
+  // nullable int, no relation object) rather than AccountRole's own
+  // `user`/`approvedByUser` pattern. A real @ManyToOne(() => WorkspaceAssignment)
+  // here would force every OTHER DataSource in the codebase that already
+  // registers AccountRole (every Stage 2 backfill tool's disposable-DB
+  // test, every standalone CLI's entity list) to also register
+  // WorkspaceAssignment/BusinessMembership/OperationalWorkspace/Business
+  // just to satisfy TypeORM's metadata builder, for a relation nothing
+  // outside this module currently navigates as a loaded object -- every
+  // caller only ever reads/writes the raw id.
+  @Column({ type: 'int', nullable: true })
+  workspaceAssignmentId: number | null;
+
   @Column({ type: 'int', default: 1 })
   contextVersion: number;
 
