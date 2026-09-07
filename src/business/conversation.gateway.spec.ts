@@ -1,6 +1,7 @@
 import { ConversationGateway } from './conversation.gateway';
 import { RoleContextException } from '../role-context/role-context.exception';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { ConversationClassificationStatus } from './entities/conversation.entity';
 
 /**
  * Stage 2 item 16/17/18: socket RoleContext authentication + scoped rooms +
@@ -171,13 +172,70 @@ describe('ConversationGateway (Stage 2 checkpoint H)', () => {
       // active as buyer -- must NOT be granted seller-side join.
       const { gateway, convoRepo, participants, sellerScope, client } = build();
       client.data = { userId: 1, roleContext: { ...roleContext, roleType: AccountRoleType.BUYER } };
-      convoRepo.findOne.mockResolvedValue({ id: 5, sellerId: 1, customer: { userId: 2 } });
+      convoRepo.findOne.mockResolvedValue({
+        id: 5, sellerId: 1, customer: { userId: 2 },
+        classificationStatus: ConversationClassificationStatus.LEGACY_UNSCOPED,
+      });
       participants.isEntitled.mockResolvedValue(false);
       sellerScope.isAuthorizedFor.mockResolvedValue(true); // legacy raw-id check would have passed
 
       await gateway.handleJoinConversation(client, 5 as any);
 
       expect(client.join).not.toHaveBeenCalledWith('conversation:5');
+    });
+
+    it('legacy fallback DOES join a genuinely LEGACY_UNSCOPED conversation on raw structural ownership (the case the fallback exists for)', async () => {
+      const { gateway, convoRepo, participants, sellerScope, client } = build();
+      client.data = { userId: 1, roleContext: { ...roleContext, roleType: AccountRoleType.SELLER } };
+      convoRepo.findOne.mockResolvedValue({
+        id: 5, sellerId: 1, customer: { userId: 2 },
+        classificationStatus: ConversationClassificationStatus.LEGACY_UNSCOPED,
+      });
+      participants.isEntitled.mockResolvedValue(false); // classifier/dual-write hasn't touched this one yet
+      sellerScope.isAuthorizedFor.mockResolvedValue(true);
+
+      await gateway.handleJoinConversation(client, 5 as any);
+
+      expect(client.join).toHaveBeenCalledWith('conversation:5');
+    });
+
+    it('ADVERSARIAL: an AMBIGUOUS conversation cannot enter a socket room through legacy fallback when no canonical participant entitlement exists', async () => {
+      // Same raw structural-ownership shape as the LEGACY_UNSCOPED case above
+      // (caller IS the raw seller_id, active role matches, sellerScope would
+      // authorize) -- the ONLY difference is classificationStatus is
+      // AMBIGUOUS, meaning the classifier evaluated this conversation and
+      // could not deterministically resolve at least one side. The legacy
+      // fallback must never treat "no participant yet" and "the classifier
+      // looked and could not decide" as the same case.
+      const { gateway, convoRepo, participants, sellerScope, client } = build();
+      client.data = { userId: 1, roleContext: { ...roleContext, roleType: AccountRoleType.SELLER } };
+      convoRepo.findOne.mockResolvedValue({
+        id: 7, sellerId: 1, customer: { userId: 2 },
+        classificationStatus: ConversationClassificationStatus.AMBIGUOUS,
+      });
+      participants.isEntitled.mockResolvedValue(false);
+      sellerScope.isAuthorizedFor.mockResolvedValue(true); // raw ownership WOULD authorize under the old unconditional fallback
+
+      await gateway.handleJoinConversation(client, 7 as any);
+
+      expect(client.join).not.toHaveBeenCalledWith('conversation:7');
+      expect(sellerScope.isAuthorizedFor).not.toHaveBeenCalled(); // short-circuited before ever reaching the raw-ownership check
+    });
+
+    it('ADVERSARIAL: a RESOLVED conversation without an entitled participant (e.g. the caller is a stale/different role) is never rescued by legacy fallback', async () => {
+      const { gateway, convoRepo, participants, sellerScope, client } = build();
+      client.data = { userId: 1, roleContext: { ...roleContext, roleType: AccountRoleType.SELLER } };
+      convoRepo.findOne.mockResolvedValue({
+        id: 9, sellerId: 1, customer: { userId: 2 },
+        classificationStatus: ConversationClassificationStatus.RESOLVED,
+      });
+      participants.isEntitled.mockResolvedValue(false);
+      sellerScope.isAuthorizedFor.mockResolvedValue(true);
+
+      await gateway.handleJoinConversation(client, 9 as any);
+
+      expect(client.join).not.toHaveBeenCalledWith('conversation:9');
+      expect(sellerScope.isAuthorizedFor).not.toHaveBeenCalled();
     });
   });
 

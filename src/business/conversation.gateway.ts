@@ -46,7 +46,7 @@ import { Logger, OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Conversation } from './entities/conversation.entity';
+import { Conversation, ConversationClassificationStatus } from './entities/conversation.entity';
 import { ConversationMessage } from './entities/conversation-message.entity';
 import { SellerScopeService } from './seller-scope.service';
 import { User } from '../users/entities/user.entity';
@@ -188,7 +188,21 @@ export class ConversationGateway implements OnGatewayConnection, OnModuleInit {
     // -- but now ALSO requires the matching active role, which the
     // original check never looked at at all. This is the actual Stage 2
     // fix for this handler; the ownership half is unchanged.
-    if (!authorized && this.flags.isEnabled('LEGACY_COMMUNICATION_READ_FALLBACK')) {
+    //
+    // Restricted (mirroring the REST fallback in
+    // ConversationService.getScopedInboxByAccountRole) to conversations the
+    // classifier has never evaluated: classificationStatus must still be
+    // LEGACY_UNSCOPED. A RESOLVED/ACCOUNT_WIDE/EXTERNAL_CONTACT row always
+    // has a real participant already, so it's covered by the isEntitled()
+    // check above, never this branch. An AMBIGUOUS row -- one the
+    // classifier looked at and could not deterministically assign -- must
+    // never re-enter via raw structural ownership just because it lacks a
+    // participant on this particular side.
+    if (
+      !authorized &&
+      this.flags.isEnabled('LEGACY_COMMUNICATION_READ_FALLBACK') &&
+      convo.classificationStatus === ConversationClassificationStatus.LEGACY_UNSCOPED
+    ) {
       const isBuyer =
         convo.customer?.userId === userId &&
         (!roleContext || roleContext.roleType === AccountRoleType.BUYER);
