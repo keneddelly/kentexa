@@ -114,7 +114,64 @@ export interface CliOptions {
 // credential of any kind.
 export const REQUIRED_CONFIRMATION_TOKEN = 'KENTEXA-CONVERSATION-BACKFILL';
 
+// Every flag name this CLI recognizes -- anything else in argv is rejected
+// outright, and any of these appearing more than once is rejected too.
+// 'offset' is deliberately included here (not just absent) so it gets its
+// own specific, explanatory rejection message rather than a generic
+// "unknown argument" one.
+const RECOGNIZED_FLAGS = new Set([
+  'execute', 'batch-size', 'expect-resolved', 'expect-external', 'expect-ambiguous',
+  'confirm-production-backfill', 'offset',
+]);
+
+/** Extracts the flag name from a `--name` or `--name=value` token, or null for a bare value/non-flag token. */
+function flagNameOf(token: string): string | null {
+  if (!token.startsWith('--')) return null;
+  const body = token.slice(2);
+  const eqIdx = body.indexOf('=');
+  return eqIdx === -1 ? body : body.slice(0, eqIdx);
+}
+
+/** Strict: only a bare non-negative integer literal (no sign, no decimal point, no trailing/leading garbage). */
+function parseStrictNonNegativeInt(raw: string, flagLabel: string): number {
+  if (!/^\d+$/.test(raw)) {
+    throw new Error(`--${flagLabel} must be a plain non-negative integer (got "${raw}")`);
+  }
+  return parseInt(raw, 10);
+}
+
+function parseStrictPositiveInt(raw: string, flagLabel: string): number {
+  const n = parseStrictNonNegativeInt(raw, flagLabel);
+  if (n <= 0) {
+    throw new Error(`--${flagLabel} must be greater than 0 (got "${raw}")`);
+  }
+  return n;
+}
+
 export function parseArgs(argv: string[]): CliOptions {
+  // Unknown/duplicate-argument rejection, scanned once up front, before
+  // anything else -- applies in both dry-run and execute mode. Only
+  // tokens that actually look like a flag (start with "--") are checked;
+  // a bare value token (e.g. "20" following --batch-size) is skipped here
+  // and consumed by `flag()` below instead.
+  const seenCounts = new Map<string, number>();
+  for (const token of argv) {
+    const name = flagNameOf(token);
+    if (name === null) continue;
+    if (!RECOGNIZED_FLAGS.has(name)) {
+      throw new Error(`Unknown argument: --${name}`);
+    }
+    seenCounts.set(name, (seenCounts.get(name) ?? 0) + 1);
+  }
+  if (seenCounts.has('offset')) {
+    throw new Error('--offset is not a supported flag: offset is hard-coded to 0 by design (see file header comment).');
+  }
+  for (const [name, count] of seenCounts) {
+    if (count > 1) {
+      throw new Error(`Duplicate argument: --${name} was supplied ${count} times -- pass it exactly once.`);
+    }
+  }
+
   const flag = (name: string): string | undefined => {
     const prefix = `--${name}=`;
     const eq = argv.find((a) => a.startsWith(prefix));
@@ -123,14 +180,12 @@ export function parseArgs(argv: string[]): CliOptions {
     if (idx !== -1 && argv[idx + 1] && !argv[idx + 1].startsWith('--')) return argv[idx + 1];
     return undefined;
   };
-  if (argv.includes('--offset') || argv.some((a) => a.startsWith('--offset='))) {
-    throw new Error('--offset is not a supported flag: offset is hard-coded to 0 by design (see file header comment).');
-  }
 
   const execute = argv.includes('--execute');
   const rawResolved = flag('expect-resolved');
   const rawExternal = flag('expect-external');
   const rawAmbiguous = flag('expect-ambiguous');
+  const rawBatchSize = flag('batch-size');
   const confirmToken = flag('confirm-production-backfill');
 
   // --execute may never silently inherit the dry-run convenience defaults
@@ -154,12 +209,16 @@ export function parseArgs(argv: string[]): CliOptions {
     );
   }
 
+  // Strict parsing applies whenever a flag is actually supplied, in either
+  // mode -- NaN, decimals, partially-numeric strings ("7abc"), and
+  // negative expectation counts are all rejected outright rather than
+  // silently coerced or relied upon to fail some other check downstream.
   return {
     execute,
-    batchSize: parseInt(flag('batch-size') ?? '50', 10),
-    expectResolved: rawResolved !== undefined ? parseInt(rawResolved, 10) : 7,
-    expectExternal: rawExternal !== undefined ? parseInt(rawExternal, 10) : 1,
-    expectAmbiguous: rawAmbiguous !== undefined ? parseInt(rawAmbiguous, 10) : 5,
+    batchSize: rawBatchSize !== undefined ? parseStrictPositiveInt(rawBatchSize, 'batch-size') : 50,
+    expectResolved: rawResolved !== undefined ? parseStrictNonNegativeInt(rawResolved, 'expect-resolved') : 7,
+    expectExternal: rawExternal !== undefined ? parseStrictNonNegativeInt(rawExternal, 'expect-external') : 1,
+    expectAmbiguous: rawAmbiguous !== undefined ? parseStrictNonNegativeInt(rawAmbiguous, 'expect-ambiguous') : 5,
     confirmToken,
   };
 }
@@ -286,7 +345,7 @@ export async function validateExistingParticipants(
       const buyerRole = await classifier.resolveBuyerRole(convo);
       if (buyerRole && buyerRole.id === p.accountRoleId) valid.push(p);
       else invalid.push({ participant: p, reason: 'accountRoleId does not match the independently resolved Buyer AccountRole for this conversation' });
-    } else if (p.principalType === ParticipantPrincipalType.EXTERNAL_CONTACT) {
+    } else if (p.principalType === ParticipantPrincipalType.EXTERNAL_CONTACT && p.participantKind === ParticipantKind.EXTERNAL) {
       const externalCustomer = await classifier.resolveExternalContact(convo);
       if (externalCustomer && externalCustomer.id === p.externalCustomerId) valid.push(p);
       else invalid.push({ participant: p, reason: 'externalCustomerId does not match the independently resolved external-contact BusinessCustomer for this conversation' });

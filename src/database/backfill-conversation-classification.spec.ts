@@ -81,6 +81,102 @@ describe('backfill-conversation-classification CLI — parseArgs (pure, no DB)',
       expect(() => parseArgs(['--batch-size', '10'])).not.toThrow();
     });
   });
+
+  describe('strict integer parsing (--expect-*)', () => {
+    for (const flagName of ['expect-resolved', 'expect-external', 'expect-ambiguous']) {
+      it(`--${flagName} rejects NaN / non-numeric input`, () => {
+        expect(() => parseArgs([`--${flagName}`, 'abc'])).toThrow(new RegExp(`--${flagName} must be a plain non-negative integer`));
+      });
+
+      it(`--${flagName} rejects a decimal value`, () => {
+        expect(() => parseArgs([`--${flagName}`, '7.5'])).toThrow(new RegExp(`--${flagName} must be a plain non-negative integer`));
+      });
+
+      it(`--${flagName} rejects a partially-numeric value ("7abc")`, () => {
+        expect(() => parseArgs([`--${flagName}`, '7abc'])).toThrow(new RegExp(`--${flagName} must be a plain non-negative integer`));
+      });
+
+      it(`--${flagName} rejects a negative value`, () => {
+        expect(() => parseArgs([`--${flagName}`, '-5'])).toThrow(new RegExp(`--${flagName} must be a plain non-negative integer`));
+      });
+
+      it(`--${flagName} accepts 0 (a valid expectation count)`, () => {
+        expect(() => parseArgs([`--${flagName}`, '0'])).not.toThrow();
+      });
+
+      it(`--${flagName} accepts a plain positive integer`, () => {
+        expect(() => parseArgs([`--${flagName}`, '7'])).not.toThrow();
+      });
+    }
+  });
+
+  describe('strict positive integer parsing (--batch-size)', () => {
+    it('rejects NaN / non-numeric input', () => {
+      expect(() => parseArgs(['--batch-size', 'abc'])).toThrow(/--batch-size must be a plain non-negative integer/);
+    });
+
+    it('rejects a decimal value', () => {
+      expect(() => parseArgs(['--batch-size', '20.5'])).toThrow(/--batch-size must be a plain non-negative integer/);
+    });
+
+    it('rejects a partially-numeric value', () => {
+      expect(() => parseArgs(['--batch-size', '20x'])).toThrow(/--batch-size must be a plain non-negative integer/);
+    });
+
+    it('rejects a negative value', () => {
+      expect(() => parseArgs(['--batch-size', '-1'])).toThrow(/--batch-size must be a plain non-negative integer/);
+    });
+
+    it('rejects zero -- batch size must be strictly positive, unlike the --expect-* counts', () => {
+      expect(() => parseArgs(['--batch-size', '0'])).toThrow(/--batch-size must be greater than 0/);
+    });
+
+    it('accepts a plain positive integer', () => {
+      const opts = parseArgs(['--batch-size', '20']);
+      expect(opts.batchSize).toBe(20);
+    });
+
+    it('defaults to 50 when omitted', () => {
+      expect(parseArgs([]).batchSize).toBe(50);
+    });
+  });
+
+  describe('unknown / duplicate argument rejection', () => {
+    it('rejects a completely unrecognized flag', () => {
+      expect(() => parseArgs(['--YOLO'])).toThrow(/Unknown argument: --YOLO/);
+    });
+
+    it('rejects an unrecognized flag even when it looks plausible (typo of a real flag)', () => {
+      expect(() => parseArgs(['--exept-resolved', '7'])).toThrow(/Unknown argument: --exept-resolved/);
+    });
+
+    it('rejects an unrecognized flag given in --name=value form', () => {
+      expect(() => parseArgs(['--YOLO=1'])).toThrow(/Unknown argument: --YOLO/);
+    });
+
+    it('rejects a duplicate recognized flag (space form)', () => {
+      expect(() => parseArgs(['--expect-resolved', '3', '--expect-resolved', '7'])).toThrow(/Duplicate argument: --expect-resolved/);
+    });
+
+    it('rejects a duplicate recognized flag (mixed = and space form)', () => {
+      expect(() => parseArgs(['--batch-size=10', '--batch-size', '20'])).toThrow(/Duplicate argument: --batch-size/);
+    });
+
+    it('rejects a duplicate --execute', () => {
+      expect(() => parseArgs(['--execute', '--execute', ...CONFIRM, '--expect-resolved', '7', '--expect-external', '1', '--expect-ambiguous', '5'])).toThrow(/Duplicate argument: --execute/);
+    });
+
+    it('a genuinely unique, fully-valid argument set still parses successfully (sanity check that the new checks are not over-broad)', () => {
+      expect(() => parseArgs(['--execute', '--batch-size', '20', '--expect-resolved', '7', '--expect-external', '1', '--expect-ambiguous', '5', ...CONFIRM])).not.toThrow();
+    });
+
+    it('bare numeric VALUES following a flag are never mistaken for unknown flags', () => {
+      // "20" does not start with "--" so it must never trip the
+      // unknown-argument scanner, even though it immediately follows a
+      // recognized flag.
+      expect(() => parseArgs(['--batch-size', '20'])).not.toThrow();
+    });
+  });
 });
 
 describe('backfill-conversation-classification CLI — structural safety proofs (static source inspection)', () => {
@@ -419,6 +515,36 @@ describe('backfill-conversation-classification CLI — end-to-end against a disp
       await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.EXTERNAL_CONTACT, externalCustomerId: otherCustomer.id, participantKind: ParticipantKind.EXTERNAL });
 
       const code = await main(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '1', '--expect-ambiguous', '0'], dataSource);
+
+      expect(code).toBe(1);
+    });
+
+    it('regression: an EXTERNAL_CONTACT participant with the CORRECT externalCustomerId but the WRONG participantKind fails -- matching the canonical customer id alone is not sufficient, the claimed side/kind must also be correct', async () => {
+      const { convo, customer } = await seedExternalContactConversation();
+      // The externalCustomerId is exactly right; participantKind is not
+      // 'external' -- this must still be rejected. This is the exact shape
+      // that was previously (incorrectly) accepted before this fix.
+      await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.EXTERNAL_CONTACT, externalCustomerId: customer.id, participantKind: ParticipantKind.SELLER });
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '0', '--expect-external', '1', '--expect-ambiguous', '0'], dataSource);
+
+      expect(code).toBe(1);
+    });
+
+    it('cross-combination: Buyer AR with participantKind=seller fails (correct role id, wrong claimed side)', async () => {
+      const { convo, buyerRole } = await seedResolvedConversation();
+      await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: buyerRole.id, participantKind: ParticipantKind.SELLER });
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
+
+      expect(code).toBe(1);
+    });
+
+    it('cross-combination: Seller AR with participantKind=buyer fails (correct role id, wrong claimed side)', async () => {
+      const { convo, sellerRole } = await seedResolvedConversation();
+      await plantParticipant(convo.id, { principalType: ParticipantPrincipalType.ACCOUNT_ROLE, accountRoleId: sellerRole.id, participantKind: ParticipantKind.BUYER });
+
+      const code = await main(['--batch-size', '10', '--expect-resolved', '1', '--expect-external', '0', '--expect-ambiguous', '0'], dataSource);
 
       expect(code).toBe(1);
     });
