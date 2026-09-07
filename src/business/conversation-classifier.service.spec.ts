@@ -7,6 +7,17 @@ import { ParticipantKind } from './entities/conversation-participant.entity';
  * Stage 2 item 22: the historical classifier must be purely deterministic
  * -- never guess an ambiguous legacy conversation's ownership. Only
  * RESOLVED records may be auto-backfilled; everything else is quarantined.
+ *
+ * Per-conversation atomicity hardening: classifyAndBackfillBatch() now runs
+ * each conversation's classification-status write + participant creation(s)
+ * inside one dataSource.transaction() call. These unit tests mock the
+ * DataSource/EntityManager and can only prove the APPLICATION-LEVEL
+ * guarantee (a thrown error inside the transaction callback aborts that
+ * callback immediately -- no step after the failure point ever runs, and
+ * the success-only report counters never increment on failure). They
+ * cannot prove real Postgres-level rollback of an already-issued UPDATE --
+ * that is proven separately by the disposable-database integration test
+ * (see transaction-atomicity.integration.spec.ts).
  */
 describe('ConversationClassifierService', () => {
   const sellerRole = { id: 10, userId: 1, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE };
@@ -26,7 +37,23 @@ describe('ConversationClassifierService', () => {
       ensureAccountRoleParticipant: jest.fn().mockResolvedValue({ id: 100 }),
       ensureExternalContactParticipant: jest.fn().mockResolvedValue({ id: 200 }),
     };
-    return { service: new ConversationClassifierService(convoRepo, customerRepo, accountRoleRepo, participants), convoRepo, customerRepo, accountRoleRepo, participants };
+    // Mock EntityManager: update()/findOne() delegate to the same
+    // convoRepo/accountRoleRepo mocks so every existing assertion against
+    // those mocks stays meaningful -- the classifier now issues these
+    // calls via the transaction's manager instead of the default repos,
+    // but the underlying "what was written / what was looked up" behavior
+    // is identical.
+    const manager: any = {
+      update: (_entity: any, id: number, partial: any) => convoRepo.update(id, partial),
+      findOne: (_entity: any, options: any) => accountRoleRepo.findOne(options),
+    };
+    const dataSource: any = {
+      transaction: jest.fn((cb: any) => cb(manager)),
+    };
+    return {
+      service: new ConversationClassifierService(convoRepo, customerRepo, accountRoleRepo, participants, dataSource),
+      convoRepo, customerRepo, accountRoleRepo, participants, dataSource, manager,
+    };
   };
 
   describe('classify', () => {
@@ -67,8 +94,8 @@ describe('ConversationClassifierService', () => {
   });
 
   describe('classifyAndBackfillBatch', () => {
-    it('RESOLVED creates BOTH the seller and buyer AccountRole participants', async () => {
-      const { service, convoRepo, customerRepo, participants } = build();
+    it('RESOLVED creates BOTH the seller and buyer AccountRole participants, inside one transaction', async () => {
+      const { service, convoRepo, customerRepo, participants, dataSource, manager } = build();
       convoRepo.find.mockResolvedValue([
         { id: 1, sellerId: 1, customerId: 55, customer: { userId: 2 } },
       ]);
@@ -77,15 +104,16 @@ describe('ConversationClassifierService', () => {
       const report = await service.classifyAndBackfillBatch(10, 0);
 
       expect(report.resolved).toBe(1);
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
       expect(convoRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({ classificationStatus: ConversationClassificationStatus.RESOLVED }));
-      expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledWith(1, sellerRole.id, ParticipantKind.SELLER);
-      expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledWith(1, buyerRole.id, ParticipantKind.BUYER);
+      expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledWith(1, sellerRole.id, ParticipantKind.SELLER, {}, manager);
+      expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledWith(1, buyerRole.id, ParticipantKind.BUYER, {}, manager);
       expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledTimes(2);
       expect(participants.ensureExternalContactParticipant).not.toHaveBeenCalled();
     });
 
-    it('EXTERNAL_CONTACT creates BOTH the seller AccountRole participant and the external-contact participant (regression: previously only the external-contact side was created, leaving the seller unable to pass isEntitled() on their own conversation once scoped reads are enabled)', async () => {
-      const { service, convoRepo, customerRepo, participants } = build();
+    it('EXTERNAL_CONTACT creates BOTH the seller AccountRole participant and the external-contact participant, inside one transaction (regression: previously only the external-contact side was created, leaving the seller unable to pass isEntitled() on their own conversation once scoped reads are enabled)', async () => {
+      const { service, convoRepo, customerRepo, participants, dataSource, manager } = build();
       convoRepo.find.mockResolvedValue([
         { id: 4, sellerId: 1, customerId: 9, customer: { id: 9, sellerId: 1, userId: null } },
       ]);
@@ -94,11 +122,28 @@ describe('ConversationClassifierService', () => {
       const report = await service.classifyAndBackfillBatch(10, 0);
 
       expect(report.externalContact).toBe(1);
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
       expect(convoRepo.update).toHaveBeenCalledWith(4, expect.objectContaining({ classificationStatus: ConversationClassificationStatus.EXTERNAL_CONTACT }));
-      expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledWith(4, sellerRole.id, ParticipantKind.SELLER);
-      expect(participants.ensureExternalContactParticipant).toHaveBeenCalledWith(4, 9);
+      expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledWith(4, sellerRole.id, ParticipantKind.SELLER, {}, manager);
+      expect(participants.ensureExternalContactParticipant).toHaveBeenCalledWith(4, 9, manager);
       // Never invents a buyer participant for a contact with no linked user account.
-      expect(participants.ensureAccountRoleParticipant).not.toHaveBeenCalledWith(4, expect.anything(), ParticipantKind.BUYER);
+      expect(participants.ensureAccountRoleParticipant).not.toHaveBeenCalledWith(4, expect.anything(), ParticipantKind.BUYER, expect.anything(), expect.anything());
+    });
+
+    it('AMBIGUOUS: the transaction contains only the classification-status update, no participants', async () => {
+      const { service, convoRepo, customerRepo, participants, dataSource } = build();
+      convoRepo.find.mockResolvedValue([
+        { id: 7, sellerId: 999, customerId: 9, customer: { id: 9, sellerId: 999, userId: null } },
+      ]);
+      customerRepo.findOne.mockResolvedValue({ id: 9, sellerId: 999, userId: null });
+
+      const report = await service.classifyAndBackfillBatch(10, 0);
+
+      expect(report.ambiguous).toBe(1);
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(convoRepo.update).toHaveBeenCalledWith(7, expect.objectContaining({ classificationStatus: ConversationClassificationStatus.AMBIGUOUS }));
+      expect(participants.ensureAccountRoleParticipant).not.toHaveBeenCalled();
+      expect(participants.ensureExternalContactParticipant).not.toHaveBeenCalled();
     });
 
     it('production-equivalent conversation #4 shape: active seller role + BusinessCustomer with userId=NULL -> classificationStatus=EXTERNAL_CONTACT with exactly two participants created (seller ACCOUNT_ROLE + customer EXTERNAL_CONTACT)', async () => {
@@ -132,8 +177,8 @@ describe('ConversationClassifierService', () => {
       expect(convoRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({ classificationStatus: ConversationClassificationStatus.RESOLVED }));
       expect(convoRepo.update).toHaveBeenCalledWith(2, expect.objectContaining({ classificationStatus: ConversationClassificationStatus.AMBIGUOUS }));
       // Only the resolved conversation (id 1) gets participants ensured.
-      expect(participants.ensureAccountRoleParticipant).not.toHaveBeenCalledWith(2, expect.anything(), expect.anything());
-      expect(participants.ensureExternalContactParticipant).not.toHaveBeenCalledWith(2, expect.anything());
+      expect(participants.ensureAccountRoleParticipant).not.toHaveBeenCalledWith(2, expect.anything(), expect.anything(), expect.anything(), expect.anything());
+      expect(participants.ensureExternalContactParticipant).not.toHaveBeenCalledWith(2, expect.anything(), expect.anything());
     });
 
     it('fail-closed: EXTERNAL_CONTACT is never produced (nor is any participant created) when the seller AccountRole itself is missing/inactive -- the seller check happens before the customer-side check', async () => {
@@ -151,8 +196,8 @@ describe('ConversationClassifierService', () => {
       expect(participants.ensureExternalContactParticipant).not.toHaveBeenCalled();
     });
 
-    it('repeated execution over the same row is idempotent at the call layer -- identical (conversationId, accountRoleId/externalCustomerId) arguments both times, relying on ParticipantResolutionService.ensure*Participant\'s own upsert semantics (see participant-resolution.service.spec.ts) to avoid duplicating the underlying row', async () => {
-      const { service, convoRepo, customerRepo, participants } = build();
+    it('repeated execution over the same row is idempotent at the call layer -- identical (conversationId, accountRoleId/externalCustomerId, ..., manager) arguments both times, relying on ParticipantResolutionService.ensure*Participant\'s own upsert semantics (see participant-resolution.service.spec.ts) to avoid duplicating the underlying row', async () => {
+      const { service, convoRepo, customerRepo, participants, manager } = build();
       convoRepo.find.mockResolvedValue([
         { id: 4, sellerId: 1, customerId: 9, customer: { id: 9, sellerId: 1, userId: null } },
       ]);
@@ -161,13 +206,13 @@ describe('ConversationClassifierService', () => {
       await service.classifyAndBackfillBatch(10, 0);
       await service.classifyAndBackfillBatch(10, 0);
 
-      expect(participants.ensureAccountRoleParticipant).toHaveBeenNthCalledWith(1, 4, sellerRole.id, ParticipantKind.SELLER);
-      expect(participants.ensureAccountRoleParticipant).toHaveBeenNthCalledWith(2, 4, sellerRole.id, ParticipantKind.SELLER);
-      expect(participants.ensureExternalContactParticipant).toHaveBeenNthCalledWith(1, 4, 9);
-      expect(participants.ensureExternalContactParticipant).toHaveBeenNthCalledWith(2, 4, 9);
+      expect(participants.ensureAccountRoleParticipant).toHaveBeenNthCalledWith(1, 4, sellerRole.id, ParticipantKind.SELLER, {}, manager);
+      expect(participants.ensureAccountRoleParticipant).toHaveBeenNthCalledWith(2, 4, sellerRole.id, ParticipantKind.SELLER, {}, manager);
+      expect(participants.ensureExternalContactParticipant).toHaveBeenNthCalledWith(1, 4, 9, manager);
+      expect(participants.ensureExternalContactParticipant).toHaveBeenNthCalledWith(2, 4, 9, manager);
     });
 
-    it('a per-row failure is caught and counted, never aborts the whole batch', async () => {
+    it('a per-row failure is caught and counted, never aborts the whole batch, when stopOnError is omitted (default false)', async () => {
       const { service, convoRepo, customerRepo } = build();
       convoRepo.find.mockResolvedValue([
         { id: 1, sellerId: 1, customerId: 55, customer: { userId: 2 } },
@@ -183,6 +228,97 @@ describe('ConversationClassifierService', () => {
       expect(report.scanned).toBe(2);
       expect(report.errors).toBe(1);
       expect(report.resolved).toBe(1);
+    });
+
+    describe('per-conversation atomicity on failure', () => {
+      it('a seller-participant failure aborts the transaction immediately -- the buyer step never runs, and the row is not counted as resolved', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        convoRepo.find.mockResolvedValue([
+          { id: 1, sellerId: 1, customerId: 55, customer: { userId: 2 } },
+        ]);
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2 });
+        participants.ensureAccountRoleParticipant.mockImplementation((_convoId: number, _roleId: number, kind: string) => {
+          if (kind === ParticipantKind.SELLER) throw new Error('seller ensure exploded');
+          return Promise.resolve({ id: 999 });
+        });
+
+        const report = await service.classifyAndBackfillBatch(10, 0);
+
+        expect(report.errors).toBe(1);
+        expect(report.resolved).toBe(0);
+        // The seller call was attempted (and threw); the buyer call after it
+        // in the same transaction callback must never execute.
+        expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledTimes(1);
+      });
+
+      it('a buyer-participant failure rolls back the entire RESOLVED conversation -- the row is not counted as resolved despite the seller step having "succeeded" first', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        convoRepo.find.mockResolvedValue([
+          { id: 1, sellerId: 1, customerId: 55, customer: { userId: 2 } },
+        ]);
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2 });
+        participants.ensureAccountRoleParticipant.mockImplementation((_convoId: number, _roleId: number, kind: string) => {
+          if (kind === ParticipantKind.BUYER) throw new Error('buyer ensure exploded');
+          return Promise.resolve({ id: 999 });
+        });
+
+        const report = await service.classifyAndBackfillBatch(10, 0);
+
+        expect(report.errors).toBe(1);
+        expect(report.resolved).toBe(0);
+        expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledTimes(2); // seller attempted, then buyer threw
+      });
+
+      it('an external-contact-participant failure rolls back the entire EXTERNAL_CONTACT conversation', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        convoRepo.find.mockResolvedValue([
+          { id: 4, sellerId: 1, customerId: 9, customer: { id: 9, sellerId: 1, userId: null } },
+        ]);
+        customerRepo.findOne.mockResolvedValue({ id: 9, sellerId: 1, userId: null });
+        participants.ensureExternalContactParticipant.mockRejectedValue(new Error('external-contact ensure exploded'));
+
+        const report = await service.classifyAndBackfillBatch(10, 0);
+
+        expect(report.errors).toBe(1);
+        expect(report.externalContact).toBe(0);
+        // The seller participant call happened first, then the failing external-contact call.
+        expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledTimes(1);
+        expect(participants.ensureExternalContactParticipant).toHaveBeenCalledTimes(1);
+      });
+
+      it('stopOnError=true stops processing further conversations after the first failure', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        convoRepo.find.mockResolvedValue([
+          { id: 1, sellerId: 1, customerId: 55, customer: { userId: 2 } }, // will fail
+          { id: 2, sellerId: 1, customerId: 55, customer: { userId: 2 } }, // must never be attempted
+        ]);
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2 });
+        participants.ensureAccountRoleParticipant.mockRejectedValueOnce(new Error('boom on first row'));
+
+        const report = await service.classifyAndBackfillBatch(10, 0, true);
+
+        expect(report.errors).toBe(1);
+        expect(report.scanned).toBe(1); // only row 1 was attempted
+        expect(report.resolved).toBe(0);
+        // Only the failing row's seller-ensure call happened; row 2 was never reached.
+        expect(participants.ensureAccountRoleParticipant).toHaveBeenCalledTimes(1);
+      });
+
+      it('stopOnError=false (the default) continues past the same failure and still processes row 2', async () => {
+        const { service, convoRepo, customerRepo, participants } = build();
+        convoRepo.find.mockResolvedValue([
+          { id: 1, sellerId: 1, customerId: 55, customer: { userId: 2 } }, // will fail
+          { id: 2, sellerId: 1, customerId: 55, customer: { userId: 2 } }, // should still be attempted
+        ]);
+        customerRepo.findOne.mockResolvedValue({ id: 55, sellerId: 1, userId: 2 });
+        participants.ensureAccountRoleParticipant.mockRejectedValueOnce(new Error('boom on first row'));
+
+        const report = await service.classifyAndBackfillBatch(10, 0); // stopOnError omitted
+
+        expect(report.errors).toBe(1);
+        expect(report.scanned).toBe(2); // both rows attempted
+        expect(report.resolved).toBe(1); // row 2 succeeded
+      });
     });
   });
 

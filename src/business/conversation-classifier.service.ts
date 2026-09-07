@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Conversation, ConversationClassificationStatus } from './entities/conversation.entity';
 import { BusinessCustomer } from './entities/business-customer.entity';
 import { AccountRole, AccountRoleStatus, AccountRoleType } from '../role-context/entities/account-role.entity';
@@ -48,6 +48,7 @@ export class ConversationClassifierService {
     @InjectRepository(BusinessCustomer) private readonly customerRepo: Repository<BusinessCustomer>,
     @InjectRepository(AccountRole) private readonly accountRoleRepo: Repository<AccountRole>,
     private readonly participants: ParticipantResolutionService,
+    @InjectDataSource() private readonly dataSource: DataSource,
   ) {}
 
   /**
@@ -127,8 +128,32 @@ export class ConversationClassifierService {
    * for a human to resolve later) but no participants and no guessed
    * ownership. EXTERNAL_CONTACT rows get an external-contact participant
    * for the customer side, and a seller participant if resolvable.
+   *
+   * Each conversation's classification-status write and its participant
+   * creation(s) run inside one `dataSource.transaction()` -- either all of
+   * a conversation's mutations commit, or none do. `classify()` itself
+   * (pure reads) runs outside the transaction to keep lock duration
+   * minimal; only the write phase is wrapped. A failure inside one
+   * conversation's transaction rolls back just that conversation, leaving
+   * it exactly as it was (LEGACY_UNSCOPED) so a later re-run picks it up
+   * again -- unlike the previous non-transactional version, a partial
+   * failure can never leave a conversation reclassified with a missing
+   * participant.
+   *
+   * `stopOnError` (default false, preserving every existing caller's
+   * behavior unchanged) lets a caller performing a small, individually-
+   * reviewed, one-time migration (see backfill-conversation-classification.ts)
+   * opt into "stop at the first failure" instead of "count errors and keep
+   * going" -- appropriate for a batch where every row's expected outcome
+   * was already hand-verified in advance, so an unexpected failure is
+   * itself an anomaly worth stopping on rather than a routine, high-volume
+   * error to tally and move past.
    */
-  async classifyAndBackfillBatch(batchSize: number, offset: number): Promise<ClassificationBatchReport> {
+  async classifyAndBackfillBatch(
+    batchSize: number,
+    offset: number,
+    stopOnError = false,
+  ): Promise<ClassificationBatchReport> {
     const rows = await this.convoRepo.find({
       where: { classificationStatus: ConversationClassificationStatus.LEGACY_UNSCOPED },
       order: { id: 'ASC' },
@@ -137,58 +162,65 @@ export class ConversationClassifierService {
       relations: { customer: true },
     });
     const report: ClassificationBatchReport = {
-      scanned: rows.length, resolved: 0, externalContact: 0, ambiguous: 0, errors: 0, byReason: {},
+      scanned: 0, resolved: 0, externalContact: 0, ambiguous: 0, errors: 0, byReason: {},
     };
     for (const convo of rows) {
+      report.scanned++;
       try {
         const result = await this.classify(convo);
         report.byReason[result.reason] = (report.byReason[result.reason] || 0) + 1;
-        await this.convoRepo.update(convo.id, {
-          classificationStatus: result.status,
-          classificationReason: result.reason,
-          classifiedAt: new Date(),
+
+        await this.dataSource.transaction(async (manager) => {
+          await manager.update(Conversation, convo.id, {
+            classificationStatus: result.status,
+            classificationReason: result.reason,
+            classifiedAt: new Date(),
+          });
+
+          if (result.status === ConversationClassificationStatus.RESOLVED) {
+            const sellerRole = await manager.findOne(AccountRole, {
+              where: { userId: convo.sellerId, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
+            });
+            if (sellerRole) {
+              await this.participants.ensureAccountRoleParticipant(convo.id, sellerRole.id, ParticipantKind.SELLER, {}, manager);
+            }
+            const buyerRole = convo.customer?.userId
+              ? await manager.findOne(AccountRole, {
+                  where: { userId: convo.customer.userId, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE },
+                })
+              : null;
+            if (buyerRole) {
+              await this.participants.ensureAccountRoleParticipant(convo.id, buyerRole.id, ParticipantKind.BUYER, {}, manager);
+            }
+          } else if (result.status === ConversationClassificationStatus.EXTERNAL_CONTACT) {
+            // Reaching EXTERNAL_CONTACT means classify() already deterministically
+            // confirmed an active SELLER AccountRole for convo.sellerId (that check
+            // happens before the customer-side checks that produce this status) --
+            // re-resolving it here (same lookup as the RESOLVED branch, never
+            // invented/inferred) and creating its participant row too, so the
+            // seller isn't excluded from their own conversation once scoped reads
+            // are ever enabled. Only the customer side is unresolvable here.
+            const sellerRole = await manager.findOne(AccountRole, {
+              where: { userId: convo.sellerId, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
+            });
+            if (sellerRole) {
+              await this.participants.ensureAccountRoleParticipant(convo.id, sellerRole.id, ParticipantKind.SELLER, {}, manager);
+            }
+            if (convo.customerId) {
+              await this.participants.ensureExternalContactParticipant(convo.id, convo.customerId, manager);
+            }
+          }
+          // AMBIGUOUS: the classificationStatus update above is the only
+          // mutation -- no participants, no guessed ownership.
         });
 
-        if (result.status === ConversationClassificationStatus.RESOLVED) {
-          report.resolved++;
-          const sellerRole = await this.accountRoleRepo.findOne({
-            where: { userId: convo.sellerId, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
-          });
-          if (sellerRole) {
-            await this.participants.ensureAccountRoleParticipant(convo.id, sellerRole.id, ParticipantKind.SELLER);
-          }
-          const buyerRole = convo.customer?.userId
-            ? await this.accountRoleRepo.findOne({
-                where: { userId: convo.customer.userId, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE },
-              })
-            : null;
-          if (buyerRole) {
-            await this.participants.ensureAccountRoleParticipant(convo.id, buyerRole.id, ParticipantKind.BUYER);
-          }
-        } else if (result.status === ConversationClassificationStatus.EXTERNAL_CONTACT) {
-          report.externalContact++;
-          // Reaching EXTERNAL_CONTACT means classify() already deterministically
-          // confirmed an active SELLER AccountRole for convo.sellerId (that check
-          // happens before the customer-side checks that produce this status) --
-          // re-resolving it here (same lookup as the RESOLVED branch, never
-          // invented/inferred) and creating its participant row too, so the
-          // seller isn't excluded from their own conversation once scoped reads
-          // are ever enabled. Only the customer side is unresolvable here.
-          const sellerRole = await this.accountRoleRepo.findOne({
-            where: { userId: convo.sellerId, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
-          });
-          if (sellerRole) {
-            await this.participants.ensureAccountRoleParticipant(convo.id, sellerRole.id, ParticipantKind.SELLER);
-          }
-          if (convo.customerId) {
-            await this.participants.ensureExternalContactParticipant(convo.id, convo.customerId);
-          }
-        } else {
-          report.ambiguous++; // no participants created -- quarantined until a human resolves it
-        }
+        if (result.status === ConversationClassificationStatus.RESOLVED) report.resolved++;
+        else if (result.status === ConversationClassificationStatus.EXTERNAL_CONTACT) report.externalContact++;
+        else report.ambiguous++; // quarantined until a human resolves it
       } catch (err: any) {
         report.errors++;
         this.logger.warn(`Classify+backfill failed for conversation #${convo.id}: ${err?.message}`);
+        if (stopOnError) break;
       }
     }
     return report;

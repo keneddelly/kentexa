@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import {
   ConversationParticipant,
   ParticipantKind,
@@ -65,13 +65,22 @@ export class ParticipantResolutionService {
    * (e.g. by sellerId + roleType=SELLER, never from a client-supplied id)
    * and pass just its id.
    */
+  // `manager`, when supplied, scopes every read/write below to that
+  // transaction's EntityManager instead of the module-injected (default,
+  // auto-committing) repository -- callers doing a multi-step, must-be-
+  // atomic operation (e.g. ConversationClassifierService's per-conversation
+  // classify+backfill) pass their transaction's manager through; every
+  // existing caller (the live dual-write paths in ConversationService)
+  // omits it and gets byte-for-byte the same behavior as before.
   async ensureAccountRoleParticipant(
     conversationId: number,
     accountRoleId: number,
     participantKind: ParticipantKind | string,
     permissions: Record<string, boolean> = {},
+    manager?: EntityManager,
   ): Promise<ConversationParticipant> {
-    const existing = await this.participantRepo.findOne({
+    const participantRepo = manager ? manager.getRepository(ConversationParticipant) : this.participantRepo;
+    const existing = await participantRepo.findOne({
       where: {
         conversationId,
         principalType: ParticipantPrincipalType.ACCOUNT_ROLE,
@@ -80,7 +89,7 @@ export class ParticipantResolutionService {
     });
     if (existing) {
       if (existing.status !== ParticipantStatus.ACTIVE) {
-        await this.participantRepo.update(existing.id, {
+        await participantRepo.update(existing.id, {
           status: ParticipantStatus.ACTIVE,
           leftAt: null,
         });
@@ -96,8 +105,8 @@ export class ParticipantResolutionService {
     // etc.), not a second participant kind. A future WORKSPACE-principal
     // participant (a channel with only a workspace, no live AccountRole --
     // e.g. bulk legacy backfill) uses ensureWorkspaceParticipant below instead.
-    return this.participantRepo.save(
-      this.participantRepo.create({
+    return participantRepo.save(
+      participantRepo.create({
         conversationId,
         principalType: ParticipantPrincipalType.ACCOUNT_ROLE,
         accountRoleId,
@@ -146,13 +155,15 @@ export class ParticipantResolutionService {
   async ensureExternalContactParticipant(
     conversationId: number,
     externalCustomerId: number,
+    manager?: EntityManager,
   ): Promise<ConversationParticipant> {
-    const existing = await this.participantRepo.findOne({
+    const participantRepo = manager ? manager.getRepository(ConversationParticipant) : this.participantRepo;
+    const existing = await participantRepo.findOne({
       where: { conversationId, principalType: ParticipantPrincipalType.EXTERNAL_CONTACT, externalCustomerId },
     });
     if (existing) return existing;
-    return this.participantRepo.save(
-      this.participantRepo.create({
+    return participantRepo.save(
+      participantRepo.create({
         conversationId,
         principalType: ParticipantPrincipalType.EXTERNAL_CONTACT,
         externalCustomerId,

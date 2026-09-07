@@ -115,6 +115,83 @@ describe('ParticipantResolutionService', () => {
     });
   });
 
+  describe('manager-aware transaction support', () => {
+    // ConversationClassifierService's per-conversation atomicity hardening
+    // needs ensureAccountRoleParticipant/ensureExternalContactParticipant to
+    // write through a transaction's EntityManager when one is supplied,
+    // instead of the module-injected default repository -- otherwise a
+    // "transactional" write would silently escape the transaction and
+    // commit immediately regardless of what happens to the rest of the
+    // conversation's mutations.
+    const buildTxManager = () => {
+      const txRepo: any = {
+        findOne: jest.fn(),
+        create: jest.fn((data: any) => data),
+        save: jest.fn((data: any) => Promise.resolve({ id: 555, ...data })),
+        update: jest.fn(),
+      };
+      const manager: any = { getRepository: jest.fn(() => txRepo) };
+      return { manager, txRepo };
+    };
+
+    it('ensureAccountRoleParticipant, given a manager, writes through manager.getRepository(...) and never touches the default injected repo', async () => {
+      const { service, participantRepo } = build();
+      const { manager, txRepo } = buildTxManager();
+      txRepo.findOne.mockResolvedValue(null);
+
+      const participant = await service.ensureAccountRoleParticipant(5, 10, ParticipantKind.SELLER, {}, manager);
+
+      expect(manager.getRepository).toHaveBeenCalled();
+      expect(txRepo.findOne).toHaveBeenCalled();
+      expect(txRepo.create).toHaveBeenCalled();
+      expect(txRepo.save).toHaveBeenCalled();
+      expect(participantRepo.findOne).not.toHaveBeenCalled();
+      expect(participantRepo.create).not.toHaveBeenCalled();
+      expect(participantRepo.save).not.toHaveBeenCalled();
+      expect(participant.accountRoleId).toBe(10);
+    });
+
+    it('ensureAccountRoleParticipant, given a manager, reactivates an existing LEFT row through the transactional repo, not the default one', async () => {
+      const { service, participantRepo } = build();
+      const { manager, txRepo } = buildTxManager();
+      const existing = { id: 42, conversationId: 5, accountRoleId: 10, status: ParticipantStatus.LEFT };
+      txRepo.findOne.mockResolvedValue(existing);
+
+      const participant = await service.ensureAccountRoleParticipant(5, 10, ParticipantKind.SELLER, {}, manager);
+
+      expect(txRepo.update).toHaveBeenCalledWith(42, expect.objectContaining({ status: ParticipantStatus.ACTIVE }));
+      expect(participantRepo.update).not.toHaveBeenCalled();
+      expect(participant.status).toBe(ParticipantStatus.ACTIVE);
+    });
+
+    it('ensureExternalContactParticipant, given a manager, writes through manager.getRepository(...) and never touches the default injected repo', async () => {
+      const { service, participantRepo } = build();
+      const { manager, txRepo } = buildTxManager();
+      txRepo.findOne.mockResolvedValue(null);
+
+      const participant = await service.ensureExternalContactParticipant(4, 9, manager);
+
+      expect(manager.getRepository).toHaveBeenCalled();
+      expect(txRepo.create).toHaveBeenCalled();
+      expect(txRepo.save).toHaveBeenCalled();
+      expect(participantRepo.findOne).not.toHaveBeenCalled();
+      expect(participantRepo.create).not.toHaveBeenCalled();
+      expect(participantRepo.save).not.toHaveBeenCalled();
+      expect(participant.externalCustomerId).toBe(9);
+    });
+
+    it('calls made WITHOUT a manager preserve the existing (pre-hardening) dual-write behavior exactly -- the default injected repo is used and no manager is ever referenced', async () => {
+      const { service, participantRepo } = build();
+      participantRepo.findOne.mockResolvedValue(null);
+
+      await service.ensureAccountRoleParticipant(5, 10, ParticipantKind.SELLER);
+      await service.ensureExternalContactParticipant(4, 9);
+
+      expect(participantRepo.create).toHaveBeenCalledTimes(2);
+      expect(participantRepo.save).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('isEntitled', () => {
     it('grants entitlement when an active account_role participant matches the resolved accountRoleId', async () => {
       const { service, participantRepo } = build();
