@@ -33,6 +33,8 @@ import { BrandsService } from '../brands/brands.service';
 import { validateAttributes, validateVariantAttributes } from '../categories/categories.data';
 import { ProductVariantGroup } from './entities/product-variant-group.entity';
 import { ProductSerial, ProductSerialStatus } from './entities/product-serial.entity';
+import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
+import { SellerScope } from '../business/seller-scope.service';
 
 @Injectable()
 export class ProductsService {
@@ -67,6 +69,7 @@ export class ProductsService {
     private readonly activityEvents: ActivityEventService,
     private readonly brandAuthorizations: BrandAuthorizationsService,
     private readonly brands: BrandsService,
+    private readonly ownershipFlags: OwnershipFeatureFlagsService,
   ) {}
 
   // Live-computed only, never persisted — see brands.module.ts. Used both
@@ -520,7 +523,7 @@ export class ProductsService {
     return { message: 'Badges updated', ...update };
   }
 
-  async create(dto: CreateProductDto, seller?: User): Promise<Product> {
+  async create(dto: CreateProductDto, seller?: User, scope?: SellerScope): Promise<Product> {
     const isDigital = dto.productType === 'digital';
 
     // Layer 1 seller verification's one hard gate for digital products:
@@ -594,6 +597,16 @@ export class ProductsService {
       sellerCity: dto.sellerCity || 'Dar es Salaam',
       seller: seller || null,
       commerceProfileId,
+      // Business-First Stage 2A: stamped ONLY from the acting request's own
+      // authoritative RoleContext.workspaceId (via `scope`, resolved by the
+      // controller through SellerScopeService.resolveScope()) -- never
+      // derived here from `seller`/sellerId. A valid, intentionally
+      // unresolved legacy Seller context (scope.mode === 'legacy') leaves
+      // this null, exactly like a pre-Stage-2A product. Gated on the dual
+      // write flag so disabling it reproduces today's behavior exactly.
+      workspaceId: this.ownershipFlags.isEnabled('PRODUCT_WORKSPACE_DUAL_WRITE')
+        ? scope?.workspaceId ?? null
+        : null,
       sku: dto.sku || null,
       barcode: dto.barcode || null,
       costPrice: dto.costPrice ?? null,
@@ -763,16 +776,48 @@ export class ProductsService {
     return saved;
   }
 
+  /**
+   * Business-First Stage 2A fail-closed ownership check. When
+   * PRODUCT_WORKSPACE_READ is off, or no scope was resolved for this call
+   * (an as-yet-unmigrated caller), behaves byte-identical to the original
+   * pre-Stage-2A check: `product.seller.id === actorId`. Once the flag is
+   * on and a scope is present:
+   *   - scope.workspaceId set + product.workspaceId set  -> compared
+   *     directly; a mismatch is FINAL, no fallback to seller.id is ever
+   *     attempted (this is the "workspace 2 caller, workspace 3 product"
+   *     case -- must deny, not degrade).
+   *   - scope.workspaceId set + product.workspaceId NULL -> the one
+   *     sanctioned transitional fallback (the resource predates
+   *     backfill/dual-write) -- legacy seller.id comparison.
+   *   - scope.workspaceId NULL (a valid, intentionally unresolved legacy
+   *     Seller context) -> legacy seller.id comparison, exactly today's
+   *     behavior.
+   */
+  private isAuthorizedForProductOwnership(
+    product: Product,
+    actorId: number,
+    scope?: SellerScope,
+  ): boolean {
+    if (!scope || !this.ownershipFlags.isEnabled('PRODUCT_WORKSPACE_READ')) {
+      return !!product.seller && product.seller.id === actorId;
+    }
+    if (scope.workspaceId != null && product.workspaceId != null) {
+      return product.workspaceId === scope.workspaceId;
+    }
+    return !!product.seller && product.seller.id === actorId;
+  }
+
   async update(
     id: number,
     dto: UpdateProductDto,
     user: User,
     isActiveAdmin = false,
+    scope?: SellerScope,
   ): Promise<Product> {
     const product = await this.findOne(id);
 
     if (!isActiveAdmin) {
-      if (!product.seller || product.seller.id !== user.id) {
+      if (!this.isAuthorizedForProductOwnership(product, user.id, scope)) {
         throw new ForbiddenException('You can only edit your own products');
       }
     }
@@ -805,13 +850,13 @@ export class ProductsService {
     return saved;
   }
 
-  async remove(id: number, user: User, isActiveAdmin = false) {
+  async remove(id: number, user: User, isActiveAdmin = false, scope?: SellerScope) {
     const product = await this.repo.findOne({
       where: { id },
       relations: { seller: true },
     });
     if (!product) throw new NotFoundException('Product not found');
-    if (!isActiveAdmin && product.seller?.id !== user.id) {
+    if (!isActiveAdmin && !this.isAuthorizedForProductOwnership(product, user.id, scope)) {
       throw new ForbiddenException('You can only delete your own products');
     }
     await this.repo.remove(product);

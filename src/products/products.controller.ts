@@ -290,15 +290,24 @@ export class ProductsController {
   // or team membership. The check runs against `sellerId` (the resolved
   // business owner), not the caller, so a staff member submitting on an
   // employer's behalf is gated on the EMPLOYER's verification, not their own.
-  @UseGuards(JwtAuthGuard)
+  // Business-First Stage 2A: gated on RoleContextGuard (not just JwtAuthGuard)
+  // so an authoritative RoleContext is guaranteed before resolveScope() runs
+  // -- "RoleContext could not be established" must fail the request outright,
+  // never be silently treated as "an intentionally unresolved legacy Seller."
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post()
-  async create(@Body() dto: CreateProductDto, @Request() req) {
+  async create(
+    @Body() dto: CreateProductDto,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canManageProducts',
     );
     await this.verification.requireFeature(sellerId, Feature.CREATE_PRODUCT);
-    return this.service.create(dto, { id: sellerId } as User);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.service.create(dto, { id: sellerId } as User, scope);
   }
 
   @UseGuards(JwtAuthGuard, RoleContextGuard)
@@ -317,11 +326,13 @@ export class ProductsController {
       req.user,
       'canManageProducts',
     );
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.update(
       id,
       dto,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 
@@ -430,10 +441,12 @@ export class ProductsController {
       req.user,
       'canManageProducts',
     );
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.remove(
       id,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 }
