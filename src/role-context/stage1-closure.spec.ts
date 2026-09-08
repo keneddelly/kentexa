@@ -127,7 +127,7 @@ describe('Stage 1 closure — multi-role authorization matrix', () => {
         }),
       };
       const other: any = { findOne: jest.fn() };
-      const service = new RoleContextService(other, roleRepo, sessionRepo, other, other, other, other, other);
+      const service = new RoleContextService(other, roleRepo, sessionRepo, other, other, other, other, other, other);
       await expect(service.resolveContext(payload(AccountRoleType.SELLER)))
         .rejects.toMatchObject({ response: { code: 'ROLE_NOT_ACTIVE' } });
     });
@@ -140,7 +140,7 @@ describe('Stage 1 closure — multi-role authorization matrix', () => {
         }),
       };
       const other: any = { findOne: jest.fn() };
-      const service = new RoleContextService(other, other, sessionRepo, other, other, other, other, other);
+      const service = new RoleContextService(other, other, sessionRepo, other, other, other, other, other, other);
       await expect(service.resolveContext(payload(AccountRoleType.SELLER)))
         .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_REVOKED' } });
     });
@@ -150,7 +150,7 @@ describe('Stage 1 closure — multi-role authorization matrix', () => {
         id: 10, userId: 1, roleType: AccountRoleType.AGENT, status: AccountRoleStatus.REJECTED,
         profileType: RoleProfileType.AGENT, profileId: 5, capabilities: {}, contextVersion: 1,
       };
-      const service = new RoleContextService({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+      const service = new RoleContextService({} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
       await expect(service.isSwitchable(role as any)).resolves.toBe(false);
     });
   });
@@ -170,7 +170,7 @@ describe('Stage 1 closure — multi-role authorization matrix', () => {
         update: jest.fn(),
       };
       const userRepo: any = { findOne: jest.fn().mockResolvedValue({ id: 1 }) };
-      const service = new RoleContextService(userRepo, roleRepo, sessionRepo, {} as any, {} as any, {} as any, {} as any, {} as any);
+      const service = new RoleContextService(userRepo, roleRepo, sessionRepo, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
       // rt claims ADMIN; DB says this session's role is actually BUYER.
       const context = await service.resolveContext({ sub: 1, sid: 's1', rid: 10, rt: AccountRoleType.ADMIN, cv: 1 });
       expect(context.roleType).toBe(AccountRoleType.BUYER);
@@ -185,7 +185,7 @@ describe('Stage 1 closure — multi-role authorization matrix', () => {
         }),
       };
       const other: any = { findOne: jest.fn() };
-      const service = new RoleContextService(other, other, sessionRepo, other, other, other, other, other);
+      const service = new RoleContextService(other, other, sessionRepo, other, other, other, other, other, other);
       await expect(service.resolveContext(payload(AccountRoleType.ADMIN)))
         .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_MISSING' } });
     });

@@ -8,6 +8,7 @@ import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
+import { WorkspaceAssignment } from '../business/entities/workspace-assignment.entity';
 import { RoleContextService } from './role-context.service';
 import { RoleContextGuard } from './role-context.guard';
 import { CapabilityGuard } from './capability.guard';
@@ -33,6 +34,7 @@ import { RoleSessionEventsService } from './role-session-events.service';
       Agent,
       SuperAgent,
       TransportProvider,
+      WorkspaceAssignment,
     ]),
   ],
   providers: [RoleContextService, RoleContextGuard, CapabilityGuard, ActiveRoleGuard, RoleSessionEventsService],

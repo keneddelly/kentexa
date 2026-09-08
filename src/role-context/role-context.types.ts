@@ -22,6 +22,17 @@ export interface RoleContext {
   capabilities: string[];
   sessionId: string;
   contextVersion: number;
+  // Business-First Stage 1 (additive). Resolved server-side from
+  // AccountRole.workspaceAssignmentId -- null for every role that is
+  // legitimately non-organizational (Buyer, Agent, every platform role, any
+  // not-yet-migrated Seller/Transport Provider/Super Agent/Service Provider
+  // role). When the underlying AccountRole IS organizationally bound, these
+  // are only ever populated with a fully active, consistent chain -- a
+  // broken chain throws RoleContextException('ROLE_CONTEXT_ORGANIZATIONAL_REVOKED')
+  // during resolution instead of reaching here as null. See
+  // RoleContextService.resolveOrganizationalContext().
+  businessId?: number | null;
+  workspaceId?: number | null;
 }
 
 export interface RequestMetadata {

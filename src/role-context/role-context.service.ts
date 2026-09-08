@@ -7,6 +7,7 @@ import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
+import { WorkspaceAssignment } from '../business/entities/workspace-assignment.entity';
 import {
   AccountRole,
   AccountRoleStatus,
@@ -31,6 +32,7 @@ export class RoleContextService {
     @InjectRepository(Agent) private readonly agentRepo: Repository<Agent>,
     @InjectRepository(SuperAgent) private readonly superAgentRepo: Repository<SuperAgent>,
     @InjectRepository(TransportProvider) private readonly transportRepo: Repository<TransportProvider>,
+    @InjectRepository(WorkspaceAssignment) private readonly workspaceAssignmentRepo: Repository<WorkspaceAssignment>,
     private readonly sessionEvents: RoleSessionEventsService,
   ) {}
 
@@ -122,9 +124,55 @@ export class RoleContextService {
       throw new RoleContextException('ROLE_CONTEXT_VERSION_MISMATCH');
     }
     if (!(await this.isProfileValid(role))) throw new RoleContextException('ROLE_PROFILE_INVALID');
+    const organizational = await this.resolveOrganizationalContext(role);
 
     await this.sessionRepo.update(session.id, { lastSeenAt: new Date() });
-    return this.toContext(session, role);
+    return this.toContext(session, role, organizational);
+  }
+
+  /**
+   * Business-First Stage 1: AccountRole -> WorkspaceAssignment ->
+   * BusinessMembership -> OperationalWorkspace -> Business, resolved live
+   * (never cached) in one indexed join so a revoked/suspended link anywhere
+   * in the chain is visible on the very next request. This never overrides
+   * AccountRole lifecycle/status -- it answers "which Business/workspace
+   * would this ALREADY-authorized context represent," not "is this
+   * AccountRole authorized to become active" (that's the existing
+   * status/contextVersion/isProfileValid checks above, unchanged).
+   *
+   * role.workspaceAssignmentId === null is a legitimate, permanent state
+   * for most roles (Buyer, Agent, every platform role, any not-yet-migrated
+   * Seller/Transport Provider/Super Agent/Service Provider role) -- returns
+   * {businessId: null, workspaceId: null} for those, never an error.
+   *
+   * role.workspaceAssignmentId !== null means this role IS organizationally
+   * bound: the chain must be fully active and internally consistent (the
+   * membership and workspace must agree on which Business) or this throws
+   * ROLE_CONTEXT_ORGANIZATIONAL_REVOKED -- a broken bound chain is an
+   * invalid operating context, never silently degraded to null/null.
+   */
+  private async resolveOrganizationalContext(
+    role: AccountRole,
+  ): Promise<{ businessId: number | null; workspaceId: number | null }> {
+    if (role.workspaceAssignmentId == null) return { businessId: null, workspaceId: null };
+
+    const rows = await this.workspaceAssignmentRepo.manager.query(
+      `
+      SELECT b.id AS "businessId", w.id AS "workspaceId"
+      FROM workspace_assignment wa
+      JOIN business_membership bm
+        ON bm.id = wa."businessMembershipId" AND bm.status = 'active'
+      JOIN operational_workspace w
+        ON w.id = wa."workspaceId" AND w.status = 'active'
+      JOIN business b
+        ON b.id = w."businessId" AND b.status = 'active' AND b.id = bm."businessId"
+      WHERE wa.id = $1 AND wa.status = 'active'
+      `,
+      [role.workspaceAssignmentId],
+    );
+
+    if (!rows.length) throw new RoleContextException('ROLE_CONTEXT_ORGANIZATIONAL_REVOKED');
+    return { businessId: rows[0].businessId, workspaceId: rows[0].workspaceId };
   }
 
   /**
@@ -223,12 +271,17 @@ export class RoleContextService {
     }
   }
 
-  private toContext(session: ActiveRoleSession, role: AccountRole): RoleContext {
+  private toContext(
+    session: ActiveRoleSession,
+    role: AccountRole,
+    organizational: { businessId: number | null; workspaceId: number | null } = { businessId: null, workspaceId: null },
+  ): RoleContext {
     return {
       userId: role.userId, accountRoleId: role.id, roleType: role.roleType,
       profileType: role.profileType!, profileId: role.profileId!,
       capabilities: this.effectiveCapabilities(role), sessionId: session.id,
       contextVersion: role.contextVersion,
+      businessId: organizational.businessId, workspaceId: organizational.workspaceId,
     };
   }
 

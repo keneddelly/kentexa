@@ -16,13 +16,14 @@ describe('RoleContextService', () => {
       update: jest.fn(),
     };
     const profileRepo: any = { findOne: jest.fn() };
+    const workspaceAssignmentRepo: any = { manager: { query: jest.fn().mockResolvedValue([]) } };
     const sessionEvents: any = { emitRevoked: jest.fn() };
-    return { userRepo, roleRepo, sessionRepo, profileRepo, sessionEvents };
+    return { userRepo, roleRepo, sessionRepo, profileRepo, workspaceAssignmentRepo, sessionEvents };
   };
 
   it('resolves authority from sid/rid, not informational rt', async () => {
     const r = repos();
-    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.sessionEvents);
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
     const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.ADMIN, cv: 1 });
     expect(context.roleType).toBe(AccountRoleType.BUYER);
   });
@@ -30,7 +31,7 @@ describe('RoleContextService', () => {
   it('rejects a revoked old session', async () => {
     const r = repos();
     r.sessionRepo.findOne.mockResolvedValue({ id: 'session-1', userId: 1, accountRoleId: 10, contextVersion: 1, expiresAt: new Date(Date.now() + 60_000), revokedAt: new Date() });
-    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.sessionEvents);
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
     await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.BUYER, cv: 1 }))
       .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_REVOKED' } });
   });
@@ -38,14 +39,14 @@ describe('RoleContextService', () => {
   it('rejects a suspended AccountRole even with a valid session', async () => {
     const r = repos();
     r.roleRepo.findOne.mockResolvedValue({ ...role, status: AccountRoleStatus.SUSPENDED });
-    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.sessionEvents);
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
     await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.BUYER, cv: 1 }))
       .rejects.toMatchObject({ response: { code: 'ROLE_NOT_ACTIVE' } });
   });
 
   it('rejects a context-version mismatch', async () => {
     const r = repos();
-    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.sessionEvents);
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
     await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.BUYER, cv: 2 }))
       .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_VERSION_MISMATCH' } });
   });
@@ -54,7 +55,7 @@ describe('RoleContextService', () => {
     const r = repos();
     r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SELLER, profileType: RoleProfileType.SELLER_PROFILE, profileId: 88 });
     r.profileRepo.findOne.mockResolvedValue(null);
-    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.sessionEvents);
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
     await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 }))
       .rejects.toMatchObject({ response: { code: 'ROLE_PROFILE_INVALID' } });
   });
@@ -63,7 +64,7 @@ describe('RoleContextService', () => {
     const r = repos();
     r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SELLER, profileType: RoleProfileType.AGENT, profileId: 88 });
     r.profileRepo.findOne.mockResolvedValue({ id: 88, userId: 1 });
-    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.sessionEvents);
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
     await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 }))
       .rejects.toMatchObject({ response: { code: 'ROLE_PROFILE_INVALID' } });
   });
@@ -80,7 +81,7 @@ describe('RoleContextService', () => {
       const other: any = { findOne: jest.fn() };
       const sessionEvents: any = { emitRevoked: jest.fn() };
       return {
-        service: new RoleContextService(other, roleRepo, sessionRepo, other, other, other, other, sessionEvents),
+        service: new RoleContextService(other, roleRepo, sessionRepo, other, other, other, other, other, sessionEvents),
         roleRepo,
         sessionRepo,
         sessionEvents,
@@ -156,9 +157,53 @@ describe('RoleContextService', () => {
       if (where.id === 99) return Promise.resolve({ ...role, id: 99, roleType: AccountRoleType.ADMIN });
       return Promise.resolve(null);
     });
-    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.sessionEvents);
+    const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
     const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.BUYER, cv: 1 });
     expect(context.roleType).toBe(AccountRoleType.BUYER);
     expect(context.accountRoleId).toBe(10);
+  });
+
+  describe('organizational resolution (Business-First Stage 1)', () => {
+    it('NULL ORGANIZATIONAL ROLE: workspaceAssignmentId null (Buyer/Agent/platform/unmigrated) resolves businessId/workspaceId to null, never an error', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue({ ...role, workspaceAssignmentId: null });
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.BUYER, cv: 1 });
+      expect(context.businessId).toBeNull();
+      expect(context.workspaceId).toBeNull();
+      expect(r.workspaceAssignmentRepo.manager.query).not.toHaveBeenCalled();
+    });
+
+    it('VALID ORGANIZATIONAL SELLER: a bound, fully active chain resolves the exact Business/Workspace ids', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SELLER, profileType: RoleProfileType.SELLER_PROFILE, workspaceAssignmentId: 2 });
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 2, workspaceId: 2 }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 });
+      expect(context.businessId).toBe(2);
+      expect(context.workspaceId).toBe(2);
+      expect(r.workspaceAssignmentRepo.manager.query).toHaveBeenCalledWith(expect.any(String), [2]);
+    });
+
+    it('REVOKED MEMBERSHIP / REVOKED WORKSPACE ASSIGNMENT / SUSPENDED WORKSPACE / INVALID CROSS-BUSINESS CHAIN: any broken link -- the query returns zero rows -- fails closed, never null/null', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SELLER, profileType: RoleProfileType.SELLER_PROFILE, workspaceAssignmentId: 2 });
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([]); // no row: any one of revoked/suspended/inconsistent
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 }))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_ORGANIZATIONAL_REVOKED' } });
+    });
+
+    it('PENDING ACCOUNTROLE: a valid workspaceAssignmentId binding does NOT bypass the existing ROLE_NOT_ACTIVE check -- organizational resolution never even runs', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.PENDING, workspaceAssignmentId: 1 });
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 }))
+        .rejects.toMatchObject({ response: { code: 'ROLE_NOT_ACTIVE' } });
+      // The organizational chain is never even queried -- status is checked first.
+      expect(r.workspaceAssignmentRepo.manager.query).not.toHaveBeenCalled();
+    });
   });
 });
