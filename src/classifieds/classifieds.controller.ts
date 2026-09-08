@@ -32,6 +32,7 @@ import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { RoleContextException } from '../role-context/role-context.exception';
 
 @Controller('classifieds')
 export class ClassifiedsController {
@@ -71,10 +72,20 @@ export class ClassifiedsController {
   // own classifieds keeps working exactly as before); a plain, unverified
   // user who isn't part of any business simply manages their own listings
   // under their own account id instead of being blocked entirely.
+  // Session-revocation follow-up: sellerScope.resolve() throws
+  // RoleContextException (ROLE_CONTEXT_REVOKED/EXPIRED/ORGANIZATIONAL_REVOKED/
+  // etc.) when the caller's token carries a modern role-aware payload whose
+  // session/context is no longer authoritative -- that must fail the
+  // request, never be treated as "no business delegation, fall back to
+  // plain user.id." Only a genuinely legacy condition (no role-context
+  // payload on the token at all, or a valid session with no team
+  // membership/permission -- ForbiddenException) falls back to the caller's
+  // own id, exactly as before.
   private async resolveClassifiedActorId(user: User): Promise<number> {
     try {
       return await this.sellerScope.resolve(user, 'canManageProducts');
-    } catch {
+    } catch (err) {
+      if (err instanceof RoleContextException) throw err;
       return user.id;
     }
   }
