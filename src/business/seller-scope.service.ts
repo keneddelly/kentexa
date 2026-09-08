@@ -5,7 +5,8 @@ import { BusinessTeamMember } from './entities/business-team-member.entity';
 import { User } from '../users/entities/user.entity';
 import { RoleContextService } from '../role-context/role-context.service';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
-import { RoleJwtPayload } from '../role-context/role-context.types';
+import { RoleContext, RoleJwtPayload } from '../role-context/role-context.types';
+import { RoleContextException } from '../role-context/role-context.exception';
 
 // Keep in sync with BusinessTeamMember.permissions and
 // bishoo-frontend/src/public/pages/SellerTeam.js's PERMS list — these are
@@ -27,6 +28,22 @@ const OWNS_THEIR_OWN_BUSINESS: AccountRoleType[] = [
   AccountRoleType.ADMIN,
   AccountRoleType.MANAGER,
 ];
+
+// Business-First Stage 2A. Deliberately a SEPARATE result shape from
+// resolve()'s plain number -- never overload resolve()'s return type, so
+// none of its ~25 existing callers can ever receive an ambiguous "was that
+// a User.id or an OperationalWorkspace.id?" value. legacySellerId is
+// exactly what resolve() already returns (or whatever a caller's own
+// fallback resolved, e.g. ClassifiedsController's resolve-or-fall-back-to-
+// own-account pattern) -- kept only for backward-compatible legacy writes/
+// authorization. workspaceId is the NEW authoritative source for a
+// workspace-migrated resource, and it is NEVER derived from
+// legacySellerId -- see resolveScope() below.
+export interface SellerScope {
+  legacySellerId: number;
+  workspaceId: number | null;
+  mode: 'workspace' | 'legacy';
+}
 
 @Injectable()
 export class SellerScopeService {
@@ -78,6 +95,44 @@ export class SellerScopeService {
         ? `You don't have the "${permission}" permission for this business.`
         : 'You are not authorized to manage this business.',
     );
+  }
+
+  /**
+   * Business-First Stage 2A. Resolves the WORKSPACE side of a scope for a
+   * new authenticated write/read on a migrated resource (Product/
+   * Classified). `legacySellerId` is supplied by the caller (already
+   * resolved via resolve(), or via that caller's own equivalent fallback)
+   * -- this method never re-derives or second-guesses it, and never uses
+   * it to derive workspaceId. workspaceId comes ONLY from an authoritative
+   * RoleContext.
+   *
+   * Pass an already-resolved `roleContext` (e.g. from a route already
+   * guarded by RoleContextGuard/@CurrentRoleContext) to avoid resolving it
+   * twice -- this method trusts it verbatim and does not re-validate it.
+   * If omitted, resolves fresh from `user`'s JWT payload -- and FAILS
+   * CLOSED (throws RoleContextException) when the payload lacks
+   * sid/rid/cv, or when resolveContext() itself rejects (revoked/expired/
+   * invalid/suspended/organizationally-revoked). "RoleContext could not be
+   * authoritatively established" is never treated as equivalent to "this
+   * is an intentionally unresolved legacy Seller" -- the latter is only
+   * ever reported (workspaceId: null, mode: 'legacy') when a REAL,
+   * validated RoleContext said so.
+   */
+  async resolveScope(
+    legacySellerId: number,
+    user: User,
+    roleContext?: RoleContext,
+  ): Promise<SellerScope> {
+    let resolved = roleContext;
+    if (!resolved) {
+      const payload = (user as any).authPayload as RoleJwtPayload | undefined;
+      if (!payload?.sub || !payload.sid || !payload.rid || payload.cv === undefined) {
+        throw new RoleContextException('ROLE_CONTEXT_MISSING');
+      }
+      resolved = await this.roleContextService.resolveContext(payload);
+    }
+    const workspaceId = resolved.workspaceId ?? null;
+    return { legacySellerId, workspaceId, mode: workspaceId != null ? 'workspace' : 'legacy' };
   }
 
   // For multi-party checks (buyer OR seller OR admin, already ORed

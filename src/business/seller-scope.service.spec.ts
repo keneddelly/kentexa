@@ -81,4 +81,74 @@ describe('SellerScopeService', () => {
       await expect(service.isAuthorizedFor(userWithPayload(1), 1)).resolves.toBe(true);
     });
   });
+
+  describe('resolveScope() — Business-First Stage 2A', () => {
+    it('never changes resolve()\'s own return semantics — still a plain number, unaffected by resolveScope existing', async () => {
+      const { service } = build(AccountRoleType.SELLER);
+      const result = await service.resolve(userWithPayload(1, AccountRoleType.SELLER));
+      expect(typeof result).toBe('number');
+      expect(result).toBe(1);
+    });
+
+    it('VALID ORGANIZATIONAL SELLER: returns workspaceId from an already-resolved RoleContext, mode="workspace"', async () => {
+      const { service } = build(AccountRoleType.SELLER);
+      const roleContext = { roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: 2 } as any;
+      const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER), roleContext);
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 2, mode: 'workspace' });
+    });
+
+    it('does not re-resolve RoleContext when one is already supplied', async () => {
+      const { service, roleContextService } = build(AccountRoleType.SELLER);
+      const roleContext = { roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: 2 } as any;
+      await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER), roleContext);
+      expect(roleContextService.resolveContext).not.toHaveBeenCalled();
+    });
+
+    it('VALID unresolved legacy Seller: a real RoleContext with workspaceId=null is legacy mode, not a failure', async () => {
+      const { service } = build(AccountRoleType.SELLER);
+      const roleContext = { roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: null } as any;
+      const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER), roleContext);
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: null, mode: 'legacy' });
+    });
+
+    it('resolves fresh from the payload when no RoleContext is supplied, and still returns workspaceId from it', async () => {
+      const teamRepo: any = { findOne: jest.fn() };
+      const roleContextService: any = {
+        resolveContext: jest.fn().mockResolvedValue({ roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: 5 }),
+      };
+      const service = new SellerScopeService(teamRepo, roleContextService);
+      const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER));
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 5, mode: 'workspace' });
+      expect(roleContextService.resolveContext).toHaveBeenCalledTimes(1);
+    });
+
+    it('CONTEXT-SAFETY: a missing sid/rid/cv (RoleContext could not be established) FAILS CLOSED — never silently treated as legacy mode', async () => {
+      const teamRepo: any = { findOne: jest.fn() };
+      const roleContextService: any = { resolveContext: jest.fn() };
+      const service = new SellerScopeService(teamRepo, roleContextService);
+      await expect(service.resolveScope(1, userWithPayload(1) /* no rt -> no sid/rid/cv */))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_MISSING' } });
+      expect(roleContextService.resolveContext).not.toHaveBeenCalled();
+    });
+
+    it('CONTEXT-SAFETY: resolveContext() rejecting (revoked/expired/invalid) propagates as a failure, never degrades to legacy mode', async () => {
+      const teamRepo: any = { findOne: jest.fn() };
+      const roleContextService: any = {
+        resolveContext: jest.fn().mockRejectedValue({ response: { code: 'ROLE_CONTEXT_REVOKED' } }),
+      };
+      const service = new SellerScopeService(teamRepo, roleContextService);
+      await expect(service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER)))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_REVOKED' } });
+    });
+
+    it('never derives workspaceId from legacySellerId — a mismatched legacySellerId does not change the resolved workspaceId', async () => {
+      const { service } = build(AccountRoleType.SELLER);
+      const roleContext = { roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: 2 } as any;
+      // legacySellerId (999) is unrelated to workspaceId (2) -- proves workspaceId
+      // is read purely from roleContext, never cross-checked/derived from it.
+      const scope = await service.resolveScope(999, userWithPayload(1, AccountRoleType.SELLER), roleContext);
+      expect(scope.workspaceId).toBe(2);
+      expect(scope.legacySellerId).toBe(999);
+    });
+  });
 });
