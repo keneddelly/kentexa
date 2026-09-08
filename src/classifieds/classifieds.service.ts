@@ -35,6 +35,8 @@ import { FRONTEND_URL } from '../config/urls.config';
 import { validateAttributes } from '../categories/categories.data';
 import { SuperAgentsService } from '../super-agents/super-agents.service';
 import { CodCalculationService } from '../cod/cod-calculation.service';
+import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
+import { SellerScope } from '../business/seller-scope.service';
 
 @Injectable()
 export class ClassifiedsService {
@@ -59,10 +61,30 @@ export class ClassifiedsService {
     private readonly searchIndex: SearchIndexService,
     private readonly superAgents: SuperAgentsService,
     private readonly codCalculation: CodCalculationService,
+    private readonly ownershipFlags: OwnershipFeatureFlagsService,
   ) {}
 
+  /**
+   * Business-First Stage 2A fail-closed ownership check -- identical
+   * semantics to ProductsService.isAuthorizedForProductOwnership(), gated
+   * on its own independent CLASSIFIED_WORKSPACE_READ flag.
+   */
+  private isAuthorizedForClassifiedOwnership(
+    listing: Classified,
+    actorId: number,
+    scope?: SellerScope,
+  ): boolean {
+    if (!scope || !this.ownershipFlags.isEnabled('CLASSIFIED_WORKSPACE_READ')) {
+      return !!listing.seller && listing.seller.id === actorId;
+    }
+    if (scope.workspaceId != null && listing.workspaceId != null) {
+      return listing.workspaceId === scope.workspaceId;
+    }
+    return !!listing.seller && listing.seller.id === actorId;
+  }
+
   // ─── Create listing ───────────────────────────────────────────────────────
-  async create(dto: CreateClassifiedDto, user: User) {
+  async create(dto: CreateClassifiedDto, user: User, scope?: SellerScope) {
     const attributeErrors = validateAttributes(
       dto.category,
       dto.subcategory,
@@ -91,7 +113,15 @@ export class ClassifiedsService {
       commerceProfileId = dto.commerceProfileId;
     }
 
-    const listing = this.repo.create({ ...dto, seller: user, commerceProfileId });
+    // Business-First Stage 2A: stamped ONLY from the acting request's own
+    // authoritative RoleContext.workspaceId (via `scope`) -- never derived
+    // from `seller`/user.id. A valid, intentionally unresolved legacy
+    // context (scope.mode === 'legacy') leaves this null, exactly like a
+    // pre-Stage-2A classified.
+    const workspaceId = this.ownershipFlags.isEnabled('CLASSIFIED_WORKSPACE_DUAL_WRITE')
+      ? scope?.workspaceId ?? null
+      : null;
+    const listing = this.repo.create({ ...dto, seller: user, commerceProfileId, workspaceId });
     const saved = await this.repo.save(listing);
 
     // Auto-share as a Moment — fire-and-forget, never blocks listing creation.
@@ -396,9 +426,10 @@ export class ClassifiedsService {
     dto: updateClassifiedDto,
     user: User,
     isActiveAdmin = false,
+    scope?: SellerScope,
   ) {
     const listing = await this.findOne(id);
-    if (listing.seller.id !== user.id && !isActiveAdmin) {
+    if (!isActiveAdmin && !this.isAuthorizedForClassifiedOwnership(listing, user.id, scope)) {
       throw new ForbiddenException('Not your listing');
     }
     if (dto.category || dto.subcategory || dto.specs) {
@@ -420,9 +451,9 @@ export class ClassifiedsService {
   }
 
   // ─── Remove ───────────────────────────────────────────────────────────────
-  async remove(id: number, user: User, isActiveAdmin = false) {
+  async remove(id: number, user: User, isActiveAdmin = false, scope?: SellerScope) {
     const listing = await this.findOne(id);
-    if (listing.seller.id !== user.id && !isActiveAdmin) {
+    if (!isActiveAdmin && !this.isAuthorizedForClassifiedOwnership(listing, user.id, scope)) {
       throw new ForbiddenException('Not your listing');
     }
     await this.repo.remove(listing);

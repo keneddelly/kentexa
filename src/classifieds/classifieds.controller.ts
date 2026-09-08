@@ -323,16 +323,26 @@ export class ClassifiedsController {
     return this.service.findAll(category, location, Object.keys(attributes).length ? attributes : undefined);
   }
 
-  @UseGuards(JwtAuthGuard)
+  // Business-First Stage 2A: gated on RoleContextGuard (not just
+  // JwtAuthGuard) so an authoritative RoleContext is guaranteed before
+  // resolveScope() runs -- "RoleContext could not be established" must
+  // fail the request outright, never be silently treated as "an
+  // intentionally unresolved legacy Seller."
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post()
-  async create(@Body() dto: CreateClassifiedDto, @Request() req) {
+  async create(
+    @Body() dto: CreateClassifiedDto,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
     // Posting a classified is the spec's first real identity-verification
     // trigger — everything before this point (browsing, search, saving)
     // stays open at Level 0. See VerificationService for what "Level 1"
     // actually requires.
     await this.verification.requireFeature(req.user.id, Feature.POST_CLASSIFIED);
     const sellerId = await this.resolveClassifiedActorId(req.user);
-    return this.service.create(dto, { id: sellerId } as User);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.service.create(dto, { id: sellerId } as User, scope);
   }
 
   // ─── :id routes LAST ─────────────────────────────────────────────────────
@@ -381,11 +391,13 @@ export class ClassifiedsController {
     // service.update() short-circuits its ownership check when the CALLER'S
     // CURRENTLY ACTIVE role is admin — never the legacy req.user.role field.
     const sellerId = await this.resolveClassifiedActorId(req.user);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.update(
       id,
       dto,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 
@@ -404,10 +416,12 @@ export class ClassifiedsController {
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.remove(
       id,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 
