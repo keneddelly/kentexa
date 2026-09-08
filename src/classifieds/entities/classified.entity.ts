@@ -82,6 +82,18 @@ export class Classified {
   @Column({ type: 'int', nullable: true })
   commerceProfileId: number | null;
 
+  // Business-First Stage 2A (additive, nullable). The OperationalWorkspace
+  // that owns this classified. NEVER derived from `seller` for a new
+  // authenticated write -- stamped only from the acting request's own
+  // authoritative RoleContext.workspaceId at creation time (see
+  // ClassifiedsService.create()) -- and NEVER re-derived/repaired on
+  // update. Null for every classified created before this column existed,
+  // or created by a poster with no organizational binding (classifieds
+  // never required seller approval to begin with -- see
+  // ClassifiedsController.resolveClassifiedActorId()'s own fallback).
+  @Column({ type: 'int', nullable: true })
+  workspaceId: number | null;
+
   // Optional per-listing contact override. A side-hustle classified posted
   // from a personal profile often needs a different number than the
   // account's main (business) contact — CommerceProfile itself has no

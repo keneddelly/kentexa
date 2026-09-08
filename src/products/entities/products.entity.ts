@@ -30,6 +30,19 @@ export class Product {
   @Column({ type: 'int', nullable: true })
   commerceProfileId: number | null;
 
+  // Business-First Stage 2A (additive, nullable). The OperationalWorkspace
+  // that owns this product. NEVER derived from `seller`/`sellerId` for a
+  // new authenticated write -- stamped only from the acting request's own
+  // authoritative RoleContext.workspaceId at creation time (see
+  // ProductsService.create()) -- and NEVER re-derived/repaired on update.
+  // Null for every product created before this column existed, or created
+  // by a seller with no organizational binding yet (see
+  // backfill-product-classified-ownership.ts for the deliberately separate,
+  // human-gated historical resolution path, which is NOT the same
+  // resolution logic as a live write).
+  @Column({ type: 'int', nullable: true })
+  workspaceId: number | null;
+
   @Column()
   name: string;
 
