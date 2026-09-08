@@ -22,9 +22,9 @@ describe('backfill-product-classified-ownership -- parseArgs (pure, no DB)', () 
     expect(parseArgs([]).execute).toBe(false);
   });
 
-  it('--execute requires the exact confirmation token', () => {
-    expect(() => parseArgs(['--execute'])).toThrow(/requires --confirm-production-product-classified-backfill/);
-    expect(() => parseArgs(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN])).not.toThrow();
+  it('--execute requires the exact confirmation token (given a valid category)', () => {
+    expect(() => parseArgs(['--execute', '--category', 'product'])).toThrow(/requires --confirm-production-product-classified-backfill/);
+    expect(() => parseArgs(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN])).not.toThrow();
   });
 
   it('rejects unknown arguments', () => {
@@ -43,6 +43,39 @@ describe('backfill-product-classified-ownership -- parseArgs (pure, no DB)', () 
     expect(opts).toMatchObject({
       expectProductResolved: 2, expectProductAmbiguous: 0, expectProductUnresolved: 1,
       expectClassifiedResolved: 3, expectClassifiedAmbiguous: 0, expectClassifiedUnresolved: 0,
+    });
+  });
+
+  describe('--category execution scoping (the post-incident hardening)', () => {
+    it('--execute with NO --category FAILS CLOSED, before any DB work', () => {
+      expect(() => parseArgs(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN]))
+        .toThrow(/requires an explicit --category/);
+    });
+
+    it('--execute with an INVALID --category value FAILS CLOSED', () => {
+      expect(() => parseArgs(['--execute', '--category', 'everything', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN]))
+        .toThrow(/--category must be one of product\|classified\|all/);
+    });
+
+    it('dry-run does NOT require --category (still reports both categories for visibility)', () => {
+      expect(() => parseArgs([])).not.toThrow();
+      expect(parseArgs([]).category).toBeUndefined();
+    });
+
+    it('accepts product, classified, and all as valid --category values', () => {
+      expect(parseArgs(['--category', 'product']).category).toBe('product');
+      expect(parseArgs(['--category', 'classified']).category).toBe('classified');
+      expect(parseArgs(['--category', 'all']).category).toBe('all');
+    });
+
+    it('--category product rejects any --expect-classified-* flag outright', () => {
+      expect(() => parseArgs(['--category', 'product', '--expect-classified-resolved', '0']))
+        .toThrow(/--expect-classified-resolved is not valid with --category product/);
+    });
+
+    it('--category classified rejects any --expect-product-* flag outright', () => {
+      expect(() => parseArgs(['--category', 'classified', '--expect-product-resolved', '0']))
+        .toThrow(/--expect-product-resolved is not valid with --category classified/);
     });
   });
 });
@@ -156,7 +189,7 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     const { owner, workspace } = await makeResolvedSeller();
     const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
 
-    const code = await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+    const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
     expect(code).toBe(0);
     const reloaded = await productRepo().findOne({ where: { id: product.id } });
     expect(reloaded?.workspaceId).toBe(workspace.id);
@@ -167,7 +200,7 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     const seller = await makeUser('NoRoleSeller');
     const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: seller.id } as any } as any));
 
-    const code = await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+    const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
     expect(code).toBe(0);
     const reloaded = await productRepo().findOne({ where: { id: product.id } });
     expect(reloaded?.workspaceId).toBeNull();
@@ -179,7 +212,7 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     if (!reachable) return;
     const product = await productRepo().save(productRepo().create({ name: 'Anonymous item' } as any));
 
-    const code = await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+    const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
     expect(code).toBe(0);
     const reloaded = await productRepo().findOne({ where: { id: product.id } });
     expect(reloaded?.workspaceId).toBeNull();
@@ -192,7 +225,7 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     await assignmentRepo().update(assignment.id, { status: WorkspaceAssignmentStatus.REVOKED });
     const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
 
-    const code = await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+    const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
     expect(code).toBe(0);
     const reloaded = await productRepo().findOne({ where: { id: product.id } });
     expect(reloaded?.workspaceId).toBeNull();
@@ -205,8 +238,8 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     const { owner, workspace } = await makeResolvedSeller();
     const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
 
-    await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
-    const code = await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+    await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+    const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
 
     expect(code).toBe(0);
     const reloaded = await productRepo().findOne({ where: { id: product.id } });
@@ -218,13 +251,13 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     const seller = await makeUser('DualWriteSeller'); // deliberately no organizational binding
     const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: seller.id } as any, workspaceId: 999 } as any));
 
-    const code = await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+    const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
     expect(code).toBe(0);
     const reloaded = await productRepo().findOne({ where: { id: product.id } });
     expect(reloaded?.workspaceId).toBe(999); // untouched
   });
 
-  it('Product and Classified counts are independent -- an ambiguous/unresolved Product does not affect Classified guards or vice versa', async () => {
+  it('Product and Classified counts are independent -- an ambiguous/unresolved Product does not affect Classified guards or vice versa (--category all)', async () => {
     if (!reachable) return;
     const { owner: resolvedOwner, workspace } = await makeResolvedSeller();
     const unresolvedSeller = await makeUser('Unresolved');
@@ -232,7 +265,7 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     await classifiedRepo().save(classifiedRepo().create({ title: 'C1', description: 'A listing', price: 1, seller: { id: unresolvedSeller.id } as any, category: 'general' } as any));
 
     const code = await main([
-      '--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN,
+      '--execute', '--category', 'all', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN,
       '--expect-product-resolved', '1', '--expect-product-ambiguous', '0', '--expect-product-unresolved', '0',
       '--expect-classified-resolved', '0', '--expect-classified-ambiguous', '0', '--expect-classified-unresolved', '1',
     ], dataSource);
@@ -244,12 +277,12 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     expect(c[0].workspaceId).toBeNull();
   });
 
-  it('--expect-product-resolved guard blocks the write when it does not match the actual dry-run count (Classified guard still independent)', async () => {
+  it('--expect-product-resolved guard blocks the write when it does not match the actual dry-run count', async () => {
     if (!reachable) return;
     const { owner } = await makeResolvedSeller();
     const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
 
-    const code = await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN, '--expect-product-resolved', '999'], dataSource);
+    const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN, '--expect-product-resolved', '999'], dataSource);
     expect(code).toBe(1);
     const reloaded = await productRepo().findOne({ where: { id: product.id } });
     expect(reloaded?.workspaceId).toBeNull(); // no writes performed despite --execute
@@ -262,10 +295,92 @@ describe('backfill-product-classified-ownership -- end-to-end against a disposab
     const roleCountBefore = await accountRoleRepo().count();
     await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
 
-    await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+    await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
 
     expect(await businessRepo().count()).toBe(businessCountBefore);
     expect(await accountRoleRepo().count()).toBe(roleCountBefore);
+  });
+
+  describe('--category execution isolation (post-incident hardening: a Product-authorized run must be structurally incapable of writing Classified, and vice versa)', () => {
+    it('--category product NEVER writes a Classified row, even one that would resolve cleanly', async () => {
+      if (!reachable) return;
+      const { owner, workspace } = await makeResolvedSeller();
+      const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
+      const classified = await classifiedRepo().save(classifiedRepo().create({ title: 'Sofa', description: 'A listing', price: 1, seller: { id: owner.id } as any, category: 'general' } as any));
+
+      const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+      expect(code).toBe(0);
+
+      const reloadedProduct = await productRepo().findOne({ where: { id: product.id } });
+      const reloadedClassified = await classifiedRepo().findOne({ where: { id: classified.id } });
+      expect(reloadedProduct?.workspaceId).toBe(workspace.id);
+      expect(reloadedClassified?.workspaceId).toBeNull(); // Classified untouched by a Product-scoped run
+      expect(await auditRepo().findOne({ where: { code: 'classified_seller_without_workspace' } })).toBeNull();
+    });
+
+    it('--category classified NEVER writes a Product row, even one that would resolve cleanly', async () => {
+      if (!reachable) return;
+      const { owner, workspace } = await makeResolvedSeller();
+      const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
+      const classified = await classifiedRepo().save(classifiedRepo().create({ title: 'Sofa', description: 'A listing', price: 1, seller: { id: owner.id } as any, category: 'general' } as any));
+
+      const code = await main(['--execute', '--category', 'classified', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+      expect(code).toBe(0);
+
+      const reloadedProduct = await productRepo().findOne({ where: { id: product.id } });
+      const reloadedClassified = await classifiedRepo().findOne({ where: { id: classified.id } });
+      expect(reloadedProduct?.workspaceId).toBeNull(); // Product untouched by a Classified-scoped run
+      expect(reloadedClassified?.workspaceId).toBe(workspace.id);
+      expect(await auditRepo().findOne({ where: { code: 'product_seller_without_workspace' } })).toBeNull();
+    });
+
+    it('--execute with no --category is rejected before touching the database at all (no rows read, no audit rows written)', async () => {
+      if (!reachable) return;
+      const { owner } = await makeResolvedSeller();
+      await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
+
+      const code = await main(['--execute', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+      expect(code).toBe(1);
+      expect(await auditRepo().count()).toBe(0);
+    });
+
+    it('--execute with an invalid --category is rejected before touching the database at all', async () => {
+      if (!reachable) return;
+      const { owner } = await makeResolvedSeller();
+      const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
+
+      const code = await main(['--execute', '--category', 'bogus', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+      expect(code).toBe(1);
+      const reloaded = await productRepo().findOne({ where: { id: product.id } });
+      expect(reloaded?.workspaceId).toBeNull();
+    });
+
+    it('a category-specific expected-count mismatch fails before any write, for --category classified', async () => {
+      if (!reachable) return;
+      const { owner } = await makeResolvedSeller();
+      const classified = await classifiedRepo().save(classifiedRepo().create({ title: 'Sofa', description: 'A listing', price: 1, seller: { id: owner.id } as any, category: 'general' } as any));
+
+      const code = await main(['--execute', '--category', 'classified', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN, '--expect-classified-resolved', '999'], dataSource);
+      expect(code).toBe(1);
+      const reloaded = await classifiedRepo().findOne({ where: { id: classified.id } });
+      expect(reloaded?.workspaceId).toBeNull();
+    });
+
+    it('idempotency holds per-category -- rerunning --category product after a --category classified run changes only Classified, then only Product', async () => {
+      if (!reachable) return;
+      const { owner, workspace } = await makeResolvedSeller();
+      const product = await productRepo().save(productRepo().create({ name: 'Phone', seller: { id: owner.id } as any } as any));
+      const classified = await classifiedRepo().save(classifiedRepo().create({ title: 'Sofa', description: 'A listing', price: 1, seller: { id: owner.id } as any, category: 'general' } as any));
+
+      await main(['--execute', '--category', 'classified', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+      expect((await productRepo().findOne({ where: { id: product.id } }))?.workspaceId).toBeNull();
+      expect((await classifiedRepo().findOne({ where: { id: classified.id } }))?.workspaceId).toBe(workspace.id);
+
+      const code = await main(['--execute', '--category', 'product', '--confirm-production-product-classified-backfill', REQUIRED_CONFIRMATION_TOKEN], dataSource);
+      expect(code).toBe(0);
+      expect((await productRepo().findOne({ where: { id: product.id } }))?.workspaceId).toBe(workspace.id);
+      expect((await classifiedRepo().findOne({ where: { id: classified.id } }))?.workspaceId).toBe(workspace.id); // unchanged by the product run
+    });
   });
 
   it('the DataSource it builds itself always closes', async () => {

@@ -22,8 +22,19 @@ config();
  * purpose-specific confirmation token required to write, a read-only
  * classification pass that ALWAYS runs first (so --expect-* guards are
  * checked BEFORE any write, never after), RESOLVED/AMBIGUOUS/UNRESOLVED
- * reporting -- with Product and Classified counts reported and guarded
- * INDEPENDENTLY, never merged -- idempotent, one transaction per row.
+ * reporting, idempotent, one transaction per row.
+ *
+ * CATEGORY-SCOPED EXECUTION (hardening pass, post-incident): --execute
+ * REQUIRES an explicit --category product|classified|all. A Product-only
+ * execution can only ever write Product rows -- it never even calls into
+ * the Classified apply path at all, not just "guards against" it. Same in
+ * reverse for --category classified. --category all exists ONLY for local/
+ * disposable-DB development convenience and is never the implicit
+ * production execution mode -- omitting --category with --execute FAILS
+ * CLOSED before any classification or write occurs. This closes the exact
+ * gap that let a Product-authorized production execution also silently
+ * write Classified rows: guards and reporting were already independent
+ * per category, but the WRITE PATH itself was not.
  *
  * This tool is HISTORICAL-ONLY. It resolves workspaceId for a pre-existing
  * row via:
@@ -45,6 +56,9 @@ config();
  * relationship. Never uses name/email/phone/business-name matching. A row
  * whose seller has no deterministic organizational binding is UNRESOLVED
  * and stays workspaceId = null, exactly as it is today.
+ *
+ * This category-scoped-execution discipline is the pattern every future
+ * multi-entity ownership backfill tool in this codebase should follow.
  */
 
 const ENTITIES = [
@@ -66,8 +80,12 @@ export function buildDataSource(): DataSource {
 }
 
 export const REQUIRED_CONFIRMATION_TOKEN = 'KENTEXA-PRODUCT-CLASSIFIED-OWNERSHIP-BACKFILL';
+
+export type BackfillCategory = 'product' | 'classified' | 'all';
+const VALID_CATEGORIES: ReadonlySet<string> = new Set(['product', 'classified', 'all']);
+
 const RECOGNIZED_FLAGS = new Set([
-  'execute', 'confirm-production-product-classified-backfill',
+  'execute', 'category', 'confirm-production-product-classified-backfill',
   'expect-product-resolved', 'expect-product-ambiguous', 'expect-product-unresolved',
   'expect-classified-resolved', 'expect-classified-ambiguous', 'expect-classified-unresolved',
 ]);
@@ -88,6 +106,7 @@ function parseStrictNonNegativeInt(raw: string, flagLabel: string): number {
 
 export interface CliOptions {
   execute: boolean;
+  category?: BackfillCategory;
   confirmToken?: string;
   expectProductResolved?: number;
   expectProductAmbiguous?: number;
@@ -119,9 +138,40 @@ export function parseArgs(argv: string[]): CliOptions {
   };
 
   const execute = argv.includes('--execute');
+
+  const rawCategory = flag('category');
+  if (rawCategory !== undefined && !VALID_CATEGORIES.has(rawCategory)) {
+    throw new Error(`--category must be one of product|classified|all, got "${rawCategory}"`);
+  }
+  const category = rawCategory as BackfillCategory | undefined;
+
+  // The core fix: production --execute with no category FAILS CLOSED,
+  // before any classification, guard check, or write. --category all is
+  // never inferred/defaulted -- it must be typed out explicitly, which is
+  // itself a deliberate speed bump against accidentally invoking the
+  // broad, multi-category execution mode.
+  if (execute && !category) {
+    throw new Error('--execute requires an explicit --category product|classified|all -- refusing to guess which category to write.');
+  }
+
   const confirmToken = flag('confirm-production-product-classified-backfill');
   if (execute && confirmToken !== REQUIRED_CONFIRMATION_TOKEN) {
     throw new Error(`--execute requires --confirm-production-product-classified-backfill ${REQUIRED_CONFIRMATION_TOKEN} -- missing or incorrect confirmation.`);
+  }
+
+  // A category-scoped run only accepts that category's own --expect-*
+  // flags -- passing the other category's guard is rejected outright
+  // rather than silently ignored, so a typo can never create the false
+  // impression that the other category was also being constrained.
+  if (category === 'product') {
+    for (const f of ['expect-classified-resolved', 'expect-classified-ambiguous', 'expect-classified-unresolved']) {
+      if (seenCounts.has(f)) throw new Error(`--${f} is not valid with --category product.`);
+    }
+  }
+  if (category === 'classified') {
+    for (const f of ['expect-product-resolved', 'expect-product-ambiguous', 'expect-product-unresolved']) {
+      if (seenCounts.has(f)) throw new Error(`--${f} is not valid with --category classified.`);
+    }
   }
 
   const parseOpt = (name: string) => {
@@ -131,6 +181,7 @@ export function parseArgs(argv: string[]): CliOptions {
 
   return {
     execute,
+    category,
     confirmToken,
     expectProductResolved: parseOpt('expect-product-resolved'),
     expectProductAmbiguous: parseOpt('expect-product-ambiguous'),
@@ -270,23 +321,35 @@ export async function main(argvOverride?: string[], dataSourceOverride?: DataSou
   const dataSource = dataSourceOverride ?? buildDataSource();
   let exitCode = 0;
 
+  // Dry-run with no --category shows the full picture (both categories),
+  // exactly like before this hardening pass -- harmless, since dry-run
+  // never writes anything regardless. --execute always has a category by
+  // this point (parseArgs already enforced it).
+  const processProduct = !opts.category || opts.category === 'product' || opts.category === 'all';
+  const processClassified = !opts.category || opts.category === 'classified' || opts.category === 'all';
+
   try {
     if (!dataSource.isInitialized) await dataSource.initialize();
-    console.log(`[product-classified-backfill] connected. mode=${opts.execute ? 'EXECUTE' : 'DRY-RUN'}`);
+    console.log(`[product-classified-backfill] connected. mode=${opts.execute ? 'EXECUTE' : 'DRY-RUN'} category=${opts.category ?? '(both, dry-run only)'}`);
 
     const identity = await dataSource.query('select current_database() as db');
     console.log(`[product-classified-backfill] database identity: ${identity[0].db}`);
 
-    // Classification ALWAYS runs first, read-only, regardless of --execute.
-    const productClassification = await runCategory(dataSource, false, 'product');
-    const classifiedClassification = await runCategory(dataSource, false, 'classified');
+    // Classification ALWAYS runs first, read-only, regardless of --execute
+    // -- and is scoped to exactly the categories this invocation may touch.
+    const productClassification = processProduct ? await runCategory(dataSource, false, 'product') : [];
+    const classifiedClassification = processClassified ? await runCategory(dataSource, false, 'classified') : [];
     const productCounts = summarize(productClassification, 'product');
     const classifiedCounts = summarize(classifiedClassification, 'classified');
 
-    console.log('[product-classified-backfill] product classification:', JSON.stringify(productClassification, null, 2));
-    console.log(`[product-classified-backfill] product summary: resolved=${productCounts.resolvedCount} ambiguous=${productCounts.ambiguousCount} unresolved=${productCounts.unresolvedCount}`);
-    console.log('[product-classified-backfill] classified classification:', JSON.stringify(classifiedClassification, null, 2));
-    console.log(`[product-classified-backfill] classified summary: resolved=${classifiedCounts.resolvedCount} ambiguous=${classifiedCounts.ambiguousCount} unresolved=${classifiedCounts.unresolvedCount}`);
+    if (processProduct) {
+      console.log('[product-classified-backfill] product classification:', JSON.stringify(productClassification, null, 2));
+      console.log(`[product-classified-backfill] product summary: resolved=${productCounts.resolvedCount} ambiguous=${productCounts.ambiguousCount} unresolved=${productCounts.unresolvedCount}`);
+    }
+    if (processClassified) {
+      console.log('[product-classified-backfill] classified classification:', JSON.stringify(classifiedClassification, null, 2));
+      console.log(`[product-classified-backfill] classified summary: resolved=${classifiedCounts.resolvedCount} ambiguous=${classifiedCounts.ambiguousCount} unresolved=${classifiedCounts.unresolvedCount}`);
+    }
 
     let guardFailed = false;
     const checkGuard = (label: string, expected: number | undefined, actual: number) => {
@@ -295,12 +358,16 @@ export async function main(argvOverride?: string[], dataSourceOverride?: DataSou
         guardFailed = true;
       }
     };
-    checkGuard('expect-product-resolved', opts.expectProductResolved, productCounts.resolvedCount);
-    checkGuard('expect-product-ambiguous', opts.expectProductAmbiguous, productCounts.ambiguousCount);
-    checkGuard('expect-product-unresolved', opts.expectProductUnresolved, productCounts.unresolvedCount);
-    checkGuard('expect-classified-resolved', opts.expectClassifiedResolved, classifiedCounts.resolvedCount);
-    checkGuard('expect-classified-ambiguous', opts.expectClassifiedAmbiguous, classifiedCounts.ambiguousCount);
-    checkGuard('expect-classified-unresolved', opts.expectClassifiedUnresolved, classifiedCounts.unresolvedCount);
+    if (processProduct) {
+      checkGuard('expect-product-resolved', opts.expectProductResolved, productCounts.resolvedCount);
+      checkGuard('expect-product-ambiguous', opts.expectProductAmbiguous, productCounts.ambiguousCount);
+      checkGuard('expect-product-unresolved', opts.expectProductUnresolved, productCounts.unresolvedCount);
+    }
+    if (processClassified) {
+      checkGuard('expect-classified-resolved', opts.expectClassifiedResolved, classifiedCounts.resolvedCount);
+      checkGuard('expect-classified-ambiguous', opts.expectClassifiedAmbiguous, classifiedCounts.ambiguousCount);
+      checkGuard('expect-classified-unresolved', opts.expectClassifiedUnresolved, classifiedCounts.unresolvedCount);
+    }
 
     if (guardFailed) {
       exitCode = 1;
@@ -313,11 +380,16 @@ export async function main(argvOverride?: string[], dataSourceOverride?: DataSou
       return exitCode;
     }
 
-    console.log('[product-classified-backfill] guard check passed -- applying writes.');
-    const appliedProduct = await runCategory(dataSource, true, 'product');
-    const appliedClassified = await runCategory(dataSource, true, 'classified');
-    console.log('[product-classified-backfill] applied product results:', JSON.stringify(appliedProduct, null, 2));
-    console.log('[product-classified-backfill] applied classified results:', JSON.stringify(appliedClassified, null, 2));
+    console.log(`[product-classified-backfill] guard check passed -- applying writes for category=${opts.category}.`);
+    // Structural fix, not just a guard: the apply calls below are gated on
+    // the SAME processProduct/processClassified booleans the classification
+    // pass used -- a --category product run's code path never calls
+    // runCategory(dataSource, true, 'classified') at all, so there is no
+    // way for it to write a Classified row, guard or no guard.
+    const appliedProduct = processProduct ? await runCategory(dataSource, true, 'product') : [];
+    const appliedClassified = processClassified ? await runCategory(dataSource, true, 'classified') : [];
+    if (processProduct) console.log('[product-classified-backfill] applied product results:', JSON.stringify(appliedProduct, null, 2));
+    if (processClassified) console.log('[product-classified-backfill] applied classified results:', JSON.stringify(appliedClassified, null, 2));
     console.log('[product-classified-backfill] EXECUTE complete.');
     return exitCode;
   } catch (err: any) {
