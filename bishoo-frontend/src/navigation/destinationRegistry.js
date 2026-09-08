@@ -29,6 +29,7 @@ const DYNAMIC_DESTINATIONS = [
   [/^(CommerceProfile|Store|SellerStore)-/, 'CommerceProfile'], [/^Search-/, 'Search'], [/^Category-/, 'Search'], [/^Listings-/, 'Listings'],
   [/^Track(Parcel|Order)-/, 'TrackParcel'], [/^ConfirmDelivery-/, 'TrackParcel'], [/^PayInvoice-/, 'PayInvoice'], [/^VerifyReceipt-/, 'VerifyReceipt'],
   [/^MyOrders-/, 'MyOrders'], [/^OrderTracking-/, 'OrderTracking'], [/^MyWarranties-/, 'MyWarranties'], [/^MessageSeller-/, 'SellerInbox'],
+  [/^MessageOperational-/, 'SellerInbox'],
   [/^SellerInbox-/, 'SellerInbox'], [/^SellerOrders-/, 'SellerOrders'], [/^SellerPayouts-/, 'SellerPayouts'], [/^SellerWarrantyClaims-/, 'SellerWarrantyClaims'],
   [/^EditProduct-/, 'SellerProducts'], [/^EditClassified-/, 'SellerClassifieds'], [/^BuyerParcelAction-/, 'MyOrders'], [/^BatchHandoff-/, 'BatchHandoff'],
 ];

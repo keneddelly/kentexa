@@ -480,6 +480,21 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     business: 'seller', agent: 'agent', hub: 'super_agent', transport_provider: 'transport_provider',
   }[activeProfile.type] || null;
 
+  // Communication canonicality fix: which conversation "Message" opens
+  // must preserve the operational identity actually being viewed, not
+  // just the underlying person. A Super Agent hub, Agent, or Transport
+  // Provider profile routes through MessageOperational-{type}-{profileId}
+  // (profileId = activeProfile.id, the same CommerceProfile.id already
+  // used elsewhere on this page -- resolved server-side, see
+  // ConversationService.resolveOperationalTarget) instead of collapsing
+  // onto that same person's Seller conversation via bare User.id. Seller/
+  // Personal/Service Provider profiles keep the exact legacy
+  // MessageSeller-{ownerId} link.
+  const OPERATIONAL_TARGET_TYPE = { agent: 'agent', hub: 'super_agent', transport_provider: 'transport_provider' };
+  const messageDestination = OPERATIONAL_TARGET_TYPE[activeProfile.type]
+    ? `MessageOperational-${OPERATIONAL_TARGET_TYPE[activeProfile.type]}-${activeProfile.id}`
+    : `MessageSeller-${activeProfile.ownerId}`;
+
   // Links to the standalone /share backend route so a pasted link into
   // WhatsApp/Facebook shows a real preview card — crawlers don't execute
   // JS, so only a server-rendered response can carry this profile's actual
@@ -583,7 +598,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                     ? t('commerce_profile.follow_back_button')
                     : t('commerce_profile.follow_button')}
               </button>
-              <button onClick={() => onNavigate(isLoggedIn ? `MessageSeller-${activeProfile.ownerId}` : 'PublicLogin')}
+              <button onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin')}
                 style={{ backgroundColor:'#eff6ff', color:B,
                   border:'1px solid #bfdbfe', borderRadius:10,
                   padding:'8px 14px', cursor:'pointer',

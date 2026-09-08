@@ -112,6 +112,82 @@ export class ConversationService {
     return { workspaceType: role.profileType as string, workspaceId: role.profileId };
   }
 
+  // Communication canonicality fix: the "owning side" of a conversation is
+  // no longer always the Seller role -- ownerWorkspaceType (stamped at
+  // creation, see getOrCreateConversation/resolveOperationalTarget below)
+  // says which operational role actually owns it. null/seller_profile
+  // (every pre-fix row, and every ordinary Seller conversation) keeps
+  // resolving to AccountRoleType.SELLER exactly as before; a Super Agent/
+  // Transport/Agent-owned conversation now resolves to ITS OWN role type,
+  // so a reply is authored/attributed as that operational identity, never
+  // silently as Seller or bare User just because the same person holds
+  // both roles.
+  private ownerRoleTypeFor(convo: Conversation): AccountRoleType {
+    switch (convo.ownerWorkspaceType) {
+      case RoleProfileType.SUPER_AGENT:
+        return AccountRoleType.SUPER_AGENT;
+      case RoleProfileType.TRANSPORT_PROVIDER:
+        return AccountRoleType.TRANSPORT_PROVIDER;
+      case RoleProfileType.AGENT:
+        return AccountRoleType.AGENT;
+      default:
+        return AccountRoleType.SELLER;
+    }
+  }
+
+  /**
+   * Server-side, trusted resolution of a client-asserted operational
+   * target -- never trusts a client-supplied ownerWorkspaceType/Id (or a
+   * raw SuperAgent/TransportProvider/Agent id) directly. `targetId` is a
+   * CommerceProfile.id (the same id the frontend already has as
+   * activeProfile.id from GET /profiles/:id -- no new id needs to be
+   * plumbed through the client at all). The linked operational entity id
+   * (superAgentId/transportProviderId/agentId) is read from THAT trusted
+   * row, not asserted by the caller, and `targetType` is cross-checked
+   * against the profile's own `type` -- a client claiming targetType
+   * 'super_agent' for a profile that is actually type 'agent' fails
+   * closed rather than silently resolving the wrong identity. From there,
+   * AccountRole's own (profileType, profileId) unique constraint
+   * (UQ_account_role_operational_profile) is the final authority: no
+   * active AccountRole of exactly that shape means no messageable
+   * identity, full stop.
+   */
+  private async resolveOperationalTarget(
+    targetType: 'super_agent' | 'transport_provider' | 'agent',
+    targetId: number,
+  ): Promise<{ userId: number; accountRoleId: number; operationalProfileId: number }> {
+    const profile = await this.commerceProfiles.findById(targetId).catch(() => null);
+    if (!profile) throw new NotFoundException('Target profile not found');
+
+    // CommerceProfile.type uses its OWN vocabulary ('hub' for a Super
+    // Agent, matching CommerceProfileType) -- distinct from targetType's
+    // AccountRoleType/RoleProfileType-shaped strings. Mapping both the
+    // expected profile type AND the linked entity id from a single lookup
+    // table keeps the two vocabularies from ever being compared directly.
+    const expectation: Record<string, { profileType: string; linkedId: number | null }> = {
+      super_agent: { profileType: 'hub', linkedId: profile.superAgentId },
+      transport_provider: { profileType: 'transport_provider', linkedId: profile.transportProviderId },
+      agent: { profileType: 'agent', linkedId: profile.agentId },
+    };
+    const expected = expectation[targetType];
+    if (profile.type !== expected.profileType || expected.linkedId == null) {
+      throw new NotFoundException('Target profile is not that operational identity');
+    }
+    const operationalProfileId = expected.linkedId;
+
+    const roleProfileType =
+      targetType === 'super_agent'
+        ? RoleProfileType.SUPER_AGENT
+        : targetType === 'transport_provider'
+          ? RoleProfileType.TRANSPORT_PROVIDER
+          : RoleProfileType.AGENT;
+    const role = await this.accountRoleRepo.findOne({
+      where: { profileType: roleProfileType, profileId: operationalProfileId, status: AccountRoleStatus.ACTIVE },
+    });
+    if (!role) throw new NotFoundException('Operational identity not found or not active');
+    return { userId: role.userId, accountRoleId: role.id, operationalProfileId };
+  }
+
   /** Mirrors a legacy unreadCount/buyerUnreadCount reset onto ConversationParticipantState. */
   private async dualWriteMarkRead(
     conversationId: number,
@@ -143,9 +219,27 @@ export class ConversationService {
     side: 'seller' | 'buyer',
     isNote: boolean,
   ): Promise<{ senderRole: AccountRole | null; recipientRole: AccountRole | null }> {
+    // "seller" here means "the owning side" -- ownerRoleTypeFor resolves
+    // that to the conversation's ACTUAL operational owner (Seller by
+    // default/legacy, or Super Agent/Transport/Agent for an operational
+    // target conversation), never hardcoded to AccountRoleType.SELLER.
+    // This is what makes reply identity correct: Kened replying in a
+    // Super-Agent-owned thread is attributed/authorized as his Super Agent
+    // AccountRole, never silently as his Seller AccountRole, even though
+    // both belong to the same User.
+    const ownerRoleType = this.ownerRoleTypeFor(convo);
+    const ownerParticipantKind =
+      ownerRoleType === AccountRoleType.SELLER
+        ? ParticipantKind.SELLER
+        : ownerRoleType === AccountRoleType.SUPER_AGENT
+          ? ParticipantKind.SUPER_AGENT
+          : ownerRoleType === AccountRoleType.TRANSPORT_PROVIDER
+            ? ParticipantKind.TRANSPORT_PROVIDER
+            : ParticipantKind.AGENT;
+
     const senderRole =
       side === 'seller'
-        ? await this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER)
+        ? await this.resolveAccountRoleFor(convo.sellerId, ownerRoleType)
         : convo.customer?.userId
           ? await this.resolveAccountRoleFor(convo.customer.userId, AccountRoleType.BUYER)
           : null;
@@ -154,7 +248,7 @@ export class ConversationService {
       const senderParticipant = await this.participants.ensureAccountRoleParticipant(
         convo.id,
         senderRole.id,
-        side === 'seller' ? ParticipantKind.SELLER : ParticipantKind.BUYER,
+        side === 'seller' ? ownerParticipantKind : ParticipantKind.BUYER,
       );
       const workspace = this.workspaceOf(senderRole);
       await this.msgRepo.update(msg.id, {
@@ -172,12 +266,12 @@ export class ConversationService {
         ? convo.customer?.userId
           ? await this.resolveAccountRoleFor(convo.customer.userId, AccountRoleType.BUYER)
           : null
-        : await this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER);
+        : await this.resolveAccountRoleFor(convo.sellerId, ownerRoleType);
     if (recipientRole) {
       const recipientParticipant = await this.participants.ensureAccountRoleParticipant(
         convo.id,
         recipientRole.id,
-        side === 'seller' ? ParticipantKind.BUYER : ParticipantKind.SELLER,
+        side === 'seller' ? ParticipantKind.BUYER : ownerParticipantKind,
       );
       await this.participants.incrementUnread(recipientParticipant.id);
     }
@@ -653,10 +747,21 @@ export class ConversationService {
 
   // ── Get or create conversation ────────────────────────────────────────────
 
+  // `ownerWorkspaceOverride`: undefined (the default, every pre-existing
+  // caller) means "resolve the seller's own seller_profile workspace and
+  // use it for both lookup and creation" -- the legacy behavior, now made
+  // internally workspace-aware so it keeps correctly finding/creating the
+  // ONE seller_profile-owned thread even though other operational owners
+  // can now exist for the same (sellerId, customerId) pair. Pass an
+  // explicit override (even `null`, meaning "no operational owner") only
+  // from a caller that has already resolved a DIFFERENT trusted owner --
+  // see getOrCreateOperationalConversationAsBuyer below, which is the only
+  // other caller. Never accept ownerWorkspaceType/Id from a client directly.
   async getOrCreateConversation(
     sellerId: number,
     customerId: number,
     commerceProfileId?: number | null,
+    ownerWorkspaceOverride?: { ownerWorkspaceType: string; ownerWorkspaceId: number } | null,
   ): Promise<Conversation> {
     // Never trust a client-supplied commerceProfileId blindly — must
     // actually belong to this seller, same authorization posture as
@@ -677,6 +782,25 @@ export class ConversationService {
       }
     }
 
+    const isLegacyCall = ownerWorkspaceOverride === undefined;
+    const legacySellerWorkspace = isLegacyCall
+      ? this.workspaceOf(await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER))
+      : null;
+    const ownerWorkspace = isLegacyCall
+      ? (legacySellerWorkspace
+          ? { ownerWorkspaceType: legacySellerWorkspace.workspaceType, ownerWorkspaceId: legacySellerWorkspace.workspaceId }
+          : null)
+      : ownerWorkspaceOverride;
+
+    // Communication canonicality fix: lookup, insert, and the 23505-
+    // recovery re-fetch below all key on the SAME (sellerId, customerId,
+    // commerceProfileId, ownerWorkspaceType, ownerWorkspaceId) tuple that
+    // migration AddConversationOperationalOwnerUniqueness's four partial
+    // indexes now enforce -- a Seller conversation and a Super Agent
+    // conversation for the very same (sellerId, customerId) pair are
+    // different rows because ownerWorkspaceType/Id differ, never collapsed
+    // just because both belong to the same underlying User.
+    //
     // Was missing commerceProfileId here — the entity's own comment already
     // documents the intent ("must land in two conversations that each show
     // the correct identity"), but this lookup ignored it, so a buyer
@@ -690,6 +814,8 @@ export class ConversationService {
         customerId,
         status: ConversationStatus.OPEN,
         commerceProfileId: verifiedProfileId === null ? IsNull() : verifiedProfileId,
+        ownerWorkspaceType: ownerWorkspace ? ownerWorkspace.ownerWorkspaceType : IsNull(),
+        ...(ownerWorkspace ? { ownerWorkspaceId: ownerWorkspace.ownerWorkspaceId } : {}),
       },
       // "seller" is needed so the buyer-side chat header can show the real
       // business name instead of a generic placeholder on first load.
@@ -710,6 +836,8 @@ export class ConversationService {
         channel: customer.channel || 'kentexa',
         subject: `Mazungumzo na ${customer.name}`,
         commerceProfileId: verifiedProfileId,
+        ownerWorkspaceType: ownerWorkspace?.ownerWorkspaceType ?? null,
+        ownerWorkspaceId: ownerWorkspace?.ownerWorkspaceId ?? null,
       });
       // Explicit creation provenance -- never inferred from status,
       // timestamps, id, or classificationReason. `createdNow` is true only
@@ -743,6 +871,8 @@ export class ConversationService {
             sellerId,
             customerId,
             commerceProfileId: verifiedProfileId === null ? IsNull() : verifiedProfileId,
+            ownerWorkspaceType: ownerWorkspace ? ownerWorkspace.ownerWorkspaceType : IsNull(),
+            ...(ownerWorkspace ? { ownerWorkspaceId: ownerWorkspace.ownerWorkspaceId } : {}),
           },
           relations: { customer: true, seller: true },
         });
@@ -759,7 +889,14 @@ export class ConversationService {
       // conversation's own classificationStatus. Best-effort: a Stage 2
       // resolver hiccup must never break opening a conversation, which the
       // legacy write above already completed.
-      if (createdNow && this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+      //
+      // Also gated on isLegacyCall: dualWriteNewConversation unconditionally
+      // resolves+stamps the SELLER role's workspace -- correct for every
+      // pre-existing (legacy) call site, but it would silently overwrite a
+      // deliberately different ownerWorkspace (e.g. super_agent) that
+      // getOrCreateOperationalConversationAsBuyer already stamped above.
+      // That caller sets up its own participants/classification instead.
+      if (createdNow && isLegacyCall && this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
         await this.dualWriteNewConversation(convo).catch(() => {});
       }
     }
@@ -795,6 +932,65 @@ export class ConversationService {
         await this.participants.ensureExternalContactParticipant(convo.id, customer.id);
       }
     }
+  }
+
+  // ── Get or create conversation, targeting a SPECIFIC operational
+  // identity of the seller-side person (Super Agent / Transport Provider /
+  // Agent) rather than their Seller identity ──────────────────────────────
+  // Communication canonicality fix. `targetType`/`targetId` are resolved
+  // server-side via resolveOperationalTarget (AccountRole's own
+  // (profileType, profileId) unique constraint) -- a client can never
+  // assert ownerWorkspaceType/Id directly, only reference an id, which
+  // either resolves to a real active operational identity or fails closed.
+  async getOrCreateOperationalConversationAsBuyer(
+    buyer: User,
+    targetType: 'super_agent' | 'transport_provider' | 'agent',
+    targetId: number,
+    context?: ConversationContext | null,
+  ): Promise<Conversation> {
+    const target = await this.resolveOperationalTarget(targetType, targetId);
+    if (target.userId === buyer.id) {
+      throw new BadRequestException('Cannot message yourself');
+    }
+
+    const customer = await this.customerService.findOrCreateForChat(target.userId, {
+      id: buyer.id,
+      name: buyer.name || buyer.storeName || 'Mnunuzi',
+      phone: buyer.phone,
+      email: buyer.email,
+    });
+
+    const convo = await this.getOrCreateConversation(target.userId, customer.id, null, {
+      ownerWorkspaceType: targetType,
+      ownerWorkspaceId: target.operationalProfileId,
+    });
+
+    // Mirrors dualWriteNewConversation's own classification/participant
+    // stamping, which getOrCreateConversation deliberately skipped for this
+    // (non-legacy) call -- idempotent, safe to run even when `convo` was
+    // found rather than just created (ensureAccountRoleParticipant is a
+    // reactivating upsert, update() below is a no-op re-write of the same
+    // already-correct values on a reused row).
+    await this.convoRepo.update(convo.id, {
+      scopeType: `${targetType}_buyer`,
+      sourceType: `message_${targetType}`,
+      classificationStatus: ConversationClassificationStatus.RESOLVED,
+      classificationReason: 'created_by_conversation_service',
+      classifiedAt: new Date(),
+    });
+    const ownerParticipantKind =
+      targetType === 'super_agent'
+        ? ParticipantKind.SUPER_AGENT
+        : targetType === 'transport_provider'
+          ? ParticipantKind.TRANSPORT_PROVIDER
+          : ParticipantKind.AGENT;
+    await this.participants.ensureAccountRoleParticipant(convo.id, target.accountRoleId, ownerParticipantKind);
+    const buyerRole = await this.resolveAccountRoleFor(buyer.id, AccountRoleType.BUYER);
+    if (buyerRole) {
+      await this.participants.ensureAccountRoleParticipant(convo.id, buyerRole.id, ParticipantKind.BUYER);
+    }
+
+    return convo;
   }
 
   // ── Get or create conversation, initiated by a BUYER ──────────────────────

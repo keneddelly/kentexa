@@ -307,7 +307,7 @@ function App() {
     // have just been read (their unreadCount reset server-side) — refetch
     // the badge count now instead of waiting for the next full page load.
     const leavingInbox = typeof page === 'string'
-      && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller'));
+      && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational'));
     if (leavingInbox && pageName !== page) fetchInboxUnread();
 
     return navigation.navigate(pageName, params);
@@ -641,6 +641,19 @@ function App() {
         messageCommerceProfileId={navParams?.commerceProfileId}
         messageContextType={navParams?.contextType} messageContextId={navParams?.contextId} />);
     }
+    // Communication canonicality fix: messaging a Super Agent/Transport
+    // Provider/Agent profile must NOT collapse onto that same person's
+    // Seller conversation just because MessageSeller-{id} only ever
+    // carried the bare User.id. `commerceProfileId` here is the SAME id
+    // CommerceProfile.js already has as activeProfile.id -- resolved
+    // server-side (see POST /business/my-conversations/start), never
+    // trusted as authority by itself.
+    if (page.startsWith('MessageOperational-')) {
+      const [, targetType, commerceProfileId] = page.split('-');
+      return requireLogin(<SellerInbox {...publicProps} initialCustomerId={null}
+        messageTargetType={targetType} messageTargetId={commerceProfileId}
+        messageContextType={navParams?.contextType} messageContextId={navParams?.contextId} />);
+    }
     if (page.startsWith('Search-'))
       return <Search {...publicProps} initialQuery={page.split('Search-')[1]} aiIntent={navParams?.aiIntent} track={track} />;
     if (page.startsWith('Category-'))
@@ -803,7 +816,7 @@ function App() {
           it, covering the send button (and on the conversation list, the
           bottom rows) since nothing in SellerInbox reserved space for it. */}
       {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
-        && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller'))) && (
+        && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational'))) && (
         <BottomNav
           // Remount protection (profile-switch architecture spec): a stable
           // profile-context key forces React to tear down and rebuild this

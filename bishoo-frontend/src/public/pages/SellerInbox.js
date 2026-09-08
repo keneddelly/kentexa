@@ -326,15 +326,19 @@ const resolveInboxMode = (userRole) => {
   return 'unsupported';
 };
 
-const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId, contextEpoch }) => {
+const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetType, messageTargetId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId, contextEpoch }) => {
   const { t, i18n } = useTranslation();
   // Deep links carry their own implied mode regardless of the bare-inbox
   // default for the active role — "message this specific seller" is always
   // a buyer action, "open this specific CRM customer thread" is always a
   // seller action. Both remain fail-closed server-side (wrong active role
   // still 403s there); this only decides which endpoint family and which UI
-  // this component renders while the deep link resolves.
-  const inboxMode = sellerId ? 'buyer' : initialCustomerId ? 'seller' : resolveInboxMode(userRole);
+  // this component renders while the deep link resolves. Communication
+  // canonicality fix: messageTargetType/messageTargetId (from
+  // MessageOperational-{type}-{commerceProfileId}) is the same kind of
+  // deep link as sellerId (MessageSeller-{userId}), just targeting a
+  // specific operational identity instead of always the Seller one.
+  const inboxMode = (sellerId || messageTargetType) ? 'buyer' : initialCustomerId ? 'seller' : resolveInboxMode(userRole);
   const dateLocale = DATE_LOCALE_MAP[i18n.language] || 'sw-TZ';
   const [conversations, setConversations]   = useState([]);
   const [active,        setActive]          = useState(null);
@@ -364,8 +368,10 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // Deep-linked straight into a chat with one specific seller (MessageSeller-{id}).
-  const buyerDeepLink = !!sellerId;
+  // Deep-linked straight into a chat with one specific target -- either a
+  // Seller (MessageSeller-{userId}) or a specific operational identity
+  // (MessageOperational-{type}-{commerceProfileId}).
+  const buyerDeepLink = !!sellerId || !!messageTargetType;
 
   // Debounced — a search endpoint that hits the DB per keystroke doesn't
   // scale, and it doesn't need to: conversation lists are small, a 300ms
@@ -395,8 +401,9 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       if (buyerDeepLink) {
         try {
           const r = await api.post('/business/my-conversations/start', {
-            sellerId: Number(sellerId),
-            commerceProfileId: messageCommerceProfileId ? Number(messageCommerceProfileId) : undefined,
+            ...(messageTargetType
+              ? { targetType: messageTargetType, targetId: Number(messageTargetId) }
+              : { sellerId: Number(sellerId), commerceProfileId: messageCommerceProfileId ? Number(messageCommerceProfileId) : undefined }),
             contextType: messageContextType || undefined,
             contextId: messageContextId ? Number(messageContextId) : undefined,
           });
@@ -454,7 +461,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, userRole, messag
       }
     } catch {} finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inboxMode, filter, initialCustomerId, sellerId, messageCommerceProfileId, messageContextType, messageContextId, debouncedSearch, mineOnly]);
+  }, [inboxMode, filter, initialCustomerId, sellerId, messageTargetType, messageTargetId, messageCommerceProfileId, messageContextType, messageContextId, debouncedSearch, mineOnly]);
 
   const fetchMessages = async (convo) => {
     try {

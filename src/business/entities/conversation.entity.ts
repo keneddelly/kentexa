@@ -44,21 +44,45 @@ export enum ConversationClassificationStatus {
 // Application-level find-or-create (ConversationService.getOrCreateConversation)
 // only checks-then-creates — a double-tap on "Message Seller" or a client
 // retry after a slow/timed-out first request could still race past the
-// findOne check before either insert commits. Two partial unique indexes
+// findOne check before either insert commits. Four partial unique indexes
 // close that at the DB level (Postgres treats every NULL as distinct in a
 // plain multi-column UNIQUE, so a single constraint on
 // (sellerId, customerId, commerceProfileId) would silently let unlimited
 // commerceProfileId:NULL duplicates through — the single most common case,
-// since most sellers/buyers never pass a specific profile at all):
-//   - one seller+customer+specific-profile conversation
-//   - one seller+customer conversation with no profile attached
-@Index('idx_conversation_unique_with_profile', ['sellerId', 'customerId', 'commerceProfileId'], {
+// since most sellers/buyers never pass a specific profile at all).
+//
+// Communication canonicality fix (migration
+// AddConversationOperationalOwnerUniqueness): every User's operational
+// identities (Seller, Super Agent, Transport Provider, Agent) share the
+// same seller_id (User.id), so the original two indexes let a buyer
+// messaging two different operational identities of the same person
+// collapse onto one Conversation row. The four indexes below split first
+// on whether ownerWorkspaceType is resolved (a Stage-2-classified
+// operational conversation) or NULL (every pre-Stage-2 LEGACY_UNSCOPED
+// row, and any genuinely account-scope/personal conversation, which never
+// gets an operational owner by design) — only the resolved-owner case
+// folds ownerWorkspaceType/ownerWorkspaceId into uniqueness; the NULL case
+// is byte-for-byte the original two-index shape, so legacy/personal rows
+// are entirely unaffected by this change:
+//   - ownerWorkspaceType resolved + specific commerceProfileId
+//   - ownerWorkspaceType resolved + no commerceProfileId
+//   - ownerWorkspaceType NULL (legacy/personal) + specific commerceProfileId
+//   - ownerWorkspaceType NULL (legacy/personal) + no commerceProfileId
+@Index('idx_conversation_unique_workspace_with_profile', ['sellerId', 'customerId', 'ownerWorkspaceType', 'ownerWorkspaceId', 'commerceProfileId'], {
   unique: true,
-  where: '"commerceProfileId" IS NOT NULL',
+  where: '"ownerWorkspaceType" IS NOT NULL AND "commerceProfileId" IS NOT NULL',
 })
-@Index('idx_conversation_unique_no_profile', ['sellerId', 'customerId'], {
+@Index('idx_conversation_unique_workspace_no_profile', ['sellerId', 'customerId', 'ownerWorkspaceType', 'ownerWorkspaceId'], {
   unique: true,
-  where: '"commerceProfileId" IS NULL',
+  where: '"ownerWorkspaceType" IS NOT NULL AND "commerceProfileId" IS NULL',
+})
+@Index('idx_conversation_unique_legacy_with_profile', ['sellerId', 'customerId', 'commerceProfileId'], {
+  unique: true,
+  where: '"ownerWorkspaceType" IS NULL AND "commerceProfileId" IS NOT NULL',
+})
+@Index('idx_conversation_unique_legacy_no_profile', ['sellerId', 'customerId'], {
+  unique: true,
+  where: '"ownerWorkspaceType" IS NULL AND "commerceProfileId" IS NULL',
 })
 @Entity('conversation')
 export class Conversation {

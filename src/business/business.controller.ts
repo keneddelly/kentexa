@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -448,25 +449,62 @@ export class BusinessController {
     return this.conversationService.getMyConversations(req.user.id, params);
   }
 
+  // Communication canonicality fix: `targetType`/`targetId` let the caller
+  // reference a SPECIFIC operational identity (Super Agent / Transport
+  // Provider / Agent) instead of always landing on the target person's
+  // Seller conversation. `targetId` is a CommerceProfile.id -- the same id
+  // the frontend already has as activeProfile.id from GET /profiles/:id,
+  // no new id needs to be plumbed to the client. It is never trusted as
+  // authority itself: getOrCreateOperationalConversationAsBuyer looks up
+  // that CommerceProfile server-side, cross-checks its own `type` against
+  // the claimed targetType, reads the linked superAgentId/
+  // transportProviderId/agentId from that trusted row, and only then
+  // resolves an AccountRole via its (profileType, profileId) unique
+  // constraint -- any mismatch or missing active AccountRole fails closed
+  // (404), never silently falls back to a different conversation.
+  // `sellerId` (legacy, still accepted with no targetType, or with
+  // targetType:'seller') is untouched -- existing "Message Seller" links
+  // keep working exactly as before.
   @UseGuards(RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.BUYER)
   @Post('my-conversations/start')
   startConversationAsBuyer(
     @Request() req,
     @Body() body: {
-      sellerId: number;
+      sellerId?: number;
+      targetType?: 'seller' | 'super_agent' | 'transport_provider' | 'agent';
+      targetId?: number;
       commerceProfileId?: number;
       contextType?: 'product' | 'classified' | 'service';
       contextId?: number;
     },
   ) {
-    return this.conversationService.getOrCreateConversationAsBuyer(
-      req.user,
-      body.sellerId,
-      body.commerceProfileId,
+    const context =
       body.contextType && body.contextId
         ? { type: body.contextType, id: body.contextId }
-        : null,
+        : null;
+
+    if (body.targetType && body.targetType !== 'seller') {
+      if (!body.targetId) {
+        throw new BadRequestException('targetId is required when targetType is not "seller"');
+      }
+      return this.conversationService.getOrCreateOperationalConversationAsBuyer(
+        req.user,
+        body.targetType,
+        body.targetId,
+        context,
+      );
+    }
+
+    const sellerId = body.targetType === 'seller' ? body.targetId : body.sellerId;
+    if (!sellerId) {
+      throw new BadRequestException('sellerId (or targetType:"seller" + targetId) is required');
+    }
+    return this.conversationService.getOrCreateConversationAsBuyer(
+      req.user,
+      sellerId,
+      body.commerceProfileId,
+      context,
     );
   }
 
