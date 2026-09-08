@@ -57,6 +57,7 @@ import { PoliciesModule } from './policies/policies.module';
 import { ShareModule } from './share/share.module';
 import { RoleContextModule } from './role-context/role-context.module';
 import { CommunicationFeatureFlagsModule } from './communication/communication-feature-flags.module';
+import { OwnershipFeatureFlagsModule } from './ownership/ownership-feature-flags.module';
 
 export const allowDevelopmentSchemaSync =
   process.env.NODE_ENV === 'development' &&
@@ -133,6 +134,7 @@ export const allowDevelopmentSchemaSync =
     ShareModule,
     RoleContextModule,
     CommunicationFeatureFlagsModule,
+    OwnershipFeatureFlagsModule,
     // Blanket default rate limit — most controllers had none at all (only
     // auth/transport/search/early-access separately registered their own
     // tighter ThrottlerModule + guard). This adds a global floor via
