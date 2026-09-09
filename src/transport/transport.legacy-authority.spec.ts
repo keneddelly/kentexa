@@ -14,8 +14,27 @@ describe('TransportService legacy authority closure', () => {
       findOne: jest.fn(),
       save: jest.fn().mockImplementation((a) => Promise.resolve(a)),
     };
-    const providerRepo: any = { findOne: jest.fn().mockResolvedValue(null), update: jest.fn() };
-    const superAgentRepo: any = { findOne: jest.fn().mockResolvedValue(null) };
+    // Multi-Business Authority Stage 1B: acting-context provider/hub
+    // lookups now go through resolveActingTransportProvider()/
+    // findCallerSuperAgent(), which call .find() (to fail closed on
+    // ambiguity) rather than .findOne(). find() here wraps whatever
+    // findOne() is configured to resolve, so every existing test below
+    // (which only ever configures findOne) keeps working unchanged.
+    const providerRepo: any = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn(async (...args: any[]) => {
+        const r = await providerRepo.findOne(...args);
+        return r ? [r] : [];
+      }),
+      update: jest.fn(),
+    };
+    const superAgentRepo: any = {
+      findOne: jest.fn().mockResolvedValue(null),
+      find: jest.fn(async (...args: any[]) => {
+        const r = await superAgentRepo.findOne(...args);
+        return r ? [r] : [];
+      }),
+    };
     const noop: any = {};
     const service = new TransportService(
       providerRepo,

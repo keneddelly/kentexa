@@ -54,6 +54,13 @@ describe('ConversationService -- operational inbox/reply surface (Communication 
         if (where.userId === BOB_USER_ID && where.roleType === AccountRoleType.BUYER) return Promise.resolve({ id: 10, userId: BOB_USER_ID, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE, profileType: RoleProfileType.USER, profileId: BOB_USER_ID });
         return Promise.resolve(null);
       }),
+      // Multi-Business Authority Stage 1B: the unhinted branch of
+      // resolveAccountRoleFor uses .find() (to fail closed on ambiguity),
+      // not .findOne() -- wraps whatever findOne above would have matched.
+      find: jest.fn(async (query: any) => {
+        const r = await accountRoleRepo.findOne(query);
+        return r ? [r] : [];
+      }),
     };
     const participantRepo: any = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     const participantStateRepo: any = { find: jest.fn().mockResolvedValue([]), update: jest.fn() };

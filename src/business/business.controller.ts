@@ -295,7 +295,8 @@ export class BusinessController {
       'canSendMessages',
     );
     if (this.flags.isEnabled('SCOPED_UNREAD_READ')) {
-      const unread = await this.conversationService.getScopedUnreadCountForSeller(sellerId);
+      const hint = await this.resolveSellerWorkspaceHint(req.user);
+      const unread = await this.conversationService.getScopedUnreadCountForSeller(sellerId, hint);
       return { unread };
     }
     const unread = await this.conversationService.getUnreadConversationCount(

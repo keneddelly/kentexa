@@ -105,8 +105,25 @@ export class TransportService {
   // have one — never throws, since "not a super agent" is a legitimate
   // answer callers need to branch on (e.g. reject with a clear message)
   // rather than a 404/500.
+  //
+  // Multi-Business Authority Stage 1B: fails closed (returns null, same
+  // as "doesn't have one") rather than arbitrarily picking one, if this
+  // user ever had more than one active SuperAgent row. Unreachable today
+  // -- SuperAgentsService.apply()'s own "already have a super agent
+  // application" guard still blocks a second row from ever being created
+  // -- but this must never silently trust that guard to hold forever.
   private async findCallerSuperAgent(userId: number): Promise<SuperAgent | null> {
-    return this.superAgentRepo.findOne({ where: { user: { id: userId } } });
+    const matches = await this.superAgentRepo.find({ where: { user: { id: userId } }, order: { id: 'ASC' } });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  // Multi-Business Authority Stage 1B. Same fail-closed-on-ambiguity
+  // posture as findCallerSuperAgent above, for the caller's own
+  // TransportProvider row. Unreachable today -- register()'s own "Una
+  // akaunti ya usafirishaji tayari" guard still blocks a second row.
+  private async resolveActingTransportProvider(userId: number, relations?: Record<string, boolean>): Promise<TransportProvider | null> {
+    const matches = await this.providerRepo.find({ where: { userId }, order: { id: 'ASC' }, relations });
+    return matches.length === 1 ? matches[0] : null;
   }
 
   // Best-effort city → region resolution against the existing tz-location
@@ -141,9 +158,7 @@ export class TransportService {
     },
   ): Promise<TransportProvider> {
     // One provider per user
-    const existing = await this.providerRepo.findOne({
-      where: { userId: user.id },
-    });
+    const existing = await this.resolveActingTransportProvider(user.id);
     if (existing)
       throw new BadRequestException('Una akaunti ya usafirishaji tayari');
 
@@ -185,10 +200,7 @@ export class TransportService {
   }
 
   async getMyProfile(userId: number): Promise<TransportProvider> {
-    const p = await this.providerRepo.findOne({
-      where: { userId },
-      relations: { user: true },
-    });
+    const p = await this.resolveActingTransportProvider(userId, { user: true });
     if (!p) throw new NotFoundException('Transport account not found');
     return p;
   }
@@ -944,9 +956,7 @@ export class TransportService {
     const a = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
     if (!a) throw new NotFoundException('Mgawo haukupatikana');
 
-    const providerProfile = await this.providerRepo.findOne({
-      where: { user: { id: caller.id } },
-    });
+    const providerProfile = await this.resolveActingTransportProvider(caller.id);
     const isOwningProvider = !!providerProfile && providerProfile.id === a.providerId;
     const isCreatingSuperAgent =
       a.assignedById === caller.id && !!(await this.findCallerSuperAgent(caller.id));

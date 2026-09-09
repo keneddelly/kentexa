@@ -175,6 +175,24 @@ export class SuperAgentsService {
     private roleContextService: RoleContextService,
   ) {}
 
+  // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
+  // caller's own SuperAgent hub to act as it" lookup that used to be
+  // duplicated as a bare `superAgentRepo.findOne({where:{user:{id}}}})`
+  // across this file. AccountRole now permits multiple super_agent rows
+  // per user (one per Business) -- unreachable today because apply()'s
+  // own "already have a super agent application" guard (below) still
+  // blocks a second SuperAgent row from ever being created, but this
+  // helper makes that dependency explicit and fails closed (never
+  // arbitrarily resolves one of several) rather than silently trusting
+  // the guard to hold forever. Every call site below already null-checks
+  // the result and throws its own Forbidden/BadRequest/NotFound
+  // accordingly, so treating "ambiguous" the same as "not found" here is
+  // safe and requires no call-site changes beyond the lookup itself.
+  private async resolveActingSuperAgent(userId: number, relations?: Record<string, boolean>): Promise<SuperAgent | null> {
+    const matches = await this.superAgentRepo.find({ where: { user: { id: userId } }, order: { id: 'ASC' }, relations });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
   // ── Generate tracking number KTX-DAR-MZA-000001 ──────────────────────────
   // ── Generate agent code SA-DAR-001 ────────────────────────────────────────
   // ── Generate bulk shipment code ───────────────────────────────────────────
@@ -260,9 +278,7 @@ export class SuperAgentsService {
       governmentIdImage?: string;
     },
   ) {
-    const existing = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const existing = await this.resolveActingSuperAgent(user.id);
     if (existing)
       throw new BadRequestException(
         'You already have a super agent application',
@@ -308,9 +324,7 @@ export class SuperAgentsService {
   }
 
   async getMyProfile(user: User) {
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) throw new NotFoundException('Super agent profile not found');
     return agent;
   }
@@ -502,9 +516,7 @@ export class SuperAgentsService {
       notes?: string;
     },
   ) {
-    const superAgent = await this.superAgentRepo.findOne({
-      where: { user: { id: superAgentUser.id } },
-    });
+    const superAgent = await this.resolveActingSuperAgent(superAgentUser.id);
     if (!superAgent)
       throw new BadRequestException('Super Agent profile not found');
 
@@ -1343,9 +1355,7 @@ export class SuperAgentsService {
   // (just without the operational payload) so the UI can say "switch to
   // Super Agent mode to see your dashboard" instead of a bare 403.
   async getDashboard(user: User, roleContext?: RoleContext) {
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) return { status: 'not_applied' };
     const isActiveAsSuperAgent =
       roleContext?.roleType === AccountRoleType.SUPER_AGENT ||
@@ -1472,9 +1482,7 @@ export class SuperAgentsService {
   // timestamps, bucketed in Tanzania local time (EAT, UTC+3 year-round —
   // no DST to account for, so a fixed offset is safe here).
   async getRevenueSummary(user: User) {
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) throw new BadRequestException('Super Agent profile not found');
 
     const [originParcels, destParcels] = await Promise.all([
@@ -1842,9 +1850,7 @@ export class SuperAgentsService {
     parcel: Parcel,
     roleContext?: RoleContext,
   ) {
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const agent = await this.resolveActingSuperAgent(user.id);
     // Active-role authority, never the legacy user.role/activeRoles fields —
     // an admin operating as another role loses this cross-hub override
     // until they switch back.
@@ -2402,9 +2408,7 @@ export class SuperAgentsService {
   // UI — without it a Super Agent would have to already know every
   // tracking number by heart.
   async getBulkShipmentCandidates(user: User, destinationCity?: string) {
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) throw new BadRequestException('Super Agent profile not found');
 
     const where: any = {
@@ -2456,9 +2460,7 @@ export class SuperAgentsService {
       notes?: string;
     },
   ) {
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) throw new BadRequestException('Super Agent profile not found');
     if (!dto.trackingNumbers?.length) {
       throw new BadRequestException('At least one order/parcel is required');
@@ -2526,9 +2528,7 @@ export class SuperAgentsService {
   // This agent's own OPEN shipments — lets the UI offer "add to the batch
   // already headed to Iringa" instead of always starting a new one.
   async getMyOpenBulkShipments(user: User) {
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) throw new BadRequestException('Super Agent profile not found');
     return this.bulkRepo.find({
       where: { superAgent: { id: agent.id }, status: BulkShipmentStatus.OPEN },
@@ -2787,9 +2787,7 @@ export class SuperAgentsService {
     if (roleContext?.roleType === AccountRoleType.ADMIN) {
       return shipment.superAgent || null;
     }
-    const agent = await this.superAgentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent || shipment.superAgent?.id !== agent.id) {
       throw new ForbiddenException('Not your consolidated shipment');
     }
@@ -2934,9 +2932,7 @@ export class SuperAgentsService {
     // for destination-side statuses ONLY if no destination hub was ever
     // assigned (single-agent-covers-both-ends case) — otherwise a real
     // assigned destination hub is the sole owner of those statuses.
-    const handlerAgent = await this.superAgentRepo
-      .findOne({ where: { user: { id: user.id } } })
-      .catch(() => null);
+    const handlerAgent = await this.resolveActingSuperAgent(user.id).catch(() => null);
     const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     if (!isAdmin) {
       const isOriginAgent = parcel.superAgent?.id === handlerAgent?.id;
@@ -4153,9 +4149,7 @@ export class SuperAgentsService {
     const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     let callingAgent: SuperAgent | null = null;
     if (!isAdmin) {
-      callingAgent = await this.superAgentRepo.findOne({
-        where: { user: { id: user.id } },
-      });
+      callingAgent = await this.resolveActingSuperAgent(user.id);
       const destHub = (parcel as any).destinationSuperAgent as SuperAgent | null;
       const authorized = destHub
         ? destHub.id === callingAgent?.id
@@ -4450,10 +4444,7 @@ export class SuperAgentsService {
     },
     roleContext?: RoleContext,
   ) {
-    const sa = await this.superAgentRepo.findOne({
-      where: { user: { id: userId } },
-      relations: { user: true },
-    });
+    const sa = await this.resolveActingSuperAgent(userId, { user: true });
     if (!sa) throw new NotFoundException('Super Agent hajapatikana');
 
     const parcel = await this.parcelRepo.findOne({

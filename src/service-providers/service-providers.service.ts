@@ -21,11 +21,20 @@ export class ServiceProvidersService {
     @InjectRepository(User) private userRepo: Repository<User>,
   ) {}
 
+  // Multi-Business Authority Stage 1B. Fails closed (returns null) rather
+  // than arbitrarily picking one, if this user ever had more than one
+  // active ServiceProvider row. Unreachable today -- apply()'s own
+  // "already have a service provider application" guard below still
+  // blocks a second row from ever being created -- but this must never
+  // silently trust that guard to hold forever.
+  private async resolveActingServiceProvider(userId: number): Promise<ServiceProvider | null> {
+    const matches = await this.providerRepo.find({ where: { user: { id: userId } }, order: { id: 'ASC' } });
+    return matches.length === 1 ? matches[0] : null;
+  }
+
   // ── Apply to become a service provider ───────────────────────────────────
   async apply(dto: CreateServiceProviderDto, user: User) {
-    const existing = await this.providerRepo.findOne({
-      where: { user: { id: user.id } },
-    });
+    const existing = await this.resolveActingServiceProvider(user.id);
     if (existing)
       throw new ConflictException(
         'You already have a service provider application',
@@ -41,13 +50,11 @@ export class ServiceProvidersService {
 
   // ── My profile ─────────────────────────────────────────────────────────
   async getMyProfile(userId: number) {
-    return this.providerRepo.findOne({ where: { user: { id: userId } } });
+    return this.resolveActingServiceProvider(userId);
   }
 
   async updateProfile(userId: number, dto: Partial<CreateServiceProviderDto>) {
-    const provider = await this.providerRepo.findOne({
-      where: { user: { id: userId } },
-    });
+    const provider = await this.resolveActingServiceProvider(userId);
     if (!provider) throw new NotFoundException('Service provider profile not found');
     await this.providerRepo.update(provider.id, dto);
     return this.providerRepo.findOne({ where: { id: provider.id } });

@@ -21,6 +21,13 @@ describe('InAppNotificationService event-helper audience resolution (Stage 2B it
         if (where.userId === 6 && where.roleType === AccountRoleType.BUYER) return Promise.resolve(buyerRole);
         return Promise.resolve(null);
       }),
+      // Multi-Business Authority Stage 1B: the unhinted branch of
+      // resolveRoleAudience uses .find() (to fail closed on ambiguity),
+      // not .findOne() -- wraps whatever findOne above would have matched.
+      find: jest.fn(async (query: any) => {
+        const r = await accountRoleRepo.findOne(query);
+        return r ? [r] : [];
+      }),
     };
     const push: any = { sendToUser: jest.fn().mockResolvedValue(undefined) };
     const flags: any = { isEnabled: jest.fn() };

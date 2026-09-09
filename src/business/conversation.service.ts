@@ -71,6 +71,23 @@ export interface ScopedInboxResult {
 // never accepted from a client directly.
 export type WorkspaceHint = { workspaceType: string; workspaceId: number } | null;
 
+// Multi-Business Authority Stage 1B. Thrown by resolveAccountRoleFor when
+// a caller supplies no workspace hint and more than one ACTIVE AccountRole
+// row of the requested roleType exists for the user -- i.e. genuinely
+// unresolvable without more context, never something to guess at by
+// picking "the first one". A dedicated type (rather than a generic Error)
+// so callers can distinguish "ambiguous" from "genuinely has none" and
+// react differently: dual-write helpers treat both the same (best-effort,
+// already wrapped in `.catch()` at their call sites -- skip the step), but
+// getScopedSellerInbox/getScopedBuyerConversations must NOT fall back to
+// their wide-open legacy (unscoped) query on ambiguity the way they safely
+// do on "genuinely has none".
+export class AmbiguousAccountRoleError extends Error {
+  constructor(public readonly userId: number, public readonly roleType: string, public readonly matchCount: number) {
+    super(`Ambiguous AccountRole for user ${userId}, roleType ${roleType}: ${matchCount} active rows, no workspace hint supplied`);
+  }
+}
+
 @Injectable()
 export class ConversationService {
   constructor(
@@ -111,31 +128,38 @@ export class ConversationService {
   // matching AccountRole yet (should not happen post Stage-1 sync, but this
   // path must never be able to break the legacy send/create flow it rides
   // alongside).
-  // Multi-Business Authority Stage 1: previously an unordered .findOne() on
-  // bare (userId, roleType) -- correct as long as at most one AccountRole
-  // row of that roleType could ever exist for a user, which is no longer
-  // guaranteed now that seller/super_agent/transport_provider/
-  // service_provider roles may repeat (one per WorkspaceAssignment). Two
-  // safeguards:
+  // Multi-Business Authority Stage 1B: fail-closed under ambiguity, never
+  // guess. Previously an unordered .findOne() on bare (userId, roleType) --
+  // correct as long as at most one AccountRole row of that roleType could
+  // ever exist for a user, which is no longer guaranteed now that seller/
+  // super_agent/transport_provider/service_provider roles may repeat (one
+  // per WorkspaceAssignment).
   //  1. When `workspaceHint` is supplied (from an already-authoritative
   //     RoleContext, or from a conversation's own already-stamped
-  //     ownerWorkspaceType/Id), resolve the EXACT matching row by
-  //     (profileType, profileId) first -- deterministic and correct under
-  //     multiplicity, never a guess.
-  //  2. Falling through to the bare (userId, roleType) lookup (no hint
-  //     available, or no row matched the hint) now orders by id ASC --
-  //     removes the non-deterministic "whichever Postgres returns first"
-  //     risk. This does not make the fallback workspace-CORRECT (an
-  //     inherently unresolvable question without a hint when 2+ rows truly
-  //     exist), only workspace-STABLE; call sites that can supply a hint
-  //     should always do so.
+  //     ownerWorkspaceType/Id), resolve ONLY the exact matching row by
+  //     (profileType, profileId). If no row matches that specific hint,
+  //     return null -- never fall through to guessing a DIFFERENT role of
+  //     the same type; a caller precise enough to supply a hint is precise
+  //     enough that "no match" must mean "not this one", not "try another".
+  //  2. Without a hint: 0 matches -> null (unchanged). Exactly 1 match ->
+  //     that row (still fully safe -- no ambiguity exists). 2+ matches ->
+  //     throws AmbiguousAccountRoleError rather than picking one via
+  //     ordering. Ordering by id is useful for legacy determinism but is
+  //     NOT a security boundary (per the mission's own explicit
+  //     instruction) -- every caller of this method either already
+  //     swallows a thrown/rejected promise as "treat as not found, skip
+  //     this best-effort step" (the dual-write helpers below, all called
+  //     with `.catch(...)` at their own call sites), or must explicitly
+  //     handle ambiguity as a fail-closed empty result rather than an
+  //     open-ended legacy fallback (getScopedSellerInbox/
+  //     getScopedBuyerConversations, see their own comments).
   private async resolveAccountRoleFor(
     userId: number,
     roleType: AccountRoleType,
     workspaceHint?: WorkspaceHint,
   ): Promise<AccountRole | null> {
     if (workspaceHint) {
-      const scoped = await this.accountRoleRepo.findOne({
+      return this.accountRoleRepo.findOne({
         where: {
           userId,
           roleType,
@@ -144,12 +168,15 @@ export class ConversationService {
           profileId: workspaceHint.workspaceId,
         },
       });
-      if (scoped) return scoped;
     }
-    return this.accountRoleRepo.findOne({
+    const matches = await this.accountRoleRepo.find({
       where: { userId, roleType, status: AccountRoleStatus.ACTIVE },
       order: { id: 'ASC' },
     });
+    if (matches.length > 1) {
+      throw new AmbiguousAccountRoleError(userId, roleType, matches.length);
+    }
+    return matches[0] ?? null;
   }
 
   private workspaceOf(role: AccountRole | null): { workspaceType: string; workspaceId: number } | null {
@@ -602,7 +629,24 @@ export class ConversationService {
     params: { status?: string; search?: string; page?: number; limit?: number; assignedToId?: number },
     workspaceHint?: WorkspaceHint,
   ): Promise<ScopedInboxResult> {
-    const sellerRole = await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER, workspaceHint);
+    // Multi-Business Authority Stage 1B: "no role resolved" (never had one,
+    // or a hint was supplied and matched nothing) safely falls back to the
+    // legacy unscoped query, exactly as before -- that fallback itself is
+    // still correctly business-blind ONLY because, in that case, at most
+    // one Seller AccountRole exists for this user at all. Genuine
+    // AMBIGUITY (2+ rows, no hint) is different: falling back to the
+    // wide-open unscoped query would show multiple businesses'
+    // conversations mixed together. Fail closed instead -- an empty,
+    // valid result, never a guess.
+    let sellerRole: AccountRole | null;
+    try {
+      sellerRole = await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER, workspaceHint);
+    } catch (e) {
+      if (e instanceof AmbiguousAccountRoleError) {
+        return { conversations: [], total: 0, page: params.page || 1, unread: 0 };
+      }
+      throw e;
+    }
     if (!sellerRole) {
       return this.getSellerInbox(sellerId, params);
     }
@@ -624,7 +668,19 @@ export class ConversationService {
       // is the real boundary; this never trusts being called correctly.
       return { conversations: [], total: 0, page: params.page || 1, unread: 0 };
     }
-    const buyerRole = await this.resolveAccountRoleFor(userId, AccountRoleType.BUYER);
+    // Buyer stays in AccountRole's SINGULAR bucket (UQ_account_role_singular
+    // -- Migration 8), so ambiguity here should be structurally impossible.
+    // Caught defensively anyway (fail closed, not a 500) rather than
+    // trusting that invariant to hold forever.
+    let buyerRole: AccountRole | null;
+    try {
+      buyerRole = await this.resolveAccountRoleFor(userId, AccountRoleType.BUYER);
+    } catch (e) {
+      if (e instanceof AmbiguousAccountRoleError) {
+        return { conversations: [], total: 0, page: params.page || 1, unread: 0 };
+      }
+      throw e;
+    }
     if (!buyerRole) {
       return this.getMyConversations(userId, params);
     }
@@ -775,8 +831,14 @@ export class ConversationService {
   }
 
   /** Efficient standalone count for a seller (already-authorized business id), without fetching a page of conversations. */
-  async getScopedUnreadCountForSeller(sellerId: number): Promise<number> {
-    const role = await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER);
+  async getScopedUnreadCountForSeller(sellerId: number, workspaceHint?: WorkspaceHint): Promise<number> {
+    let role: AccountRole | null;
+    try {
+      role = await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER, workspaceHint);
+    } catch (e) {
+      if (e instanceof AmbiguousAccountRoleError) return 0; // fail closed, not the wide-open legacy count
+      throw e;
+    }
     if (!role) return this.legacySellerUnread(sellerId);
     return this.getScopedUnreadCountForAccountRole(role.id);
   }
@@ -892,9 +954,23 @@ export class ConversationService {
     }
 
     const isLegacyCall = ownerWorkspaceOverride === undefined;
-    const legacySellerWorkspace = isLegacyCall
-      ? this.workspaceOf(await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER, callerWorkspaceHint))
-      : null;
+    // Multi-Business Authority Stage 1B: a buyer-initiated "message seller"
+    // call (getOrCreateConversationAsBuyer) has no seller-side hint to
+    // offer at all -- if the target seller genuinely had 2+ Seller
+    // AccountRoles (unreachable today; every creation guard still blocks
+    // it), resolveAccountRoleFor would throw AmbiguousAccountRoleError.
+    // That must never surface as a 500 that blocks a buyer from messaging
+    // a seller at all -- caught here and treated as "no workspace resolved
+    // yet", the same legitimate null state every pre-Stage-1 conversation
+    // already has, never a security grant either way.
+    let legacySellerWorkspace: { workspaceType: string; workspaceId: number } | null = null;
+    if (isLegacyCall) {
+      try {
+        legacySellerWorkspace = this.workspaceOf(await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER, callerWorkspaceHint));
+      } catch (e) {
+        if (!(e instanceof AmbiguousAccountRoleError)) throw e;
+      }
+    }
     const ownerWorkspace = isLegacyCall
       ? (legacySellerWorkspace
           ? { ownerWorkspaceType: legacySellerWorkspace.workspaceType, ownerWorkspaceId: legacySellerWorkspace.workspaceId }

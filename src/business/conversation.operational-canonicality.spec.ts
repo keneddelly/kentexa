@@ -66,6 +66,14 @@ describe('ConversationService -- operational conversation canonicality (migratio
         if (where.profileType === RoleProfileType.AGENT && where.profileId === 11) return Promise.resolve(agentRole);
         return Promise.resolve(null);
       }),
+      // Multi-Business Authority Stage 1B: the unhinted branch of
+      // resolveAccountRoleFor uses .find() (to fail closed on ambiguity),
+      // not .findOne() -- wraps whatever findOne above would have matched
+      // into a single-element array (or empty).
+      find: jest.fn(async (query: any) => {
+        const r = await accountRoleRepo.findOne(query);
+        return r ? [r] : [];
+      }),
     };
     const participantRepo: any = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     const participantStateRepo: any = { find: jest.fn().mockResolvedValue([]), update: jest.fn() };

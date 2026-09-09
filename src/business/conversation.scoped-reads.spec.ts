@@ -36,6 +36,13 @@ describe('ConversationService scoped reads (Stage 2B checkpoint 1/2)', () => {
         if (where.userId === 2 && where.roleType === AccountRoleType.BUYER) return Promise.resolve({ id: 20, userId: 2, roleType: AccountRoleType.BUYER, status: AccountRoleStatus.ACTIVE, profileType: RoleProfileType.USER, profileId: 2 });
         return Promise.resolve(null);
       }),
+      // Multi-Business Authority Stage 1B: the unhinted branch of
+      // resolveAccountRoleFor uses .find() (to fail closed on ambiguity),
+      // not .findOne() -- wraps whatever findOne above would have matched.
+      find: jest.fn(async (query: any) => {
+        const r = await accountRoleRepo.findOne(query);
+        return r ? [r] : [];
+      }),
     };
     const participantRepo: any = { find: jest.fn().mockResolvedValue([]) };
     const participantStateRepo: any = { find: jest.fn().mockResolvedValue([]) };

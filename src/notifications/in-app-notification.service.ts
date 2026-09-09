@@ -80,6 +80,30 @@ export class InAppNotificationService {
   }
 
   /**
+   * Multi-Business Authority Stage 1B — classification of all 11 call
+   * sites (per the mission's ACCOUNT_WIDE / ROLE_SPECIFIC /
+   * WORKSPACE_SPECIFIC / TRANSACTION_SPECIFIC taxonomy):
+   *
+   *   BUYER-targeted (orderPlaced, orderCompleted, shipmentCreatedById):
+   *   ROLE_SPECIFIC, but `buyer` sits in AccountRole's SINGULAR bucket
+   *   (Migration 8's UQ_account_role_singular) -- structurally never
+   *   ambiguous, unaffected by the fail-closed branch below in practice.
+   *
+   *   SELLER-targeted (orderPlaced, orderPaid, orderCompleted,
+   *   reviewReceived, orderConfirmed/orderPlacedById/disputeRaisedById/
+   *   payoutReleasedById legacy aliases): semantically WORKSPACE_SPECIFIC
+   *   or TRANSACTION_SPECIFIC (an order/payout genuinely belongs to ONE
+   *   business), but implemented today as plain ROLE_SPECIFIC because
+   *   Order/Invoice/Payment carry no workspaceId of their own yet (NOT
+   *   READY per the Business-First data-ownership audit -- out of this
+   *   stage's scope). These are exactly the sites the fail-closed-on-
+   *   ambiguity branch below protects.
+   *
+   *   No call site here is genuinely ACCOUNT_WIDE — a truly account-wide
+   *   notification (e.g. shipmentCreated's own sender-facing variant)
+   *   calls notify() directly with no resolveRoleAudience spread at all.
+   */
+  /**
    * Stage 2B item 6: resolves ROLE-scoped audience params for the event
    * helper methods below (orderPlaced, orderPaid, payoutReleased, etc.) --
    * their callers (orders.service.ts, warranty.service.ts, super-agents.
@@ -90,27 +114,43 @@ export class InAppNotificationService {
    * 2A's original behavior) if the recipient has no active AccountRole of
    * that type yet -- never guesses, never blocks the notification.
    */
-  // Multi-Business Authority Stage 1: this was an unordered .findOne() on
-  // bare (userId, roleType) -- safe only while at most one AccountRole row
-  // of that type could exist per user. Now that seller/super_agent/
-  // transport_provider/service_provider roles may repeat (one per
-  // Business), an unordered pick risks stamping a notification with the
-  // WRONG business's AccountRole/workspace -- e.g. an order-paid
-  // notification for Business B getting attributed to Business A's Seller
-  // AccountRole, making it invisible under Business B's own (correctly
-  // workspace-scoped, see applyAudienceScope above) notification read.
+  // Multi-Business Authority Stage 1B: fail-closed under ambiguity, never
+  // guess. This was an unordered .findOne() on bare (userId, roleType) --
+  // safe only while at most one AccountRole row of that type could exist
+  // per user. Now that seller/super_agent/transport_provider/
+  // service_provider roles may repeat (one per Business), arbitrarily
+  // picking one risks stamping a notification with the WRONG business's
+  // AccountRole/workspace -- e.g. an order-paid notification for Business
+  // B getting attributed to Business A's Seller AccountRole, making it
+  // invisible under Business B's own (correctly workspace-scoped, see
+  // applyAudienceScope above) notification read.
   //
-  // Ordering by id ASC makes the pick deterministic (removes the Postgres
-  // arbitrary-row risk), but does NOT make it business-CORRECT: none of
-  // this method's callers (orders/warranty/super-agents event helpers)
-  // currently have a workspace-specific disambiguator to pass in, because
-  // the underlying transactions (Order, Invoice, Payment) don't carry a
-  // workspaceId of their own yet (confirmed NOT READY in the Business-First
-  // data-ownership audit) -- genuine per-Business correctness for these
-  // notifications requires that upstream work first, which is out of this
-  // stage's scope (see report). `preferredWorkspaceId`/`preferredWorkspaceType`
-  // let a future caller that DOES have a resolved disambiguator supply one;
-  // no current caller does.
+  // Per the mission's own explicit instruction, `ORDER BY id ASC` is
+  // determinism, NOT a security/correctness boundary -- it is no longer
+  // used to pick a role under ambiguity. Behavior now:
+  //  - preferredWorkspaceType/Id supplied and matches exactly one role ->
+  //    use it (fully correct, for the rare future caller that has one).
+  //  - no preference, exactly ONE active role of that type exists -> use
+  //    it (still fully safe -- no ambiguity, this is 100% of real
+  //    accounts today).
+  //  - no preference, 2+ active roles of that type exist (ambiguous) ->
+  //    return {} and OMIT the operational audience entirely. This falls
+  //    back to notify()'s own existing ACCOUNT-scope default (see its own
+  //    comment) rather than guessing -- the safe, already-understood
+  //    fallback shape, not a new concept. None of this method's callers
+  //    (orders/warranty/super-agents event helpers) currently have a
+  //    workspace-specific disambiguator to pass in, because the
+  //    underlying transactions (Order, Invoice, Payment) don't carry a
+  //    workspaceId of their own yet (confirmed NOT READY in the
+  //    Business-First data-ownership audit) -- genuine per-Business
+  //    correctness for these notifications requires that upstream work
+  //    first, out of this stage's scope (see report). This omission-on-
+  //    ambiguity is what makes it safe to ship Migration 8 before that
+  //    work exists: today there is always at most one match anyway
+  //    (creation guards on Seller/SuperAgent/TransportProvider/
+  //    ServiceProvider still block a second one from ever being created),
+  //    so this branch is a dormant safety net, not a behavior change for
+  //    any real account.
   private async resolveRoleAudience(
     userId: number | undefined | null,
     roleType: AccountRoleType,
@@ -136,10 +176,14 @@ export class InAppNotificationService {
       });
     }
     if (!role) {
-      role = await this.accountRoleRepo.findOne({
+      const matches = await this.accountRoleRepo.find({
         where: { userId, roleType, status: AccountRoleStatus.ACTIVE },
         order: { id: 'ASC' },
       });
+      // 2+ matches with no disambiguator: genuinely ambiguous. Omit the
+      // operational audience rather than guess -- see this method's own
+      // comment above.
+      role = matches.length === 1 ? matches[0] : null;
     }
     if (!role) return {};
     const workspace =

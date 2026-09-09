@@ -64,6 +64,14 @@ describe('ConversationService — AccountRole workspace multiplicity safety', ()
         );
         return Promise.resolve(matches[0] ?? null);
       }),
+      // Multi-Business Authority Stage 1B: the unhinted branch of
+      // resolveAccountRoleFor uses .find() (to detect and fail closed on
+      // ambiguity), not .findOne() -- mirrors the same rows findOne above
+      // matches against, just returning all of them rather than the first.
+      find: jest.fn(({ where }: any) => {
+        const rows = [sellerRoleBusinessA, sellerRoleBusinessB, transportRoleBusinessA, transportRoleBusinessB];
+        return Promise.resolve(rows.filter((r) => r.userId === where.userId && r.roleType === where.roleType));
+      }),
     };
     const participantRepo: any = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     const participantStateRepo: any = { find: jest.fn().mockResolvedValue([]), update: jest.fn() };
@@ -180,26 +188,18 @@ describe('ConversationService — AccountRole workspace multiplicity safety', ()
     });
   });
 
-  describe('resolveAccountRoleFor determinism (private, exercised via getScopedSellerInbox)', () => {
-    it('an unhinted lookup with two same-roleType rows deterministically resolves the lower id (never throws, never random)', async () => {
-      const { service, convoRepo } = build();
-      convoRepo.createQueryBuilder = jest.fn().mockReturnValue({
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        leftJoin: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        addOrderBy: jest.fn().mockReturnThis(),
-        skip: jest.fn().mockReturnThis(),
-        take: jest.fn().mockReturnThis(),
-        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
-        getCount: jest.fn().mockResolvedValue(0),
-      });
-      // No hint supplied -- exactly the ambiguous case. Must not throw, and
-      // must be repeatable (same result on repeated calls), proving the
-      // added `order: { id: 'ASC' }` removed the non-determinism risk.
+  describe('resolveAccountRoleFor ambiguity (private, exercised via getScopedSellerInbox) -- Stage 1B supersedes Stage 1\'s determinism-only fallback', () => {
+    it('an unhinted lookup with two same-roleType rows fails closed to an EMPTY, repeatable result -- never throws uncaught, never guesses A or B', async () => {
+      const { service } = build();
+      // No hint supplied -- exactly the ambiguous case. Stage 1 made this
+      // deterministic (ORDER BY id ASC); Stage 1B tightens it further per
+      // the mission's own explicit instruction that determinism is not a
+      // security boundary -- ambiguity now fails closed to an empty
+      // result (AmbiguousAccountRoleError, caught by getScopedSellerInbox
+      // itself) rather than silently picking the lower id.
       const r1 = await service.getScopedSellerInbox(KENED_USER_ID, {});
       const r2 = await service.getScopedSellerInbox(KENED_USER_ID, {});
+      expect(r1).toEqual({ conversations: [], total: 0, page: 1, unread: 0 });
       expect(r1).toEqual(r2);
     });
 

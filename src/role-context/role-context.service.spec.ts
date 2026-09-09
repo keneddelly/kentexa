@@ -69,6 +69,59 @@ describe('RoleContextService', () => {
       .rejects.toMatchObject({ response: { code: 'ROLE_PROFILE_INVALID' } });
   });
 
+  // Multi-Business Authority Stage 1B — required abuse test: listRoles()
+  // with two AccountRole rows of the same roleType must return two
+  // distinct entries, each carrying enough organizational metadata
+  // (businessId/businessName/workspaceId) for a future frontend to
+  // distinguish e.g. "Transport — BIS" from "Transport — Kentexa
+  // Logistics", never collapsing or deduplicating by roleType.
+  describe('listRoles — multiplicity', () => {
+    it('returns two distinct entries for two AccountRole rows of the same roleType, each with businessId/workspaceId/businessName', async () => {
+      const transportA = {
+        id: 200, userId: 1, roleType: AccountRoleType.TRANSPORT_PROVIDER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.TRANSPORT_PROVIDER, profileId: 20, capabilities: {}, contextVersion: 1,
+        workspaceAssignmentId: 1,
+      };
+      const transportB = {
+        id: 201, userId: 1, roleType: AccountRoleType.TRANSPORT_PROVIDER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.TRANSPORT_PROVIDER, profileId: 21, capabilities: {}, contextVersion: 1,
+        workspaceAssignmentId: 2,
+      };
+      const r = repos();
+      r.roleRepo.find.mockResolvedValue([transportA, transportB]);
+      r.workspaceAssignmentRepo.manager.query.mockImplementation((_sql: string, params: any[]) => {
+        const [assignmentId] = params;
+        if (assignmentId === 1) return Promise.resolve([{ businessId: 10, workspaceId: 1, businessName: 'BIS' }]);
+        if (assignmentId === 2) return Promise.resolve([{ businessId: 11, workspaceId: 2, businessName: 'Kentexa Logistics' }]);
+        return Promise.resolve([]);
+      });
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+
+      const roles = await service.listRoles(1);
+
+      expect(roles).toHaveLength(2);
+      expect(roles[0]).toMatchObject({ accountRoleId: 200, roleType: AccountRoleType.TRANSPORT_PROVIDER, businessId: 10, businessName: 'BIS', workspaceId: 1 });
+      expect(roles[1]).toMatchObject({ accountRoleId: 201, roleType: AccountRoleType.TRANSPORT_PROVIDER, businessId: 11, businessName: 'Kentexa Logistics', workspaceId: 2 });
+    });
+
+    it('a broken organizational chain for one role never breaks listing the others (best-effort per row)', async () => {
+      const transportA = {
+        id: 200, userId: 1, roleType: AccountRoleType.TRANSPORT_PROVIDER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.TRANSPORT_PROVIDER, profileId: 20, capabilities: {}, contextVersion: 1,
+        workspaceAssignmentId: 1,
+      };
+      const r = repos();
+      r.roleRepo.find.mockResolvedValue([transportA]);
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([]); // broken chain -- ROLE_CONTEXT_ORGANIZATIONAL_REVOKED internally
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+
+      const roles = await service.listRoles(1);
+
+      expect(roles).toHaveLength(1);
+      expect(roles[0]).toMatchObject({ accountRoleId: 200, businessId: null, workspaceId: null, businessName: null });
+    });
+  });
+
   describe('syncOperationalRole', () => {
     const syncRepos = (existing: any = null) => {
       const roleRepo: any = {

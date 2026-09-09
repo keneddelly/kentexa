@@ -8,7 +8,19 @@ import { SuperAgentsService } from './super-agents.service';
  */
 describe('SuperAgentsService legacy authority closure', () => {
   const buildService = () => {
-    const superAgentRepo: any = { findOne: jest.fn() };
+    // Multi-Business Authority Stage 1B: acting-context SuperAgent lookups
+    // now go through resolveActingSuperAgent(), which calls .find() (to
+    // fail closed on ambiguity) rather than .findOne(). find() here wraps
+    // whatever findOne() is configured to resolve for a given test, so
+    // every existing test below (which only ever configures findOne) keeps
+    // working unchanged -- single match in, single match out.
+    const superAgentRepo: any = {
+      findOne: jest.fn(),
+      find: jest.fn(async (...args: any[]) => {
+        const r = await superAgentRepo.findOne(...args);
+        return r ? [r] : [];
+      }),
+    };
     const parcelRepo: any = { findOne: jest.fn() };
     const invoicesService: any = { findByOrderId: jest.fn().mockResolvedValue(null) };
     const smsService: any = { sendSms: jest.fn().mockResolvedValue(true) };

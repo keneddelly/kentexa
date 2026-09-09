@@ -44,6 +44,15 @@ describe('ConversationService dual-write (Stage 2 checkpoint B/E)', () => {
         if (where.userId === 2 && where.roleType === AccountRoleType.BUYER) return Promise.resolve(buyerAccountRole);
         return Promise.resolve(null);
       }),
+      // Multi-Business Authority Stage 1B: the unhinted branch of
+      // resolveAccountRoleFor uses .find() (to fail closed on ambiguity),
+      // not .findOne() -- single-match-in/single-match-out wrapper over
+      // the same rows findOne matches above.
+      find: jest.fn(({ where }: any) => {
+        if (where.userId === 1 && where.roleType === AccountRoleType.SELLER) return Promise.resolve([sellerAccountRole]);
+        if (where.userId === 2 && where.roleType === AccountRoleType.BUYER) return Promise.resolve([buyerAccountRole]);
+        return Promise.resolve([]);
+      }),
     };
     const participantRepo: any = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     const participantStateRepo: any = { find: jest.fn().mockResolvedValue([]), update: jest.fn() };
@@ -330,7 +339,12 @@ describe('ConversationService dual-write (Stage 2 checkpoint B/E)', () => {
       const { service, convoRepo, msgRepo, accountRoleRepo, gateway } = build();
       convoRepo.findOne.mockResolvedValue({ id: 501, sellerId: 1, customerId: 55, customer: { id: 55, userId: 2 } });
       msgRepo.save.mockResolvedValue({ id: 900 });
+      // Multi-Business Authority Stage 1B: resolveAccountRoleFor's unhinted
+      // branch (the one this scenario exercises -- no ownerWorkspaceHint
+      // on this convo) now queries via .find(), not .findOne() -- both
+      // must be made to fail here to still simulate "resolution blew up".
       accountRoleRepo.findOne.mockRejectedValue(new Error('db exploded'));
+      accountRoleRepo.find.mockRejectedValue(new Error('db exploded'));
 
       await expect(
         service.addOrderMessage(501, { id: 42, trackingNumber: 'KTX-1', totalAmount: 1000, status: 'paid' }),
