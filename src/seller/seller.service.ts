@@ -726,6 +726,67 @@ export class SellerService {
     return this.profileRepo.find({ order: { createdAt: 'DESC' } });
   }
 
+  /**
+   * Business Capability Activation Stage A1. Classifies a SellerProfile as
+   * LEGACY (businessId null — an individual seller with no Business, or a
+   * pre-Business-First application) or ORGANIZATIONAL (linked to a Business
+   * via SellerProfile.businessId, e.g. created through
+   * BusinessService.activateSeller()).
+   *
+   * For an ORGANIZATIONAL profile, deterministically resolves the exact
+   * WorkspaceAssignment the applicant already holds on their own Business's
+   * one MVP default workspace (Stage 2 discovery §16: one default workspace
+   * per Business) — Business -> this applicant's own active
+   * BusinessMembership -> their active WorkspaceAssignment on the default
+   * OperationalWorkspace, in one query. Never admin-supplied, never
+   * inferred from unrelated AccountRole rows, never "lowest id." Also
+   * resolves, in the same query, whether that exact workspace already holds
+   * an ACTIVE commerce BusinessCapability — the entitlement approve() must
+   * require before activating the AccountRole (see approve() below).
+   *
+   * `workspaceAssignmentId: null` in the ORGANIZATIONAL result (distinct
+   * from the LEGACY case) means the applicant has businessId set but no
+   * resolvable BusinessMembership/WorkspaceAssignment yet — a real gap left
+   * by BusinessService.activateSeller() never creating one (see Stage A's
+   * caller-audit finding). approve()/reject() must fail closed here too,
+   * never silently fall back to the legacy unbound lookup.
+   */
+  private async resolveSellerOrganizationalContext(
+    profile: SellerProfile,
+  ): Promise<
+    | { kind: 'legacy' }
+    | { kind: 'organizational'; workspaceAssignmentId: number | null; commerceActive: boolean }
+  > {
+    if (profile.businessId == null) return { kind: 'legacy' };
+
+    const rows: Array<{ workspaceAssignmentId: number; commerceActive: boolean }> =
+      await this.profileRepo.manager.query(
+        `
+        SELECT wa.id AS "workspaceAssignmentId",
+               EXISTS (
+                 SELECT 1 FROM business_capability bc
+                 WHERE bc."workspaceId" = w.id
+                   AND bc."capabilityCode" = 'commerce'
+                   AND bc.status = 'active'
+               ) AS "commerceActive"
+        FROM business_membership bm
+        JOIN workspace_assignment wa
+          ON wa."businessMembershipId" = bm.id AND wa.status = 'active'
+        JOIN operational_workspace w
+          ON w.id = wa."workspaceId" AND w."isDefault" = true AND w.status = 'active'
+        WHERE bm."businessId" = $1 AND bm."userId" = $2 AND bm.status = 'active'
+        `,
+        [profile.businessId, profile.user.id],
+      );
+
+    if (!rows.length) return { kind: 'organizational', workspaceAssignmentId: null, commerceActive: false };
+    return {
+      kind: 'organizational',
+      workspaceAssignmentId: rows[0].workspaceAssignmentId,
+      commerceActive: rows[0].commerceActive,
+    };
+  }
+
   // ── Admin: approve seller ─────────────────────────────────────────────────
   async approve(
     profileId: number,
@@ -735,6 +796,49 @@ export class SellerService {
       where: { id: profileId },
     });
     if (!profile) throw new NotFoundException('Seller profile not found');
+
+    // Business Capability Activation Stage A1: resolved and validated
+    // BEFORE any write below. An ORGANIZATIONAL SellerProfile whose
+    // workspace lacks an ACTIVE commerce BusinessCapability (production
+    // AccountRole 37's exact situation) fails closed here — SellerProfile
+    // stays PENDING, User.role is never touched, no AccountRole is created
+    // or activated. This Stage does not create the missing capability; it
+    // only refuses to activate an AccountRole that would immediately fail
+    // every operational request once Stage A's RoleContext enforcement
+    // sees it. An ORGANIZATIONAL profile with no resolvable
+    // WorkspaceAssignment at all (activateSeller() never created one) fails
+    // closed the same way rather than silently falling back to an unbound
+    // role.
+    const context = await this.resolveSellerOrganizationalContext(profile);
+    if (context.kind === 'organizational' && context.workspaceAssignmentId == null) {
+      throw new ConflictException({
+        code: 'SELLER_WORKSPACE_UNRESOLVED',
+        message: 'SELLER_WORKSPACE_UNRESOLVED',
+      });
+    }
+    if (context.kind === 'organizational' && !context.commerceActive) {
+      throw new ConflictException({
+        code: 'BUSINESS_CAPABILITY_NOT_ACTIVE',
+        message: 'BUSINESS_CAPABILITY_NOT_ACTIVE',
+      });
+    }
+
+    // Runs FIRST, before any write to SellerProfile/User below — this is
+    // the stage's chosen "smallest safe transaction boundary" (no queryRunner
+    // needed): every other write in this method is best-effort or purely
+    // additive, so as long as the one write that can legitimately fail for a
+    // business reason (the entitlement-gated AccountRole sync) happens
+    // before profile.status is ever persisted, a failure here can never
+    // leave SellerProfile = APPROVED with no matching active AccountRole.
+    await this.roleContextService.syncOperationalRole({
+      userId: profile.user.id,
+      roleType: AccountRoleType.SELLER,
+      status: AccountRoleStatus.ACTIVE,
+      profileType: RoleProfileType.SELLER_PROFILE,
+      profileId: profile.id,
+      workspaceAssignmentId: context.kind === 'organizational' ? context.workspaceAssignmentId : null,
+    });
+
     profile.status = SellerStatus.APPROVED;
     if (verificationTier) profile.verificationTier = verificationTier;
     await this.userRepo.update(profile.user.id, {
@@ -783,20 +887,7 @@ export class SellerService {
         .catch(() => {});
     }
 
-    const saved = await this.profileRepo.save(profile);
-    // Not best-effort like the side syncs above: without this, the seller
-    // has no AccountRole to ever resolve/switch into and stays functionally
-    // locked out of the role they were just approved for (see
-    // RoleContextService.syncOperationalRole's doc comment). A failure here
-    // should surface as a real approve() error, not a silent success.
-    await this.roleContextService.syncOperationalRole({
-      userId: profile.user.id,
-      roleType: AccountRoleType.SELLER,
-      status: AccountRoleStatus.ACTIVE,
-      profileType: RoleProfileType.SELLER_PROFILE,
-      profileId: profile.id,
-    });
-    return saved;
+    return this.profileRepo.save(profile);
   }
 
   // ── Admin: reject seller ──────────────────────────────────────────────────
@@ -805,6 +896,15 @@ export class SellerService {
       where: { id: profileId },
     });
     if (!profile) throw new NotFoundException('Seller profile not found');
+
+    // Business Capability Activation Stage A1: reject() never activates an
+    // AccountRole, so there is no entitlement gate to enforce here — only
+    // the same deterministic workspace resolution as approve(), so a
+    // rejection targets the exact organizational AccountRole (never an
+    // ambiguous userId+roleType lookup that could, once multi-business
+    // Seller applications are live, land on a DIFFERENT Business's role).
+    const context = await this.resolveSellerOrganizationalContext(profile);
+
     profile.status = SellerStatus.REJECTED;
     profile.rejectionReason = reason;
     await this.commerceProfiles
@@ -817,6 +917,7 @@ export class SellerService {
       status: AccountRoleStatus.REJECTED,
       profileType: RoleProfileType.SELLER_PROFILE,
       profileId: profile.id,
+      workspaceAssignmentId: context.kind === 'organizational' ? context.workspaceAssignmentId : null,
     }).catch(() => {});
     return saved;
   }
