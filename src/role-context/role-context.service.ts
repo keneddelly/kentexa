@@ -47,17 +47,40 @@ export class RoleContextService {
     return role;
   }
 
+  // Multi-Business Authority Stage 1: each row now also carries its
+  // resolved businessId/workspaceId/businessName (when organizationally
+  // bound) so a future frontend can render e.g. "Transport — BIS" and
+  // "Transport — Kentexa Logistics" as two distinct, clearly-labeled
+  // entries rather than two indistinguishable "transport_provider" rows.
+  // Every AccountRole row (including two of the same roleType) is returned
+  // -- this method never deduplicates by roleType, so it already worked
+  // correctly for multiplicity before this stage; the only change is
+  // attaching the extra display metadata. Resolution is best-effort per
+  // row (a broken chain surfaces as businessId/workspaceId/businessName:
+  // null here, never a thrown error -- switchRole()'s own
+  // resolveContext() call remains the one place a broken chain fails
+  // closed, since THAT call is what actually grants operating authority).
   async listRoles(userId: number) {
     const roles = await this.roleRepo.find({ where: { userId }, order: { id: 'ASC' } });
-    return Promise.all(roles.map(async (role) => ({
-      accountRoleId: role.id,
-      roleType: role.roleType,
-      status: role.status,
-      profileType: role.profileType,
-      profileId: role.profileId,
-      switchable: await this.isSwitchable(role),
-      capabilities: this.effectiveCapabilities(role),
-    })));
+    return Promise.all(roles.map(async (role) => {
+      const organizational = await this.resolveOrganizationalContext(role).catch(() => ({
+        businessId: null,
+        workspaceId: null,
+        businessName: null,
+      }));
+      return {
+        accountRoleId: role.id,
+        roleType: role.roleType,
+        status: role.status,
+        profileType: role.profileType,
+        profileId: role.profileId,
+        switchable: await this.isSwitchable(role),
+        capabilities: this.effectiveCapabilities(role),
+        businessId: organizational.businessId,
+        workspaceId: organizational.workspaceId,
+        businessName: organizational.businessName,
+      };
+    }));
   }
 
   async selectRoleForLogin(user: User, deviceId?: string): Promise<AccountRole> {
@@ -153,12 +176,13 @@ export class RoleContextService {
    */
   private async resolveOrganizationalContext(
     role: AccountRole,
-  ): Promise<{ businessId: number | null; workspaceId: number | null }> {
-    if (role.workspaceAssignmentId == null) return { businessId: null, workspaceId: null };
+  ): Promise<{ businessId: number | null; workspaceId: number | null; businessName: string | null }> {
+    if (role.workspaceAssignmentId == null) return { businessId: null, workspaceId: null, businessName: null };
 
     const rows = await this.workspaceAssignmentRepo.manager.query(
       `
-      SELECT b.id AS "businessId", w.id AS "workspaceId"
+      SELECT b.id AS "businessId", w.id AS "workspaceId",
+             COALESCE(b."tradingName", b."legalName") AS "businessName"
       FROM workspace_assignment wa
       JOIN business_membership bm
         ON bm.id = wa."businessMembershipId" AND bm.status = 'active'
@@ -172,7 +196,7 @@ export class RoleContextService {
     );
 
     if (!rows.length) throw new RoleContextException('ROLE_CONTEXT_ORGANIZATIONAL_REVOKED');
-    return { businessId: rows[0].businessId, workspaceId: rows[0].workspaceId };
+    return { businessId: rows[0].businessId, workspaceId: rows[0].workspaceId, businessName: rows[0].businessName };
   }
 
   /**

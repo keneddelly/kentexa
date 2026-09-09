@@ -1,10 +1,11 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, In } from 'typeorm';
+import { DataSource, Repository, In, IsNull } from 'typeorm';
 import { Business, BusinessStatus } from './entities/business.entity';
 import { OperationalWorkspace, OperationalWorkspaceStatus } from './entities/operational-workspace.entity';
 import { BusinessMembership, BusinessMembershipRoleTemplate, BusinessMembershipStatus } from './entities/business-membership.entity';
 import { WorkspaceAssignment, WorkspaceAssignmentStatus } from './entities/workspace-assignment.entity';
+import { BusinessCapability, BusinessCapabilityStatus } from './entities/business-capability.entity';
 import { AccountRole, AccountRoleStatus, AccountRoleType } from '../role-context/entities/account-role.entity';
 import { User } from '../users/entities/user.entity';
 import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
@@ -33,6 +34,10 @@ export class BusinessService {
     @InjectRepository(SellerProfile) private sellerProfileRepo: Repository<SellerProfile>,
     @InjectRepository(Invoice) private invoiceRepo: Repository<Invoice>,
     @InjectRepository(Product) private productRepo: Repository<Product>,
+    @InjectRepository(OperationalWorkspace) private workspaceRepo: Repository<OperationalWorkspace>,
+    @InjectRepository(WorkspaceAssignment) private assignmentRepo: Repository<WorkspaceAssignment>,
+    @InjectRepository(BusinessCapability) private capabilityRepo: Repository<BusinessCapability>,
+    @InjectRepository(AccountRole) private accountRoleRepo: Repository<AccountRole>,
     private dataSource: DataSource,
     private commerceProfiles: CommerceProfilesService,
     private activityEvents: ActivityEventService,
@@ -40,8 +45,112 @@ export class BusinessService {
     private aiInsight: AiBusinessInsightService,
   ) {}
 
+  // Multi-Business Authority Stage 1: kept as the single-object shape every
+  // existing client (BusinessDashboard.js/BecomeBusiness.js, GET
+  // /business/mine) already expects -- deliberately NOT silently turned
+  // into an array response, per the mission's own "do not break existing
+  // clients" instruction. Now backed by findAllMine() so its notion of
+  // "mine" (oldest Business first) stays consistent with the new list
+  // endpoint rather than being a second, independently-ordered query.
   async findMine(userId: number): Promise<Business | null> {
-    return this.businessRepo.findOne({ where: { user: { id: userId } } });
+    const all = await this.findAllMine(userId);
+    return all[0] ?? null;
+  }
+
+  // New in Multi-Business Authority Stage 1 -- every Business the user owns
+  // (Business.user, unchanged compatibility metadata; BusinessMembership is
+  // the real authority table but ownership display here intentionally
+  // mirrors findMine()'s own existing resolution, not a redesign of it).
+  // Ordered oldest-first for a stable, deterministic list.
+  async findAllMine(userId: number): Promise<Business[]> {
+    return this.businessRepo.find({
+      where: { user: { id: userId } },
+      order: { id: 'ASC' },
+    });
+  }
+
+  // New in Multi-Business Authority Stage 1 -- the smallest read-only API
+  // the next frontend stage needs: My Businesses -> Workspaces -> active
+  // BusinessCapabilities -> the caller's own corresponding authorized
+  // AccountRole, where one exists. Everything here is server-derived from
+  // `businessId` (ownership-checked, same posture as getDashboard/update
+  // above) and `user.id` -- the caller never supplies a workspaceId or
+  // accountRoleId of their own to gain visibility into anything.
+  //
+  // "myAccountRole" is resolved via the caller's own BusinessMembership on
+  // THIS business (not merely "any AccountRole this user has of that
+  // type") -- correct under multiplicity: a user who owns/joins two
+  // Businesses has two independent WorkspaceAssignment chains, and this
+  // only ever surfaces the one that actually belongs to the workspace
+  // being listed.
+  async listWorkspaces(businessId: number, user: User): Promise<Array<{
+    id: number;
+    name: string;
+    isDefault: boolean;
+    status: OperationalWorkspaceStatus;
+    capabilities: BusinessCapability['capabilityCode'][];
+    myAccountRole: { accountRoleId: number; roleType: AccountRoleType } | null;
+  }>> {
+    const business = await this.findById(businessId);
+    if (business.user.id !== user.id) {
+      throw new NotFoundException('Business not found');
+    }
+
+    const workspaces = await this.workspaceRepo.find({
+      where: { businessId },
+      order: { id: 'ASC' },
+    });
+    if (!workspaces.length) return [];
+    const workspaceIds = workspaces.map((w) => w.id);
+
+    const capabilities = await this.capabilityRepo.find({
+      where: { workspaceId: In(workspaceIds), status: BusinessCapabilityStatus.ACTIVE },
+    });
+
+    // This caller's own active WorkspaceAssignments across these
+    // workspaces, resolved via THEIR OWN active BusinessMembership on this
+    // Business -- never another member's.
+    const myAssignments = await this.assignmentRepo
+      .createQueryBuilder('wa')
+      .innerJoin(
+        BusinessMembership,
+        'bm',
+        'bm.id = wa."businessMembershipId" AND bm."userId" = :userId AND bm.status = :bmActive',
+        { userId: user.id, bmActive: BusinessMembershipStatus.ACTIVE },
+      )
+      .where('wa."workspaceId" IN (:...workspaceIds)', { workspaceIds })
+      .andWhere('wa.status = :waActive', { waActive: WorkspaceAssignmentStatus.ACTIVE })
+      .select(['wa.id AS "assignmentId"', 'wa."workspaceId" AS "workspaceId"'])
+      .getRawMany<{ assignmentId: number; workspaceId: number }>();
+
+    const assignmentIdByWorkspace = new Map(myAssignments.map((a) => [a.workspaceId, a.assignmentId]));
+    const assignmentIds = myAssignments.map((a) => a.assignmentId);
+    const myRoles = assignmentIds.length
+      ? await this.accountRoleRepo.find({
+          where: { userId: user.id, workspaceAssignmentId: In(assignmentIds), status: AccountRoleStatus.ACTIVE },
+        })
+      : [];
+    const roleByAssignmentId = new Map(myRoles.map((r) => [r.workspaceAssignmentId as number, r]));
+
+    return workspaces.map((ws) => {
+      const assignmentId = assignmentIdByWorkspace.get(ws.id) ?? null;
+      const myRole = assignmentId != null ? roleByAssignmentId.get(assignmentId) : undefined;
+      return {
+        id: ws.id,
+        name: ws.name,
+        isDefault: ws.isDefault,
+        status: ws.status,
+        capabilities: capabilities.filter((c) => c.workspaceId === ws.id).map((c) => c.capabilityCode),
+        myAccountRole: myRole ? { accountRoleId: myRole.id, roleType: myRole.roleType } : null,
+      };
+    });
+  }
+
+  // Multi-Business Authority Stage 1 helper for getDashboard() above.
+  private async resolveDashboardSellerProfile(userId: number, businessId: number): Promise<SellerProfile | null> {
+    const linked = await this.sellerProfileRepo.findOne({ where: { user: { id: userId }, businessId } });
+    if (linked) return linked;
+    return this.sellerProfileRepo.findOne({ where: { user: { id: userId }, businessId: IsNull() } });
   }
 
   async findById(id: number): Promise<Business> {
@@ -59,16 +168,18 @@ export class BusinessService {
       throw new NotFoundException('Business not found');
     }
     const [sellerProfile, commerceProfile] = await Promise.all([
-      // By user, not businessId: a SellerProfile created through the
-      // original individual/business application flow (SellerService.apply)
-      // has businessId null — it was never linked to this Business entity,
-      // even though it's the same person's real, approved seller account.
-      // activateSeller()'s own existingSeller check (below) already treats
-      // "by user.id" as authoritative for this; this lookup was the one
-      // place still checking businessId instead, so an approved seller
-      // whose profile predates this Business record saw "Activate Seller"
-      // here despite already being one.
-      this.sellerProfileRepo.findOne({ where: { user: { id: user.id } } }),
+      // Multi-Business Authority Stage 1: prefer the SellerProfile actually
+      // linked to THIS business (businessId) -- the correct, disambiguated
+      // answer once a user may have more than one SellerProfile (one per
+      // Business, see AddAccountRoleWorkspaceMultiplicity's own migration
+      // comment). Falls back to a legacy, not-yet-linked profile
+      // (businessId IS NULL) ONLY when no businessId-matched one exists --
+      // preserves the original documented behavior exactly for every
+      // pre-Stage-1 seller whose SellerProfile predates this Business
+      // record and was never backfilled with a businessId (an ambiguous
+      // case that could not be deterministically resolved at migration
+      // time -- see the migration's own backfill comment).
+      this.resolveDashboardSellerProfile(user.id, businessId),
       // By businessId link, not just "the account's business profile" — an
       // account running more than one Business must each show their own
       // followers/rating/reputation, not whichever business profile
@@ -235,8 +346,12 @@ export class BusinessService {
     // record() already fails open (Phase 1), and this runs after result
     // is already computed, so a logging failure here can't lose the
     // insight the user is waiting on.
+    // Multi-Business Authority Stage 1: businessId-scoped (see update()'s
+    // identical fix above) -- this AI-audit-trail event must attribute to
+    // THIS business's CommerceProfile, not an arbitrary one of the user's
+    // several BUSINESS-type profiles.
     const profile = await this.commerceProfiles
-      .findForUserByType(user.id, CommerceProfileType.BUSINESS)
+      .findByBusinessId(user.id, businessId)
       .catch(() => null);
     if (profile) {
       const startOfToday = new Date();
@@ -293,8 +408,16 @@ export class BusinessService {
       businessLicenseNumber?: string;
     },
   ): Promise<Business> {
-    const existing = await this.findMine(user.id);
-    if (existing) throw new ConflictException('You already have a Business');
+    // Multi-Business Authority Stage 1: the blanket "You already have a
+    // Business" guard that used to sit here is removed -- Business.user
+    // itself never had a uniqueness constraint (only this application-level
+    // check enforced singularity), and BusinessMembership/WorkspaceAssignment
+    // already correctly support one User holding independent membership in
+    // many Businesses (UNIQUE(userId, businessId) on membership, not
+    // UNIQUE(userId) alone). Per the mission: Business creation may allow
+    // another Business once all bootstrap rows below are created
+    // transactionally, which they always were -- nothing else about this
+    // method changes except removing this one now-unnecessary guard.
 
     // Business-First Stage 1 foundation: every Business created from here
     // on is bootstrapped with its default OperationalWorkspace + Owner
@@ -339,16 +462,37 @@ export class BusinessService {
         }),
       );
 
-      // If this owner already has an active Seller AccountRole at the
-      // moment they create this Business, bind it now -- mirrors the
-      // standalone backfill tool's own rule exactly (see
+      // If this owner already has an active, NOT YET ORGANIZATIONALLY BOUND
+      // Seller AccountRole at the moment they create this Business, bind it
+      // now -- mirrors the standalone backfill tool's own rule exactly (see
       // backfill-business-first-foundation.ts), so a Business created
       // through this self-service path never depends on that tool to
-      // become organizationally resolvable. If no active Seller
-      // AccountRole exists yet, workspaceAssignmentId simply stays NULL
-      // until one is later approved -- never fabricated here.
+      // become organizationally resolvable. If no such role exists yet,
+      // workspaceAssignmentId simply stays NULL until one is later approved
+      // -- never fabricated here.
+      //
+      // Multi-Business Authority Stage 1: the workspaceAssignmentId IS NULL
+      // filter is the critical addition. Before AccountRole multiplicity,
+      // "the user's active Seller AccountRole" was unambiguous -- exactly
+      // one could exist. Now that a user may already hold a Seller
+      // AccountRole bound to a DIFFERENT Business (created earlier), an
+      // unfiltered lookup here would silently STEAL that role away from its
+      // existing Business and rebind it to this new one, which is a real
+      // authority-corruption bug, not a convenience -- creating Business B
+      // must never revoke Business A's Seller binding. Only a genuinely
+      // unbound Seller role (approved but never yet linked to any Business)
+      // is eligible for this auto-bind; an already-bound one is left alone,
+      // and this new Business's default workspace simply has no Seller
+      // AccountRole bound to it yet, exactly as if the user had no Seller
+      // role at all -- consistent with "do not automatically invent
+      // operational AccountRoles".
       const sellerRole = await manager.getRepository(AccountRole).findOne({
-        where: { userId: user.id, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE },
+        where: {
+          userId: user.id,
+          roleType: AccountRoleType.SELLER,
+          status: AccountRoleStatus.ACTIVE,
+          workspaceAssignmentId: IsNull(),
+        },
       });
       if (sellerRole) {
         await manager.getRepository(AccountRole).update(sellerRole.id, {
@@ -419,9 +563,15 @@ export class BusinessService {
 
     // Keep the public CommerceProfile in sync -- same fields it was
     // seeded from at create() time. Best-effort: never blocks the save.
-    const commerceProfile = await this.commerceProfiles.findForUserByType(
+    // Multi-Business Authority Stage 1: was findForUserByType(user.id,
+    // BUSINESS) -- resolves "the account's" BUSINESS-type CommerceProfile
+    // with no businessId disambiguator, so updating Business B could sync
+    // Business A's public profile instead once a user has more than one.
+    // findByBusinessId already exists (getDashboard/getTodayIntelligence
+    // use it below) and is the correct, businessId-scoped resolver.
+    const commerceProfile = await this.commerceProfiles.findByBusinessId(
       user.id,
-      CommerceProfileType.BUSINESS,
+      businessId,
     );
     if (commerceProfile) {
       await this.commerceProfiles

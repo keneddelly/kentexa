@@ -4,8 +4,9 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToOne,
+  ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { IdentityVerificationStatus } from '../../identity/entities/identity-profile.entity';
@@ -27,14 +28,26 @@ export enum SellerVerificationTier {
   VERIFIED_BUSINESS = 'verified_business',
 }
 
+// Multi-Business Authority Stage 1: was @OneToOne, which forced at most one
+// SellerProfile per User at the DB level -- an independent blocker to Seller
+// multiplicity beyond AccountRole's own constraint (see migration
+// AddAccountRoleWorkspaceMultiplicity1788261000000's doc comment for the
+// full rationale and the exact production constraint name it drops). Now
+// plain @ManyToOne: the same human may hold multiple SellerProfile rows,
+// one per Business, disambiguated by the businessId column below.
 @Entity()
+@Index('IDX_seller_profile_user', ['userId'])
+@Index('IDX_seller_profile_business', ['businessId'])
 export class SellerProfile {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @OneToOne(() => User, { eager: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
+
+  @Column({ type: 'int', nullable: true })
+  userId: number;
 
   @Column()
   businessName: string;

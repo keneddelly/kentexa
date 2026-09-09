@@ -7,7 +7,6 @@ import {
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
-  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
@@ -45,15 +44,41 @@ export enum RoleProfileType {
 /**
  * A durable role membership. This is additive in Phase A: existing User.role
  * remains the legacy runtime authorization source until Phase B/F migration.
+ *
+ * Multi-Business Authority Stage 1: the single blanket UQ_account_role_user_role
+ * (userId, roleType) constraint was replaced (migration
+ * AddAccountRoleWorkspaceMultiplicity1788261000000) with three partial unique
+ * indexes, split by role scope -- see that migration's own doc comment for
+ * the full rationale. Decorators below mirror the migration exactly so a
+ * fresh `synchronize` build matches the migrated schema byte-for-byte:
+ *
+ *  - buyer/admin/manager/customer_care/arbitrator/agent: unique per
+ *    (userId, roleType), unconditionally -- unchanged from before this stage.
+ *  - seller/super_agent/transport_provider/service_provider: unique per
+ *    (userId, roleType, workspaceAssignmentId) when bound to a workspace, OR
+ *    per (userId, roleType) when NOT YET bound (at most one unbound
+ *    placeholder) -- these two rows are what let the same human hold, e.g.,
+ *    a Seller AccountRole for Business A AND a separate one for Business B.
  */
 @Entity('account_role')
-@Unique('UQ_account_role_user_role', ['userId', 'roleType'])
 @Index('IDX_account_role_user_status', ['userId', 'status'])
 @Index('IDX_account_role_role_status', ['roleType', 'status'])
 @Index('IDX_account_role_profile', ['profileType', 'profileId'])
 @Index('UQ_account_role_operational_profile', ['profileType', 'profileId'], {
   unique: true,
   where: '"profileId" IS NOT NULL AND "profileType" <> \'user\'',
+})
+@Index('UQ_account_role_singular', ['userId', 'roleType'], {
+  unique: true,
+  where: `"roleType" IN ('buyer','admin','manager','customer_care','arbitrator','agent')`,
+})
+@Index('UQ_account_role_workspace_bound', ['userId', 'roleType', 'workspaceAssignmentId'], {
+  unique: true,
+  where: `"roleType" IN ('seller','super_agent','transport_provider','service_provider') AND "workspaceAssignmentId" IS NOT NULL`,
+})
+@Index('UQ_account_role_unbound', ['userId', 'roleType'], {
+  unique: true,
+  where: `"roleType" IN ('seller','super_agent','transport_provider','service_provider') AND "workspaceAssignmentId" IS NULL`,
 })
 export class AccountRole {
   @PrimaryGeneratedColumn()

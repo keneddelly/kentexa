@@ -90,9 +90,32 @@ export class InAppNotificationService {
    * 2A's original behavior) if the recipient has no active AccountRole of
    * that type yet -- never guesses, never blocks the notification.
    */
+  // Multi-Business Authority Stage 1: this was an unordered .findOne() on
+  // bare (userId, roleType) -- safe only while at most one AccountRole row
+  // of that type could exist per user. Now that seller/super_agent/
+  // transport_provider/service_provider roles may repeat (one per
+  // Business), an unordered pick risks stamping a notification with the
+  // WRONG business's AccountRole/workspace -- e.g. an order-paid
+  // notification for Business B getting attributed to Business A's Seller
+  // AccountRole, making it invisible under Business B's own (correctly
+  // workspace-scoped, see applyAudienceScope above) notification read.
+  //
+  // Ordering by id ASC makes the pick deterministic (removes the Postgres
+  // arbitrary-row risk), but does NOT make it business-CORRECT: none of
+  // this method's callers (orders/warranty/super-agents event helpers)
+  // currently have a workspace-specific disambiguator to pass in, because
+  // the underlying transactions (Order, Invoice, Payment) don't carry a
+  // workspaceId of their own yet (confirmed NOT READY in the Business-First
+  // data-ownership audit) -- genuine per-Business correctness for these
+  // notifications requires that upstream work first, which is out of this
+  // stage's scope (see report). `preferredWorkspaceId`/`preferredWorkspaceType`
+  // let a future caller that DOES have a resolved disambiguator supply one;
+  // no current caller does.
   private async resolveRoleAudience(
     userId: number | undefined | null,
     roleType: AccountRoleType,
+    preferredWorkspaceType?: string | null,
+    preferredWorkspaceId?: number | null,
   ): Promise<{
     audienceScope?: NotificationAudienceScope;
     recipientAccountRoleId?: number;
@@ -100,9 +123,24 @@ export class InAppNotificationService {
     recipientWorkspaceId?: number;
   }> {
     if (!userId) return {};
-    const role = await this.accountRoleRepo.findOne({
-      where: { userId, roleType, status: AccountRoleStatus.ACTIVE },
-    });
+    let role: AccountRole | null = null;
+    if (preferredWorkspaceType && preferredWorkspaceId != null) {
+      role = await this.accountRoleRepo.findOne({
+        where: {
+          userId,
+          roleType,
+          status: AccountRoleStatus.ACTIVE,
+          profileType: preferredWorkspaceType as RoleProfileType,
+          profileId: preferredWorkspaceId,
+        },
+      });
+    }
+    if (!role) {
+      role = await this.accountRoleRepo.findOne({
+        where: { userId, roleType, status: AccountRoleStatus.ACTIVE },
+        order: { id: 'ASC' },
+      });
+    }
     if (!role) return {};
     const workspace =
       role.profileType && role.profileType !== RoleProfileType.USER && role.profileId != null

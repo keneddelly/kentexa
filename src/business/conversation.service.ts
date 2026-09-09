@@ -59,6 +59,18 @@ export interface ScopedInboxResult {
   unread: number;
 }
 
+// Multi-Business Authority Stage 1. A caller-supplied disambiguator for
+// "which of the user's possibly-several same-roleType AccountRole rows is
+// the one this request actually concerns" -- mirrors Conversation.
+// ownerWorkspaceType/ownerWorkspaceId's own vocabulary (RoleProfileType-
+// shaped strings + the concrete profile id, e.g. a specific SellerProfile
+// id), NEVER the Business-First OperationalWorkspace id (a different
+// dimension entirely -- see SellerScopeService.SellerScope's own comment).
+// Always resolved server-side (from an already-authoritative RoleContext or
+// from the conversation's own already-stamped ownerWorkspace columns) --
+// never accepted from a client directly.
+export type WorkspaceHint = { workspaceType: string; workspaceId: number } | null;
+
 @Injectable()
 export class ConversationService {
   constructor(
@@ -99,12 +111,44 @@ export class ConversationService {
   // matching AccountRole yet (should not happen post Stage-1 sync, but this
   // path must never be able to break the legacy send/create flow it rides
   // alongside).
+  // Multi-Business Authority Stage 1: previously an unordered .findOne() on
+  // bare (userId, roleType) -- correct as long as at most one AccountRole
+  // row of that roleType could ever exist for a user, which is no longer
+  // guaranteed now that seller/super_agent/transport_provider/
+  // service_provider roles may repeat (one per WorkspaceAssignment). Two
+  // safeguards:
+  //  1. When `workspaceHint` is supplied (from an already-authoritative
+  //     RoleContext, or from a conversation's own already-stamped
+  //     ownerWorkspaceType/Id), resolve the EXACT matching row by
+  //     (profileType, profileId) first -- deterministic and correct under
+  //     multiplicity, never a guess.
+  //  2. Falling through to the bare (userId, roleType) lookup (no hint
+  //     available, or no row matched the hint) now orders by id ASC --
+  //     removes the non-deterministic "whichever Postgres returns first"
+  //     risk. This does not make the fallback workspace-CORRECT (an
+  //     inherently unresolvable question without a hint when 2+ rows truly
+  //     exist), only workspace-STABLE; call sites that can supply a hint
+  //     should always do so.
   private async resolveAccountRoleFor(
     userId: number,
     roleType: AccountRoleType,
+    workspaceHint?: WorkspaceHint,
   ): Promise<AccountRole | null> {
+    if (workspaceHint) {
+      const scoped = await this.accountRoleRepo.findOne({
+        where: {
+          userId,
+          roleType,
+          status: AccountRoleStatus.ACTIVE,
+          profileType: workspaceHint.workspaceType as RoleProfileType,
+          profileId: workspaceHint.workspaceId,
+        },
+      });
+      if (scoped) return scoped;
+    }
     return this.accountRoleRepo.findOne({
       where: { userId, roleType, status: AccountRoleStatus.ACTIVE },
+      order: { id: 'ASC' },
     });
   }
 
@@ -216,8 +260,9 @@ export class ConversationService {
     conversationId: number,
     userId: number,
     roleType: AccountRoleType,
+    workspaceHint?: WorkspaceHint,
   ): Promise<void> {
-    const role = await this.resolveAccountRoleFor(userId, roleType);
+    const role = await this.resolveAccountRoleFor(userId, roleType, workspaceHint);
     if (!role) return;
     const participant = await this.participants.ensureAccountRoleParticipant(
       conversationId,
@@ -252,10 +297,21 @@ export class ConversationService {
     // both belong to the same User.
     const ownerRoleType = this.ownerRoleTypeFor(convo);
     const ownerParticipantKind = this.participantKindForRoleType(ownerRoleType);
+    // The conversation's own already-stamped owner-workspace columns are the
+    // most authoritative hint available here -- they were resolved and
+    // written once, server-side, when the conversation was created (see
+    // getOrCreateConversation/getOrCreateOperationalConversationAsBuyer),
+    // and never change afterward. Using them (rather than re-deriving via a
+    // bare userId+roleType lookup) means attribution stays correct even if
+    // the owning side later gains a second same-roleType AccountRole for a
+    // DIFFERENT workspace/business.
+    const ownerWorkspaceHint: WorkspaceHint = convo.ownerWorkspaceType
+      ? { workspaceType: convo.ownerWorkspaceType, workspaceId: convo.ownerWorkspaceId! }
+      : null;
 
     const senderRole =
       side === 'seller'
-        ? await this.resolveAccountRoleFor(convo.sellerId, ownerRoleType)
+        ? await this.resolveAccountRoleFor(convo.sellerId, ownerRoleType, ownerWorkspaceHint)
         : convo.customer?.userId
           ? await this.resolveAccountRoleFor(convo.customer.userId, AccountRoleType.BUYER)
           : null;
@@ -282,7 +338,7 @@ export class ConversationService {
         ? convo.customer?.userId
           ? await this.resolveAccountRoleFor(convo.customer.userId, AccountRoleType.BUYER)
           : null
-        : await this.resolveAccountRoleFor(convo.sellerId, ownerRoleType);
+        : await this.resolveAccountRoleFor(convo.sellerId, ownerRoleType, ownerWorkspaceHint);
     if (recipientRole) {
       const recipientParticipant = await this.participants.ensureAccountRoleParticipant(
         convo.id,
@@ -544,8 +600,9 @@ export class ConversationService {
   async getScopedSellerInbox(
     sellerId: number,
     params: { status?: string; search?: string; page?: number; limit?: number; assignedToId?: number },
+    workspaceHint?: WorkspaceHint,
   ): Promise<ScopedInboxResult> {
-    const sellerRole = await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER);
+    const sellerRole = await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER, workspaceHint);
     if (!sellerRole) {
       return this.getSellerInbox(sellerId, params);
     }
@@ -805,6 +862,15 @@ export class ConversationService {
     customerId: number,
     commerceProfileId?: number | null,
     ownerWorkspaceOverride?: { ownerWorkspaceType: string; ownerWorkspaceId: number } | null,
+    // Multi-Business Authority Stage 1 (additive). When the caller already
+    // has an authoritative disambiguator for "which of the seller's
+    // possibly-several Seller AccountRoles this request concerns" (e.g.
+    // from SellerScopeService.resolveScope()), pass it here so the legacy
+    // (ownerWorkspaceOverride === undefined) branch resolves the EXACT
+    // matching role instead of an unordered fallback. Ignored when
+    // ownerWorkspaceOverride is explicitly provided (that caller has
+    // already resolved its own, different, trusted owner).
+    callerWorkspaceHint?: WorkspaceHint,
   ): Promise<Conversation> {
     // Never trust a client-supplied commerceProfileId blindly — must
     // actually belong to this seller, same authorization posture as
@@ -827,7 +893,7 @@ export class ConversationService {
 
     const isLegacyCall = ownerWorkspaceOverride === undefined;
     const legacySellerWorkspace = isLegacyCall
-      ? this.workspaceOf(await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER))
+      ? this.workspaceOf(await this.resolveAccountRoleFor(sellerId, AccountRoleType.SELLER, callerWorkspaceHint))
       : null;
     const ownerWorkspace = isLegacyCall
       ? (legacySellerWorkspace
@@ -948,7 +1014,15 @@ export class ConversationService {
   }
 
   private async dualWriteNewConversation(convo: Conversation): Promise<void> {
-    const sellerRole = await this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER);
+    // isLegacyCall's own resolution (getOrCreateConversation, above) already
+    // stamped convo.ownerWorkspaceType/Id onto this row before this method
+    // runs -- reuse that exact value as the hint rather than re-deriving it
+    // a second time via an independent (and, under multiplicity, possibly
+    // different) unordered lookup.
+    const hint: WorkspaceHint = convo.ownerWorkspaceType
+      ? { workspaceType: convo.ownerWorkspaceType, workspaceId: convo.ownerWorkspaceId! }
+      : null;
+    const sellerRole = await this.resolveAccountRoleFor(convo.sellerId, AccountRoleType.SELLER, hint);
     const sellerWorkspace = this.workspaceOf(sellerRole);
     await this.convoRepo.update(convo.id, {
       scopeType: 'seller_buyer',
@@ -1137,6 +1211,7 @@ export class ConversationService {
     sellerId: number,
     conversationId: number,
     before?: number,
+    workspaceHint?: WorkspaceHint,
   ) {
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId, sellerId },
@@ -1145,6 +1220,22 @@ export class ConversationService {
     if (!convo) throw new NotFoundException('Conversation not found');
     if (convo.ownerWorkspaceType && this.ownerRoleTypeFor(convo) !== AccountRoleType.SELLER) {
       throw new ForbiddenException('This conversation does not belong to your Seller identity');
+    }
+    // Multi-Business Authority Stage 1: same roleType is not sufficient once
+    // a User can hold two Seller AccountRoles for two different businesses.
+    // When the caller supplied a specific workspace disambiguator (their own
+    // currently-active Seller identity's profile id) AND the conversation
+    // itself is workspace-stamped, the two must match -- Seller@BusinessA
+    // must never read Seller@BusinessB's conversation just because both are
+    // "Seller" and share the same underlying sellerId (User.id). A
+    // conversation with no ownerWorkspaceId (pre-Stage-2/legacy) is
+    // unaffected, matching today's behavior exactly.
+    if (
+      workspaceHint &&
+      convo.ownerWorkspaceId != null &&
+      (convo.ownerWorkspaceType !== workspaceHint.workspaceType || convo.ownerWorkspaceId !== workspaceHint.workspaceId)
+    ) {
+      throw new ForbiddenException('This conversation does not belong to your active Seller workspace');
     }
 
     const { messages, hasMore } = await this.fetchMessagePage(
@@ -1163,7 +1254,7 @@ export class ConversationService {
           .catch(() => {});
       }
       if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
-        this.dualWriteMarkRead(conversationId, sellerId, AccountRoleType.SELLER).catch(() => {});
+        this.dualWriteMarkRead(conversationId, sellerId, AccountRoleType.SELLER, workspaceHint).catch(() => {});
       }
     }
 
@@ -1186,13 +1277,30 @@ export class ConversationService {
     if (this.ownerRoleTypeFor(convo) !== roleContext.roleType) {
       throw new ForbiddenException('This conversation does not belong to your current active role');
     }
+    // Multi-Business Authority Stage 1: roleContext already carries the
+    // caller's SPECIFIC active workspace (profileType/profileId, resolved
+    // server-side from their session's own AccountRole -- never trusted
+    // from the client). Matching roleType alone used to be sufficient
+    // because at most one AccountRole of a given type could ever exist;
+    // now that e.g. two Transport Provider AccountRoles (one per business)
+    // can coexist for the same user, the active role must also match the
+    // SPECIFIC workspace this conversation is owned by, or a caller
+    // currently active as Transport@BusinessA could read Transport@
+    // BusinessB's conversation just because both resolve to roleType
+    // transport_provider.
+    if (convo.ownerWorkspaceId != null && convo.ownerWorkspaceId !== roleContext.profileId) {
+      throw new ForbiddenException('This conversation does not belong to your current active workspace');
+    }
 
     const { messages, hasMore } = await this.fetchMessagePage(conversationId, before);
 
     if (!before) {
       await this.convoRepo.update(conversationId, { unreadCount: 0 });
       if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
-        this.dualWriteMarkRead(conversationId, roleContext.userId, roleContext.roleType).catch(() => {});
+        const hint: WorkspaceHint = roleContext.profileType && roleContext.profileId != null
+          ? { workspaceType: roleContext.profileType, workspaceId: roleContext.profileId }
+          : null;
+        this.dualWriteMarkRead(conversationId, roleContext.userId, roleContext.roleType, hint).catch(() => {});
       }
     }
 
@@ -1250,6 +1358,7 @@ export class ConversationService {
       metadata?: any;
     },
     sender: User,
+    workspaceHint?: WorkspaceHint,
   ): Promise<ConversationMessage> {
     const convo = await this.convoRepo.findOne({
       where: { id: conversationId, sellerId },
@@ -1266,6 +1375,17 @@ export class ConversationService {
     // ClassifiedsService's cross-workspace denial.
     if (convo.ownerWorkspaceType && this.ownerRoleTypeFor(convo) !== AccountRoleType.SELLER) {
       throw new ForbiddenException('This conversation does not belong to your Seller identity');
+    }
+    // Multi-Business Authority Stage 1: see getMessages's identical check --
+    // same roleType is not sufficient once two Seller AccountRoles can exist
+    // for the same sellerId. Seller@BusinessA must never be able to REPLY
+    // into Seller@BusinessB's conversation either.
+    if (
+      workspaceHint &&
+      convo.ownerWorkspaceId != null &&
+      (convo.ownerWorkspaceType !== workspaceHint.workspaceType || convo.ownerWorkspaceId !== workspaceHint.workspaceId)
+    ) {
+      throw new ForbiddenException('This conversation does not belong to your active Seller workspace');
     }
 
     const msg = this.msgRepo.create({
@@ -1392,6 +1512,12 @@ export class ConversationService {
     if (!convo) throw new NotFoundException('Conversation not found');
     if (this.ownerRoleTypeFor(convo) !== roleContext.roleType) {
       throw new ForbiddenException('This conversation does not belong to your current active role');
+    }
+    // Multi-Business Authority Stage 1: see getMessagesAsOperationalRole's
+    // identical check -- same roleType is not sufficient once two
+    // operational AccountRoles of that type can coexist for one user.
+    if (convo.ownerWorkspaceId != null && convo.ownerWorkspaceId !== roleContext.profileId) {
+      throw new ForbiddenException('This conversation does not belong to your current active workspace');
     }
 
     const msg = this.msgRepo.create({

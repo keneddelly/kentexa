@@ -59,6 +59,10 @@ describe('BusinessService.create() -- Business-First Stage 1 workspace bootstrap
       unusedRepo, // sellerProfileRepo -- not touched by create()
       unusedRepo, // invoiceRepo -- not touched by create()
       unusedRepo, // productRepo -- not touched by create()
+      dataSource.getRepository(OperationalWorkspace),
+      dataSource.getRepository(WorkspaceAssignment),
+      unusedRepo, // capabilityRepo -- not touched by create()
+      dataSource.getRepository(AccountRole),
       dataSource,
       noopCommerceProfiles,
       noopActivityEvents,
@@ -127,12 +131,54 @@ describe('BusinessService.create() -- Business-First Stage 1 workspace bootstrap
     expect(await accountRoleRepo().count()).toBe(0);
   });
 
-  it('refuses a second Business for the same user (unchanged pre-existing behavior)', async () => {
+  // Multi-Business Authority Stage 1: the "You already have a Business"
+  // guard is removed -- Business.user was never schema-constrained to one
+  // row per user, and BusinessMembership/WorkspaceAssignment already
+  // correctly support one user holding independent membership in many
+  // Businesses. See the architecture discovery report's own findings.
+  it('now ALLOWS a second Business for the same user, each with its own bootstrap rows', async () => {
     if (!reachable) return;
     const user = await makeUser();
-    await service.create(user, { legalName: 'First Co' });
+    const first = await service.create(user, { legalName: 'First Co' });
+    const second = await service.create(user, { legalName: 'Second Co' });
 
-    await expect(service.create(user, { legalName: 'Second Co' })).rejects.toThrow('You already have a Business');
-    expect(await workspaceRepo().count()).toBe(1);
+    expect(second.id).not.toBe(first.id);
+    const all = await service.findAllMine(user.id);
+    expect(all.map((b) => b.id).sort()).toEqual([first.id, second.id].sort());
+    expect(await workspaceRepo().count()).toBe(2);
+    expect(await membershipRepo().count()).toBe(2);
+    expect(await assignmentRepo().count()).toBe(2);
+  });
+
+  it('creating a second Business never rebinds an already-bound Seller AccountRole away from the first Business', async () => {
+    if (!reachable) return;
+    const user = await makeUser();
+    const sellerRole = await accountRoleRepo().save(accountRoleRepo().create({
+      userId: user.id, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE,
+      profileType: RoleProfileType.SELLER_PROFILE, profileId: user.id, capabilities: {},
+    } as any));
+
+    const first = await service.create(user, { legalName: 'First Co' });
+    const firstWorkspace = await workspaceRepo().findOne({ where: { businessId: first.id, isDefault: true } });
+    const firstMembership = await membershipRepo().findOne({ where: { businessId: first.id, userId: user.id } });
+    const firstAssignment = await assignmentRepo().findOne({ where: { businessMembershipId: firstMembership!.id, workspaceId: firstWorkspace!.id } });
+
+    // sellerRole was unbound at the moment First Co was created, so it
+    // correctly got bound to it (existing behavior, unchanged).
+    let reloaded = await accountRoleRepo().findOne({ where: { id: sellerRole.id } });
+    expect(reloaded?.workspaceAssignmentId).toBe(firstAssignment!.id);
+
+    // Creating a SECOND Business must never steal this already-bound role
+    // away from First Co -- it stays bound to firstAssignment, and Second
+    // Co's own default workspace simply has no Seller AccountRole yet.
+    const second = await service.create(user, { legalName: 'Second Co' });
+    const secondWorkspace = await workspaceRepo().findOne({ where: { businessId: second.id, isDefault: true } });
+    const secondMembership = await membershipRepo().findOne({ where: { businessId: second.id, userId: user.id } });
+    const secondAssignment = await assignmentRepo().findOne({ where: { businessMembershipId: secondMembership!.id, workspaceId: secondWorkspace!.id } });
+
+    reloaded = await accountRoleRepo().findOne({ where: { id: sellerRole.id } });
+    expect(reloaded?.workspaceAssignmentId).toBe(firstAssignment!.id); // unchanged, still First Co
+    expect(reloaded?.workspaceAssignmentId).not.toBe(secondAssignment!.id);
+    expect(await accountRoleRepo().count({ where: { userId: user.id, roleType: AccountRoleType.SELLER } })).toBe(1); // no new Seller role fabricated
   });
 });

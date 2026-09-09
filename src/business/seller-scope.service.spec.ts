@@ -94,7 +94,7 @@ describe('SellerScopeService', () => {
       const { service } = build(AccountRoleType.SELLER);
       const roleContext = { roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: 2 } as any;
       const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER), roleContext);
-      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 2, mode: 'workspace' });
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 2, mode: 'workspace', profileType: null, profileId: null });
     });
 
     it('does not re-resolve RoleContext when one is already supplied', async () => {
@@ -108,7 +108,7 @@ describe('SellerScopeService', () => {
       const { service } = build(AccountRoleType.SELLER);
       const roleContext = { roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: null } as any;
       const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER), roleContext);
-      expect(scope).toEqual({ legacySellerId: 1, workspaceId: null, mode: 'legacy' });
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: null, mode: 'legacy', profileType: null, profileId: null });
     });
 
     it('resolves fresh from the payload when no RoleContext is supplied, and still returns workspaceId from it', async () => {
@@ -118,8 +118,24 @@ describe('SellerScopeService', () => {
       };
       const service = new SellerScopeService(teamRepo, roleContextService);
       const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER));
-      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 5, mode: 'workspace' });
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 5, mode: 'workspace', profileType: null, profileId: null });
       expect(roleContextService.resolveContext).toHaveBeenCalledTimes(1);
+    });
+
+    // Multi-Business Authority Stage 1: profileType/profileId are the new
+    // disambiguator business.controller.ts's resolveSellerWorkspaceHint()
+    // relies on to tell apart the caller's possibly-several Seller
+    // AccountRoles -- must faithfully mirror whatever the resolved
+    // RoleContext carries, never re-derived independently.
+    it('carries the resolved RoleContext.profileType/profileId through verbatim (the new Communication disambiguator)', async () => {
+      const { service } = build(AccountRoleType.SELLER);
+      const roleContext = {
+        roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 100, workspaceId: 2,
+        profileType: 'seller_profile', profileId: 10,
+      } as any;
+      const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER), roleContext);
+      expect(scope.profileType).toBe('seller_profile');
+      expect(scope.profileId).toBe(10);
     });
 
     it('CONTEXT-SAFETY: a missing sid/rid/cv (RoleContext could not be established) FAILS CLOSED — never silently treated as legacy mode', async () => {

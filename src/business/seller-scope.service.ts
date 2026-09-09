@@ -43,6 +43,19 @@ export interface SellerScope {
   legacySellerId: number;
   workspaceId: number | null;
   mode: 'workspace' | 'legacy';
+  // Multi-Business Authority Stage 1 (additive). The caller's own resolved
+  // RoleContext.profileType/profileId -- i.e. the SPECIFIC SellerProfile (or
+  // other operational profile) id the caller's currently-active AccountRole
+  // is bound to, when they are genuinely operating as that role themselves.
+  // Distinct from workspaceId above (an OperationalWorkspace id, a
+  // different Business-First dimension) -- this is the discriminator
+  // Conversation.ownerWorkspaceType/ownerWorkspaceId actually mirrors (see
+  // conversation.entity.ts's own comment). null whenever the caller isn't
+  // resolvable to a real operational profile (e.g. a team member delegated
+  // via BusinessTeamMember, acting under their own non-seller active role)
+  // -- callers must treat null as "no safe disambiguator", never guess.
+  profileType?: string | null;
+  profileId?: number | null;
 }
 
 @Injectable()
@@ -132,7 +145,13 @@ export class SellerScopeService {
       resolved = await this.roleContextService.resolveContext(payload);
     }
     const workspaceId = resolved.workspaceId ?? null;
-    return { legacySellerId, workspaceId, mode: workspaceId != null ? 'workspace' : 'legacy' };
+    return {
+      legacySellerId,
+      workspaceId,
+      mode: workspaceId != null ? 'workspace' : 'legacy',
+      profileType: resolved.profileType ?? null,
+      profileId: resolved.profileId ?? null,
+    };
   }
 
   // For multi-party checks (buyer OR seller OR admin, already ORed

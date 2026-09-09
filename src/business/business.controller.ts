@@ -15,7 +15,7 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { BusinessCustomerService } from './business-customer.service';
-import { ConversationService } from './conversation.service';
+import { ConversationService, WorkspaceHint } from './conversation.service';
 import { SellerScopeService, SellerPermission } from './seller-scope.service';
 import { BusinessService } from './business.service';
 import { BusinessBackfillService } from './business-backfill.service';
@@ -55,9 +55,28 @@ export class BusinessController {
     return this.businessService.findMine(req.user.id);
   }
 
+  // Multi-Business Authority Stage 1: additive list endpoint -- GET
+  // business/mine deliberately keeps its existing single-object shape for
+  // every already-shipped client; this is the new surface a future "My
+  // Businesses" frontend stage reads from instead.
+  @Get('mine/all')
+  getMineAll(@Request() req) {
+    return this.businessService.findAllMine(req.user.id);
+  }
+
   @Post('create')
   create(@Request() req, @Body() dto: any) {
     return this.businessService.create(req.user, dto);
+  }
+
+  // Multi-Business Authority Stage 1: read-only. My Businesses -> Workspaces
+  // -> active BusinessCapabilities -> my own corresponding AccountRole
+  // (where one exists) -- the smallest API the next frontend stage needs.
+  // businessId is ownership-checked server-side (listWorkspaces); no
+  // workspaceId/accountRoleId is ever accepted from the client.
+  @Get(':id/workspaces')
+  getWorkspaces(@Param('id', ParseIntPipe) id: number, @Request() req) {
+    return this.businessService.listWorkspaces(id, req.user);
   }
 
   @Patch(':id')
@@ -133,6 +152,29 @@ export class BusinessController {
     permission?: SellerPermission,
   ): Promise<number> {
     return this.sellerScope.resolve(user, permission);
+  }
+
+  // Multi-Business Authority Stage 1. sellerId alone (User.id) no longer
+  // disambiguates WHICH of the caller's possibly-several Seller
+  // AccountRoles a Communication read/write concerns, once a user can hold
+  // one Seller AccountRole per Business. resolveScope() already resolves
+  // the caller's own authoritative RoleContext (server-side, from their
+  // session) -- reused here purely for its profileType/profileId, which
+  // mirror the SAME vocabulary Conversation.ownerWorkspaceType/
+  // ownerWorkspaceId already stores. Returns null (never guesses) whenever
+  // the caller isn't currently, genuinely operating as Seller themselves
+  // (e.g. a delegated team member acting under their own active role) --
+  // exactly the cases where no safe disambiguator exists yet.
+  private async resolveSellerWorkspaceHint(user: User): Promise<WorkspaceHint> {
+    try {
+      const scope = await this.sellerScope.resolveScope(user.id, user);
+      if (scope.profileType === 'seller_profile' && scope.profileId != null) {
+        return { workspaceType: scope.profileType, workspaceId: scope.profileId };
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -292,7 +334,8 @@ export class BusinessController {
     // participant-graph query (server-side entitlement, item 1) vs the
     // legacy raw seller_id scan.
     if (this.flags.isEnabled('SCOPED_CONVERSATION_READ')) {
-      return this.conversationService.getScopedSellerInbox(sellerId, scopedParams);
+      const hint = await this.resolveSellerWorkspaceHint(req.user);
+      return this.conversationService.getScopedSellerInbox(sellerId, scopedParams, hint);
     }
     return this.conversationService.getSellerInbox(sellerId, scopedParams);
   }
@@ -306,9 +349,13 @@ export class BusinessController {
       req.user,
       'canSendMessages',
     );
+    const hint = await this.resolveSellerWorkspaceHint(req.user);
     return this.conversationService.getOrCreateConversation(
       sellerId,
       body.customerId,
+      undefined,
+      undefined,
+      hint,
     );
   }
 
@@ -322,10 +369,12 @@ export class BusinessController {
       req.user,
       'canSendMessages',
     );
+    const hint = await this.resolveSellerWorkspaceHint(req.user);
     return this.conversationService.getMessages(
       sellerId,
       id,
       before ? Number(before) : undefined,
+      hint,
     );
   }
 
@@ -344,10 +393,11 @@ export class BusinessController {
       req.user,
       'canSendMessages',
     );
+    const hint = await this.resolveSellerWorkspaceHint(req.user);
     // Scope is the business being messaged from; `req.user` stays the real
     // sender so the message attributes to the actual staff member, not the
     // business owner.
-    return this.conversationService.sendMessage(sellerId, id, dto, req.user);
+    return this.conversationService.sendMessage(sellerId, id, dto, req.user, hint);
   }
 
   @Post('inbox/:id/share-product')
