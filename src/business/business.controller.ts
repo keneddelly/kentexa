@@ -449,6 +449,65 @@ export class BusinessController {
     return this.conversationService.getMyConversations(req.user.id, params);
   }
 
+  // Communication canonicality fix, Phase B: the smallest safe Super Agent/
+  // Transport Provider/Agent communication surface, reusing the existing
+  // scoped participant-graph architecture (getScopedConversationsForActiveRole)
+  // rather than a parallel inbox system. Authority is entirely
+  // roleContext-driven (RoleContextGuard + ActiveRoleGuard) -- never a
+  // client-supplied sellerId/accountRoleId. There is deliberately no legacy
+  // fallback path here (unlike Seller/Buyer): these roles have no pre-
+  // Stage-2 history to fall back to.
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.AGENT)
+  @Get('operational-inbox')
+  getOperationalInbox(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @CurrentRoleContext() roleContext?: RoleContext,
+  ) {
+    const params = {
+      status,
+      search,
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : undefined,
+    };
+    return this.conversationService.getScopedConversationsForActiveRole(roleContext as RoleContext, params);
+  }
+
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.AGENT)
+  @Get('operational-inbox/:id/messages')
+  getOperationalInboxMessages(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('before') before?: string,
+    @CurrentRoleContext() roleContext?: RoleContext,
+  ) {
+    return this.conversationService.getMessagesAsOperationalRole(
+      roleContext as RoleContext,
+      id,
+      before ? Number(before) : undefined,
+    );
+  }
+
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.AGENT)
+  @Post('operational-inbox/:id/messages')
+  sendOperationalInboxMessage(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: { content?: string; imageUrl?: string; isNote?: boolean },
+    @CurrentRoleContext() roleContext?: RoleContext,
+  ) {
+    return this.conversationService.sendMessageAsOperationalRole(
+      roleContext as RoleContext,
+      id,
+      { content: dto.content, imageUrl: dto.imageUrl, isNote: dto.isNote },
+      req.user,
+    );
+  }
+
   // Communication canonicality fix: `targetType`/`targetId` let the caller
   // reference a SPECIFIC operational identity (Super Agent / Transport
   // Provider / Agent) instead of always landing on the target person's

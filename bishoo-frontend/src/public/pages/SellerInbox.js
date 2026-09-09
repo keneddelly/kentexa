@@ -323,7 +323,26 @@ const MessageBubble = ({ msg, mode, t, onRetry, onNavigate }) => {
 const resolveInboxMode = (userRole) => {
   if (userRole === 'seller' || userRole === 'admin' || userRole === 'manager') return 'seller';
   if (userRole === 'buyer') return 'buyer';
+  // Communication follow-up Phase B: Super Agent/Transport Provider/Agent
+  // now have a real, minimal inbox surface (GET/POST /business/operational-
+  // inbox), reusing this same list/detail/reply UI. Every OTHER seller-only
+  // feature (share-product, order quick-actions, pin/mute, status changes)
+  // stays gated behind `inboxMode === 'seller'` elsewhere in this file, so
+  // 'operational' automatically gets none of them -- exactly the "list,
+  // open, reply" minimum this surface is scoped to, not full Seller parity.
+  if (userRole === 'agent' || userRole === 'super_agent' || userRole === 'transport_provider') return 'operational';
   return 'unsupported';
+};
+
+// The three backend route families this component can talk to. `_mode` on
+// each conversation/message row picks one; 'operational' is intentionally
+// its own family (not reusing 'seller') since its backend authorization is
+// RoleContext-driven with no legacy sellerId fallback, and only supports
+// list/read/send -- no pin/mute/status/share-product endpoints exist for it.
+const API_BASE_FOR_MODE = {
+  seller: '/business/inbox',
+  buyer: '/business/my-conversations',
+  operational: '/business/operational-inbox',
 };
 
 const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetType, messageTargetId, userRole, messageCommerceProfileId, messageContextType, messageContextId, currentUser, activeProfileId, contextEpoch }) => {
@@ -455,6 +474,9 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
         const mineParam = mineOnly ? '&mine=true' : '';
         const res = await api.get(`/business/inbox?status=${filter}&limit=30${searchParam}${mineParam}`);
         setConversations((res.data.conversations || []).map(c => ({ ...c, _mode: 'seller' })));
+      } else if (inboxMode === 'operational') {
+        const res = await api.get(`/business/operational-inbox?status=${filter}&limit=30${searchParam}`);
+        setConversations((res.data.conversations || []).map(c => ({ ...c, _mode: 'operational' })));
       } else {
         const res = await api.get(`/business/my-conversations?limit=30${searchParam}`);
         setConversations((res.data.conversations || []).map(c => ({ ...c, _mode: 'buyer' })));
@@ -466,11 +488,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
   const fetchMessages = async (convo) => {
     try {
       setMsgLoading(true);
-      const res = await api.get(
-        convo._mode === 'buyer'
-          ? `/business/my-conversations/${convo.id}/messages`
-          : `/business/inbox/${convo.id}/messages`
-      );
+      const res = await api.get(`${API_BASE_FOR_MODE[convo._mode] || API_BASE_FOR_MODE.seller}/${convo.id}/messages`);
       setMessages(res.data.messages || []);
       setHasMoreMessages(!!res.data.hasMore);
       setActive({ ...res.data.conversation, _mode: convo._mode });
@@ -489,9 +507,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
     setLoadingMore(true);
     try {
       const res = await api.get(
-        active._mode === 'buyer'
-          ? `/business/my-conversations/${active.id}/messages`
-          : `/business/inbox/${active.id}/messages`,
+        `${API_BASE_FOR_MODE[active._mode] || API_BASE_FOR_MODE.seller}/${active.id}/messages`,
         { params: { before: oldestId } },
       );
       setMessages(prev => [...(res.data.messages || []), ...prev]);
@@ -709,7 +725,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
     try {
       const res = active._mode === 'buyer'
         ? await api.post(`/business/my-conversations/${active.id}/messages`, { content })
-        : await api.post(`/business/inbox/${active.id}/messages`, { content, isNote: noteFlag });
+        : await api.post(`${API_BASE_FOR_MODE[active._mode] || API_BASE_FOR_MODE.seller}/${active.id}/messages`, { content, isNote: noteFlag });
       setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
     } catch {
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, _status: 'failed' } : m));
@@ -751,7 +767,7 @@ const SellerInbox = ({ onNavigate, initialCustomerId, sellerId, messageTargetTyp
       if (!imageUrl) throw new Error('upload failed');
       const res = active._mode === 'buyer'
         ? await api.post(`/business/my-conversations/${active.id}/messages`, { imageUrl })
-        : await api.post(`/business/inbox/${active.id}/messages`, { imageUrl, isNote: false });
+        : await api.post(`${API_BASE_FOR_MODE[active._mode] || API_BASE_FOR_MODE.seller}/${active.id}/messages`, { imageUrl, isNote: false });
       setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
     } catch {
       setMessages(prev => prev.map(m => m.id === tempId ? { ...m, _status: 'failed' } : m));

@@ -101,6 +101,18 @@ describe('InAppNotificationService scoped reads (Stage 2B checkpoint 4/5)', () =
       expect(qb.execute).toHaveBeenCalled();
       expect(repo.update).not.toHaveBeenCalled();
     });
+
+    it('the scoped UPDATE WHERE clause references the real column "user_id", not the entity property "userId"', async () => {
+      const { service, repo } = build();
+      const { qb, calls } = mockQueryBuilder(undefined);
+      repo.createQueryBuilder.mockReturnValue(qb);
+
+      await service.markAllRead(1, sellerRoleContext as any);
+
+      const whereCall = calls.find((c) => c.method === 'where');
+      expect(whereCall?.args[0]).toContain('"user_id"');
+      expect(whereCall?.args[0]).not.toContain('"userId"');
+    });
   });
 
   describe('markRead (mark-one)', () => {
@@ -122,6 +134,24 @@ describe('InAppNotificationService scoped reads (Stage 2B checkpoint 4/5)', () =
         { id: 555, userId: 1 },
         expect.objectContaining({ isRead: true }),
       );
+    });
+
+    // Notification.userId maps to the DB column user_id (explicit @Column
+    // name override) -- the scoped update path's raw, unaliased WHERE
+    // string previously referenced the bare entity property name "userId"
+    // instead, which Postgres takes as a literal (quoted) column name and
+    // fails with 42703 "column userId does not exist" every time this
+    // scoped branch actually ran in production.
+    it('the scoped update WHERE clause references the real column "user_id", not the entity property "userId"', async () => {
+      const { service, repo } = build();
+      const { qb, calls } = mockQueryBuilder(undefined);
+      repo.createQueryBuilder.mockReturnValue(qb);
+
+      await service.markRead(1, 555, sellerRoleContext as any);
+
+      const whereCall = calls.find((c) => c.method === 'where');
+      expect(whereCall?.args[0]).toContain('"user_id"');
+      expect(whereCall?.args[0]).not.toContain('"userId"');
     });
   });
 

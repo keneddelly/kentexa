@@ -9,6 +9,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, LessThan } from 'typeorm';
@@ -135,6 +136,28 @@ export class ConversationService {
     }
   }
 
+  // Shared by dualWriteMarkRead/dualWriteMessageAttribution/the operational
+  // send+read paths -- the ONE place that maps an AccountRoleType to its
+  // ConversationParticipant kind, so a caller passing e.g. SUPER_AGENT
+  // never silently collapses onto BUYER (the old hardcoded `=== SELLER ?
+  // SELLER : BUYER` ternary this replaces did exactly that for any
+  // non-Seller roleType, including Buyer's own -- harmless only because
+  // Buyer was the only other value ever actually passed until now).
+  private participantKindForRoleType(roleType: AccountRoleType): string {
+    switch (roleType) {
+      case AccountRoleType.SELLER:
+        return ParticipantKind.SELLER;
+      case AccountRoleType.SUPER_AGENT:
+        return ParticipantKind.SUPER_AGENT;
+      case AccountRoleType.TRANSPORT_PROVIDER:
+        return ParticipantKind.TRANSPORT_PROVIDER;
+      case AccountRoleType.AGENT:
+        return ParticipantKind.AGENT;
+      default:
+        return ParticipantKind.BUYER;
+    }
+  }
+
   /**
    * Server-side, trusted resolution of a client-asserted operational
    * target -- never trusts a client-supplied ownerWorkspaceType/Id (or a
@@ -199,7 +222,7 @@ export class ConversationService {
     const participant = await this.participants.ensureAccountRoleParticipant(
       conversationId,
       role.id,
-      roleType === AccountRoleType.SELLER ? ParticipantKind.SELLER : ParticipantKind.BUYER,
+      this.participantKindForRoleType(roleType),
     );
     await this.participants.markRead(participant.id);
   }
@@ -228,14 +251,7 @@ export class ConversationService {
     // AccountRole, never silently as his Seller AccountRole, even though
     // both belong to the same User.
     const ownerRoleType = this.ownerRoleTypeFor(convo);
-    const ownerParticipantKind =
-      ownerRoleType === AccountRoleType.SELLER
-        ? ParticipantKind.SELLER
-        : ownerRoleType === AccountRoleType.SUPER_AGENT
-          ? ParticipantKind.SUPER_AGENT
-          : ownerRoleType === AccountRoleType.TRANSPORT_PROVIDER
-            ? ParticipantKind.TRANSPORT_PROVIDER
-            : ParticipantKind.AGENT;
+    const ownerParticipantKind = this.participantKindForRoleType(ownerRoleType);
 
     const senderRole =
       side === 'seller'
@@ -569,6 +585,17 @@ export class ConversationService {
    * routes call directly) so a future unified "my communications" surface
    * has one obvious place to route through for whatever role is active.
    */
+  // Communication canonicality fix: Super Agent/Transport Provider/Agent
+  // conversations now genuinely exist (getOrCreateOperationalConversationAsBuyer),
+  // each with a real ConversationParticipant of the matching kind -- the
+  // "no participant of any of these kinds is ever created" premise this
+  // switch used to rely on for its empty-state branch no longer holds.
+  private static readonly OPERATIONAL_ROLE_KIND: Partial<Record<AccountRoleType, typeof ParticipantKind.SUPER_AGENT | typeof ParticipantKind.TRANSPORT_PROVIDER | typeof ParticipantKind.AGENT>> = {
+    [AccountRoleType.SUPER_AGENT]: ParticipantKind.SUPER_AGENT,
+    [AccountRoleType.TRANSPORT_PROVIDER]: ParticipantKind.TRANSPORT_PROVIDER,
+    [AccountRoleType.AGENT]: ParticipantKind.AGENT,
+  };
+
   async getScopedConversationsForActiveRole(
     roleContext: RoleContext,
     params: { status?: string; search?: string; page?: number; limit?: number },
@@ -579,25 +606,39 @@ export class ConversationService {
     if (roleContext.roleType === AccountRoleType.BUYER) {
       return this.getScopedBuyerConversations(roleContext.userId, roleContext, params);
     }
-    // Agent/Super Agent/Transport Provider/Service Provider/staff roles:
-    // no ConversationParticipant of any of their kinds is ever created
-    // (nothing in this codebase attaches a conversation to those roles),
-    // so this is a real, permanent, valid empty state -- not a placeholder
-    // for a future query that was simply never written.
+    const operationalKind = ConversationService.OPERATIONAL_ROLE_KIND[roleContext.roleType];
+    if (operationalKind && roleContext.accountRoleId) {
+      const role = await this.accountRoleRepo.findOne({ where: { id: roleContext.accountRoleId } });
+      if (!role) return { conversations: [], total: 0, page: params.page || 1, unread: 0 };
+      return this.getScopedInboxByAccountRole(role, operationalKind, roleContext.userId, params);
+    }
+    // Service Provider/staff roles: no ConversationParticipant of any of
+    // their kinds is ever created (nothing in this codebase attaches a
+    // conversation to those roles), so this is a real, permanent, valid
+    // empty state -- not a placeholder for a future query never written.
     return { conversations: [], total: 0, page: params.page || 1, unread: 0 };
   }
 
   private async getScopedInboxByAccountRole(
     role: AccountRole,
-    kind: typeof ParticipantKind.SELLER | typeof ParticipantKind.BUYER,
+    kind: typeof ParticipantKind.SELLER | typeof ParticipantKind.BUYER | typeof ParticipantKind.SUPER_AGENT | typeof ParticipantKind.TRANSPORT_PROVIDER | typeof ParticipantKind.AGENT,
     legacyOwnerId: number,
     params: { status?: string; search?: string; page?: number; limit?: number; assignedToId?: number },
   ): Promise<ScopedInboxResult> {
     const page = params.page || 1;
     const limit = params.limit || 20;
     const skip = (page - 1) * limit;
-    const legacyFallback = this.flags.isEnabled('LEGACY_COMMUNICATION_READ_FALLBACK');
     const isSeller = kind === ParticipantKind.SELLER;
+    const isBuyer = kind === ParticipantKind.BUYER;
+    // Super Agent/Transport Provider/Agent sit on the "owning side" of a
+    // conversation the same way Seller does (the other side is always the
+    // buyer/customer), but unlike Seller they have no pre-Stage-2 history
+    // -- no LEGACY_UNSCOPED row could ever have correctly represented one
+    // of these roles, since the concept didn't exist yet. The legacy
+    // fallback below is therefore intentionally restricted to Seller/Buyer
+    // only, never these, regardless of the flag: participant-only match.
+    const owningSide = isSeller || !isBuyer; // seller or any operational kind
+    const legacyFallback = (isSeller || isBuyer) && this.flags.isEnabled('LEGACY_COMMUNICATION_READ_FALLBACK');
 
     const qb = this.convoRepo
       .createQueryBuilder('c')
@@ -630,16 +671,16 @@ export class ConversationService {
     }
 
     if (params.status) qb.andWhere('c.status = :status', { status: params.status });
-    if (isSeller && params.search) {
+    if (owningSide && params.search) {
       qb.andWhere('(LOWER(customer.name) LIKE :q OR customer.phone LIKE :q)', { q: `%${params.search.toLowerCase()}%` });
-    } else if (!isSeller && params.search) {
+    } else if (isBuyer && params.search) {
       qb.andWhere('(LOWER(seller.storeName) LIKE :q OR LOWER(seller.name) LIKE :q)', { q: `%${params.search.toLowerCase()}%` });
     }
     if (isSeller && params.assignedToId) {
       qb.andWhere('c.assigned_to_id = :assignedToId', { assignedToId: params.assignedToId });
     }
 
-    const pinCol = isSeller ? 'c.sellerPinned' : 'c.buyerPinned';
+    const pinCol = owningSide ? 'c.sellerPinned' : 'c.buyerPinned';
     const [conversations, total] = await qb
       .orderBy(pinCol, 'DESC')
       .addOrderBy('c.lastMessageAt', 'DESC', 'NULLS LAST')
@@ -648,7 +689,9 @@ export class ConversationService {
       .take(limit)
       .getManyAndCount();
 
-    const unread = this.flags.isEnabled('SCOPED_UNREAD_READ')
+    // Operational (non-Seller, non-Buyer) kinds have no legacy unread
+    // concept to fall back to -- always the scoped, per-participant count.
+    const unread = (!isSeller && !isBuyer) || this.flags.isEnabled('SCOPED_UNREAD_READ')
       ? await this.getScopedUnreadCountForAccountRole(role.id)
       : isSeller
         ? await this.legacySellerUnread(legacyOwnerId)
@@ -1100,6 +1143,9 @@ export class ConversationService {
       relations: { customer: true, assignedTo: true },
     });
     if (!convo) throw new NotFoundException('Conversation not found');
+    if (convo.ownerWorkspaceType && this.ownerRoleTypeFor(convo) !== AccountRoleType.SELLER) {
+      throw new ForbiddenException('This conversation does not belong to your Seller identity');
+    }
 
     const { messages, hasMore } = await this.fetchMessagePage(
       conversationId,
@@ -1118,6 +1164,35 @@ export class ConversationService {
       }
       if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
         this.dualWriteMarkRead(conversationId, sellerId, AccountRoleType.SELLER).catch(() => {});
+      }
+    }
+
+    const [conversation] = await this.attachCommerceProfiles([convo]);
+    return { conversation, messages, hasMore };
+  }
+
+  // ── Get messages in a conversation, as an OPERATIONAL role (Super Agent /
+  // Transport Provider / Agent) ──────────────────────────────────────────
+  async getMessagesAsOperationalRole(
+    roleContext: RoleContext,
+    conversationId: number,
+    before?: number,
+  ) {
+    const convo = await this.convoRepo.findOne({
+      where: { id: conversationId, sellerId: roleContext.userId },
+      relations: { customer: true, assignedTo: true },
+    });
+    if (!convo) throw new NotFoundException('Conversation not found');
+    if (this.ownerRoleTypeFor(convo) !== roleContext.roleType) {
+      throw new ForbiddenException('This conversation does not belong to your current active role');
+    }
+
+    const { messages, hasMore } = await this.fetchMessagePage(conversationId, before);
+
+    if (!before) {
+      await this.convoRepo.update(conversationId, { unreadCount: 0 });
+      if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+        this.dualWriteMarkRead(conversationId, roleContext.userId, roleContext.roleType).catch(() => {});
       }
     }
 
@@ -1181,6 +1256,17 @@ export class ConversationService {
       relations: { customer: true },
     });
     if (!convo) throw new NotFoundException('Conversation not found');
+    // Communication canonicality fix: sellerId (User.id) alone no longer
+    // proves this is a SELLER conversation -- a Super Agent/Transport/Agent
+    // conversation shares the same sellerId. This is the Seller-facing send
+    // path specifically (senderType hardcoded below), so any conversation
+    // whose resolved owner isn't the Seller identity (null/legacy rows are
+    // still Seller-shaped by construction) is out of bounds here, full stop
+    // -- no fallback, matching the same posture as ProductsService/
+    // ClassifiedsService's cross-workspace denial.
+    if (convo.ownerWorkspaceType && this.ownerRoleTypeFor(convo) !== AccountRoleType.SELLER) {
+      throw new ForbiddenException('This conversation does not belong to your Seller identity');
+    }
 
     const msg = this.msgRepo.create({
       conversationId,
@@ -1277,6 +1363,109 @@ export class ConversationService {
       });
     } catch {
       // Non-critical — the message is already durably persisted above.
+    }
+
+    return msg;
+  }
+
+  // ── Send a message, as an OPERATIONAL role (Super Agent / Transport
+  // Provider / Agent) ────────────────────────────────────────────────────
+  // Communication canonicality fix. roleContext is the caller's own
+  // server-resolved active context (RoleContextGuard) -- authority never
+  // comes from a client-supplied sellerId/accountRoleId. The conversation
+  // must both belong to this User (sellerId column) AND be owned by
+  // EXACTLY this active role (ownerRoleTypeFor) -- a Super Agent active
+  // context can never reply into that same person's Seller (or Transport,
+  // or Agent) conversation, and vice versa. No legacy sellerId-only
+  // fallback exists for this path, matching resolveOperationalTarget's own
+  // fail-closed posture.
+  async sendMessageAsOperationalRole(
+    roleContext: RoleContext,
+    conversationId: number,
+    dto: { content?: string; imageUrl?: string; isNote?: boolean; type?: string; metadata?: any },
+    sender: User,
+  ): Promise<ConversationMessage> {
+    const convo = await this.convoRepo.findOne({
+      where: { id: conversationId, sellerId: roleContext.userId },
+      relations: { customer: true },
+    });
+    if (!convo) throw new NotFoundException('Conversation not found');
+    if (this.ownerRoleTypeFor(convo) !== roleContext.roleType) {
+      throw new ForbiddenException('This conversation does not belong to your current active role');
+    }
+
+    const msg = this.msgRepo.create({
+      conversationId,
+      senderType: MessageSenderType.SELLER, // legacy owning-side marker; real attribution is senderParticipantId/senderWorkspaceType below
+      senderId: sender.id,
+      type: dto.type || MessageType.TEXT,
+      content: dto.content || null,
+      imageUrl: dto.imageUrl || null,
+      metadata: dto.metadata || null,
+      isNote: dto.isNote || false,
+    });
+    await this.msgRepo.save(msg);
+
+    await this.convoRepo.update(
+      conversationId,
+      dto.isNote
+        ? { messageCount: () => '"messageCount" + 1' }
+        : {
+            lastMessageAt: new Date(),
+            lastMessagePreview: dto.content?.slice(0, 100) || '[Picha]',
+            status: ConversationStatus.PENDING,
+            messageCount: () => '"messageCount" + 1',
+            buyerUnreadCount: () => '"buyerUnreadCount" + 1',
+          },
+    );
+
+    let buyerRecipientRole: AccountRole | null = null;
+    let ownerSenderRole: AccountRole | null = null;
+    if (this.flags.isEnabled('SCOPED_CONVERSATION_DUAL_WRITE')) {
+      const attribution = await this.dualWriteMessageAttribution(convo, msg, 'seller', !!dto.isNote).catch(
+        () => ({ senderRole: null, recipientRole: null }) as { senderRole: AccountRole | null; recipientRole: AccountRole | null },
+      );
+      buyerRecipientRole = attribution.recipientRole;
+      ownerSenderRole = attribution.senderRole;
+    }
+
+    if (!dto.isNote && convo.customer?.userId) {
+      this.notifService
+        .notify({
+          userId: convo.customer.userId,
+          type: 'message',
+          title: `💬 ${sender.storeName || sender.name || 'Muuzaji'}`,
+          body: dto.content?.slice(0, 80) || '📷 Picha',
+          icon: '💬',
+          // Conversation-id-precise route -- this thread is not the
+          // person's Seller conversation, so the legacy MessageSeller-
+          // {sellerId} deep link would silently reopen the wrong thread.
+          ...(this.flags.isEnabled('SCOPED_NOTIFICATION_DUAL_WRITE') && buyerRecipientRole
+            ? {
+                audienceScope: 'ROLE',
+                recipientAccountRoleId: buyerRecipientRole.id,
+                sourceType: 'conversation_message',
+                sourceId: convo.id,
+                actionRouteKey: 'inbox.buyer.conversation',
+                actionParams: { sellerId: roleContext.userId, conversationId },
+              }
+            : {}),
+        })
+        .catch(() => {});
+    }
+
+    try {
+      this.gateway.emitNewMessage({
+        conversationId,
+        sellerId: roleContext.userId,
+        buyerUserId: convo.customer?.userId ?? null,
+        message: msg,
+        isNote: !!dto.isNote,
+        sellerAccountRoleId: ownerSenderRole?.id ?? null,
+        buyerAccountRoleId: buyerRecipientRole?.id ?? null,
+      });
+    } catch {
+      // Non-critical -- the message is already durably persisted above.
     }
 
     return msg;

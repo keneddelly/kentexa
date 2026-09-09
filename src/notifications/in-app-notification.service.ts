@@ -465,7 +465,7 @@ export class InAppNotificationService {
         .createQueryBuilder()
         .update(Notification)
         .set({ isRead: true, readAt: new Date() })
-        .where('id = :notifId AND "userId" = :userId', { notifId, userId });
+        .where('id = :notifId AND "user_id" = :userId', { notifId, userId });
       this.applyAudienceScopeUpdate(qb, roleContext);
       await qb.execute();
       return;
@@ -482,7 +482,7 @@ export class InAppNotificationService {
         .createQueryBuilder()
         .update(Notification)
         .set({ isRead: true, readAt: new Date() })
-        .where('"userId" = :userId AND "isRead" = false', { userId });
+        .where('"user_id" = :userId AND "isRead" = false', { userId });
       this.applyAudienceScopeUpdate(qb, roleContext);
       await qb.execute();
       return;
