@@ -68,6 +68,15 @@ describe('ConversationGateway (Stage 2 checkpoint H)', () => {
       expect(client.join).not.toHaveBeenCalled();
     });
 
+    it('Business Capability Activation Stage A: disconnects a fresh socket auth attempt when the bound role\'s workspace capability is inactive (ROLE_CONTEXT_CAPABILITY_INACTIVE)', async () => {
+      const { gateway, jwtService, roleContextService, client } = build();
+      jwtService.verify.mockReturnValue({ sub: 1, sid: 's1', rid: 10, rt: 'seller', cv: 1 });
+      roleContextService.resolveContext.mockRejectedValue(new RoleContextException('ROLE_CONTEXT_CAPABILITY_INACTIVE'));
+      await gateway.handleConnection(client);
+      expect(client.disconnect).toHaveBeenCalled();
+      expect(client.join).not.toHaveBeenCalled();
+    });
+
     it('joins account:{userId}, session:{sessionId}, and role:{accountRoleId} for a valid session', async () => {
       const { gateway, jwtService, roleContextService, client } = build();
       jwtService.verify.mockReturnValue({ sub: 1, sid: 'sess-1', rid: 10, rt: 'seller', cv: 1 });

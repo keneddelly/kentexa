@@ -91,8 +91,8 @@ describe('RoleContextService', () => {
       r.roleRepo.find.mockResolvedValue([transportA, transportB]);
       r.workspaceAssignmentRepo.manager.query.mockImplementation((_sql: string, params: any[]) => {
         const [assignmentId] = params;
-        if (assignmentId === 1) return Promise.resolve([{ businessId: 10, workspaceId: 1, businessName: 'BIS' }]);
-        if (assignmentId === 2) return Promise.resolve([{ businessId: 11, workspaceId: 2, businessName: 'Kentexa Logistics' }]);
+        if (assignmentId === 1) return Promise.resolve([{ businessId: 10, workspaceId: 1, businessName: 'BIS', capabilityActive: true }]);
+        if (assignmentId === 2) return Promise.resolve([{ businessId: 11, workspaceId: 2, businessName: 'Kentexa Logistics', capabilityActive: true }]);
         return Promise.resolve([]);
       });
       const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
@@ -231,12 +231,12 @@ describe('RoleContextService', () => {
       const r = repos();
       r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SELLER, profileType: RoleProfileType.SELLER_PROFILE, workspaceAssignmentId: 2 });
       r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
-      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 2, workspaceId: 2 }]);
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 2, workspaceId: 2, capabilityActive: true }]);
       const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
       const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 });
       expect(context.businessId).toBe(2);
       expect(context.workspaceId).toBe(2);
-      expect(r.workspaceAssignmentRepo.manager.query).toHaveBeenCalledWith(expect.any(String), [2]);
+      expect(r.workspaceAssignmentRepo.manager.query).toHaveBeenCalledWith(expect.any(String), [2, 'commerce']);
     });
 
     it('REVOKED MEMBERSHIP / REVOKED WORKSPACE ASSIGNMENT / SUSPENDED WORKSPACE / INVALID CROSS-BUSINESS CHAIN: any broken link -- the query returns zero rows -- fails closed, never null/null', async () => {
@@ -257,6 +257,267 @@ describe('RoleContextService', () => {
         .rejects.toMatchObject({ response: { code: 'ROLE_NOT_ACTIVE' } });
       // The organizational chain is never even queried -- status is checked first.
       expect(r.workspaceAssignmentRepo.manager.query).not.toHaveBeenCalled();
+    });
+  });
+
+  // Business Capability Activation Stage A — required test list items 1-20.
+  describe('BusinessCapability entitlement enforcement (Stage A)', () => {
+    const bound = (roleType: AccountRoleType, profileType: RoleProfileType, workspaceAssignmentId: number) => ({
+      ...role, roleType, profileType, workspaceAssignmentId,
+    });
+
+    it('1. unbound Seller remains valid — capability query never runs', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SELLER, profileType: RoleProfileType.SELLER_PROFILE, workspaceAssignmentId: null });
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 });
+      expect(context.businessId).toBeNull();
+      expect(r.workspaceAssignmentRepo.manager.query).not.toHaveBeenCalled();
+    });
+
+    it('2. unbound Transport Provider remains valid — capability query never runs', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.TRANSPORT_PROVIDER, profileType: RoleProfileType.TRANSPORT_PROVIDER, workspaceAssignmentId: null });
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.TRANSPORT_PROVIDER, cv: 1 });
+      expect(context.businessId).toBeNull();
+      expect(r.workspaceAssignmentRepo.manager.query).not.toHaveBeenCalled();
+    });
+
+    it('3. unbound Super Agent remains valid — capability query never runs', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SUPER_AGENT, profileType: RoleProfileType.SUPER_AGENT, workspaceAssignmentId: null });
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SUPER_AGENT, cv: 1 });
+      expect(context.businessId).toBeNull();
+      expect(r.workspaceAssignmentRepo.manager.query).not.toHaveBeenCalled();
+    });
+
+    it('4. bound Seller + COMMERCE active succeeds', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue(bound(AccountRoleType.SELLER, RoleProfileType.SELLER_PROFILE, 2));
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 2, workspaceId: 2, businessName: 'BiS', capabilityActive: true }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 });
+      expect(context.workspaceId).toBe(2);
+      expect(r.workspaceAssignmentRepo.manager.query).toHaveBeenCalledWith(expect.any(String), [2, 'commerce']);
+    });
+
+    it('5. bound Seller + COMMERCE suspended fails ROLE_CONTEXT_CAPABILITY_INACTIVE', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue(bound(AccountRoleType.SELLER, RoleProfileType.SELLER_PROFILE, 2));
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 2, workspaceId: 2, businessName: 'BiS', capabilityActive: false }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 }))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_CAPABILITY_INACTIVE' } });
+    });
+
+    it('6. bound Seller + COMMERCE revoked fails ROLE_CONTEXT_CAPABILITY_INACTIVE (same as suspended: the EXISTS filter only matches status = active)', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue(bound(AccountRoleType.SELLER, RoleProfileType.SELLER_PROFILE, 2));
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 2, workspaceId: 2, businessName: 'BiS', capabilityActive: false }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 }))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_CAPABILITY_INACTIVE' } });
+    });
+
+    it('7. bound Seller + missing (never granted) COMMERCE fails the same way as suspended/revoked', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue(bound(AccountRoleType.SELLER, RoleProfileType.SELLER_PROFILE, 2));
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 2, workspaceId: 2, businessName: 'BiS', capabilityActive: false }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SELLER, cv: 1 }))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_CAPABILITY_INACTIVE' } });
+    });
+
+    it('8. bound Transport + TRANSPORT active succeeds', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue(bound(AccountRoleType.TRANSPORT_PROVIDER, RoleProfileType.TRANSPORT_PROVIDER, 5));
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 3, workspaceId: 5, businessName: 'ABC Transport', capabilityActive: true }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.TRANSPORT_PROVIDER, cv: 1 });
+      expect(context.workspaceId).toBe(5);
+      expect(r.workspaceAssignmentRepo.manager.query).toHaveBeenCalledWith(expect.any(String), [5, 'transport']);
+    });
+
+    it('9. bound Transport + TRANSPORT suspended fails', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue(bound(AccountRoleType.TRANSPORT_PROVIDER, RoleProfileType.TRANSPORT_PROVIDER, 5));
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 3, workspaceId: 5, businessName: 'ABC Transport', capabilityActive: false }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.TRANSPORT_PROVIDER, cv: 1 }))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_CAPABILITY_INACTIVE' } });
+    });
+
+    it('10. bound Super Agent + SUPER_AGENT active succeeds', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue(bound(AccountRoleType.SUPER_AGENT, RoleProfileType.SUPER_AGENT, 7));
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 4, workspaceId: 7, businessName: 'Kentexa Logistics', capabilityActive: true }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SUPER_AGENT, cv: 1 });
+      expect(context.workspaceId).toBe(7);
+      expect(r.workspaceAssignmentRepo.manager.query).toHaveBeenCalledWith(expect.any(String), [7, 'super_agent']);
+    });
+
+    it('11. bound Super Agent + SUPER_AGENT suspended fails', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue(bound(AccountRoleType.SUPER_AGENT, RoleProfileType.SUPER_AGENT, 7));
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 4, workspaceId: 7, businessName: 'Kentexa Logistics', capabilityActive: false }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      await expect(service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SUPER_AGENT, cv: 1 }))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_CAPABILITY_INACTIVE' } });
+    });
+
+    it('12. Workspace A suspension is isolated to A — Workspace B is a separate query call unaffected by A\'s result', async () => {
+      const r = repos();
+      // Two independent resolveOrganizationalContext calls (simulating AR-A and AR-B) --
+      // each is its own query invocation keyed by its own workspaceAssignmentId, so A's
+      // suspension can only ever affect a query filtered to A's own workspaceId.
+      r.workspaceAssignmentRepo.manager.query.mockImplementation((_sql: string, params: any[]) => {
+        const [assignmentId] = params;
+        if (assignmentId === 100) return Promise.resolve([{ businessId: 10, workspaceId: 100, businessName: 'Business A', capabilityActive: false }]);
+        if (assignmentId === 200) return Promise.resolve([{ businessId: 11, workspaceId: 200, businessName: 'Business B', capabilityActive: true }]);
+        return Promise.resolve([]);
+      });
+      const roleA = bound(AccountRoleType.TRANSPORT_PROVIDER, RoleProfileType.TRANSPORT_PROVIDER, 100);
+      const roleB = { ...bound(AccountRoleType.TRANSPORT_PROVIDER, RoleProfileType.TRANSPORT_PROVIDER, 200), id: 11 };
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+
+      r.roleRepo.findOne.mockResolvedValueOnce(roleA);
+      const serviceA = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      await expect(serviceA.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.TRANSPORT_PROVIDER, cv: 1 }))
+        .rejects.toMatchObject({ response: { code: 'ROLE_CONTEXT_CAPABILITY_INACTIVE' } });
+
+      r.roleRepo.findOne.mockResolvedValueOnce(roleB);
+      r.sessionRepo.findOne.mockResolvedValueOnce({ id: 'session-1', userId: 1, accountRoleId: 11, contextVersion: 1, expiresAt: new Date(Date.now() + 60_000), revokedAt: null });
+      const serviceB = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const contextB = await serviceB.resolveContext({ sub: 1, sid: 'session-1', rid: 11, rt: AccountRoleType.TRANSPORT_PROVIDER, cv: 1 });
+      expect(contextB.workspaceId).toBe(200);
+    });
+
+    it('service_provider has no capability mapping yet — a hypothetical bound context is left ungated (existing pre-Stage-A semantics preserved, not invented)', async () => {
+      const r = repos();
+      r.roleRepo.findOne.mockResolvedValue({ ...role, roleType: AccountRoleType.SERVICE_PROVIDER, profileType: RoleProfileType.USER, workspaceAssignmentId: 9 });
+      r.profileRepo.findOne.mockResolvedValue({ id: role.profileId, userId: role.userId });
+      // capabilityActive: true here simulates what the real SQL's
+      // `CASE WHEN $2::text IS NULL THEN true ...` branch returns for an
+      // unmapped roleType (this unit test mocks the query call, not
+      // Postgres, so it can't execute that CASE itself) -- the actual
+      // proof that the null-capability branch is what's requested is the
+      // `[9, null]` query-args assertion below.
+      r.workspaceAssignmentRepo.manager.query.mockResolvedValue([{ businessId: 6, workspaceId: 9, businessName: 'Some Business', capabilityActive: true }]);
+      const service = new RoleContextService(r.userRepo, r.roleRepo, r.sessionRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.profileRepo, r.workspaceAssignmentRepo, r.sessionEvents);
+      const context = await service.resolveContext({ sub: 1, sid: 'session-1', rid: 10, rt: AccountRoleType.SERVICE_PROVIDER, cv: 1 });
+      expect(context.workspaceId).toBe(9);
+      expect(r.workspaceAssignmentRepo.manager.query).toHaveBeenCalledWith(expect.any(String), [9, null]);
+    });
+  });
+
+  describe('syncOperationalRole — workspace-aware sync (Stage A)', () => {
+    const syncRepos = (existing: any = null) => {
+      const roleRepo: any = {
+        findOne: jest.fn().mockResolvedValue(existing),
+        merge: jest.fn((target, patch) => Object.assign(target, patch)),
+        create: jest.fn((data) => data),
+        save: jest.fn((data) => Promise.resolve({ id: existing?.id ?? 99, ...data })),
+      };
+      const sessionRepo: any = { update: jest.fn() };
+      const other: any = { findOne: jest.fn() };
+      const sessionEvents: any = { emitRevoked: jest.fn() };
+      const service = new RoleContextService(other, roleRepo, sessionRepo, other, other, other, other, other, sessionEvents);
+      return { service, roleRepo, sessionRepo, sessionEvents };
+    };
+
+    it('13. sync with explicit workspaceAssignmentId: null never selects an existing bound row for the same userId+roleType', async () => {
+      const { service, roleRepo } = syncRepos(null);
+      await service.syncOperationalRole({
+        userId: 5, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.SELLER_PROFILE, profileId: 77, workspaceAssignmentId: null,
+      });
+      expect(roleRepo.findOne).toHaveBeenCalledWith({
+        where: expect.objectContaining({ userId: 5, roleType: AccountRoleType.SELLER, workspaceAssignmentId: expect.anything() }),
+      });
+      // The where clause's workspaceAssignmentId must be an IS NULL FindOperator, not the literal value undefined/2.
+      const whereArg = roleRepo.findOne.mock.calls[0][0].where;
+      expect(whereArg.workspaceAssignmentId.type).toBe('isNull');
+    });
+
+    it('14. sync bound Workspace A never mutates the bound Workspace B row for the same user+roleType', async () => {
+      const roleA = { id: 201, userId: 5, roleType: AccountRoleType.TRANSPORT_PROVIDER, status: AccountRoleStatus.ACTIVE, contextVersion: 1, workspaceAssignmentId: 10 };
+      const roleRepo: any = {
+        findOne: jest.fn((opts: any) => {
+          if (opts.where.workspaceAssignmentId === 10) return Promise.resolve(roleA);
+          if (opts.where.workspaceAssignmentId === 20) return Promise.resolve(null); // Workspace B: no row yet
+          return Promise.resolve(null);
+        }),
+        merge: jest.fn((target, patch) => Object.assign(target, patch)),
+        create: jest.fn((data) => data),
+        save: jest.fn((data) => Promise.resolve({ id: data.id ?? 202, ...data })),
+      };
+      const sessionRepo: any = { update: jest.fn() };
+      const other: any = { findOne: jest.fn() };
+      const sessionEvents: any = { emitRevoked: jest.fn() };
+      const service = new RoleContextService(other, roleRepo, sessionRepo, other, other, other, other, other, sessionEvents);
+
+      // Approve Workspace B's Transport application for the same user+roleType.
+      const savedB = await service.syncOperationalRole({
+        userId: 5, roleType: AccountRoleType.TRANSPORT_PROVIDER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.TRANSPORT_PROVIDER, profileId: 88, workspaceAssignmentId: 20,
+      });
+
+      expect(savedB.id).toBe(202); // a NEW row, not roleA's id (201)
+      expect(roleA.status).toBe(AccountRoleStatus.ACTIVE); // roleA untouched
+      expect(sessionEvents.emitRevoked).not.toHaveBeenCalledWith(expect.objectContaining({ accountRoleId: 201 }));
+    });
+
+    it('15. duplicate same-workspace sync is idempotent — resolves to the same AccountRole id, never creates a second row', async () => {
+      const existing = { id: 42, userId: 5, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE, contextVersion: 3, workspaceAssignmentId: 2 };
+      const { service, roleRepo } = syncRepos(existing);
+      const first = await service.syncOperationalRole({
+        userId: 5, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.SELLER_PROFILE, profileId: 77, workspaceAssignmentId: 2,
+      });
+      const second = await service.syncOperationalRole({
+        userId: 5, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.SELLER_PROFILE, profileId: 77, workspaceAssignmentId: 2,
+      });
+      expect(first.id).toBe(42);
+      expect(second.id).toBe(42);
+      expect(roleRepo.create).not.toHaveBeenCalled(); // never took the "create a new row" branch
+    });
+
+    it('omitted workspaceAssignmentId preserves the exact pre-Stage-A lookup ({userId, roleType} only) — required so SellerService.approve() keeps updating an already-migrated bound row (e.g. production AccountRole 38) instead of spawning a stray unbound duplicate', async () => {
+      const existingBoundRole = { id: 38, userId: 2, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE, contextVersion: 1, workspaceAssignmentId: 2 };
+      const { service, roleRepo } = syncRepos(existingBoundRole);
+      const saved = await service.syncOperationalRole({
+        userId: 2, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.SELLER_PROFILE, profileId: 5,
+        // workspaceAssignmentId intentionally omitted -- exactly what SellerService.approve() passes today.
+      });
+      expect(roleRepo.findOne).toHaveBeenCalledWith({ where: { userId: 2, roleType: AccountRoleType.SELLER } });
+      expect(saved.id).toBe(38); // updates the existing bound row, does not orphan it
+      expect(saved.workspaceAssignmentId).toBe(2); // binding preserved, not cleared
+    });
+
+    it('a brand-new row created via explicit workspaceAssignmentId persists it on the created AccountRole', async () => {
+      const { service, roleRepo } = syncRepos(null);
+      const saved = await service.syncOperationalRole({
+        userId: 9, roleType: AccountRoleType.SUPER_AGENT, status: AccountRoleStatus.ACTIVE,
+        profileType: RoleProfileType.SUPER_AGENT, profileId: 3, workspaceAssignmentId: 15,
+      });
+      expect(saved.workspaceAssignmentId).toBe(15);
+      expect(roleRepo.create).toHaveBeenCalledWith(expect.objectContaining({ workspaceAssignmentId: 15 }));
     });
   });
 });
