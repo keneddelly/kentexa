@@ -40,8 +40,14 @@ const PROFILE_TYPE_ICON = {
   brand: '🏷️',
 };
 
+const CAPABILITY_LABEL_BY_ROLE = {
+  seller: 'business_home.tile_commerce',
+  transport_provider: 'business_home.tile_transport',
+  super_agent: 'business_home.tile_super_agent',
+};
+
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,
-  activeProfile, activeContext, onOpenSwitcher, myProfiles, inboxUnread }) => {
+  activeProfile, activeContext, activeBusinessName, onOpenSwitcher, myProfiles, inboxUnread }) => {
   const { t } = useTranslation();
   const semanticIcon = {
     home: HomeIcon, search: SearchIcon, inbox: emojiIcon('💬'), dashboard: emojiIcon('📊'),
@@ -124,7 +130,14 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
           </span>
           <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden',
             textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {activeProfile.displayName}
+            {/* Business-First Frontend Stage 1: "Bishoo Intelligence
+                Systems · Commerce" once the active AccountRole is
+                organizationally bound, instead of just "Seller" --
+                presentation only, activeBusinessName is resolved
+                server-side (roleOptions), never asserted here. */}
+            {activeBusinessName
+              ? `${activeBusinessName} · ${t(CAPABILITY_LABEL_BY_ROLE[activeContext?.roleType] || 'profile_switcher.type_business')}`
+              : activeProfile.displayName}
           </span>
           <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
         </button>

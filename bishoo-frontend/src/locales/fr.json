@@ -813,7 +813,37 @@
     "type_agent": "Agent",
     "type_service": "Prestataire de services",
     "active_label": "Actif",
-    "add_business": "Ajouter une autre entreprise"
+    "add_business": "Ajouter une autre entreprise",
+    "my_businesses_header": "MES ENTREPRISES",
+    "other_roles_header": "AUTRES RÔLES",
+    "unnamed_business": "Entreprise"
+  },
+  "my_businesses": {
+    "title": "Mes entreprises",
+    "load_failed": "Impossible de charger vos entreprises.",
+    "empty_title": "Aucune entreprise",
+    "empty_desc": "Créez une entreprise pour lui donner sa propre identité, son espace de travail et ses capacités.",
+    "status_active": "Actif",
+    "create_button": "Ajouter une entreprise",
+    "create_title": "Créer une entreprise",
+    "create_failed": "Impossible de créer l'entreprise. Veuillez réessayer.",
+    "creating": "Création...",
+    "name_placeholder": "Nom de l'entreprise",
+    "name_required": "Entrez un nom d'entreprise."
+  },
+  "business_home": {
+    "title": "Entreprise",
+    "load_failed": "Impossible de charger les espaces de travail de cette entreprise.",
+    "no_workspaces": "Cette entreprise n'a pas encore d'espace de travail.",
+    "no_capabilities": "Aucune capacité activée pour le moment.",
+    "tile_commerce": "Commerce",
+    "tile_pos": "Point de vente",
+    "tile_transport": "Transport",
+    "tile_super_agent": "Super Agent",
+    "tile_cargo": "Cargo",
+    "state_pending": "En attente",
+    "state_requires_activation": "Activation requise",
+    "state_coming_soon": "Bientôt disponible"
   },
   "become_agent": {
     "page_title": "Devenir agent",

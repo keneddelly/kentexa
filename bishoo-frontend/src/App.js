@@ -11,6 +11,7 @@ import { contextTransitionState } from './context/contextTransition';
 import { getAccessToken } from './api/tokenStore';
 import useNavigationShell from './navigation/NavigationShell';
 import { homeForRole } from './navigation/navigationRegistry';
+import { activeBusinessNameFor } from './context/businessGrouping';
 import { evaluateDestination } from './navigation/navigationPolicy';
 import HomeFeed           from './public/pages/HomeFeed';
 import Welcome            from './public/pages/Welcome';
@@ -61,6 +62,8 @@ import BecomeSeller from './public/pages/BecomeSeller';
 import SellerAccessGate from './public/components/SellerAccessGate';
 import SellerDashboard from './public/pages/SellerDashboard';
 import BusinessDashboard from './public/pages/BusinessDashboard';
+import MyBusinesses from './public/pages/MyBusinesses';
+import BusinessHome from './public/pages/BusinessHome';
 import BecomeBusiness from './public/pages/BecomeBusiness';
 import BecomeAgent from './public/pages/BecomeAgent';
 import AgentDashboard from './public/pages/AgentDashboard';
@@ -229,12 +232,18 @@ function App() {
   };
   useEffect(() => { fetchIdentityStatus(); }, [isLoggedIn]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSwitchProfile = async (accountRoleId) => {
+  // Business-First Frontend Stage 1: `destinationOverride` lets a specific
+  // Business capability tile (e.g. POS, which shares the Seller
+  // AccountRole with the plain Commerce tile but has its own destination
+  // page) land somewhere other than that role's generic home page --
+  // still the exact same atomic switchRole() call, same error/nav-reset
+  // behavior, never a second switching mechanism.
+  const handleSwitchProfile = async (accountRoleId, destinationOverride) => {
     try {
       setRoleSwitchError('');
       const context = await switchRole(accountRoleId);
       setShowProfileSwitcher(false);
-      const transition = contextTransitionState(homeForRole(context.roleType));
+      const transition = contextTransitionState(destinationOverride || homeForRole(context.roleType));
       setNavHistory(transition.navHistory);
       setNavParams(transition.navParams);
       setPage(transition.page);
@@ -484,6 +493,20 @@ function App() {
     onUserUpdated: handleUserUpdated,
     activeProfile, activeProfileId: activeProfile?.id,
     activeContext, availableRoles: roleContext.availableRoles,
+    // Business-First Frontend Stage 1: roleOptions already carries
+    // businessId/businessName/workspaceId per server-issued role
+    // (rolePresentation.js) -- Business Home/My Businesses read it for
+    // presentation only, never as an authority source. onSwitchAccountRole
+    // is the SAME atomic switch handler the profile switcher already uses
+    // (preserves old context on failure, resets nav on success) -- no
+    // second switching mechanism.
+    roleOptions, onSwitchAccountRole: handleSwitchProfile,
+    // Business-First Frontend Stage 1: the current Business's name, for
+    // shell/header presentation only ("Bishoo Intelligence Systems /
+    // Commerce" instead of just "Seller"). Resolved from roleOptions
+    // (which carries businessName) matched against activeContext.accountRoleId
+    // -- never persisted as its own authority, never used to derive access.
+    activeBusinessName: activeBusinessNameFor(activeContext, roleOptions),
     capabilities: roleContext.capabilities, contextEpoch,
     onOpenMoment: () => {
       if (!isLoggedIn) { handleNavigate('PublicLogin'); return; }
@@ -591,6 +614,8 @@ function App() {
       const [rawId, suffix] = page.split('ServiceDetail-')[1].split('-');
       return <ServiceDetail {...publicProps} serviceId={Number(rawId)} openComments={suffix === 'comments'} />;
     }
+    if (page.startsWith('BusinessHome-'))
+      return requireLogin(<BusinessHome {...publicProps} businessId={Number(page.split('BusinessHome-')[1])} />);
     if (page.startsWith('SellerStore-'))
       return <SellerStore {...publicProps} sellerId={page.split('SellerStore-')[1]} />;
     // Store- is a legacy alias — route it through the same CommerceProfile
@@ -714,6 +739,8 @@ function App() {
       case 'StoreSettings':     return requireVerifiedSeller(<StoreSettings {...publicProps} userId={activeContext?.userId} />);
       case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
+      case 'MyBusinesses':      return requireLogin(<MyBusinesses {...publicProps} />);
+      case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
       case 'SellerProducts':    return requireVerifiedSeller(<SellerProducts {...publicProps} />);
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
@@ -836,6 +863,7 @@ function App() {
           currentUser={currentUser}
           onPostClick={() => setShowPostModal(true)}
           activeProfile={activeProfile}
+          activeBusinessName={activeBusinessNameFor(activeContext, roleOptions)}
           myProfiles={myProfiles}
           onOpenSwitcher={() => setShowProfileSwitcher(true)}
           switching={roleSwitching}
@@ -848,6 +876,7 @@ function App() {
           onSwitch={handleSwitchProfile}
           onClose={() => setShowProfileSwitcher(false)}
           onNavigate={handleNavigate}
+          onOpenBusiness={(businessId) => { setShowProfileSwitcher(false); handleNavigate(`BusinessHome-${businessId}`); }}
           switching={roleSwitching}
           error={roleSwitchError}
         />

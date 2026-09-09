@@ -2,7 +2,7 @@ export const DESTINATION_KIND = Object.freeze({ PUBLIC: 'public', ACCOUNT: 'acco
 
 const destination = (id, kind, roles = [], capabilities = []) => ({ id, page: id, kind, roles, capabilities });
 const PUBLIC_PAGES = ['Home','AboutUs','ContactUs','HowItWorks','Privacy','PrivacyPolicy','Terms','TermsAndConditions','FlashSales','PickupPoints','ClassifiedDetail','ServiceDetail','ProductDetail','VerifyProduct','RouteCoverageMap','Store','Stores','ClassifiedsPublic','PublicLogin','Register','Search','Discover','Cart','BecomeSeller','BecomeSellerInfo','BecomeAgent','BecomeSuperAgentInfo','BecomeBusiness','VerifyReceipt','PayInvoice','TrackParcel','Services','Listings'];
-const ACCOUNT_PAGES = ['Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','Checkout','Wishlist','SellerInbox','BusinessDashboard','BrandDashboard','BrandCatalog','PostService'];
+const ACCOUNT_PAGES = ['Activity','RoleActivation','Onboarding','AddProfilePhoto','MyProfile','MyWarranties','OrderTracking','MyOrders','CustomerProfile','Checkout','Wishlist','SellerInbox','BusinessDashboard','BrandDashboard','BrandCatalog','PostService','MyBusinesses','BusinessHome'];
 const SELLER_PAGES = ['SellerDashboard','SellerCustomers','SellerPayouts','SellerWallet','StoreSettings','SellerProducts','MyBrands','POS','SellerClassifieds','SellerOrders','SellerShipping','SendShipment','SellerInvoices','SellerShipment','SellerWarrantyClaims','SellerAnalytics','SellerTeam'];
 const AGENT_PAGES = ['AgentDashboard','AgentOrderDashboard','AgentEarnings','AgentScorecard'];
 const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','BatchHandoff','SuperAgentParcel','SuperAgentSettings'];
@@ -32,6 +32,7 @@ const DYNAMIC_DESTINATIONS = [
   [/^MessageOperational-/, 'SellerInbox'],
   [/^SellerInbox-/, 'SellerInbox'], [/^SellerOrders-/, 'SellerOrders'], [/^SellerPayouts-/, 'SellerPayouts'], [/^SellerWarrantyClaims-/, 'SellerWarrantyClaims'],
   [/^EditProduct-/, 'SellerProducts'], [/^EditClassified-/, 'SellerClassifieds'], [/^BuyerParcelAction-/, 'MyOrders'], [/^BatchHandoff-/, 'BatchHandoff'],
+  [/^BusinessHome-/, 'BusinessHome'],
 ];
 
 export const destinationForPage = (page) => {

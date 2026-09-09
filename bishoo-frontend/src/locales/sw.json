@@ -663,7 +663,37 @@
     "type_agent": "Wakala",
     "type_service": "Mtoa huduma",
     "active_label": "Inatumika",
-    "add_business": "Ongeza biashara nyingine"
+    "add_business": "Ongeza biashara nyingine",
+    "my_businesses_header": "BIASHARA ZANGU",
+    "other_roles_header": "MAJUKUMU MENGINE",
+    "unnamed_business": "Biashara"
+  },
+  "my_businesses": {
+    "title": "Biashara Zangu",
+    "load_failed": "Imeshindikana kupakia biashara zako.",
+    "empty_title": "Hakuna biashara bado",
+    "empty_desc": "Unda Biashara ili iwe na kitambulisho, nafasi ya kazi, na uwezo wake.",
+    "status_active": "Inatumika",
+    "create_button": "Ongeza Biashara",
+    "create_title": "Unda Biashara",
+    "create_failed": "Imeshindikana kuunda biashara. Tafadhali jaribu tena.",
+    "creating": "Inaunda...",
+    "name_placeholder": "Jina la biashara",
+    "name_required": "Weka jina la biashara."
+  },
+  "business_home": {
+    "title": "Biashara",
+    "load_failed": "Imeshindikana kupakia nafasi za kazi za biashara hii.",
+    "no_workspaces": "Biashara hii haina nafasi za kazi bado.",
+    "no_capabilities": "Hakuna uwezo ulioamilishwa bado.",
+    "tile_commerce": "Biashara",
+    "tile_pos": "POS",
+    "tile_transport": "Usafiri",
+    "tile_super_agent": "Super Agent",
+    "tile_cargo": "Mizigo",
+    "state_pending": "Inasubiri",
+    "state_requires_activation": "Inahitaji uamilishaji",
+    "state_coming_soon": "Inakuja hivi karibuni"
   },
   "become_agent": {
     "page_title": "Kuwa Wakala",

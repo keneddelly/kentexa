@@ -817,7 +817,37 @@
     "type_agent": "Agent",
     "type_service": "Service provider",
     "active_label": "Active",
-    "add_business": "Add another business"
+    "add_business": "Add another business",
+    "my_businesses_header": "MY BUSINESSES",
+    "other_roles_header": "OTHER ROLES",
+    "unnamed_business": "Business"
+  },
+  "my_businesses": {
+    "title": "My Businesses",
+    "load_failed": "Couldn't load your businesses.",
+    "empty_title": "No businesses yet",
+    "empty_desc": "Create a Business to give it its own identity, workspace, and capabilities.",
+    "status_active": "Active",
+    "create_button": "Add Business",
+    "create_title": "Create a Business",
+    "create_failed": "Couldn't create the business. Please try again.",
+    "creating": "Creating...",
+    "name_placeholder": "Business name",
+    "name_required": "Enter a business name."
+  },
+  "business_home": {
+    "title": "Business",
+    "load_failed": "Couldn't load this business's workspaces.",
+    "no_workspaces": "This business has no workspaces yet.",
+    "no_capabilities": "No capabilities enabled yet.",
+    "tile_commerce": "Commerce",
+    "tile_pos": "POS",
+    "tile_transport": "Transport",
+    "tile_super_agent": "Super Agent",
+    "tile_cargo": "Cargo",
+    "state_pending": "Pending",
+    "state_requires_activation": "Requires activation",
+    "state_coming_soon": "Coming soon"
   },
   "become_agent": {
     "page_title": "Become an Agent",

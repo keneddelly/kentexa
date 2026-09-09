@@ -41,6 +41,15 @@ export const presentationForRole = (role, profiles = [], user = null) => {
     displayName: presentation?.displayName || user?.name || role.roleType,
     photoUrl: presentation?.photoUrl || user?.avatarUrl || null,
     presentationResolved: !!presentation,
+    // Multi-Business Authority — Business-First Frontend Stage 1. Passed
+    // through verbatim from the server's own /auth/roles /auth/switch-role
+    // response (RoleContextService.listRoles/resolveContext) -- never
+    // computed or guessed here. null for every role not organizationally
+    // bound (buyer, and any operational role not yet linked to a Business
+    // workspace) -- a legitimate, permanent state, not a loading gap.
+    businessId: role.businessId ?? null,
+    businessName: role.businessName ?? null,
+    workspaceId: role.workspaceId ?? null,
   };
 };
 
