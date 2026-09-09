@@ -841,9 +841,44 @@ export class SellerService {
 
     profile.status = SellerStatus.APPROVED;
     if (verificationTier) profile.verificationTier = verificationTier;
-    await this.userRepo.update(profile.user.id, {
-      role: UserRole.SELLER,
-      activeRoles: mergeActiveRole(profile.user.activeRoles, 'seller'),
+
+    // Business Capability Activation Stage A2: User.role and SellerProfile
+    // are the two remaining writes that must agree with each other -- if
+    // one persisted and the other didn't, an admin list could show
+    // "PENDING" while User.role already says SELLER, or vice versa. A
+    // shared transaction closes that specific window. Deliberately does
+    // NOT try to also enclose the syncOperationalRole() call above: that
+    // would require threading a shared EntityManager through
+    // RoleContextService (a different module/service), which is real
+    // cross-module surface, not "the smallest transaction boundary" this
+    // stage's mandate allows -- see this method's own Stage A2 note below
+    // for why the AccountRole-first ordering already makes that remaining,
+    // narrower gap safe without one.
+    //
+    // Stage A2 traced the actual consequence of AccountRole having already
+    // gone ACTIVE (line above) while this transaction has not yet run:
+    // RoleContextService.isProfileValid()/SellerScopeService.resolve() —
+    // the ONLY things that grant real operating authority — check that the
+    // AccountRole is ACTIVE and its profile exists/belongs to this user;
+    // neither reads SellerProfile.status or User.role at all. So the human
+    // already legitimately earned this authority (the entitlement check
+    // above already passed) the instant syncOperationalRole() committed;
+    // this transaction only keeps the two ADMINISTRATIVE/display fields
+    // (SellerProfile.status, User.role) honest with each other, not with
+    // authorization. SellerProfile.status IS read by
+    // VerificationService.getLevel() for the SEPARATE Feature-gating system
+    // (level2 requires APPROVED) — so a failure here can only ever
+    // under-grant those specific Feature-gated actions (create product,
+    // etc.) until retried, never over-grant. syncOperationalRole() is
+    // idempotent (Stage A1), so a retried approve() call — or even an
+    // admin's reject() on the same profile, see reject()'s own precedent —
+    // correctly reconciles to a fully consistent final state either way.
+    await this.profileRepo.manager.transaction(async (manager) => {
+      await manager.getRepository(User).update(profile.user.id, {
+        role: UserRole.SELLER,
+        activeRoles: mergeActiveRole(profile.user.activeRoles, 'seller'),
+      });
+      await manager.getRepository(SellerProfile).save(profile);
     });
     await this.commerceProfiles
       .syncStatusByLink('sellerProfileId', profile.id, CommerceProfileStatus.ACTIVE)
@@ -887,7 +922,9 @@ export class SellerService {
         .catch(() => {});
     }
 
-    return this.profileRepo.save(profile);
+    // Already persisted inside the transaction above -- returning the
+    // in-memory object here (not re-saving) avoids a redundant second write.
+    return profile;
   }
 
   // ── Admin: reject seller ──────────────────────────────────────────────────
@@ -903,6 +940,16 @@ export class SellerService {
     // rejection targets the exact organizational AccountRole (never an
     // ambiguous userId+roleType lookup that could, once multi-business
     // Seller applications are live, land on a DIFFERENT Business's role).
+    //
+    // Stage A2 review: an ORGANIZATIONAL profile whose workspace cannot be
+    // resolved (workspaceAssignmentId stays null in that branch, distinct
+    // from the LEGACY case) has the sync SKIPPED ENTIRELY below, rather
+    // than passed `workspaceAssignmentId: null` -- passing explicit null
+    // would target the UNBOUND slot, which does not correspond to this
+    // application's real (unresolvable) Business binding at all. Rejecting
+    // a broken application must still close it (SellerProfile always
+    // becomes REJECTED below) without fabricating a misleading unbound
+    // identity row that was never the actual application.
     const context = await this.resolveSellerOrganizationalContext(profile);
 
     profile.status = SellerStatus.REJECTED;
@@ -911,14 +958,16 @@ export class SellerService {
       .syncStatusByLink('sellerProfileId', profile.id, CommerceProfileStatus.REJECTED)
       .catch(() => {});
     const saved = await this.profileRepo.save(profile);
-    await this.roleContextService.syncOperationalRole({
-      userId: profile.user.id,
-      roleType: AccountRoleType.SELLER,
-      status: AccountRoleStatus.REJECTED,
-      profileType: RoleProfileType.SELLER_PROFILE,
-      profileId: profile.id,
-      workspaceAssignmentId: context.kind === 'organizational' ? context.workspaceAssignmentId : null,
-    }).catch(() => {});
+    if (context.kind === 'legacy' || context.workspaceAssignmentId != null) {
+      await this.roleContextService.syncOperationalRole({
+        userId: profile.user.id,
+        roleType: AccountRoleType.SELLER,
+        status: AccountRoleStatus.REJECTED,
+        profileType: RoleProfileType.SELLER_PROFILE,
+        profileId: profile.id,
+        workspaceAssignmentId: context.kind === 'organizational' ? context.workspaceAssignmentId : null,
+      }).catch(() => {});
+    }
     return saved;
   }
 
@@ -928,6 +977,47 @@ export class SellerService {
       where: { id: profileId },
     });
     if (!profile) throw new NotFoundException('Seller profile not found');
+
+    // Business Capability Activation Stage A2 — the critical suspension
+    // finding: suspend() previously never touched the Seller AccountRole at
+    // all. SellerProfile.status flipping to SUSPENDED does NOT, by itself,
+    // stop RoleContextService.isProfileValid()/SellerScopeService.resolve()
+    // from treating this user's existing ACTIVE AccountRole as valid Seller
+    // authority -- isProfileValid() only checks that the linked SellerProfile
+    // EXISTS and belongs to this user, never its status. The separate
+    // VerificationService.getLevel() Feature-gating system does read
+    // SellerProfile.status (level2 requires APPROVED), so a suspended
+    // seller was already blocked from Feature-gated actions like creating
+    // new products -- but the actual authorization gate (AccountRole/
+    // RoleContext/SellerScopeService.resolve()'s "owns own business" check)
+    // stayed fully valid, meaning a suspended seller could still resolve as
+    // Seller, keep switching into that role, and act on anything not
+    // specifically Feature-gated. Closed here the same way approve()/
+    // reject() resolve the correct target: deterministic workspace
+    // resolution, never an ambiguous userId+roleType lookup, never
+    // account-wide, never another Business's or workspace's Seller role.
+    //
+    // Runs BEFORE SellerProfile/User are mutated (mirrors approve()'s
+    // Stage A1 ordering): a suspension that fails to reach the AccountRole
+    // must surface as a real suspend() error, never a silent success that
+    // leaves SellerProfile SUSPENDED while the AccountRole -- the actual
+    // authorization gate -- stays ACTIVE, which is precisely the gap this
+    // stage closes. Skipped entirely (never fabricates a misleading unbound
+    // row), matching reject()'s own Stage A2 precedent, when an
+    // organizational profile's workspace cannot be resolved.
+    const context = await this.resolveSellerOrganizationalContext(profile);
+    if (context.kind === 'legacy' || context.workspaceAssignmentId != null) {
+      await this.roleContextService.syncOperationalRole({
+        userId: profile.user.id,
+        roleType: AccountRoleType.SELLER,
+        status: AccountRoleStatus.SUSPENDED,
+        profileType: RoleProfileType.SELLER_PROFILE,
+        profileId: profile.id,
+        workspaceAssignmentId: context.kind === 'organizational' ? context.workspaceAssignmentId : null,
+        statusReason: reason,
+      });
+    }
+
     profile.status = SellerStatus.SUSPENDED;
     profile.rejectionReason = reason;
     await this.commerceProfiles

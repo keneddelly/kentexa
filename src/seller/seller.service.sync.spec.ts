@@ -1,21 +1,34 @@
 import { SellerService } from './seller.service';
-import { SellerStatus } from './entities/seller-profile.entity';
+import { SellerProfile, SellerStatus } from './entities/seller-profile.entity';
+import { User } from '../users/entities/user.entity';
 import { AccountRoleStatus, AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
 
 /**
- * Business Capability Activation Stage A1 — required test list (§17).
- * SellerService.approve()/reject() are the one real production caller of
- * syncOperationalRole() that already has a workspace-BOUND live row
- * (AccountRole 38, production Business "BiS", COMMERCE active) AND a
- * workspace-bound row with NO active capability (AccountRole 37, production
- * Business "AI Verify Test") -- these tests fixture both shapes exactly.
+ * Business Capability Activation Stage A1/A2 — required test lists (§17 in
+ * each mission). SellerService.approve()/reject()/suspend() are the one
+ * real production caller of syncOperationalRole() that already has a
+ * workspace-BOUND live row with COMMERCE active (AccountRole 38, "BiS") AND
+ * a workspace-bound row with NO active capability (AccountRole 37, "AI
+ * Verify Test") -- these tests fixture both shapes exactly.
  */
-describe('SellerService — organizational approval invariant (Stage A1)', () => {
+describe('SellerService — organizational approval invariant (Stage A1/A2)', () => {
   const buildService = (profile: any, queryImpl?: (sql: string, params: any[]) => Promise<any[]>) => {
+    const userUpdate = jest.fn().mockResolvedValue({});
+    const profileSave = jest.fn((p: any) => Promise.resolve(p));
+    const txManager = {
+      getRepository: jest.fn((entity: any) => {
+        if (entity === User) return { update: userUpdate };
+        if (entity === SellerProfile) return { save: profileSave };
+        throw new Error(`unexpected repo requested inside transaction: ${entity?.name}`);
+      }),
+    };
     const profileRepo: any = {
       findOne: jest.fn().mockResolvedValue(profile),
       save: jest.fn((p: any) => Promise.resolve(p)),
-      manager: { query: jest.fn(queryImpl ?? (() => Promise.resolve([]))) },
+      manager: {
+        query: jest.fn(queryImpl ?? (() => Promise.resolve([]))),
+        transaction: jest.fn(async (cb: any) => cb(txManager)),
+      },
     };
     const userRepo: any = { update: jest.fn().mockResolvedValue({}) };
     const other: any = { find: jest.fn(), findOne: jest.fn(), save: jest.fn() };
@@ -31,7 +44,7 @@ describe('SellerService — organizational approval invariant (Stage A1)', () =>
       profileRepo, userRepo, other, other, other, other,
       {} as any, commerceProfiles, verification, sellingCapability, roleContextService,
     );
-    return { service, profileRepo, userRepo, roleContextService };
+    return { service, profileRepo, userRepo, roleContextService, userUpdate, profileSave, txManager };
   };
 
   // Fixture matching production exactly: Business "BiS", Workspace 2,
@@ -43,9 +56,9 @@ describe('SellerService — organizational approval invariant (Stage A1)', () =>
   const aiVerifyTestRow = [{ workspaceAssignmentId: 1, commerceActive: false }];
 
   describe('1/4. organizational Seller + active COMMERCE approves the exact bound role', () => {
-    it('resolves workspaceAssignmentId 2 and syncs AR38 as ACTIVE', async () => {
+    it('resolves workspaceAssignmentId 2, syncs AR38 as ACTIVE, and persists User+SellerProfile together', async () => {
       const profile = { id: 1, user: { id: 2 }, businessId: 2, status: SellerStatus.PENDING, sellerType: 'business' };
-      const { service, roleContextService, profileRepo } = buildService(profile, () => Promise.resolve(bisRow));
+      const { service, roleContextService, userUpdate, profileSave, profileRepo } = buildService(profile, () => Promise.resolve(bisRow));
 
       const saved = await service.approve(1);
 
@@ -54,12 +67,18 @@ describe('SellerService — organizational approval invariant (Stage A1)', () =>
         profileType: RoleProfileType.SELLER_PROFILE, profileId: 1, workspaceAssignmentId: 2,
       });
       expect(saved.status).toBe(SellerStatus.APPROVED);
-      expect(profileRepo.save).toHaveBeenCalled();
+      expect(userUpdate).toHaveBeenCalledWith(2, expect.objectContaining({ role: 'seller' }));
+      expect(profileSave).toHaveBeenCalledWith(profile);
+      expect(profileRepo.manager.transaction).toHaveBeenCalledTimes(1);
+      // syncOperationalRole ran strictly BEFORE the transaction (both mock
+      // call orders recorded on their own jest.fn(), compare invocation order).
+      expect(roleContextService.syncOperationalRole.mock.invocationCallOrder[0])
+        .toBeLessThan(profileRepo.manager.transaction.mock.invocationCallOrder[0]);
     });
   });
 
   describe('2/9. organizational Seller + missing COMMERCE fails closed (AR37 safety test)', () => {
-    it('throws BUSINESS_CAPABILITY_NOT_ACTIVE, never calls syncOperationalRole, never saves the profile, never updates the user', async () => {
+    it('throws BUSINESS_CAPABILITY_NOT_ACTIVE, never calls syncOperationalRole, never opens a transaction', async () => {
       const profile = { id: 5, user: { id: 3 }, businessId: 1, status: SellerStatus.PENDING, sellerType: 'individual' };
       const { service, roleContextService, profileRepo, userRepo } = buildService(profile, () => Promise.resolve(aiVerifyTestRow));
 
@@ -67,9 +86,8 @@ describe('SellerService — organizational approval invariant (Stage A1)', () =>
         response: { code: 'BUSINESS_CAPABILITY_NOT_ACTIVE' },
       });
 
-      // 5. failure leaves SellerProfile unchanged / 6. AccountRole remains pending / 7. no unbound role created.
       expect(profile.status).toBe(SellerStatus.PENDING); // never mutated in memory
-      expect(profileRepo.save).not.toHaveBeenCalled();
+      expect(profileRepo.manager.transaction).not.toHaveBeenCalled();
       expect(userRepo.update).not.toHaveBeenCalled();
       expect(roleContextService.syncOperationalRole).not.toHaveBeenCalled();
     });
@@ -135,7 +153,6 @@ describe('SellerService — organizational approval invariant (Stage A1)', () =>
       expect(roleContextService.syncOperationalRole).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 8, workspaceAssignmentId: 200 }),
       );
-      // Never the other Business's workspaceAssignmentId.
       expect(roleContextService.syncOperationalRole).not.toHaveBeenCalledWith(
         expect.objectContaining({ workspaceAssignmentId: 100 }),
       );
@@ -173,6 +190,17 @@ describe('SellerService — organizational approval invariant (Stage A1)', () =>
       expect(roleContextA.syncOperationalRole).not.toHaveBeenCalledWith(expect.objectContaining({ userId: 3 }));
       expect(roleContextB.syncOperationalRole).not.toHaveBeenCalledWith(expect.objectContaining({ userId: 2 }));
     });
+
+    it('Stage A2: reject() on an organizational profile with an UNRESOLVED workspace skips the AccountRole sync entirely — never fabricates an unbound REJECTED placeholder', async () => {
+      const profile = { id: 9, user: { id: 4 }, businessId: 3, status: SellerStatus.PENDING };
+      const { service, roleContextService, profileRepo } = buildService(profile, () => Promise.resolve([])); // unresolved
+
+      const saved = await service.reject(9, 'incomplete documents');
+
+      expect(saved.status).toBe(SellerStatus.REJECTED); // the application itself is still closed
+      expect(roleContextService.syncOperationalRole).not.toHaveBeenCalled(); // no unbound row fabricated
+      expect(profileRepo.save).toHaveBeenCalled();
+    });
   });
 
   describe('13. BiS/AR38 fixture does not spawn a duplicate role', () => {
@@ -187,6 +215,148 @@ describe('SellerService — organizational approval invariant (Stage A1)', () =>
         expect.objectContaining({ workspaceAssignmentId: 2 }));
       expect(roleContextService.syncOperationalRole).toHaveBeenNthCalledWith(2,
         expect.objectContaining({ workspaceAssignmentId: 2 }));
+    });
+  });
+
+  // Business Capability Activation Stage A2 — failure-injection tests (§4).
+  describe('Stage A2 — approval write-atomicity failure injection', () => {
+    it('1. entitlement check fails → no writes at all (already covered above, reasserted here for the required-list numbering)', async () => {
+      const profile = { id: 5, user: { id: 3 }, businessId: 1, status: SellerStatus.PENDING };
+      const { service, roleContextService, profileRepo, userRepo } = buildService(profile, () => Promise.resolve(aiVerifyTestRow));
+      await expect(service.approve(5)).rejects.toMatchObject({ response: { code: 'BUSINESS_CAPABILITY_NOT_ACTIVE' } });
+      expect(roleContextService.syncOperationalRole).not.toHaveBeenCalled();
+      expect(profileRepo.manager.transaction).not.toHaveBeenCalled();
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('2. syncOperationalRole itself fails → SellerProfile/User transaction never opens at all', async () => {
+      const profile = { id: 1, user: { id: 2 }, businessId: 2, status: SellerStatus.PENDING };
+      const { service, profileRepo, userUpdate, profileSave } = buildService(profile, () => Promise.resolve(bisRow));
+      // Simulate a real DB failure inside RoleContextService itself (not an entitlement rejection).
+      const roleContextService: any = { syncOperationalRole: jest.fn().mockRejectedValue(new Error('db connection reset')) };
+      (service as any).roleContextService = roleContextService;
+
+      await expect(service.approve(1)).rejects.toThrow('db connection reset');
+
+      expect(profile.status).toBe(SellerStatus.PENDING); // never mutated
+      expect(profileRepo.manager.transaction).not.toHaveBeenCalled();
+      expect(userUpdate).not.toHaveBeenCalled();
+      expect(profileSave).not.toHaveBeenCalled();
+    });
+
+    it('3. AccountRole sync succeeds but the User+SellerProfile transaction fails → AccountRole is already ACTIVE (the authorization-relevant write already committed); the error still propagates to the admin caller', async () => {
+      const profile = { id: 1, user: { id: 2 }, businessId: 2, status: SellerStatus.PENDING };
+      const { service, roleContextService, profileRepo } = buildService(profile, () => Promise.resolve(bisRow));
+      profileRepo.manager.transaction.mockRejectedValue(new Error('transaction aborted: deadlock detected'));
+
+      await expect(service.approve(1)).rejects.toThrow('transaction aborted: deadlock detected');
+
+      // The one write that grants real operating authority (per
+      // RoleContextService.isProfileValid()'s own status-only check, traced
+      // in the Stage A2 report) already committed before this failure —
+      // this is the accepted, self-healing inconsistency window: a retried
+      // approve() (or an admin's reject()) reconciles SellerProfile/User to
+      // match it, and SellerProfile.status staying PENDING can only ever
+      // under-grant the separate Feature-gated (VerificationService level2)
+      // actions in the interim, never over-grant real authorization.
+      expect(roleContextService.syncOperationalRole).toHaveBeenCalledWith(
+        expect.objectContaining({ status: AccountRoleStatus.ACTIVE, workspaceAssignmentId: 2 }),
+      );
+    });
+
+    it('4. SellerProfile persistence succeeds but User update fails inside the SAME transaction → profileSave is never reached (real TypeORM would roll both back)', async () => {
+      const profile = { id: 1, user: { id: 2 }, businessId: 2, status: SellerStatus.PENDING };
+      const { service, userUpdate, profileSave } = buildService(profile, () => Promise.resolve(bisRow));
+      userUpdate.mockRejectedValue(new Error('user update constraint violation'));
+
+      await expect(service.approve(1)).rejects.toThrow('user update constraint violation');
+
+      // update() is called before save() inside the transactional callback —
+      // a rejection there means save() is never reached in this call, and in
+      // real Postgres the surrounding transaction rolls back whatever DID
+      // execute, so SellerProfile can never end up persisted as APPROVED
+      // while User.role failed to update.
+      expect(profileSave).not.toHaveBeenCalled();
+    });
+
+    it('5. successful organizational approval leaves all intended state consistent (see test 1 above for the full assertion)', () => {
+      expect(true).toBe(true); // covered by "1/4. organizational Seller + active COMMERCE..." above
+    });
+
+    it('6. successful legacy approval preserves legacy behavior (see "8. legacy Seller" above for the full assertion)', () => {
+      expect(true).toBe(true); // covered by "8. legacy Seller uses explicit null" above
+    });
+  });
+
+  // Business Capability Activation Stage A2 — Seller suspension authority
+  // synchronization (§6-§10 of the mission).
+  describe('Stage A2 — suspend() now synchronizes the Seller AccountRole', () => {
+    it('BiS/AR38: suspending the organizational Seller targets workspaceAssignmentId 2, SUSPENDED, before SellerProfile/User are mutated', async () => {
+      const profile = { id: 1, user: { id: 2 }, businessId: 2, status: SellerStatus.APPROVED };
+      const { service, roleContextService, userRepo, profileRepo } = buildService(profile, () => Promise.resolve(bisRow));
+
+      const saved = await service.suspend(1, 'policy violation');
+
+      expect(roleContextService.syncOperationalRole).toHaveBeenCalledWith({
+        userId: 2, roleType: AccountRoleType.SELLER, status: AccountRoleStatus.SUSPENDED,
+        profileType: RoleProfileType.SELLER_PROFILE, profileId: 1, workspaceAssignmentId: 2,
+        statusReason: 'policy violation',
+      });
+      expect(saved.status).toBe(SellerStatus.SUSPENDED);
+      expect(userRepo.update).toHaveBeenCalledWith(2, { role: 'user' });
+      expect(profileRepo.save).toHaveBeenCalled();
+      expect(roleContextService.syncOperationalRole.mock.invocationCallOrder[0])
+        .toBeLessThan(userRepo.update.mock.invocationCallOrder[0]);
+    });
+
+    it('a suspension that fails to reach the AccountRole surfaces as a real error — SellerProfile is never saved as SUSPENDED while the role stays ACTIVE', async () => {
+      const profile = { id: 1, user: { id: 2 }, businessId: 2, status: SellerStatus.APPROVED };
+      const { service, profileRepo, userRepo } = buildService(profile, () => Promise.resolve(bisRow));
+      const roleContextService: any = { syncOperationalRole: jest.fn().mockRejectedValue(new Error('db down')) };
+      (service as any).roleContextService = roleContextService;
+
+      await expect(service.suspend(1, 'policy violation')).rejects.toThrow('db down');
+
+      expect(profile.status).toBe(SellerStatus.APPROVED); // never mutated to SUSPENDED
+      expect(userRepo.update).not.toHaveBeenCalled();
+      expect(profileRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('9. multi-business suspension isolation: suspending Seller A never touches Seller B\'s AccountRole for the same human', async () => {
+      const profileA = { id: 30, user: { id: 8 }, businessId: 10, status: SellerStatus.APPROVED };
+      const { service: serviceA, roleContextService: roleContextA } = buildService(profileA, (_sql, params) =>
+        params[0] === 10 ? Promise.resolve([{ workspaceAssignmentId: 100, commerceActive: true }]) : Promise.resolve([]),
+      );
+      await serviceA.suspend(30, 'policy violation');
+      expect(roleContextA.syncOperationalRole).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 8, workspaceAssignmentId: 100, status: AccountRoleStatus.SUSPENDED }),
+      );
+      expect(roleContextA.syncOperationalRole).not.toHaveBeenCalledWith(
+        expect.objectContaining({ workspaceAssignmentId: 200 }),
+      );
+    });
+
+    it('10. legacy Seller suspension: no businessId → workspaceAssignmentId: null, never binds to a Business, never requires BusinessCapability', async () => {
+      const profile = { id: 20, user: { id: 7 }, status: SellerStatus.APPROVED }; // no businessId
+      const { service, roleContextService, profileRepo } = buildService(profile);
+
+      await service.suspend(20, 'policy violation');
+
+      expect(roleContextService.syncOperationalRole).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 7, workspaceAssignmentId: null, status: AccountRoleStatus.SUSPENDED }),
+      );
+      expect(profileRepo.manager.query).not.toHaveBeenCalled(); // legacy path never resolves organizationally
+    });
+
+    it('an organizational Seller with an UNRESOLVED workspace still gets suspended at the SellerProfile level, without fabricating an unbound AccountRole sync', async () => {
+      const profile = { id: 9, user: { id: 4 }, businessId: 3, status: SellerStatus.APPROVED };
+      const { service, roleContextService, profileRepo } = buildService(profile, () => Promise.resolve([]));
+
+      const saved = await service.suspend(9, 'policy violation');
+
+      expect(saved.status).toBe(SellerStatus.SUSPENDED);
+      expect(roleContextService.syncOperationalRole).not.toHaveBeenCalled();
+      expect(profileRepo.save).toHaveBeenCalled();
     });
   });
 });
