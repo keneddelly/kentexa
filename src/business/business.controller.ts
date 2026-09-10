@@ -19,6 +19,7 @@ import { ConversationService, WorkspaceHint } from './conversation.service';
 import { SellerScopeService, SellerPermission } from './seller-scope.service';
 import { BusinessService } from './business.service';
 import { BusinessBackfillService } from './business-backfill.service';
+import { BusinessCapabilityApplicationService } from './business-capability-application.service';
 import { User, UserRole } from '../users/entities/user.entity';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
@@ -44,6 +45,7 @@ export class BusinessController {
     private businessService: BusinessService,
     private businessBackfill: BusinessBackfillService,
     private flags: CommunicationFeatureFlagsService,
+    private capabilityApplications: BusinessCapabilityApplicationService,
   ) {}
 
   // ── Multi-role architecture: Business as its own entity ─────────────────
@@ -87,6 +89,23 @@ export class BusinessController {
   @Post(':id/activate-seller')
   activateSeller(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.businessService.activateSeller(id, req.user);
+  }
+
+  // Business Capability Activation Stage B2. Ownership/membership/workspace
+  // authority is entirely server-resolved inside
+  // BusinessCapabilityApplicationService (BusinessMembership -> OWNER ->
+  // WorkspaceAssignment) -- JwtAuthGuard (class-level) only establishes WHO
+  // is calling, never THAT they may act on this Business. The body accepts
+  // only applicationData; no client-supplied businessId/workspaceId/
+  // workspaceAssignmentId/accountRoleId/userId/profileId is ever read.
+  @Post(':businessId/capabilities/:code/apply')
+  applyForCapability(
+    @Param('businessId', ParseIntPipe) businessId: number,
+    @Param('code') code: string,
+    @Request() req,
+    @Body() dto: { applicationData?: Record<string, unknown> },
+  ) {
+    return this.capabilityApplications.applyForCapability(businessId, code, req.user, dto);
   }
 
   @Get(':id/dashboard')
