@@ -12,7 +12,10 @@ import {
   BusinessCapabilityApplicationStatus,
 } from './entities/business-capability-application.entity';
 import { BusinessCapability, BusinessCapabilityCode, BusinessCapabilityStatus } from './entities/business-capability.entity';
-import { Business } from './entities/business.entity';
+import { Business, BusinessStatus } from './entities/business.entity';
+import { OperationalWorkspace, OperationalWorkspaceStatus } from './entities/operational-workspace.entity';
+import { BusinessMembership, BusinessMembershipRoleTemplate, BusinessMembershipStatus } from './entities/business-membership.entity';
+import { WorkspaceAssignment, WorkspaceAssignmentStatus } from './entities/workspace-assignment.entity';
 import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
 import { User } from '../users/entities/user.entity';
 import {
@@ -106,6 +109,410 @@ export class BusinessCapabilityApplicationService {
   /** True only for a row whose status is still PENDING -- guards against Stage B1 mission §15's "casually treat APPROVED/REJECTED/CANCELLED as PENDING." */
   isPending(application: BusinessCapabilityApplication): boolean {
     return application.status === BusinessCapabilityApplicationStatus.PENDING;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // Business Capability Activation Stage B3 -- admin approval/rejection.
+  // ══════════════════════════════════════════════════════════════════════
+
+  /**
+   * POST /admin/business-capability-applications/:id/approve. One
+   * transaction: locks the application row (SELECT ... FOR UPDATE),
+   * re-validates the ENTIRE organizational chain from persisted data (never
+   * trusting anything decided at submission time), then activates
+   * BusinessCapability + SellerProfile + AccountRole + Application together
+   * or not at all. `admin` is only ever used for its own id
+   * (reviewedByUserId/approvedByUserId) -- the application row is the sole
+   * source of businessId/workspaceId/capabilityCode/profile/role identity.
+   */
+  async approveApplication(applicationId: number, admin: User) {
+    return this.dataSource.transaction(async (manager) => {
+      const applicationRepo = manager.getRepository(BusinessCapabilityApplication);
+      const application = await applicationRepo.findOne({
+        where: { id: applicationId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!application) {
+        throw new NotFoundException({ code: 'CAPABILITY_APPLICATION_NOT_FOUND', message: 'CAPABILITY_APPLICATION_NOT_FOUND' });
+      }
+
+      if (application.status === BusinessCapabilityApplicationStatus.REJECTED) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_ALREADY_REJECTED', message: 'CAPABILITY_APPLICATION_ALREADY_REJECTED' });
+      }
+      if (application.status === BusinessCapabilityApplicationStatus.CANCELLED) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_CANCELLED', message: 'CAPABILITY_APPLICATION_CANCELLED' });
+      }
+      if (application.status === BusinessCapabilityApplicationStatus.APPROVED) {
+        // Idempotent retry -- verify the three authoritative rows genuinely
+        // still match this application rather than trusting the terminal
+        // status alone (Stage B3 mission §17).
+        return this.verifyIdempotentApproval(manager, application);
+      }
+      // PENDING -- proceed with the real approval below.
+
+      const chain = await this.revalidateApplicationChain(manager, application);
+
+      const sellerProfileRepo = manager.getRepository(SellerProfile);
+      const profile = await sellerProfileRepo.findOne({ where: { id: application.operationalProfileId ?? -1 } });
+      if (
+        !profile ||
+        profile.businessId !== application.businessId ||
+        profile.userId !== application.requestedByUserId ||
+        profile.status !== SellerStatus.PENDING
+      ) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+      }
+
+      const accountRoleRepo = manager.getRepository(AccountRole);
+      const role = await accountRoleRepo.findOne({
+        where: { userId: application.requestedByUserId, roleType: AccountRoleType.SELLER, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
+      });
+      if (
+        !role ||
+        role.profileType !== RoleProfileType.SELLER_PROFILE ||
+        role.profileId !== application.operationalProfileId ||
+        role.status !== AccountRoleStatus.PENDING
+      ) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+      }
+
+      const capabilityRepo = manager.getRepository(BusinessCapability);
+      const existingCapability = await capabilityRepo.findOne({
+        where: { workspaceId: application.workspaceId, capabilityCode: application.capabilityCode },
+      });
+      if (existingCapability) {
+        // Application is still PENDING -- a capability row of ANY status
+        // already existing for this workspace+code is a genuine
+        // inconsistency (B2's own precheck should have prevented this
+        // application from ever being created while one existed). Never
+        // silently reactivate/overwrite it here.
+        throw new ConflictException({ code: 'CAPABILITY_APPROVAL_STATE_INCONSISTENT', message: 'CAPABILITY_APPROVAL_STATE_INCONSISTENT' });
+      }
+
+      const now = new Date();
+      const capability = await capabilityRepo.save(capabilityRepo.create({
+        workspaceId: application.workspaceId,
+        capabilityCode: application.capabilityCode,
+        status: BusinessCapabilityStatus.ACTIVE,
+        approvedAt: now,
+        approvedByUserId: admin.id,
+      }));
+
+      profile.status = SellerStatus.APPROVED;
+      profile.rejectionReason = null;
+      await sellerProfileRepo.save(profile);
+
+      role.status = AccountRoleStatus.ACTIVE;
+      role.approvedAt = now;
+      role.approvedByUserId = admin.id;
+      role.suspendedAt = null;
+      role.suspendedByUserId = null;
+      role.statusReason = null;
+      role.contextVersion = role.contextVersion + 1;
+      await accountRoleRepo.save(role);
+
+      application.status = BusinessCapabilityApplicationStatus.APPROVED;
+      application.reviewedAt = now;
+      application.reviewedByUserId = admin.id;
+      application.rejectionReason = null;
+      await applicationRepo.save(application);
+
+      // Stage B3 mission §16: the applicant's Seller role was PENDING (thus
+      // never switchable, thus never had a live ActiveRoleSession) before
+      // this moment -- there is nothing to revoke. No JWT is issued here;
+      // the user must explicitly call /auth/switch-role themselves.
+      return this.toApprovalResponse(application, profile, role, capability);
+    });
+  }
+
+  /**
+   * POST /admin/business-capability-applications/:id/reject. One
+   * transaction, mirrors approveApplication()'s locking/idempotency
+   * discipline but never creates a BusinessCapability.
+   */
+  async rejectApplication(applicationId: number, admin: User, rejectionReason: string) {
+    const reason = (rejectionReason ?? '').trim();
+    if (reason.length < 3 || reason.length > 1000) {
+      // Input validation, not an application-state problem -- deliberately
+      // its own code rather than reusing CAPABILITY_APPLICATION_LINKAGE_INVALID
+      // (which means "the application's own persisted chain is broken",
+      // a completely different failure class).
+      throw new BadRequestException({ code: 'REJECTION_REASON_REQUIRED', message: 'REJECTION_REASON_REQUIRED' });
+    }
+
+    return this.dataSource.transaction(async (manager) => {
+      const applicationRepo = manager.getRepository(BusinessCapabilityApplication);
+      const application = await applicationRepo.findOne({
+        where: { id: applicationId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!application) {
+        throw new NotFoundException({ code: 'CAPABILITY_APPLICATION_NOT_FOUND', message: 'CAPABILITY_APPLICATION_NOT_FOUND' });
+      }
+
+      if (application.status === BusinessCapabilityApplicationStatus.APPROVED) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_ALREADY_APPROVED', message: 'CAPABILITY_APPLICATION_ALREADY_APPROVED' });
+      }
+      if (application.status === BusinessCapabilityApplicationStatus.CANCELLED) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_CANCELLED', message: 'CAPABILITY_APPLICATION_CANCELLED' });
+      }
+      if (application.status === BusinessCapabilityApplicationStatus.REJECTED) {
+        return this.verifyIdempotentRejection(manager, application);
+      }
+      // PENDING -- proceed with the real rejection below.
+
+      const sellerProfileRepo = manager.getRepository(SellerProfile);
+      const profile = await sellerProfileRepo.findOne({ where: { id: application.operationalProfileId ?? -1 } });
+      if (
+        !profile ||
+        profile.businessId !== application.businessId ||
+        profile.userId !== application.requestedByUserId ||
+        profile.status !== SellerStatus.PENDING
+      ) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+      }
+
+      const accountRoleRepo = manager.getRepository(AccountRole);
+      const role = await accountRoleRepo.findOne({
+        where: { userId: application.requestedByUserId, roleType: AccountRoleType.SELLER, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
+      });
+      if (
+        !role ||
+        role.profileType !== RoleProfileType.SELLER_PROFILE ||
+        role.profileId !== application.operationalProfileId ||
+        role.status !== AccountRoleStatus.PENDING
+      ) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+      }
+
+      // §19 step 4: rejection must never coexist with a granted entitlement
+      // -- a PENDING application should never have one, but check
+      // defensively rather than assume.
+      const capabilityRepo = manager.getRepository(BusinessCapability);
+      const existingCapability = await capabilityRepo.findOne({
+        where: { workspaceId: application.workspaceId, capabilityCode: application.capabilityCode },
+      });
+      if (existingCapability && existingCapability.status === BusinessCapabilityStatus.ACTIVE) {
+        throw new ConflictException({ code: 'CAPABILITY_REJECTION_STATE_INCONSISTENT', message: 'CAPABILITY_REJECTION_STATE_INCONSISTENT' });
+      }
+
+      profile.status = SellerStatus.REJECTED;
+      profile.rejectionReason = reason;
+      await sellerProfileRepo.save(profile);
+
+      role.status = AccountRoleStatus.REJECTED;
+      role.statusReason = reason;
+      role.contextVersion = role.contextVersion + 1;
+      await accountRoleRepo.save(role);
+
+      const now = new Date();
+      application.status = BusinessCapabilityApplicationStatus.REJECTED;
+      application.reviewedAt = now;
+      application.reviewedByUserId = admin.id;
+      application.rejectionReason = reason;
+      await applicationRepo.save(application);
+
+      return this.toRejectionResponse(application, profile, role);
+    });
+  }
+
+  /**
+   * GET /admin/business-capability-applications. Platform-admin authority
+   * (enforced by the controller's guards, not here) -- returns sanitized
+   * review information only, never raw entities (no password hashes, no
+   * session metadata).
+   */
+  async listForAdmin(statusParam?: string) {
+    const status = statusParam || BusinessCapabilityApplicationStatus.PENDING;
+    if (!(Object.values(BusinessCapabilityApplicationStatus) as string[]).includes(status)) {
+      throw new BadRequestException({ code: 'CAPABILITY_APPLICATION_NOT_FOUND', message: 'INVALID_STATUS_FILTER' });
+    }
+    const rows = await this.dataSource.query(
+      `
+      SELECT a.id, a."capabilityCode", a.status, a."submittedAt", a."reviewedAt",
+             b.id AS "businessId", COALESCE(b."tradingName", b."legalName") AS "businessName",
+             b."businessVerificationStatus", b.status AS "businessStatus",
+             w.id AS "workspaceId", w.name AS "workspaceName", w.status AS "workspaceStatus",
+             u.id AS "applicantUserId", u.name AS "applicantName", u.phone AS "applicantPhone",
+             sp.id AS "profileId", sp.status AS "profileStatus"
+      FROM business_capability_application a
+      JOIN business b ON b.id = a."businessId"
+      JOIN operational_workspace w ON w.id = a."workspaceId"
+      JOIN "user" u ON u.id = a."requestedByUserId"
+      LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId"
+      WHERE a.status = $1
+      ORDER BY a."submittedAt" ASC
+      `,
+      [status],
+    );
+
+    return rows.map((r: any) => ({
+      application: { id: r.id, capabilityCode: r.capabilityCode, status: r.status, submittedAt: r.submittedAt, reviewedAt: r.reviewedAt },
+      business: { id: r.businessId, name: r.businessName, verificationStatus: r.businessVerificationStatus, status: r.businessStatus },
+      workspace: { id: r.workspaceId, name: r.workspaceName, status: r.workspaceStatus },
+      applicant: { userId: r.applicantUserId, name: r.applicantName, phone: r.applicantPhone },
+      operationalProfile: { type: RoleProfileType.SELLER_PROFILE, id: r.profileId, status: r.profileStatus },
+    }));
+  }
+
+  /**
+   * GET /business/:businessId/capability-applications. Membership-scoped --
+   * never trusts requestedByUserId as the read boundary (Stage B3 mission
+   * §27/§28): any user with an ACTIVE BusinessMembership on this exact
+   * Business may read its application history, not just the applicant.
+   */
+  async listForBusiness(businessId: number, user: User) {
+    const membership = await this.dataSource.query(
+      `SELECT 1 FROM business_membership WHERE "businessId" = $1 AND "userId" = $2 AND status = 'active'`,
+      [businessId, user.id],
+    );
+    if (!membership.length) {
+      throw new ForbiddenException({ code: 'BUSINESS_MEMBERSHIP_REQUIRED', message: 'BUSINESS_MEMBERSHIP_REQUIRED' });
+    }
+
+    const rows = await this.dataSource.query(
+      `
+      SELECT a.id, a."capabilityCode", a.status, a."submittedAt", a."reviewedAt", a."rejectionReason",
+             a."workspaceId", sp.status AS "profileStatus"
+      FROM business_capability_application a
+      LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId"
+      WHERE a."businessId" = $1
+      ORDER BY a.id DESC
+      `,
+      [businessId],
+    );
+
+    return rows.map((r: any) => ({
+      application: {
+        id: r.id, capabilityCode: r.capabilityCode, status: r.status,
+        submittedAt: r.submittedAt, reviewedAt: r.reviewedAt,
+        rejectionReason: r.status === BusinessCapabilityApplicationStatus.REJECTED ? r.rejectionReason : null,
+      },
+      workspace: { id: r.workspaceId },
+      operationalProfile: { status: r.profileStatus },
+    }));
+  }
+
+  /**
+   * Stage B3 mission §8. Re-derives the entire organizational chain from
+   * the APPLICATION's own already-stored ids -- never re-resolves "the
+   * current default workspace" the way B2's apply-time resolver does, since
+   * approval must validate the EXACT chain the application was submitted
+   * against, not whatever happens to be current. Fails closed on any broken
+   * or mismatched link.
+   */
+  private async revalidateApplicationChain(manager: EntityManager, application: BusinessCapabilityApplication) {
+    const business = await manager.getRepository(Business).findOne({ where: { id: application.businessId } });
+    if (!business || business.status !== BusinessStatus.ACTIVE) {
+      throw new ConflictException({ code: 'BUSINESS_WORKSPACE_INACTIVE', message: 'BUSINESS_WORKSPACE_INACTIVE' });
+    }
+
+    const workspace = await manager.getRepository(OperationalWorkspace).findOne({ where: { id: application.workspaceId } });
+    if (!workspace || workspace.businessId !== application.businessId || workspace.status !== OperationalWorkspaceStatus.ACTIVE) {
+      throw new ConflictException({ code: 'BUSINESS_WORKSPACE_INACTIVE', message: 'BUSINESS_WORKSPACE_INACTIVE' });
+    }
+
+    const assignment = await manager.getRepository(WorkspaceAssignment).findOne({ where: { id: application.requestedByWorkspaceAssignmentId } });
+    if (!assignment || assignment.workspaceId !== application.workspaceId || assignment.status !== WorkspaceAssignmentStatus.ACTIVE) {
+      throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+    }
+
+    const membership = await manager.getRepository(BusinessMembership).findOne({ where: { id: assignment.businessMembershipId } });
+    if (
+      !membership ||
+      membership.businessId !== application.businessId ||
+      membership.userId !== application.requestedByUserId ||
+      membership.status !== BusinessMembershipStatus.ACTIVE ||
+      membership.roleTemplate !== BusinessMembershipRoleTemplate.OWNER
+    ) {
+      throw new ConflictException({ code: 'BUSINESS_OWNER_NO_LONGER_ACTIVE', message: 'BUSINESS_OWNER_NO_LONGER_ACTIVE' });
+    }
+
+    if (application.capabilityCode !== BusinessCapabilityCode.COMMERCE) {
+      throw new ConflictException({ code: 'CAPABILITY_NOT_SUPPORTED', message: 'CAPABILITY_NOT_SUPPORTED' });
+    }
+    if (application.operationalProfileType !== RoleProfileType.SELLER_PROFILE || application.operationalProfileId == null) {
+      throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+    }
+
+    return { business, workspace, assignment, membership };
+  }
+
+  private async verifyIdempotentApproval(manager: EntityManager, application: BusinessCapabilityApplication) {
+    const profile = await manager.getRepository(SellerProfile).findOne({ where: { id: application.operationalProfileId ?? -1 } });
+    const role = await manager.getRepository(AccountRole).findOne({
+      where: { userId: application.requestedByUserId, roleType: AccountRoleType.SELLER, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
+    });
+    const capability = await manager.getRepository(BusinessCapability).findOne({
+      where: { workspaceId: application.workspaceId, capabilityCode: application.capabilityCode },
+    });
+
+    const consistent =
+      !!profile && profile.status === SellerStatus.APPROVED &&
+      !!role && role.status === AccountRoleStatus.ACTIVE && role.profileId === profile.id &&
+      !!capability && capability.status === BusinessCapabilityStatus.ACTIVE;
+
+    if (!consistent) {
+      throw new ConflictException({ code: 'CAPABILITY_APPROVAL_STATE_INCONSISTENT', message: 'CAPABILITY_APPROVAL_STATE_INCONSISTENT' });
+    }
+    return this.toApprovalResponse(application, profile!, role!, capability!);
+  }
+
+  private async verifyIdempotentRejection(manager: EntityManager, application: BusinessCapabilityApplication) {
+    const profile = await manager.getRepository(SellerProfile).findOne({ where: { id: application.operationalProfileId ?? -1 } });
+    const role = await manager.getRepository(AccountRole).findOne({
+      where: { userId: application.requestedByUserId, roleType: AccountRoleType.SELLER, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
+    });
+    const capability = await manager.getRepository(BusinessCapability).findOne({
+      where: { workspaceId: application.workspaceId, capabilityCode: application.capabilityCode },
+    });
+
+    const consistent =
+      !!profile && profile.status === SellerStatus.REJECTED &&
+      !!role && role.status === AccountRoleStatus.REJECTED &&
+      (!capability || capability.status !== BusinessCapabilityStatus.ACTIVE);
+
+    if (!consistent) {
+      throw new ConflictException({ code: 'CAPABILITY_REJECTION_STATE_INCONSISTENT', message: 'CAPABILITY_REJECTION_STATE_INCONSISTENT' });
+    }
+    return this.toRejectionResponse(application, profile!, role!);
+  }
+
+  private toApprovalResponse(
+    application: BusinessCapabilityApplication,
+    profile: SellerProfile,
+    role: AccountRole,
+    capability: BusinessCapability,
+  ) {
+    return {
+      application: {
+        id: application.id, capabilityCode: application.capabilityCode, status: application.status,
+        submittedAt: application.submittedAt, reviewedAt: application.reviewedAt,
+      },
+      business: { id: application.businessId },
+      workspace: { id: application.workspaceId },
+      operationalProfile: { type: RoleProfileType.SELLER_PROFILE, id: profile.id, status: profile.status },
+      accountRole: { id: role.id, roleType: role.roleType, status: role.status, switchable: role.status === AccountRoleStatus.ACTIVE },
+      capability: { code: capability.capabilityCode, status: capability.status },
+    };
+  }
+
+  private toRejectionResponse(
+    application: BusinessCapabilityApplication,
+    profile: SellerProfile,
+    role: AccountRole,
+  ) {
+    return {
+      application: {
+        id: application.id, capabilityCode: application.capabilityCode, status: application.status,
+        submittedAt: application.submittedAt, reviewedAt: application.reviewedAt, rejectionReason: application.rejectionReason,
+      },
+      business: { id: application.businessId },
+      workspace: { id: application.workspaceId },
+      operationalProfile: { type: RoleProfileType.SELLER_PROFILE, id: profile.id, status: profile.status },
+      accountRole: { id: role.id, roleType: role.roleType, status: role.status, switchable: false },
+      capability: null,
+    };
   }
 
   /**

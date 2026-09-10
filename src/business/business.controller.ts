@@ -108,6 +108,15 @@ export class BusinessController {
     return this.capabilityApplications.applyForCapability(businessId, code, req.user, dto);
   }
 
+  // Business Capability Activation Stage B3. Membership-scoped, never
+  // requestedByUserId-scoped -- any active member of this Business (owner
+  // today, future manager/staff) may read its own application history;
+  // never another Business's.
+  @Get(':businessId/capability-applications')
+  listCapabilityApplications(@Param('businessId', ParseIntPipe) businessId: number, @Request() req) {
+    return this.capabilityApplications.listForBusiness(businessId, req.user);
+  }
+
   @Get(':id/dashboard')
   getDashboard(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.businessService.getDashboard(id, req.user);
