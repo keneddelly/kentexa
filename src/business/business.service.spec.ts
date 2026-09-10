@@ -104,7 +104,18 @@ describe('BusinessService.create() -- Business-First Stage 1 workspace bootstrap
     expect(assignment).toBeTruthy();
   });
 
-  it('binds an already-active Seller AccountRole to the new assignment at creation time', async () => {
+  // Business Capability Activation Stage B1 (§2/§3/§19 of the mission):
+  // BusinessService.create() previously also auto-bound an existing
+  // ACTIVE, unbound Seller AccountRole to the new Business's workspace --
+  // silently converting a legacy/personal Seller into that Business's
+  // organizational Commerce operator with no application, no review, and
+  // no BusinessCapability. Removed: under Stage A's own live enforcement
+  // this had become a real regression risk (the newly-bound role would
+  // immediately fail every request with ROLE_CONTEXT_CAPABILITY_INACTIVE,
+  // since the new workspace never has a COMMERCE capability). Business
+  // creation is now identity/bootstrap only -- see §3's own two tests
+  // below.
+  it('a User with an ACTIVE legacy unbound Seller role creates a Business — the legacy Seller stays unbound, untouched, and the new Business gets no Seller AccountRole, capability, or application', async () => {
     if (!reachable) return;
     const user = await makeUser();
     const sellerRole = await accountRoleRepo().save(accountRoleRepo().create({
@@ -114,12 +125,14 @@ describe('BusinessService.create() -- Business-First Stage 1 workspace bootstrap
 
     const business = await service.create(user, { legalName: 'Asha Fashion' });
 
+    const reloadedRole = await accountRoleRepo().findOne({ where: { id: sellerRole.id } });
+    expect(reloadedRole?.workspaceAssignmentId).toBeNull(); // still unbound, untouched
+
     const workspace = await workspaceRepo().findOne({ where: { businessId: business.id, isDefault: true } });
     const membership = await membershipRepo().findOne({ where: { businessId: business.id, userId: user.id } });
     const assignment = await assignmentRepo().findOne({ where: { businessMembershipId: membership!.id, workspaceId: workspace!.id } });
-
-    const reloadedRole = await accountRoleRepo().findOne({ where: { id: sellerRole.id } });
-    expect(reloadedRole?.workspaceAssignmentId).toBe(assignment!.id);
+    expect(await accountRoleRepo().count({ where: { workspaceAssignmentId: assignment!.id } })).toBe(0); // no Seller role bound to the new Business at all
+    expect(await accountRoleRepo().count({ where: { userId: user.id, roleType: AccountRoleType.SELLER } })).toBe(1); // no new role fabricated either
   });
 
   it('leaves workspaceAssignmentId unset when the owner has no active Seller AccountRole yet', async () => {
@@ -150,7 +163,7 @@ describe('BusinessService.create() -- Business-First Stage 1 workspace bootstrap
     expect(await assignmentRepo().count()).toBe(2);
   });
 
-  it('creating a second Business never rebinds an already-bound Seller AccountRole away from the first Business', async () => {
+  it('a User whose Seller role is already bound to Business A creates Business B — Business A\'s role is untouched, and Business B gets no Seller role', async () => {
     if (!reachable) return;
     const user = await makeUser();
     const sellerRole = await accountRoleRepo().save(accountRoleRepo().create({
@@ -162,23 +175,19 @@ describe('BusinessService.create() -- Business-First Stage 1 workspace bootstrap
     const firstWorkspace = await workspaceRepo().findOne({ where: { businessId: first.id, isDefault: true } });
     const firstMembership = await membershipRepo().findOne({ where: { businessId: first.id, userId: user.id } });
     const firstAssignment = await assignmentRepo().findOne({ where: { businessMembershipId: firstMembership!.id, workspaceId: firstWorkspace!.id } });
+    // Bind it to Business A directly -- create() no longer does this itself;
+    // this simulates the outcome of a future, independently-authorized
+    // approval flow having already bound it.
+    await accountRoleRepo().update(sellerRole.id, { workspaceAssignmentId: firstAssignment!.id });
 
-    // sellerRole was unbound at the moment First Co was created, so it
-    // correctly got bound to it (existing behavior, unchanged).
-    let reloaded = await accountRoleRepo().findOne({ where: { id: sellerRole.id } });
-    expect(reloaded?.workspaceAssignmentId).toBe(firstAssignment!.id);
-
-    // Creating a SECOND Business must never steal this already-bound role
-    // away from First Co -- it stays bound to firstAssignment, and Second
-    // Co's own default workspace simply has no Seller AccountRole yet.
     const second = await service.create(user, { legalName: 'Second Co' });
     const secondWorkspace = await workspaceRepo().findOne({ where: { businessId: second.id, isDefault: true } });
     const secondMembership = await membershipRepo().findOne({ where: { businessId: second.id, userId: user.id } });
     const secondAssignment = await assignmentRepo().findOne({ where: { businessMembershipId: secondMembership!.id, workspaceId: secondWorkspace!.id } });
 
-    reloaded = await accountRoleRepo().findOne({ where: { id: sellerRole.id } });
-    expect(reloaded?.workspaceAssignmentId).toBe(firstAssignment!.id); // unchanged, still First Co
+    const reloaded = await accountRoleRepo().findOne({ where: { id: sellerRole.id } });
+    expect(reloaded?.workspaceAssignmentId).toBe(firstAssignment!.id); // unchanged, still Business A
     expect(reloaded?.workspaceAssignmentId).not.toBe(secondAssignment!.id);
-    expect(await accountRoleRepo().count({ where: { userId: user.id, roleType: AccountRoleType.SELLER } })).toBe(1); // no new Seller role fabricated
+    expect(await accountRoleRepo().count({ where: { userId: user.id, roleType: AccountRoleType.SELLER } })).toBe(1); // no new Seller role fabricated for Business B
   });
 });

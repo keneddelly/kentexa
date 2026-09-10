@@ -13,6 +13,7 @@ import { OperationalWorkspace } from './entities/operational-workspace.entity';
 import { BusinessMembership } from './entities/business-membership.entity';
 import { WorkspaceAssignment } from './entities/workspace-assignment.entity';
 import { BusinessCapability } from './entities/business-capability.entity';
+import { BusinessCapabilityApplication } from './entities/business-capability-application.entity';
 import { Order } from '../orders/entities/order.entity';
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
@@ -25,6 +26,7 @@ import { ConversationService } from './conversation.service';
 import { SellerScopeService } from './seller-scope.service';
 import { BusinessService } from './business.service';
 import { BusinessBackfillService } from './business-backfill.service';
+import { BusinessCapabilityApplicationService } from './business-capability-application.service';
 import { BusinessController } from './business.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
@@ -49,6 +51,7 @@ import { ConversationClassifierService } from './conversation-classifier.service
       BusinessMembership,
       WorkspaceAssignment,
       BusinessCapability,
+      BusinessCapabilityApplication,
       Order,
       SellerProfile,
       CommerceProfile,
@@ -87,10 +90,11 @@ import { ConversationClassifierService } from './conversation-classifier.service
     SellerScopeService,
     BusinessService,
     BusinessBackfillService,
+    BusinessCapabilityApplicationService,
     ConversationGateway,
     ParticipantResolutionService,
     ConversationClassifierService,
   ],
-  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, ParticipantResolutionService, ConversationClassifierService],
+  exports: [BusinessCustomerService, ConversationService, SellerScopeService, BusinessService, BusinessCapabilityApplicationService, ParticipantResolutionService, ConversationClassifierService],
 })
 export class BusinessModule {}

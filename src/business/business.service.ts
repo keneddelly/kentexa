@@ -462,44 +462,29 @@ export class BusinessService {
         }),
       );
 
-      // If this owner already has an active, NOT YET ORGANIZATIONALLY BOUND
-      // Seller AccountRole at the moment they create this Business, bind it
-      // now -- mirrors the standalone backfill tool's own rule exactly (see
-      // backfill-business-first-foundation.ts), so a Business created
-      // through this self-service path never depends on that tool to
-      // become organizationally resolvable. If no such role exists yet,
-      // workspaceAssignmentId simply stays NULL until one is later approved
-      // -- never fabricated here.
-      //
-      // Multi-Business Authority Stage 1: the workspaceAssignmentId IS NULL
-      // filter is the critical addition. Before AccountRole multiplicity,
-      // "the user's active Seller AccountRole" was unambiguous -- exactly
-      // one could exist. Now that a user may already hold a Seller
-      // AccountRole bound to a DIFFERENT Business (created earlier), an
-      // unfiltered lookup here would silently STEAL that role away from its
-      // existing Business and rebind it to this new one, which is a real
-      // authority-corruption bug, not a convenience -- creating Business B
-      // must never revoke Business A's Seller binding. Only a genuinely
-      // unbound Seller role (approved but never yet linked to any Business)
-      // is eligible for this auto-bind; an already-bound one is left alone,
-      // and this new Business's default workspace simply has no Seller
-      // AccountRole bound to it yet, exactly as if the user had no Seller
-      // role at all -- consistent with "do not automatically invent
-      // operational AccountRoles".
-      const sellerRole = await manager.getRepository(AccountRole).findOne({
-        where: {
-          userId: user.id,
-          roleType: AccountRoleType.SELLER,
-          status: AccountRoleStatus.ACTIVE,
-          workspaceAssignmentId: IsNull(),
-        },
-      });
-      if (sellerRole) {
-        await manager.getRepository(AccountRole).update(sellerRole.id, {
-          workspaceAssignmentId: assignment.id,
-        });
-      }
-
+      // Business Capability Activation Stage B1: this method used to also
+      // auto-bind an existing ACTIVE, unbound Seller AccountRole to this
+      // new Business's default workspace (a Business-First Stage 1
+      // convenience, so a self-service Business never depended on the
+      // standalone backfill tool to become organizationally resolvable).
+      // Removed: it silently granted an already-approved legacy/personal
+      // Seller's authority to a brand-new Business's workspace with zero
+      // application, review, or BusinessCapability -- exactly the implicit
+      // grant the capability-application lifecycle exists to prevent. It
+      // had also become a live regression risk under Stage A's own
+      // enforcement: binding that role to a workspace with no COMMERCE
+      // BusinessCapability would make it immediately fail closed
+      // (ROLE_CONTEXT_CAPABILITY_INACTIVE) on its very next resolution --
+      // Business creation would have silently broken a previously-working
+      // unbound Seller's authority. Creating a Business now bootstraps only
+      // identity/organizational rows; a legacy Seller stays exactly as
+      // unbound as before, and remains fully operable (its unbound
+      // resolution path never runs a capability check at all -- see
+      // RoleContextService.resolveOrganizationalContext). Attaching it to a
+      // Business is deferred to an explicit, independently-authorized
+      // future flow (see the Stage B architecture discovery's "Attach to
+      // Business" recommendation), never an automatic side effect of
+      // creating an unrelated new Business.
       return savedBusiness;
     });
 
