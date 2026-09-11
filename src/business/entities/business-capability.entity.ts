@@ -73,8 +73,25 @@ export class BusinessCapability {
   @Column({ type: 'timestamp', nullable: true })
   suspendedAt: Date | null;
 
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'suspendedByUserId' })
+  suspendedByUser: User | null;
+
+  @Column({ type: 'int', nullable: true })
+  suspendedByUserId: number | null;
+
   @Column({ type: 'text', nullable: true })
   statusReason: string | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  reactivatedAt: Date | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'reactivatedByUserId' })
+  reactivatedByUser: User | null;
+
+  @Column({ type: 'int', nullable: true })
+  reactivatedByUserId: number | null;
 
   @CreateDateColumn()
   createdAt: Date;
