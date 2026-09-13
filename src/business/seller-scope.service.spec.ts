@@ -94,7 +94,7 @@ describe('SellerScopeService', () => {
       const { service } = build(AccountRoleType.SELLER);
       const roleContext = { roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: 2 } as any;
       const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER), roleContext);
-      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 2, mode: 'workspace', profileType: null, profileId: null });
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 2, businessId: null, mode: 'workspace', profileType: null, profileId: null });
     });
 
     it('does not re-resolve RoleContext when one is already supplied', async () => {
@@ -108,7 +108,7 @@ describe('SellerScopeService', () => {
       const { service } = build(AccountRoleType.SELLER);
       const roleContext = { roleType: AccountRoleType.SELLER, userId: 1, accountRoleId: 10, workspaceId: null } as any;
       const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER), roleContext);
-      expect(scope).toEqual({ legacySellerId: 1, workspaceId: null, mode: 'legacy', profileType: null, profileId: null });
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: null, businessId: null, mode: 'legacy', profileType: null, profileId: null });
     });
 
     it('resolves fresh from the payload when no RoleContext is supplied, and still returns workspaceId from it', async () => {
@@ -118,7 +118,7 @@ describe('SellerScopeService', () => {
       };
       const service = new SellerScopeService(teamRepo, roleContextService);
       const scope = await service.resolveScope(1, userWithPayload(1, AccountRoleType.SELLER));
-      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 5, mode: 'workspace', profileType: null, profileId: null });
+      expect(scope).toEqual({ legacySellerId: 1, workspaceId: 5, businessId: null, mode: 'workspace', profileType: null, profileId: null });
       expect(roleContextService.resolveContext).toHaveBeenCalledTimes(1);
     });
 

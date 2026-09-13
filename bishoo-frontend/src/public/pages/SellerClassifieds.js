@@ -236,11 +236,10 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         await api.patch(`/classifieds/${editItem.id}`, payload);
         setMessage(t('seller_classifieds.listing_updated'));
       } else {
-        // Attributes the listing to whichever profile is active right now
-        // (e.g. a personal side-hustle classified stays on the personal
-        // profile instead of resolving to a business brand run from the
-        // same account) — set once at creation, never changed on edit.
-        await api.post('/classifieds', { ...payload, commerceProfileId: activeProfileId || undefined });
+        // Acting identity is resolved by the server from RoleContext. A
+        // personal classified stays account-scoped; an organizational one
+        // is stamped from its authoritative workspace.
+        await api.post('/classifieds', payload);
         setMessage(t('seller_classifieds.listing_posted'));
       }
       resetForm(); fetchMyClassifieds();

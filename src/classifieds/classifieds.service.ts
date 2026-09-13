@@ -94,33 +94,18 @@ export class ClassifiedsService {
       throw new BadRequestException(attributeErrors.join('; '));
     }
 
-    // Attributes the listing to whichever profile was active when it was
-    // posted, so a personal-profile side-hustle classified stays personal
-    // instead of silently resolving to the account's business identity —
-    // same fix already applied to feed posts (FeedService.publish()).
-    // Authorization is never trusted from the client: owner or an active
-    // team member with canManageProducts.
-    let commerceProfileId: number | null = null;
-    if (dto.commerceProfileId) {
-      const authorized = await this.profileScope.isAuthorizedFor(
-        user.id,
-        dto.commerceProfileId,
-        'canManageProducts',
-      );
-      if (!authorized) {
-        throw new ForbiddenException('You do not manage this commerce profile');
-      }
-      commerceProfileId = dto.commerceProfileId;
-    }
+    // Business identity comes from the authoritative RoleContext workspace;
+    // personal contexts deliberately resolve null and remain account-owned.
+    const commerceProfileId = scope
+      ? await this.profileScope.resolveForListingScope(scope)
+      : null;
 
     // Business-First Stage 2A: stamped ONLY from the acting request's own
     // authoritative RoleContext.workspaceId (via `scope`) -- never derived
     // from `seller`/user.id. A valid, intentionally unresolved legacy
     // context (scope.mode === 'legacy') leaves this null, exactly like a
     // pre-Stage-2A classified.
-    const workspaceId = this.ownershipFlags.isEnabled('CLASSIFIED_WORKSPACE_DUAL_WRITE')
-      ? scope?.workspaceId ?? null
-      : null;
+    const workspaceId = scope?.workspaceId ?? null;
     const listing = this.repo.create({ ...dto, seller: user, commerceProfileId, workspaceId });
     const saved = await this.repo.save(listing);
 

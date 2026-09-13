@@ -20,6 +20,7 @@ describe('ClassifiedsService — Business-First Stage 2A workspace ownership', (
     const invoiceRequestRepo: any = { findOne: jest.fn() };
     const invoiceRepo: any = { findOne: jest.fn() };
     const commerceProfiles: any = { findById: jest.fn().mockResolvedValue(null), findForUserByType: jest.fn().mockResolvedValue(null) };
+    const profileScope: any = { resolveForListingScope: jest.fn().mockResolvedValue(70) };
     const searchIndex: any = { upsert: jest.fn().mockResolvedValue(undefined), remove: jest.fn().mockResolvedValue(undefined) };
     const feedService: any = { publish: jest.fn().mockResolvedValue(undefined) };
     const noop: any = {};
@@ -27,17 +28,18 @@ describe('ClassifiedsService — Business-First Stage 2A workspace ownership', (
     const ownershipFlags: any = { isEnabled: jest.fn((f: string) => (f in flagOverrides ? flagOverrides[f] : defaultsOn.has(f))) };
     const service = new ClassifiedsService(
       repo, invoiceRequestRepo, invoiceRepo, noop, noop, noop, feedService,
-      commerceProfiles, noop, searchIndex, noop, noop, ownershipFlags,
+      commerceProfiles, profileScope, searchIndex, noop, noop, ownershipFlags,
     );
-    return { service, repo, savedListings, ownershipFlags };
+    return { service, repo, savedListings, ownershipFlags, profileScope };
   };
 
   describe('create() — new-write stamping', () => {
     it('stamps workspaceId from the resolved scope, not from any sellerId lookup, when dual-write is on', async () => {
       const { service, savedListings } = buildService();
-      const scope = { legacySellerId: 200, workspaceId: 7, mode: 'workspace' as const };
+      const scope = { legacySellerId: 200, workspaceId: 7, businessId: 4, mode: 'workspace' as const };
       await service.create({ title: 'Sofa', price: 50000 } as any, { id: 200 } as any, scope);
       expect(savedListings[0].workspaceId).toBe(7);
+      expect(savedListings[0].commerceProfileId).toBe(70);
     });
 
     it('VALID unresolved legacy Seller write: scope.workspaceId=null leaves Classified.workspaceId null, write still succeeds', async () => {
@@ -54,11 +56,18 @@ describe('ClassifiedsService — Business-First Stage 2A workspace ownership', (
       expect(savedListings[0].workspaceId).toBeNull();
     });
 
-    it('CLASSIFIED_WORKSPACE_DUAL_WRITE off: never stamps workspaceId even when a resolved workspace scope is supplied', async () => {
+    it('security invariant is not disabled by the legacy dual-write flag', async () => {
       const { service, savedListings } = buildService({ CLASSIFIED_WORKSPACE_DUAL_WRITE: false });
       const scope = { legacySellerId: 200, workspaceId: 7, mode: 'workspace' as const };
       await service.create({ title: 'Sofa', price: 50000 } as any, { id: 200 } as any, scope);
-      expect(savedListings[0].workspaceId).toBeNull();
+      expect(savedListings[0].workspaceId).toBe(7);
+    });
+
+    it('ignores client authority fields and stamps the server-resolved pair', async () => {
+      const { service, savedListings } = buildService();
+      const scope = { legacySellerId: 200, workspaceId: 7, businessId: 4, mode: 'workspace' as const };
+      await service.create({ title: 'Sofa', price: 50000, commerceProfileId: 999, workspaceId: 999 } as any, { id: 200 } as any, scope);
+      expect(savedListings[0]).toMatchObject({ workspaceId: 7, commerceProfileId: 70 });
     });
   });
 

@@ -124,12 +124,6 @@ export class CreateProductDto {
   @IsString()
   sellerCity?: string;
 
-  // Which CommerceProfile (personal vs a specific business) this product
-  // was posted as — same pattern as CreateClassifiedDto.commerceProfileId.
-  @IsOptional()
-  @IsInt()
-  commerceProfileId?: number;
-
   // Optional structured brand (src/brands/) — never required. Setting
   // this does NOT claim authorization; ProductsService computes the
   // authorized-seller badge separately, live, from

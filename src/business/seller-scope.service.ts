@@ -42,6 +42,7 @@ const OWNS_THEIR_OWN_BUSINESS: AccountRoleType[] = [
 export interface SellerScope {
   legacySellerId: number;
   workspaceId: number | null;
+  businessId?: number | null;
   mode: 'workspace' | 'legacy';
   // Multi-Business Authority Stage 1 (additive). The caller's own resolved
   // RoleContext.profileType/profileId -- i.e. the SPECIFIC SellerProfile (or
@@ -148,6 +149,7 @@ export class SellerScopeService {
     return {
       legacySellerId,
       workspaceId,
+      businessId: resolved.businessId ?? null,
       mode: workspaceId != null ? 'workspace' : 'legacy',
       profileType: resolved.profileType ?? null,
       profileId: resolved.profileId ?? null,

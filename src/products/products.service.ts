@@ -550,23 +550,12 @@ export class ProductsService {
     const deliveryFee = isDigital ? 0 : Number(dto.deliveryFee || 0);
     const displayPrice = basePrice + deliveryFee;
 
-    // Attributes the product to whichever profile was active when it was
-    // posted — same fix already applied to Classifieds/Moments. Without
-    // this, every product's Moment/post-card silently resolved to the
-    // owner's personal profile instead of the business shown on the card.
-    // Authorization is never trusted from the client.
-    let commerceProfileId: number | null = null;
-    if (dto.commerceProfileId && seller?.id) {
-      const authorized = await this.profileScope.isAuthorizedFor(
-        seller.id,
-        dto.commerceProfileId,
-        'canManageProducts',
-      );
-      if (!authorized) {
-        throw new ForbiddenException('You do not manage this commerce profile');
-      }
-      commerceProfileId = dto.commerceProfileId;
-    }
+    // The acting CommerceProfile is derived from the same authoritative
+    // RoleContext workspace as workspaceId. Client payloads cannot select
+    // or substitute it, including profiles owned by the same human.
+    const commerceProfileId = scope
+      ? await this.profileScope.resolveForListingScope(scope)
+      : null;
 
     const product = this.repo.create({
       name: dto.name,
@@ -597,16 +586,9 @@ export class ProductsService {
       sellerCity: dto.sellerCity || 'Dar es Salaam',
       seller: seller || null,
       commerceProfileId,
-      // Business-First Stage 2A: stamped ONLY from the acting request's own
-      // authoritative RoleContext.workspaceId (via `scope`, resolved by the
-      // controller through SellerScopeService.resolveScope()) -- never
-      // derived here from `seller`/sellerId. A valid, intentionally
-      // unresolved legacy Seller context (scope.mode === 'legacy') leaves
-      // this null, exactly like a pre-Stage-2A product. Gated on the dual
-      // write flag so disabling it reproduces today's behavior exactly.
-      workspaceId: this.ownershipFlags.isEnabled('PRODUCT_WORKSPACE_DUAL_WRITE')
-        ? scope?.workspaceId ?? null
-        : null,
+      // Stamped from the exact same authoritative scope used above. This
+      // invariant is security-critical and is not optional for new writes.
+      workspaceId: scope?.workspaceId ?? null,
       sku: dto.sku || null,
       barcode: dto.barcode || null,
       costPrice: dto.costPrice ?? null,

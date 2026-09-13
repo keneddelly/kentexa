@@ -1,6 +1,5 @@
 import {
   IsIn,
-  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -49,12 +48,6 @@ export class CreateClassifiedDto {
   @IsOptional()
   @IsBoolean()
   isNegotiable?: boolean;
-
-  // Which CommerceProfile (personal/business/etc.) this is posted as —
-  // resolved and authorized server-side, never trusted blindly.
-  @IsOptional()
-  @IsInt()
-  commerceProfileId?: number;
 
   // Optional per-listing contact override (e.g. a personal number for a
   // side-hustle classified, distinct from the account's business number).

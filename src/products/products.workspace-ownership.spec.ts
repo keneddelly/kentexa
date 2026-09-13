@@ -19,6 +19,7 @@ describe('ProductsService — Business-First Stage 2A workspace ownership', () =
     };
     const serialRepo: any = { find: jest.fn(), findOne: jest.fn(), exists: jest.fn().mockResolvedValue(false) };
     const commerceProfiles: any = { findById: jest.fn().mockResolvedValue(null), findForUserByType: jest.fn().mockResolvedValue(null) };
+    const profileScope: any = { resolveForListingScope: jest.fn().mockResolvedValue(70) };
     const brandAuthorizations: any = { getBadgeStatus: jest.fn() };
     const brands: any = { findOne: jest.fn() };
     const searchIndex: any = { remove: jest.fn().mockResolvedValue(undefined), upsert: jest.fn().mockResolvedValue(undefined) };
@@ -27,19 +28,20 @@ describe('ProductsService — Business-First Stage 2A workspace ownership', () =
     const defaultsOn = new Set(['PRODUCT_WORKSPACE_DUAL_WRITE']); // matches production default
     const ownershipFlags: any = { isEnabled: jest.fn((f: string) => (f in flagOverrides ? flagOverrides[f] : defaultsOn.has(f))) };
     const service = new ProductsService(
-      repo, noop, noop, noop, noop, noop, serialRepo, feedService, commerceProfiles, noop,
+      repo, noop, noop, noop, noop, noop, serialRepo, feedService, commerceProfiles, profileScope,
       searchIndex, noop, noop, { record: jest.fn() }, brandAuthorizations, brands,
       ownershipFlags,
     );
-    return { service, repo, savedProducts, ownershipFlags };
+    return { service, repo, savedProducts, ownershipFlags, profileScope };
   };
 
   describe('create() — new-write stamping', () => {
     it('stamps workspaceId from the resolved scope, not from any sellerId lookup, when dual-write is on', async () => {
       const { service, savedProducts } = buildService();
-      const scope = { legacySellerId: 200, workspaceId: 7, mode: 'workspace' as const };
+      const scope = { legacySellerId: 200, workspaceId: 7, businessId: 4, mode: 'workspace' as const };
       await service.create({ name: 'Phone', basePrice: 1000 } as any, { id: 200 } as any, scope);
       expect(savedProducts[0].workspaceId).toBe(7);
+      expect(savedProducts[0].commerceProfileId).toBe(70);
     });
 
     it('VALID unresolved legacy Seller write: scope.workspaceId=null leaves Product.workspaceId null, write still succeeds', async () => {
@@ -56,11 +58,18 @@ describe('ProductsService — Business-First Stage 2A workspace ownership', () =
       expect(savedProducts[0].workspaceId).toBeNull();
     });
 
-    it('PRODUCT_WORKSPACE_DUAL_WRITE off: never stamps workspaceId even when a resolved workspace scope is supplied', async () => {
+    it('security invariant is not disabled by the legacy dual-write flag', async () => {
       const { service, savedProducts } = buildService({ PRODUCT_WORKSPACE_DUAL_WRITE: false });
       const scope = { legacySellerId: 200, workspaceId: 7, mode: 'workspace' as const };
       await service.create({ name: 'Phone', basePrice: 1000 } as any, { id: 200 } as any, scope);
-      expect(savedProducts[0].workspaceId).toBeNull();
+      expect(savedProducts[0].workspaceId).toBe(7);
+    });
+
+    it('ignores client authority fields and stamps the server-resolved pair', async () => {
+      const { service, savedProducts } = buildService();
+      const scope = { legacySellerId: 200, workspaceId: 7, businessId: 4, mode: 'workspace' as const };
+      await service.create({ name: 'Phone', basePrice: 1000, commerceProfileId: 999, workspaceId: 999 } as any, { id: 200 } as any, scope);
+      expect(savedProducts[0]).toMatchObject({ workspaceId: 7, commerceProfileId: 70 });
     });
   });
 

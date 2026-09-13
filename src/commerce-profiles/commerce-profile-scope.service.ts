@@ -1,8 +1,18 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CommerceProfile } from './entities/commerce-profile.entity';
+import {
+  CommerceProfile,
+  CommerceProfileStatus,
+  CommerceProfileType,
+} from './entities/commerce-profile.entity';
 import { CommerceProfileMember } from './entities/commerce-profile-member.entity';
+import {
+  OperationalWorkspace,
+  OperationalWorkspaceStatus,
+} from '../business/entities/operational-workspace.entity';
+import { SellerScope } from '../business/seller-scope.service';
+import { RoleProfileType } from '../role-context/entities/account-role.entity';
 
 // Generalizes SellerScopeService (src/business/seller-scope.service.ts) from
 // "one business per seller account" to "any CommerceProfile, owned or
@@ -28,7 +38,81 @@ export class CommerceProfileScopeService {
     private profileRepo: Repository<CommerceProfile>,
     @InjectRepository(CommerceProfileMember)
     private memberRepo: Repository<CommerceProfileMember>,
+    @InjectRepository(OperationalWorkspace)
+    private workspaceRepo: Repository<OperationalWorkspace>,
   ) {}
+
+  /**
+   * Resolves listing identity from the already-authoritative RoleContext
+   * projection in SellerScope. A workspace-scoped request is deliberately
+   * resolved by workspace/business linkage, never by a client-selected
+   * CommerceProfile or by broad user ownership.
+   *
+   * CommerceProfile.businessId is not structurally unique today, so exact
+   * cardinality is enforced here: zero or multiple active BUSINESS profiles
+   * fail closed instead of silently choosing an arbitrary row.
+   */
+  async resolveForListingScope(scope: SellerScope): Promise<number | null> {
+    if (scope.mode === 'workspace') {
+      if (scope.workspaceId == null || scope.businessId == null) {
+        throw this.unresolvedWorkspaceProfile();
+      }
+
+      const workspace = await this.workspaceRepo.findOne({
+        where: {
+          id: scope.workspaceId,
+          businessId: scope.businessId,
+          status: OperationalWorkspaceStatus.ACTIVE,
+        },
+      });
+      if (!workspace) throw this.unresolvedWorkspaceProfile();
+
+      const profiles = await this.profileRepo.find({
+        where: {
+          businessId: workspace.businessId,
+          type: CommerceProfileType.BUSINESS,
+          status: CommerceProfileStatus.ACTIVE,
+        },
+        take: 2,
+      });
+      if (profiles.length !== 1) throw this.unresolvedWorkspaceProfile();
+      return profiles[0].id;
+    }
+
+    // A validated, intentionally unbound legacy Seller still carries its
+    // authoritative SellerProfile binding. Resolve that exact backing
+    // profile when it is unambiguous; personal/non-seller contexts remain
+    // account-scoped and require no CommerceProfile.
+    if (
+      scope.profileType === RoleProfileType.SELLER_PROFILE &&
+      scope.profileId != null
+    ) {
+      const profiles = await this.profileRepo.find({
+        where: {
+          sellerProfileId: scope.profileId,
+          type: CommerceProfileType.BUSINESS,
+          status: CommerceProfileStatus.ACTIVE,
+        },
+        take: 2,
+      });
+      if (profiles.length > 1) {
+        throw new ConflictException({
+          code: 'COMMERCE_PROFILE_LEGACY_AMBIGUOUS',
+          message: 'Legacy seller profile has ambiguous commerce identity.',
+        });
+      }
+      return profiles[0]?.id ?? null;
+    }
+
+    return null;
+  }
+
+  private unresolvedWorkspaceProfile(): ConflictException {
+    return new ConflictException({
+      code: 'COMMERCE_PROFILE_WORKSPACE_UNRESOLVED',
+      message: 'Workspace commerce identity could not be resolved uniquely.',
+    });
+  }
 
   // Whether `userId` may act on this specific profile — as its owner, or
   // as an active member with the given permission. Never picks a

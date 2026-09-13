@@ -430,7 +430,6 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         weightKg:     form.weightKg ? Number(form.weightKg) : null,
         specs:        Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         features:     form.features?.length > 0 ? form.features : null,
-        commerceProfileId: activeProfileId || undefined,
         sku:          form.sku || undefined,
         barcode:      form.barcode || undefined,
         costPrice:    form.costPrice !== '' ? Number(form.costPrice) : undefined,
