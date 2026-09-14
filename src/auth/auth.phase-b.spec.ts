@@ -22,6 +22,7 @@ describe('AuthService Phase B session lifecycle', () => {
   it('revokes the old context before issuing a switched-role token', async () => {
     const roleContext = {
       getRoleForUser: jest.fn().mockResolvedValue(target), isSwitchable: jest.fn().mockResolvedValue(true),
+      evaluateAccountRoleAvailability: jest.fn().mockResolvedValue({ switchable: true, reason: null }),
       revokeCurrentSession: jest.fn().mockResolvedValue(undefined), createSession: jest.fn().mockResolvedValue({ id: 'new-session' }),
       resolveContext: jest.fn().mockResolvedValue({ accountRoleId: 2, sessionId: 'new-session' }), listRoles: jest.fn().mockResolvedValue([]),
     };

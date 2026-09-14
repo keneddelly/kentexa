@@ -400,11 +400,33 @@ export class AuthService {
       accountRoleId,
       user.id,
     );
-    if (!target || !(await this.roleContextService.isSwitchable(target))) {
+    if (!target) {
       throw new ForbiddenException({
         code: 'ROLE_NOT_SWITCHABLE',
         message: 'ROLE_NOT_SWITCHABLE',
       });
+    }
+    // Business Capability Activation Stage B4.5: never trust a cached/prior
+    // GET /auth/roles switchable flag -- re-evaluate the target role fresh,
+    // right here, against current authoritative state (AccountRole.status +
+    // organizational BusinessCapability), immediately before creating any
+    // session. A capability suspended between the client's last /auth/roles
+    // read and this request must still reject the switch.
+    const availability = await this.roleContextService.evaluateAccountRoleAvailability(target);
+    if (!availability.switchable) {
+      // Preserve the architectural meaning rather than collapsing every
+      // denial into the same generic code: an organizational-entitlement
+      // failure is surfaced as such (ROLE_CONTEXT_CAPABILITY_INACTIVE /
+      // ROLE_CONTEXT_ORGANIZATIONAL_REVOKED), never mislabeled as if the
+      // AccountRole itself had been suspended. Every other denial reason
+      // (role not active, invalid profile) keeps the existing
+      // ROLE_NOT_SWITCHABLE code exactly as before this stage.
+      const code: string =
+        availability.reason === 'ROLE_CONTEXT_CAPABILITY_INACTIVE' ||
+        availability.reason === 'ROLE_CONTEXT_ORGANIZATIONAL_REVOKED'
+          ? availability.reason
+          : 'ROLE_NOT_SWITCHABLE';
+      throw new ForbiddenException({ code, message: code });
     }
     await this.roleContextService.revokeCurrentSession(
       currentContext.sessionId,

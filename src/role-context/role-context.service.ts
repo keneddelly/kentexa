@@ -17,7 +17,7 @@ import {
 import { ActiveRoleSession } from './entities/active-role-session.entity';
 import { ROLE_CAPABILITY_REGISTRY } from './capabilities';
 import { ORGANIZATIONAL_CAPABILITY_BY_ROLE } from './organizational-capability';
-import { RoleContextException } from './role-context.exception';
+import { RoleContextErrorCode, RoleContextException } from './role-context.exception';
 import { RequestMetadata, RoleContext, RoleJwtPayload } from './role-context.types';
 import { RoleSessionEventsService } from './role-session-events.service';
 
@@ -69,13 +69,24 @@ export class RoleContextService {
         workspaceId: null,
         businessName: null,
       }));
+      // Business Capability Activation Stage B4.5: switchable/reason come
+      // from the SAME canonical evaluator every other caller uses (login
+      // selection, switch-role's own fresh check) -- never a second,
+      // independently-derived judgement of whether this row is usable.
+      // Membership itself (this row existing at all) is unaffected by
+      // organizational entitlement being inactive -- an ACTIVE Seller
+      // AccountRole whose Commerce capability is SUSPENDED still appears
+      // here, just switchable:false with a reason distinguishing it from
+      // the AccountRole itself being suspended.
+      const availability = await this.evaluateAccountRoleAvailability(role);
       return {
         accountRoleId: role.id,
         roleType: role.roleType,
         status: role.status,
         profileType: role.profileType,
         profileId: role.profileId,
-        switchable: await this.isSwitchable(role),
+        switchable: availability.switchable,
+        reason: availability.reason,
         capabilities: this.effectiveCapabilities(role),
         businessId: organizational.businessId,
         workspaceId: organizational.workspaceId,
@@ -334,7 +345,57 @@ export class RoleContextService {
   }
 
   async isSwitchable(role: AccountRole): Promise<boolean> {
-    return role.status === AccountRoleStatus.ACTIVE && this.isProfileValid(role);
+    return (await this.evaluateAccountRoleAvailability(role)).switchable;
+  }
+
+  /**
+   * Business Capability Activation Stage B4.5. The single canonical
+   * evaluator for "is this AccountRole usable right now" -- reused by
+   * isSwitchable() (and therefore by selectRoleForLogin's login-time role
+   * selection and AuthService.switchRole's own fresh authoritative check),
+   * and directly by listRoles() (GET /auth/roles) so it can also surface
+   * WHY a row isn't switchable. No independent/duplicated capability check
+   * exists anywhere else -- this is the only place that decides it.
+   *
+   * Two-axis authority model (Stage B4): AccountRole.status is HUMAN
+   * authority; a mapped, workspace-bound role additionally requires its
+   * resolved workspace's BusinessCapability to be ACTIVE (ORGANIZATIONAL
+   * entitlement) -- reusing resolveOrganizationalContext/
+   * ORGANIZATIONAL_CAPABILITY_BY_ROLE verbatim, never a second mapping.
+   * The two failure reasons are kept distinguishable on purpose:
+   * ROLE_NOT_ACTIVE means the human's own membership/authority is
+   * suspended; ROLE_CONTEXT_CAPABILITY_INACTIVE (or
+   * ROLE_CONTEXT_ORGANIZATIONAL_REVOKED for a broken org chain) means the
+   * human authority is fine but the organizational entitlement isn't --
+   * suspending BusinessCapability never mutates or reinterprets
+   * AccountRole.status, and this evaluator never blurs the two into one
+   * generic "not switchable" reason.
+   *
+   * Legacy/unbound mapped roles (workspaceAssignmentId === null) skip the
+   * organizational/capability check entirely, exactly like
+   * resolveOrganizationalContext itself -- preserving established
+   * compatibility rather than newly denying them.
+   */
+  async evaluateAccountRoleAvailability(
+    role: AccountRole,
+  ): Promise<{ switchable: boolean; reason: RoleContextErrorCode | null }> {
+    if (role.status !== AccountRoleStatus.ACTIVE) {
+      return { switchable: false, reason: 'ROLE_NOT_ACTIVE' };
+    }
+    if (!(await this.isProfileValid(role))) {
+      return { switchable: false, reason: 'ROLE_PROFILE_INVALID' };
+    }
+    if (role.workspaceAssignmentId != null) {
+      try {
+        await this.resolveOrganizationalContext(role);
+      } catch (e) {
+        if (e instanceof RoleContextException) {
+          return { switchable: false, reason: (e.getResponse() as { code: RoleContextErrorCode }).code };
+        }
+        throw e;
+      }
+    }
+    return { switchable: true, reason: null };
   }
 
   private async isProfileValid(role: AccountRole): Promise<boolean> {
