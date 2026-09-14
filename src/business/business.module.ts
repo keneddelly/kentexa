@@ -27,8 +27,10 @@ import { SellerScopeService } from './seller-scope.service';
 import { BusinessService } from './business.service';
 import { BusinessBackfillService } from './business-backfill.service';
 import { BusinessCapabilityApplicationService } from './business-capability-application.service';
+import { BusinessCapabilityLifecycleService } from './business-capability-lifecycle.service';
 import { BusinessController } from './business.controller';
 import { AdminBusinessCapabilityApplicationController } from './admin-business-capability-application.controller';
+import { AdminBusinessCapabilityController } from './admin-business-capability.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { ActivityModule } from '../activity/activity.module';
@@ -84,7 +86,7 @@ import { ConversationClassifierService } from './conversation-classifier.service
       },
     }),
   ],
-  controllers: [BusinessController, AdminBusinessCapabilityApplicationController],
+  controllers: [BusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController],
   providers: [
     BusinessCustomerService,
     ConversationService,
@@ -92,6 +94,7 @@ import { ConversationClassifierService } from './conversation-classifier.service
     BusinessService,
     BusinessBackfillService,
     BusinessCapabilityApplicationService,
+    BusinessCapabilityLifecycleService,
     ConversationGateway,
     ParticipantResolutionService,
     ConversationClassifierService,
