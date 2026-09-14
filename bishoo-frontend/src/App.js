@@ -741,13 +741,14 @@ function App() {
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
       case 'MyBusinesses':      return requireLogin(<MyBusinesses {...publicProps} />);
       case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
+      case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
       case 'SellerProducts':    return requireVerifiedSeller(<SellerProducts {...publicProps} />);
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
       case 'BrandDashboard':    return requireLogin(<BrandDashboard {...publicProps} />);
       case 'BrandCatalog':      return requireLogin(<BrandCatalog {...publicProps} />);
       case 'POS':               return requireVerifiedSeller(<POS {...publicProps} />);
-      case 'SellerClassifieds': return requireVerifiedSeller(<SellerClassifieds {...publicProps} />);
+      case 'SellerClassifieds': return requireVerifiedSeller(<SellerClassifieds {...publicProps} listingMode="business" />);
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
       case 'SellerShipping':    return requireVerifiedSeller(<SellerShipping {...publicProps} />);
       case 'SendShipment':      return requireVerifiedSeller(<SendShipment {...publicProps} navParams={navParams} />);

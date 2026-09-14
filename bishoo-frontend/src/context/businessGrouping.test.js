@@ -1,4 +1,4 @@
-import { groupProfilesForSwitcher, activeBusinessNameFor, isPersonalProfile } from './businessGrouping';
+import { groupProfilesForSwitcher, activeBusinessNameFor, capabilityLabelKeyFor, isPersonalProfile } from './businessGrouping';
 
 const buyer = { accountRoleId: 26, roleType: 'buyer', type: 'personal', displayName: 'Kened', businessId: null, businessName: null };
 const sellerBiz1 = { accountRoleId: 38, roleType: 'seller', type: 'business', displayName: 'BiS', businessId: 2, businessName: 'Bishoo Intelligence Systems' };
@@ -58,4 +58,9 @@ test('activeBusinessNameFor resolves the active role\'s business name from roleO
   expect(activeBusinessNameFor({ accountRoleId: 26 }, roleOptions)).toBeNull(); // Personal -- no business
   expect(activeBusinessNameFor(null, roleOptions)).toBeNull();
   expect(activeBusinessNameFor({ accountRoleId: 999 }, roleOptions)).toBeNull(); // unknown role -- never guesses
+});
+
+test('capability labels use shared Business-first terminology', () => {
+  expect(capabilityLabelKeyFor(sellerBiz1)).toBe('business_home.tile_commerce');
+  expect(capabilityLabelKeyFor(transportBiz1)).toBe('business_home.tile_transport');
 });

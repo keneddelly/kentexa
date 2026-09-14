@@ -20,3 +20,8 @@ test('old operational history cannot cross context epoch', () => {
   const entry = historyEntryFor({ page: 'SellerOrders', contextEpoch: 4, accountRoleId: 38 });
   expect(isHistoryEntryValid(entry, { contextEpoch: 5, accountRoleId: 45 })).toBe(false);
 });
+test('personal Classified creation is account-scoped while Business Classified management stays operational', () => {
+  expect(evaluateDestination({ ...context('buyer'), page: 'MyClassifieds' }).allowed).toBe(true);
+  expect(evaluateDestination({ ...context('buyer'), page: 'SellerClassifieds' })).toMatchObject({ allowed: false, reason: 'WRONG_CONTEXT' });
+  expect(evaluateDestination({ ...context('seller'), page: 'SellerClassifieds' }).allowed).toBe(true);
+});

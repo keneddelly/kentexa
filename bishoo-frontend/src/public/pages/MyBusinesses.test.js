@@ -51,3 +51,16 @@ test('create-business form uses the existing POST /business/create and never omi
   expect(screen.getByText('my_businesses.name_required')).toBeInTheDocument();
   expect(api.post).not.toHaveBeenCalled();
 });
+
+test('a fresh Personal user creates a Business without a Seller role and opens Business Home', async () => {
+  api.get.mockResolvedValue({ data: [] });
+  api.post.mockResolvedValue({ data: { id: 9, legalName: 'Fresh Company' } });
+  const onNavigate = jest.fn();
+  render(<MyBusinesses isLoggedIn onNavigate={onNavigate} />);
+  await waitFor(() => expect(screen.getByText('my_businesses.create_button')).toBeInTheDocument());
+  fireEvent.click(screen.getByText('my_businesses.create_button'));
+  fireEvent.change(screen.getByPlaceholderText('my_businesses.name_placeholder'), { target: { value: 'Fresh Company' } });
+  fireEvent.click(screen.getByText('my_businesses.create_button'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/business/create', { legalName: 'Fresh Company', category: undefined }));
+  expect(onNavigate).toHaveBeenCalledWith('BusinessHome-9');
+});

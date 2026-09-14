@@ -18,7 +18,7 @@
  */
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { groupProfilesForSwitcher } from '../../context/businessGrouping';
+import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -39,13 +39,6 @@ const TYPE_META = {
 // so a Business's capability rows read as "Commerce"/"Transport"/"Super
 // Agent" per the approved Business-First presentation, not backend role
 // terminology repeated under itself.
-const CAPABILITY_LABEL_BY_ROLE = {
-  seller: 'business_home.tile_commerce',
-  transport_provider: 'business_home.tile_transport',
-  super_agent: 'business_home.tile_super_agent',
-  service_provider: 'profile_switcher.type_service',
-};
-
 const ProfileRow = ({ profile, isActive, disabled, onClick, label, icon, translatedActiveLabel }) => (
   <button onClick={onClick} disabled={disabled}
     style={{ width:'100%', display:'flex', alignItems:'center', gap:12,
@@ -130,7 +123,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
                 {group.capabilities.map((p) => (
                   <ProfileRow key={p.accountRoleId} profile={p} isActive={isActive(p)} disabled={rowDisabled(p)}
                     onClick={() => onSwitch(p.accountRoleId)}
-                    label={t(CAPABILITY_LABEL_BY_ROLE[p.roleType] || TYPE_META[p.type]?.label || 'profile_switcher.type_business')}
+                    label={t(capabilityLabelKeyFor(p))}
                     icon={(TYPE_META[p.type] || TYPE_META.business).icon} translatedActiveLabel={t('profile_switcher.active_label')} />
                 ))}
               </div>

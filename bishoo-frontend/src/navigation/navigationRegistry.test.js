@@ -18,3 +18,6 @@ test('role homes match intended contexts', () => {
   expect(homeForRole('transport_provider')).toBe('TransportProviderDashboard'); expect(homeForRole('service_provider')).toBe('MyServices');
   expect(homeForRole('manager')).toBe('Dashboard');
 });
+test('personal Classified destination is registered as an authenticated account page', () => {
+  expect(destinationForPage('MyClassifieds')).toMatchObject({ kind: 'account' });
+});

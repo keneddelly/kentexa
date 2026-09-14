@@ -11,6 +11,8 @@ import api from '../../api/api';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import LanguageSwitcher, { LANGUAGES } from '../components/LanguageSwitcher';
 import { homeForRole } from '../../navigation/navigationRegistry';
+import { getMyBusinesses } from '../../api/business';
+import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -80,7 +82,7 @@ const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => 
 );
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment, activeProfile, availableRoles = [] }) => {
+const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment, activeProfile, availableRoles = [], roleOptions = [] }) => {
   const { t, i18n } = useTranslation();
   const TIERS = getTiers(t);
   const ROLE_META = getRoleMeta(t);
@@ -105,6 +107,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [sellerProfile, setSellerProfile] = useState(null);
+  const [businesses, setBusinesses] = useState([]);
 
   const role = userRole || 'buyer';
 
@@ -117,12 +120,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
       api.get('/notifications/unread-count'),
       api.get('/identity/me'),
       api.get('/seller/my-profile'),
-    ]).then(([p, r, n, id, sp]) => {
+      getMyBusinesses(),
+    ]).then(([p, r, n, id, sp, bs]) => {
       if (p.status === 'fulfilled') setProfile(p.value.data);
       if (r.status === 'fulfilled') setRep(r.value.data);
       if (n.status === 'fulfilled') setUnread(n.value.data?.count || n.value.data || 0);
       if (id.status === 'fulfilled') setIdentityStatus(id.value.data);
       if (sp.status === 'fulfilled') setSellerProfile(sp.value.data);
+      if (bs.status === 'fulfilled') setBusinesses(bs.value);
     }).finally(() => setLoading(false));
 
     // Eagerly load just the ONE role-relevant summary so the Quick Actions
@@ -193,6 +198,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const score = rep?.score || profile?.reputationScore || 0;
   const tier  = getTier(score);
   const roles = availableRoles.filter(r => r.status === 'active').map(r => r.roleType);
+  const groupedProfiles = groupProfilesForSwitcher(roleOptions);
+  const capabilityGroups = new Map(groupedProfiles.businesses.map(group => [Number(group.businessId), group.capabilities]));
 
   // "Businesses Zangu" is store/products/services/analytics — only means
   // anything if you actually run a store. "Finance" is payouts/invoices/
@@ -204,14 +211,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
 
   const NAV = [
     { key:'identity',      icon:'👤', label:t('my_profile.nav_identity') },
-    { key:'roles',         icon:'🏷️', label:t('my_profile.nav_roles') },
-    isBusinessOwner && { key:'businesses', icon:'🏢', label:t('my_profile.nav_businesses') },
+    { key:'businesses',    icon:'🏢', label:t('my_profile.nav_businesses') },
     { key:'commerce',      icon:'📦', label:t('my_profile.nav_commerce') },
     { key:'logistics',     icon:'🚚', label:t('my_profile.nav_logistics') },
     isPaidRole && { key:'finance', icon:'💰', label:t('my_profile.nav_finance') },
     { key:'reputation',    icon:'⭐', label:t('my_profile.nav_reputation') },
     { key:'communication', icon:'💬', label:t('my_profile.nav_communication'), badge: unread },
     { key:'settings',      icon:'⚙️', label:t('my_profile.nav_settings') },
+    { key:'roles',         icon:'🔐', label:t('my_profile.operations_access') },
   ].filter(Boolean);
 
   if (!isLoggedIn) return null;
@@ -299,19 +306,45 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               </div>
             </div>
           </div>
-          {/* Role badges */}
-          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginTop:12 }}>
-            {roles.map(r => {
-              const m = ROLE_META[r] || { icon:'👤', label:r };
+        </div>
+      )}
+
+      {!section && (
+        <div style={{ padding:'14px 14px 0', maxWidth:760, margin:'0 auto' }}>
+          <SCard style={{ marginBottom:0 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:12, marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:14, fontWeight:900, color:DK }}>{t('my_profile.nav_businesses')}</div>
+                <div style={{ fontSize:11, color:GR }}>{businesses.length ? t('my_profile.businesses_summary') : t('my_businesses.empty_title')}</div>
+              </div>
+              <button onClick={() => onNavigate('MyBusinesses')} style={{ border:'none', borderRadius:9, padding:'8px 11px', background:'#EFF6FF', color:B, fontWeight:800, cursor:'pointer' }}>
+                {businesses.length ? t('my_profile.view_all') : t('my_businesses.create_button')}
+              </button>
+            </div>
+            {businesses.map(business => {
+              const capabilities = capabilityGroups.get(Number(business.id)) || [];
               return (
-                <span key={r} style={{ fontSize:10, fontWeight:700,
-                  backgroundColor:'rgba(255,255,255,0.2)', color:WH,
-                  padding:'3px 10px', borderRadius:100 }}>
-                  {m.icon} {m.label}
-                </span>
+                <button key={business.id} onClick={() => onNavigate(`BusinessHome-${business.id}`)}
+                  style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'11px 0', border:'none', borderTop:'1px solid #F1F5F9', background:'none', cursor:'pointer', textAlign:'left' }}>
+                  <span style={{ fontSize:22 }}>🏢</span>
+                  <span style={{ flex:1, minWidth:0 }}>
+                    <span style={{ display:'block', fontSize:13, fontWeight:800, color:DK }}>{business.tradingName || business.legalName}</span>
+                    <span style={{ display:'block', fontSize:11, color:GR, marginTop:2 }}>
+                      {capabilities.length
+                        ? capabilities.map(item => `${t(capabilityLabelKeyFor(item))} · ${item.status || 'active'}`).join(' · ')
+                        : t('my_profile.no_active_capabilities')}
+                    </span>
+                  </span>
+                  <span style={{ color:'#CBD5E1' }}>›</span>
+                </button>
               );
             })}
-          </div>
+            <button onClick={() => onNavigate('MyClassifieds')} style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'12px 0 2px', border:'none', borderTop:'1px solid #F1F5F9', background:'none', cursor:'pointer', textAlign:'left' }}>
+              <span style={{ fontSize:20 }}>🏷️</span>
+              <span style={{ flex:1, fontSize:13, fontWeight:800, color:DK }}>{t('my_profile.my_classifieds')}</span>
+              <span style={{ color:'#CBD5E1' }}>›</span>
+            </button>
+          </SCard>
         </div>
       )}
 
@@ -531,7 +564,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:12, color:GR, marginBottom:14 }}>
                 {t('my_profile.one_account_desc')}
               </div>
-              {roles.map(r => {
+              {roles.filter(r => r !== 'buyer' && !['admin','manager','customer_care','arbitrator'].includes(r)).map(r => {
                 const m = ROLE_META[r] || { icon:'👤', label:r, color:GR, bg:'#F1F5F9' };
                 return (
                   <div key={r} style={{ display:'flex', alignItems:'center', gap:14,
@@ -557,6 +590,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 );
               })}
             </SCard>
+
+            {roles.some(r => ['admin','manager','customer_care','arbitrator'].includes(r)) && (
+              <SCard>
+                <div style={{ fontSize:13, fontWeight:800, color:DK }}>{t('my_profile.staff_operations')}</div>
+              </SCard>
+            )}
 
             <SCard>
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
@@ -590,6 +629,12 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                 {t('my_profile.my_businesses_title')}
               </div>
+              <Row icon="🏢" label={t('my_profile.nav_businesses')}
+                value={businesses.length}
+                onAction={() => onNavigate('MyBusinesses')} />
+              <Row icon="🏷️" label={t('my_profile.my_classifieds')}
+                onAction={() => onNavigate('MyClassifieds')} />
+              {isBusinessOwner && <>
               <Row icon="📊" label={t('my_profile.seller_dashboard_label')}
                 onAction={() => onNavigate('SellerDashboard')} />
               <Row icon="🏪" label={t('my_profile.online_store_label')}
@@ -611,6 +656,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 onAction={() => onOpenMoment?.('selling')} />
               <Row icon="📢" label={t('my_profile.my_posts_label')}
                 onAction={() => onNavigate('CommerceProfile')} />
+              </>}
             </SCard>
 
             {sellerStats && (

@@ -14,6 +14,16 @@
 // null for buyer anyway -- AccountRole's singular/account-scope bucket).
 export const isPersonalProfile = (profile) => profile?.roleType === 'buyer';
 
+const CAPABILITY_LABEL_BY_ROLE = {
+  seller: 'business_home.tile_commerce',
+  transport_provider: 'business_home.tile_transport',
+  super_agent: 'business_home.tile_super_agent',
+  service_provider: 'profile_switcher.type_service',
+};
+
+export const capabilityLabelKeyFor = (profile) =>
+  CAPABILITY_LABEL_BY_ROLE[profile?.roleType] || `profile_switcher.type_${profile?.type || 'business'}`;
+
 /**
  * Groups a flat roleOptions array into:
  *  - personal: the single buyer profile, or null if not present.
