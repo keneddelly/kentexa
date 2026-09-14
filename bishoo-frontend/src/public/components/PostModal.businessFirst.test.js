@@ -8,8 +8,9 @@ test('Personal + listing opens account-scoped My Classifieds without a Seller de
   const onNavigate = jest.fn();
   render(<PostModal activeProfile={{ type: 'personal' }} onNavigate={onNavigate} onClose={jest.fn()} />);
   fireEvent.click(screen.getByText('post_modal.action_listing_title'));
-  expect(onNavigate).toHaveBeenCalledWith('MyClassifieds');
+  expect(onNavigate).toHaveBeenCalledWith('CreateClassified');
   expect(onNavigate).not.toHaveBeenCalledWith('Home');
+  expect(onNavigate).not.toHaveBeenCalledWith('SellerClassifieds');
 });
 
 test('Business + listing retains the Business Classified operational destination', () => {

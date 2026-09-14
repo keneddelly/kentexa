@@ -22,6 +22,9 @@ test('old operational history cannot cross context epoch', () => {
 });
 test('personal Classified creation is account-scoped while Business Classified management stays operational', () => {
   expect(evaluateDestination({ ...context('buyer'), page: 'MyClassifieds' }).allowed).toBe(true);
+  expect(evaluateDestination({ ...context('buyer'), page: 'CreateClassified' })).toMatchObject({
+    allowed: true, page: 'CreateClassified', destination: { kind: 'account' },
+  });
   expect(evaluateDestination({ ...context('buyer'), page: 'SellerClassifieds' })).toMatchObject({ allowed: false, reason: 'WRONG_CONTEXT' });
   expect(evaluateDestination({ ...context('seller'), page: 'SellerClassifieds' }).allowed).toBe(true);
 });

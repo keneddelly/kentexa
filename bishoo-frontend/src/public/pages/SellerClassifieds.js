@@ -34,7 +34,7 @@ const EMPTY_FORM = {
   contactPhone: '',
 };
 
-const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, editItemId, activeProfileId }) => {
+const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, editItemId, activeProfileId, createOnly = false }) => {
   const { t } = useTranslation();
   const [CATEGORIES, setCategories]   = useState(FALLBACK_CATEGORIES);
   const [classifieds, setClassifieds] = useState([]);
@@ -44,7 +44,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const [message, setMessage]         = useState('');
   const [priceSuggestion, setPriceSuggestion] = useState(null);
   const [loadingPrice,  setLoadingPrice]     = useState(false);
-  const [showForm, setShowForm]       = useState(false);
+  const [showForm, setShowForm]       = useState(createOnly);
   const [editItem, setEditItem]       = useState(null);
   const [uploading, setUploading]     = useState(false);
   const [saving, setSaving]           = useState(false);
@@ -109,7 +109,9 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
-    fetchMyClassifieds();
+    // createOnly is an immediate-create destination, not a management
+    // dashboard — skip loading the existing-listings list entirely.
+    if (!createOnly) fetchMyClassifieds();
     // Check if user has a phone number — required for classified contact
     api.get('/auth/profile').then(res => setUserPhone(res.data?.phone || '')).catch(() => {});
   // Re-fetch when the active profile changes, same reasoning as SellerProducts.js.
@@ -247,6 +249,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
     try {
       setSaving(true);
       setError('');
+      let createdId = null;
       await runOnce(submitLock.current, async () => {
       const payload = {
         ...form,
@@ -267,11 +270,17 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         // Acting identity is resolved by the server from RoleContext. A
         // personal classified stays account-scoped; an organizational one
         // is stamped from its authoritative workspace.
-        await api.post('/classifieds', payload);
+        const created = await api.post('/classifieds', payload);
+        createdId = created.data?.id ?? null;
         setMessage(t('seller_classifieds.listing_posted'));
       }
-      resetForm(); fetchMyClassifieds();
       });
+      resetForm();
+      if (createOnly && createdId != null) {
+        onNavigate(`ClassifiedDetail-${createdId}`);
+        return;
+      }
+      fetchMyClassifieds();
     } catch (err) {
       // Posting requires Level 1 identity verification — show the inline
       // "Verify Your Identity" flow instead of a plain error so the
@@ -328,6 +337,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
     const hasDraft = Boolean(form.title.trim() || form.description.trim() || form.price || form.images.length);
     if (hasDraft && !window.confirm(t('listing_validation.discard_changes'))) return;
     resetForm();
+    if (createOnly) onNavigate('back');
   };
 
   const handleDelete = async (id) => {
@@ -351,6 +361,11 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', paddingBottom: 90 }}>
       <BackBar onBack={() => onNavigate('back')} title={t('seller_classifieds.page_title')} />
+      {/* createOnly is an immediate-create destination, not the manage
+          dashboard — its own modal below is the entire view, so the list,
+          stats and their banners (which would otherwise render duplicate
+          error/message text alongside the modal's own) stay hidden. */}
+      {!createOnly && (<>
       <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', padding: '20px 16px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
           <div>
@@ -474,6 +489,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
           </div>
         )}
       </div>
+      </>)}
 
       {/* ── POST/EDIT MODAL ── */}
       {showForm && (

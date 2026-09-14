@@ -742,6 +742,7 @@ function App() {
       case 'MyBusinesses':      return requireLogin(<MyBusinesses {...publicProps} />);
       case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
       case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);
+      case 'CreateClassified':  return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" createOnly />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
       case 'SellerProducts':    return requireVerifiedSeller(<SellerProducts {...publicProps} />);
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);

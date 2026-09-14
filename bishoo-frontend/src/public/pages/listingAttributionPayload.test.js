@@ -28,7 +28,7 @@ describe('listing creation attribution payload contract', () => {
     const block = submitBlock(
       source('SellerClassifieds.js'),
       'const payload = {',
-      'resetForm(); fetchMyClassifieds();',
+      'fetchMyClassifieds();',
     );
     expect(block).toContain("api.post('/classifieds', payload)");
     expect(block).not.toContain('commerceProfileId:');

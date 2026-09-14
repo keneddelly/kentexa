@@ -20,4 +20,5 @@ test('role homes match intended contexts', () => {
 });
 test('personal Classified destination is registered as an authenticated account page', () => {
   expect(destinationForPage('MyClassifieds')).toMatchObject({ kind: 'account' });
+  expect(destinationForPage('CreateClassified')).toMatchObject({ kind: 'account' });
 });

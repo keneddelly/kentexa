@@ -172,7 +172,7 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
                 if (a.mode) { onOpenMoment?.(a.mode); onClose(); return; }
                 if (a.key === 'list') {
                   if (isBusiness) { setShowListChoice(true); return; }
-                  onNavigate('MyClassifieds'); onClose(); return;
+                  onNavigate('CreateClassified'); onClose(); return;
                 }
                 onNavigate(a.page); onClose();
               }}
