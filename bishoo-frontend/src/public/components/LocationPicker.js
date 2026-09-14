@@ -12,7 +12,7 @@
  * Returns a structured location object that KenteXa stores consistently.
  * No more free-text city names that can be typed differently by different sellers.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
@@ -35,6 +35,7 @@ const LocationPicker = ({
   showWard = true,          // set false if ward not needed (e.g. just region/district)
   placeholder = 'Chagua...',
   style = {},
+  onLoadError,
 }) => {
   const { t } = useTranslation();
   const [regions,   setRegions]   = useState([]);
@@ -43,12 +44,17 @@ const LocationPicker = ({
 
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingWards,     setLoadingWards]     = useState(false);
+  const onLoadErrorRef = useRef(onLoadError);
+
+  useEffect(() => {
+    onLoadErrorRef.current = onLoadError;
+  }, [onLoadError]);
 
   // Load regions once on mount
   useEffect(() => {
     api.get('/locations/regions')
       .then(res => setRegions(res.data || []))
-      .catch(() => {});
+      .catch(() => { setRegions([]); onLoadErrorRef.current?.(); });
   }, []);
 
   // Load districts when region changes
@@ -57,7 +63,7 @@ const LocationPicker = ({
     setLoadingDistricts(true);
     api.get(`/locations/districts?regionId=${value.regionId}`)
       .then(res => setDistricts(res.data || []))
-      .catch(() => setDistricts([]))
+      .catch(() => { setDistricts([]); onLoadErrorRef.current?.(); })
       .finally(() => setLoadingDistricts(false));
   }, [value.regionId]);
 
@@ -67,7 +73,7 @@ const LocationPicker = ({
     setLoadingWards(true);
     api.get(`/locations/wards?districtId=${value.districtId}`)
       .then(res => setWards(res.data || []))
-      .catch(() => setWards([]))
+      .catch(() => { setWards([]); onLoadErrorRef.current?.(); })
       .finally(() => setLoadingWards(false));
   }, [value.districtId, showWard]);
 
@@ -143,6 +149,14 @@ const LocationPicker = ({
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
         </select>
+      )}
+
+      {/* Existing string-only listings have names but no historical IDs. */}
+      {!value.regionId && value.regionName && (
+        <div style={{ marginBottom: 8, padding: '8px 12px', backgroundColor: '#f0fdf4',
+          borderRadius: 8, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
+          📍 {[value.wardName, value.districtName, value.regionName].filter(Boolean).join(', ')}
+        </div>
       )}
 
       {/* Full address preview */}

@@ -1,4 +1,26 @@
 {
+  "listing_validation": {
+    "valid_optional_number_required": "Weka namba sahihi zisizo hasi kwa ada, uzito, gharama na kiwango cha chini cha stoo.",
+    "discard_changes": "Unataka kuacha mabadiliko ya tangazo hili?",
+    "location_load_failed": "Maeneo hayakuweza kupakiwa. Angalia mtandao wako kisha ujaribu tena.",
+    "saving": "Tangazo linahifadhiwa…",
+    "name_required": "Weka jina la bidhaa.",
+    "title_required": "Weka kichwa cha tangazo.",
+    "description_required": "Eleza bidhaa ili wanunuzi wajue wanachonunua.",
+    "positive_price_required": "Weka bei kubwa kuliko sifuri.",
+    "valid_stock_required": "Idadi ya hisa lazima iwe namba kamili ya sifuri au zaidi.",
+    "category_required": "Chagua kategoria.",
+    "location_required": "Chagua eneo la tangazo.",
+    "min_images_required": "Ongeza angalau picha {{count}} kabla ya kuchapisha.",
+    "required_fields_missing": "Jaza maelezo yote yanayohitajika",
+    "too_many_total": "Unaweza kuongeza hadi picha {{count}} kwenye tangazo hili.",
+    "too_many_per_upload": "Chagua picha zisizozidi 5 kwa mara moja.",
+    "unsupported_type": "Chagua faili za picha pekee.",
+    "file_too_large": "Kila picha lazima iwe MB 15 au chini.",
+    "valid_flash_price_required": "Bei ya ofa lazima iwe kubwa kuliko sifuri na ndogo kuliko bei ya kawaida.",
+    "valid_flash_end_required": "Chagua muda wa mwisho wa ofa ulio mbele.",
+    "valid_flash_quantity_required": "Idadi ya ofa lazima iwe namba kamili kubwa kuliko sifuri."
+  },
   "nav": {
     "home": "Nyumbani",
     "stores": "Maduka",

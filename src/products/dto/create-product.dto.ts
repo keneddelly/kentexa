@@ -10,6 +10,9 @@ import {
   Min,
   IsObject,
   ValidateNested,
+  Matches,
+  ArrayMaxSize,
+  IsUrl,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { CATEGORY_KEYS } from '../../categories/categories.data';
@@ -43,6 +46,7 @@ export class DigitalAssetDto {
 
 export class CreateProductDto {
   @IsString()
+  @Matches(/\S/)
   name: string;
 
   @IsOptional()
@@ -50,7 +54,7 @@ export class CreateProductDto {
   description?: string;
 
   @IsNumber()
-  @Min(0)
+  @Min(1)
   basePrice: number;
 
   @IsOptional()
@@ -58,7 +62,7 @@ export class CreateProductDto {
   @Min(0)
   deliveryFee?: number;
 
-  @IsNumber()
+  @IsInt()
   @Min(0)
   stock: number;
 
@@ -88,6 +92,8 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
+  @IsUrl({ protocols: ['https'], require_protocol: true }, { each: true })
   images?: string[];
 
   @IsOptional()
@@ -161,7 +167,7 @@ export class CreateProductDto {
   costPrice?: number;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
   @Min(0)
   minStockThreshold?: number;
 

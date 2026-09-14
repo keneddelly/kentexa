@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ClassifiedsService } from './classifieds.service';
 
 /**
@@ -69,6 +69,18 @@ describe('ClassifiedsService — Business-First Stage 2A workspace ownership', (
       await service.create({ title: 'Sofa', price: 50000, commerceProfileId: 999, workspaceId: 999 } as any, { id: 200 } as any, scope);
       expect(savedListings[0]).toMatchObject({ workspaceId: 7, commerceProfileId: 70 });
     });
+
+    it('rejects invalid flash-sale cross-field values before saving', async () => {
+      const { service, repo } = buildService();
+      const scope = { legacySellerId: 200, workspaceId: 7, businessId: 4, mode: 'workspace' as const };
+      await expect(service.create({
+        title: 'Sofa', price: 50000, isFlashSale: true,
+        flashSalePrice: 50000,
+        flashSaleEndsAt: new Date(Date.now() + 60_000).toISOString(),
+        flashSaleQuantity: 1,
+      } as any, { id: 200 } as any, scope)).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
   });
 
   describe('update()/remove() — fail-closed authorization matrix (CLASSIFIED_WORKSPACE_READ on)', () => {
@@ -123,6 +135,21 @@ describe('ClassifiedsService — Business-First Stage 2A workspace ownership', (
       repo.findOne.mockResolvedValue(buildListing(3));
       const scope = { legacySellerId: 200, workspaceId: 2, mode: 'workspace' as const };
       await expect(service.remove(1, { id: 200 } as any, false, scope)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('PATCH validates flash-sale fields against persisted listing state', async () => {
+      const { service, repo } = buildService();
+      repo.findOne.mockResolvedValue({
+        ...buildListing(null), price: 50000, isFlashSale: false,
+        category: 'general', subcategory: null, specs: null,
+      });
+      await expect(service.update(1, {
+        isFlashSale: true,
+        flashSalePrice: 40000,
+        flashSaleEndsAt: new Date(Date.now() - 60_000).toISOString(),
+        flashSaleQuantity: 1,
+      } as any, { id: 200 } as any)).rejects.toBeInstanceOf(BadRequestException);
+      expect(repo.save).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,4 +1,26 @@
 {
+  "listing_validation": {
+    "valid_optional_number_required": "Saisissez des valeurs valides pour les frais, le poids, le cout et le seuil de stock.",
+    "discard_changes": "Abandonner les modifications de cette annonce ?",
+    "location_load_failed": "Les choix de localisation n'ont pas pu etre charges. Verifiez votre connexion et reessayez.",
+    "saving": "Enregistrement de l’annonce…",
+    "name_required": "Saisissez le nom du produit.",
+    "title_required": "Saisissez le titre de l’annonce.",
+    "description_required": "Décrivez l’article pour informer les acheteurs.",
+    "positive_price_required": "Saisissez un prix supérieur à zéro.",
+    "valid_stock_required": "Le stock doit être un nombre entier positif ou nul.",
+    "category_required": "Choisissez une catégorie.",
+    "location_required": "Choisissez l’emplacement de l’annonce.",
+    "min_images_required": "Ajoutez au moins {{count}} photos avant de publier.",
+    "required_fields_missing": "Complétez les informations obligatoires",
+    "too_many_total": "Vous pouvez ajouter jusqu’à {{count}} photos à cette annonce.",
+    "too_many_per_upload": "Choisissez au maximum 5 photos à la fois.",
+    "unsupported_type": "Choisissez uniquement des fichiers image.",
+    "file_too_large": "Chaque photo doit faire 15 Mo ou moins.",
+    "valid_flash_price_required": "Le prix promotionnel doit être positif et inférieur au prix normal.",
+    "valid_flash_end_required": "Choisissez une date de fin future.",
+    "valid_flash_quantity_required": "La quantité promotionnelle doit être un entier supérieur à zéro."
+  },
   "nav": {
     "home": "Accueil",
     "stores": "Boutiques",

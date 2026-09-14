@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { getAccessToken } from '../../api/tokenStore';
 import { useTranslation } from 'react-i18next';
 import LocationPicker from '../components/LocationPicker';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
+import { createSubmissionLock, emptyLocation, locationFromText, normalizeListingError, runOnce, validateImageSelection, validateProductListing } from '../utils/listingForm';
 
 const TZ_CITIES = [
   'Dar es Salaam','Mwanza','Arusha','Dodoma','Mbeya','Tanga','Zanzibar',
@@ -34,7 +35,7 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', b
 
 const EMPTY_FORM = {
   name: '', description: '', basePrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
-  displayPrice: 0, stock: '', category: 'electronics', subcategory: '', model: '', brandId: null, officialProductId: null,
+  displayPrice: 0, stock: '', category: 'general', subcategory: 'other', model: '', brandId: null, officialProductId: null,
   specs: {}, features: [], images: [], isZipo: true, weightKg: '',
   sku: '', barcode: '', costPrice: '', minStockThreshold: '0',
   availableOnline: true, availableInStore: true, codEnabled: false,
@@ -53,10 +54,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const [showForm, setShowForm]       = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [uploading, setUploading]     = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const submitLock = useRef(createSubmissionLock());
   const [uploadingDigitalFile, setUploadingDigitalFile] = useState(false);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [form, setForm]               = useState(EMPTY_FORM);
-  const [productLocation, setProductLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [productLocation, setProductLocation] = useState(emptyLocation);
   const [shippingEstimate, setShippingEstimate] = useState(null);
   const [estimateLoading, setEstimateLoading]   = useState(false);
   const [descGenerating, setDescGenerating]     = useState(false);
@@ -239,7 +242,9 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       const res = await api.post('/products/ai/suggest-category', { title: form.name.trim() });
       if (res.data?.category && CATEGORIES[res.data.category]) {
         handleCategoryChange(res.data.category, { fromSuggestion: true });
-        if (res.data.subcategory) setForm(prev => ({ ...prev, subcategory: res.data.subcategory }));
+        if (res.data.subcategory && CATEGORIES[res.data.category].subcategories[res.data.subcategory]) {
+          setForm(prev => ({ ...prev, subcategory: res.data.subcategory }));
+        }
         setCategorySuggested(true);
       }
     } catch { /* silent — a suggestion failure must never block listing creation */ }
@@ -311,20 +316,24 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    if (form.images.length + files.length > mediaRules.maxImages) { setError(t('seller_products.max_images', { count: mediaRules.maxImages })); return; }
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreviews(prev => [...prev, reader.result]);
-      reader.readAsDataURL(file);
-    });
+    const selectionError = validateImageSelection(files, mediaRules.maxImages - form.images.length);
+    if (selectionError) {
+      setError(t(`listing_validation.${selectionError}`, { count: mediaRules.maxImages }));
+      e.target.value = '';
+      return;
+    }
     try {
       setUploading(true);
+      setError('');
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
       const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setForm(prev => ({ ...prev, images: [...prev.images, ...res.data.urls] }));
-    } catch { setError(t('seller_products.image_upload_failed')); }
-    finally { setUploading(false); }
+      const urls = res.data?.urls || [];
+      if (urls.length !== files.length) throw new Error('Incomplete image upload');
+      setForm(prev => ({ ...prev, images: [...prev.images, ...urls] }));
+      setImagePreviews(prev => [...prev, ...urls]);
+    } catch (err) { setError(normalizeListingError(err, t('seller_products.image_upload_failed'))); }
+    finally { setUploading(false); e.target.value = ''; }
   };
 
   // Digital products (Layer 1 seller verification) — uploads to the
@@ -374,8 +383,8 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   };
 
   const resetForm = () => {
-    setShowForm(false); setEditProduct(null);
-    setImagePreviews([]); setForm(EMPTY_FORM);
+    setShowForm(false); setEditProduct(null); setError('');
+    setImagePreviews([]); setForm(EMPTY_FORM); setProductLocation(emptyLocation());
     setSelectedBrand(null); setBrandQuery(''); setBrandResults([]); setBrandBadge(null);
     setSelectedOfficialProduct(null); setOfficialProductQuery(''); setOfficialProductResults([]);
     setFeatureInput(''); setShippingEstimate(null);
@@ -383,8 +392,21 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   };
 
   const handleSubmit = async () => {
+    if (submitLock.current.current) return;
     const isDigital = form.productType === 'digital';
-    if (!form.name || !form.basePrice || (!isDigital && !form.stock)) { setError(t('seller_products.name_required')); return; }
+    const validation = validateProductListing({
+      form,
+      isDigital,
+      imageCount: form.images.length,
+      minImages: mediaRules.minImages,
+      maxImages: mediaRules.maxImages,
+      requiredAttributes: attrFields.filter(a => a.required),
+    });
+    if (validation) {
+      const suffix = validation.fields?.length ? `: ${validation.fields.join(', ')}` : '';
+      setError(`${t(`listing_validation.${validation.code}`, { count: validation.count })}${suffix}`);
+      return;
+    }
     // Digital products (Layer 1 seller verification) — fast client-side
     // feedback before the network round-trip; the backend enforces the
     // same copyright-declaration requirement independently.
@@ -394,18 +416,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
     }
     // Required category attributes (e.g. Brand for appliances) — fast
     // client-side check, backed by the server's own validateAttributes().
-    const missingAttrs = attrFields.filter(a => a.required && !String(form.specs?.[a.key] || '').trim());
-    if (missingAttrs.length) {
-      setError(`${t('seller_products.required_fields_missing')}: ${missingAttrs.map(a => a.label).join(', ')}`);
-      return;
-    }
-    // Category-aware minimum image count — not a fixed "10 photos" rule.
-    if (!isDigital && imagePreviews.length < mediaRules.minImages) {
-      setError(`${t('seller_products.min_images_required', { count: mediaRules.minImages })}`);
-      return;
-    }
     try {
-      const base = Number(form.basePrice) || 0;
+      setSaving(true);
+      setError('');
+      await runOnce(submitLock.current, async () => {
+      const base = Number(form.basePrice);
       const delivery = Number(form.deliveryFee) || 0;
       const payload = {
         name:         form.name,
@@ -456,6 +471,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         setMessage(t('seller_products.added'));
       }
       resetForm(); fetchMyProducts();
+      });
     } catch (err) {
       // Creating a product requires Level 2 identity verification (an
       // approved seller application on top of NIDA) — show the same
@@ -477,7 +493,9 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
         setError(t('seller_products.seller_approval_pending'));
         return;
       }
-      setError(err?.response?.data?.message || t('seller_products.save_failed'));
+      setError(normalizeListingError(err, t('seller_products.save_failed')));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -508,7 +526,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       sellerCity:   product.sellerCity || 'Dar es Salaam',
       displayPrice: Number(product.displayPrice || product.price || 0),
       stock:        String(product.stock),
-      category:     product.category || 'electronics',
+      category:     product.category || 'general',
       subcategory:  product.subcategory || '',
       model:        product.model || '',
       brandId:      product.brandId || null,
@@ -516,7 +534,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       specs:        migratedSpecs,
       features:     product.features || [],
       images:       product.images || [],
-      isZipo:  product.isZipo,
+      isZipo:  product.isAvailable ?? true,
       weightKg:     product.weightKg ? String(product.weightKg) : '',
       sku:          product.sku || '',
       barcode:      product.barcode || '',
@@ -535,6 +553,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       copyrightDeclared: false,
     });
     setImagePreviews(product.images || []);
+    setProductLocation(locationFromText(product.sellerCity));
     if (product.brandId) {
       api.get(`/brands/${product.brandId}`).then(r => setSelectedBrand(r.data)).catch(() => setSelectedBrand(null));
     } else {
@@ -546,6 +565,12 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
       setSelectedOfficialProduct(null);
     }
     setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    const hasDraft = Boolean(form.name.trim() || form.description.trim() || form.basePrice || form.images.length || form.digitalFile);
+    if (hasDraft && !window.confirm(t('listing_validation.discard_changes'))) return;
+    resetForm();
   };
 
   const handleDelete = async (id) => {
@@ -834,6 +859,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               {editProduct ? `✏️ ${t('seller_products.edit_modal_title')}` : `+ ${t('seller_products.add_modal_title')}`}
             </h2>
 
+            {error && (
+              <div role="alert" style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '10px 12px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
+                {error}
+              </div>
+            )}
             {/* Product Type */}
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>{t('seller_products.product_type')}</label>
@@ -863,7 +893,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
             {/* Images */}
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>{t('seller_products.images')}</label>
+              <label style={labelStyle}>{t('seller_products.images')}{mediaRules.minImages > 0 ? ' *' : ''}</label>
               <p style={{ color: '#64748b', fontSize: 11, margin: '0 0 8px' }}>{mediaRules.guidanceText}</p>
               {imagePreviews.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -877,7 +907,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
               )}
               {imagePreviews.length < mediaRules.maxImages && (
                 <div style={{ border: '2px dashed #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', backgroundColor: '#f8fafc' }}>
-                  <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} id="productImages" />
+                  <input type="file" accept="image/*" multiple disabled={uploading || saving} onChange={handleImageUpload} style={{ display: 'none' }} id="productImages" />
                   <label htmlFor="productImages" style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                     {uploading ? `⏳ ${t('seller_products.uploading')}` : `📷 ${t('seller_products.choose_images')}`}
                   </label>
@@ -896,10 +926,10 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             </div>
 
             {/* Category + Subcategory */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>
               <div>
                 <label style={labelStyle}>
-                  {t('seller_products.category')}
+                  {t('seller_products.category')} *
                   {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_products.category_detecting')}</span>}
                   {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>✨ {t('seller_products.category_suggested')}</span>}
                 </label>
@@ -1021,7 +1051,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   {`📋 ${t('seller_products.specs')}`}
                   <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.specs_hint')}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
                   {[...attrFields].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).map(attr => {
                     const currentValue = form.specs?.[attr.key] || '';
                     const fieldLabel = `${attr.label}${attr.unit ? ` (${attr.unit})` : ''}${attr.required ? ' *' : ''}`;
@@ -1107,10 +1137,10 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             </div>
 
             {/* Price fields */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>
               <div>
                 <label style={labelStyle}>{t('seller_products.price')} *</label>
-                <input type="number" placeholder="e.g. 90000" value={form.basePrice}
+                <input type="number" min="1" step="1" placeholder="e.g. 90000" value={form.basePrice}
                   onChange={e => updatePrices('basePrice', e.target.value)} style={inputStyle} />
               </div>
               <div>
@@ -1172,7 +1202,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 across the local POS, Kentexa online, and manual sales. */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`📦 ${t('seller_products.inventory_section')}`}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
                 <div>
                   <label style={labelStyle}>{t('seller_products.sku')}</label>
                   <input type="text" placeholder={t('seller_products.sku_placeholder')} value={form.sku}
@@ -1224,7 +1254,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             {/* Shipping calculator */}
             <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>{`📦 ${t('seller_products.shipping_calc')}`}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 10 }}>
                 <div>
                   <label style={labelStyle}>{t('seller_products.your_city')}</label>
                   <select value={originCity} onChange={e => handleOriginCityChange(e.target.value)} style={inputStyle}>
@@ -1330,6 +1360,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <label style={labelStyle}>{t('seller_products.ship_from_city_label')}</label>
                 <LocationPicker
                   value={productLocation}
+                  onLoadError={() => setError(t('listing_validation.location_load_failed'))}
                   onChange={loc => {
                     setProductLocation(loc);
                     setForm(prev => ({
@@ -1373,10 +1404,10 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
           <div style={{ flexShrink: 0, display: 'flex', gap: 10,
             padding: '12px 16px max(12px, env(safe-area-inset-bottom))',
             borderTop: '1px solid #f1f5f9', backgroundColor: '#fff' }}>
-              <button onClick={resetForm} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t('seller_products.cancel')}</button>
-              <button onClick={handleSubmit} disabled={uploading}
-                style={{ flex: 2, background: uploading ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: uploading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
-                {uploading ? t('seller_products.please_wait') : editProduct ? `✅ ${t('seller_products.update')}` : `+ ${t('seller_products.add_product')}`}
+              <button onClick={cancelForm} disabled={saving} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>{t('seller_products.cancel')}</button>
+              <button onClick={handleSubmit} disabled={uploading || uploadingDigitalFile || saving}
+                style={{ flex: 2, background: (uploading || saving) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: (uploading || saving) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
+                {saving ? t('listing_validation.saving') : uploading ? t('seller_products.please_wait') : editProduct ? `✅ ${t('seller_products.update')}` : `+ ${t('seller_products.add_product')}`}
               </button>
           </div>
         </div>
@@ -1423,7 +1454,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             <label style={labelStyle}>{t('seller_products.base_price')}</label>
             <input type="number" value={variantBasePrice} onChange={e => setVariantBasePrice(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
 
-            <label style={labelStyle}>{t('seller_products.stock')}</label>
+            <label style={labelStyle}>{t('seller_products.stock')} *</label>
             <input type="number" value={variantStock} onChange={e => setVariantStock(e.target.value)} style={{ ...inputStyle, marginBottom: 12 }} />
 
             <label style={labelStyle}>{t('seller_products.photos')}</label>

@@ -1,45 +1,6 @@
-import {
-  IsIn,
-  IsNumber,
-  IsOptional,
-  IsString,
-  Min,
-  IsArray,
-  IsObject,
-} from 'class-validator';
-import { CATEGORY_KEYS } from '../../categories/categories.data';
+import { PartialType } from '@nestjs/swagger';
+import { CreateClassifiedDto } from './create-classified.dto';
 
-export class updateClassifiedDto {
-  @IsString()
-  title: string;
-
-  @IsString()
-  description: string;
-
-  @IsNumber()
-  @Min(0)
-  price: number;
-
-  @IsIn(CATEGORY_KEYS)
-  category: string;
-
-  @IsOptional()
-  @IsString()
-  subcategory?: string;
-
-  @IsOptional()
-  @IsObject()
-  specs?: Record<string, string>;
-
-  @IsOptional()
-  @IsString()
-  location?: string;
-
-  @IsOptional()
-  @IsArray()
-  images?: string[];
-
-  @IsOptional()
-  @IsString()
-  contactPhone?: string;
-}
+// Keep edit validation aligned with creation while allowing true PATCH
+// payloads. This also preserves flash-sale fields through whitelist:true.
+export class updateClassifiedDto extends PartialType(CreateClassifiedDto) {}

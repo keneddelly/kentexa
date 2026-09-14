@@ -1,4 +1,26 @@
 {
+  "listing_validation": {
+    "saving": "Saving listing…",
+    "name_required": "Enter a product name.",
+    "title_required": "Enter a listing title.",
+    "description_required": "Describe the item so buyers know what they are getting.",
+    "positive_price_required": "Enter a price greater than zero.",
+    "valid_stock_required": "Stock must be a whole number of zero or more.",
+    "valid_optional_number_required": "Enter valid non-negative values for fees, weight, cost, and stock threshold.",
+    "discard_changes": "Discard the changes in this listing?",
+    "location_load_failed": "Location choices could not be loaded. Check your connection and try again.",
+    "category_required": "Choose a category.",
+    "location_required": "Choose the listing location.",
+    "min_images_required": "Add at least {{count}} photos before publishing.",
+    "required_fields_missing": "Complete the required listing details",
+    "too_many_total": "You can add up to {{count}} photos to this listing.",
+    "too_many_per_upload": "Choose no more than 5 photos at a time.",
+    "unsupported_type": "Choose image files only.",
+    "file_too_large": "Each photo must be 15 MB or smaller.",
+    "valid_flash_price_required": "Flash-sale price must be greater than zero and lower than the normal price.",
+    "valid_flash_end_required": "Choose a flash-sale end time in the future.",
+    "valid_flash_quantity_required": "Flash-sale quantity must be a whole number greater than zero."
+  },
   "nav": {
     "home": "Home",
     "stores": "Stores",

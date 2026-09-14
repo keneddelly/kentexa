@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
+import { createSubmissionLock, emptyLocation, locationFromText, normalizeListingError, runOnce, validateClassifiedListing, validateImageSelection } from '../utils/listingForm';
 
 // Categories fetched from GET /categories (src/categories/categories.data.ts
 // — the single source of truth). This used to be its own independently-
@@ -27,7 +28,7 @@ const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', b
 
 const EMPTY_FORM = {
   title: '', description: '', price: '',
-  category: 'electronics', subcategory: '', location: '',
+  category: 'general', subcategory: 'other', location: '',
   images: [], specs: {}, condition: '', isNegotiable: false,
   isFlashSale: false, flashSalePrice: '', flashSaleEndsAt: '', flashSaleQuantity: '',
   contactPhone: '',
@@ -37,7 +38,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const { t } = useTranslation();
   const [CATEGORIES, setCategories]   = useState(FALLBACK_CATEGORIES);
   const [classifieds, setClassifieds] = useState([]);
-  const [classifiedLocation, setClassifiedLocation] = React.useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [classifiedLocation, setClassifiedLocation] = React.useState(emptyLocation);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState('');
   const [message, setMessage]         = useState('');
@@ -46,6 +47,8 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const [showForm, setShowForm]       = useState(false);
   const [editItem, setEditItem]       = useState(null);
   const [uploading, setUploading]     = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const submitLock = useRef(createSubmissionLock());
   const [imagePreviews, setImagePreviews] = useState([]);
   const [form, setForm]               = useState(EMPTY_FORM);
   const [userPhone, setUserPhone]     = useState('');
@@ -135,7 +138,9 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       const res = await api.post('/classifieds/ai/suggest-category', { title: form.title.trim() });
       if (res.data?.category && CATEGORIES[res.data.category]) {
         handleCategoryChange(res.data.category, { fromSuggestion: true });
-        if (res.data.subcategory) setForm(prev => ({ ...prev, subcategory: res.data.subcategory }));
+        if (res.data.subcategory && CATEGORIES[res.data.category].subcategories[res.data.subcategory]) {
+          setForm(prev => ({ ...prev, subcategory: res.data.subcategory }));
+        }
         setCategorySuggested(true);
       }
     } catch { /* silent — a suggestion failure must never block posting */ }
@@ -176,20 +181,24 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     if (!files.length) return;
-    if (form.images.length + files.length > mediaRules.maxImages) { setError(t('seller_classifieds.max_images', { count: mediaRules.maxImages })); return; }
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreviews(prev => [...prev, reader.result]);
-      reader.readAsDataURL(file);
-    });
+    const selectionError = validateImageSelection(files, mediaRules.maxImages - form.images.length);
+    if (selectionError) {
+      setError(t(`listing_validation.${selectionError}`, { count: mediaRules.maxImages }));
+      e.target.value = '';
+      return;
+    }
     try {
       setUploading(true);
+      setError('');
       const formData = new FormData();
       files.forEach(file => formData.append('files', file));
       const res = await api.post('/upload/images', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setForm(prev => ({ ...prev, images: [...prev.images, ...res.data.urls] }));
-    } catch { setError(t('seller_classifieds.image_upload_failed')); }
-    finally { setUploading(false); }
+      const urls = res.data?.urls || [];
+      if (urls.length !== files.length) throw new Error('Incomplete image upload');
+      setForm(prev => ({ ...prev, images: [...prev.images, ...urls] }));
+      setImagePreviews(prev => [...prev, ...urls]);
+    } catch (err) { setError(normalizeListingError(err, t('seller_classifieds.image_upload_failed'))); }
+    finally { setUploading(false); e.target.value = ''; }
   };
 
   const removeImage = (i) => {
@@ -216,17 +225,36 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   };
 
   const resetForm = () => {
-    setShowForm(false); setEditItem(null);
-    setImagePreviews([]); setForm(EMPTY_FORM);
+    setShowForm(false); setEditItem(null); setError('');
+    setImagePreviews([]); setForm(EMPTY_FORM); setClassifiedLocation(emptyLocation());
     setCategoryManuallySet(false); setCategorySuggested(false);
   };
 
   const handleSubmit = async () => {
-    if (!form.title || !form.price) { setError(t('seller_classifieds.title_price_required')); return; }
+    if (submitLock.current.current) return;
+    const validation = validateClassifiedListing({
+      form,
+      imageCount: form.images.length,
+      minImages: mediaRules.minImages,
+      maxImages: mediaRules.maxImages,
+      requiredAttributes: attrFields.filter(a => a.required),
+    });
+    if (validation) {
+      const suffix = validation.fields?.length ? `: ${validation.fields.join(', ')}` : '';
+      setError(`${t(`listing_validation.${validation.code}`, { count: validation.count })}${suffix}`);
+      return;
+    }
     try {
+      setSaving(true);
+      setError('');
+      await runOnce(submitLock.current, async () => {
       const payload = {
         ...form,
         price:      Number(form.price),
+        isFlashSale: form.isFlashSale,
+        flashSalePrice: form.isFlashSale ? Number(form.flashSalePrice) : null,
+        flashSaleEndsAt: form.isFlashSale ? new Date(form.flashSaleEndsAt).toISOString() : null,
+        flashSaleQuantity: form.isFlashSale ? Number(form.flashSaleQuantity) : null,
         specs:      Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         subcategory: form.subcategory || null,
         condition:  form.condition || null,
@@ -243,6 +271,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         setMessage(t('seller_classifieds.listing_posted'));
       }
       resetForm(); fetchMyClassifieds();
+      });
     } catch (err) {
       // Posting requires Level 1 identity verification — show the inline
       // "Verify Your Identity" flow instead of a plain error so the
@@ -251,7 +280,9 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         setShowVerifyIdentity(true);
         return;
       }
-      setError(err?.response?.data?.message || t('seller_classifieds.save_failed'));
+      setError(normalizeListingError(err, t('seller_classifieds.save_failed')));
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -275,7 +306,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       title:        item.title,
       description:  item.description || '',
       price:        String(item.price),
-      category:     item.category || 'electronics',
+      category:     item.category || 'general',
       subcategory:  item.subcategory || '',
       location:     item.location || '',
       images:       item.images || [],
@@ -283,9 +314,20 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
       condition:    item.condition || '',
       isNegotiable: item.isNegotiable || false,
       contactPhone: item.contactPhone || '',
+      isFlashSale: item.isFlashSale || false,
+      flashSalePrice: item.flashSalePrice != null ? String(item.flashSalePrice) : '',
+      flashSaleEndsAt: item.flashSaleEndsAt ? new Date(item.flashSaleEndsAt).toISOString().slice(0, 16) : '',
+      flashSaleQuantity: item.flashSaleQuantity != null ? String(item.flashSaleQuantity) : '',
     });
     setImagePreviews(item.images || []);
+    setClassifiedLocation(locationFromText(item.location));
     setShowForm(true);
+  };
+
+  const cancelForm = () => {
+    const hasDraft = Boolean(form.title.trim() || form.description.trim() || form.price || form.images.length);
+    if (hasDraft && !window.confirm(t('listing_validation.discard_changes'))) return;
+    resetForm();
   };
 
   const handleDelete = async (id) => {
@@ -443,9 +485,14 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
               {editItem ? t('seller_classifieds.modal_edit_title') : t('seller_classifieds.modal_new_title')}
             </h2>
 
+            {error && (
+              <div role="alert" style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '10px 12px', borderRadius: 8, marginBottom: 14, fontSize: 13 }}>
+                {error}
+              </div>
+            )}
             {/* Images */}
             <div style={{ marginBottom: 16 }}>
-              <label style={labelStyle}>{t('seller_classifieds.photos_label')}</label>
+              <label style={labelStyle}>{t('seller_classifieds.photos_label')}{mediaRules.minImages > 0 ? ' *' : ''}</label>
               <p style={{ color: '#64748b', fontSize: 11, margin: '0 0 8px' }}>{mediaRules.guidanceText}</p>
               {imagePreviews.length > 0 && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -459,7 +506,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
               )}
               {imagePreviews.length < mediaRules.maxImages && (
                 <div style={{ border: '2px dashed #e2e8f0', borderRadius: 8, padding: 12, textAlign: 'center', backgroundColor: '#f8fafc' }}>
-                  <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{ display: 'none' }} id="classifiedImages" />
+                  <input type="file" accept="image/*" multiple disabled={uploading || saving} onChange={handleImageUpload} style={{ display: 'none' }} id="classifiedImages" />
                   <label htmlFor="classifiedImages" style={{ background: 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff', padding: '7px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
                     {uploading ? t('seller_classifieds.uploading') : t('seller_classifieds.choose_photos')}
                   </label>
@@ -472,16 +519,16 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
 
             {/* Title */}
             <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>{t('seller_classifieds.title_label')}</label>
+              <label style={labelStyle}>{t('seller_classifieds.title_label')} *</label>
               <input type="text" placeholder={t('seller_classifieds.title_placeholder')} value={form.title}
                 onChange={e => setForm({ ...form, title: e.target.value })} onBlur={handleTitleBlur} style={inputStyle} />
             </div>
 
             {/* Category + Subcategory */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>
               <div>
                 <label style={labelStyle}>
-                  {t('seller_classifieds.category_label')}
+                  {t('seller_classifieds.category_label')} *
                   {suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#94a3b8', fontWeight: 400 }}>{t('seller_classifieds.category_detecting')}</span>}
                   {categorySuggested && !suggestingCategory && <span style={{ marginLeft: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>✨ {t('seller_classifieds.category_suggested')}</span>}
                 </label>
@@ -505,7 +552,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
             {/* Description */}
             <div style={{ marginBottom: 14 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label style={{ ...labelStyle, marginBottom: 0 }}>{t('seller_classifieds.description_label')}</label>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>{t('seller_classifieds.description_label')} *</label>
                 <button type="button" onClick={generateDescription}
                   disabled={descGenerating || !form.title || !form.images.length}
                   title={!form.images.length ? t('seller_classifieds.ai_description_needs_photo') : ''}
@@ -535,7 +582,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                   {t('seller_classifieds.listing_details_title')}
                   <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_classifieds.listing_details_hint')}</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
                   {[...attrFields].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).map(attr => {
                     const currentValue = form.specs?.[attr.key] || '';
                     const fieldLabel = `${attr.label}${attr.unit ? ` (${attr.unit})` : ''}${attr.required ? ' *' : ''}`;
@@ -597,7 +644,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
             )}
 
             {/* Condition + Negotiable */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>
               <div>
                 <label style={labelStyle}>{t('seller_classifieds.condition_label')}</label>
                 <select value={form.condition} onChange={e => setForm({ ...form, condition: e.target.value })} style={inputStyle}>
@@ -662,10 +709,10 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
             </div>
 
             {/* Price + Location */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 20 }}>
               <div>
-                <label style={labelStyle}>{t('seller_classifieds.price_label')}</label>
-                <input type="number" placeholder={t('seller_classifieds.price_placeholder')} value={form.price}
+                <label style={labelStyle}>{t('seller_classifieds.price_label')} *</label>
+                <input type="number" min="1" step="1" placeholder={t('seller_classifieds.price_placeholder')} value={form.price}
                   onChange={e => setForm({ ...form, price: e.target.value })}
                   onFocus={() => fetchPriceSuggestion(form.category, form.title, form.condition)}
                   style={inputStyle} />
@@ -698,9 +745,10 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 )}
               </div>
               <div>
-                  <label style={labelStyle}>{t('seller_classifieds.location_label')}</label>
+                  <label style={labelStyle}>{t('seller_classifieds.location_label')} *</label>
                   <LocationPicker
                     value={classifiedLocation}
+                    onLoadError={() => setError(t('listing_validation.location_load_failed'))}
                     onChange={loc => {
                       setClassifiedLocation(loc);
                       setForm(prev => ({
@@ -735,10 +783,10 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
           <div style={{ flexShrink: 0, display: 'flex', gap: 10,
             padding: '12px 16px max(12px, env(safe-area-inset-bottom))',
             borderTop: '1px solid #f1f5f9', backgroundColor: '#fff' }}>
-              <button onClick={resetForm} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>{t('seller_classifieds.cancel_button')}</button>
-              <button onClick={handleSubmit} disabled={uploading}
-                style={{ flex: 2, background: uploading ? '#f48fb1' : 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: uploading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
-                {uploading ? t('seller_classifieds.please_wait') : editItem ? t('seller_classifieds.update_listing_button') : t('seller_classifieds.post_listing_button')}
+              <button onClick={cancelForm} disabled={saving} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 12, borderRadius: 8, cursor: saving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>{t('seller_classifieds.cancel_button')}</button>
+              <button onClick={handleSubmit} disabled={uploading || saving}
+                style={{ flex: 2, background: (uploading || saving) ? '#f48fb1' : 'linear-gradient(135deg,#f093fb,#f5576c)', color: '#fff', border: 'none', padding: 12, borderRadius: 8, cursor: (uploading || saving) ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 800 }}>
+                {saving ? t('listing_validation.saving') : uploading ? t('seller_classifieds.please_wait') : editItem ? t('seller_classifieds.update_listing_button') : t('seller_classifieds.post_listing_button')}
               </button>
           </div>
         </div>

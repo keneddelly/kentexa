@@ -85,6 +85,7 @@ export class ClassifiedsService {
 
   // ─── Create listing ───────────────────────────────────────────────────────
   async create(dto: CreateClassifiedDto, user: User, scope?: SellerScope) {
+    this.validateFlashSale(dto);
     const attributeErrors = validateAttributes(
       dto.category,
       dto.subcategory,
@@ -417,6 +418,7 @@ export class ClassifiedsService {
     if (!isActiveAdmin && !this.isAuthorizedForClassifiedOwnership(listing, user.id, scope)) {
       throw new ForbiddenException('Not your listing');
     }
+    this.validateFlashSale({ ...listing, ...dto });
     if (dto.category || dto.subcategory || dto.specs) {
       const attributeErrors = validateAttributes(
         dto.category || listing.category,
@@ -433,6 +435,29 @@ export class ClassifiedsService {
       .upsert('classified', saved.id, [saved.title, saved.description, saved.category, saved.location].filter(Boolean).join(' \n '))
       .catch(() => {});
     return saved;
+  }
+
+  private validateFlashSale(dto: {
+    isFlashSale?: boolean;
+    price?: number;
+    flashSalePrice?: number | null;
+    flashSaleEndsAt?: string | Date | null;
+    flashSaleQuantity?: number | null;
+  }) {
+    if (!dto.isFlashSale) return;
+    const price = Number(dto.price);
+    const flashPrice = Number(dto.flashSalePrice);
+    const quantity = Number(dto.flashSaleQuantity);
+    const endsAt = new Date(dto.flashSaleEndsAt || '');
+    if (!Number.isFinite(flashPrice) || flashPrice < 1 || flashPrice >= price) {
+      throw new BadRequestException('Flash-sale price must be at least TZS 1 and lower than the normal price');
+    }
+    if (Number.isNaN(endsAt.getTime()) || endsAt <= new Date()) {
+      throw new BadRequestException('Flash-sale end time must be in the future');
+    }
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new BadRequestException('Flash-sale quantity must be a whole number greater than zero');
+    }
   }
 
   // ─── Remove ───────────────────────────────────────────────────────────────
