@@ -96,14 +96,23 @@ export class BusinessController {
   // BusinessCapabilityApplicationService (BusinessMembership -> OWNER ->
   // WorkspaceAssignment) -- JwtAuthGuard (class-level) only establishes WHO
   // is calling, never THAT they may act on this Business. The body accepts
-  // only applicationData; no client-supplied businessId/workspaceId/
-  // workspaceAssignmentId/accountRoleId/userId/profileId is ever read.
+  // only applicationData, plus (Stage B5B) an optional workspaceId --
+  // never a bare authority claim: for SUPER_AGENT (the one capability
+  // whose profile is per-workspace, not per-Business, per the B5.0
+  // contract) it names WHICH of the caller's own already-existing,
+  // already-assigned workspaces this application targets, and
+  // resolveOwnerWorkspaceContext still independently verifies a live,
+  // ACTIVE WorkspaceAssignment for it before anything is created. Ignored
+  // for COMMERCE/TRANSPORT, which continue to resolve the Business's
+  // default workspace exactly as before this stage. No client-supplied
+  // businessId/workspaceAssignmentId/accountRoleId/userId/profileId is
+  // ever read.
   @Post(':businessId/capabilities/:code/apply')
   applyForCapability(
     @Param('businessId', ParseIntPipe) businessId: number,
     @Param('code') code: string,
     @Request() req,
-    @Body() dto: { applicationData?: Record<string, unknown> },
+    @Body() dto: { applicationData?: Record<string, unknown>; workspaceId?: number },
   ) {
     return this.capabilityApplications.applyForCapability(businessId, code, req.user, dto);
   }

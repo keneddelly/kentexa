@@ -17,6 +17,8 @@ import { OperationalWorkspace, OperationalWorkspaceStatus } from './entities/ope
 import { BusinessMembership, BusinessMembershipRoleTemplate, BusinessMembershipStatus } from './entities/business-membership.entity';
 import { WorkspaceAssignment, WorkspaceAssignmentStatus } from './entities/workspace-assignment.entity';
 import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
+import { TransportProvider, ProviderStatus, ProviderType } from '../transport/entities/transport-provider.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { User } from '../users/entities/user.entity';
 import {
   AccountRole,
@@ -34,9 +36,45 @@ export interface ApplyCapabilityDto {
   // verbatim on the BusinessCapabilityApplication row only, and never
   // interpreted as authority anywhere -- sanitizeApplicationData() still
   // strips any key that collides with a known authority field name as
-  // defense in depth (Stage B2 mission §5).
+  // defense in depth (Stage B2 mission §5). Stage B5B: a TRANSPORT
+  // application reads applicationData.type (a ProviderType value) since
+  // TransportProvider.type has no Business-level equivalent to derive it
+  // from -- every other field on both new profile types is derived from
+  // Business/OperationalWorkspace, never client-supplied.
   applicationData?: Record<string, unknown>;
+  // Stage B5B: SUPER_AGENT is workspace-specific (one hub = one
+  // workspace = one SuperAgent profile) -- the owner must name which
+  // already-existing OperationalWorkspace this application targets.
+  // Ignored for COMMERCE/TRANSPORT, which continue to resolve the
+  // Business's default workspace exactly as before this stage.
+  workspaceId?: number;
 }
+
+/** Stage B5B: capability codes this engine can process applications for. CARGO is deliberately excluded -- no AccountRoleType/profile exists for it (see organizational-capability.ts); it stays a pure entitlement label, never an acting persona applied for here. */
+const APPLICABLE_CAPABILITY_CODES: ReadonlySet<BusinessCapabilityCode> = new Set([
+  BusinessCapabilityCode.COMMERCE,
+  BusinessCapabilityCode.TRANSPORT,
+  BusinessCapabilityCode.SUPER_AGENT,
+]);
+
+/** Stage B5B: does this capability's application require the OWNER to name a specific, non-default workspace? Only SUPER_AGENT (one hub = one workspace) -- COMMERCE/TRANSPORT stay on the Business's default workspace, matching their own Business-wide profile cardinality (B5.0 contract). */
+const WORKSPACE_SPECIFIC_CAPABILITY_CODES: ReadonlySet<BusinessCapabilityCode> = new Set([
+  BusinessCapabilityCode.SUPER_AGENT,
+]);
+
+/** Stage B5B: the operational profile type each applicable capability code is paired with -- reused by revalidateApplicationChain's linkage check. */
+const EXPECTED_PROFILE_TYPE_BY_CAPABILITY: Partial<Record<BusinessCapabilityCode, RoleProfileType>> = {
+  [BusinessCapabilityCode.COMMERCE]: RoleProfileType.SELLER_PROFILE,
+  [BusinessCapabilityCode.TRANSPORT]: RoleProfileType.TRANSPORT_PROVIDER,
+  [BusinessCapabilityCode.SUPER_AGENT]: RoleProfileType.SUPER_AGENT,
+};
+
+/** Stage B5B: the AccountRoleType each applicable capability code's approved role takes -- mirrors ORGANIZATIONAL_CAPABILITY_BY_ROLE's own mapping in the opposite direction (that map is role->capability; this one is capability->role, needed here since approve/reject start from the application's capabilityCode). */
+const ROLE_TYPE_BY_CAPABILITY: Partial<Record<BusinessCapabilityCode, AccountRoleType>> = {
+  [BusinessCapabilityCode.COMMERCE]: AccountRoleType.SELLER,
+  [BusinessCapabilityCode.TRANSPORT]: AccountRoleType.TRANSPORT_PROVIDER,
+  [BusinessCapabilityCode.SUPER_AGENT]: AccountRoleType.SUPER_AGENT,
+};
 
 interface OwnerWorkspaceContext {
   businessId: number;
@@ -152,24 +190,20 @@ export class BusinessCapabilityApplicationService {
 
       const chain = await this.revalidateApplicationChain(manager, application);
 
-      const sellerProfileRepo = manager.getRepository(SellerProfile);
-      const profile = await sellerProfileRepo.findOne({ where: { id: application.operationalProfileId ?? -1 } });
-      if (
-        !profile ||
-        profile.businessId !== application.businessId ||
-        profile.userId !== application.requestedByUserId ||
-        profile.status !== SellerStatus.PENDING
-      ) {
-        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
-      }
+      // Stage B5B: profile lookup/linkage-check dispatches by capability
+      // code (COMMERCE's own branch is byte-for-byte what this method
+      // always did); the AccountRole lookup/linkage-check below stays ONE
+      // shared code path, parameterized by the roleType/profileType the
+      // dispatch just resolved -- AccountRole itself needed no B5B changes.
+      const { profile, roleType, profileType } = await this.loadLinkedProfileForReview(manager, application);
 
       const accountRoleRepo = manager.getRepository(AccountRole);
       const role = await accountRoleRepo.findOne({
-        where: { userId: application.requestedByUserId, roleType: AccountRoleType.SELLER, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
+        where: { userId: application.requestedByUserId, roleType, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
       });
       if (
         !role ||
-        role.profileType !== RoleProfileType.SELLER_PROFILE ||
+        role.profileType !== profileType ||
         role.profileId !== application.operationalProfileId ||
         role.status !== AccountRoleStatus.PENDING
       ) {
@@ -198,9 +232,7 @@ export class BusinessCapabilityApplicationService {
         approvedByUserId: admin.id,
       }));
 
-      profile.status = SellerStatus.APPROVED;
-      profile.rejectionReason = null;
-      await sellerProfileRepo.save(profile);
+      const approvedProfile = await this.markProfileApproved(manager, application.capabilityCode, profile.id);
 
       role.status = AccountRoleStatus.ACTIVE;
       role.approvedAt = now;
@@ -217,11 +249,12 @@ export class BusinessCapabilityApplicationService {
       application.rejectionReason = null;
       await applicationRepo.save(application);
 
-      // Stage B3 mission §16: the applicant's Seller role was PENDING (thus
-      // never switchable, thus never had a live ActiveRoleSession) before
-      // this moment -- there is nothing to revoke. No JWT is issued here;
-      // the user must explicitly call /auth/switch-role themselves.
-      return this.toApprovalResponse(application, profile, role, capability);
+      // Stage B3 mission §16 (unchanged by B5B): the applicant's
+      // operational role was PENDING (thus never switchable, thus never
+      // had a live ActiveRoleSession) before this moment -- there is
+      // nothing to revoke. No JWT is issued here; the user must
+      // explicitly call /auth/switch-role themselves.
+      return this.toApprovalResponse(application, profileType, approvedProfile, role, capability);
     });
   }
 
@@ -261,24 +294,15 @@ export class BusinessCapabilityApplicationService {
       }
       // PENDING -- proceed with the real rejection below.
 
-      const sellerProfileRepo = manager.getRepository(SellerProfile);
-      const profile = await sellerProfileRepo.findOne({ where: { id: application.operationalProfileId ?? -1 } });
-      if (
-        !profile ||
-        profile.businessId !== application.businessId ||
-        profile.userId !== application.requestedByUserId ||
-        profile.status !== SellerStatus.PENDING
-      ) {
-        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
-      }
+      const { profile, roleType, profileType } = await this.loadLinkedProfileForReview(manager, application);
 
       const accountRoleRepo = manager.getRepository(AccountRole);
       const role = await accountRoleRepo.findOne({
-        where: { userId: application.requestedByUserId, roleType: AccountRoleType.SELLER, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
+        where: { userId: application.requestedByUserId, roleType, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
       });
       if (
         !role ||
-        role.profileType !== RoleProfileType.SELLER_PROFILE ||
+        role.profileType !== profileType ||
         role.profileId !== application.operationalProfileId ||
         role.status !== AccountRoleStatus.PENDING
       ) {
@@ -296,9 +320,7 @@ export class BusinessCapabilityApplicationService {
         throw new ConflictException({ code: 'CAPABILITY_REJECTION_STATE_INCONSISTENT', message: 'CAPABILITY_REJECTION_STATE_INCONSISTENT' });
       }
 
-      profile.status = SellerStatus.REJECTED;
-      profile.rejectionReason = reason;
-      await sellerProfileRepo.save(profile);
+      const rejectedProfile = await this.markProfileRejected(manager, application.capabilityCode, profile.id, reason);
 
       role.status = AccountRoleStatus.REJECTED;
       role.statusReason = reason;
@@ -312,7 +334,7 @@ export class BusinessCapabilityApplicationService {
       application.rejectionReason = reason;
       await applicationRepo.save(application);
 
-      return this.toRejectionResponse(application, profile, role);
+      return this.toRejectionResponse(application, profileType, rejectedProfile, role);
     });
   }
 
@@ -327,19 +349,27 @@ export class BusinessCapabilityApplicationService {
     if (!(Object.values(BusinessCapabilityApplicationStatus) as string[]).includes(status)) {
       throw new BadRequestException({ code: 'CAPABILITY_APPLICATION_NOT_FOUND', message: 'INVALID_STATUS_FILTER' });
     }
+    // Stage B5B: resolves profile status across all three applicable
+    // profile tables (never just seller_profile) -- exactly one of the
+    // three LEFT JOINs matches per row, discriminated by the application's
+    // own operationalProfileType, the same polymorphic-by-two-plain-
+    // columns convention the application entity already documents.
     const rows = await this.dataSource.query(
       `
       SELECT a.id, a."capabilityCode", a.status, a."submittedAt", a."reviewedAt",
+             a."operationalProfileType", a."operationalProfileId",
              b.id AS "businessId", COALESCE(b."tradingName", b."legalName") AS "businessName",
              b."businessVerificationStatus", b.status AS "businessStatus",
              w.id AS "workspaceId", w.name AS "workspaceName", w.status AS "workspaceStatus",
              u.id AS "applicantUserId", u.name AS "applicantName", u.phone AS "applicantPhone",
-             sp.id AS "profileId", sp.status AS "profileStatus"
+             COALESCE(sp.status, tp.status::text, sa.status::text) AS "profileStatus"
       FROM business_capability_application a
       JOIN business b ON b.id = a."businessId"
       JOIN operational_workspace w ON w.id = a."workspaceId"
       JOIN "user" u ON u.id = a."requestedByUserId"
-      LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId"
+      LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId" AND a."operationalProfileType" = 'seller_profile'
+      LEFT JOIN transport_provider tp ON tp.id = a."operationalProfileId" AND a."operationalProfileType" = 'transport_provider'
+      LEFT JOIN super_agent sa ON sa.id = a."operationalProfileId" AND a."operationalProfileType" = 'super_agent'
       WHERE a.status = $1
       ORDER BY a."submittedAt" ASC
       `,
@@ -351,7 +381,7 @@ export class BusinessCapabilityApplicationService {
       business: { id: r.businessId, name: r.businessName, verificationStatus: r.businessVerificationStatus, status: r.businessStatus },
       workspace: { id: r.workspaceId, name: r.workspaceName, status: r.workspaceStatus },
       applicant: { userId: r.applicantUserId, name: r.applicantName, phone: r.applicantPhone },
-      operationalProfile: { type: RoleProfileType.SELLER_PROFILE, id: r.profileId, status: r.profileStatus },
+      operationalProfile: { type: r.operationalProfileType, id: r.operationalProfileId, status: r.profileStatus },
     }));
   }
 
@@ -373,9 +403,12 @@ export class BusinessCapabilityApplicationService {
     const rows = await this.dataSource.query(
       `
       SELECT a.id, a."capabilityCode", a.status, a."submittedAt", a."reviewedAt", a."rejectionReason",
-             a."workspaceId", sp.status AS "profileStatus"
+             a."workspaceId", a."operationalProfileType",
+             COALESCE(sp.status, tp.status::text, sa.status::text) AS "profileStatus"
       FROM business_capability_application a
-      LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId"
+      LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId" AND a."operationalProfileType" = 'seller_profile'
+      LEFT JOIN transport_provider tp ON tp.id = a."operationalProfileId" AND a."operationalProfileType" = 'transport_provider'
+      LEFT JOIN super_agent sa ON sa.id = a."operationalProfileId" AND a."operationalProfileType" = 'super_agent'
       WHERE a."businessId" = $1
       ORDER BY a.id DESC
       `,
@@ -389,7 +422,7 @@ export class BusinessCapabilityApplicationService {
         rejectionReason: r.status === BusinessCapabilityApplicationStatus.REJECTED ? r.rejectionReason : null,
       },
       workspace: { id: r.workspaceId },
-      operationalProfile: { status: r.profileStatus },
+      operationalProfile: { type: r.operationalProfileType, status: r.profileStatus },
     }));
   }
 
@@ -428,59 +461,219 @@ export class BusinessCapabilityApplicationService {
       throw new ConflictException({ code: 'BUSINESS_OWNER_NO_LONGER_ACTIVE', message: 'BUSINESS_OWNER_NO_LONGER_ACTIVE' });
     }
 
-    if (application.capabilityCode !== BusinessCapabilityCode.COMMERCE) {
+    // Stage B5B: COMMERCE/TRANSPORT/SUPER_AGENT are all applicable now
+    // (CARGO stays excluded -- no AccountRoleType/profile mapping exists
+    // for it); each must be paired with its own expected profileType,
+    // never a mismatched one.
+    if (!APPLICABLE_CAPABILITY_CODES.has(application.capabilityCode)) {
       throw new ConflictException({ code: 'CAPABILITY_NOT_SUPPORTED', message: 'CAPABILITY_NOT_SUPPORTED' });
     }
-    if (application.operationalProfileType !== RoleProfileType.SELLER_PROFILE || application.operationalProfileId == null) {
+    const expectedProfileType = EXPECTED_PROFILE_TYPE_BY_CAPABILITY[application.capabilityCode];
+    if (application.operationalProfileType !== expectedProfileType || application.operationalProfileId == null) {
       throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
     }
 
     return { business, workspace, assignment, membership };
   }
 
+  /**
+   * Stage B5B: loads and linkage-checks the application's operational
+   * profile, dispatched by capabilityCode -- COMMERCE's own branch is the
+   * exact check this method always ran (SellerProfile.businessId +
+   * .userId + PENDING); TRANSPORT checks businessId + PENDING only
+   * (TransportProvider.userId stays null for an organizationally-created
+   * row, see resolveTransportProviderProfile -- comparing it to
+   * requestedByUserId would wrongly reject every real application);
+   * SUPER_AGENT checks workspaceId (never businessId -- that column
+   * doesn't exist on SuperAgent) + userId + PENDING. Returns the
+   * roleType/profileType the caller's own (unchanged) AccountRole
+   * lookup/linkage-check needs next.
+   */
+  private async loadLinkedProfileForReview(
+    manager: EntityManager,
+    application: BusinessCapabilityApplication,
+  ): Promise<{ profile: { id: number; status: string }; roleType: AccountRoleType; profileType: RoleProfileType }> {
+    const roleType = ROLE_TYPE_BY_CAPABILITY[application.capabilityCode];
+    const profileType = EXPECTED_PROFILE_TYPE_BY_CAPABILITY[application.capabilityCode];
+    if (!roleType || !profileType) {
+      throw new ConflictException({ code: 'CAPABILITY_NOT_SUPPORTED', message: 'CAPABILITY_NOT_SUPPORTED' });
+    }
+
+    if (application.capabilityCode === BusinessCapabilityCode.COMMERCE) {
+      const profile = await manager.getRepository(SellerProfile).findOne({ where: { id: application.operationalProfileId ?? -1 } });
+      if (!profile || profile.businessId !== application.businessId || profile.userId !== application.requestedByUserId || profile.status !== SellerStatus.PENDING) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+      }
+      return { profile: { id: profile.id, status: profile.status }, roleType, profileType };
+    }
+
+    if (application.capabilityCode === BusinessCapabilityCode.TRANSPORT) {
+      const profile = await manager.getRepository(TransportProvider).findOne({ where: { id: application.operationalProfileId ?? -1 } });
+      if (!profile || profile.businessId !== application.businessId || profile.status !== ProviderStatus.PENDING) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+      }
+      return { profile: { id: profile.id, status: profile.status }, roleType, profileType };
+    }
+
+    // SUPER_AGENT
+    const profile = await manager.getRepository(SuperAgent).findOne({ where: { id: application.operationalProfileId ?? -1 } });
+    if (!profile || profile.workspaceId !== application.workspaceId || profile.userId !== application.requestedByUserId || profile.status !== SuperAgentStatus.PENDING) {
+      throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+    }
+    return { profile: { id: profile.id, status: profile.status }, roleType, profileType };
+  }
+
+  /** Stage B5B: mutates the linked profile to its capability-specific "approved" state and saves it. COMMERCE's branch is the exact mutation this method's logic always performed inline. */
+  private async markProfileApproved(
+    manager: EntityManager,
+    capabilityCode: BusinessCapabilityCode,
+    profileId: number,
+  ): Promise<{ id: number; status: string }> {
+    if (capabilityCode === BusinessCapabilityCode.COMMERCE) {
+      const repo = manager.getRepository(SellerProfile);
+      const profile = (await repo.findOne({ where: { id: profileId } }))!;
+      profile.status = SellerStatus.APPROVED;
+      profile.rejectionReason = null;
+      await repo.save(profile);
+      return { id: profile.id, status: profile.status };
+    }
+    if (capabilityCode === BusinessCapabilityCode.TRANSPORT) {
+      const repo = manager.getRepository(TransportProvider);
+      const profile = (await repo.findOne({ where: { id: profileId } }))!;
+      profile.status = ProviderStatus.VERIFIED;
+      profile.verifiedAt = new Date();
+      profile.rejectionReason = null;
+      await repo.save(profile);
+      return { id: profile.id, status: profile.status };
+    }
+    // SUPER_AGENT
+    const repo = manager.getRepository(SuperAgent);
+    const profile = (await repo.findOne({ where: { id: profileId } }))!;
+    profile.status = SuperAgentStatus.ACTIVE;
+    profile.rejectionReason = null;
+    await repo.save(profile);
+    return { id: profile.id, status: profile.status };
+  }
+
+  /**
+   * Stage B5B: mutates the linked profile to its capability-specific
+   * "rejected" state and saves it. SUPER_AGENT is the one deliberate
+   * exception: SuperAgentStatus has no REJECTED value (see that entity's
+   * own enum) -- the row stays PENDING with rejectionReason recorded
+   * rather than inventing a new status value this stage was never asked
+   * to add.
+   */
+  private async markProfileRejected(
+    manager: EntityManager,
+    capabilityCode: BusinessCapabilityCode,
+    profileId: number,
+    reason: string,
+  ): Promise<{ id: number; status: string }> {
+    if (capabilityCode === BusinessCapabilityCode.COMMERCE) {
+      const repo = manager.getRepository(SellerProfile);
+      const profile = (await repo.findOne({ where: { id: profileId } }))!;
+      profile.status = SellerStatus.REJECTED;
+      profile.rejectionReason = reason;
+      await repo.save(profile);
+      return { id: profile.id, status: profile.status };
+    }
+    if (capabilityCode === BusinessCapabilityCode.TRANSPORT) {
+      const repo = manager.getRepository(TransportProvider);
+      const profile = (await repo.findOne({ where: { id: profileId } }))!;
+      profile.status = ProviderStatus.REJECTED;
+      profile.rejectionReason = reason;
+      await repo.save(profile);
+      return { id: profile.id, status: profile.status };
+    }
+    // SUPER_AGENT -- stays PENDING; see this method's own doc comment.
+    const repo = manager.getRepository(SuperAgent);
+    const profile = (await repo.findOne({ where: { id: profileId } }))!;
+    profile.rejectionReason = reason;
+    await repo.save(profile);
+    return { id: profile.id, status: profile.status };
+  }
+
+  /** Stage B5B: loads the current profile row for an already-terminal application, dispatched by capabilityCode, without any linkage re-validation (idempotency checks only care whether the three authoritative rows are self-consistent right now). */
+  private async loadProfileForIdempotencyCheck(
+    manager: EntityManager,
+    application: BusinessCapabilityApplication,
+  ): Promise<{ id: number; status: string; rejectionReason: string | null } | null> {
+    const id = application.operationalProfileId ?? -1;
+    if (application.capabilityCode === BusinessCapabilityCode.COMMERCE) {
+      const p = await manager.getRepository(SellerProfile).findOne({ where: { id } });
+      return p ? { id: p.id, status: p.status, rejectionReason: p.rejectionReason } : null;
+    }
+    if (application.capabilityCode === BusinessCapabilityCode.TRANSPORT) {
+      const p = await manager.getRepository(TransportProvider).findOne({ where: { id } });
+      return p ? { id: p.id, status: p.status, rejectionReason: p.rejectionReason } : null;
+    }
+    const p = await manager.getRepository(SuperAgent).findOne({ where: { id } });
+    return p ? { id: p.id, status: p.status, rejectionReason: p.rejectionReason } : null;
+  }
+
   private async verifyIdempotentApproval(manager: EntityManager, application: BusinessCapabilityApplication) {
-    const profile = await manager.getRepository(SellerProfile).findOne({ where: { id: application.operationalProfileId ?? -1 } });
-    const role = await manager.getRepository(AccountRole).findOne({
-      where: { userId: application.requestedByUserId, roleType: AccountRoleType.SELLER, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
-    });
+    const roleType = ROLE_TYPE_BY_CAPABILITY[application.capabilityCode];
+    const profileType = EXPECTED_PROFILE_TYPE_BY_CAPABILITY[application.capabilityCode];
+    const profile = await this.loadProfileForIdempotencyCheck(manager, application);
+    const role = roleType ? await manager.getRepository(AccountRole).findOne({
+      where: { userId: application.requestedByUserId, roleType, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
+    }) : null;
     const capability = await manager.getRepository(BusinessCapability).findOne({
       where: { workspaceId: application.workspaceId, capabilityCode: application.capabilityCode },
     });
 
+    const approvedStatus =
+      application.capabilityCode === BusinessCapabilityCode.COMMERCE ? SellerStatus.APPROVED :
+      application.capabilityCode === BusinessCapabilityCode.TRANSPORT ? ProviderStatus.VERIFIED :
+      SuperAgentStatus.ACTIVE;
+
     const consistent =
-      !!profile && profile.status === SellerStatus.APPROVED &&
+      !!profile && profile.status === approvedStatus &&
       !!role && role.status === AccountRoleStatus.ACTIVE && role.profileId === profile.id &&
       !!capability && capability.status === BusinessCapabilityStatus.ACTIVE;
 
-    if (!consistent) {
+    if (!consistent || !profileType) {
       throw new ConflictException({ code: 'CAPABILITY_APPROVAL_STATE_INCONSISTENT', message: 'CAPABILITY_APPROVAL_STATE_INCONSISTENT' });
     }
-    return this.toApprovalResponse(application, profile!, role!, capability!);
+    return this.toApprovalResponse(application, profileType, profile!, role!, capability!);
   }
 
   private async verifyIdempotentRejection(manager: EntityManager, application: BusinessCapabilityApplication) {
-    const profile = await manager.getRepository(SellerProfile).findOne({ where: { id: application.operationalProfileId ?? -1 } });
-    const role = await manager.getRepository(AccountRole).findOne({
-      where: { userId: application.requestedByUserId, roleType: AccountRoleType.SELLER, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
-    });
+    const roleType = ROLE_TYPE_BY_CAPABILITY[application.capabilityCode];
+    const profileType = EXPECTED_PROFILE_TYPE_BY_CAPABILITY[application.capabilityCode];
+    const profile = await this.loadProfileForIdempotencyCheck(manager, application);
+    const role = roleType ? await manager.getRepository(AccountRole).findOne({
+      where: { userId: application.requestedByUserId, roleType, workspaceAssignmentId: application.requestedByWorkspaceAssignmentId },
+    }) : null;
     const capability = await manager.getRepository(BusinessCapability).findOne({
       where: { workspaceId: application.workspaceId, capabilityCode: application.capabilityCode },
     });
 
+    // SUPER_AGENT has no REJECTED status value (see markProfileRejected's
+    // own doc comment) -- a rejected SuperAgent stays PENDING with
+    // rejectionReason recorded, so idempotency for it checks THAT instead
+    // of a terminal status.
+    const profileRejected = application.capabilityCode === BusinessCapabilityCode.COMMERCE
+      ? profile?.status === SellerStatus.REJECTED
+      : application.capabilityCode === BusinessCapabilityCode.TRANSPORT
+        ? profile?.status === ProviderStatus.REJECTED
+        : profile?.status === SuperAgentStatus.PENDING && !!profile?.rejectionReason;
+
     const consistent =
-      !!profile && profile.status === SellerStatus.REJECTED &&
+      !!profile && profileRejected &&
       !!role && role.status === AccountRoleStatus.REJECTED &&
       (!capability || capability.status !== BusinessCapabilityStatus.ACTIVE);
 
-    if (!consistent) {
+    if (!consistent || !profileType) {
       throw new ConflictException({ code: 'CAPABILITY_REJECTION_STATE_INCONSISTENT', message: 'CAPABILITY_REJECTION_STATE_INCONSISTENT' });
     }
-    return this.toRejectionResponse(application, profile!, role!);
+    return this.toRejectionResponse(application, profileType, profile!, role!);
   }
 
   private toApprovalResponse(
     application: BusinessCapabilityApplication,
-    profile: SellerProfile,
+    profileType: RoleProfileType,
+    profile: { id: number; status: string },
     role: AccountRole,
     capability: BusinessCapability,
   ) {
@@ -491,7 +684,7 @@ export class BusinessCapabilityApplicationService {
       },
       business: { id: application.businessId },
       workspace: { id: application.workspaceId },
-      operationalProfile: { type: RoleProfileType.SELLER_PROFILE, id: profile.id, status: profile.status },
+      operationalProfile: { type: profileType, id: profile.id, status: profile.status },
       accountRole: { id: role.id, roleType: role.roleType, status: role.status, switchable: role.status === AccountRoleStatus.ACTIVE },
       capability: { code: capability.capabilityCode, status: capability.status },
     };
@@ -499,7 +692,8 @@ export class BusinessCapabilityApplicationService {
 
   private toRejectionResponse(
     application: BusinessCapabilityApplication,
-    profile: SellerProfile,
+    profileType: RoleProfileType,
+    profile: { id: number; status: string },
     role: AccountRole,
   ) {
     return {
@@ -509,7 +703,7 @@ export class BusinessCapabilityApplicationService {
       },
       business: { id: application.businessId },
       workspace: { id: application.workspaceId },
-      operationalProfile: { type: RoleProfileType.SELLER_PROFILE, id: profile.id, status: profile.status },
+      operationalProfile: { type: profileType, id: profile.id, status: profile.status },
       accountRole: { id: role.id, roleType: role.roleType, status: role.status, switchable: false },
       capability: null,
     };
@@ -531,18 +725,23 @@ export class BusinessCapabilityApplicationService {
     dto: ApplyCapabilityDto,
   ) {
     const code = this.parseCapabilityCode(codeParam);
+    if (!APPLICABLE_CAPABILITY_CODES.has(code)) {
+      // CARGO (or any future code with no AccountRoleType/profile mapping)
+      // -- never silently treated as an applicable acting persona.
+      throw new ConflictException({ code: 'CAPABILITY_NOT_SUPPORTED', message: 'CAPABILITY_NOT_SUPPORTED' });
+    }
+
+    const workspaceSpecific = WORKSPACE_SPECIFIC_CAPABILITY_CODES.has(code);
+    if (workspaceSpecific && dto?.workspaceId == null) {
+      throw new BadRequestException({ code: 'WORKSPACE_ID_REQUIRED', message: 'WORKSPACE_ID_REQUIRED' });
+    }
+    const explicitWorkspaceId = workspaceSpecific ? Number(dto.workspaceId) : undefined;
 
     // Fast-fail pre-checks before opening a transaction -- friendly errors
     // for the common case. Re-run, authoritatively, inside the transaction
     // below (Stage B2 mission §10 step 1-3) since these can race with a
     // concurrent request between here and the transaction's own reads.
-    await this.resolveOwnerWorkspaceContext(businessId, user.id);
-    if (code !== BusinessCapabilityCode.COMMERCE) {
-      // A structurally valid BusinessCapabilityCode (transport/cargo/
-      // super_agent) that Stage B simply doesn't implement yet -- never
-      // silently treated as Commerce.
-      throw new ConflictException({ code: 'CAPABILITY_NOT_SUPPORTED', message: 'CAPABILITY_NOT_SUPPORTED' });
-    }
+    await this.resolveOwnerWorkspaceContext(businessId, user.id, undefined, explicitWorkspaceId);
     await this.checkCapabilityNotGranted(businessId, code);
     // (workspaceId isn't known yet at this outer layer without a second
     // resolve call; validateNoPending's own re-check happens inside the
@@ -550,7 +749,7 @@ export class BusinessCapabilityApplicationService {
 
     try {
       return await this.dataSource.transaction(async (manager) => {
-        const context = await this.resolveOwnerWorkspaceContext(businessId, user.id, manager);
+        const context = await this.resolveOwnerWorkspaceContext(businessId, user.id, manager, explicitWorkspaceId);
         await this.checkCapabilityNotGranted(businessId, code, manager, context.workspaceId);
 
         const applicationRepo = manager.getRepository(BusinessCapabilityApplication);
@@ -565,8 +764,38 @@ export class BusinessCapabilityApplicationService {
         const business = await businessRepo.findOne({ where: { id: businessId } });
         if (!business) throw new NotFoundException({ code: 'BUSINESS_NOT_FOUND', message: 'BUSINESS_NOT_FOUND' });
 
-        const profile = await this.resolveSellerProfile(manager, business, user);
-        const role = await this.resolveSellerAccountRole(manager, user, profile, context.workspaceAssignmentId);
+        // Stage B5B: dispatch to the capability-specific profile/role
+        // resolver. Each returns the same {id, status}-shaped profile and
+        // a real AccountRole, exactly like resolveSellerProfile/
+        // resolveSellerAccountRole always have -- COMMERCE's own branch is
+        // untouched, byte-for-byte, from Stage B2.
+        let profileType: RoleProfileType;
+        let profile: { id: number; status: string };
+        let role: AccountRole;
+        if (code === BusinessCapabilityCode.COMMERCE) {
+          profileType = RoleProfileType.SELLER_PROFILE;
+          const sellerProfile = await this.resolveSellerProfile(manager, business, user);
+          profile = { id: sellerProfile.id, status: sellerProfile.status };
+          role = await this.resolveSellerAccountRole(manager, user, sellerProfile, context.workspaceAssignmentId);
+        } else if (code === BusinessCapabilityCode.TRANSPORT) {
+          profileType = RoleProfileType.TRANSPORT_PROVIDER;
+          const transportProvider = await this.resolveTransportProviderProfile(manager, business, dto?.applicationData);
+          profile = { id: transportProvider.id, status: transportProvider.status };
+          role = await this.resolveOperationalAccountRole(
+            manager, user, AccountRoleType.TRANSPORT_PROVIDER, RoleProfileType.TRANSPORT_PROVIDER,
+            transportProvider.id, context.workspaceAssignmentId,
+          );
+        } else {
+          // SUPER_AGENT
+          profileType = RoleProfileType.SUPER_AGENT;
+          const workspace = await manager.getRepository(OperationalWorkspace).findOne({ where: { id: context.workspaceId } });
+          const superAgent = await this.resolveSuperAgentProfile(manager, workspace!, user);
+          profile = { id: superAgent.id, status: superAgent.status };
+          role = await this.resolveOperationalAccountRole(
+            manager, user, AccountRoleType.SUPER_AGENT, RoleProfileType.SUPER_AGENT,
+            superAgent.id, context.workspaceAssignmentId,
+          );
+        }
 
         const applicationRepo2 = manager.getRepository(BusinessCapabilityApplication);
         const application = await applicationRepo2.save(applicationRepo2.create({
@@ -576,13 +805,13 @@ export class BusinessCapabilityApplicationService {
           status: BusinessCapabilityApplicationStatus.PENDING,
           requestedByUserId: user.id,
           requestedByWorkspaceAssignmentId: context.workspaceAssignmentId,
-          operationalProfileType: RoleProfileType.SELLER_PROFILE,
+          operationalProfileType: profileType,
           operationalProfileId: profile.id,
           applicationData: this.sanitizeApplicationData(dto?.applicationData),
           submittedAt: new Date(),
         }));
 
-        return this.toResponse(application, profile, role, context.businessId, context.workspaceId);
+        return this.toResponse(application, profileType, profile, role, context.businessId, context.workspaceId);
       });
     } catch (e: any) {
       if (this.isUniqueViolation(e, 'UQ_bca_workspace_code_pending')) {
@@ -722,17 +951,183 @@ export class BusinessCapabilityApplicationService {
     });
   }
 
+  // ══════════════════════════════════════════════════════════════════════
+  // Business Capability Activation Stage B5B -- TRANSPORT/SUPER_AGENT
+  // profile resolution. Same reuse-or-create discipline as
+  // resolveSellerProfile/resolveSellerAccountRole above (which stay
+  // completely untouched); the two new verticals differ from Seller and
+  // from EACH OTHER only in cardinality, exactly per the B5.0 contract:
+  // TransportProvider is one profile per BUSINESS (server derives it from
+  // `business`, mirroring resolveSellerProfile's own per-Business
+  // reuse-or-create); SuperAgent is one profile per WORKSPACE (server
+  // derives it from the already-resolved `workspace`, never from
+  // businessId directly -- SuperAgent carries no businessId column at
+  // all, by design).
+  // ══════════════════════════════════════════════════════════════════════
+
+  /** TransportProvider resolution (Stage B5B) -- one canonical company/fleet profile per Business, mirroring resolveSellerProfile's per-Business reuse-or-create exactly. */
+  private async resolveTransportProviderProfile(
+    manager: EntityManager,
+    business: Business,
+    applicationData: Record<string, unknown> | undefined,
+  ): Promise<TransportProvider> {
+    const providerRepo = manager.getRepository(TransportProvider);
+    const existing = await providerRepo.findOne({ where: { businessId: business.id } });
+
+    if (!existing) {
+      // TransportProvider.type has no Business-level equivalent field to
+      // derive it from (unlike name/contact/registration, which all come
+      // straight off the Business row) -- the ONLY capability-specific
+      // client input this application accepts, read from the opaque
+      // applicationData blob and validated against the real enum.
+      const rawType = (applicationData as any)?.type;
+      const type = (Object.values(ProviderType) as string[]).includes(rawType) ? (rawType as ProviderType) : null;
+      if (!type) {
+        throw new BadRequestException({ code: 'TRANSPORT_PROVIDER_TYPE_REQUIRED', message: 'TRANSPORT_PROVIDER_TYPE_REQUIRED' });
+      }
+      return providerRepo.save(providerRepo.create({
+        businessId: business.id,
+        name: business.tradingName || business.legalName,
+        type,
+        contactPhone: business.phone,
+        contactEmail: business.email,
+        registrationNumber: business.registrationNumber,
+        description: business.description,
+        status: ProviderStatus.PENDING,
+      }));
+    }
+
+    if (existing.status === ProviderStatus.REJECTED) {
+      // Reapplication after an earlier rejection -- reuse the same
+      // organizational identity, never fabricate a second one for this
+      // Business (UQ_transport_provider_business would reject a second
+      // row anyway).
+      existing.status = ProviderStatus.PENDING;
+      existing.rejectionReason = null;
+      return providerRepo.save(existing);
+    }
+
+    if (existing.status === ProviderStatus.PENDING) {
+      // Already confirmed (checkCapabilityNotGranted) that no live
+      // TRANSPORT capability exists for this workspace, and the caller
+      // already confirmed no live PENDING application exists either -- a
+      // PENDING TransportProvider with neither is an inconsistency, never
+      // silently reused.
+      throw new ConflictException({
+        code: 'TRANSPORT_APPLICATION_STATE_INCONSISTENT',
+        message: 'TRANSPORT_APPLICATION_STATE_INCONSISTENT',
+      });
+    }
+
+    // VERIFIED/ACTIVE/SUSPENDED/INACTIVE/TESTING reaching here means an
+    // operational identity already exists with no corresponding live
+    // capability -- a genuine inconsistency; never inferred/repaired here.
+    throw new ConflictException({
+      code: 'TRANSPORT_APPLICATION_STATE_INCONSISTENT',
+      message: 'TRANSPORT_APPLICATION_STATE_INCONSISTENT',
+    });
+  }
+
+  /** SuperAgent resolution (Stage B5B) -- one hub profile per OperationalWorkspace, never per Business (see super-agent.entity.ts's own doc comment: Parcel.superAgent/destinationSuperAgent already treat SuperAgent.id as the hub itself). */
+  private async resolveSuperAgentProfile(
+    manager: EntityManager,
+    workspace: OperationalWorkspace,
+    user: User,
+  ): Promise<SuperAgent> {
+    const superAgentRepo = manager.getRepository(SuperAgent);
+    const existing = await superAgentRepo.findOne({ where: { workspaceId: workspace.id } });
+
+    if (!existing) {
+      return superAgentRepo.save(superAgentRepo.create({
+        user,
+        workspaceId: workspace.id,
+        businessName: workspace.name,
+        city: workspace.name,
+        status: SuperAgentStatus.PENDING,
+      }));
+    }
+
+    // Stage B5B ships the first-application path only -- SuperAgentStatus
+    // has no REJECTED value (see that entity's own enum), so there is no
+    // "reapply after rejection" case to mirror here yet; any pre-existing
+    // row for this exact workspace means the workspace already has (or
+    // had) its own SuperAgent identity, which is a genuine inconsistency
+    // to fail closed on rather than silently reuse.
+    throw new ConflictException({
+      code: 'SUPER_AGENT_APPLICATION_STATE_INCONSISTENT',
+      message: 'SUPER_AGENT_APPLICATION_STATE_INCONSISTENT',
+    });
+  }
+
+  /**
+   * Generic operational AccountRole resolution (Stage B5B), parameterized
+   * over roleType/profileType -- reused by both TRANSPORT_PROVIDER and
+   * SUPER_AGENT, same exact-key lookup and REJECTED-reapplication
+   * discipline as resolveSellerAccountRole (kept as its own untouched
+   * method above rather than folded into this one, so Stage B2/B3's own
+   * proven Commerce path never depends on a shared generalization).
+   */
+  private async resolveOperationalAccountRole(
+    manager: EntityManager,
+    user: User,
+    roleType: AccountRoleType,
+    profileType: RoleProfileType,
+    profileId: number,
+    workspaceAssignmentId: number,
+  ): Promise<AccountRole> {
+    const accountRoleRepo = manager.getRepository(AccountRole);
+    const existing = await accountRoleRepo.findOne({
+      where: { userId: user.id, roleType, workspaceAssignmentId },
+    });
+
+    if (!existing) {
+      return accountRoleRepo.save(accountRoleRepo.create({
+        userId: user.id,
+        roleType,
+        status: AccountRoleStatus.PENDING,
+        profileType,
+        profileId,
+        capabilities: {},
+        contextVersion: 1,
+        workspaceAssignmentId,
+      }));
+    }
+
+    if (existing.status === AccountRoleStatus.REJECTED) {
+      existing.status = AccountRoleStatus.PENDING;
+      existing.profileId = profileId;
+      existing.statusReason = null;
+      existing.contextVersion = existing.contextVersion + 1;
+      return accountRoleRepo.save(existing);
+    }
+
+    throw new ConflictException({
+      code: 'OPERATIONAL_APPLICATION_STATE_INCONSISTENT',
+      message: 'OPERATIONAL_APPLICATION_STATE_INCONSISTENT',
+    });
+  }
+
   /**
    * Business Capability Activation Stage B2 mission §2/§3. Server-derives
    * the ONLY workspace binding this endpoint will ever use, from the
    * authenticated user's own BusinessMembership/WorkspaceAssignment chain
-   * -- never from a client-supplied id. Fails closed with a distinct,
+   * -- never from a client-supplied id, UNLESS `explicitWorkspaceId` is
+   * passed (Stage B5B): SUPER_AGENT is workspace-specific by cardinality
+   * (one hub = one workspace = one SuperAgent profile, per the B5.0
+   * contract), so its application must target a real, already-existing,
+   * non-default workspace the owner names -- COMMERCE/TRANSPORT continue
+   * to resolve the Business's default workspace exactly as before,
+   * passing no explicitWorkspaceId. Either way the returned workspaceId
+   * is only ever one this exact user has an ACTIVE WorkspaceAssignment
+   * for on this exact Business -- never a client-asserted business/
+   * workspace pairing taken on faith. Fails closed with a distinct,
    * stable code for each broken link in the chain.
    */
   private async resolveOwnerWorkspaceContext(
     businessId: number,
     userId: number,
     manager?: EntityManager,
+    explicitWorkspaceId?: number,
   ): Promise<OwnerWorkspaceContext> {
     const runner = manager ?? this.dataSource.manager;
     const rows: Array<{
@@ -740,20 +1135,35 @@ export class BusinessCapabilityApplicationService {
       workspaceId: number | null; workspaceStatus: string | null;
       membershipId: number | null; membershipStatus: string | null; roleTemplate: string | null;
       workspaceAssignmentId: number | null; assignmentStatus: string | null;
-    }> = await runner.query(
-      `
-      SELECT b.id AS "businessId", b.status AS "businessStatus",
-             w.id AS "workspaceId", w.status AS "workspaceStatus",
-             bm.id AS "membershipId", bm.status AS "membershipStatus", bm."roleTemplate",
-             wa.id AS "workspaceAssignmentId", wa.status AS "assignmentStatus"
-      FROM business b
-      LEFT JOIN operational_workspace w ON w."businessId" = b.id AND w."isDefault" = true
-      LEFT JOIN business_membership bm ON bm."businessId" = b.id AND bm."userId" = $2
-      LEFT JOIN workspace_assignment wa ON wa."businessMembershipId" = bm.id AND wa."workspaceId" = w.id
-      WHERE b.id = $1
-      `,
-      [businessId, userId],
-    );
+    }> = explicitWorkspaceId != null
+      ? await runner.query(
+        `
+        SELECT b.id AS "businessId", b.status AS "businessStatus",
+               w.id AS "workspaceId", w.status AS "workspaceStatus",
+               bm.id AS "membershipId", bm.status AS "membershipStatus", bm."roleTemplate",
+               wa.id AS "workspaceAssignmentId", wa.status AS "assignmentStatus"
+        FROM business b
+        LEFT JOIN operational_workspace w ON w."businessId" = b.id AND w.id = $3
+        LEFT JOIN business_membership bm ON bm."businessId" = b.id AND bm."userId" = $2
+        LEFT JOIN workspace_assignment wa ON wa."businessMembershipId" = bm.id AND wa."workspaceId" = w.id
+        WHERE b.id = $1
+        `,
+        [businessId, userId, explicitWorkspaceId],
+      )
+      : await runner.query(
+        `
+        SELECT b.id AS "businessId", b.status AS "businessStatus",
+               w.id AS "workspaceId", w.status AS "workspaceStatus",
+               bm.id AS "membershipId", bm.status AS "membershipStatus", bm."roleTemplate",
+               wa.id AS "workspaceAssignmentId", wa.status AS "assignmentStatus"
+        FROM business b
+        LEFT JOIN operational_workspace w ON w."businessId" = b.id AND w."isDefault" = true
+        LEFT JOIN business_membership bm ON bm."businessId" = b.id AND bm."userId" = $2
+        LEFT JOIN workspace_assignment wa ON wa."businessMembershipId" = bm.id AND wa."workspaceId" = w.id
+        WHERE b.id = $1
+        `,
+        [businessId, userId],
+      );
 
     if (!rows.length) throw new NotFoundException({ code: 'BUSINESS_NOT_FOUND', message: 'BUSINESS_NOT_FOUND' });
     const row = rows[0];
@@ -844,7 +1254,8 @@ export class BusinessCapabilityApplicationService {
 
   private toResponse(
     application: BusinessCapabilityApplication,
-    profile: SellerProfile,
+    profileType: RoleProfileType,
+    profile: { id: number; status: string },
     role: AccountRole,
     businessId: number,
     workspaceId: number,
@@ -859,7 +1270,7 @@ export class BusinessCapabilityApplicationService {
       business: { id: businessId },
       workspace: { id: workspaceId },
       operationalProfile: {
-        type: RoleProfileType.SELLER_PROFILE,
+        type: profileType,
         id: profile.id,
         status: profile.status,
       },
