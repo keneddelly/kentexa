@@ -7,7 +7,7 @@ import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
 import { pageToPath, pathToPage, pathToNavParams } from './utils/urlSync';
 import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from './utils/supportedLanguages';
-import { intentFromSearch, setIntent as persistIntent, destinationForIntent, consumeIntent } from './utils/campaignIntent';
+import { destinationForIntent, consumeIntent } from './utils/campaignIntent';
 import { useRoleContext } from './context/RoleContext';
 import ContextEpochBoundary from './context/ContextEpochBoundary';
 import { contextTransitionState } from './context/contextTransition';
@@ -205,19 +205,13 @@ function App() {
   // Show language picker only on first visit
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem('kentexa_lang'));
 
-  // Landing Localization L1 (§11-12): a one-time, mount-only read of
-  // ?intent= — deliberately separate from the `page`/`navParams` boot-time
-  // parsing above (track/confirm/verify), since campaign intent is not a
-  // routing decision, just acquisition context carried alongside whatever
-  // page the visitor actually lands on. Language itself is already resolved
-  // synchronously in i18n.js, before this component ever mounts, so there's
-  // no equivalent "apply ?lang=" step needed here.
-  useEffect(() => {
-    try {
-      const intent = intentFromSearch(window.location.search);
-      if (intent) persistIntent(intent);
-    } catch { /* no window — SSR */ }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Landing Localization L1 (§11-12): ?intent= capture itself lives in
+  // utils/campaignIntent.js, executed synchronously at module load — same
+  // timing as i18n.js's ?lang= resolution, and for the same reason: Welcome.js
+  // reads getIntent() synchronously on its first render, and sessionStorage
+  // isn't reactive, so a React effect here would run too late (after first
+  // paint) for that render to ever see it. Found via local browser
+  // acceptance testing.
 
   // Commerce profiles enrich labels and business-scope parameters only.
   // Active authority is the server-issued AccountRole in RoleContextProvider.

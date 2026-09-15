@@ -84,3 +84,19 @@ export const consumeIntent = () => {
 // storage, so the URL-reading half of "extend the cold-boot parsing" is
 // unit-testable on its own.
 export const intentFromSearch = (search) => normalizeIntent(new URLSearchParams(search || '').get('intent'));
+
+// Captures ?intent= synchronously at module load — this file is imported
+// (transitively, via Welcome.js) before ReactDOM ever renders anything, same
+// timing i18n.js relies on for ?lang=. This is load-bearing, not
+// belt-and-suspenders: Welcome.js reads getIntent() synchronously during its
+// own first render to choose which hero copy to show, and sessionStorage
+// isn't reactive — writing to it later (e.g. from a post-mount effect) would
+// never trigger a re-render, so the intent-scoped copy would silently never
+// appear on cold entry. Found via local browser acceptance testing
+// (Landing Localization L1 acceptance pass) — every ?lang=X&intent=Y
+// combination rendered the default (non-intent) hero on first load until
+// this moved from a React effect to here.
+try {
+  const fromUrl = intentFromSearch(window.location.search);
+  if (fromUrl) setIntent(fromUrl);
+} catch { /* no window — SSR */ }

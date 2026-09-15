@@ -31,6 +31,22 @@ const resolvedLang = resolveLanguage({ urlLang, savedLang, browserLanguages });
 // still ask is intentional, not a bug this should paper over.
 if (normalizeLanguageCode(urlLang)) {
   try { localStorage.setItem(STORAGE_KEY, resolvedLang); } catch { /* storage unavailable */ }
+  // Spend the URL's ?lang= once it's been applied: strip it from the
+  // address bar so a later reload of the SAME tab resolves from the
+  // (possibly since-changed) saved preference instead of re-applying this
+  // same URL value forever. Without this, a visitor who arrives via
+  // ?lang=en and then manually switches to Swahili sees English again on
+  // every reload, because the URL param — still sitting unchanged in the
+  // address bar, since this app never updates it for most navigation —
+  // keeps outranking their own later choice. Found via local browser
+  // acceptance testing (Landing Localization L1 acceptance pass, "reload
+  // after manual switch" case). Every other query param (?intent=,
+  // ?track=, ...) is left untouched.
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('lang');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  } catch { /* no window/history — SSR */ }
 }
 
 i18n

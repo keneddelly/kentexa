@@ -86,3 +86,39 @@ describe('sessionStorage persistence lifecycle', () => {
     expect(localStorage.getItem('kentexa_lang')).toBeNull();
   });
 });
+
+describe('module-load ?intent= capture', () => {
+  // Regression test for a real bug found via local browser acceptance
+  // testing (Landing Localization L1 acceptance pass): Welcome.js reads
+  // getIntent() synchronously on its first render. Capturing ?intent= from
+  // a React effect (which runs AFTER first paint, and doesn't trigger a
+  // re-render on a plain sessionStorage write) meant the intent-scoped hero
+  // copy never appeared on cold entry — every ?intent= combination silently
+  // rendered the default. The fix moved capture to run synchronously at
+  // module load, mirroring i18n.js's ?lang= handling — this proves that
+  // timing actually holds.
+  beforeEach(() => { sessionStorage.clear(); });
+
+  const loadFreshWithUrl = (search) => {
+    window.history.replaceState({}, '', `/${search}`);
+    let mod;
+    jest.isolateModules(() => { mod = require('./campaignIntent'); });
+    return mod;
+  };
+
+  test('a valid ?intent= is already in sessionStorage the instant the module is imported', () => {
+    loadFreshWithUrl('?intent=service');
+    expect(sessionStorage.getItem('kentexa_intent')).not.toBeNull();
+    expect(JSON.parse(sessionStorage.getItem('kentexa_intent')).value).toBe('service');
+  });
+
+  test('an invalid ?intent= at module load stores nothing', () => {
+    loadFreshWithUrl('?intent=not-real');
+    expect(sessionStorage.getItem('kentexa_intent')).toBeNull();
+  });
+
+  test('no ?intent= at module load stores nothing', () => {
+    loadFreshWithUrl('');
+    expect(sessionStorage.getItem('kentexa_intent')).toBeNull();
+  });
+});
