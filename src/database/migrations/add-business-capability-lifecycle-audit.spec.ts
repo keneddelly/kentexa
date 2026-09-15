@@ -80,10 +80,11 @@ describe('AddBusinessCapabilityLifecycleAudit1788262200000', () => {
     }
   });
 
-  it('raises the repository migration implementation count to 10', () => {
+  it('is present among the repository migration implementations (count assertion now owned by the latest migration\'s own spec -- Stage B5A added an 11th)', () => {
     const migrations = readdirSync(__dirname).filter((name) =>
       /^\d{13}-.+\.ts$/.test(name),
     );
-    expect(migrations).toHaveLength(10);
+    expect(migrations).toContain('1788262200000-AddBusinessCapabilityLifecycleAudit.ts');
+    expect(migrations.length).toBeGreaterThanOrEqual(10);
   });
 });

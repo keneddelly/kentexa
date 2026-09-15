@@ -22,8 +22,10 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Business } from '../../business/entities/business.entity';
 
 export enum ProviderType {
   BUS = 'bus',
@@ -60,7 +62,25 @@ export enum ConfirmMode {
   MANUAL = 'manual', // small providers — must accept/decline each job
 }
 
+// Business-First Stage B5A. TransportProvider's canonical identity is the
+// company/fleet, not a per-location hub -- TransportRoute.providerId (many
+// routes per one provider) already differentiates location at the route's
+// own originRegionId/destinationRegionId, not at a separate per-location
+// provider profile. So the organizational binding here is deliberately to
+// the Business directly (one canonical provider per Business), unlike
+// SuperAgent's per-workspace binding -- these two verticals intentionally
+// have different cardinality; do not make them symmetrical. Legacy
+// self-registered/API-integrated rows keep businessId = null indefinitely;
+// nothing backfills them from name/registrationNumber.
 @Entity('transport_provider')
+@Index('UQ_transport_provider_business', ['businessId'], {
+  unique: true,
+  where: '"businessId" IS NOT NULL',
+})
+@Index('UQ_transport_provider_unbound_user', ['userId'], {
+  unique: true,
+  where: '"businessId" IS NULL',
+})
 export class TransportProvider {
   @PrimaryGeneratedColumn()
   id: number;
@@ -72,6 +92,14 @@ export class TransportProvider {
 
   @Column({ type: 'int', nullable: true })
   userId: number | null;
+
+  // ── Business-First Stage B5A: optional organizational binding ───────────
+  @ManyToOne(() => Business, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'businessId' })
+  business: Business | null;
+
+  @Column({ type: 'int', nullable: true })
+  businessId: number | null;
 
   // ── Identity (both phases) ───────────────────────────────────────────────
   @Column({ type: 'varchar' })

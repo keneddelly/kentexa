@@ -5,8 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { OperationalWorkspace } from '../../business/entities/operational-workspace.entity';
 
 export enum SuperAgentStatus {
   PENDING = 'pending',
@@ -78,13 +81,48 @@ export const CITY_CODES: Record<string, string> = {
   Moshi: 'MSH',
 };
 
+// Business-First Stage B5A. SuperAgent's canonical identity is the HUB, not
+// merely the person -- Parcel.superAgent/destinationSuperAgent already
+// point directly at this row as "origin hub"/"destination hub". So the
+// organizational binding here is deliberately to a specific
+// OperationalWorkspace (one hub = one workspace = one SuperAgent row),
+// never to a Business directly: a Business with three hubs must be able
+// to hold three independent SuperAgent rows, which a single businessId
+// column could never disambiguate. Business lineage is always resolved
+// via workspace.businessId -- never stored redundantly on this entity.
+// Legacy self-registered rows keep workspaceId = null indefinitely; nothing
+// backfills them from businessName/city/address.
 @Entity('super_agent')
+@Index('UQ_super_agent_workspace', ['workspaceId'], {
+  unique: true,
+  where: '"workspaceId" IS NOT NULL',
+})
+@Index('UQ_super_agent_unbound_user', ['userId'], {
+  unique: true,
+  where: '"workspaceId" IS NULL',
+})
 export class SuperAgent {
   @PrimaryGeneratedColumn()
   id: number;
 
   @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'userId' })
   user: User;
+
+  // Was implicit (TypeORM's default join-column name for the `user`
+  // relation above is already "userId") -- made explicit only so the new
+  // partial unique index below and future service code can reference it
+  // directly. Schema-neutral: same physical column, not a new one.
+  @Column({ type: 'int' })
+  userId: number;
+
+  // ── Business-First Stage B5A: optional hub/workspace binding ────────────
+  @ManyToOne(() => OperationalWorkspace, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'workspaceId' })
+  workspace: OperationalWorkspace | null;
+
+  @Column({ type: 'int', nullable: true })
+  workspaceId: number | null;
 
   // ── Profile ───────────────────────────────────────────────────────────────
   @Column()
