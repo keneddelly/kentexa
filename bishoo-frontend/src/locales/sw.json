@@ -2563,7 +2563,7 @@
   "landing": {
     "what_is": {
       "heading": "Kentexa ni Nini?",
-      "body": "Kentexa inakutanisha biashara, bidhaa, huduma na fursa mahali pamoja — mtandao wa kidijitali wa utambulisho wa biashara na biashara Tanzania. Gundua kilicho karibu nawe, wasiliana na watu walio nyuma yake, na fanya mambo yako — pote mahali pamoja.",
+      "body": "Kentexa inakutanisha biashara, bidhaa, huduma na fursa mahali pamoja — ikirahisisha watu kugundua, kuwasiliana na kufanya biashara kidijitali. Gundua kilicho karibu nawe, wasiliana na watu walio nyuma yake, na fanya mambo yako.",
       "chip_discover": "Gundua",
       "chip_sell": "Uza",
       "chip_service": "Toa Huduma",
@@ -2587,20 +2587,20 @@
       "moments_flow_action": "Tuma Ujumbe au Nunua"
     },
     "business": {
-      "heading": "Kuendesha Biashara kwenye Kentexa",
-      "intro": "Kentexa inakua pamoja na biashara yako — anza kwa urahisi, ongeza zaidi unapohitaji.",
-      "step1_title": "Fungua akaunti yako",
-      "step1_desc": "Jisajili kwa namba yako ya simu — inachukua dakika moja.",
-      "step2_title": "Fungua Biashara yako",
-      "step2_desc": "Ipe biashara yako uwepo kwenye Kentexa — jina, logo na hadithi yake.",
-      "step3_title": "Chagua biashara yako inafanya nini",
-      "step3_desc": "Uza bidhaa, toa huduma, au zote mbili — weka tu kinachokuhusu.",
-      "step4_title": "Ongeza bidhaa au huduma zako",
-      "step4_desc": "Orodhesha unachotoa kwa picha, bei na maelezo.",
-      "step5_title": "Jenga uwepo wako",
-      "step5_desc": "Shiriki Moments, jibu ujumbe, na kuza wafuasi wako.",
-      "step6_title": "Tumia zana za Kentexa unapokua",
-      "step6_desc": "Oda, ankara, POS na ufuatiliaji wa usafirishaji — zinapatikana biashara yako inapozihitaji."
+      "heading": "Biashara Yako kwenye Kentexa",
+      "intro": "Biashara ya Kentexa inaipa biashara yako mahali pamoja pa kujenga uwepo wake wa kidijitali na kutumia zana zinazoihusu.",
+      "item1_title": "Utambulisho wa Biashara",
+      "item1_desc": "Uwepo wenye jina lako, logo na hadithi yako — utambulisho ambao kila kitu kingine kinaunganika nao.",
+      "item2_title": "Bidhaa na Huduma",
+      "item2_desc": "Orodhesha unachouza au kutoa, kikiwa na picha, bei na maelezo.",
+      "item3_title": "Moments na Shughuli",
+      "item3_desc": "Shiriki kinachoendelea — bidhaa mpya, kazi iliyokamilika, taarifa — ili uendelee kuonekana kwa wateja.",
+      "item4_title": "Mawasiliano na Wateja",
+      "item4_desc": "Jibu ujumbe na maswali moja kwa moja, mahali pamoja.",
+      "item5_title": "Oda na Shughuli za Biashara",
+      "item5_desc": "Fuatilia oda, ankara na kila kinachopita kwenye biashara yako.",
+      "item6_title": "POS, Usafirishaji na Zana",
+      "item6_desc": "Tumia Local Shop POS, ufuatiliaji wa usafirishaji na zana nyingine zinapokuwa muhimu kwa biashara yako."
     },
     "personal_vs_business": {
       "heading": "Unauza Kitu? Kuna Njia Sahihi ya Kufanya Hivyo",

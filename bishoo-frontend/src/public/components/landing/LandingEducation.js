@@ -91,8 +91,18 @@ const LandingEducation = ({ intent, onNavigate }) => {
     t('landing.what_is.chip_classifieds'), t('landing.what_is.chip_moments'), t('landing.what_is.chip_communicate'),
   ];
 
-  const businessSteps = [1, 2, 3, 4, 5, 6].map((n) => ({
-    title: t(`landing.business.step${n}_title`), desc: t(`landing.business.step${n}_desc`),
+  // L2.1: this used to be a 6-step numbered onboarding flow that duplicated
+  // "How Kentexa Works" almost line for line (both opened with "create your
+  // account", both closed with "use Kentexa's tools") — flagged in content
+  // review as weakening the mental model. Reframed as capability items (what
+  // a Kentexa Business IS/enables), not another sequence to walk through —
+  // rendered as a card grid below, matching the "What Can You Do" section's
+  // own visual language, deliberately NOT the numbered-circle StepList used
+  // by "How Kentexa Works" (same component would still read as "another set
+  // of steps" even with different copy).
+  const businessItems = [1, 2, 3, 4, 5, 6].map((n) => ({
+    title: t(`landing.business.item${n}_title`), desc: t(`landing.business.item${n}_desc`),
+    icon: ['🏢', '📦', '⚡', '💬', '🧾', '🛠️'][n - 1],
   }));
 
   const howItWorksSteps = [1, 2, 3, 4, 5].map((n) => ({
@@ -159,12 +169,19 @@ const LandingEducation = ({ intent, onNavigate }) => {
         </div>
       </section>
 
-      {/* ── Running a Business on Kentexa ── */}
+      {/* ── Your Business on Kentexa — what it IS, not another onboarding
+          sequence (see businessItems comment above) ── */}
       <section style={sectionWrap} aria-label={t('landing.business.heading')}>
         <h2 style={sectionHeading}>{t('landing.business.heading')}</h2>
         <p style={sectionBody}>{t('landing.business.intro')}</p>
-        <div style={cardStyle}>
-          <StepList steps={businessSteps} color="#16a34a" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
+          {businessItems.map((item) => (
+            <div key={item.title} style={cardStyle}>
+              <div style={{ fontSize: 22, marginBottom: 6 }}>{item.icon}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>{item.title}</div>
+              <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.6 }}>{item.desc}</div>
+            </div>
+          ))}
         </div>
       </section>
 

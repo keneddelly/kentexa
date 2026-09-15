@@ -40,9 +40,27 @@ describe('LandingEducation — generic (no intent)', () => {
     [1, 2, 3, 4, 5].forEach((n) => expect(screen.getByText(`⚡ landing.moments.example${n}`)).toBeInTheDocument());
   });
 
-  test('Business path renders the full create-account-to-tools flow', () => {
+  test('Business section renders all 6 capability items', () => {
     render(<LandingEducation intent={null} onNavigate={jest.fn()} />);
-    [1, 2, 3, 4, 5, 6].forEach((n) => expect(screen.getByText(`landing.business.step${n}_title`)).toBeInTheDocument());
+    [1, 2, 3, 4, 5, 6].forEach((n) => expect(screen.getByText(`landing.business.item${n}_title`)).toBeInTheDocument());
+  });
+
+  // L2.1: content review found "Your Business on Kentexa" and "How Kentexa
+  // Works" repeating the same create-account-to-tools sequence almost line
+  // for line. The fix reframes Business as capability items rather than
+  // steps — this test proves that fix actually holds, not just that new
+  // key names exist.
+  test('Business section no longer duplicates the generic "How Kentexa Works" onboarding sequence', () => {
+    render(<LandingEducation intent={null} onNavigate={jest.fn()} />);
+    // The old step1_title/step2_title keys this mission removed (Business
+    // used to open with its own "create your account" / "create your
+    // Business" steps, echoing How-It-Works almost line for line) must be
+    // gone entirely.
+    expect(screen.queryByText('landing.business.step1_title')).not.toBeInTheDocument();
+    expect(screen.queryByText('landing.business.step2_title')).not.toBeInTheDocument();
+    // How Kentexa Works still owns "create your account" as its universal
+    // step 1 — that's the ONE place it should appear now.
+    expect(screen.getByText('landing.how_it_works.step1_title')).toBeInTheDocument();
   });
 
   test('Personal Classified path is distinguished from Business selling', () => {

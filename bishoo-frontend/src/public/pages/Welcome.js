@@ -56,17 +56,30 @@ const Welcome = ({ onNavigate }) => {
   return (
     <div style={{ backgroundColor: '#f0f4ff', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
 
-      <div style={{ position: 'fixed', top: 'max(16px, env(safe-area-inset-top))', right: 16, zIndex: 10 }}>
-        <LanguageSwitcher variant="dropdown" />
-      </div>
-
       {/* Hero — its own full-height screen, exactly as before L2 (same
           buttons, same destinations); only addition is the secondary
-          "See how Kentexa works" discovery action below the primary pair. */}
-      <div style={{ minHeight: '100vh', display: 'flex',
+          "See how Kentexa works" discovery action below the primary pair.
+          L2.1: the language selector is scoped to THIS hero box
+          (position:relative + the selector's own position:absolute) rather
+          than position:fixed over the whole page. Fixed positioning kept it
+          glued to the viewport corner for the entire scroll, so it visibly
+          overlapped multiple LandingEducation section headings underneath —
+          confirmed in real-browser mobile screenshots. Absolute-within-hero
+          keeps it visible the instant the page loads (still top priority,
+          still trivially reachable) but it scrolls away WITH the hero,
+          before any education content is on screen, so it can never
+          overlap anything below. LanguageSwitcher.js's own logic
+          (i18n.changeLanguage + kentexa_lang persistence + the
+          languageChanged html-lang listener in i18n.js) is completely
+          untouched by this — only this wrapper's positioning changed. */}
+      <div style={{ position: 'relative', minHeight: '100vh', display: 'flex',
         flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
         padding: '24px 16px', paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))',
         paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
+
+        <div style={{ position: 'absolute', top: 'max(16px, env(safe-area-inset-top))', right: 16, zIndex: 10 }}>
+          <LanguageSwitcher variant="dropdown" />
+        </div>
 
         <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column',
           alignItems: 'center', gap: 28 }}>
