@@ -1,7 +1,7 @@
 {
-  "short_name": "KenteXa",
-  "name": "KenteXa — Biashara Tanzania",
-  "description": "Nunua, Uza, Tuma — Tanzania nzima",
+  "short_name": "Kentexa",
+  "name": "Kentexa — Commerce, Services & Opportunities",
+  "description": "Business, commerce and services — all in one place.",
   "icons": [
     {
       "src": "/logo192.png",
@@ -28,20 +28,20 @@
   "theme_color": "#1d4ed8",
   "background_color": "#0f172a",
   "scope": "/",
-  "lang": "sw",
+  "lang": "en",
   "categories": ["shopping", "finance", "business"],
   "shortcuts": [
     {
-      "name": "Fuatilia Kifurushi",
-      "short_name": "Fuatilia",
-      "description": "Fuatilia bidhaa yako",
+      "name": "Track Parcel",
+      "short_name": "Track",
+      "description": "Track your parcel",
       "url": "/?track=",
       "icons": [{ "src": "/logo192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Tuma Kifurushi",
-      "short_name": "Tuma",
-      "description": "Tuma bidhaa mpya",
+      "name": "Send Parcel",
+      "short_name": "Send",
+      "description": "Send a new parcel",
       "url": "/?page=SellerShipment",
       "icons": [{ "src": "/logo192.png", "sizes": "192x192" }]
     }
