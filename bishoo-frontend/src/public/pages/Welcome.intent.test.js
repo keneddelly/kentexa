@@ -21,7 +21,11 @@ describe('Welcome — landing language + campaign intent', () => {
     render(<Welcome onNavigate={jest.fn()} />);
     expect(screen.getByText('welcome.headline')).toBeInTheDocument();
     expect(screen.getByText('welcome.subheadline')).toBeInTheDocument();
-    expect(screen.getByText('welcome.create_account_button')).toBeInTheDocument();
+    // L2: the same create_account_button key is reused for the hero CTA
+    // AND the After-Signup/Final CTAs further down the page (§15 — same
+    // action, not a different one, at each of the sensible CTA points) —
+    // so this is deliberately a multi-match, not an ambiguity bug.
+    expect(screen.getAllByText('welcome.create_account_button').length).toBeGreaterThanOrEqual(1);
   });
 
   test.each(['service', 'classified', 'seller'])('intent=%s customizes hero copy via intent-scoped translation keys', (intent) => {
@@ -54,5 +58,30 @@ describe('Welcome — landing language + campaign intent', () => {
     setIntent('service');
     render(<Welcome onNavigate={jest.fn()} />);
     expect(JSON.parse(sessionStorage.getItem('kentexa_intent')).value).toBe('service');
+  });
+});
+
+describe('Welcome — L2 product education composition', () => {
+  beforeEach(() => { sessionStorage.clear(); });
+
+  test('secondary "see how Kentexa works" discovery action is present alongside the hero CTAs', () => {
+    render(<Welcome onNavigate={jest.fn()} />);
+    expect(screen.getByText('welcome.discover_more_button')).toBeInTheDocument();
+  });
+
+  test('the full product-education body (LandingEducation) mounts under the hero', () => {
+    render(<Welcome onNavigate={jest.fn()} />);
+    // A handful of section headings across the education body, proving
+    // Welcome.js actually composes LandingEducation rather than just
+    // importing it unused.
+    expect(screen.getByText('landing.what_is.heading')).toBeInTheDocument();
+    expect(screen.getByText('landing.how_it_works.heading')).toBeInTheDocument();
+    expect(screen.getByText('landing.after_signup.heading')).toBeInTheDocument();
+    expect(screen.getByText('landing.trust.heading')).toBeInTheDocument();
+  });
+
+  test('language selector still renders alongside the larger page (L1 behavior not regressed by L2)', () => {
+    render(<Welcome onNavigate={jest.fn()} />);
+    expect(screen.getByTestId('language-switcher')).toBeInTheDocument();
   });
 });

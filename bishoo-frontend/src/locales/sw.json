@@ -2557,6 +2557,133 @@
       "subtitle": "Chagua lugha yako",
       "recommended": "Inayopendekezwa",
       "hint": "Unaweza kubadilisha lugha wakati wowote"
+    },
+    "discover_more_button": "Angalia jinsi Kentexa inavyofanya kazi ↓"
+  },
+  "landing": {
+    "what_is": {
+      "heading": "Kentexa ni Nini?",
+      "body": "Kentexa inakutanisha biashara, bidhaa, huduma na fursa mahali pamoja — mtandao wa kidijitali wa utambulisho wa biashara na biashara Tanzania. Gundua kilicho karibu nawe, wasiliana na watu walio nyuma yake, na fanya mambo yako — pote mahali pamoja.",
+      "chip_discover": "Gundua",
+      "chip_sell": "Uza",
+      "chip_service": "Toa Huduma",
+      "chip_classifieds": "Weka Matangazo",
+      "chip_moments": "Fuatilia Moments",
+      "chip_communicate": "Wasiliana"
+    },
+    "features": {
+      "heading": "Unaweza Kufanya Nini kwenye Kentexa?",
+      "sell_title": "Uza Bidhaa",
+      "sell_desc": "Fungua Biashara yako, weka bidhaa zenye picha na bei, na fikia wanunuzi Tanzania nzima.",
+      "service_title": "Toa Huduma",
+      "service_desc": "Tangaza unachofanya — kutoka ufundi hadi huduma za kitaalamu — ili watu wanaotafuta huduma hiyo wakupate na kukutumia ujumbe.",
+      "classifieds_title": "Weka Tangazo",
+      "classifieds_desc": "Unauza kitu nje ya biashara yako ya kawaida? Weka moja kwa moja kama Tangazo — hauhitaji Duka.",
+      "moments_title": "Fuatilia Moments",
+      "moments_desc": "Ona kinachoendelea sasa hivi — bidhaa mpya, kazi iliyokamilika, ofa iliyo wazi — na chukua hatua.",
+      "moments_flow_moment": "Moment",
+      "moments_flow_discovery": "Ugunduzi",
+      "moments_flow_profile": "Biashara/Bidhaa/Huduma",
+      "moments_flow_action": "Tuma Ujumbe au Nunua"
+    },
+    "business": {
+      "heading": "Kuendesha Biashara kwenye Kentexa",
+      "intro": "Kentexa inakua pamoja na biashara yako — anza kwa urahisi, ongeza zaidi unapohitaji.",
+      "step1_title": "Fungua akaunti yako",
+      "step1_desc": "Jisajili kwa namba yako ya simu — inachukua dakika moja.",
+      "step2_title": "Fungua Biashara yako",
+      "step2_desc": "Ipe biashara yako uwepo kwenye Kentexa — jina, logo na hadithi yake.",
+      "step3_title": "Chagua biashara yako inafanya nini",
+      "step3_desc": "Uza bidhaa, toa huduma, au zote mbili — weka tu kinachokuhusu.",
+      "step4_title": "Ongeza bidhaa au huduma zako",
+      "step4_desc": "Orodhesha unachotoa kwa picha, bei na maelezo.",
+      "step5_title": "Jenga uwepo wako",
+      "step5_desc": "Shiriki Moments, jibu ujumbe, na kuza wafuasi wako.",
+      "step6_title": "Tumia zana za Kentexa unapokua",
+      "step6_desc": "Oda, ankara, POS na ufuatiliaji wa usafirishaji — zinapatikana biashara yako inapozihitaji."
+    },
+    "personal_vs_business": {
+      "heading": "Unauza Kitu? Kuna Njia Sahihi ya Kufanya Hivyo",
+      "personal_title": "Kitu kimoja tu?",
+      "personal_desc": "Unataka kuuza kitu chako binafsi usichokihitaji tena? Weka Tangazo — hauhitaji Biashara.",
+      "personal_example": "mfano: kuuza simu yako ya zamani",
+      "business_title": "Unauza mara kwa mara?",
+      "business_desc": "Unaendesha biashara na kuuza mara kwa mara? Fungua Biashara yako na jenga uwepo wa Duka ambao wateja wanaweza kufuatilia.",
+      "business_example": "mfano: duka, boutique au huduma unayoendesha"
+    },
+    "how_it_works": {
+      "heading": "Jinsi Kentexa Inavyofanya Kazi",
+      "subheading": "Kutoka akaunti hadi kuwa hai kwenye Kentexa, kwa hatua tano.",
+      "step1_title": "Fungua akaunti yako",
+      "step1_desc": "Jisajili kwa namba yako ya simu — inachukua dakika moja tu.",
+      "step2_title": "Chagua unachotaka kufanya",
+      "step2_desc": "Nunua, uza, toa huduma, weka Tangazo, au fungua Biashara — unaweza kuongeza zaidi baadaye.",
+      "step3_title": "Kamilisha usanidi unaokuhusu",
+      "step3_desc": "Wamiliki wa biashara wanafungua Biashara; watoa huduma wanatangaza huduma zao; wauzaji binafsi wanaweka Tangazo moja kwa moja.",
+      "step4_title": "Anza kushiriki",
+      "step4_desc": "Chapisha, shiriki Moments, tafuta, gundua na wasiliana na watu unaohitaji kuwafikia.",
+      "step5_title": "Tumia zana zilizounganishwa",
+      "step5_desc": "Unapokua, tumia oda, uandaaji wa ankara, POS na ufuatiliaji wa usafirishaji — vyote vimo ndani ya Kentexa.",
+      "cta_full": "Ona mwongozo kamili wa hatua kwa hatua"
+    },
+    "after_signup": {
+      "heading": "Ufanye Nini Baada ya Kufungua Akaunti?",
+      "path_sell_title": "Nataka Kuuza",
+      "path_sell_step1": "Fungua Biashara yako",
+      "path_sell_step2": "Sanidi uuzaji",
+      "path_sell_step3": "Ongeza bidhaa yako ya kwanza",
+      "path_service_title": "Ninatoa Huduma",
+      "path_service_step1": "Sanidi huduma yako",
+      "path_service_step2": "Chapisha tangazo lako la kwanza",
+      "path_classified_title": "Nataka Kuweka Kitu",
+      "path_classified_step1": "Fungua Tangazo binafsi",
+      "path_buy_title": "Nataka Kununua au Kutafuta Kitu",
+      "path_buy_step1": "Tafuta na gundua Kentexa",
+      "path_business_title": "Naendesha Biashara",
+      "path_business_step1": "Fungua Biashara yako",
+      "path_business_step2": "Ongeza zana zinazoihusu"
+    },
+    "moments": {
+      "heading": "Moments ni Nini?",
+      "body": "Moments zinaonyesha kinachoendelea sasa hivi kuhusu biashara, huduma na watu kwenye Kentexa — si tu mtiririko mwingine wa mitandao. Moment inaweza kuwa bidhaa mpya zimefika, kazi imekamilika, kitu kinapatikana leo, au taarifa ya biashara — na inaelekeza moja kwa moja kwenye biashara au mtu aliye nyuma yake.",
+      "example1": "Bidhaa mpya zimefika",
+      "example2": "Kazi imekamilika leo",
+      "example3": "Inapatikana sasa",
+      "example4": "Unatafuta kitu?",
+      "example5": "Taarifa ya biashara"
+    },
+    "logistics": {
+      "heading": "Kufikisha Mzigo: Mtandao wa Usafirishaji wa Kentexa",
+      "body": "Muuzaji anaposafirisha kupitia Kentexa, mzigo unapita kwenye mtandao halisi wa watu — si kiungo cha kawaida cha usafirishaji tu.",
+      "flow_step1": "Muuzaji anakabidhi mzigo",
+      "flow_step2": "Unaingia kwenye mtandao wa usafirishaji wa Kentexa",
+      "flow_step3": "Unapokelewa kituoni na Super Agent",
+      "flow_step4": "Unatumwa kwa usafiri",
+      "flow_step5": "Unafika mahali unapoelekea",
+      "flow_step6": "Unafikishwa au kuchukuliwa",
+      "super_agent_title": "Super Agent ni Nani?",
+      "super_agent_desc": "Super Agent anaendesha kituo cha usafirishaji cha Kentexa katika mji wake — akipokea, kukusanya na kutuma mizigo ili wauzaji wasihitaji kushughulikia usafirishaji wenyewe."
+    },
+    "tracking": {
+      "heading": "Fuatilia Kila Hatua",
+      "body": "Mizigo inayosafirishwa kupitia mtandao wa usafirishaji wa Kentexa inapata namba ya ufuatiliaji unayoweza kufuatilia kutoka kuchukuliwa hadi kufikishwa.",
+      "cta": "Fuatilia Mzigo"
+    },
+    "pos": {
+      "heading": "Zana za Biashara, Zimejengwa Ndani",
+      "body": "Kentexa si kwa ajili ya shughuli za mtandaoni tu. Local Shop POS inaruhusu biashara kurekodi mauzo ya ana kwa ana, kupokea pesa taslimu au pesa za simu, na kuweka shughuli za mtandaoni na dukani mahali pamoja."
+    },
+    "trust": {
+      "heading": "Imejengwa kwa Uaminifu",
+      "point1": "Wauzaji wanathibitisha utambulisho wao kabla ya kuanza kuuza",
+      "point2": "Malipo yako yanahifadhiwa mpaka uthibitishe umepokea oda yako",
+      "point3": "Fungua malalamiko ndani ya siku 7 kama kuna tatizo",
+      "point4": "Kila oda na mazungumzo yanahifadhiwa mahali pamoja",
+      "point5": "Mizigo ina namba ya ufuatiliaji unayoweza kufuatilia"
+    },
+    "final_cta": {
+      "heading": "Uko Tayari Kuanza?",
+      "desc": "Jiunge na Kentexa na uanze kugundua, kuuza, kutoa huduma au kuwasiliana na biashara zilizo karibu nawe."
     }
   },
   "route_coverage_map": {

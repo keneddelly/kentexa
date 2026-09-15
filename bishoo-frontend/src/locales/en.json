@@ -2711,6 +2711,133 @@
       "subtitle": "Choose your language",
       "recommended": "Recommended",
       "hint": "You can change this anytime"
+    },
+    "discover_more_button": "See how Kentexa works ↓"
+  },
+  "landing": {
+    "what_is": {
+      "heading": "What is Kentexa?",
+      "body": "Kentexa brings businesses, products, services and opportunities together in one platform — Tanzania's digital business identity and commerce network. Discover what's around you, connect with the people behind it, and get things done, all in one place.",
+      "chip_discover": "Discover",
+      "chip_sell": "Sell",
+      "chip_service": "Offer Services",
+      "chip_classifieds": "Post Classifieds",
+      "chip_moments": "Follow Moments",
+      "chip_communicate": "Message & Connect"
+    },
+    "features": {
+      "heading": "What Can You Do on Kentexa?",
+      "sell_title": "Sell Products",
+      "sell_desc": "Create your Business, publish products with photos and pricing, and reach buyers across Tanzania.",
+      "service_title": "Offer a Service",
+      "service_desc": "Publish what you do — from trades to professional services — so people looking for it can find and message you.",
+      "classifieds_title": "Post a Classified",
+      "classifieds_desc": "Selling something outside your usual business? Post it directly as a Classified — no Store required.",
+      "moments_title": "Follow Moments",
+      "moments_desc": "See what's happening right now — new stock, a completed job, an open offer — and act on it.",
+      "moments_flow_moment": "Moment",
+      "moments_flow_discovery": "Discovery",
+      "moments_flow_profile": "Business/Product/Service",
+      "moments_flow_action": "Message or Buy"
+    },
+    "business": {
+      "heading": "Running a Business on Kentexa",
+      "intro": "Kentexa grows with your business — start simple, add more as you need it.",
+      "step1_title": "Create your account",
+      "step1_desc": "Sign up with your phone number — it takes a minute.",
+      "step2_title": "Create your Business",
+      "step2_desc": "Give your business a presence on Kentexa — name, logo and story.",
+      "step3_title": "Choose what your business does",
+      "step3_desc": "Sell products, offer services, or both — set up only what's relevant to you.",
+      "step4_title": "Add your products or services",
+      "step4_desc": "List what you offer with photos, pricing and details.",
+      "step5_title": "Build your presence",
+      "step5_desc": "Share Moments, respond to messages, and grow your following.",
+      "step6_title": "Use Kentexa's tools as you grow",
+      "step6_desc": "Orders, invoices, POS and delivery tracking — available as your business needs them."
+    },
+    "personal_vs_business": {
+      "heading": "Selling Something? There's a Right Way to Do It",
+      "personal_title": "Just one item?",
+      "personal_desc": "Want to sell a personal item you no longer need? Post a Classified — no Business required.",
+      "personal_example": "e.g. selling your old phone",
+      "business_title": "Selling regularly?",
+      "business_desc": "Running a business and selling often? Create your Business and build a Store presence customers can follow.",
+      "business_example": "e.g. a shop, boutique or service you run"
+    },
+    "how_it_works": {
+      "heading": "How Kentexa Works",
+      "subheading": "From account to active on Kentexa, in five steps.",
+      "step1_title": "Create your account",
+      "step1_desc": "Sign up with your phone number — it only takes a minute.",
+      "step2_title": "Choose what you want to do",
+      "step2_desc": "Buy, sell, offer a service, post a Classified, or set up a Business — you can always add more later.",
+      "step3_title": "Complete the relevant setup",
+      "step3_desc": "Business owners create a Business; service providers publish their service; personal sellers post a Classified directly.",
+      "step4_title": "Start participating",
+      "step4_desc": "Publish, share Moments, search, discover and message the people you need to reach.",
+      "step5_title": "Use connected tools",
+      "step5_desc": "As you grow, use orders, invoicing, POS and delivery tracking — all built into Kentexa.",
+      "cta_full": "See the full step-by-step guide"
+    },
+    "after_signup": {
+      "heading": "What Should You Do After Signing Up?",
+      "path_sell_title": "I Want to Sell",
+      "path_sell_step1": "Create your Business",
+      "path_sell_step2": "Set up selling",
+      "path_sell_step3": "Add your first product",
+      "path_service_title": "I Offer a Service",
+      "path_service_step1": "Set up your service",
+      "path_service_step2": "Publish your first listing",
+      "path_classified_title": "I Want to Post Something",
+      "path_classified_step1": "Create a personal Classified",
+      "path_buy_title": "I Want to Buy or Find Something",
+      "path_buy_step1": "Search and discover Kentexa",
+      "path_business_title": "I Run a Business",
+      "path_business_step1": "Create your Business",
+      "path_business_step2": "Add the tools relevant to it"
+    },
+    "moments": {
+      "heading": "What Are Moments?",
+      "body": "Moments show what is happening right now around businesses, services and people on Kentexa — not just another feed. A Moment can be new stock arriving, a finished job, something available today, or a business update, and it leads straight to the business or person behind it.",
+      "example1": "New stock just arrived",
+      "example2": "Job completed today",
+      "example3": "Available now",
+      "example4": "Looking for something?",
+      "example5": "Business update"
+    },
+    "logistics": {
+      "heading": "Getting It There: Kentexa's Delivery Network",
+      "body": "When a seller ships through Kentexa, the parcel moves through a real network of people, not just a courier link.",
+      "flow_step1": "Seller hands off parcel",
+      "flow_step2": "Enters Kentexa's logistics network",
+      "flow_step3": "Received at a hub by a Super Agent",
+      "flow_step4": "Sent by transport",
+      "flow_step5": "Arrives at destination",
+      "flow_step6": "Delivered or picked up",
+      "super_agent_title": "What is a Super Agent?",
+      "super_agent_desc": "A Super Agent runs a Kentexa logistics hub in their city — receiving, batching and dispatching parcels so sellers don't have to handle delivery themselves."
+    },
+    "tracking": {
+      "heading": "Track Every Step",
+      "body": "Shipments sent through Kentexa's delivery network get a tracking number you can follow from pickup to delivery.",
+      "cta": "Track a Parcel"
+    },
+    "pos": {
+      "heading": "Business Tools, Built In",
+      "body": "Kentexa isn't only for online activity. Local Shop POS lets a business record in-person sales, accept cash or mobile money, and keep online and in-store activity in one place."
+    },
+    "trust": {
+      "heading": "Built on Trust",
+      "point1": "Sellers verify their identity before they can start selling",
+      "point2": "Your payment is held until you confirm you've received your order",
+      "point3": "Raise a dispute within 7 days if something's wrong",
+      "point4": "Every order and conversation is kept in one place",
+      "point5": "Shipments carry a tracking number you can follow"
+    },
+    "final_cta": {
+      "heading": "Ready to Get Started?",
+      "desc": "Join Kentexa and start discovering, selling, offering services or connecting with businesses near you."
     }
   },
   "route_coverage_map": {

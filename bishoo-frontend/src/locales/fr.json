@@ -2707,6 +2707,133 @@
       "subtitle": "Choisissez votre langue",
       "recommended": "Recommandé",
       "hint": "Vous pouvez changer à tout moment"
+    },
+    "discover_more_button": "Découvrez comment Kentexa fonctionne ↓"
+  },
+  "landing": {
+    "what_is": {
+      "heading": "Qu'est-ce que Kentexa ?",
+      "body": "Kentexa réunit entreprises, produits, services et opportunités en une seule plateforme — le réseau numérique d'identité commerciale de la Tanzanie. Découvrez ce qui vous entoure, connectez-vous avec les personnes qui s'en occupent, et faites avancer vos affaires, le tout au même endroit.",
+      "chip_discover": "Découvrir",
+      "chip_sell": "Vendre",
+      "chip_service": "Proposer des services",
+      "chip_classifieds": "Publier des annonces",
+      "chip_moments": "Suivre les Moments",
+      "chip_communicate": "Échanger"
+    },
+    "features": {
+      "heading": "Que Pouvez-Vous Faire sur Kentexa ?",
+      "sell_title": "Vendre des produits",
+      "sell_desc": "Créez votre entreprise, publiez des produits avec photos et prix, et touchez des acheteurs partout en Tanzanie.",
+      "service_title": "Proposer un service",
+      "service_desc": "Publiez ce que vous savez faire — des métiers manuels aux services professionnels — pour que les personnes qui le recherchent puissent vous trouver et vous contacter.",
+      "classifieds_title": "Publier une annonce",
+      "classifieds_desc": "Vous vendez quelque chose en dehors de votre activité habituelle ? Publiez-le directement comme une annonce — aucune boutique requise.",
+      "moments_title": "Suivre les Moments",
+      "moments_desc": "Voyez ce qui se passe en ce moment — nouveau stock, mission terminée, offre disponible — et agissez.",
+      "moments_flow_moment": "Moment",
+      "moments_flow_discovery": "Découverte",
+      "moments_flow_profile": "Entreprise/Produit/Service",
+      "moments_flow_action": "Message ou achat"
+    },
+    "business": {
+      "heading": "Gérer une Entreprise sur Kentexa",
+      "intro": "Kentexa grandit avec votre entreprise — commencez simplement, ajoutez plus selon vos besoins.",
+      "step1_title": "Créez votre compte",
+      "step1_desc": "Inscrivez-vous avec votre numéro de téléphone — cela prend une minute.",
+      "step2_title": "Créez votre Entreprise",
+      "step2_desc": "Donnez à votre entreprise une présence sur Kentexa — nom, logo et histoire.",
+      "step3_title": "Choisissez l'activité de votre entreprise",
+      "step3_desc": "Vendez des produits, proposez des services, ou les deux — configurez seulement ce qui vous concerne.",
+      "step4_title": "Ajoutez vos produits ou services",
+      "step4_desc": "Listez ce que vous proposez avec photos, prix et détails.",
+      "step5_title": "Construisez votre présence",
+      "step5_desc": "Partagez des Moments, répondez aux messages, et développez vos abonnés.",
+      "step6_title": "Utilisez les outils Kentexa au fil de votre croissance",
+      "step6_desc": "Commandes, factures, POS et suivi de livraison — disponibles dès que votre entreprise en a besoin."
+    },
+    "personal_vs_business": {
+      "heading": "Vous Vendez Quelque Chose ? Il y a une Bonne Façon de le Faire",
+      "personal_title": "Un seul article ?",
+      "personal_desc": "Vous voulez vendre un article personnel dont vous n'avez plus besoin ? Publiez une annonce — aucune entreprise requise.",
+      "personal_example": "ex. vendre votre ancien téléphone",
+      "business_title": "Vous vendez régulièrement ?",
+      "business_desc": "Vous gérez une entreprise et vendez souvent ? Créez votre Entreprise et construisez une présence de boutique que vos clients peuvent suivre.",
+      "business_example": "ex. une boutique ou un service que vous gérez"
+    },
+    "how_it_works": {
+      "heading": "Comment Fonctionne Kentexa",
+      "subheading": "Du compte à l'activité sur Kentexa, en cinq étapes.",
+      "step1_title": "Créez votre compte",
+      "step1_desc": "Inscrivez-vous avec votre numéro de téléphone — cela ne prend qu'une minute.",
+      "step2_title": "Choisissez ce que vous voulez faire",
+      "step2_desc": "Acheter, vendre, proposer un service, publier une annonce, ou créer une Entreprise — vous pourrez toujours ajouter plus tard.",
+      "step3_title": "Complétez la configuration correspondante",
+      "step3_desc": "Les entrepreneurs créent une Entreprise ; les prestataires publient leur service ; les vendeurs particuliers publient directement une annonce.",
+      "step4_title": "Commencez à participer",
+      "step4_desc": "Publiez, partagez des Moments, recherchez, découvrez et contactez les personnes que vous devez joindre.",
+      "step5_title": "Utilisez les outils connectés",
+      "step5_desc": "En grandissant, utilisez les commandes, la facturation, le POS et le suivi de livraison — tous intégrés à Kentexa.",
+      "cta_full": "Voir le guide complet étape par étape"
+    },
+    "after_signup": {
+      "heading": "Que Faire Après Votre Inscription ?",
+      "path_sell_title": "Je Veux Vendre",
+      "path_sell_step1": "Créez votre Entreprise",
+      "path_sell_step2": "Configurez la vente",
+      "path_sell_step3": "Ajoutez votre premier produit",
+      "path_service_title": "Je Propose un Service",
+      "path_service_step1": "Configurez votre service",
+      "path_service_step2": "Publiez votre première annonce",
+      "path_classified_title": "Je Veux Publier Quelque Chose",
+      "path_classified_step1": "Créez une annonce personnelle",
+      "path_buy_title": "Je Veux Acheter ou Trouver Quelque Chose",
+      "path_buy_step1": "Recherchez et découvrez Kentexa",
+      "path_business_title": "Je Gère une Entreprise",
+      "path_business_step1": "Créez votre Entreprise",
+      "path_business_step2": "Ajoutez les outils qui la concernent"
+    },
+    "moments": {
+      "heading": "Que Sont les Moments ?",
+      "body": "Les Moments montrent ce qui se passe en ce moment autour des entreprises, des services et des personnes sur Kentexa — pas juste un autre fil d'actualité. Un Moment peut être un nouveau stock qui arrive, une mission terminée, quelque chose de disponible aujourd'hui, ou une actualité d'entreprise — et il mène directement à l'entreprise ou à la personne concernée.",
+      "example1": "Nouveau stock vient d'arriver",
+      "example2": "Mission terminée aujourd'hui",
+      "example3": "Disponible maintenant",
+      "example4": "Vous cherchez quelque chose ?",
+      "example5": "Actualité d'entreprise"
+    },
+    "logistics": {
+      "heading": "L'Acheminement : le Réseau de Livraison de Kentexa",
+      "body": "Lorsqu'un vendeur expédie via Kentexa, le colis passe par un vrai réseau de personnes — pas seulement un lien de messagerie.",
+      "flow_step1": "Le vendeur remet le colis",
+      "flow_step2": "Entre dans le réseau logistique de Kentexa",
+      "flow_step3": "Reçu dans un hub par un Super Agent",
+      "flow_step4": "Envoyé par transport",
+      "flow_step5": "Arrive à destination",
+      "flow_step6": "Livré ou récupéré",
+      "super_agent_title": "Qu'est-ce qu'un Super Agent ?",
+      "super_agent_desc": "Un Super Agent gère un hub logistique Kentexa dans sa ville — réceptionnant, regroupant et expédiant les colis pour que les vendeurs n'aient pas à gérer la livraison eux-mêmes."
+    },
+    "tracking": {
+      "heading": "Suivez Chaque Étape",
+      "body": "Les envois expédiés via le réseau de livraison de Kentexa reçoivent un numéro de suivi que vous pouvez suivre de la prise en charge à la livraison.",
+      "cta": "Suivre un Colis"
+    },
+    "pos": {
+      "heading": "Des Outils Métier Intégrés",
+      "body": "Kentexa ne sert pas seulement à l'activité en ligne. Local Shop POS permet à une entreprise d'enregistrer les ventes en personne, d'accepter les espèces ou le mobile money, et de garder l'activité en ligne et en boutique au même endroit."
+    },
+    "trust": {
+      "heading": "Bâti sur la Confiance",
+      "point1": "Les vendeurs vérifient leur identité avant de pouvoir commencer à vendre",
+      "point2": "Votre paiement est conservé jusqu'à ce que vous confirmiez avoir reçu votre commande",
+      "point3": "Ouvrez un litige dans les 7 jours en cas de problème",
+      "point4": "Chaque commande et conversation est conservée au même endroit",
+      "point5": "Les envois portent un numéro de suivi que vous pouvez suivre"
+    },
+    "final_cta": {
+      "heading": "Prêt à Commencer ?",
+      "desc": "Rejoignez Kentexa et commencez à découvrir, vendre, proposer des services ou vous connecter avec des entreprises près de chez vous."
     }
   },
   "route_coverage_map": {
