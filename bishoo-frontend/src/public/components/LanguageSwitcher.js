@@ -13,15 +13,19 @@
  *   popover; for a persistent header control (PublicLogin.js).
  * variant="list" — a vertical list of full language rows, already
  *   expanded; for a settings-page section (MyProfile.js).
+ *
+ * Landing Localization L1: the language list and the change/persist logic
+ * now live in utils/supportedLanguages.js (the one canonical source every
+ * language control in the app reads from — Navbar.js, App.js's first-visit
+ * picker, Welcome.js and here all import it instead of keeping their own
+ * copy). `LANGUAGES` is re-exported under its original name since
+ * PublicLogin.js and MyProfile.js already import it that way.
  */
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from '../../utils/supportedLanguages';
 
-export const LANGUAGES = [
-  { code: 'en', label: 'English',   short: 'EN', flag: '🇬🇧' },
-  { code: 'sw', label: 'Kiswahili', short: 'SW', flag: '🇹🇿' },
-  { code: 'fr', label: 'Français',  short: 'FR', flag: '🇫🇷' },
-];
+export const LANGUAGES = SUPPORTED_LANGUAGES;
 
 const B = '#2563EB';
 
@@ -31,10 +35,9 @@ const LanguageSwitcher = ({ variant = 'dropdown', onChange }) => {
   const current = LANGUAGES.find(l => l.code === i18n.language) || LANGUAGES[0];
 
   const changeLanguage = (code) => {
-    i18n.changeLanguage(code);
-    localStorage.setItem('kentexa_lang', code);
+    const resolved = changeAppLanguage(i18n, code);
     setOpen(false);
-    onChange?.(code);
+    onChange?.(resolved);
   };
 
   if (variant === 'list') {

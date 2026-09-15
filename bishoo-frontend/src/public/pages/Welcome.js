@@ -1,11 +1,29 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import LanguageSwitcher from '../components/LanguageSwitcher';
+import { getIntent } from '../../utils/campaignIntent';
 
 // The auth-first entry screen — App.js's `case 'Home':` renders this instead
 // of HomeFeed for a logged-out visitor. Pure routing into the existing
 // PublicLogin.js/Register.js pages, no auth logic of its own.
+//
+// Landing Localization L1 (§6, §13): this is Kentexa's actual public landing
+// page today, so it's where the language selector and campaign-intent-aware
+// hero copy belong — not HomeFeed.js, which only ever renders for an
+// authenticated visitor now. Intent customizes COPY only (via translation
+// keys, never a hardcoded per-language sentence); it does not change either
+// button's destination — both still go to Register/PublicLogin regardless
+// of intent, since the intent-specific *destination* is realized once,
+// post-auth, in App.js's handleLoginSuccess (see utils/campaignIntent.js).
 const Welcome = ({ onNavigate }) => {
   const { t } = useTranslation();
+  // Non-destructive read — Welcome may render this hero many times before
+  // the visitor acts, and the intent must still be there for Register/Login
+  // and for the post-auth redirect afterwards, so nothing here consumes it.
+  const intent = getIntent();
+  const headlineKey    = intent ? `welcome.intent.${intent}.headline`    : 'welcome.headline';
+  const subheadlineKey = intent ? `welcome.intent.${intent}.subheadline` : 'welcome.subheadline';
+  const ctaKey          = intent ? `welcome.intent.${intent}.cta`         : 'welcome.create_account_button';
 
   const btnPrimary = {
     width: '100%', padding: 15,
@@ -28,6 +46,10 @@ const Welcome = ({ onNavigate }) => {
       padding: '24px 16px', fontFamily: "'Inter','Segoe UI',sans-serif",
       paddingTop: 'calc(24px + env(safe-area-inset-top, 0px))',
       paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))' }}>
+
+      <div style={{ position: 'fixed', top: 'max(16px, env(safe-area-inset-top))', right: 16, zIndex: 10 }}>
+        <LanguageSwitcher variant="dropdown" />
+      </div>
 
       <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column',
         alignItems: 'center', gap: 28 }}>
@@ -53,17 +75,17 @@ const Welcome = ({ onNavigate }) => {
         {/* Pitch */}
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: 20, fontWeight: 900, color: '#0f172a', margin: '0 0 8px', lineHeight: 1.3 }}>
-            {t('welcome.headline')}
+            {t(headlineKey)}
           </h1>
           <p style={{ fontSize: 14, color: '#64748b', margin: 0, lineHeight: 1.6 }}>
-            {t('welcome.subheadline')}
+            {t(subheadlineKey)}
           </p>
         </div>
 
         {/* Actions */}
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button onClick={() => onNavigate('Register')} style={btnPrimary}>
-            {t('welcome.create_account_button')}
+            {t(ctaKey)}
           </button>
           <button onClick={() => onNavigate('PublicLogin')} style={btnSecondary}>
             {t('welcome.log_in_button')}

@@ -2684,7 +2684,30 @@
     "subheadline": "Un seul endroit pour les produits, services, entreprises et livraisons partout en Tanzanie — pensé pour vous ressembler.",
     "create_account_button": "Créer un compte",
     "log_in_button": "Se connecter",
-    "made_in_tanzania": "🇹🇿 Fabriqué en Tanzanie"
+    "made_in_tanzania": "🇹🇿 Fabriqué en Tanzanie",
+    "intent": {
+      "service": {
+        "headline": "Proposez votre service sur Kentexa",
+        "subheadline": "Touchez des clients partout en Tanzanie à la recherche de professionnels qualifiés — inscrivez-vous gratuitement.",
+        "cta": "Proposer mon service"
+      },
+      "classified": {
+        "headline": "Publiez votre annonce gratuitement",
+        "subheadline": "Touchez des acheteurs près de vous en quelques minutes — créez votre compte et publiez dès aujourd'hui.",
+        "cta": "Publier une annonce"
+      },
+      "seller": {
+        "headline": "Commencez à vendre sur Kentexa",
+        "subheadline": "Créez votre boutique, touchez des clients et soyez payé — le tout au même endroit.",
+        "cta": "Commencer à vendre"
+      }
+    },
+    "language_picker": {
+      "title": "Bienvenue sur KenteXa !",
+      "subtitle": "Choisissez votre langue",
+      "recommended": "Recommandé",
+      "hint": "Vous pouvez changer à tout moment"
+    }
   },
   "route_coverage_map": {
     "page_title": "🗺️ Carte de couverture du transport",

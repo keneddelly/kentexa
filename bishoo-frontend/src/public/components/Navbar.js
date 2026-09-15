@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCart } from '../../context/CartContext';
 import { navigationForRole } from '../../navigation/navigationRegistry';
+import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from '../../utils/supportedLanguages';
 
 const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -10,17 +11,17 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
   const { cartCount } = useCart();
   const { i18n } = useTranslation();
 
-  const languages = [
-    { code: 'en', label: 'EN', flag: '🇬🇧' },
-    { code: 'sw', label: 'SW', flag: '🇹🇿' },
-    { code: 'fr', label: 'FR', flag: '🇫🇷' },
-  ];
+  // Landing Localization L1 (§2): sourced from the one canonical language
+  // list (utils/supportedLanguages.js, also used by App.js/Welcome.js/
+  // LanguageSwitcher.js) instead of a local copy. `.short` ('EN'/'SW'/'FR')
+  // is used below to keep this compact topbar button the same width it
+  // always was — the shared list's `.label` is the full name ('English').
+  const languages = SUPPORTED_LANGUAGES;
 
   const currentLang = languages.find(l => l.code === i18n.language) || languages[0];
 
   const changeLanguage = (code) => {
-    i18n.changeLanguage(code);
-    localStorage.setItem('kentexa_lang', code);
+    changeAppLanguage(i18n, code);
     setLangOpen(false);
   };
 
@@ -165,7 +166,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
             {/* Language dropdown */}
             <div className="kx-lang-wrap">
               <button className="kx-lang-btn" onClick={() => setLangOpen(o => !o)}>
-                {currentLang.flag} {currentLang.label} <span style={{ fontSize: 9 }}>▾</span>
+                {currentLang.flag} {currentLang.short} <span style={{ fontSize: 9 }}>▾</span>
               </button>
               {langOpen && (
                 <>
@@ -174,7 +175,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
                     {languages.map(lang => (
                       <button key={lang.code} className={`kx-lang-opt${i18n.language === lang.code ? ' active' : ''}`}
                         onClick={() => changeLanguage(lang.code)}>
-                        {lang.flag} {lang.label}
+                        {lang.flag} {lang.short}
                         {i18n.language === lang.code && <span style={{ marginLeft: 'auto', fontSize: 11 }}>✓</span>}
                       </button>
                     ))}

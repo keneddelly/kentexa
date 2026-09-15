@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usePWA, InstallBanner, subscribeToPush } from './public/hooks/usePWA';
 import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
 import useAnalytics from './public/hooks/useAnalytics';
 import { pageToPath, pathToPage, pathToNavParams } from './utils/urlSync';
+import { SUPPORTED_LANGUAGES, changeLanguage as changeAppLanguage } from './utils/supportedLanguages';
+import { intentFromSearch, setIntent as persistIntent, destinationForIntent, consumeIntent } from './utils/campaignIntent';
 import { useRoleContext } from './context/RoleContext';
 import ContextEpochBoundary from './context/ContextEpochBoundary';
 import { contextTransitionState } from './context/contextTransition';
@@ -143,6 +146,7 @@ if ('serviceWorker' in navigator) {
 }
 
 function App() {
+  const { t, i18n } = useTranslation();
   const roleContext = useRoleContext();
   const {
     status: authStatus,
@@ -200,6 +204,20 @@ function App() {
   const [navHistory, setNavHistory] = useState([]);
   // Show language picker only on first visit
   const [showLangPicker, setShowLangPicker] = useState(() => !localStorage.getItem('kentexa_lang'));
+
+  // Landing Localization L1 (§11-12): a one-time, mount-only read of
+  // ?intent= — deliberately separate from the `page`/`navParams` boot-time
+  // parsing above (track/confirm/verify), since campaign intent is not a
+  // routing decision, just acquisition context carried alongside whatever
+  // page the visitor actually lands on. Language itself is already resolved
+  // synchronously in i18n.js, before this component ever mounts, so there's
+  // no equivalent "apply ?lang=" step needed here.
+  useEffect(() => {
+    try {
+      const intent = intentFromSearch(window.location.search);
+      if (intent) persistIntent(intent);
+    } catch { /* no window — SSR */ }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Commerce profiles enrich labels and business-scope parameters only.
   // Active authority is the server-issued AccountRole in RoleContextProvider.
@@ -376,9 +394,16 @@ function App() {
           if (intended) {
             localStorage.removeItem('kentexa_after_login');
             setPage(intended);
+          } else if (!options.targetPage) {
+            // Landing Localization L1 (§12-13): campaign intent's one defined
+            // consumption point — read and cleared together (consumeIntent)
+            // so it can only ever redirect this one post-auth landing, same
+            // priority tier as the plain 'Home' fallback it replaces. Never
+            // overrides an explicit targetPage a caller already asked for.
+            const intentDestination = destinationForIntent(consumeIntent());
+            setPage(intentDestination || 'Home');
           } else {
-            const dest = options.targetPage || 'Home';
-            setPage(dest);
+            setPage(options.targetPage);
           }
         }
       }
@@ -818,9 +843,7 @@ function App() {
   };
 
   const handleLangPick = (lang) => {
-    localStorage.setItem('kentexa_lang', lang);
-    // Change i18n language
-    if (window.i18nInstance) window.i18nInstance.changeLanguage(lang);
+    changeAppLanguage(i18n, lang);
     setShowLangPicker(false);
   };
 
@@ -909,28 +932,29 @@ function App() {
         />
       )}
 
-      {/* First-visit language picker */}
+      {/* First-visit language picker — Landing Localization L1 (§2): buttons
+          now come from the canonical SUPPORTED_LANGUAGES list instead of 3
+          hardcoded ones, and the modal's own copy is translated via t()
+          rather than hand-written bilingual text. i18n.js has already
+          resolved a sensible initial language (URL/saved/browser/default)
+          by the time this renders, so t() here always has something sane
+          to render even before the visitor picks anything. */}
       {showLangPicker && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15,23,42,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: 16 }}>
           <div style={{ backgroundColor: '#fff', borderRadius: 20, padding: '32px 24px', width: '100%', maxWidth: 340, textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🇹🇿</div>
-            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>Karibu KenteXa!</h2>
-            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 24px' }}>Chagua lugha yako / Choose your language</p>
+            <h2 style={{ fontSize: 20, fontWeight: 900, color: '#1e293b', margin: '0 0 6px', fontFamily: 'Manrope,sans-serif' }}>{t('welcome.language_picker.title')}</h2>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 24px' }}>{t('welcome.language_picker.subtitle')}</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <button onClick={() => handleLangPick('sw')}
-                style={{ padding: '14px', borderRadius: 12, border: '2px solid #1d4ed8', backgroundColor: '#eff6ff', cursor: 'pointer', fontSize: 15, fontWeight: 800, color: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                🇹🇿 Kiswahili <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>(Inayopendekezwa)</span>
-              </button>
-              <button onClick={() => handleLangPick('en')}
-                style={{ padding: '14px', borderRadius: 12, border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', cursor: 'pointer', fontSize: 15, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                🇬🇧 English
-              </button>
-              <button onClick={() => handleLangPick('fr')}
-                style={{ padding: '14px', borderRadius: 12, border: '2px solid #e2e8f0', backgroundColor: '#f8fafc', cursor: 'pointer', fontSize: 15, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                🇫🇷 Français
-              </button>
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <button key={lang.code} onClick={() => handleLangPick(lang.code)}
+                  style={{ padding: '14px', borderRadius: 12, border: lang.code === 'sw' ? '2px solid #1d4ed8' : '2px solid #e2e8f0', backgroundColor: lang.code === 'sw' ? '#eff6ff' : '#f8fafc', cursor: 'pointer', fontSize: 15, fontWeight: 800, color: lang.code === 'sw' ? '#1d4ed8' : '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  {lang.flag} {lang.label}
+                  {lang.code === 'sw' && <span style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>({t('welcome.language_picker.recommended')})</span>}
+                </button>
+              ))}
             </div>
-            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 16 }}>Unaweza kubadilisha lugha wakati wowote / You can change this anytime</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 16 }}>{t('welcome.language_picker.hint')}</p>
           </div>
         </div>
       )}

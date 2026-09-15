@@ -2688,7 +2688,30 @@
     "subheadline": "One place for products, services, businesses and delivery across Tanzania — built to feel like it's yours.",
     "create_account_button": "Create Account",
     "log_in_button": "Log In",
-    "made_in_tanzania": "🇹🇿 Made in Tanzania"
+    "made_in_tanzania": "🇹🇿 Made in Tanzania",
+    "intent": {
+      "service": {
+        "headline": "Offer Your Service on Kentexa",
+        "subheadline": "Reach customers across Tanzania looking for skilled professionals — join free and start getting inquiries.",
+        "cta": "Offer Your Service"
+      },
+      "classified": {
+        "headline": "Post Your Classified for Free",
+        "subheadline": "Reach buyers near you in minutes — create your account and list it today.",
+        "cta": "Post a Classified"
+      },
+      "seller": {
+        "headline": "Start Selling on Kentexa",
+        "subheadline": "Build your store, reach customers and get paid — all in one place.",
+        "cta": "Start Selling"
+      }
+    },
+    "language_picker": {
+      "title": "Welcome to KenteXa!",
+      "subtitle": "Choose your language",
+      "recommended": "Recommended",
+      "hint": "You can change this anytime"
+    }
   },
   "route_coverage_map": {
     "page_title": "🗺️ Transport Coverage Map",
