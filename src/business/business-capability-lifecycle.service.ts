@@ -176,7 +176,7 @@ export class BusinessCapabilityLifecycleService {
       FROM account_role ar
       JOIN workspace_assignment wa ON wa.id = ar."workspaceAssignmentId"
       WHERE wa."workspaceId" = $1
-        AND ar."roleType" = ANY($2::text[])
+        AND ar."roleType"::text = ANY($2::text[])
       `,
       [capability.workspaceId, gatedRoleTypes],
     );

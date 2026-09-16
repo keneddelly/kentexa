@@ -405,7 +405,17 @@ export class RoleContextService {
       return role.profileId === role.userId && !!(await this.userRepo.findOne({ where: { id: role.userId } }));
     }
     const profile = await this.resolveProfile(role);
-    return !!profile && Number(profile.userId ?? profile.user?.id) === role.userId;
+    if (!profile) return false;
+    if (role.profileType === RoleProfileType.TRANSPORT_PROVIDER && profile.userId == null) {
+      // Stage B5B: a Business-bound TransportProvider (the organizational
+      // model -- see transport-provider.entity.ts's own doc comment) has no
+      // individual owner to compare against by construction. Its liveness
+      // instead rests entirely on the workspaceAssignment/capability checks
+      // resolveOrganizationalContext already performs below, never on a
+      // userId match that a Business-owned profile structurally cannot have.
+      return true;
+    }
+    return Number(profile.userId ?? profile.user?.id) === role.userId;
   }
 
   private expectedProfileType(roleType: AccountRoleType): RoleProfileType {
