@@ -7,6 +7,7 @@ import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
+import { ServiceProvider } from '../service-providers/entities/service-provider.entity';
 import { WorkspaceAssignment } from '../business/entities/workspace-assignment.entity';
 import {
   AccountRole,
@@ -428,7 +429,14 @@ export class RoleContextService {
     // establishes for them -- this never fires for a role that was never
     // organizationally bound in the first place.
     if (role.workspaceAssignmentId != null) {
-      if (role.profileType === RoleProfileType.SELLER_PROFILE || role.profileType === RoleProfileType.TRANSPORT_PROVIDER) {
+      if (
+        role.profileType === RoleProfileType.SELLER_PROFILE ||
+        role.profileType === RoleProfileType.TRANSPORT_PROVIDER ||
+        role.profileType === RoleProfileType.SERVICE_PROVIDER
+      ) {
+        // Stage B6B: ServiceProvider is Business-level like TransportProvider
+        // (one company-wide identity offering many services), not
+        // workspace-level like SuperAgent -- same business-equality check.
         const org = await this.resolveWorkspaceAssignmentOrganization(role.workspaceAssignmentId);
         if (!org || (profile as any).businessId !== org.businessId) return false;
       } else if (role.profileType === RoleProfileType.SUPER_AGENT) {
@@ -478,6 +486,7 @@ export class RoleContextService {
       case AccountRoleType.AGENT: return RoleProfileType.AGENT;
       case AccountRoleType.SUPER_AGENT: return RoleProfileType.SUPER_AGENT;
       case AccountRoleType.TRANSPORT_PROVIDER: return RoleProfileType.TRANSPORT_PROVIDER;
+      case AccountRoleType.SERVICE_PROVIDER: return RoleProfileType.SERVICE_PROVIDER;
       // Account-level roles deliberately share the User identity profile.
       default: return RoleProfileType.USER;
     }
@@ -491,6 +500,15 @@ export class RoleContextService {
       case RoleProfileType.SUPER_AGENT: return this.superAgentRepo.findOne({ where: { id: role.profileId! } }) as any;
       case RoleProfileType.TRANSPORT_PROVIDER:
         return this.transportRepo.findOne({ where: { id: role.profileId! }, relations: { user: true } }) as any;
+      case RoleProfileType.SERVICE_PROVIDER:
+        // Stage B6B: fetched via the DataSource's own EntityManager rather
+        // than a new constructor-injected repository, so this addition
+        // never changes RoleContextService's constructor signature (which
+        // every existing hand-constructed test file across B2-B5C would
+        // otherwise need updating for, purely for a repo those tests never
+        // exercise).
+        return this.workspaceAssignmentRepo.manager.getRepository(ServiceProvider)
+          .findOne({ where: { id: role.profileId! } }) as any;
       default: return null;
     }
   }

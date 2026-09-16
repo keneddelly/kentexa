@@ -19,6 +19,7 @@ import { WorkspaceAssignment, WorkspaceAssignmentStatus } from './entities/works
 import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
 import { TransportProvider, ProviderStatus, ProviderType } from '../transport/entities/transport-provider.entity';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import { ServiceProvider, ServiceProviderStatus } from '../service-providers/entities/service-provider.entity';
 import { User } from '../users/entities/user.entity';
 import {
   AccountRole,
@@ -50,11 +51,12 @@ export interface ApplyCapabilityDto {
   workspaceId?: number;
 }
 
-/** Stage B5B: capability codes this engine can process applications for. CARGO is deliberately excluded -- no AccountRoleType/profile exists for it (see organizational-capability.ts); it stays a pure entitlement label, never an acting persona applied for here. */
+/** Stage B5B/B6B: capability codes this engine can process applications for. CARGO is deliberately excluded -- no AccountRoleType/profile exists for it (see organizational-capability.ts); it stays a pure entitlement label, never an acting persona applied for here. */
 const APPLICABLE_CAPABILITY_CODES: ReadonlySet<BusinessCapabilityCode> = new Set([
   BusinessCapabilityCode.COMMERCE,
   BusinessCapabilityCode.TRANSPORT,
   BusinessCapabilityCode.SUPER_AGENT,
+  BusinessCapabilityCode.SERVICE,
 ]);
 
 /** Stage B5B: does this capability's application require the OWNER to name a specific, non-default workspace? Only SUPER_AGENT (one hub = one workspace) -- COMMERCE/TRANSPORT stay on the Business's default workspace, matching their own Business-wide profile cardinality (B5.0 contract). */
@@ -67,6 +69,7 @@ const EXPECTED_PROFILE_TYPE_BY_CAPABILITY: Partial<Record<BusinessCapabilityCode
   [BusinessCapabilityCode.COMMERCE]: RoleProfileType.SELLER_PROFILE,
   [BusinessCapabilityCode.TRANSPORT]: RoleProfileType.TRANSPORT_PROVIDER,
   [BusinessCapabilityCode.SUPER_AGENT]: RoleProfileType.SUPER_AGENT,
+  [BusinessCapabilityCode.SERVICE]: RoleProfileType.SERVICE_PROVIDER,
 };
 
 /** Stage B5B: the AccountRoleType each applicable capability code's approved role takes -- mirrors ORGANIZATIONAL_CAPABILITY_BY_ROLE's own mapping in the opposite direction (that map is role->capability; this one is capability->role, needed here since approve/reject start from the application's capabilityCode). */
@@ -74,6 +77,7 @@ const ROLE_TYPE_BY_CAPABILITY: Partial<Record<BusinessCapabilityCode, AccountRol
   [BusinessCapabilityCode.COMMERCE]: AccountRoleType.SELLER,
   [BusinessCapabilityCode.TRANSPORT]: AccountRoleType.TRANSPORT_PROVIDER,
   [BusinessCapabilityCode.SUPER_AGENT]: AccountRoleType.SUPER_AGENT,
+  [BusinessCapabilityCode.SERVICE]: AccountRoleType.SERVICE_PROVIDER,
 };
 
 interface OwnerWorkspaceContext {
@@ -362,7 +366,7 @@ export class BusinessCapabilityApplicationService {
              b."businessVerificationStatus", b.status AS "businessStatus",
              w.id AS "workspaceId", w.name AS "workspaceName", w.status AS "workspaceStatus",
              u.id AS "applicantUserId", u.name AS "applicantName", u.phone AS "applicantPhone",
-             COALESCE(sp.status, tp.status::text, sa.status::text) AS "profileStatus"
+             COALESCE(sp.status, tp.status::text, sa.status::text, svp.status::text) AS "profileStatus"
       FROM business_capability_application a
       JOIN business b ON b.id = a."businessId"
       JOIN operational_workspace w ON w.id = a."workspaceId"
@@ -370,6 +374,7 @@ export class BusinessCapabilityApplicationService {
       LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId" AND a."operationalProfileType" = 'seller_profile'
       LEFT JOIN transport_provider tp ON tp.id = a."operationalProfileId" AND a."operationalProfileType" = 'transport_provider'
       LEFT JOIN super_agent sa ON sa.id = a."operationalProfileId" AND a."operationalProfileType" = 'super_agent'
+      LEFT JOIN service_provider svp ON svp.id = a."operationalProfileId" AND a."operationalProfileType" = 'service_provider'
       WHERE a.status = $1
       ORDER BY a."submittedAt" ASC
       `,
@@ -404,11 +409,12 @@ export class BusinessCapabilityApplicationService {
       `
       SELECT a.id, a."capabilityCode", a.status, a."submittedAt", a."reviewedAt", a."rejectionReason",
              a."workspaceId", a."operationalProfileType",
-             COALESCE(sp.status, tp.status::text, sa.status::text) AS "profileStatus"
+             COALESCE(sp.status, tp.status::text, sa.status::text, svp.status::text) AS "profileStatus"
       FROM business_capability_application a
       LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId" AND a."operationalProfileType" = 'seller_profile'
       LEFT JOIN transport_provider tp ON tp.id = a."operationalProfileId" AND a."operationalProfileType" = 'transport_provider'
       LEFT JOIN super_agent sa ON sa.id = a."operationalProfileId" AND a."operationalProfileType" = 'super_agent'
+      LEFT JOIN service_provider svp ON svp.id = a."operationalProfileId" AND a."operationalProfileType" = 'service_provider'
       WHERE a."businessId" = $1
       ORDER BY a.id DESC
       `,
@@ -515,9 +521,20 @@ export class BusinessCapabilityApplicationService {
       return { profile: { id: profile.id, status: profile.status }, roleType, profileType };
     }
 
-    // SUPER_AGENT
-    const profile = await manager.getRepository(SuperAgent).findOne({ where: { id: application.operationalProfileId ?? -1 } });
-    if (!profile || profile.workspaceId !== application.workspaceId || profile.userId !== application.requestedByUserId || profile.status !== SuperAgentStatus.PENDING) {
+    if (application.capabilityCode === BusinessCapabilityCode.SUPER_AGENT) {
+      const profile = await manager.getRepository(SuperAgent).findOne({ where: { id: application.operationalProfileId ?? -1 } });
+      if (!profile || profile.workspaceId !== application.workspaceId || profile.userId !== application.requestedByUserId || profile.status !== SuperAgentStatus.PENDING) {
+        throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
+      }
+      return { profile: { id: profile.id, status: profile.status }, roleType, profileType };
+    }
+
+    // SERVICE (Stage B6B) -- ServiceProvider.user/userId is a required
+    // field (never null, unlike TransportProvider's Business-bound
+    // exception), so this checks businessId AND userId together, exactly
+    // like COMMERCE's own SellerProfile check.
+    const profile = await manager.getRepository(ServiceProvider).findOne({ where: { id: application.operationalProfileId ?? -1 } });
+    if (!profile || profile.businessId !== application.businessId || profile.userId !== application.requestedByUserId || profile.status !== ServiceProviderStatus.PENDING) {
       throw new ConflictException({ code: 'CAPABILITY_APPLICATION_LINKAGE_INVALID', message: 'CAPABILITY_APPLICATION_LINKAGE_INVALID' });
     }
     return { profile: { id: profile.id, status: profile.status }, roleType, profileType };
@@ -546,10 +563,22 @@ export class BusinessCapabilityApplicationService {
       await repo.save(profile);
       return { id: profile.id, status: profile.status };
     }
-    // SUPER_AGENT
-    const repo = manager.getRepository(SuperAgent);
+    if (capabilityCode === BusinessCapabilityCode.SUPER_AGENT) {
+      const repo = manager.getRepository(SuperAgent);
+      const profile = (await repo.findOne({ where: { id: profileId } }))!;
+      profile.status = SuperAgentStatus.ACTIVE;
+      profile.rejectionReason = null;
+      await repo.save(profile);
+      return { id: profile.id, status: profile.status };
+    }
+    // SERVICE (Stage B6B). Deliberately does NOT touch verifiedAt or any
+    // verification-equivalent field -- capability entitlement ("this
+    // Business may offer services") and verification ("Kentexa has
+    // verified this provider") are separate concepts per this stage's own
+    // explicit product decision; only status flips to APPROVED here.
+    const repo = manager.getRepository(ServiceProvider);
     const profile = (await repo.findOne({ where: { id: profileId } }))!;
-    profile.status = SuperAgentStatus.ACTIVE;
+    profile.status = ServiceProviderStatus.APPROVED;
     profile.rejectionReason = null;
     await repo.save(profile);
     return { id: profile.id, status: profile.status };
@@ -585,9 +614,19 @@ export class BusinessCapabilityApplicationService {
       await repo.save(profile);
       return { id: profile.id, status: profile.status };
     }
-    // SUPER_AGENT -- stays PENDING; see this method's own doc comment.
-    const repo = manager.getRepository(SuperAgent);
+    if (capabilityCode === BusinessCapabilityCode.SUPER_AGENT) {
+      // Stays PENDING; see this method's own doc comment.
+      const repo = manager.getRepository(SuperAgent);
+      const profile = (await repo.findOne({ where: { id: profileId } }))!;
+      profile.rejectionReason = reason;
+      await repo.save(profile);
+      return { id: profile.id, status: profile.status };
+    }
+    // SERVICE (Stage B6B) -- ServiceProviderStatus has a real REJECTED
+    // value, so this mirrors COMMERCE exactly, not SUPER_AGENT's exception.
+    const repo = manager.getRepository(ServiceProvider);
     const profile = (await repo.findOne({ where: { id: profileId } }))!;
+    profile.status = ServiceProviderStatus.REJECTED;
     profile.rejectionReason = reason;
     await repo.save(profile);
     return { id: profile.id, status: profile.status };
@@ -607,7 +646,11 @@ export class BusinessCapabilityApplicationService {
       const p = await manager.getRepository(TransportProvider).findOne({ where: { id } });
       return p ? { id: p.id, status: p.status, rejectionReason: p.rejectionReason } : null;
     }
-    const p = await manager.getRepository(SuperAgent).findOne({ where: { id } });
+    if (application.capabilityCode === BusinessCapabilityCode.SUPER_AGENT) {
+      const p = await manager.getRepository(SuperAgent).findOne({ where: { id } });
+      return p ? { id: p.id, status: p.status, rejectionReason: p.rejectionReason } : null;
+    }
+    const p = await manager.getRepository(ServiceProvider).findOne({ where: { id } });
     return p ? { id: p.id, status: p.status, rejectionReason: p.rejectionReason } : null;
   }
 
@@ -625,7 +668,8 @@ export class BusinessCapabilityApplicationService {
     const approvedStatus =
       application.capabilityCode === BusinessCapabilityCode.COMMERCE ? SellerStatus.APPROVED :
       application.capabilityCode === BusinessCapabilityCode.TRANSPORT ? ProviderStatus.VERIFIED :
-      SuperAgentStatus.ACTIVE;
+      application.capabilityCode === BusinessCapabilityCode.SUPER_AGENT ? SuperAgentStatus.ACTIVE :
+      ServiceProviderStatus.APPROVED;
 
     const consistent =
       !!profile && profile.status === approvedStatus &&
@@ -657,7 +701,9 @@ export class BusinessCapabilityApplicationService {
       ? profile?.status === SellerStatus.REJECTED
       : application.capabilityCode === BusinessCapabilityCode.TRANSPORT
         ? profile?.status === ProviderStatus.REJECTED
-        : profile?.status === SuperAgentStatus.PENDING && !!profile?.rejectionReason;
+        : application.capabilityCode === BusinessCapabilityCode.SUPER_AGENT
+          ? profile?.status === SuperAgentStatus.PENDING && !!profile?.rejectionReason
+          : profile?.status === ServiceProviderStatus.REJECTED;
 
     const consistent =
       !!profile && profileRejected &&
@@ -785,8 +831,7 @@ export class BusinessCapabilityApplicationService {
             manager, user, AccountRoleType.TRANSPORT_PROVIDER, RoleProfileType.TRANSPORT_PROVIDER,
             transportProvider.id, context.workspaceAssignmentId,
           );
-        } else {
-          // SUPER_AGENT
+        } else if (code === BusinessCapabilityCode.SUPER_AGENT) {
           profileType = RoleProfileType.SUPER_AGENT;
           const workspace = await manager.getRepository(OperationalWorkspace).findOne({ where: { id: context.workspaceId } });
           const superAgent = await this.resolveSuperAgentProfile(manager, workspace!, user);
@@ -794,6 +839,17 @@ export class BusinessCapabilityApplicationService {
           role = await this.resolveOperationalAccountRole(
             manager, user, AccountRoleType.SUPER_AGENT, RoleProfileType.SUPER_AGENT,
             superAgent.id, context.workspaceAssignmentId,
+          );
+        } else {
+          // SERVICE (Stage B6B) -- Business-level cardinality like
+          // TRANSPORT, so it stays on the Business's default workspace
+          // resolved by resolveOwnerWorkspaceContext above.
+          profileType = RoleProfileType.SERVICE_PROVIDER;
+          const serviceProvider = await this.resolveServiceProviderProfile(manager, business, user);
+          profile = { id: serviceProvider.id, status: serviceProvider.status };
+          role = await this.resolveOperationalAccountRole(
+            manager, user, AccountRoleType.SERVICE_PROVIDER, RoleProfileType.SERVICE_PROVIDER,
+            serviceProvider.id, context.workspaceAssignmentId,
           );
         }
 
@@ -1056,6 +1112,70 @@ export class BusinessCapabilityApplicationService {
     throw new ConflictException({
       code: 'SUPER_AGENT_APPLICATION_STATE_INCONSISTENT',
       message: 'SUPER_AGENT_APPLICATION_STATE_INCONSISTENT',
+    });
+  }
+
+  /**
+   * ServiceProvider resolution (Stage B6B) -- one canonical company-wide
+   * profile per Business, mirroring resolveTransportProviderProfile's
+   * per-Business reuse-or-create exactly (same cardinality: TRANSPORT and
+   * SERVICE are both Business-level, unlike SUPER_AGENT's per-workspace
+   * one). Unlike resolveTransportProviderProfile, ServiceProvider.user/
+   * userId is a REQUIRED field on the entity (never nullable), so this
+   * always sets `user` -- there is no "userId:null Business-bound
+   * exception" to mirror here; isProfileValid's ordinary same-user check
+   * already covers ServiceProvider correctly, exactly like SellerProfile.
+   * No capability-specific client input is needed (unlike TransportProvider.type):
+   * every field is derived from the Business record itself, and
+   * `primaryCategory` stays null -- each ServiceAd keeps its own category
+   * (see service-provider.entity.ts's own doc comment).
+   */
+  private async resolveServiceProviderProfile(manager: EntityManager, business: Business, user: User): Promise<ServiceProvider> {
+    const providerRepo = manager.getRepository(ServiceProvider);
+    const existing = await providerRepo.findOne({ where: { businessId: business.id } });
+
+    if (!existing) {
+      return providerRepo.save(providerRepo.create({
+        user,
+        businessId: business.id,
+        businessName: business.tradingName || business.legalName,
+        businessDescription: business.description,
+        city: business.ward,
+        address: business.address,
+        contactPhone: business.phone,
+        registrationNumber: business.registrationNumber,
+        status: ServiceProviderStatus.PENDING,
+      }));
+    }
+
+    if (existing.status === ServiceProviderStatus.REJECTED) {
+      // Reapplication after an earlier rejection -- reuse the same
+      // organizational identity, never fabricate a second one for this
+      // Business (UQ_service_provider_business would reject a second row
+      // anyway).
+      existing.status = ServiceProviderStatus.PENDING;
+      existing.rejectionReason = null;
+      return providerRepo.save(existing);
+    }
+
+    if (existing.status === ServiceProviderStatus.PENDING) {
+      // Already confirmed (checkCapabilityNotGranted) that no live SERVICE
+      // capability exists for this workspace, and the caller already
+      // confirmed no live PENDING application exists either -- a PENDING
+      // ServiceProvider with neither is an inconsistency, never silently
+      // reused.
+      throw new ConflictException({
+        code: 'SERVICE_APPLICATION_STATE_INCONSISTENT',
+        message: 'SERVICE_APPLICATION_STATE_INCONSISTENT',
+      });
+    }
+
+    // APPROVED reaching here means an operational identity already exists
+    // with no corresponding live capability -- a genuine inconsistency;
+    // never inferred/repaired here.
+    throw new ConflictException({
+      code: 'SERVICE_APPLICATION_STATE_INCONSISTENT',
+      message: 'SERVICE_APPLICATION_STATE_INCONSISTENT',
     });
   }
 

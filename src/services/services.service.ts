@@ -7,11 +7,14 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull } from 'typeorm';
 import { ServiceAd, ServiceStatus } from './entities/service-ad.entity';
 import { JobRequest, JobStatus } from './entities/job-request.entity';
+import { ServiceProvider } from '../service-providers/entities/service-provider.entity';
+import { AccountRole, AccountRoleStatus, AccountRoleType } from '../role-context/entities/account-role.entity';
 import { User } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
@@ -88,6 +91,51 @@ export class ServicesService {
         })
         .catch(() => {});
     }
+
+    this.searchIndex
+      .upsert('service', saved.id, [saved.title, saved.description, saved.category, saved.coverageCity].filter(Boolean).join(' \n '))
+      .catch(() => {});
+
+    return saved;
+  }
+
+  /**
+   * Business Capability Activation Stage B6B -- FOUNDATION ONLY. No
+   * controller/route wires into this method yet (that is B6C/B6D's job,
+   * per the mission's own explicit scope boundary); it exists to prove
+   * the server-derived-authority contract and is exercised directly by
+   * the real-Postgres test suite. Takes the caller's OWN already-resolved
+   * AccountRole -- never a client-supplied businessId/workspaceId/
+   * serviceProviderId/accountRoleId. createAd() above (the existing
+   * personal-context creation path) is completely untouched by this
+   * method's addition.
+   */
+  async createBusinessServiceAd(
+    activeRole: AccountRole,
+    dto: Partial<ServiceAd>,
+  ): Promise<ServiceAd> {
+    if (activeRole.roleType !== AccountRoleType.SERVICE_PROVIDER || activeRole.status !== AccountRoleStatus.ACTIVE) {
+      throw new ForbiddenException({ code: 'SERVICE_PROVIDER_ROLE_REQUIRED', message: 'SERVICE_PROVIDER_ROLE_REQUIRED' });
+    }
+    const provider = await this.adRepo.manager.getRepository(ServiceProvider)
+      .findOne({ where: { id: activeRole.profileId ?? -1 } });
+    if (!provider || provider.businessId == null) {
+      // The role passed a structural check above but doesn't resolve to a
+      // real, Business-bound ServiceProvider -- fail closed rather than
+      // fall back to a personal-style creation the caller never asked for.
+      throw new ConflictException({ code: 'SERVICE_PROVIDER_NOT_BUSINESS_BOUND', message: 'SERVICE_PROVIDER_NOT_BUSINESS_BOUND' });
+    }
+
+    const saved = await this.adRepo.save(this.adRepo.create({
+      ...dto,
+      providerId: activeRole.userId,
+      businessId: provider.businessId,
+      commerceProfileId: null,
+      status: ServiceStatus.ACTIVE,
+      totalJobs: 0,
+      rating: 0,
+      views: 0,
+    }));
 
     this.searchIndex
       .upsert('service', saved.id, [saved.title, saved.description, saved.category, saved.coverageCity].filter(Boolean).join(' \n '))

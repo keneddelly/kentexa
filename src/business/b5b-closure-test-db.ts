@@ -10,6 +10,8 @@ import { BusinessCapabilityApplication } from './entities/business-capability-ap
 import { SellerProfile } from '../seller/entities/seller-profile.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { ServiceProvider } from '../service-providers/entities/service-provider.entity';
+import { ServiceAd } from '../services/entities/service-ad.entity';
 import { AccountRole } from '../role-context/entities/account-role.entity';
 import { ActiveRoleSession } from '../role-context/entities/active-role-session.entity';
 import { User } from '../users/entities/user.entity';
@@ -34,11 +36,11 @@ import { User } from '../users/entities/user.entity';
 export const B5B_TEST_DB_NAME = 'kentexa_b5b_test';
 export const B5B_TEST_DB_USER = 'kentexa_b5b_test_user';
 
-/** Base entity set synchronized directly (mirrors every B2/B3/B5A spec's own BASE_ENTITIES) -- BusinessCapabilityApplication is deliberately excluded here since its own partial unique index only exists via the real migration below, not via synchronize. */
+/** Base entity set synchronized directly (mirrors every B2/B3/B5A spec's own BASE_ENTITIES) -- BusinessCapabilityApplication is deliberately excluded here since its own partial unique index only exists via the real migration below, not via synchronize. ServiceProvider/ServiceAd added in Stage B6B -- their own businessId columns/indexes are declared via @Index/@Column decorators directly on the entities (like TransportProvider/SuperAgent's own B5A additions), so synchronize:true creates them correctly without needing Migration 11's own SQL replayed here. */
 export const B5B_BASE_ENTITIES = [
   Business, OperationalWorkspace, BusinessMembership, WorkspaceAssignment,
   BusinessCapability, AccountRole, ActiveRoleSession, SellerProfile,
-  TransportProvider, SuperAgent, User,
+  TransportProvider, SuperAgent, ServiceProvider, ServiceAd, User,
 ];
 
 /** Full entity set for the real, synchronize:false DataSource the service under test actually uses. */
@@ -131,8 +133,13 @@ export async function bootstrapB5BTestSchema(config: B5BTestConnectionConfig): P
     database: config.database, synchronize: true, entities: B5B_BASE_ENTITIES,
   });
   await baseDataSource.initialize();
-  await baseDataSource.query(`CREATE TYPE business_capability_code_enum AS ENUM ('commerce', 'transport', 'cargo', 'super_agent')`);
-  await baseDataSource.query(`CREATE TYPE role_profile_type_enum AS ENUM ('user', 'seller_profile', 'agent', 'super_agent', 'transport_provider')`);
+  // Stage B6B: 'service'/'service_provider' added to match Migration 11's
+  // own ALTER TYPE ADD VALUE additions -- CREATE TYPE ... AS ENUM directly
+  // with the final value set here, since this bootstrap always builds the
+  // end-state schema fresh (never replays the production ALTER TYPE
+  // history statement-by-statement).
+  await baseDataSource.query(`CREATE TYPE business_capability_code_enum AS ENUM ('commerce', 'transport', 'cargo', 'super_agent', 'service')`);
+  await baseDataSource.query(`CREATE TYPE role_profile_type_enum AS ENUM ('user', 'seller_profile', 'agent', 'super_agent', 'transport_provider', 'service_provider')`);
 
   const queryRunner = baseDataSource.createQueryRunner();
   await queryRunner.connect();

@@ -17,6 +17,11 @@ export enum BusinessCapabilityCode {
   TRANSPORT = 'transport',
   CARGO = 'cargo',
   SUPER_AGENT = 'super_agent',
+  // Business Capability Activation Stage B6B. One canonical, company-wide
+  // ServiceProvider identity per Business (TransportProvider's own
+  // precedent, never SuperAgent's per-workspace one) offering MANY
+  // ServiceAd listings -- see B6A's architecture report.
+  SERVICE = 'service',
 }
 
 export enum BusinessCapabilityStatus {

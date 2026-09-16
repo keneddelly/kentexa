@@ -39,6 +39,8 @@ export enum RoleProfileType {
   AGENT = 'agent',
   SUPER_AGENT = 'super_agent',
   TRANSPORT_PROVIDER = 'transport_provider',
+  // Business Capability Activation Stage B6B.
+  SERVICE_PROVIDER = 'service_provider',
 }
 
 /**

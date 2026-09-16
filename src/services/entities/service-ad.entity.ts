@@ -13,6 +13,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
@@ -45,7 +46,15 @@ export enum ServiceStatus {
   INACTIVE = 'inactive',
 }
 
+// B6B index names mirror migration 1788263400000-AddServiceBusinessAuthorityFoundation
+// exactly, so a fresh `synchronize` build matches the migrated schema
+// byte-for-byte (same convention as account-role.entity.ts's own note).
 @Entity('service_ad')
+@Index('IDX_service_ad_provider', ['providerId'])
+@Index('IDX_service_ad_business', ['businessId'])
+@Index('IDX_service_ad_category', ['category'])
+@Index('IDX_service_ad_status', ['status'])
+@Index('IDX_service_ad_coverage_city', ['coverageCity'])
 export class ServiceAd {
   @PrimaryGeneratedColumn()
   id: number;
@@ -61,6 +70,15 @@ export class ServiceAd {
   // (not a relation), same pattern as Classified.commerceProfileId.
   @Column({ type: 'int', nullable: true })
   commerceProfileId: number | null;
+
+  // Business Capability Activation Stage B6B: denormalized, optional
+  // Business attribution -- mirrors SellerProfile's own businessId
+  // convention, lets Business-scoped queries avoid joining through
+  // ServiceProvider on every hot-path read. Deliberately NOT unique: one
+  // Business legitimately owns MANY ServiceAd rows (B6A section 7/21).
+  // NULL for every personal/legacy ServiceAd -- never backfilled.
+  @Column({ type: 'int', nullable: true })
+  businessId: number | null;
 
   // Core info
   @Column({ type: 'varchar' })
