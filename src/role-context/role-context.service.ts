@@ -406,16 +406,70 @@ export class RoleContextService {
     }
     const profile = await this.resolveProfile(role);
     if (!profile) return false;
-    if (role.profileType === RoleProfileType.TRANSPORT_PROVIDER && profile.userId == null) {
+
+    const isBusinessBoundTransport = role.profileType === RoleProfileType.TRANSPORT_PROVIDER && profile.userId == null;
+    if (!isBusinessBoundTransport && Number(profile.userId ?? profile.user?.id) !== role.userId) {
       // Stage B5B: a Business-bound TransportProvider (the organizational
       // model -- see transport-provider.entity.ts's own doc comment) has no
-      // individual owner to compare against by construction. Its liveness
-      // instead rests entirely on the workspaceAssignment/capability checks
-      // resolveOrganizationalContext already performs below, never on a
-      // userId match that a Business-owned profile structurally cannot have.
-      return true;
+      // individual owner to compare against by construction, so it skips
+      // this check; every other profile type (and a legacy, individually-
+      // owned TransportProvider) still must belong to this exact user.
+      return false;
     }
-    return Number(profile.userId ?? profile.user?.id) === role.userId;
+
+    // Stage B5C: organizational binding consistency. A workspace-bound role
+    // (role.workspaceAssignmentId set) for a Business-scoped profile type
+    // must prove the profile's OWN Business/workspace matches THIS role's
+    // resolved WorkspaceAssignment chain -- never trusted merely because
+    // profileId references an otherwise-valid row (the exact gap the B5B
+    // closure mission documented and deferred). Legacy unbound roles
+    // (workspaceAssignmentId === null) are completely untouched here,
+    // exactly as resolveOrganizationalContext's own doc comment already
+    // establishes for them -- this never fires for a role that was never
+    // organizationally bound in the first place.
+    if (role.workspaceAssignmentId != null) {
+      if (role.profileType === RoleProfileType.SELLER_PROFILE || role.profileType === RoleProfileType.TRANSPORT_PROVIDER) {
+        const org = await this.resolveWorkspaceAssignmentOrganization(role.workspaceAssignmentId);
+        if (!org || (profile as any).businessId !== org.businessId) return false;
+      } else if (role.profileType === RoleProfileType.SUPER_AGENT) {
+        // SuperAgent's canonical identity is the specific hub/workspace, not
+        // merely the Business (see super-agent.entity.ts's own doc comment)
+        // -- a Business with three hubs must never let one hub's role gain
+        // authority through a DIFFERENT hub's SuperAgent row, even though
+        // both belong to the same Business. Compare workspaceId directly,
+        // never just businessId.
+        const org = await this.resolveWorkspaceAssignmentOrganization(role.workspaceAssignmentId);
+        if (!org || (profile as any).workspaceId !== org.workspaceId) return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
+   * Stage B5C. The one place that resolves "which Business/workspace does
+   * this WorkspaceAssignment actually belong to," reused by every
+   * organizational-binding-consistency check in isProfileValid above --
+   * never duplicated per profile type. Deliberately independent of (and
+   * cheaper than) resolveOrganizationalContext's own membership/workspace/
+   * business ACTIVE-status + capability-liveness query: this only answers
+   * an identity question ("which ids"), not a liveness question, and both
+   * callers in isProfileValid run before resolveOrganizationalContext ever
+   * does its own, separate liveness check later in the same evaluation.
+   */
+  private async resolveWorkspaceAssignmentOrganization(
+    workspaceAssignmentId: number,
+  ): Promise<{ businessId: number; workspaceId: number } | null> {
+    const rows: Array<{ businessId: number; workspaceId: number }> = await this.workspaceAssignmentRepo.manager.query(
+      `
+      SELECT w."businessId" AS "businessId", w.id AS "workspaceId"
+      FROM workspace_assignment wa
+      JOIN operational_workspace w ON w.id = wa."workspaceId"
+      WHERE wa.id = $1
+      `,
+      [workspaceAssignmentId],
+    );
+    return rows[0] ?? null;
   }
 
   private expectedProfileType(roleType: AccountRoleType): RoleProfileType {

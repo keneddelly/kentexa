@@ -238,7 +238,7 @@ describe('B5B closure — final real-Postgres regression proof (COMMERCE + legac
       expect(evaluation).toEqual({ switchable: true, reason: null });
     });
 
-    it('narrowness check: a Business-bound TransportProvider role pointed at a DIFFERENT Business\'s provider is NOT caught by isProfileValid alone (documented boundary, not a new bypass -- see report)', async () => {
+    it('narrowness check: a Business-bound TransportProvider role pointed at a DIFFERENT Business\'s provider is now caught and fails closed (Stage B5C closed this documented boundary)', async () => {
       if (!reachable) return;
       const ownerA = await makeUser();
       const ownerB = await makeUser();
@@ -257,21 +257,20 @@ describe('B5B closure — final real-Postgres regression proof (COMMERCE + legac
 
       // Directly repoint roleA's profileId at providerB's row -- structurally
       // identical to how a corrupted/hand-crafted row would look; the real
-      // API can never produce this. isProfileValid's userId:null branch
-      // returns true unconditionally for ANY Business-bound TransportProvider,
-      // so this passes isProfileValid -- exactly like SELLER_PROFILE's own
-      // pre-existing "same-user, any business" check has NEVER cross-checked
-      // profile.businessId against the role's own workspaceAssignment chain
-      // either. This is a pre-existing systemic characteristic of
-      // isProfileValid across every profile type, not a new hole introduced
-      // by this exception -- reported explicitly, not silently patched.
+      // API can never produce this. At B5B closure time, isProfileValid's
+      // userId:null branch returned true unconditionally for ANY
+      // Business-bound TransportProvider, so this used to pass -- exactly
+      // like SELLER_PROFILE's own pre-existing "same-user, any business"
+      // check never cross-checked profile.businessId against the role's own
+      // workspaceAssignment chain either. Stage B5C added that
+      // organizational-binding-consistency check to isProfileValid (see
+      // role-context.service.ts's resolveWorkspaceAssignmentOrganization),
+      // so this exact scenario is now caught and fails closed.
       await accountRoleRepo().update(roleA.id, { profileId: providerB.id });
       const mutatedRole = await accountRoleRepo().findOneOrFail({ where: { id: roleA.id } });
 
       const evaluation = await roleContextService.evaluateAccountRoleAvailability(mutatedRole);
-      // Documenting the actual current behavior rather than asserting a
-      // desired-but-unimplemented stricter check.
-      expect(evaluation.switchable).toBe(true);
+      expect(evaluation).toEqual({ switchable: false, reason: 'ROLE_PROFILE_INVALID' });
     });
   });
 
