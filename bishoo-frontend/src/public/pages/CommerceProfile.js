@@ -374,9 +374,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     // sections on Business/Service Provider/Agent profiles. Distinct from
     // `services` above, which is the OWNER's own quick-manage list from
     // /services/my and only ever loads for the own-profile view.
+    // Scoped to THIS specific CommerceProfile (for-profile/:commerceProfileId
+    // resolves internally to businessId- or commerceProfileId-scoped rows) —
+    // never the raw owner id, which would mix every business/personal
+    // service the same human runs into one list (B6D-P0).
     setProviderServices([]);
     if (['business', 'service_provider', 'agent'].includes(activeProfile.type)) {
-      api.get(`/services/provider/${uid}`).then(r => setProviderServices(r.data || [])).catch(() => {});
+      api.get(`/services/for-profile/${activeProfile.id}`).then(r => setProviderServices(r.data || [])).catch(() => {});
     }
 
     // Default to the first tab that's actually valid for THIS profile's

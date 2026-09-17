@@ -100,16 +100,29 @@ const ServiceCard = ({ ad, onClick }) => {
         {ad.description}
       </div>
 
-      {/* Provider */}
+      {/* Provider — Business-attributed ads show the Business's own
+          CommerceProfile identity, never the raw poster's personal name
+          (same actor the ad resolves to when opened / clicked through). */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <div style={{ width: 24, height: 24, borderRadius: '50%',
-          backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#475569' }}>
-          {ad.provider?.name?.charAt(0)?.toUpperCase() || 'P'}
-        </div>
-        <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>
-          {ad.provider?.name || t('services_page.default_provider_name')}
-        </span>
+        {(() => {
+          const providerName = ad.commerceProfile?.displayName || ad.provider?.name || t('services_page.default_provider_name');
+          const providerPhoto = ad.commerceProfile?.photoUrl;
+          return (
+            <>
+              <div style={{ width: 24, height: 24, borderRadius: '50%',
+                backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#475569',
+                overflow: 'hidden' }}>
+                {providerPhoto
+                  ? <img src={providerPhoto} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : providerName.charAt(0)?.toUpperCase() || 'P'}
+              </div>
+              <span style={{ fontSize: 12, color: '#475569', fontWeight: 600 }}>
+                {providerName}
+              </span>
+            </>
+          );
+        })()}
       </div>
 
       {/* Rating + jobs */}

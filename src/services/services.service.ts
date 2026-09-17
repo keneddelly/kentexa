@@ -19,10 +19,30 @@ import { User } from '../users/entities/user.entity';
 import { FeedService } from '../feed/feed.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
-import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { SearchIndexService } from '../search/search-index.service';
 import { normalizeSearchQuery } from '../search/search-term-normalizer.util';
 import { buildMultiTermLikeClause } from '../search/search-query.util';
+
+// B6D-P0 — minimal public projections. Never the raw User/CommerceProfile
+// entity: only the fields actually consumed by public Service UI
+// (ServiceDetail.js/Services.js/Search.js), confirmed by grep before this
+// was written. In particular this excludes email, payout*, storeName/logo/
+// businessLocation, and every other User column that a bare
+// `relations: { provider: true }` load would otherwise have serialized
+// straight into a public, unauthenticated response.
+interface PublicServiceProvider {
+  id: number;
+  name: string | null;
+  phone: string | null;
+  reputationScore: number;
+}
+
+interface PublicServiceActor {
+  id: number;
+  displayName: string;
+  photoUrl: string | null;
+}
 
 @Injectable()
 export class ServicesService {
@@ -34,6 +54,100 @@ export class ServicesService {
     private readonly profileScope: CommerceProfileScopeService,
     private readonly searchIndex: SearchIndexService,
   ) {}
+
+  private toPublicProvider(user?: { id: number; name: string | null; phone: string | null; reputationScore?: number | null } | null): PublicServiceProvider | null {
+    if (!user) return null;
+    return { id: user.id, name: user.name ?? null, phone: user.phone ?? null, reputationScore: Number(user.reputationScore || 0) };
+  }
+
+  private toPublicActor(profile: CommerceProfile): PublicServiceActor {
+    return { id: profile.id, displayName: profile.displayName, photoUrl: profile.photoUrl };
+  }
+
+  /**
+   * THE canonical public-actor resolver for a single ServiceAd (B6D-P0).
+   *
+   * Business attribution is resolved ONLY via the ad's own businessId --
+   * never "any Business this provider happens to own" (that ambiguity is
+   * exactly what let a Business A service resolve to Business B's
+   * identity, or a Personal service resolve to an unrelated Business, when
+   * a provider ran more than one). Personal attribution is resolved ONLY
+   * via the ad's own commerceProfileId. A legacy/ambiguous ad (both null --
+   * predates these columns, or a creation context that never resolved one)
+   * fails toward the poster's own Personal CommerceProfile, deterministically
+   * -- never an inferred Business.
+   */
+  private async resolvePublicActor(ad: ServiceAd): Promise<PublicServiceActor | null> {
+    const profileRepo = this.adRepo.manager.getRepository(CommerceProfile);
+    if (ad.businessId != null) {
+      const profile = await profileRepo.findOne({ where: { businessId: ad.businessId } });
+      return profile ? this.toPublicActor(profile) : null;
+    }
+    if (ad.commerceProfileId != null) {
+      const profile = await profileRepo.findOne({ where: { id: ad.commerceProfileId } });
+      return profile ? this.toPublicActor(profile) : null;
+    }
+    const personal = await profileRepo.findOne({ where: { ownerId: ad.providerId, type: CommerceProfileType.PERSONAL } });
+    return personal ? this.toPublicActor(personal) : null;
+  }
+
+  /**
+   * Batched version of resolvePublicActor() for list responses (browse/
+   * search/featured/category) -- a small, fixed number of extra queries
+   * regardless of list size, never one query per row.
+   */
+  private async resolvePublicActorsForAds(ads: ServiceAd[]): Promise<Map<number, PublicServiceActor>> {
+    const result = new Map<number, PublicServiceActor>();
+    if (ads.length === 0) return result;
+    const profileRepo = this.adRepo.manager.getRepository(CommerceProfile);
+
+    const businessIds = [...new Set(ads.filter((a) => a.businessId != null).map((a) => a.businessId as number))];
+    const commerceProfileIds = [...new Set(ads.filter((a) => a.businessId == null && a.commerceProfileId != null).map((a) => a.commerceProfileId as number))];
+    const legacyProviderIds = [...new Set(ads.filter((a) => a.businessId == null && a.commerceProfileId == null).map((a) => a.providerId))];
+
+    const [byBusiness, byId, byOwnerPersonal] = await Promise.all([
+      businessIds.length ? profileRepo.find({ where: { businessId: In(businessIds) } }) : Promise.resolve([]),
+      commerceProfileIds.length ? profileRepo.find({ where: { id: In(commerceProfileIds) } }) : Promise.resolve([]),
+      legacyProviderIds.length ? profileRepo.find({ where: { ownerId: In(legacyProviderIds), type: CommerceProfileType.PERSONAL } }) : Promise.resolve([]),
+    ]);
+
+    const businessMap = new Map(byBusiness.map((p) => [p.businessId as number, p]));
+    const idMap = new Map(byId.map((p) => [p.id, p]));
+    const personalByOwnerMap = new Map(byOwnerPersonal.map((p) => [p.ownerId, p]));
+
+    for (const ad of ads) {
+      let profile: CommerceProfile | undefined;
+      if (ad.businessId != null) profile = businessMap.get(ad.businessId);
+      else if (ad.commerceProfileId != null) profile = idMap.get(ad.commerceProfileId);
+      else profile = personalByOwnerMap.get(ad.providerId);
+      if (profile) result.set(ad.id, this.toPublicActor(profile));
+    }
+    return result;
+  }
+
+  /**
+   * Attaches the curated public provider + canonical actor to a page of
+   * ads in one pass -- shared by getById()/browse()/search()/getFeatured()/
+   * getByCategory() so every public read path represents identity
+   * identically, never a raw User relation.
+   */
+  private async attachPublicIdentity(ads: ServiceAd[]): Promise<any[]> {
+    if (ads.length === 0) return [];
+    const providerIds = [...new Set(ads.map((a) => a.providerId))];
+    const [providers, actorMap] = await Promise.all([
+      this.adRepo.manager.getRepository(User).find({
+        where: { id: In(providerIds) },
+        select: { id: true, name: true, phone: true, reputationScore: true },
+      }),
+      this.resolvePublicActorsForAds(ads),
+    ]);
+    const providerMap = new Map(providers.map((p) => [p.id, p]));
+    return ads.map((ad) => ({
+      ...ad,
+      provider: this.toPublicProvider(providerMap.get(ad.providerId)),
+      commerceProfile: actorMap.get(ad.id) ?? null,
+    }));
+  }
 
   // ── Create / Edit Service Ad ──────────────────────────────────────────────
 
@@ -256,9 +370,39 @@ export class ServicesService {
   // Services section on a Business/Service Provider/Agent CommerceProfile
   // page. Unlike getMyAds() (own, any status), this only ever shows what
   // a visitor should see.
+  //
+  // Deprecated in favor of findForCommerceProfile() (B6D-P0): this scopes
+  // only by the raw human owner, which mixes Personal + every Business the
+  // same account runs into one list. Kept, unchanged, in case an
+  // undocumented caller still depends on it -- CommerceProfile.js itself
+  // no longer calls this.
   async findByProvider(providerId: number): Promise<ServiceAd[]> {
     return this.adRepo.find({
       where: { providerId, status: ServiceStatus.ACTIVE },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  // Public — Services scoped to the EXACT CommerceProfile being viewed
+  // (B6D-P0). A Business-type profile resolves to that Business's own
+  // businessId-tagged ads; any other profile type resolves to its own
+  // commerceProfileId-tagged ads. Replaces findByProvider(providerId) as
+  // CommerceProfile.js's Services-tab backing call, so two Businesses (or
+  // a Business and its owner's Personal profile) never show each other's
+  // services.
+  async findForCommerceProfile(commerceProfileId: number): Promise<ServiceAd[]> {
+    const profile = await this.adRepo.manager
+      .getRepository(CommerceProfile)
+      .findOne({ where: { id: commerceProfileId } });
+    if (!profile) return [];
+    if (profile.businessId != null) {
+      return this.adRepo.find({
+        where: { businessId: profile.businessId, status: ServiceStatus.ACTIVE },
+        order: { createdAt: 'DESC' },
+      });
+    }
+    return this.adRepo.find({
+      where: { commerceProfileId, status: ServiceStatus.ACTIVE },
       order: { createdAt: 'DESC' },
     });
   }
@@ -272,25 +416,15 @@ export class ServicesService {
     available?: boolean;
     limit?: number;
     offset?: number;
-  }): Promise<{ ads: ServiceAd[]; total: number }> {
-    const qb = this.adRepo
-      .createQueryBuilder('a')
-      .leftJoin('a.provider', 'u')
-      .addSelect([
-        'u.id',
-        'u.name',
-        'u.storeName',
-        'u.logo',
-        'u.businessLocation',
-        'u.reputationScore',
-        'u.followersCount',
-        'u.isVerified',
-        'u.isOfficialStore',
-        'u.storeWhatsApp',
-        'u.phone',
-        'u.role',
-      ])
-      .where("a.status = 'active'");
+  }): Promise<{ ads: any[]; total: number }> {
+    // No join/addSelect of the provider User at all here (B6D-P0) — none
+    // of browse()'s own sort keys (isVerified/rating/totalJobs/createdAt)
+    // need it, and identity is attached afterward via the shared,
+    // privacy-curated attachPublicIdentity() helper instead of selecting
+    // raw User columns (previously: storeName/logo/businessLocation/
+    // followersCount/isOfficialStore/storeWhatsApp/phone/role, none of
+    // which the frontend actually reads from a browse-card).
+    const qb = this.adRepo.createQueryBuilder('a').where("a.status = 'active'");
 
     if (params.category)
       qb.andWhere('a.category = :cat', { cat: params.category });
@@ -320,61 +454,45 @@ export class ServicesService {
       .skip(params.offset || 0)
       .getMany();
 
-    return { ads, total };
+    return { ads: await this.attachPublicIdentity(ads), total };
   }
 
   async getById(id: number) {
+    // No relations: { provider: true } (B6D-P0) — that loaded the FULL raw
+    // User entity (email, phone, payoutMethod/AccountName/AccountNumber/
+    // BankName/BranchName, storeWhatsApp, ...) straight into this public,
+    // unauthenticated response. Identity is attached afterward via the
+    // same curated attachPublicIdentity() helper every public read path
+    // now shares, and the actor is resolved from THIS ad's own
+    // commerceProfileId/businessId — never an unconditional "does this
+    // provider have any Business profile" lookup, which could (and did)
+    // attach a wrong or unrelated Business's identity.
     const ad = await this.adRepo.findOne({
       where: { id, status: ServiceStatus.ACTIVE },
-      relations: { provider: true },
     });
     if (!ad) throw new NotFoundException('Huduma haijapatikana');
-    // Increment views
     await this.adRepo.update(id, { views: () => 'views + 1' });
 
-    // No dedicated "service provider" operational entity/CommerceProfile
-    // creation flow exists yet (unlike seller/hub/transport/agent) — the
-    // closest real identity to attach is the provider's BUSINESS profile,
-    // if they happen to have one (e.g. a seller who also offers repairs).
-    // Falls back to null → frontend's existing personal-profile default,
-    // same honest fallback as ProductsService/ClassifiedsService.findOne().
-    const commerceProfile = ad.provider
-      ? await this.commerceProfiles
-          .findForUserByType(ad.provider.id, CommerceProfileType.BUSINESS)
-          .catch(() => null)
-      : null;
-
-    return {
-      ...ad,
-      commerceProfile: commerceProfile
-        ? {
-            id: commerceProfile.id,
-            username: commerceProfile.username,
-            displayName: commerceProfile.displayName,
-            photoUrl: commerceProfile.photoUrl,
-            followersCount: commerceProfile.followersCount,
-            rating: commerceProfile.rating,
-          }
-        : null,
-    };
+    const [withIdentity] = await this.attachPublicIdentity([ad]);
+    return withIdentity;
   }
 
-  async getFeatured(limit = 8): Promise<ServiceAd[]> {
-    return this.adRepo.find({
+  async getFeatured(limit = 8): Promise<any[]> {
+    const ads = await this.adRepo.find({
       where: { status: ServiceStatus.ACTIVE, isVerified: true },
       order: { rating: 'DESC', totalJobs: 'DESC' },
-      relations: { provider: true },
       take: limit,
     });
+    return this.attachPublicIdentity(ads);
   }
 
-  async getByCategory(category: string, limit = 12): Promise<ServiceAd[]> {
-    return this.adRepo.find({
+  async getByCategory(category: string, limit = 12): Promise<any[]> {
+    const ads = await this.adRepo.find({
       where: { status: ServiceStatus.ACTIVE, category: category as any },
       order: { rating: 'DESC', totalJobs: 'DESC' },
-      relations: { provider: true },
       take: limit,
     });
+    return this.attachPublicIdentity(ads);
   }
 
   // ── Job Requests ──────────────────────────────────────────────────────────
@@ -605,7 +723,7 @@ export class ServicesService {
     }));
   }
   // ── Unified search ────────────────────────────────────────────────────────
-  async search(query: string): Promise<ServiceAd[]> {
+  async search(query: string): Promise<any[]> {
     // Query normalization layer — see search-term-normalizer.util.ts.
     const { patterns } = normalizeSearchQuery(query);
     const { clause, params } = buildMultiTermLikeClause(
@@ -614,20 +732,31 @@ export class ServicesService {
       'kw',
     );
 
-    return this.adRepo
+    // Reputation ranking via a scalar subquery, not a join (B6D-P0) — a
+    // real, pre-existing TypeORM limitation: any query combining a JOIN
+    // with .take()/.skip() forces TypeORM into a special DISTINCT-
+    // pagination rewrite path that naively splits a raw ORDER BY string on
+    // "." to find a join alias, which breaks on a complex expression like
+    // the one this sort needs (discovered by this stage's own real-
+    // Postgres test, not present before since search() apparently had no
+    // prior real-Postgres execution proof). A subquery sidesteps that path
+    // entirely while preserving the exact same ranking, and never selects
+    // any User column at all, so there's nothing to leak on the ad entity
+    // itself either way — identity is attached afterward via the shared,
+    // privacy-curated attachPublicIdentity() helper.
+    const ads = await this.adRepo
       .createQueryBuilder('a')
-      .leftJoin('a.provider', 'u')
-      .addSelect([
-        'u.id', 'u.name', 'u.storeName', 'u.logo', 'u.businessLocation',
-        'u.reputationScore', 'u.followersCount', 'u.isVerified',
-        'u.isOfficialStore', 'u.storeWhatsApp', 'u.phone', 'u.role',
-      ])
       .where("a.status = 'active'")
       .andWhere(clause, params)
-      .orderBy('COALESCE(CAST(u."reputationScore" AS int), 0)', 'DESC')
+      .orderBy(
+        'COALESCE((SELECT CAST(u."reputationScore" AS int) FROM "user" u WHERE u.id = a."providerId"), 0)',
+        'DESC',
+      )
       .addOrderBy('a.rating', 'DESC')
       .take(20)
       .getMany();
+
+    return this.attachPublicIdentity(ads);
   }
 
   // ── Admin: every service ad regardless of status ──────────────────────────

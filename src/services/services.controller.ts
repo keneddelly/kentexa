@@ -94,9 +94,21 @@ export class ServicesController {
   }
 
   // Public — backs the Services section on a CommerceProfile page.
+  // Deprecated (B6D-P0): scopes only by raw human owner, mixing Personal +
+  // every Business the same account runs. Kept unchanged for any
+  // undocumented caller; CommerceProfile.js now calls for-profile/ below.
   @Get('provider/:providerId')
   getByProvider(@Param('providerId', ParseIntPipe) providerId: number) {
     return this.svc.findByProvider(providerId);
+  }
+
+  // Public — Services scoped to the EXACT CommerceProfile being viewed
+  // (B6D-P0). Resolves internally to that Business's businessId-tagged
+  // ads (if the profile is Business-type) or that profile's own
+  // commerceProfileId-tagged ads otherwise — never a raw owner-id scope.
+  @Get('for-profile/:commerceProfileId')
+  getForProfile(@Param('commerceProfileId', ParseIntPipe) commerceProfileId: number) {
+    return this.svc.findForCommerceProfile(commerceProfileId);
   }
 
   // ── Provider: manage own ads ──────────────────────────────────────────────

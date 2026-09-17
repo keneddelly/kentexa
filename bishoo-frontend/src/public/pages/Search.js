@@ -111,14 +111,16 @@ const ServiceCard = ({ item, onNavigate }) => {
          : item.priceType==='free_quote' ? t('search.request_quote')
          : `TZS ${fmt(item.price)}`}
       </div>
-      {item.provider && (
+      {(item.commerceProfile || item.provider) && (
         <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
           <div style={{ width:18, height:18, borderRadius:'50%', backgroundColor:'#F1F5F9',
-            display:'flex', alignItems:'center', justifyContent:'center', fontSize:9 }}>
-            {(item.provider.name||'P').charAt(0)}
+            display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, overflow:'hidden' }}>
+            {item.commerceProfile?.photoUrl
+              ? <img src={item.commerceProfile.photoUrl} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              : (item.commerceProfile?.displayName || item.provider?.name || 'P').charAt(0)}
           </div>
-          <span style={{ fontSize:10, color:GR }}>{item.provider.name}</span>
-          {(item.provider.reputationScore||0) > 0 && (
+          <span style={{ fontSize:10, color:GR }}>{item.commerceProfile?.displayName || item.provider?.name}</span>
+          {(item.provider?.reputationScore||0) > 0 && (
             <ReputationBadge score={item.provider.reputationScore} size="xs" />
           )}
         </div>
