@@ -20,3 +20,11 @@ export const getBusinessWorkspaces = (businessId) =>
   api.get(`/business/${businessId}/workspaces`).then((res) => (Array.isArray(res.data) ? res.data : []));
 
 export const createBusiness = (dto) => api.post('/business/create', dto).then((res) => res.data);
+
+// B6C — generic Business-capability apply endpoint (already shipped and
+// working server-side for commerce/transport/super_agent/service, just
+// never called from the frontend until now). `code` is a
+// BusinessCapabilityCode string; `applicationData` is optional,
+// capability-specific extra input (SERVICE needs none).
+export const applyForBusinessCapability = (businessId, code, applicationData) =>
+  api.post(`/business/${businessId}/capabilities/${code}/apply`, { applicationData }).then((res) => res.data);

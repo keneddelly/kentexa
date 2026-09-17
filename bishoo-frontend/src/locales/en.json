@@ -867,9 +867,23 @@
     "tile_transport": "Transport",
     "tile_super_agent": "Super Agent",
     "tile_cargo": "Cargo",
+    "tile_service": "Services",
     "state_pending": "Pending",
     "state_requires_activation": "Requires activation",
-    "state_coming_soon": "Coming soon"
+    "state_coming_soon": "Coming soon",
+    "apply_service_provider_link": "+ Apply to offer Services under this business"
+  },
+  "apply_service_provider": {
+    "page_title": "Become a Service Provider",
+    "hero_title": "Offer Services as {{business}}",
+    "hero_subtitle": "Apply to post Business-attributed service ads and manage them under this business's own identity, separate from your personal profile.",
+    "submit_button": "Submit Application",
+    "submitting_button": "Submitting...",
+    "submit_failed": "Couldn't submit your application. Please try again.",
+    "already_pending": "You already have a pending Service Provider application for this business.",
+    "success_title": "Application submitted",
+    "success_desc": "An admin will review your application. You'll be able to post Business-attributed services once it's approved.",
+    "back_to_business": "Back to Business"
   },
   "become_agent": {
     "page_title": "Become an Agent",
@@ -2213,6 +2227,8 @@
     "show_all_button": "Show All Businesses"
   },
   "post_service": {
+    "posting_as_business": "Posting as {{business}}",
+    "default_business_name": "your business",
     "cat_ufundi": "Trades (Electrical, Plumbing, Carpentry)",
     "cat_usafi": "Cleaning (Home, Office, Laundry)",
     "cat_elimu": "Education (Tutoring, Training)",
@@ -2432,6 +2448,8 @@
     "default_max_tier": "Master"
   },
   "my_services": {
+    "managing_for_business": "Managing services for {{business}}",
+    "default_business_name": "your business",
     "status_pending": "⏳ Pending",
     "status_accepted": "✅ Accepted",
     "status_declined": "❌ Declined",

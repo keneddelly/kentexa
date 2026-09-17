@@ -713,9 +713,23 @@
     "tile_transport": "Usafiri",
     "tile_super_agent": "Super Agent",
     "tile_cargo": "Mizigo",
+    "tile_service": "Huduma",
     "state_pending": "Inasubiri",
     "state_requires_activation": "Inahitaji uamilishaji",
-    "state_coming_soon": "Inakuja hivi karibuni"
+    "state_coming_soon": "Inakuja hivi karibuni",
+    "apply_service_provider_link": "+ Omba kutoa Huduma chini ya biashara hii"
+  },
+  "apply_service_provider": {
+    "page_title": "Kuwa Mtoa Huduma",
+    "hero_title": "Toa Huduma kama {{business}}",
+    "hero_subtitle": "Omba kuchapisha matangazo ya huduma chini ya jina la biashara hii, tofauti na wasifu wako binafsi.",
+    "submit_button": "Wasilisha Ombi",
+    "submitting_button": "Inawasilisha...",
+    "submit_failed": "Imeshindikana kuwasilisha ombi lako. Tafadhali jaribu tena.",
+    "already_pending": "Tayari una ombi linalosubiri la Mtoa Huduma kwa biashara hii.",
+    "success_title": "Ombi limewasilishwa",
+    "success_desc": "Msimamizi atakagua ombi lako. Utaweza kuchapisha huduma za biashara mara litakapokubaliwa.",
+    "back_to_business": "Rudi kwenye Biashara"
   },
   "become_agent": {
     "page_title": "Kuwa Wakala",
@@ -2059,6 +2073,8 @@
     "show_all_button": "Onyesha Biashara Zote"
   },
   "post_service": {
+    "posting_as_business": "Unatuma kama {{business}}",
+    "default_business_name": "biashara yako",
     "cat_ufundi": "Ufundi (Umeme, Mabomba, Seremala)",
     "cat_usafi": "Usafi (Nyumba, Ofisi, Nguo)",
     "cat_elimu": "Elimu (Masomo, Mafunzo)",
@@ -2278,6 +2294,8 @@
     "default_max_tier": "Mkuu"
   },
   "my_services": {
+    "managing_for_business": "Unasimamia huduma za {{business}}",
+    "default_business_name": "biashara yako",
     "status_pending": "⏳ Inasubiri",
     "status_accepted": "✅ Imekubaliwa",
     "status_declined": "❌ Imekataliwa",

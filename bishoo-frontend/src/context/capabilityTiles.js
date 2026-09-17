@@ -52,6 +52,12 @@ const CAPABILITY_TILE_DEFS = {
   cargo: [
     { key: 'cargo', labelKey: 'business_home.tile_cargo', icon: '📦', roleType: null, destination: null },
   ],
+  // B6C — reuses MyServices.js (already business-context-aware: it scopes
+  // to this exact Business via activeContext.businessId once this tile's
+  // role is the active one) rather than a new dedicated dashboard page.
+  service: [
+    { key: 'service', labelKey: 'business_home.tile_service', icon: '🧰', roleType: 'service_provider', destination: 'MyServices' },
+  ],
 };
 
 /**

@@ -18,7 +18,7 @@ const getJobStatus = (t) => ({
 
 const fmt = n => Number(n||0).toLocaleString();
 
-const MyServices = ({ onNavigate }) => {
+const MyServices = ({ onNavigate, activeProfileId, activeContext, activeBusinessName }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = { en: 'en-US', sw: 'sw-TZ', fr: 'fr-FR' }[i18n.language] || 'en-US';
   const JOB_STATUS = getJobStatus(t);
@@ -28,11 +28,23 @@ const MyServices = ({ onNavigate }) => {
   const [tab,     setTab]     = useState('jobs');
   const [acting,  setActing]  = useState(null);
 
+  // Acting as the Business's own SERVICE_PROVIDER role -> scope to that
+  // exact Business (never a raw commerceProfileId, since Business-attributed
+  // ads always store commerceProfileId: null and businessId instead — see
+  // ServicesService.getMyAds()'s own B6C comment). Any other active role
+  // (Personal or otherwise) scopes to the active CommerceProfile, exactly
+  // as before Identity Fix I1/B6C — this mirrors SellerClassifieds.js's own
+  // account-role-driven personal/business distinction, not a manual toggle.
+  const actingAsBusinessProvider = activeContext?.roleType === 'service_provider' && activeContext?.businessId != null;
+
   const fetchAll = async () => {
     try {
       setLoading(true);
+      const adsParams = actingAsBusinessProvider
+        ? { businessId: activeContext.businessId }
+        : { commerceProfileId: activeProfileId || undefined };
       const [adsRes, jobsRes] = await Promise.all([
-        api.get('/services/my/ads'),
+        api.get('/services/my/ads', { params: adsParams }),
         api.get('/services/my/jobs'),
       ]);
       setAds(adsRes.data  || []);
@@ -41,7 +53,7 @@ const MyServices = ({ onNavigate }) => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [activeProfileId, activeContext?.accountRoleId]); // eslint-disable-line
 
   const handleRespond = async (jobId, accept) => {
     const agreedPrice = accept ? prompt(t('my_services.prompt_agreed_price')) : null;
@@ -85,6 +97,13 @@ const MyServices = ({ onNavigate }) => {
 
       <div style={{ flex: 1, maxWidth: 900, margin: '0 auto',
         padding: '16px 16px 48px', width: '100%', boxSizing: 'border-box' }}>
+
+        {actingAsBusinessProvider && (
+          <div style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderRadius: 10,
+            padding: '9px 14px', marginBottom: 16, fontSize: 12, fontWeight: 700 }}>
+            🏢 {t('my_services.managing_for_business', { business: activeBusinessName || t('my_services.default_business_name') })}
+          </div>
+        )}
 
         {/* Stats header */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>

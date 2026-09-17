@@ -45,8 +45,15 @@ const inp = {
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
 
-const PostService = ({ onNavigate, activeProfileId }) => {
+const PostService = ({ onNavigate, activeProfileId, activeContext, activeBusinessName }) => {
   const { t } = useTranslation();
+  // Acting as the Business's own SERVICE_PROVIDER role -> the ad is
+  // Business-attributed, server-derived, same distinction MyServices.js
+  // makes for its own read-side scoping (see its own comment). Never a
+  // manual per-post toggle — which endpoint applies follows whichever role
+  // is currently ACTIVE, exactly like Classified/Product creation already
+  // does, so this can never drift out of sync with a stale UI toggle.
+  const postingAsBusinessProvider = activeContext?.roleType === 'service_provider' && activeContext?.businessId != null;
   const CATEGORIES = getCategories(t);
   const PRICE_TYPES = getPriceTypes(t);
   const DAYS = getDays(t);
@@ -137,9 +144,10 @@ const PostService = ({ onNavigate, activeProfileId }) => {
         coverageWards: form.coverageWards
           ? form.coverageWards.split(',').map(w => w.trim()).filter(Boolean)
           : [],
-        commerceProfileId: activeProfileId || undefined,
       };
-      const res = await api.post('/services', payload);
+      const res = postingAsBusinessProvider
+        ? await api.post('/services/business', payload)
+        : await api.post('/services', { ...payload, commerceProfileId: activeProfileId || undefined });
       onNavigate(`ServiceDetail-${res.data.id}`);
     } catch (e) {
       const code = e.response?.data?.code;
@@ -167,6 +175,13 @@ const PostService = ({ onNavigate, activeProfileId }) => {
 
       <div style={{ flex: 1, padding: '16px 16px 48px', maxWidth: 600,
         margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+
+        {postingAsBusinessProvider && (
+          <div style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', borderRadius: 10,
+            padding: '9px 14px', marginBottom: 16, fontSize: 12, fontWeight: 700 }}>
+            🏢 {t('post_service.posting_as_business', { business: activeBusinessName || t('post_service.default_business_name') })}
+          </div>
+        )}
 
         {/* Progress */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 28 }}>

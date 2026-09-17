@@ -19,6 +19,9 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { RoleContext } from '../role-context/role-context.types';
 import { ServicesService } from './services.service';
 import { JobStatus } from './entities/job-request.entity';
 import { CreateServiceAdDto } from './dto/create-service-ad.dto';
@@ -108,12 +111,39 @@ export class ServicesController {
     return this.svc.createAd(req.user, dto);
   }
 
+  // B6C — Business-attributed ad creation. Requires the caller's currently
+  // ACTIVE role to genuinely be SERVICE_PROVIDER (server-resolved via
+  // RoleContextGuard, never client-asserted) and that role's ServiceProvider
+  // to be Business-bound — createBusinessServiceAd() itself enforces both
+  // and derives businessId server-side; a client-supplied businessId in
+  // the body is never trusted (same DTO as the personal path, which has no
+  // businessId field at all).
+  @Post('business')
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  async createBusinessAd(
+    @Request() req,
+    @Body() dto: CreateServiceAdDto,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    await this.verification.requireFeature(req.user.id, Feature.CREATE_SERVICE);
+    return this.svc.createBusinessServiceAdForRoleContext(
+      req.user.id,
+      roleContext.accountRoleId,
+      dto,
+    );
+  }
+
   @Get('my/ads')
   @UseGuards(JwtAuthGuard)
-  getMyAds(@Request() req, @Query('commerceProfileId') commerceProfileId?: string) {
+  getMyAds(
+    @Request() req,
+    @Query('commerceProfileId') commerceProfileId?: string,
+    @Query('businessId') businessId?: string,
+  ) {
     return this.svc.getMyAds(
       req.user.id,
       commerceProfileId ? Number(commerceProfileId) : undefined,
+      businessId ? Number(businessId) : undefined,
     );
   }
 

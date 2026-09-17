@@ -129,8 +129,15 @@ describe('B5B closure — dedicated test DB connectivity + isolation verificatio
       'seller_profile', 'transport_provider', 'super_agent', 'user',
     ]));
 
+    // Scoped to the live public schema specifically -- a type whose
+    // namespace was already dropped (e.g. dangling pg_type catalog debris
+    // left behind by an earlier interrupted/concurrent test run against
+    // this same disposable database) still matches a bare typname IN (...)
+    // filter, which made this assertion fragile against exactly that kind
+    // of pre-existing local debris, unrelated to whether THIS bootstrap
+    // run actually produced the right live schema.
     const { rows: enumRows } = await client.query(
-      `SELECT typname FROM pg_type WHERE typname IN ('business_capability_code_enum', 'role_profile_type_enum')`,
+      `SELECT typname FROM pg_type WHERE typname IN ('business_capability_code_enum', 'role_profile_type_enum') AND typnamespace = 'public'::regnamespace`,
     );
     expect(enumRows.map((r: any) => r.typname).sort()).toEqual(['business_capability_code_enum', 'role_profile_type_enum']);
 

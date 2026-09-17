@@ -144,6 +144,20 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
             </div>
           );
         })}
+
+        {/* B6C — no 'service' capability tile exists anywhere for this
+            Business yet (none applied for, or still pending admin review,
+            since listWorkspaces() only ever reports ACTIVE capabilities).
+            Always offered rather than gated behind a workspace pick — the
+            already-shipped apply endpoint only needs a businessId. */}
+        {workspaces && workspaces.length > 0 &&
+          !workspaces.some((ws) => (ws.capabilities || []).includes('service')) && (
+          <button onClick={() => onNavigate(`BecomeBusinessServiceProvider-${businessId || business?.id}`)}
+            style={{ width: '100%', backgroundColor: WH, color: B, border: `1.5px dashed ${B}`,
+              borderRadius: 12, padding: '12px 0', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+            {t('business_home.apply_service_provider_link')}
+          </button>
+        )}
       </div>
     </div>
   );

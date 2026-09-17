@@ -454,4 +454,76 @@ describe('B6B — Service Business Authority Foundation, real disposable-DB', ()
       expect(adA.businessId).not.toBe(adB.businessId);
     });
   });
+
+  describe('J — B6C controller-facing wrapper (createBusinessServiceAdForRoleContext)', () => {
+    it('resolves the real AccountRole by (id, userId) and delegates correctly', async () => {
+      if (!reachable) return;
+      const owner = await makeUser();
+      const admin = await makeUser();
+      const { business, role } = await makeApprovedService(owner, admin);
+
+      const ad = await servicesService.createBusinessServiceAdForRoleContext(owner.id, role.id, {
+        title: 'Plumbing', description: 'd', category: ServiceCategory.MATENGENEZO,
+        coverageCity: 'Mwanza', images: ['p.jpg'],
+      } as any);
+
+      expect(ad.businessId).toBe(business.id);
+      expect(ad.providerId).toBe(owner.id);
+    });
+
+    it('fails closed when the accountRoleId does not belong to the calling userId (spoofed role id)', async () => {
+      if (!reachable) return;
+      const owner = await makeUser();
+      const admin = await makeUser();
+      const { role } = await makeApprovedService(owner, admin);
+      const attacker = await makeUser();
+
+      await expect(
+        servicesService.createBusinessServiceAdForRoleContext(attacker.id, role.id, {
+          title: 'Spoofed', description: 'd', category: ServiceCategory.MATENGENEZO,
+          coverageCity: 'Mwanza', images: ['p.jpg'],
+        } as any),
+      ).rejects.toMatchObject({ response: { code: 'SERVICE_PROVIDER_ROLE_REQUIRED' } });
+    });
+
+    it('getMyAds(businessId) never leaks a Business-attributed ad into a Personal-scoped query, and vice versa', async () => {
+      if (!reachable) return;
+      const owner = await makeUser();
+      const admin = await makeUser();
+      const { business, role } = await makeApprovedService(owner, admin);
+
+      const businessAd = await servicesService.createBusinessServiceAdForRoleContext(owner.id, role.id, {
+        title: 'Business Ad', description: 'd', category: ServiceCategory.BIASHARA,
+        coverageCity: 'Dodoma', images: ['b.jpg'],
+      } as any);
+      const personalAd = await servicesService.createAd(owner, {
+        title: 'Personal Ad', description: 'd', category: ServiceCategory.UFUNDI,
+        priceType: PriceType.NEGOTIATE, coverageCity: 'Dodoma', images: ['p.jpg'],
+      } as any);
+
+      const businessScoped = await servicesService.getMyAds(owner.id, undefined, business.id);
+      expect(businessScoped.map(a => a.id)).toEqual([businessAd.id]);
+      expect(businessScoped.map(a => a.id)).not.toContain(personalAd.id);
+
+      // Personal-scoped (commerceProfileId undefined, matching MyServices.js's
+      // real personal call, since createAd() with no commerceProfileId also
+      // stores it as null) must exclude the Business ad even though both
+      // share commerceProfileId: null -- distinguished by businessId.
+      const personalScoped = await servicesService.getMyAds(owner.id, undefined, undefined);
+      // Without any scoping param this legitimately returns everything
+      // (existing pre-B6C contract) -- assert the businessId column itself
+      // is what actually differs, proving the two ads are distinguishable.
+      const found = personalScoped.filter(a => [businessAd.id, personalAd.id].includes(a.id));
+      expect(found.find(a => a.id === businessAd.id)?.businessId).toBe(business.id);
+      expect(found.find(a => a.id === personalAd.id)?.businessId).toBeNull();
+
+      // The actual MyServices.js Personal-tab call shape: a real
+      // commerceProfileId scoping the query. Must still exclude the
+      // Business ad via its own commerceProfileId:null/businessId:NOT-null
+      // fallback branch, not just when businessId is omitted entirely.
+      const scopedByPersonalProfile = await servicesService.getMyAds(owner.id, 999999);
+      expect(scopedByPersonalProfile.map(a => a.id)).not.toContain(businessAd.id);
+      expect(scopedByPersonalProfile.map(a => a.id)).toContain(personalAd.id);
+    });
+  });
 });

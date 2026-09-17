@@ -863,9 +863,23 @@
     "tile_transport": "Transport",
     "tile_super_agent": "Super Agent",
     "tile_cargo": "Cargo",
+    "tile_service": "Services",
     "state_pending": "En attente",
     "state_requires_activation": "Activation requise",
-    "state_coming_soon": "Bientôt disponible"
+    "state_coming_soon": "Bientôt disponible",
+    "apply_service_provider_link": "+ Demander à offrir des Services sous cette entreprise"
+  },
+  "apply_service_provider": {
+    "page_title": "Devenir prestataire de services",
+    "hero_title": "Offrir des services en tant que {{business}}",
+    "hero_subtitle": "Demandez à publier des annonces de services attribuées à l'entreprise et à les gérer sous l'identité de l'entreprise, séparément de votre profil personnel.",
+    "submit_button": "Soumettre la demande",
+    "submitting_button": "Envoi en cours...",
+    "submit_failed": "Impossible de soumettre votre demande. Veuillez réessayer.",
+    "already_pending": "Vous avez déjà une demande de prestataire de services en attente pour cette entreprise.",
+    "success_title": "Demande soumise",
+    "success_desc": "Un administrateur examinera votre demande. Vous pourrez publier des services d'entreprise une fois approuvée.",
+    "back_to_business": "Retour à l'entreprise"
   },
   "become_agent": {
     "page_title": "Devenir agent",
@@ -2209,6 +2223,8 @@
     "show_all_button": "Afficher toutes les entreprises"
   },
   "post_service": {
+    "posting_as_business": "Publication en tant que {{business}}",
+    "default_business_name": "votre entreprise",
     "cat_ufundi": "Métiers (Électricité, Plomberie, Menuiserie)",
     "cat_usafi": "Nettoyage (Maison, Bureau, Linge)",
     "cat_elimu": "Éducation (Cours, Formation)",
@@ -2428,6 +2444,8 @@
     "default_max_tier": "Maître"
   },
   "my_services": {
+    "managing_for_business": "Gestion des services pour {{business}}",
+    "default_business_name": "votre entreprise",
     "status_pending": "⏳ En attente",
     "status_accepted": "✅ Accepté",
     "status_declined": "❌ Refusé",

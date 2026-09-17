@@ -144,6 +144,29 @@ export class ServicesService {
     return saved;
   }
 
+  /**
+   * B6C — controller-facing entry point for createBusinessServiceAd().
+   * Resolves the real, current AccountRole entity from the caller's own
+   * authoritative RoleContext.accountRoleId (never trusts a client-
+   * supplied role/profile id) via the same manager.getRepository(X)
+   * pattern already used above for ServiceProvider, so no new
+   * constructor-injected repository is needed here either.
+   * createBusinessServiceAd() itself is untouched.
+   */
+  async createBusinessServiceAdForRoleContext(
+    userId: number,
+    accountRoleId: number,
+    dto: Partial<ServiceAd>,
+  ): Promise<ServiceAd> {
+    const role = await this.adRepo.manager.getRepository(AccountRole).findOne({
+      where: { id: accountRoleId, userId },
+    });
+    if (!role) {
+      throw new ForbiddenException({ code: 'SERVICE_PROVIDER_ROLE_REQUIRED', message: 'SERVICE_PROVIDER_ROLE_REQUIRED' });
+    }
+    return this.createBusinessServiceAd(role, dto);
+  }
+
   async updateAd(
     userId: number,
     adId: number,
@@ -204,12 +227,25 @@ export class ServicesService {
   // resolves for its owner; a Personal and Business profile on the same
   // account stop sharing each other's ads only once a caller actually
   // passes commerceProfileId.
-  async getMyAds(userId: number, commerceProfileId?: number): Promise<ServiceAd[]> {
+  // B6C: businessId scopes to ads created via createBusinessServiceAd() for
+  // that exact Business — those always have commerceProfileId: null, so a
+  // Personal-scoped query (commerceProfileId given, businessId omitted)
+  // must exclude businessId-tagged rows from its own legacy-untagged
+  // fallback, or a Business's ads would silently leak into "My Services"
+  // under the same account's Personal profile (the same identity-collapse
+  // failure mode Identity Fix I1 closed for Classifieds/Products).
+  async getMyAds(userId: number, commerceProfileId?: number, businessId?: number): Promise<ServiceAd[]> {
+    if (businessId != null) {
+      return this.adRepo.find({
+        where: { providerId: userId, businessId },
+        order: { createdAt: 'DESC' },
+      });
+    }
     return this.adRepo.find({
       where: commerceProfileId
         ? [
             { providerId: userId, commerceProfileId },
-            { providerId: userId, commerceProfileId: IsNull() },
+            { providerId: userId, commerceProfileId: IsNull(), businessId: IsNull() },
           ]
         : { providerId: userId },
       order: { createdAt: 'DESC' },

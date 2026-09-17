@@ -67,6 +67,7 @@ import SellerDashboard from './public/pages/SellerDashboard';
 import BusinessDashboard from './public/pages/BusinessDashboard';
 import MyBusinesses from './public/pages/MyBusinesses';
 import BusinessHome from './public/pages/BusinessHome';
+import BecomeBusinessServiceProvider from './public/pages/BecomeBusinessServiceProvider';
 import BecomeBusiness from './public/pages/BecomeBusiness';
 import BecomeAgent from './public/pages/BecomeAgent';
 import AgentDashboard from './public/pages/AgentDashboard';
@@ -635,6 +636,8 @@ function App() {
     }
     if (page.startsWith('BusinessHome-'))
       return requireLogin(<BusinessHome {...publicProps} businessId={Number(page.split('BusinessHome-')[1])} />);
+    if (page.startsWith('BecomeBusinessServiceProvider-'))
+      return requireLogin(<BecomeBusinessServiceProvider {...publicProps} businessId={Number(page.split('BecomeBusinessServiceProvider-')[1])} />);
     if (page.startsWith('SellerStore-'))
       return <SellerStore {...publicProps} sellerId={page.split('SellerStore-')[1]} />;
     // Store- is a legacy alias — route it through the same CommerceProfile
