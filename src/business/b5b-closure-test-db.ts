@@ -15,6 +15,8 @@ import { ServiceAd } from '../services/entities/service-ad.entity';
 import { AccountRole } from '../role-context/entities/account-role.entity';
 import { ActiveRoleSession } from '../role-context/entities/active-role-session.entity';
 import { User } from '../users/entities/user.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
+import { Classified } from '../classifieds/entities/classified.entity';
 
 /**
  * Shared connection/safety harness for every B5B closure-mission
@@ -36,11 +38,12 @@ import { User } from '../users/entities/user.entity';
 export const B5B_TEST_DB_NAME = 'kentexa_b5b_test';
 export const B5B_TEST_DB_USER = 'kentexa_b5b_test_user';
 
-/** Base entity set synchronized directly (mirrors every B2/B3/B5A spec's own BASE_ENTITIES) -- BusinessCapabilityApplication is deliberately excluded here since its own partial unique index only exists via the real migration below, not via synchronize. ServiceProvider/ServiceAd added in Stage B6B -- their own businessId columns/indexes are declared via @Index/@Column decorators directly on the entities (like TransportProvider/SuperAgent's own B5A additions), so synchronize:true creates them correctly without needing Migration 11's own SQL replayed here. */
+/** Base entity set synchronized directly (mirrors every B2/B3/B5A spec's own BASE_ENTITIES) -- BusinessCapabilityApplication is deliberately excluded here since its own partial unique index only exists via the real migration below, not via synchronize. ServiceProvider/ServiceAd added in Stage B6B -- their own businessId columns/indexes are declared via @Index/@Column decorators directly on the entities (like TransportProvider/SuperAgent's own B5A additions), so synchronize:true creates them correctly without needing Migration 11's own SQL replayed here. CommerceProfile/Classified added for Identity Fix I1 -- both have exactly one relation each (User), so this is additive-only and doesn't pull in any other entity. */
 export const B5B_BASE_ENTITIES = [
   Business, OperationalWorkspace, BusinessMembership, WorkspaceAssignment,
   BusinessCapability, AccountRole, ActiveRoleSession, SellerProfile,
   TransportProvider, SuperAgent, ServiceProvider, ServiceAd, User,
+  CommerceProfile, Classified,
 ];
 
 /** Full entity set for the real, synchronize:false DataSource the service under test actually uses. */

@@ -62,8 +62,10 @@ const StoreCard = ({ seller, onNavigate, isLoggedIn, large }) => {
     finally { setBusy(false); }
   };
 
+  const storeNavParams = seller.commerceProfileId ? { commerceProfileId: seller.commerceProfileId } : undefined;
+
   return (
-    <div onClick={() => sellerId && onNavigate(`CommerceProfile-${sellerId}`)}
+    <div onClick={() => sellerId && onNavigate(`CommerceProfile-${sellerId}`, storeNavParams)}
       style={{ backgroundColor: WH, borderRadius: 16, overflow: 'hidden',
         boxShadow: '0 2px 10px rgba(0,0,0,0.07)', cursor: 'pointer',
         border: '1px solid #F1F5F9', display: 'flex', flexDirection: 'column' }}>

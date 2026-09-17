@@ -117,8 +117,29 @@ describe('CommerceProfileScopeService authoritative listing attribution', () => 
     ).resolves.toBe(77);
   });
 
-  it('keeps a personal classified context account-scoped', async () => {
+  it('resolves a personal classified context to the poster\'s own PERSONAL CommerceProfile, never a Business one', async () => {
     const { service, profileRepo, workspaceRepo } = build();
+    profileRepo.findOne.mockResolvedValue({ id: 42, ownerId: 1, type: CommerceProfileType.PERSONAL });
+    await expect(
+      service.resolveForListingScope({
+        legacySellerId: 1,
+        workspaceId: null,
+        businessId: null,
+        mode: 'legacy',
+        profileType: RoleProfileType.USER,
+        profileId: 1,
+      }),
+    ).resolves.toBe(42);
+    expect(profileRepo.findOne).toHaveBeenCalledWith({
+      where: { ownerId: 1, type: CommerceProfileType.PERSONAL },
+    });
+    expect(profileRepo.find).not.toHaveBeenCalled();
+    expect(workspaceRepo.findOne).not.toHaveBeenCalled();
+  });
+
+  it('a personal classified context falls back to null (not Business) if the account somehow has no PERSONAL CommerceProfile row', async () => {
+    const { service, profileRepo } = build();
+    profileRepo.findOne.mockResolvedValue(null);
     await expect(
       service.resolveForListingScope({
         legacySellerId: 1,
@@ -129,7 +150,22 @@ describe('CommerceProfileScopeService authoritative listing attribution', () => 
         profileId: 1,
       }),
     ).resolves.toBeNull();
-    expect(profileRepo.find).not.toHaveBeenCalled();
-    expect(workspaceRepo.findOne).not.toHaveBeenCalled();
+  });
+
+  it('multi-business isolation: two different owning Businesses resolve to their OWN CommerceProfile, never each other\'s or the owner\'s personal one', async () => {
+    const { service, profileRepo, workspaceRepo } = build();
+    workspaceRepo.findOne.mockImplementation(({ where }: any) =>
+      Promise.resolve({ id: where.id, businessId: where.businessId }),
+    );
+    profileRepo.find.mockImplementation(({ where }: any) =>
+      Promise.resolve([{ id: where.businessId === 100 ? 1000 : 2000 }]),
+    );
+
+    await expect(
+      service.resolveForListingScope(workspaceScope(10, 100)),
+    ).resolves.toBe(1000);
+    await expect(
+      service.resolveForListingScope(workspaceScope(20, 200)),
+    ).resolves.toBe(2000);
   });
 });

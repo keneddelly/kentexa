@@ -104,7 +104,22 @@ export class CommerceProfileScopeService {
       return profiles[0]?.id ?? null;
     }
 
-    return null;
+    // Personal/account-scoped context: resolve the poster's own PERSONAL
+    // CommerceProfile explicitly, rather than leaving commerceProfileId
+    // null. A bare null is otherwise indistinguishable from a listing that
+    // predates this column entirely (which intentionally still falls back
+    // to the account's BUSINESS identity in ClassifiedsService.findOne()/
+    // ProductsService.findOne(), matching pre-personal-classified-era
+    // behavior for those legacy rows) -- stamping the real Personal
+    // profile id here is what lets a genuinely personal listing display
+    // and route as Personal, without backfilling any existing row.
+    const personal = await this.profileRepo.findOne({
+      where: {
+        ownerId: scope.legacySellerId,
+        type: CommerceProfileType.PERSONAL,
+      },
+    });
+    return personal?.id ?? null;
   }
 
   private unresolvedWorkspaceProfile(): ConflictException {

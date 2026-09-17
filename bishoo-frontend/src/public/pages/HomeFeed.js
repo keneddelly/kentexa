@@ -1270,8 +1270,12 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
     // always-available "My Business" option, for profile types with
     // nothing else taggable — e.g. a Super Agent hub) — linkedEntityId IS
     // the CommerceProfile id here, not a classified id, so this must not
-    // fall into the classified branch below.
-    else if (moment.linkedEntityType === 'business') onNavigate(`CommerceProfile-${moment.linkedEntityId}`);
+    // fall into the classified branch below. Threading it as the explicit
+    // commerceProfileId param (not just the page-string slug) is required
+    // — CommerceProfile.js only resolves the CORRECT profile (rather than
+    // silently defaulting to the poster's Personal one) when this param is
+    // present, exactly like every other business-actor click in this file.
+    else if (moment.linkedEntityType === 'business') onNavigate(`CommerceProfile-${moment.linkedEntityId}`, { commerceProfileId: moment.linkedEntityId });
     else onNavigate(`ClassifiedDetail-${moment.linkedEntityId}`);
   };
 
