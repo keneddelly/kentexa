@@ -102,7 +102,11 @@ describe('BusinessCapabilityApplicationService — approve/reject (Stage B3), re
     });
     await ds.initialize();
 
-    service = new BusinessCapabilityApplicationService(applicationRepo(), capabilityRepo(), ds);
+    service = new BusinessCapabilityApplicationService(
+      applicationRepo(), capabilityRepo(), ds,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
+    );
   }, 60000);
 
   afterAll(async () => {

@@ -75,7 +75,7 @@ describe('B5B closure — concurrent application, concurrent approval, approve-v
     service.applyForCapability(businessId, 'transport', owner, { applicationData: { type: ProviderType.TRUCK } });
 
   const submitSuperAgent = (owner: User, businessId: number, workspaceId: number) =>
-    service.applyForCapability(businessId, 'super_agent', owner, { workspaceId });
+    service.applyForCapability(businessId, 'super_agent', owner, { workspaceId, applicationData: { city: 'Dar es Salaam' } });
 
   beforeAll(async () => {
     if (!config) return;
@@ -90,7 +90,11 @@ describe('B5B closure — concurrent application, concurrent approval, approve-v
       database: config.database, synchronize: false, entities: B5B_ALL_ENTITIES,
     });
     await ds.initialize();
-    service = new BusinessCapabilityApplicationService(applicationRepo(), capabilityRepo(), ds);
+    service = new BusinessCapabilityApplicationService(
+      applicationRepo(), capabilityRepo(), ds,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
+    );
   }, 60000);
 
   afterAll(async () => {

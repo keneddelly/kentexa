@@ -124,7 +124,11 @@ describe('B6B — Service Business Authority Foundation, real disposable-DB', ()
     });
     await ds.initialize();
 
-    service = new BusinessCapabilityApplicationService(applicationRepo(), capabilityRepo(), ds);
+    service = new BusinessCapabilityApplicationService(
+      applicationRepo(), capabilityRepo(), ds,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
+    );
     roleContextService = new RoleContextService(
       userRepo(), accountRoleRepo(), sessionRepo(), sellerProfileRepo(),
       ds.getRepository(Agent), superAgentRepo(), transportRepo(),

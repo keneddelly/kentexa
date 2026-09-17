@@ -27,6 +27,9 @@ import {
   AccountRoleType,
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
+import { VerificationService } from '../identity/verification.service';
+import { Feature } from '../identity/verification.constants';
+import { TzLocationService } from '../tz-location/tz-location.service';
 
 export interface ApplyCapabilityDto {
   // Deliberately the ONLY client-supplied field. Every identity-bearing
@@ -80,6 +83,24 @@ const ROLE_TYPE_BY_CAPABILITY: Partial<Record<BusinessCapabilityCode, AccountRol
   [BusinessCapabilityCode.SERVICE]: AccountRoleType.SERVICE_PROVIDER,
 };
 
+/**
+ * Stage B7C: identity-verification gate per capability, enforced BEFORE any
+ * organizational row is created -- preserves the exact same protection
+ * legacy /seller/apply, /transport/register, and /super-agents/apply
+ * already required, now for the Business-scoped generic-engine path too.
+ * SERVICE is deliberately absent -- its verification policy is explicitly
+ * out of scope for this stage (it had none before and gains none here).
+ * This never marks the Business/applicant as publicly "verified"; it only
+ * gates whether they may submit an application at all -- entitlement and
+ * verification remain separate concepts, exactly as approveApplication()
+ * already keeps them (see markProfileApproved's own doc comment).
+ */
+const VERIFICATION_FEATURE_BY_CAPABILITY: Partial<Record<BusinessCapabilityCode, Feature>> = {
+  [BusinessCapabilityCode.COMMERCE]: Feature.CREATE_STORE,
+  [BusinessCapabilityCode.TRANSPORT]: Feature.BECOME_TRANSPORTER,
+  [BusinessCapabilityCode.SUPER_AGENT]: Feature.BECOME_SUPER_AGENT,
+};
+
 interface OwnerWorkspaceContext {
   businessId: number;
   workspaceId: number;
@@ -105,6 +126,8 @@ export class BusinessCapabilityApplicationService {
     @InjectRepository(BusinessCapability)
     private readonly capabilityRepo: Repository<BusinessCapability>,
     private readonly dataSource: DataSource,
+    private readonly verification: VerificationService,
+    private readonly tzLocation: TzLocationService,
   ) {}
 
   /** The one currently-live application for this workspace+capability, if any. */
@@ -358,15 +381,26 @@ export class BusinessCapabilityApplicationService {
     // three LEFT JOINs matches per row, discriminated by the application's
     // own operationalProfileType, the same polymorphic-by-two-plain-
     // columns convention the application entity already documents.
+    // B7C: applicationData is now selected and returned -- an admin
+    // reviewing a TRANSPORT application needs to see the applicant's
+    // chosen vehicle `type`, and a SUPER_AGENT application needs to see
+    // the requested `city`, neither of which was visible from this list
+    // before. applicationData is opaque client-supplied jsonb (type/city
+    // strings only, per sanitizeApplicationData()'s own authority-key
+    // stripping) -- never a User/financial field, so no sensitive-field
+    // exposure risk is introduced by including it verbatim. rejectionReason
+    // is included too (mirrors listForBusiness()'s own convention: only
+    // populated when the row is actually REJECTED, else null).
     const rows = await this.dataSource.query(
       `
       SELECT a.id, a."capabilityCode", a.status, a."submittedAt", a."reviewedAt",
+             a."rejectionReason", a."applicationData",
              a."operationalProfileType", a."operationalProfileId",
              b.id AS "businessId", COALESCE(b."tradingName", b."legalName") AS "businessName",
              b."businessVerificationStatus", b.status AS "businessStatus",
              w.id AS "workspaceId", w.name AS "workspaceName", w.status AS "workspaceStatus",
              u.id AS "applicantUserId", u.name AS "applicantName", u.phone AS "applicantPhone",
-             COALESCE(sp.status, tp.status::text, sa.status::text, svp.status::text) AS "profileStatus"
+             COALESCE(sp.status::text, tp.status::text, sa.status::text, svp.status::text) AS "profileStatus"
       FROM business_capability_application a
       JOIN business b ON b.id = a."businessId"
       JOIN operational_workspace w ON w.id = a."workspaceId"
@@ -382,7 +416,12 @@ export class BusinessCapabilityApplicationService {
     );
 
     return rows.map((r: any) => ({
-      application: { id: r.id, capabilityCode: r.capabilityCode, status: r.status, submittedAt: r.submittedAt, reviewedAt: r.reviewedAt },
+      application: {
+        id: r.id, capabilityCode: r.capabilityCode, status: r.status,
+        submittedAt: r.submittedAt, reviewedAt: r.reviewedAt,
+        rejectionReason: r.status === BusinessCapabilityApplicationStatus.REJECTED ? r.rejectionReason : null,
+        applicationData: r.applicationData ?? null,
+      },
       business: { id: r.businessId, name: r.businessName, verificationStatus: r.businessVerificationStatus, status: r.businessStatus },
       workspace: { id: r.workspaceId, name: r.workspaceName, status: r.workspaceStatus },
       applicant: { userId: r.applicantUserId, name: r.applicantName, phone: r.applicantPhone },
@@ -409,7 +448,7 @@ export class BusinessCapabilityApplicationService {
       `
       SELECT a.id, a."capabilityCode", a.status, a."submittedAt", a."reviewedAt", a."rejectionReason",
              a."workspaceId", a."operationalProfileType",
-             COALESCE(sp.status, tp.status::text, sa.status::text, svp.status::text) AS "profileStatus"
+             COALESCE(sp.status::text, tp.status::text, sa.status::text, svp.status::text) AS "profileStatus"
       FROM business_capability_application a
       LEFT JOIN seller_profile sp ON sp.id = a."operationalProfileId" AND a."operationalProfileType" = 'seller_profile'
       LEFT JOIN transport_provider tp ON tp.id = a."operationalProfileId" AND a."operationalProfileType" = 'transport_provider'
@@ -777,6 +816,14 @@ export class BusinessCapabilityApplicationService {
       throw new ConflictException({ code: 'CAPABILITY_NOT_SUPPORTED', message: 'CAPABILITY_NOT_SUPPORTED' });
     }
 
+    // Stage B7C: identity verification, checked before anything else --
+    // same ordering legacy Seller/Transport/SuperAgent apply endpoints
+    // already use (gate first, create nothing if ineligible).
+    const requiredFeature = VERIFICATION_FEATURE_BY_CAPABILITY[code];
+    if (requiredFeature) {
+      await this.verification.requireFeature(user.id, requiredFeature);
+    }
+
     const workspaceSpecific = WORKSPACE_SPECIFIC_CAPABILITY_CODES.has(code);
     if (workspaceSpecific && dto?.workspaceId == null) {
       throw new BadRequestException({ code: 'WORKSPACE_ID_REQUIRED', message: 'WORKSPACE_ID_REQUIRED' });
@@ -834,7 +881,7 @@ export class BusinessCapabilityApplicationService {
         } else if (code === BusinessCapabilityCode.SUPER_AGENT) {
           profileType = RoleProfileType.SUPER_AGENT;
           const workspace = await manager.getRepository(OperationalWorkspace).findOne({ where: { id: context.workspaceId } });
-          const superAgent = await this.resolveSuperAgentProfile(manager, workspace!, user);
+          const superAgent = await this.resolveSuperAgentProfile(manager, workspace!, user, dto?.applicationData);
           profile = { id: superAgent.id, status: superAgent.status };
           role = await this.resolveOperationalAccountRole(
             manager, user, AccountRoleType.SUPER_AGENT, RoleProfileType.SUPER_AGENT,
@@ -1084,12 +1131,41 @@ export class BusinessCapabilityApplicationService {
     });
   }
 
-  /** SuperAgent resolution (Stage B5B) -- one hub profile per OperationalWorkspace, never per Business (see super-agent.entity.ts's own doc comment: Parcel.superAgent/destinationSuperAgent already treat SuperAgent.id as the hub itself). */
+  /**
+   * SuperAgent resolution (Stage B5B, city+reapply fixed in B7C) -- one hub
+   * profile per OperationalWorkspace, never per Business (see
+   * super-agent.entity.ts's own doc comment: Parcel.superAgent/
+   * destinationSuperAgent already treat SuperAgent.id as the hub itself).
+   *
+   * B7C: `city` MUST be a genuine operating location, never
+   * `workspace.name` (an arbitrary Business/workspace display string) --
+   * every hub-operations feature (rate lookups, nearby-agent discovery,
+   * route pricing, parcel origin tagging) keys off this field expecting a
+   * real Tanzania location. Resolved via the existing TzLocationService
+   * (the same ward/district/region dataset the rest of Kentexa already
+   * uses), never a second city taxonomy. Fails closed if no match.
+   */
   private async resolveSuperAgentProfile(
     manager: EntityManager,
     workspace: OperationalWorkspace,
     user: User,
+    applicationData: Record<string, unknown> | undefined,
   ): Promise<SuperAgent> {
+    const rawCity = typeof (applicationData as any)?.city === 'string' ? (applicationData as any).city.trim() : '';
+    if (!rawCity) {
+      throw new BadRequestException({ code: 'SUPER_AGENT_CITY_REQUIRED', message: 'SUPER_AGENT_CITY_REQUIRED' });
+    }
+    const resolvedLocation = await this.tzLocation.resolveAgentLocation(rawCity);
+    if (!resolvedLocation) {
+      throw new BadRequestException({ code: 'SUPER_AGENT_CITY_INVALID', message: 'SUPER_AGENT_CITY_INVALID' });
+    }
+    // District is the canonical operating-city granularity the rest of the
+    // hub-operations code (rate cards, nearby-agent search, route pricing)
+    // actually keys off -- resolveAgentLocation() falls back to the ward's
+    // own district when a ward matched, so this is always populated
+    // whenever resolvedLocation is non-null.
+    const city = resolvedLocation.district as string;
+
     const superAgentRepo = manager.getRepository(SuperAgent);
     const existing = await superAgentRepo.findOne({ where: { workspaceId: workspace.id } });
 
@@ -1098,17 +1174,32 @@ export class BusinessCapabilityApplicationService {
         user,
         workspaceId: workspace.id,
         businessName: workspace.name,
-        city: workspace.name,
+        city,
         status: SuperAgentStatus.PENDING,
       }));
     }
 
-    // Stage B5B ships the first-application path only -- SuperAgentStatus
-    // has no REJECTED value (see that entity's own enum), so there is no
-    // "reapply after rejection" case to mirror here yet; any pre-existing
-    // row for this exact workspace means the workspace already has (or
-    // had) its own SuperAgent identity, which is a genuine inconsistency
-    // to fail closed on rather than silently reuse.
+    // B7C: reapply after rejection. SuperAgentStatus has no REJECTED value
+    // (see that entity's own enum) -- markProfileRejected()'s SUPER_AGENT
+    // branch instead leaves status PENDING and records rejectionReason.
+    // That exact combination (status PENDING AND rejectionReason present)
+    // is therefore the deterministic, schema-free signal that this specific
+    // row was rejected and may be reapplied for -- never a schema change,
+    // never a guess. A genuinely still-under-review PENDING row (never
+    // rejected, rejectionReason null) cannot reach this method at all in
+    // that state, since applyForCapability()'s own validateNoPending()
+    // check on the BusinessCapabilityApplication row already blocks a
+    // second submission while one is live.
+    if (existing.status === SuperAgentStatus.PENDING && existing.rejectionReason) {
+      existing.city = city;
+      existing.businessName = workspace.name;
+      existing.rejectionReason = null;
+      return superAgentRepo.save(existing);
+    }
+
+    // Any other existing row (ACTIVE, SUSPENDED, or a PENDING row with no
+    // recorded rejection -- a genuine inconsistency) -- fail closed rather
+    // than silently reuse or guess.
     throw new ConflictException({
       code: 'SUPER_AGENT_APPLICATION_STATE_INCONSISTENT',
       message: 'SUPER_AGENT_APPLICATION_STATE_INCONSISTENT',

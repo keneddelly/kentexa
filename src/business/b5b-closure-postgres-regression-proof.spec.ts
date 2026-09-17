@@ -109,7 +109,7 @@ describe('B5B closure — final real-Postgres regression proof (COMMERCE + legac
     await assignmentRepo().save(assignmentRepo().create({
       businessMembershipId: membership.id, workspaceId: hub.id, status: WorkspaceAssignmentStatus.ACTIVE, permissions: {},
     } as any));
-    const submitted = await service.applyForCapability(business.id, 'super_agent', owner, { workspaceId: hub.id });
+    const submitted = await service.applyForCapability(business.id, 'super_agent', owner, { workspaceId: hub.id, applicationData: { city: 'Dar es Salaam' } });
     await service.approveApplication(submitted.application.id, admin);
     const role = await accountRoleRepo().findOneOrFail({ where: { id: submitted.accountRole.id } });
     const capability = await capabilityRepo().findOneOrFail({ where: { workspaceId: hub.id, capabilityCode: BusinessCapabilityCode.SUPER_AGENT } });
@@ -130,7 +130,11 @@ describe('B5B closure — final real-Postgres regression proof (COMMERCE + legac
     });
     await ds.initialize();
 
-    service = new BusinessCapabilityApplicationService(applicationRepo(), capabilityRepo(), ds);
+    service = new BusinessCapabilityApplicationService(
+      applicationRepo(), capabilityRepo(), ds,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
+    );
     roleContextService = new RoleContextService(
       userRepo(), accountRoleRepo(), sessionRepo(), sellerProfileRepo(),
       ds.getRepository(Agent), superAgentRepo(), transportRepo(),

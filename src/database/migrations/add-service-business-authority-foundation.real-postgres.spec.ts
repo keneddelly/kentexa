@@ -364,7 +364,11 @@ describe('Migration 11 (AddServiceBusinessAuthorityFoundation) — real PostgreS
 
     const applicationRepo = ds.getRepository(BusinessCapabilityApplication);
     const capabilityRepo = ds.getRepository(BusinessCapability);
-    const service = new BusinessCapabilityApplicationService(applicationRepo, capabilityRepo, ds);
+    const service = new BusinessCapabilityApplicationService(
+      applicationRepo, capabilityRepo, ds,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
+    );
 
     let seq = 1000;
     const makeUser = async () => {

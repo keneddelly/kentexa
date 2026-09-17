@@ -108,6 +108,8 @@ describe('BusinessCapabilityApplicationService.applyForCapability() — real dis
 
     service = new BusinessCapabilityApplicationService(
       applicationRepo(), capabilityRepo(), ds,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
     );
   }, 60000);
 

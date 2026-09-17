@@ -36,6 +36,8 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
 import { ActivityModule } from '../activity/activity.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AiModule } from '../ai/ai.module';
+import { IdentityModule } from '../identity/identity.module';
+import { TzLocationModule } from '../tz-location/tz-location.module';
 import { ConversationGateway } from './conversation.gateway';
 import { ParticipantResolutionService } from './participant-resolution.service';
 import { ConversationClassifierService } from './conversation-classifier.service';
@@ -68,6 +70,8 @@ import { ConversationClassifierService } from './conversation-classifier.service
     ActivityModule,
     AnalyticsModule,
     AiModule,
+    IdentityModule,
+    TzLocationModule,
     // Registered here too (not just AuthModule, which doesn't export its
     // own JwtModule) so ConversationGateway can verify a socket handshake's
     // JWT the exact same way JwtAuthGuard verifies a REST request's —

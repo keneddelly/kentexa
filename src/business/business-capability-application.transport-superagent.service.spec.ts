@@ -99,7 +99,7 @@ describe('BusinessCapabilityApplicationService — TRANSPORT/SUPER_AGENT (Stage 
     service.applyForCapability(businessId, 'transport', owner, { applicationData: { type } });
 
   const submitSuperAgent = (owner: User, businessId: number, workspaceId: number) =>
-    service.applyForCapability(businessId, 'super_agent', owner, { workspaceId });
+    service.applyForCapability(businessId, 'super_agent', owner, { workspaceId, applicationData: { city: 'Dar es Salaam' } });
 
   beforeAll(async () => {
     const probe = new Client({ host: DB_HOST, port: DB_PORT, user: DB_USERNAME, password: DB_PASSWORD, database: 'postgres' });
@@ -131,7 +131,11 @@ describe('BusinessCapabilityApplicationService — TRANSPORT/SUPER_AGENT (Stage 
     });
     await ds.initialize();
 
-    service = new BusinessCapabilityApplicationService(applicationRepo(), capabilityRepo(), ds);
+    service = new BusinessCapabilityApplicationService(
+      applicationRepo(), capabilityRepo(), ds,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
+    );
   }, 60000);
 
   afterAll(async () => {

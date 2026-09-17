@@ -94,7 +94,11 @@ describe('BusinessCapabilityApplicationService.approve/rejectApplication() — t
 
     const outerCapabilityRepo: any = { findOne: jest.fn().mockResolvedValue(null) };
     const outerApplicationRepo: any = { findOne: jest.fn() };
-    const service = new BusinessCapabilityApplicationService(outerApplicationRepo, outerCapabilityRepo, dataSource);
+    const service = new BusinessCapabilityApplicationService(
+      outerApplicationRepo, outerCapabilityRepo, dataSource,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
+    );
 
     return { service, capabilitySave, profileSave, roleSave, applicationSave };
   };

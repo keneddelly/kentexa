@@ -145,7 +145,7 @@ describe('B5C — profile/Business/workspace authority integrity, real disposabl
   const makeApprovedSuperAgent = async (owner: User, admin: User, hubName = 'Hub') => {
     const { business, membership } = await makeCleanBusiness(owner);
     const { hub } = await addHubWorkspace(business.id, membership.id, hubName);
-    const submitted = await service.applyForCapability(business.id, 'super_agent', owner, { workspaceId: hub.id });
+    const submitted = await service.applyForCapability(business.id, 'super_agent', owner, { workspaceId: hub.id, applicationData: { city: 'Dar es Salaam' } });
     await service.approveApplication(submitted.application.id, admin);
     const role = await accountRoleRepo().findOneOrFail({ where: { id: submitted.accountRole.id } });
     const capability = await capabilityRepo().findOneOrFail({ where: { workspaceId: hub.id, capabilityCode: BusinessCapabilityCode.SUPER_AGENT } });
@@ -167,7 +167,11 @@ describe('B5C — profile/Business/workspace authority integrity, real disposabl
     });
     await ds.initialize();
 
-    service = new BusinessCapabilityApplicationService(applicationRepo(), capabilityRepo(), ds);
+    service = new BusinessCapabilityApplicationService(
+      applicationRepo(), capabilityRepo(), ds,
+      { requireFeature: async () => undefined } as any,
+      { resolveAgentLocation: async () => ({ district: 'Dar es Salaam' } as any) } as any,
+    );
     roleContextService = new RoleContextService(
       userRepo(), accountRoleRepo(), sessionRepo(), sellerProfileRepo(),
       ds.getRepository(Agent), superAgentRepo(), transportRepo(),
@@ -292,7 +296,7 @@ describe('B5C — profile/Business/workspace authority integrity, real disposabl
       const { business, membership } = await makeCleanBusiness(owner);
       const { hub: kariakoo } = await addHubWorkspace(business.id, membership.id, 'Kariakoo');
       const { hub: ubungo } = await addHubWorkspace(business.id, membership.id, 'Ubungo');
-      const kariakooApp = await service.applyForCapability(business.id, 'super_agent', owner, { workspaceId: kariakoo.id });
+      const kariakooApp = await service.applyForCapability(business.id, 'super_agent', owner, { workspaceId: kariakoo.id, applicationData: { city: 'Dar es Salaam' } });
       await service.approveApplication(kariakooApp.application.id, admin);
       const bareUbungoAgent = await makeBareSuperAgent(owner, ubungo.id);
 
