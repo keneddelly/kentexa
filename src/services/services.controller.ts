@@ -21,7 +21,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
-import { RoleContext } from '../role-context/role-context.types';
+import type { RoleContext } from '../role-context/role-context.types';
 import { ServicesService } from './services.service';
 import { JobStatus } from './entities/job-request.entity';
 import { CreateServiceAdDto } from './dto/create-service-ad.dto';
