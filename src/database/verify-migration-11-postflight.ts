@@ -7,6 +7,11 @@ import dataSource from './data-source';
  * designed, and that no existing ServiceProvider/ServiceAd row was touched
  * (businessId must be NULL on every pre-existing row; this migration never
  * backfills).
+ *
+ * UQ_service_provider_business and UQ_service_provider_unbound_user are
+ * partial unique INDEXES (CREATE UNIQUE INDEX ... WHERE ...), not table
+ * constraints -- Postgres never lists a partial unique index in
+ * pg_constraint, only in pg_indexes, so they're checked there.
  */
 async function main(): Promise<void> {
   await dataSource.initialize();
@@ -34,20 +39,27 @@ async function main(): Promise<void> {
   `);
   console.log('New columns:', JSON.stringify(columns));
 
-  const constraints = await dataSource.query(`
+  const fkConstraints = await dataSource.query(`
     SELECT conname
     FROM pg_constraint
-    WHERE conname IN ('FK_service_provider_business', 'UQ_service_provider_business', 'UQ_service_provider_unbound_user', 'FK_service_ad_business')
+    WHERE conname IN ('FK_service_provider_business', 'FK_service_ad_business')
     ORDER BY conname
   `);
-  console.log('New constraints:', JSON.stringify(constraints.map((c: { conname: string }) => c.conname)));
+  console.log('New FK constraints:', JSON.stringify(fkConstraints.map((c: { conname: string }) => c.conname)));
 
-  const indexes = await dataSource.query(`
+  const partialUniqueIndexes = await dataSource.query(`
+    SELECT indexname, indexdef FROM pg_indexes
+    WHERE indexname IN ('UQ_service_provider_business', 'UQ_service_provider_unbound_user')
+    ORDER BY indexname
+  `);
+  console.log('Partial unique indexes:', JSON.stringify(partialUniqueIndexes));
+
+  const plainIndexes = await dataSource.query(`
     SELECT indexname FROM pg_indexes
     WHERE indexname IN ('IDX_service_ad_provider', 'IDX_service_ad_business', 'IDX_service_ad_category', 'IDX_service_ad_status', 'IDX_service_ad_coverage_city')
     ORDER BY indexname
   `);
-  console.log('New indexes:', JSON.stringify(indexes.map((i: { indexname: string }) => i.indexname)));
+  console.log('New plain indexes:', JSON.stringify(plainIndexes.map((i: { indexname: string }) => i.indexname)));
 
   const legacyProviderCheck = await dataSource.query(
     `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE "businessId" IS NOT NULL)::int AS non_null FROM service_provider`,
