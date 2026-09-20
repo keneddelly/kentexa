@@ -47,8 +47,15 @@ export const presentationForRole = (role, profiles = [], user = null) => {
     // predates this field (an older cached /auth/roles response, or a hand-
     // built test fixture) -- never consulted when the server already sent
     // an answer.
-    displayName: role.displayName ?? presentation?.displayName ?? user?.name ?? role.roleType,
-    photoUrl: role.photoUrl ?? presentation?.photoUrl ?? user?.avatarUrl ?? null,
+    // identityType === null (explicit, as opposed to undefined on an older
+    // response) means the server declared this row's identity UNRESOLVED
+    // (broken organizational chain) -- never substitute the User's name.
+    displayName: role.identityType === null
+      ? (role.displayName ?? role.roleType)
+      : (role.displayName ?? presentation?.displayName ?? user?.name ?? role.roleType),
+    photoUrl: role.identityType === null
+      ? (role.photoUrl ?? null)
+      : (role.photoUrl ?? presentation?.photoUrl ?? user?.avatarUrl ?? null),
     presentationResolved: !!presentation,
     // Multi-Business Authority — Business-First Frontend Stage 1. Passed
     // through verbatim from the server's own /auth/roles /auth/switch-role

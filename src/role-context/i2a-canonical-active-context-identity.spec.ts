@@ -271,4 +271,38 @@ describe('I2A — canonical active-context identity, real disposable-DB', () => 
     expect((await contextFor(r1)).commerceProfileId).toBe(personal.id);
     expect((await contextFor(r2)).commerceProfileId).toBeNull();
   });
+
+  it('/auth/roles: a broken organizational role is UNRESOLVED (never Bob/Personal) and non-switchable, while Bob\'s legacy unbound Seller stays Personal', async () => {
+    if (!reachable) return;
+    const bob = await makeUser('Bob');
+    const legacySeller = await makeSeller(bob, null);
+    const legacyRole = await makeRole(bob.id, AccountRoleType.SELLER, RoleProfileType.SELLER_PROFILE, legacySeller.id, null);
+
+    const suspended = await makeBusiness(bob, 'Suspended Cap Co');
+    await grantCommerce(suspended.workspace.id, BusinessCapabilityStatus.SUSPENDED);
+    const s1 = await makeSeller(bob, suspended.business.id);
+    const suspendedRole = await makeRole(bob.id, AccountRoleType.SELLER, RoleProfileType.SELLER_PROFILE, s1.id, suspended.assignment.id);
+
+    const revoked = await makeBusiness(bob, 'Revoked Assignment Co');
+    await grantCommerce(revoked.workspace.id);
+    const s2 = await makeSeller(bob, revoked.business.id);
+    const revokedRole = await makeRole(bob.id, AccountRoleType.SELLER, RoleProfileType.SELLER_PROFILE, s2.id, revoked.assignment.id);
+    await repo(WorkspaceAssignment).update(revoked.assignment.id, { status: WorkspaceAssignmentStatus.REVOKED });
+
+    const rows = new Map((await service.listRoles(bob.id)).map((r: any) => [r.accountRoleId, r]));
+
+    for (const broken of [rows.get(suspendedRole.id), rows.get(revokedRole.id)] as any[]) {
+      expect(broken.switchable).toBe(false);
+      expect(broken.identityType).toBeNull();
+      expect(broken.displayName).toBeNull();
+      expect(broken.photoUrl).toBeNull();
+      expect(broken.commerceProfileId).toBeNull();
+      expect(broken.displayName).not.toBe('Bob');
+      expect(broken.displayName).not.toBe('User');
+    }
+    expect(rows.get(suspendedRole.id)).toMatchObject({ reason: 'ROLE_CONTEXT_CAPABILITY_INACTIVE' });
+    expect(rows.get(revokedRole.id)).toMatchObject({ reason: 'ROLE_CONTEXT_ORGANIZATIONAL_REVOKED' });
+
+    expect(rows.get(legacyRole.id)).toMatchObject({ switchable: true, identityType: 'PERSONAL', displayName: 'Bob', businessId: null });
+  });
 });

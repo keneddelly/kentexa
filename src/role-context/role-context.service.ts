@@ -66,12 +66,11 @@ export class RoleContextService {
   async listRoles(userId: number) {
     const roles = await this.roleRepo.find({ where: { userId }, order: { id: 'ASC' } });
     return Promise.all(roles.map(async (role) => {
-      const organizational = await this.resolveOrganizationalContext(role).catch(() => ({
-        businessId: null,
-        workspaceId: null,
-        businessName: null,
-        businessLogo: null,
-      }));
+      let organizationalFailed = false;
+      const organizational = await this.resolveOrganizationalContext(role).catch(() => {
+        organizationalFailed = true;
+        return { businessId: null, workspaceId: null, businessName: null, businessLogo: null };
+      });
       // Business Capability Activation Stage B4.5: switchable/reason come
       // from the SAME canonical evaluator every other caller uses (login
       // selection, switch-role's own fresh check) -- never a second,
@@ -82,22 +81,23 @@ export class RoleContextService {
       // here, just switchable:false with a reason distinguishing it from
       // the AccountRole itself being suspended.
       const availability = await this.evaluateAccountRoleAvailability(role);
-      // I2A: same resolveIdentity() every other consumer (toContext) uses --
-      // a switcher row and the activeContext produced by actually switching
-      // into it must never disagree on identityType/displayName/photoUrl/
-      // commerceProfileId. Best-effort per row, matching this method's own
-      // existing convention for `organizational` above: a broken chain
-      // still returns Personal-shaped identity here (switchable:false
-      // already communicates it's not usable); resolveContext() remains the
-      // one place a broken chain fails closed for real.
-      const identity = await this.resolveIdentity(userId, organizational).catch(() => ({
-        identityType: 'PERSONAL' as IdentityType,
-        businessId: null,
-        workspaceId: null,
-        commerceProfileId: null,
-        displayName: 'User',
-        photoUrl: null,
-      }));
+      // I2A: same resolveIdentity() every other consumer (toContext) uses.
+      // A broken/suspended/revoked organizational chain (or any identity
+      // resolution failure) is reported as UNRESOLVED (null identity
+      // fields) -- never a fabricated Personal/User identity. The row stays
+      // non-switchable with its existing reason; resolveContext() remains
+      // the one place a broken chain fails closed for real. Legacy unbound
+      // roles (workspaceAssignmentId == null) never fail organizational
+      // resolution and continue to resolve as PERSONAL.
+      const unresolved = {
+        identityType: null as IdentityType | null,
+        commerceProfileId: null as number | null,
+        displayName: null as string | null,
+        photoUrl: null as string | null,
+      };
+      const identity = organizationalFailed
+        ? unresolved
+        : await this.resolveIdentity(userId, organizational).catch(() => unresolved);
       return {
         accountRoleId: role.id,
         roleType: role.roleType,

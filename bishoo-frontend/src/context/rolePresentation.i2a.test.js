@@ -38,3 +38,11 @@ test('activeBusinessNameFor reads the canonical activeContext identity directly'
   expect(activeBusinessNameFor({ accountRoleId: 2, identityType: 'BUSINESS', displayName: 'Washing Machine TZ' }, [])).toBe('Washing Machine TZ');
   expect(activeBusinessNameFor({ accountRoleId: 1, identityType: 'PERSONAL', displayName: 'Bob' }, [])).toBeNull();
 });
+
+test('a server-declared UNRESOLVED organizational row (identityType null) never presents as the User', () => {
+  const broken = { accountRoleId: 4, roleType: 'seller', status: 'active', switchable: false, userId: 1, identityType: null, displayName: null, photoUrl: null, businessId: null, businessName: null, workspaceId: null, commerceProfileId: null };
+  const p = presentationForRole(broken, [], bob);
+  expect(p.displayName).not.toBe('Bob');
+  expect(p.photoUrl).toBeNull();
+  expect(p.identityType).toBeNull();
+});
