@@ -3,6 +3,7 @@
  * Place at: src/feed/feed.module.ts
  */
 import { Module } from '@nestjs/common';
+import { RoleContextModule } from '../role-context/role-context.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 import { User } from '../users/entities/user.entity';
@@ -35,6 +36,7 @@ import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
+    RoleContextModule,
     TypeOrmModule.forFeature([
       BusinessFeedItem,
       Classified,

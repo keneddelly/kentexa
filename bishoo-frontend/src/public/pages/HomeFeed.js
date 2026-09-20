@@ -11,6 +11,7 @@
  *  All saves/shares/views go to POST /engagements (entity-based, works on virtual IDs)
  *  Comments go to POST /comments (entity-based)
  */
+import { actorProfileParams, isActorUnresolved } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
@@ -97,7 +98,7 @@ const ContactModal = ({ post, onClose, onNavigate, isLoggedIn }) => {
         </div>
         <div style={{ fontSize:12, color:GR, marginBottom:20 }}>{t('home_feed.about_label', { title })}</div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          <button onClick={() => { onNavigate(isLoggedIn ? `MessageSeller-${biz.id}` : 'PublicLogin'); onClose(); }}
+          <button onClick={() => { if (isActorUnresolved(biz)) return; onNavigate(isLoggedIn ? `MessageSeller-${biz.id}` : 'PublicLogin', actorProfileParams(biz)); onClose(); }}
             style={{ display:'flex', alignItems:'center', gap:14, padding:'16px',
               backgroundColor:'#EFF6FF', borderRadius:14, border:'none', cursor:'pointer',
               textAlign:'left', width:'100%' }}>
@@ -499,7 +500,10 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   // When the backend resolved this post's commerceProfileId to a specific
   // CommerceProfile, nav must land there — not the owner's default/personal
   // profile, which is what a bare account id resolves to otherwise.
-  const bizNavParams = biz.commerceProfileId ? { commerceProfileId: biz.commerceProfileId } : undefined;
+  const bizNavParams = actorProfileParams(biz);
+  // I2B: a Moment whose actor the server could not resolve (never stamped) must not
+  // navigate to a guessed profile -- a bare owner id lands on the owner's Personal profile.
+  const actorUnresolved = isActorUnresolved(biz);
   const repScore= biz.reputationScore || 0;
   const image   = (!imgErr && (post.imageUrl || post.data?.images?.[0])) || null;
   // Badge: real, unambiguous post types (Moment, Looking For, Discount...)
@@ -600,7 +604,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
     // fix as ViewMomentModal's goToListing() above.
     else if (entityType === 'business' && entityId) onNavigate(`CommerceProfile-${entityId}`, bizNavParams);
     else if (entityId) onNavigate(`ClassifiedDetail-${entityId}`);
-    else if (bizId)   onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
+    else if (bizId && !actorUnresolved) onNavigate(`CommerceProfile-${bizId}`, bizNavParams);
   };
 
   return (
@@ -609,7 +613,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
       {/* ── Header ── */}
       <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px' }}>
-        <button onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`, bizNavParams)}
+        <button onClick={() => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams)}
           style={{ width:40, height:40, borderRadius:'50%', flexShrink:0,
             border:'none', padding:0, cursor:'pointer', overflow:'hidden',
             backgroundColor:'#F1F5F9', display:'flex', alignItems:'center',
@@ -625,7 +629,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
 
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
-            <button onClick={() => bizId && onNavigate(`CommerceProfile-${bizId}`, bizNavParams)}
+            <button onClick={() => bizId && !actorUnresolved && onNavigate(`CommerceProfile-${bizId}`, bizNavParams)}
               style={{ background:'none', border:'none', padding:0, cursor:'pointer',
                 fontSize:13, fontWeight:800, color:DK }}>
               {bizName}
@@ -1348,7 +1352,7 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
             ? <img src={biz.logo} alt="" style={{ width:'100%',height:'100%',objectFit:'cover' }} />
             : <span style={{ color:WH, fontSize:14, fontWeight:900 }}>{bizName.charAt(0).toUpperCase()}</span>}
         </div>
-        <button onClick={() => { onClose(); biz.id && onNavigate(`CommerceProfile-${biz.id}`, biz.commerceProfileId ? { commerceProfileId: biz.commerceProfileId } : undefined); }}
+        <button onClick={() => { onClose(); biz.id && biz.actorResolved !== false && onNavigate(`CommerceProfile-${biz.id}`, biz.commerceProfileId ? { commerceProfileId: biz.commerceProfileId } : undefined); }}
           style={{ background:'none', border:'none', cursor:'pointer', textAlign:'left', flex:1 }}>
           <div style={{ color:WH, fontSize:13, fontWeight:800 }}>{bizName}</div>
           <div style={{ color:'rgba(255,255,255,0.6)', fontSize:10 }}>{ago(moment.createdAt)}</div>
@@ -1556,7 +1560,7 @@ const Story = ({ seller, onNavigate, isLoggedIn }) => {
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center',
       gap:4, flexShrink:0, width:66 }}>
-      <button onClick={() => onNavigate(`CommerceProfile-${sellerId}`,
+      <button onClick={() => seller.actorResolved !== false && onNavigate(`CommerceProfile-${sellerId}`,
         seller.commerceProfileId ? { commerceProfileId: seller.commerceProfileId } : undefined)}
         style={{ background:'none', border:'none', cursor:'pointer', padding:0 }}>
         <div style={{ padding:2, borderRadius:'50%',

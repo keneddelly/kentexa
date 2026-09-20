@@ -15,6 +15,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { RoleContextGuard } from '../role-context/role-context.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { FeedService } from './feed.service';
 import { CvsService } from './cvs.service';
@@ -84,9 +85,11 @@ export class FeedController {
 
   // ── Publish post ──────────────────────────────────────────────────────────
   @Post('publish')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   publish(@Request() req, @Body() dto: any) {
-    return this.svc.publish(req.user.id, dto);
+    // I2B: the acting identity comes from the server-resolved active
+    // context, never solely from a client-supplied commerceProfileId.
+    return this.svc.publish(req.user.id, dto, req.roleContext);
   }
 
   // ── Delete post ───────────────────────────────────────────────────────────

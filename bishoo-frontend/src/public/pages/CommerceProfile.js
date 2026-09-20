@@ -602,7 +602,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                     ? t('commerce_profile.follow_back_button')
                     : t('commerce_profile.follow_button')}
               </button>
-              <button onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin')}
+              <button onClick={() => onNavigate(isLoggedIn ? messageDestination : 'PublicLogin', isLoggedIn && messageDestination.startsWith('MessageSeller-') ? { commerceProfileId: activeProfile.id } : undefined)}
                 style={{ backgroundColor:'#eff6ff', color:B,
                   border:'1px solid #bfdbfe', borderRadius:10,
                   padding:'8px 14px', cursor:'pointer',

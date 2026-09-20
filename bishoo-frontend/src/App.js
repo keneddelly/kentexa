@@ -919,7 +919,7 @@ function App() {
         <CreateMomentModal
           currentUser={currentUser}
           initialMode={momentModalMode}
-          activeProfileId={activeProfile?.id}
+          activeProfileId={activeProfile?.identityType === 'BUSINESS' ? activeProfile.commerceProfileId : (activeProfile?.commerceProfileId ?? activeProfile?.id)}
           activeProfile={activeProfile}
           onClose={() => setShowMomentModal(false)}
           onPosted={() => {

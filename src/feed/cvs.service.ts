@@ -39,6 +39,7 @@ import {
 } from './entities/post-comment.entity';
 import { User } from '../users/entities/user.entity';
 import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { momentActorFields } from '../commerce-profiles/moment-actor';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { EntityOwnerResolver } from './engagements.controller';
 import { PurchaseVerificationService } from './comment-support.service';
@@ -1710,20 +1711,13 @@ export class CvsService {
         const profile = (f as any).commerceProfileId
           ? feedProfileMap.get((f as any).commerceProfileId)
           : null;
+        // I2B: the exact stamped profile is the only actor identity; an
+        // unstamped/unknown row is explicitly actorResolved:false.
         const business = rawBiz
           ? {
               ...rawBiz,
               isFollowing: followedSellerIds.has(rawBiz.id),
-              ...(profile
-                ? {
-                    commerceProfileId: profile.id,
-                    name: profile.displayName,
-                    storeName: profile.displayName,
-                    logo: profile.photoUrl || rawBiz.logo,
-                    followersCount: profile.followersCount,
-                    isVerified: profile.isVerified,
-                  }
-                : {}),
+              ...momentActorFields(profile, rawBiz.logo),
             }
           : rawBiz;
         return {

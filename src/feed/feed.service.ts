@@ -2,7 +2,8 @@
  * FeedService — Commerce feed with CVS algorithm
  * Place at: src/feed/feed.service.ts
  */
-import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException, ConflictException } from '@nestjs/common';
+import { RoleContext } from '../role-context/role-context.types';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, Brackets } from 'typeorm';
 import {
@@ -25,6 +26,7 @@ import { Product } from '../products/entities/products.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { ProviderAvailability } from '../transport/entities/provider-availability.entity';
 import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
+import { momentActorFields } from '../commerce-profiles/moment-actor';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { ProviderStatus } from '../transport/entities/transport-provider.entity';
@@ -121,6 +123,7 @@ export class FeedService {
       locationLabel?: string;
       visibility?: string;
     },
+    roleContext?: RoleContext,
   ): Promise<BusinessFeedItem> {
     const intent =
       (dto.intent as MomentIntent) || deriveIntent(dto.type as FeedItemType);
@@ -138,13 +141,36 @@ export class FeedService {
     // team member) — posting "we're open today" or "looking for a
     // supplier" was never a commerce-management action and shouldn't
     // need that specific permission, or the SELL capability, to say so.
+    // I2B: in an organizational (BUSINESS) context the actor is the exact
+    // Business CommerceProfile the server resolved for that context. A
+    // client id that disagrees is rejected, and an unresolved Business
+    // identity fails explicitly rather than saving an ownerless/Personal-
+    // looking Moment. Personal contexts keep the existing behavior.
+    let requestedProfileId: number | null = dto.commerceProfileId ?? null;
+    if (roleContext?.identityType === 'BUSINESS') {
+      if (!roleContext.commerceProfileId) {
+        throw new ConflictException({
+          code: 'ACTOR_IDENTITY_UNRESOLVED',
+          message: 'This Business has no single public profile to post as yet.',
+        });
+      }
+      if (requestedProfileId && requestedProfileId !== roleContext.commerceProfileId) {
+        throw new ForbiddenException({
+          code: 'ACTOR_IDENTITY_MISMATCH',
+          message: 'You are not authorized to post as this profile in the active context.',
+        });
+      }
+      requestedProfileId = roleContext.commerceProfileId;
+    } else if (!requestedProfileId && roleContext?.commerceProfileId) {
+      requestedProfileId = roleContext.commerceProfileId;
+    }
     let commerceProfileId: number | null = null;
-    if (dto.commerceProfileId) {
+    if (requestedProfileId) {
       const isCommerceIntent =
         intent === MomentIntent.OFFER || intent === MomentIntent.SELL_AVAILABLE;
       const authorized = await this.profileScope.isAuthorizedFor(
         sellerId,
-        dto.commerceProfileId,
+        requestedProfileId,
         isCommerceIntent ? 'canManageProducts' : undefined,
       );
       if (!authorized) {
@@ -154,7 +180,7 @@ export class FeedService {
             : 'You are not authorized to post as this profile',
         );
       }
-      commerceProfileId = dto.commerceProfileId;
+      commerceProfileId = requestedProfileId;
     }
 
     const item = await this.feedRepo.save(
@@ -437,13 +463,15 @@ export class FeedService {
         linkedEntityId: m.linkedEntityId,
         business: {
           id: m.business?.id,
-          commerceProfileId: profile?.id || null,
-          name: profile?.displayName || m.business?.name,
-          storeName: profile?.displayName || m.business?.storeName,
-          logo: profile?.photoUrl || m.business?.logo,
+          name: m.business?.name,
+          storeName: m.business?.storeName,
+          logo: m.business?.logo,
           businessLocation: (m.business as any)?.businessLocation,
-          isVerified: profile?.isVerified ?? (m.business as any)?.isVerified,
+          isVerified: (m.business as any)?.isVerified,
           isFollowing: m.business ? followedIds.has(m.business.id) : false,
+          // I2B: canonical actor -- exact stamped profile only; unresolved
+          // rows are explicitly flagged, never guessed from the owner.
+          ...momentActorFields(profile, m.business?.logo ?? null),
         },
       };
     });
