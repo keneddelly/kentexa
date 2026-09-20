@@ -74,12 +74,41 @@ describe('I2B — Moment publish derives the actor from the server-resolved cont
     expect(saved).toHaveLength(0);
   });
 
-  it('A. Personal context stamps the personal profile; an explicit client id still needs authorization', async () => {
-    const { svc, saved, scope } = build();
-    await svc.publish(1, dto, { identityType: 'PERSONAL', commerceProfileId: 1 } as any);
+  const personalCtx = (commerceProfileId: number | null) => ({ identityType: 'PERSONAL', commerceProfileId }) as any;
+
+  it('A. Personal context stamps the exact personal profile', async () => {
+    const { svc, saved } = build();
+    await svc.publish(1, dto, personalCtx(1));
     expect(saved[0].commerceProfileId).toBe(1);
-    expect(scope.isAuthorizedFor).toHaveBeenCalledWith(1, 1, undefined);
-    const denied = build(false);
-    await expect(denied.svc.publish(1, { ...dto, commerceProfileId: 5 }, { identityType: 'PERSONAL', commerceProfileId: 1 } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    await svc.publish(1, { ...dto, commerceProfileId: 1 }, personalCtx(1));
+    expect(saved[1].commerceProfileId).toBe(1);
+  });
+
+  it('C. Bob Personal cannot publish as Washing Machine TZ or Bob Electronics even though the account is authorized to manage them', async () => {
+    const { svc, saved, scope } = build(true); // profileScope authorizes EVERY profile Bob manages
+    for (const businessProfileId of [2, 3]) {
+      await expect(svc.publish(1, { ...dto, commerceProfileId: businessProfileId }, personalCtx(1)))
+        .rejects.toMatchObject({ response: { code: 'ACTOR_IDENTITY_MISMATCH' } });
+    }
+    expect(saved).toHaveLength(0);
+    expect(scope.isAuthorizedFor).not.toHaveBeenCalled();
+  });
+
+  it('E. an unresolved Personal actor fails explicitly and cannot be client-overridden', async () => {
+    const { svc, saved } = build(true);
+    await expect(svc.publish(1, dto, personalCtx(null)))
+      .rejects.toMatchObject({ response: { code: 'ACTOR_IDENTITY_UNRESOLVED' } });
+    await expect(svc.publish(1, { ...dto, commerceProfileId: 2 }, personalCtx(null)))
+      .rejects.toMatchObject({ response: { code: 'ACTOR_IDENTITY_UNRESOLVED' } });
+    expect(saved).toHaveLength(0);
+  });
+
+  it('a Business context still cannot be client-overridden to Personal or another Business', async () => {
+    const { svc, saved } = build(true);
+    for (const other of [1, 3]) {
+      await expect(svc.publish(1, { ...dto, commerceProfileId: other }, bizCtx(2)))
+        .rejects.toMatchObject({ response: { code: 'ACTOR_IDENTITY_MISMATCH' } });
+    }
+    expect(saved).toHaveLength(0);
   });
 });

@@ -141,17 +141,19 @@ export class FeedService {
     // team member) — posting "we're open today" or "looking for a
     // supplier" was never a commerce-management action and shouldn't
     // need that specific permission, or the SELL capability, to say so.
-    // I2B: in an organizational (BUSINESS) context the actor is the exact
-    // Business CommerceProfile the server resolved for that context. A
-    // client id that disagrees is rejected, and an unresolved Business
-    // identity fails explicitly rather than saving an ownerless/Personal-
-    // looking Moment. Personal contexts keep the existing behavior.
+    // I2B: for ANY resolved RoleContext (Personal or Business) the server-
+    // resolved canonical actor is authoritative. A client commerceProfileId
+    // that disagrees is rejected (never authorized merely because the account
+    // manages that profile), and a context whose canonical public actor is
+    // unresolved fails explicitly rather than accepting a client-selected
+    // identity or saving an ambiguous Moment. Without a RoleContext (legacy
+    // internal callers only) the previous client-supplied behavior remains.
     let requestedProfileId: number | null = dto.commerceProfileId ?? null;
-    if (roleContext?.identityType === 'BUSINESS') {
+    if (roleContext?.identityType) {
       if (!roleContext.commerceProfileId) {
         throw new ConflictException({
           code: 'ACTOR_IDENTITY_UNRESOLVED',
-          message: 'This Business has no single public profile to post as yet.',
+          message: 'Your active identity has no single public profile to post as yet.',
         });
       }
       if (requestedProfileId && requestedProfileId !== roleContext.commerceProfileId) {
@@ -160,8 +162,6 @@ export class FeedService {
           message: 'You are not authorized to post as this profile in the active context.',
         });
       }
-      requestedProfileId = roleContext.commerceProfileId;
-    } else if (!requestedProfileId && roleContext?.commerceProfileId) {
       requestedProfileId = roleContext.commerceProfileId;
     }
     let commerceProfileId: number | null = null;
