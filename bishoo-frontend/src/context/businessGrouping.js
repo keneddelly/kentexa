@@ -63,15 +63,23 @@ export const groupProfilesForSwitcher = (roleOptions = []) => {
 };
 
 /**
- * Finds the businessName for the CURRENTLY active context, by matching
- * activeContext.accountRoleId against the server-issued roleOptions list
- * (which carries businessName; the single activeContext object returned
- * by /auth/me and /auth/switch-role does not). Returns null when the
- * active role isn't organizationally bound (Personal, or an unbound
- * operational role) -- a legitimate state, not a loading gap.
+ * Finds the businessName for the CURRENTLY active context. I2A: /auth/me
+ * and /auth/switch-role's activeContext now carries identityType/
+ * businessId/displayName/photoUrl directly (RoleContextService.
+ * resolveIdentity()), so this reads it straight from activeContext first --
+ * displayName IS the businessName for a BUSINESS identity, resolved
+ * server-side from the exact Business the organizational chain points at.
+ * The roleOptions lookup (matching activeContext.accountRoleId against the
+ * server-issued list) stays only as a defensive fallback for an
+ * activeContext that predates this field (an older cached session).
+ * Returns null when the active role isn't organizationally bound (Personal,
+ * or an unbound operational role) -- a legitimate state, not a loading gap.
  */
 export const activeBusinessNameFor = (activeContext, roleOptions = []) => {
   if (!activeContext?.accountRoleId) return null;
+  if (activeContext.identityType === 'BUSINESS' && activeContext.displayName) {
+    return activeContext.displayName;
+  }
   const match = roleOptions.find((p) => Number(p.accountRoleId) === Number(activeContext.accountRoleId));
   return match?.businessName || null;
 };

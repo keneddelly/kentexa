@@ -19,6 +19,7 @@ import { Agent } from '../agents/entities/agent.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { User } from '../users/entities/user.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 
 /**
  * Business Capability Activation Stage B4.5 (mission §15 test matrix). Real
@@ -36,6 +37,10 @@ describe('Capability-aware role availability (Stage B4.5), real disposable-DB', 
     Business, OperationalWorkspace, BusinessMembership, WorkspaceAssignment,
     BusinessCapability, AccountRole, ActiveRoleSession, SellerProfile,
     Agent, SuperAgent, TransportProvider, User,
+    // I2A: resolveContext()/listRoles() now also resolve canonical identity
+    // (resolveIdentity()), which reaches CommerceProfile via
+    // manager.getRepository(...).
+    CommerceProfile,
   ];
 
   let reachable = false;

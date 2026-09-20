@@ -38,8 +38,17 @@ export const presentationForRole = (role, profiles = [], user = null) => {
     status: role.status,
     type: meta.type,
     icon: meta.icon,
-    displayName: presentation?.displayName || user?.name || role.roleType,
-    photoUrl: presentation?.photoUrl || user?.avatarUrl || null,
+    // I2A: role.displayName/photoUrl are the CANONICAL acting identity,
+    // resolved server-side by RoleContextService.resolveIdentity() -- for an
+    // organizational role this is the exact Business's own name/logo, never
+    // user.name (that was the root cause of an organizational Seller for
+    // "Washing Machine TZ" rendering "Bob"). presentation?.displayName/
+    // user?.name stay only as a defensive fallback for a role object that
+    // predates this field (an older cached /auth/roles response, or a hand-
+    // built test fixture) -- never consulted when the server already sent
+    // an answer.
+    displayName: role.displayName ?? presentation?.displayName ?? user?.name ?? role.roleType,
+    photoUrl: role.photoUrl ?? presentation?.photoUrl ?? user?.avatarUrl ?? null,
     presentationResolved: !!presentation,
     // Multi-Business Authority — Business-First Frontend Stage 1. Passed
     // through verbatim from the server's own /auth/roles /auth/switch-role
@@ -50,6 +59,10 @@ export const presentationForRole = (role, profiles = [], user = null) => {
     businessId: role.businessId ?? null,
     businessName: role.businessName ?? null,
     workspaceId: role.workspaceId ?? null,
+    // I2A: same "server already resolved it, never guess here" discipline
+    // as businessId/businessName above.
+    identityType: role.identityType ?? null,
+    commerceProfileId: role.commerceProfileId ?? null,
   };
 };
 

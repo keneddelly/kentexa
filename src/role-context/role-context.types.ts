@@ -13,6 +13,15 @@ export interface RoleJwtPayload {
   exp?: number;
 }
 
+// I2A: WHO is acting, as opposed to WHAT authority is active (roleType/
+// capabilities above answer the latter). A PERSONAL identity is the User
+// themself (buyer, or any legacy/not-yet-organizationally-bound operational
+// role); a BUSINESS identity is the exact Business the resolved
+// organizational chain points at. Switching capability within the SAME
+// Business (Seller -> Service -> Transport) must never change identityType/
+// businessId/displayName -- only roleType/capabilities change.
+export type IdentityType = 'PERSONAL' | 'BUSINESS';
+
 export interface RoleContext {
   userId: number;
   accountRoleId: number;
@@ -33,6 +42,17 @@ export interface RoleContext {
   // RoleContextService.resolveOrganizationalContext().
   businessId?: number | null;
   workspaceId?: number | null;
+  // I2A: canonical acting identity, resolved server-side by
+  // RoleContextService.resolveIdentity() -- see its own doc comment for the
+  // exact rules (never user.name for an organizational context, never an
+  // ownerId/first-Business guess for commerceProfileId). Optional only so
+  // existing hand-built RoleContext test fixtures that predate this stage
+  // keep compiling unchanged; every real resolution path (toContext(),
+  // listRoles()) always populates all four.
+  identityType?: IdentityType;
+  commerceProfileId?: number | null;
+  displayName?: string;
+  photoUrl?: string | null;
 }
 
 export interface RequestMetadata {

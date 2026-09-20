@@ -44,6 +44,12 @@ const CAPABILITY_LABEL_BY_ROLE = {
   seller: 'business_home.tile_commerce',
   transport_provider: 'business_home.tile_transport',
   super_agent: 'business_home.tile_super_agent',
+  // I2A: was missing entirely, so an organizationally-bound Service
+  // Provider role fell through to the generic 'profile_switcher.type_business'
+  // label instead of "Washing Machine TZ · Services" -- matches
+  // businessGrouping.js's own CAPABILITY_LABEL_BY_ROLE, which already had
+  // this entry for the profile-switcher sheet.
+  service_provider: 'profile_switcher.type_service',
 };
 
 const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostClick,

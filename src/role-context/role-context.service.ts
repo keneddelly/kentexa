@@ -9,6 +9,7 @@ import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { ServiceProvider } from '../service-providers/entities/service-provider.entity';
 import { WorkspaceAssignment } from '../business/entities/workspace-assignment.entity';
+import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import {
   AccountRole,
   AccountRoleStatus,
@@ -19,7 +20,7 @@ import { ActiveRoleSession } from './entities/active-role-session.entity';
 import { ROLE_CAPABILITY_REGISTRY } from './capabilities';
 import { ORGANIZATIONAL_CAPABILITY_BY_ROLE } from './organizational-capability';
 import { RoleContextErrorCode, RoleContextException } from './role-context.exception';
-import { RequestMetadata, RoleContext, RoleJwtPayload } from './role-context.types';
+import { IdentityType, RequestMetadata, RoleContext, RoleJwtPayload } from './role-context.types';
 import { RoleSessionEventsService } from './role-session-events.service';
 
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -69,6 +70,7 @@ export class RoleContextService {
         businessId: null,
         workspaceId: null,
         businessName: null,
+        businessLogo: null,
       }));
       // Business Capability Activation Stage B4.5: switchable/reason come
       // from the SAME canonical evaluator every other caller uses (login
@@ -80,6 +82,22 @@ export class RoleContextService {
       // here, just switchable:false with a reason distinguishing it from
       // the AccountRole itself being suspended.
       const availability = await this.evaluateAccountRoleAvailability(role);
+      // I2A: same resolveIdentity() every other consumer (toContext) uses --
+      // a switcher row and the activeContext produced by actually switching
+      // into it must never disagree on identityType/displayName/photoUrl/
+      // commerceProfileId. Best-effort per row, matching this method's own
+      // existing convention for `organizational` above: a broken chain
+      // still returns Personal-shaped identity here (switchable:false
+      // already communicates it's not usable); resolveContext() remains the
+      // one place a broken chain fails closed for real.
+      const identity = await this.resolveIdentity(userId, organizational).catch(() => ({
+        identityType: 'PERSONAL' as IdentityType,
+        businessId: null,
+        workspaceId: null,
+        commerceProfileId: null,
+        displayName: 'User',
+        photoUrl: null,
+      }));
       return {
         accountRoleId: role.id,
         roleType: role.roleType,
@@ -92,6 +110,10 @@ export class RoleContextService {
         businessId: organizational.businessId,
         workspaceId: organizational.workspaceId,
         businessName: organizational.businessName,
+        identityType: identity.identityType,
+        commerceProfileId: identity.commerceProfileId,
+        displayName: identity.displayName,
+        photoUrl: identity.photoUrl,
       };
     }));
   }
@@ -161,9 +183,10 @@ export class RoleContextService {
     }
     if (!(await this.isProfileValid(role))) throw new RoleContextException('ROLE_PROFILE_INVALID');
     const organizational = await this.resolveOrganizationalContext(role);
+    const identity = await this.resolveIdentity(role.userId, organizational);
 
     await this.sessionRepo.update(session.id, { lastSeenAt: new Date() });
-    return this.toContext(session, role, organizational);
+    return this.toContext(session, role, organizational, identity);
   }
 
   /**
@@ -202,8 +225,10 @@ export class RoleContextService {
    */
   private async resolveOrganizationalContext(
     role: AccountRole,
-  ): Promise<{ businessId: number | null; workspaceId: number | null; businessName: string | null }> {
-    if (role.workspaceAssignmentId == null) return { businessId: null, workspaceId: null, businessName: null };
+  ): Promise<{ businessId: number | null; workspaceId: number | null; businessName: string | null; businessLogo: string | null }> {
+    if (role.workspaceAssignmentId == null) {
+      return { businessId: null, workspaceId: null, businessName: null, businessLogo: null };
+    }
 
     const requiredCapability = ORGANIZATIONAL_CAPABILITY_BY_ROLE[role.roleType] ?? null;
 
@@ -211,6 +236,7 @@ export class RoleContextService {
       `
       SELECT b.id AS "businessId", w.id AS "workspaceId",
              COALESCE(b."tradingName", b."legalName") AS "businessName",
+             b.logo AS "businessLogo",
              CASE
                WHEN $2::text IS NULL THEN true
                ELSE EXISTS (
@@ -234,7 +260,87 @@ export class RoleContextService {
 
     if (!rows.length) throw new RoleContextException('ROLE_CONTEXT_ORGANIZATIONAL_REVOKED');
     if (!rows[0].capabilityActive) throw new RoleContextException('ROLE_CONTEXT_CAPABILITY_INACTIVE');
-    return { businessId: rows[0].businessId, workspaceId: rows[0].workspaceId, businessName: rows[0].businessName };
+    return {
+      businessId: rows[0].businessId,
+      workspaceId: rows[0].workspaceId,
+      businessName: rows[0].businessName,
+      businessLogo: rows[0].businessLogo,
+    };
+  }
+
+  /**
+   * I2A. THE canonical resolver for "who is acting" -- deliberately separate
+   * from resolveOrganizationalContext (which only answers "what authority
+   * chain backs this role"). Two rules, matching the mission's canonical
+   * model exactly:
+   *
+   *  - ORGANIZATIONAL (organizational.businessId != null): identity is the
+   *    exact Business the already-validated chain resolved -- displayName/
+   *    photoUrl come from Business's own fields (tradingName/legalName/logo,
+   *    resolved alongside the chain itself, so there is no separate lookup
+   *    that could disagree with it), never from User.name/avatarUrl. This is
+   *    the exact bug this stage fixes: an organizational Seller for
+   *    "Washing Machine TZ" must never render "Bob."
+   *
+   *  - PERSONAL (organizational.businessId == null -- Buyer, or any legacy/
+   *    not-yet-organizationally-bound Seller/Transport Provider/Super Agent/
+   *    Service Provider role): identity is the User themself. Never infers a
+   *    Business here merely because the user happens to own one elsewhere --
+   *    a legacy-unbound Seller stays Personal, exactly as the mission
+   *    requires (Bob's legacy Seller role must never be attached to Washing
+   *    Machine TZ by this or any other resolver).
+   *
+   * commerceProfileId is populated only when it can be resolved WITHOUT
+   * guessing: exactly one CommerceProfile row matches the exact identity key
+   * (businessId for organizational, ownerId+PERSONAL for personal). Zero or
+   * more than one match leaves it null rather than picking arbitrarily --
+   * this is deliberately stricter than the ownerId/"first Business"/
+   * findForUserByType(BUSINESS) shortcuts used elsewhere in the codebase,
+   * which this stage's own audit (I2) found to be the source of several
+   * identity-collapse bugs. No migration adds a uniqueness constraint here;
+   * this resolver simply refuses to guess when the data doesn't already
+   * make the answer unambiguous.
+   */
+  private async resolveIdentity(
+    userId: number,
+    organizational: { businessId: number | null; workspaceId: number | null; businessName: string | null; businessLogo: string | null },
+  ): Promise<{ identityType: IdentityType; businessId: number | null; workspaceId: number | null; commerceProfileId: number | null; displayName: string; photoUrl: string | null }> {
+    if (organizational.businessId != null) {
+      const commerceProfileId = await this.resolveBusinessCommerceProfileId(organizational.businessId);
+      return {
+        identityType: 'BUSINESS',
+        businessId: organizational.businessId,
+        workspaceId: organizational.workspaceId,
+        commerceProfileId,
+        displayName: organizational.businessName ?? `Business #${organizational.businessId}`,
+        photoUrl: organizational.businessLogo ?? null,
+      };
+    }
+
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const commerceProfileId = await this.resolvePersonalCommerceProfileId(userId);
+    return {
+      identityType: 'PERSONAL',
+      businessId: null,
+      workspaceId: null,
+      commerceProfileId,
+      displayName: user?.name ?? 'User',
+      photoUrl: user?.avatarUrl ?? null,
+    };
+  }
+
+  private async resolveBusinessCommerceProfileId(businessId: number): Promise<number | null> {
+    const rows = await this.workspaceAssignmentRepo.manager
+      .getRepository(CommerceProfile)
+      .find({ where: { businessId }, select: { id: true } });
+    return rows.length === 1 ? rows[0].id : null;
+  }
+
+  private async resolvePersonalCommerceProfileId(userId: number): Promise<number | null> {
+    const rows = await this.workspaceAssignmentRepo.manager
+      .getRepository(CommerceProfile)
+      .find({ where: { ownerId: userId, type: CommerceProfileType.PERSONAL }, select: { id: true } });
+    return rows.length === 1 ? rows[0].id : null;
   }
 
   /**
@@ -517,6 +623,7 @@ export class RoleContextService {
     session: ActiveRoleSession,
     role: AccountRole,
     organizational: { businessId: number | null; workspaceId: number | null } = { businessId: null, workspaceId: null },
+    identity?: { identityType: IdentityType; commerceProfileId: number | null; displayName: string; photoUrl: string | null },
   ): RoleContext {
     return {
       userId: role.userId, accountRoleId: role.id, roleType: role.roleType,
@@ -524,6 +631,15 @@ export class RoleContextService {
       capabilities: this.effectiveCapabilities(role), sessionId: session.id,
       contextVersion: role.contextVersion,
       businessId: organizational.businessId, workspaceId: organizational.workspaceId,
+      // I2A: only the real resolveContext() call site passes `identity` --
+      // it is the sole caller that has already validated the organizational
+      // chain (or confirmed this role is legitimately Personal) before
+      // reaching here. These fields stay undefined rather than guessed for
+      // any other/future caller that doesn't supply identity.
+      identityType: identity?.identityType,
+      commerceProfileId: identity?.commerceProfileId,
+      displayName: identity?.displayName,
+      photoUrl: identity?.photoUrl,
     };
   }
 

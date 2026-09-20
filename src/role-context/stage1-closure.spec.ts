@@ -170,7 +170,12 @@ describe('Stage 1 closure — multi-role authorization matrix', () => {
         update: jest.fn(),
       };
       const userRepo: any = { findOne: jest.fn().mockResolvedValue({ id: 1 }) };
-      const service = new RoleContextService(userRepo, roleRepo, sessionRepo, {} as any, {} as any, {} as any, {} as any, {} as any, {} as any);
+      // I2A: this test's role resolves fully (unlike the others in this
+      // describe block, which all fail closed before reaching identity
+      // resolution) -- resolveIdentity()'s PERSONAL-branch commerceProfileId
+      // lookup needs a working manager.getRepository(...).
+      const workspaceAssignmentRepo: any = { manager: { getRepository: jest.fn().mockReturnValue({ find: jest.fn().mockResolvedValue([]) }) } };
+      const service = new RoleContextService(userRepo, roleRepo, sessionRepo, {} as any, {} as any, {} as any, {} as any, workspaceAssignmentRepo, {} as any);
       // rt claims ADMIN; DB says this session's role is actually BUYER.
       const context = await service.resolveContext({ sub: 1, sid: 's1', rid: 10, rt: AccountRoleType.ADMIN, cv: 1 });
       expect(context.roleType).toBe(AccountRoleType.BUYER);

@@ -14,6 +14,7 @@ import { TransportProvider } from '../transport/entities/transport-provider.enti
 import { AccountRole, AccountRoleStatus, AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
 import { ActiveRoleSession } from '../role-context/entities/active-role-session.entity';
 import { User } from '../users/entities/user.entity';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { RoleContextService } from '../role-context/role-context.service';
 import { RoleSessionEventsService } from '../role-context/role-session-events.service';
 import { RoleContextException } from '../role-context/role-context.exception';
@@ -35,6 +36,11 @@ describe('BusinessCapabilityLifecycleService — suspend/reactivate (Stage B4), 
     Business, OperationalWorkspace, BusinessMembership, WorkspaceAssignment,
     BusinessCapability, AccountRole, ActiveRoleSession, SellerProfile,
     Agent, SuperAgent, TransportProvider, User,
+    // I2A: RoleContextService.resolveContext() now also resolves canonical
+    // identity (resolveIdentity()), which reaches CommerceProfile via
+    // manager.getRepository(...) -- needed for this file's resolveContext()
+    // calls to keep working against this test's own disposable schema.
+    CommerceProfile,
   ];
 
   let reachable = false;

@@ -16,9 +16,20 @@ describe('RoleContextService', () => {
       update: jest.fn(),
     };
     const profileRepo: any = { findOne: jest.fn() };
-    const workspaceAssignmentRepo: any = { manager: { query: jest.fn().mockResolvedValue([]) } };
+    // I2A: resolveIdentity()'s commerceProfileId resolution reaches CommerceProfile
+    // via manager.getRepository(...), the same "no new constructor dependency"
+    // technique this file's own ServiceProvider resolution already relies on --
+    // every resolveContext()/listRoles() test below now exercises this path, so
+    // it needs a working (empty-by-default -- no safely-resolvable profile) mock.
+    const commerceProfileRepo: any = { find: jest.fn().mockResolvedValue([]) };
+    const workspaceAssignmentRepo: any = {
+      manager: {
+        query: jest.fn().mockResolvedValue([]),
+        getRepository: jest.fn().mockReturnValue(commerceProfileRepo),
+      },
+    };
     const sessionEvents: any = { emitRevoked: jest.fn() };
-    return { userRepo, roleRepo, sessionRepo, profileRepo, workspaceAssignmentRepo, sessionEvents };
+    return { userRepo, roleRepo, sessionRepo, profileRepo, workspaceAssignmentRepo, commerceProfileRepo, sessionEvents };
   };
 
   it('resolves authority from sid/rid, not informational rt', async () => {
