@@ -14,6 +14,7 @@ import {
   PayoutDestinationStatus,
 } from './entities/payout-destination.entity';
 import type { RoleContext } from '../role-context/role-context.types';
+import { qRows } from '../money-routing/pg-rows';
 
 type OwnerCtx = Pick<RoleContext, 'identityType' | 'workspaceId' | 'userId'>;
 
@@ -109,7 +110,7 @@ export class PayoutDestinationService {
         `UPDATE payout_destination SET status = $2 WHERE "workspaceId" = $1 AND status = $3`,
         [dest.workspaceId, PayoutDestinationStatus.SUPERSEDED, PayoutDestinationStatus.ACTIVE],
       );
-      const done = await m.query(
+      const done = await qRows(m,
         `UPDATE payout_destination
             SET status = $2, "verifiedAt" = now(), "verifiedByUserId" = $3,
                 "coolingOffSeconds" = $4::int, "usableFrom" = now() + ($4::int * interval '1 second'),
@@ -124,7 +125,7 @@ export class PayoutDestinationService {
   async disable(ctx: OwnerCtx, id: number): Promise<PayoutDestination> {
     this.assertEnabled();
     const workspaceId = await this.assertBusinessOwner(ctx);
-    const rows = await this.dataSource.query(
+    const rows = await qRows(this.dataSource,
       `UPDATE payout_destination SET status = $3, "disabledAt" = now(), "disabledByUserId" = $4
         WHERE id = $1 AND "workspaceId" = $2 AND status IN ('pending_verification','active') RETURNING *`,
       [id, workspaceId, PayoutDestinationStatus.DISABLED, ctx.userId],
@@ -146,12 +147,13 @@ export class PayoutDestinationService {
   /** The destination a withdrawal may use right now; otherwise an explicit refusal (never a fallback). */
   async getUsableDestination(workspaceId: number): Promise<PayoutDestination> {
     const rows = await this.dataSource.query(
-      `SELECT * FROM payout_destination WHERE "workspaceId" = $1 AND status = 'active'`,
+      `SELECT *, ("usableFrom" <= now()) AS "isUsable" FROM payout_destination WHERE "workspaceId" = $1 AND status = 'active'`,
       [workspaceId],
     );
     const dest = rows[0];
     if (!dest) throw new ConflictException({ code: 'PAYOUT_DESTINATION_REQUIRED', message: 'PAYOUT_DESTINATION_REQUIRED' });
-    if (new Date(dest.usableFrom).getTime() > Date.now()) {
+    // Decided by the database clock (the same clock that stamped usableFrom), never the app clock.
+    if (!dest.isUsable) {
       throw new ConflictException({ code: 'PAYOUT_DESTINATION_COOLING_OFF', message: 'PAYOUT_DESTINATION_COOLING_OFF', usableFrom: dest.usableFrom });
     }
     return dest;

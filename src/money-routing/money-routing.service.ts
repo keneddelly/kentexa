@@ -16,6 +16,7 @@ import {
 import { WalletService } from '../wallet/wallet.service';
 import { WalletTransactionType } from '../wallet/entities/wallet-transaction.entity';
 import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
+import { qRows } from './pg-rows';
 
 export type MoneyRoutingSource =
   | 'ESCROW_RELEASE'
@@ -173,6 +174,17 @@ export class MoneyRoutingService {
           await this.markBlocked(m, e.id, MoneyRoutingBlockReason.SELLER_MISSING, { orderId: e.orderId });
           return { entryId: e.id, eventKey: e.eventKey, state: MoneyRoutingState.BLOCKED, blockReason: MoneyRoutingBlockReason.SELLER_MISSING };
         }
+        // A previously BLOCKED (UNRESOLVED) entry records no target: the freshly DERIVED one is adopted
+        // (an operator never supplies it). A entry that recorded a concrete target must still match.
+        if (e.targetType === MoneyRoutingTargetType.UNRESOLVED) {
+          await m.query(
+            `UPDATE money_routing_entry SET "targetType" = $2, "targetWorkspaceId" = $3, "targetUserId" = $4 WHERE id = $1`,
+            [e.id, target.targetType, target.workspaceId ?? null, target.userId ?? null],
+          );
+          e.targetType = target.targetType;
+          e.targetWorkspaceId = target.workspaceId ?? null;
+          e.targetUserId = target.userId ?? null;
+        }
         const sameTarget =
           e.targetType === target.targetType &&
           (e.targetWorkspaceId ?? null) === (target.workspaceId ?? null) &&
@@ -234,7 +246,7 @@ export class MoneyRoutingService {
 
   private async recordTransientFailure(entryId: number, err: any): Promise<RoutingOutcome> {
     const message = String(err?.message ?? err).slice(0, 500);
-    const rows = await this.dataSource.query(
+    const rows = await qRows(this.dataSource,
       `UPDATE money_routing_entry
           SET attempts = attempts + 1, "lastError" = $2,
               "nextAttemptAt" = now() + (LEAST(attempts + 1, 10)::int * $3::int * interval '1 second'),

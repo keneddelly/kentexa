@@ -23,6 +23,7 @@ import {
   resolveOrderRoutingTarget,
 } from '../money-routing/order-routing-target';
 import type { RoleContext } from '../role-context/role-context.types';
+import { qRows } from '../money-routing/pg-rows';
 
 /**
  * I2G wallet ownership. A wallet has EXACTLY ONE owner (DB CHECK):
@@ -117,7 +118,7 @@ export class WalletService {
     ledger: { type: WalletTransactionType; referenceType?: string | null; referenceId?: number | null; routingEntryId?: number | null; note?: string | null },
   ): Promise<{ transactionId: number; balanceAfter: number }> {
     if (!(amount > 0)) throw new BadRequestException('INVALID_AMOUNT');
-    const upd = await manager.query(
+    const upd = await qRows(manager, 
       `UPDATE wallet SET balance = balance + $2, "totalEarned" = "totalEarned" + $2, "updatedAt" = now()
         WHERE id = $1 RETURNING balance`,
       [walletId, amount],
@@ -220,7 +221,7 @@ export class WalletService {
     payoutDestinationId: number | null,
     snapshot: Record<string, unknown>,
   ): Promise<WalletTransaction> {
-    const upd = await m.query(
+    const upd = await qRows(m, 
       `UPDATE wallet SET balance = balance - $2, "pendingBalance" = "pendingBalance" + $2, "updatedAt" = now()
         WHERE id = $1 AND balance >= $2 RETURNING balance`,
       [walletId, amount],
@@ -253,13 +254,13 @@ export class WalletService {
       const tx = rows[0];
       if (!tx) throw new NotFoundException('Withdrawal request not found');
       if (tx.status !== WalletTransactionStatus.PENDING) throw new BadRequestException('Withdrawal already processed');
-      const upd = await m.query(
+      const upd = await qRows(m, 
         `UPDATE wallet SET "pendingBalance" = "pendingBalance" - $2, "totalWithdrawn" = "totalWithdrawn" + $2, "updatedAt" = now()
           WHERE id = $1 AND "pendingBalance" >= $2 RETURNING id`,
         [tx.walletId, tx.amount],
       );
       if (!upd[0]) throw new ConflictException({ code: 'WALLET_PENDING_MISMATCH', message: 'WALLET_PENDING_MISMATCH' });
-      const done = await m.query(
+      const done = await qRows(m, 
         `UPDATE wallet_transaction SET status = $2, type = $3 WHERE id = $1 RETURNING *`,
         [txId, WalletTransactionStatus.COMPLETED, WalletTransactionType.WITHDRAWAL_PAID],
       );
@@ -273,13 +274,13 @@ export class WalletService {
       const tx = rows[0];
       if (!tx) throw new NotFoundException('Withdrawal request not found');
       if (tx.status !== WalletTransactionStatus.PENDING) throw new BadRequestException('Withdrawal already processed');
-      const upd = await m.query(
+      const upd = await qRows(m, 
         `UPDATE wallet SET balance = balance + $2, "pendingBalance" = "pendingBalance" - $2, "updatedAt" = now()
           WHERE id = $1 AND "pendingBalance" >= $2 RETURNING id`,
         [tx.walletId, tx.amount],
       );
       if (!upd[0]) throw new ConflictException({ code: 'WALLET_PENDING_MISMATCH', message: 'WALLET_PENDING_MISMATCH' });
-      const done = await m.query(
+      const done = await qRows(m, 
         `UPDATE wallet_transaction SET status = $2, type = $3, note = $4 WHERE id = $1 RETURNING *`,
         [txId, WalletTransactionStatus.REJECTED, WalletTransactionType.WITHDRAWAL_REJECTED, reason || null],
       );

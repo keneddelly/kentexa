@@ -254,6 +254,8 @@ describe('I2F — Commerce actor & Business scope authority, real disposable-DB'
     } as any));
     const listingA = await mk(A.workspace.id, 'A listing');
     const legacyListing = await mk(null, 'legacy listing');
+    // I2G: remove() consults classified_invoice_request; provide the (empty) table in this minimal schema.
+    await ds.query('CREATE TABLE IF NOT EXISTS classified_invoice_request (id serial PRIMARY KEY, "classifiedId" integer)');
     const svc: any = Object.create(ClassifiedsService.prototype);
     svc.repo = repo(Classified);
     svc.findOne = (id: number) => repo(Classified).findOne({ where: { id }, relations: { seller: true } });
