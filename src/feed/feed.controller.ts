@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RoleContextGuard } from '../role-context/role-context.guard';
+import { resolveCommentActorProfileId } from './comment-actor';
 import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
 import { FeedService } from './feed.service';
 import { CvsService } from './cvs.service';
@@ -117,7 +118,7 @@ export class FeedController {
   }
 
   @Post(':id/comments')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   addComment(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
@@ -128,8 +129,10 @@ export class FeedController {
     @Body('rating') rating?: number,
     @Body('media') media?: { url: string; type: 'image' | 'video' }[],
     @Body('offlinePurchaseClaim') offlinePurchaseClaim?: boolean,
-    @Body('commerceProfileId') commerceProfileId?: number,
+    // IGNORED (I2F): the stored actor is the server RoleContext's, never client input.
+    @Body('commerceProfileId') _ignoredClientProfileId?: number,
   ) {
+    const commerceProfileId = resolveCommentActorProfileId(req.roleContext) ?? undefined;
     return this.cvs.addComment(
       req.user.id,
       id,

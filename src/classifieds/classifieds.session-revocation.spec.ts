@@ -34,7 +34,7 @@ describe('ClassifiedsController — session-revocation fail-closed behavior', ()
       findAll: jest.fn().mockResolvedValue(['public']),
       findOne: jest.fn().mockResolvedValue({ id: 9 }),
     };
-    const sellerScope: any = { resolve: jest.fn(resolveImpl) };
+    const sellerScope: any = { resolve: jest.fn(resolveImpl), resolveScope: jest.fn().mockResolvedValue({ legacySellerId: 2, workspaceId: null, mode: 'legacy' }) };
     const verification: any = { requireFeature: jest.fn().mockResolvedValue(undefined) };
     const noop: any = {};
     const controller = new ClassifiedsController(
@@ -42,6 +42,9 @@ describe('ClassifiedsController — session-revocation fail-closed behavior', ()
     );
     return { controller, service, sellerScope, verification };
   };
+
+  // The route is now RoleContextGuard-protected (I2F); the guard supplies the authoritative context.
+  const RC: any = { roleType: 'seller', userId: 2, accountRoleId: 1, workspaceId: null };
 
   const REVOCATION_CODES: RoleContextErrorCode[] = [
     'ROLE_CONTEXT_REVOKED',
@@ -62,10 +65,10 @@ describe('ClassifiedsController — session-revocation fail-closed behavior', ()
     name: string;
     call: (controller: any, req: any) => Promise<any>;
   }> = [
-    { name: 'GET user/mine', call: (c, req) => c.findMine(req) },
+    { name: 'GET user/mine', call: (c, req) => c.findMine(req, RC) },
     { name: 'GET invoices/seller-requests', call: (c, req) => c.getSellerInvoiceRequests(req) },
     { name: 'PATCH invoices/:requestId/shipping', call: (c, req) => c.setShipping(1, { shippingMethod: 'courier' }, req) },
-    { name: 'PATCH :id/sold', call: (c, req) => c.markAsSold(1, req) },
+    { name: 'PATCH :id/sold', call: (c, req) => c.markAsSold(1, req, RC) },
     { name: 'POST invoices/manual', call: (c, req) => c.createManualInvoice(req, { buyerName: 'x', buyerPhone: 'x', productName: 'x', amount: 1 }) },
     { name: 'POST invoices/:requestId/create', call: (c, req) => c.createInvoiceForRequest(1, req, { amount: 1, invoiceDescription: 'x' }) },
   ];
@@ -89,8 +92,8 @@ describe('ClassifiedsController — session-revocation fail-closed behavior', ()
     it('a valid, non-revoked resolution is used as-is (normal seller path)', async () => {
       const { controller, service } = buildController(() => Promise.resolve(2));
       const req = { user: { id: 2 } };
-      await controller.findMine(req);
-      expect(service.findMine).toHaveBeenCalledWith({ id: 2 }, undefined);
+      await controller.findMine(req, RC);
+      expect(service.findMine).toHaveBeenCalledWith({ id: 2 }, undefined, expect.objectContaining({ legacySellerId: 2, workspaceId: null }));
     });
   });
 

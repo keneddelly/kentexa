@@ -142,19 +142,22 @@ export class ProductsController {
 
   // ── Authenticated — MUST be before :id ─────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('my/products')
   async getMyProducts(
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
     @Query('commerceProfileId') commerceProfileId?: string,
   ) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canManageProducts',
     );
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.findMyProducts(
       { id: sellerId } as User,
       commerceProfileId ? Number(commerceProfileId) : undefined,
+      scope,
     );
   }
 
@@ -351,11 +354,13 @@ export class ProductsController {
       req.user,
       'canManageProducts',
     );
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.createVariant(
       id,
       dto,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 
@@ -373,11 +378,13 @@ export class ProductsController {
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.registerSerials(
       id,
       serialNumbers,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 
@@ -389,10 +396,12 @@ export class ProductsController {
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.getSerials(
       id,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 
@@ -405,11 +414,13 @@ export class ProductsController {
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.assignSerial(
       serialId,
       dto,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 
@@ -422,11 +433,13 @@ export class ProductsController {
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(req.user, 'canManageProducts');
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.reportSerial(
       serialId,
       status,
       { id: sellerId } as User,
       roleContext?.roleType === AccountRoleType.ADMIN,
+      scope,
     );
   }
 

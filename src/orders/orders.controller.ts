@@ -180,11 +180,12 @@ export class OrdersController {
   }
 
   // ── Seller: Upload shipping proof (direct shipping) ───────────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch(':id/shipping-proof')
   async uploadShippingProof(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
     @Body()
     body: {
       trackingNumber: string;
@@ -199,33 +200,37 @@ export class OrdersController {
       'canCreateOrders',
     );
     await this.verification.requireFeature(sellerId, Feature.CREATE_SHIPMENT);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.ordersService.uploadShippingProof(
       id,
       { id: sellerId } as User,
       body,
+      scope,
     );
   }
 
   // ── Seller: Mark as shipped ───────────────────────────────────────────────
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch(':id/ship')
-  async markShipped(@Param('id', ParseIntPipe) id: number, @Request() req) {
+  async markShipped(@Param('id', ParseIntPipe) id: number, @Request() req, @CurrentRoleContext() roleContext: RoleContext) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canCreateOrders',
     );
     await this.verification.requireFeature(sellerId, Feature.CREATE_SHIPMENT);
-    return this.ordersService.markShipped(id, { id: sellerId } as User);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.ordersService.markShipped(id, { id: sellerId } as User, scope);
   }
 
   // ── Seller: Hand parcel to Super Agent ────────────────────────────────────
   // Called when seller physically hands parcel to super agent
   // System records handover — super agent will scan and generate tracking
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch(':id/hand-to-agent')
   async sellerHandToSuperAgent(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
     @Body() body: { superAgentCity: string; notes?: string },
   ) {
     const sellerId = await this.sellerScope.resolve(
@@ -233,10 +238,12 @@ export class OrdersController {
       'canCreateOrders',
     );
     await this.verification.requireFeature(sellerId, Feature.CREATE_SHIPMENT);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.ordersService.sellerHandToSuperAgent(
       id,
       { id: sellerId } as User,
       body,
+      scope,
     );
   }
 
@@ -245,17 +252,19 @@ export class OrdersController {
   // Super Agent normally confirms COD collection through has nobody to do
   // it — this lets the seller mark it settled themselves. Rejects if a
   // Super Agent actually is assigned to this shipment (see service method).
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch(':id/collect-cod-balance')
   async sellerCollectCodBalance(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canCreateOrders',
     );
-    return this.ordersService.sellerCollectCodBalance(id, { id: sellerId } as User);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.ordersService.sellerCollectCodBalance(id, { id: sellerId } as User, scope);
   }
 
   // ── Super Agent: Look up order before receiving ───────────────────────────

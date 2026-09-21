@@ -15,7 +15,7 @@ test('1. canonical Business context sends its exact canonical profile (never the
     accountRoleId: 9, roleType: 'seller', userId: 1, profileId: 5, identityType: 'BUSINESS',
     displayName: 'Washing Machine TZ', businessId: 10, commerceProfileId: 2,
   }, legacyProfiles, bob);
-  expect(activeProfile.id).toBe(77); // the stale legacy match exists
+  expect(activeProfile.id).toBe(2); // I2F: the presentation id is the server's canonical id -- the stale legacy match (77) no longer surfaces
   const payload = buildProductMomentPayload(product, activeProfile);
   expect(payload.commerceProfileId).toBe(2);
   expect(payload).toMatchObject({ type: 'moment', title: product.name, linkedEntityType: 'product', linkedEntityId: 42, imageUrl: 'w.png' });
@@ -26,7 +26,7 @@ test('2. a legacy unbound Seller stays PERSONAL: the stale Business profile is n
     accountRoleId: 3, roleType: 'seller', userId: 1, profileId: 5, identityType: 'PERSONAL',
     displayName: 'Bob', businessId: null, commerceProfileId: 1,
   }, legacyProfiles, bob);
-  expect(activeProfile.id).toBe(77); // legacy business-type profile matched by sellerProfileId
+  expect(activeProfile.id).toBe(1); // I2F: canonical Personal id; the legacy business-type match (77) no longer surfaces
   const payload = buildProductMomentPayload(product, activeProfile);
   expect(payload.commerceProfileId).toBe(1); // canonical Personal profile
   expect(payload.commerceProfileId).not.toBe(77);

@@ -107,25 +107,46 @@ describe('ClassifiedsService — Business-First Stage 2A workspace ownership', (
       await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).resolves.toBeDefined();
     });
 
-    it('valid unresolved legacy caller (workspaceId=null) — retains existing legacy seller.id behavior', async () => {
+    it('valid unresolved legacy caller (workspaceId=null) — I2F: never becomes a Business, so a Business-stamped listing is denied', async () => {
       const { service, repo } = buildService({ CLASSIFIED_WORKSPACE_READ: true });
       repo.findOne.mockResolvedValue(buildListing(3));
+      const scope = { legacySellerId: 200, workspaceId: null, mode: 'legacy' as const };
+      await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('valid unresolved legacy caller on an UNSTAMPED listing — retains existing legacy seller.id behavior', async () => {
+      const { service, repo } = buildService({ CLASSIFIED_WORKSPACE_READ: true });
+      repo.findOne.mockResolvedValue(buildListing(null));
       const scope = { legacySellerId: 200, workspaceId: null, mode: 'legacy' as const };
       await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).resolves.toBeDefined();
     });
 
-    it('CLASSIFIED_WORKSPACE_READ off — byte-identical to pre-Stage-2A behavior even with a resolved scope present', async () => {
+    it('delegated legacy team member (legacySellerId != caller) — compatibility unchanged', async () => {
+      const { service, repo } = buildService({ CLASSIFIED_WORKSPACE_READ: true });
+      repo.findOne.mockResolvedValue(buildListing(3));
+      const scope = { legacySellerId: 200, workspaceId: null, mode: 'legacy' as const, delegated: true };
+      await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).resolves.toBeDefined();
+    });
+
+    it('CLASSIFIED_WORKSPACE_READ off — I2F: cross-Business denial (W2 caller / W3 resource) no longer depends on the rollout flag', async () => {
       const { service, repo } = buildService({ CLASSIFIED_WORKSPACE_READ: false });
       repo.findOne.mockResolvedValue(buildListing(3));
+      const scope = { legacySellerId: 200, workspaceId: 2, mode: 'workspace' as const };
+      await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('CLASSIFIED_WORKSPACE_READ off — with no resource stamp behavior is byte-identical to pre-Stage-2A', async () => {
+      const { service, repo } = buildService({ CLASSIFIED_WORKSPACE_READ: false });
+      repo.findOne.mockResolvedValue(buildListing(null));
       const scope = { legacySellerId: 200, workspaceId: 2, mode: 'workspace' as const };
       await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).resolves.toBeDefined();
     });
 
     it('independent from PRODUCT_WORKSPACE_READ — Classified enforces its own flag only', async () => {
       const { service, repo, ownershipFlags } = buildService({ CLASSIFIED_WORKSPACE_READ: true });
-      repo.findOne.mockResolvedValue(buildListing(3));
-      const scope = { legacySellerId: 200, workspaceId: 2, mode: 'workspace' as const };
-      await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).rejects.toThrow(ForbiddenException);
+      repo.findOne.mockResolvedValue(buildListing(null)); // unstamped: the ownership check (and its flag) is reached
+      const scope = { legacySellerId: 999, workspaceId: 2, mode: 'workspace' as const };
+      await expect(service.update(1, {} as any, { id: 999 } as any, false, scope)).rejects.toThrow(ForbiddenException);
       expect(ownershipFlags.isEnabled).toHaveBeenCalledWith('CLASSIFIED_WORKSPACE_READ');
       expect(ownershipFlags.isEnabled).not.toHaveBeenCalledWith('PRODUCT_WORKSPACE_READ');
     });

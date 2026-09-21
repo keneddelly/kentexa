@@ -36,7 +36,7 @@ import { validateAttributes } from '../categories/categories.data';
 import { SuperAgentsService } from '../super-agents/super-agents.service';
 import { CodCalculationService } from '../cod/cod-calculation.service';
 import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
-import { SellerScope } from '../business/seller-scope.service';
+import { SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
 
 @Injectable()
 export class ClassifiedsService {
@@ -252,11 +252,29 @@ export class ClassifiedsService {
   // keeps the old account-wide behavior for any caller that doesn't send
   // it yet (profile-architecture-audit-2026-08, closing the last
   // remaining item).
-  async findMine(user: User, commerceProfileId?: number) {
+  async findMine(user: User, commerceProfileId?: number, scope?: SellerScope) {
     const qb = this.repo
       .createQueryBuilder('c')
       .where('c."sellerId" = :sid', { sid: user.id })
       .orderBy('c.createdAt', 'DESC');
+    if (commerceProfileId) {
+      // I2F: the client id is only a filter; it must be the caller's own and, in a Business
+      // context, that exact Business's profile (never another Business of the same owner).
+      const requested = await this.commerceProfiles.findById(commerceProfileId).catch(() => null);
+      if (!requested || requested.ownerId !== user.id) {
+        throw new ForbiddenException({ code: 'ACTOR_IDENTITY_MISMATCH', message: 'ACTOR_IDENTITY_MISMATCH' });
+      }
+      if (scope && requested.businessId != null && (scope.workspaceId == null || requested.businessId !== scope.businessId)) {
+        throw new ForbiddenException({ code: 'BUSINESS_SCOPE_MISMATCH', message: 'BUSINESS_SCOPE_MISMATCH' });
+      }
+    }
+    if (scope) {
+      if (scope.workspaceId != null) {
+        qb.andWhere('(c."workspaceId" = :wsid OR c."workspaceId" IS NULL)', { wsid: scope.workspaceId });
+      } else {
+        qb.andWhere('c."workspaceId" IS NULL');
+      }
+    }
     if (commerceProfileId) {
       qb.andWhere(
         '(c."commerceProfileId" = :cpid OR c."commerceProfileId" IS NULL)',
@@ -415,6 +433,7 @@ export class ClassifiedsService {
     scope?: SellerScope,
   ) {
     const listing = await this.findOne(id);
+    if (!isActiveAdmin) assertResourceInBusinessScope(scope, listing.workspaceId);
     if (!isActiveAdmin && !this.isAuthorizedForClassifiedOwnership(listing, user.id, scope)) {
       throw new ForbiddenException('Not your listing');
     }
@@ -463,6 +482,7 @@ export class ClassifiedsService {
   // ─── Remove ───────────────────────────────────────────────────────────────
   async remove(id: number, user: User, isActiveAdmin = false, scope?: SellerScope) {
     const listing = await this.findOne(id);
+    if (!isActiveAdmin) assertResourceInBusinessScope(scope, listing.workspaceId);
     if (!isActiveAdmin && !this.isAuthorizedForClassifiedOwnership(listing, user.id, scope)) {
       throw new ForbiddenException('Not your listing');
     }
@@ -472,8 +492,9 @@ export class ClassifiedsService {
   }
 
   // ─── Mark as sold ─────────────────────────────────────────────────────────
-  async markAsSold(id: number, user: User) {
+  async markAsSold(id: number, user: User, scope?: SellerScope) {
     const listing = await this.findOne(id);
+    assertResourceInBusinessScope(scope, listing.workspaceId);
     if (listing.seller.id !== user.id) {
       throw new ForbiddenException('Not your listing');
     }

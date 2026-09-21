@@ -34,7 +34,7 @@ import { validateAttributes, validateVariantAttributes } from '../categories/cat
 import { ProductVariantGroup } from './entities/product-variant-group.entity';
 import { ProductSerial, ProductSerialStatus } from './entities/product-serial.entity';
 import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
-import { SellerScope } from '../business/seller-scope.service';
+import { SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
 
 @Injectable()
 export class ProductsService {
@@ -439,11 +439,31 @@ export class ProductsService {
   // products too, just only the ones under the active profile. Omitting
   // it keeps the old account-wide behavior for any caller that doesn't
   // send it yet (profile-architecture-audit-2026-08 Stage 6).
-  async findMyProducts(user: User, commerceProfileId?: number) {
+  async findMyProducts(user: User, commerceProfileId?: number, scope?: SellerScope) {
     const qb = this.repo
       .createQueryBuilder('p')
       .where('p."sellerId" = :sid', { sid: user.id })
       .orderBy('p.createdAt', 'DESC');
+    if (commerceProfileId) {
+      // I2F: a client-supplied profile id is only a FILTER and must belong to the caller and,
+      // in a Business context, to THAT Business -- never another Business of the same owner.
+      const requested = await this.commerceProfiles.findById(commerceProfileId).catch(() => null);
+      if (!requested || requested.ownerId !== user.id) {
+        throw new ForbiddenException({ code: 'ACTOR_IDENTITY_MISMATCH', message: 'ACTOR_IDENTITY_MISMATCH' });
+      }
+      if (scope && requested.businessId != null && (scope.workspaceId == null || requested.businessId !== scope.businessId)) {
+        throw new ForbiddenException({ code: 'BUSINESS_SCOPE_MISMATCH', message: 'BUSINESS_SCOPE_MISMATCH' });
+      }
+    }
+    if (scope) {
+      // Business context: this Business's stamped products plus unstamped legacy rows of the owner
+      // (cannot be partitioned without reconciliation). Legacy/Personal Seller: never Business-stamped rows.
+      if (scope.workspaceId != null) {
+        qb.andWhere('(p."workspaceId" = :wsid OR p."workspaceId" IS NULL)', { wsid: scope.workspaceId });
+      } else {
+        qb.andWhere('p."workspaceId" IS NULL');
+      }
+    }
     if (commerceProfileId) {
       qb.andWhere(
         '(p."commerceProfileId" = :cpid OR p."commerceProfileId" IS NULL)',
@@ -672,9 +692,11 @@ export class ProductsService {
     },
     user: User,
     isActiveAdmin = false,
+    scope?: SellerScope,
   ): Promise<Product> {
     const source = await this.findOne(sourceProductId);
     if (!isActiveAdmin) {
+      assertResourceInBusinessScope(scope, source.workspaceId);
       if (!source.seller || source.seller.id !== user.id) {
         throw new ForbiddenException('You can only add variants to your own products');
       }
@@ -799,6 +821,7 @@ export class ProductsService {
     const product = await this.findOne(id);
 
     if (!isActiveAdmin) {
+      assertResourceInBusinessScope(scope, product.workspaceId);
       if (!this.isAuthorizedForProductOwnership(product, user.id, scope)) {
         throw new ForbiddenException('You can only edit your own products');
       }
@@ -838,6 +861,7 @@ export class ProductsService {
       relations: { seller: true },
     });
     if (!product) throw new NotFoundException('Product not found');
+    if (!isActiveAdmin) assertResourceInBusinessScope(scope, product.workspaceId);
     if (!isActiveAdmin && !this.isAuthorizedForProductOwnership(product, user.id, scope)) {
       throw new ForbiddenException('You can only delete your own products');
     }
@@ -1087,9 +1111,11 @@ export class ProductsService {
     serialNumbers: string[],
     user: User,
     isActiveAdmin = false,
+    scope?: SellerScope,
   ): Promise<{ registered: string[]; duplicates: string[] }> {
     const product = await this.findOne(productId);
     if (!isActiveAdmin) {
+      assertResourceInBusinessScope(scope, product.workspaceId);
       if (!product.seller || product.seller.id !== user.id) {
         throw new ForbiddenException('You can only register serials for your own products');
       }
@@ -1141,9 +1167,11 @@ export class ProductsService {
     productId: number,
     user: User,
     isActiveAdmin = false,
+    scope?: SellerScope,
   ): Promise<ProductSerial[]> {
     const product = await this.findOne(productId);
     if (!isActiveAdmin) {
+      assertResourceInBusinessScope(scope, product.workspaceId);
       if (!product.seller || product.seller.id !== user.id) {
         throw new ForbiddenException('You can only view serials for your own products');
       }
@@ -1158,11 +1186,13 @@ export class ProductsService {
     serialId: number,
     user: User,
     isActiveAdmin = false,
+    scope?: SellerScope,
   ): Promise<ProductSerial> {
     const serial = await this.serialRepo.findOne({ where: { id: serialId } });
     if (!serial) throw new NotFoundException('Serial not found');
     const product = await this.findOne(serial.productId);
     if (!isActiveAdmin) {
+      assertResourceInBusinessScope(scope, product.workspaceId);
       if (!product.seller || product.seller.id !== user.id) {
         throw new ForbiddenException('You can only manage serials for your own products');
       }
@@ -1175,8 +1205,9 @@ export class ProductsService {
     dto: { orderId?: number; saleId?: number },
     user: User,
     isActiveAdmin = false,
+    scope?: SellerScope,
   ): Promise<ProductSerial> {
-    const serial = await this.loadOwnedSerial(serialId, user, isActiveAdmin);
+    const serial = await this.loadOwnedSerial(serialId, user, isActiveAdmin, scope);
     if (!dto.orderId && !dto.saleId) {
       throw new BadRequestException('orderId or saleId is required');
     }
@@ -1192,8 +1223,9 @@ export class ProductsService {
     status: ProductSerialStatus.REPORTED_LOST | ProductSerialStatus.REPORTED_STOLEN,
     user: User,
     isActiveAdmin = false,
+    scope?: SellerScope,
   ): Promise<ProductSerial> {
-    const serial = await this.loadOwnedSerial(serialId, user, isActiveAdmin);
+    const serial = await this.loadOwnedSerial(serialId, user, isActiveAdmin, scope);
     serial.status = status;
     return this.serialRepo.save(serial);
   }

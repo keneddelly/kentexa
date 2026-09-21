@@ -71,6 +71,8 @@ import {
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import { resolveCommentActorProfileId } from './comment-actor';
+import { assertResourceInBusinessScope, SellerScope } from '../business/seller-scope.service';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
 
@@ -134,6 +136,17 @@ export class EntityOwnerResolver {
   // default) instead of the ambiguous-bare-id fallback CommerceProfile.js
   // otherwise falls back to. null when nothing resolves — callers already
   // handle that the same way they handle no commerceProfileId at all today.
+  // I2F: the Business (workspace) a commented entity is stamped to, for cross-Business reply denial.
+  async workspaceOf(entityType: string, entityId: number): Promise<number | null> {
+    if (entityType === 'product') {
+      return (await this.productRepo.findOne({ where: { id: entityId } }))?.workspaceId ?? null;
+    }
+    if (entityType === 'classified') {
+      return (await this.classifiedRepo.findOne({ where: { id: entityId } }))?.workspaceId ?? null;
+    }
+    return null;
+  }
+
   async resolve(
     entityType: string,
     entityId: number,
@@ -156,6 +169,11 @@ export class EntityOwnerResolver {
         // Products are business-only by established convention (never
         // posted from a personal profile) — same resolution
         // ProductsService.findOne() already does for its own "sold by".
+        // I2F: the product's own stamped profile wins; the owner-level BUSINESS lookup is only the
+        // legacy fallback for rows that predate the stamp (display/notification only, never authority).
+        if ((p as any).commerceProfileId) {
+          return { ownerId: (p as any).seller.id, title: (p as any).name, commerceProfileId: (p as any).commerceProfileId };
+        }
         const profile = await this.commerceProfiles
           .findForUserByType((p as any).seller.id, CommerceProfileType.BUSINESS)
           .catch(() => null);
@@ -645,9 +663,10 @@ export class CommentsController {
   // type defaults to 'comment' — old callers that only send {body, entityType,
   // entityId, parentId} behave exactly as before.
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   async addComment(
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
     @Body()
     dto: {
       body: string;
@@ -659,9 +678,10 @@ export class CommentsController {
       media?: { url: string; type: 'image' | 'video' }[]; // NEW
       offlinePurchaseClaim?: boolean; // NEW
       offer?: { entityType: string; entityId: number }; // existing "I Have This" support
-      commerceProfileId?: number | null; // which profile the commenter was acting as
+      commerceProfileId?: number | null; // IGNORED (I2F): the actor comes from the server RoleContext
     },
   ) {
+    const actorProfileId = resolveCommentActorProfileId(roleContext);
     if (!dto.entityType || !dto.entityId) {
       throw new BadRequestException('entityType and entityId are required');
     }
@@ -733,7 +753,7 @@ export class CommentsController {
         entityType: dto.entityType,
         entityId: dto.entityId,
         authorId: req.user.id,
-        commerceProfileId: dto.commerceProfileId || null,
+        commerceProfileId: actorProfileId,
         body: dto.body?.trim() || null,
         parentId: dto.parentId || null,
         type, // NEW
@@ -767,7 +787,7 @@ export class CommentsController {
         dto.entityId,
         'comment',
         dto.body,
-        dto.commerceProfileId,
+        actorProfileId ?? undefined,
       ).catch(() => {});
     }
 
@@ -825,13 +845,16 @@ export class CommentsController {
   // ── Seller reply — NEW ────────────────────────────────────────────────────
   // POST /comments/:id/reply  { body }
   @Post(':id/reply')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   async reply(
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
     @Param('id') id: string,
     @Body('body') body: string,
-    @Body('commerceProfileId') commerceProfileId?: number | null,
+    // IGNORED (I2F): a client-supplied actor never chooses the stored/notified identity.
+    @Body('commerceProfileId') _ignoredClientProfileId?: number | null,
   ) {
+    const commerceProfileId = resolveCommentActorProfileId(roleContext);
     if (!body?.trim()) throw new BadRequestException('body is required');
     const parent = await this.commentRepo.findOne({
       where: { id: Number(id), isDeleted: false },
@@ -851,6 +874,13 @@ export class CommentsController {
         'Only the business/seller behind this listing can reply.',
       );
     }
+    // Same owner User.id never authorizes a cross-Business reply: the acting context's workspace
+    // must be the workspace the commented listing is stamped to (legacy/Personal contexts cannot
+    // reply for a Business-stamped listing).
+    assertResourceInBusinessScope(
+      { workspaceId: roleContext.workspaceId ?? null } as SellerScope,
+      await this.owners.workspaceOf(parent.entityType, parent.entityId),
+    );
 
     const reply = await this.commentRepo.save(
       this.commentRepo.create({

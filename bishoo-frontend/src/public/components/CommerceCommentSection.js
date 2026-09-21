@@ -335,8 +335,7 @@ const Composer = ({ entityType, entityId, isLoggedIn, currentUser, onNavigate, o
         rating: mode === 'review' ? rating : undefined,
         media: media.length ? media : undefined,
         offlinePurchaseClaim: mode === 'review' ? offlineClaim : undefined,
-        commerceProfileId: activeProfileId || undefined,
-      };
+      }; // I2F: no actor id -- the server resolves it from the authenticated context
       const res = await api.post('/comments', dto);
       onPosted(res.data);
       setBody(''); setRating(0); setMedia([]); setOfflineClaim(false); setMode('comment');
@@ -483,7 +482,6 @@ const CommerceCommentSection = ({
   const handleReply = async (parentId, body) => {
     const res = await api.post(`/comments/${parentId}/reply`, {
       body,
-      commerceProfileId: activeProfileId || undefined,
     });
     setItems(prev => prev.map(c => c.id === parentId
       ? { ...c, replies: [...(c.replies || []), res.data] }

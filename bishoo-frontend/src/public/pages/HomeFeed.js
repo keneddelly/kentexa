@@ -173,10 +173,10 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
     try {
       setSending(true);
       const payload = isRealPost
-        ? { body: body.trim(), parentId: replyTo?.id || undefined, commerceProfileId: activeProfileId || undefined }
+        // I2F: the server derives the acting identity from the authenticated context -- never sent.
+        ? { body: body.trim(), parentId: replyTo?.id || undefined }
         : { body: body.trim(), entityType: post.entityType,
-            entityId: post.entityId, parentId: replyTo?.id || undefined,
-            commerceProfileId: activeProfileId || undefined };
+            entityId: post.entityId, parentId: replyTo?.id || undefined };
       const res = await api.post(postCommentUrl, payload);
       const newComment = { ...res.data, replies: [] };
       if (replyTo) {
@@ -241,7 +241,6 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
       const res = await api.post(postCommentUrl, {
         body: `I have this — ${replyItem.title}`,
         offer: { entityType: replyItem.type, entityId: replyItem.id },
-        commerceProfileId: activeProfileId || undefined,
       });
       setComments(prev => [...prev, { ...res.data, replies: [] }]);
       setShowReply(false);
@@ -1330,7 +1329,6 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
       await api.post(`/feed/${moment.momentId}/comments`, {
         body: `I have this — ${replyItem.title}`,
         offer: { entityType: replyItem.type, entityId: replyItem.id },
-        commerceProfileId: activeProfileId || undefined,
       });
       setReplySent(true);
       setShowReply(false);

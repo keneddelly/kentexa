@@ -105,16 +105,37 @@ describe('ProductsService — Business-First Stage 2A workspace ownership', () =
       await expect(service.update(1, {} as any, { id: 999 } as any, false, scope)).rejects.toThrow(ForbiddenException);
     });
 
-    it('valid unresolved legacy caller (workspaceId=null) — retains existing legacy seller.id behavior', async () => {
+    it('valid unresolved legacy caller (workspaceId=null) — I2F: never becomes a Business, so a Business-stamped product is denied', async () => {
       const { service, repo } = buildService({ PRODUCT_WORKSPACE_READ: true });
-      repo.findOne.mockResolvedValue(buildProduct(3)); // resource happens to have a workspace, irrelevant for a legacy caller
+      repo.findOne.mockResolvedValue(buildProduct(3));
+      const scope = { legacySellerId: 200, workspaceId: null, mode: 'legacy' as const };
+      await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('valid unresolved legacy caller on an UNSTAMPED product — retains existing legacy seller.id behavior', async () => {
+      const { service, repo } = buildService({ PRODUCT_WORKSPACE_READ: true });
+      repo.findOne.mockResolvedValue(buildProduct(null));
       const scope = { legacySellerId: 200, workspaceId: null, mode: 'legacy' as const };
       await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).resolves.toBeDefined();
     });
 
-    it('PRODUCT_WORKSPACE_READ off — byte-identical to pre-Stage-2A behavior even with a resolved scope present', async () => {
+    it('delegated legacy team member (legacySellerId != caller) — compatibility unchanged', async () => {
+      const { service, repo } = buildService({ PRODUCT_WORKSPACE_READ: true });
+      repo.findOne.mockResolvedValue(buildProduct(3));
+      const scope = { legacySellerId: 200, workspaceId: null, mode: 'legacy' as const, delegated: true };
+      await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).resolves.toBeDefined();
+    });
+
+    it('PRODUCT_WORKSPACE_READ off — I2F: cross-Business denial (W2 caller / W3 resource) no longer depends on the rollout flag', async () => {
       const { service, repo } = buildService({ PRODUCT_WORKSPACE_READ: false });
-      repo.findOne.mockResolvedValue(buildProduct(3)); // mismatched workspace, would deny if the flag were on
+      repo.findOne.mockResolvedValue(buildProduct(3));
+      const scope = { legacySellerId: 200, workspaceId: 2, mode: 'workspace' as const };
+      await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('PRODUCT_WORKSPACE_READ off — with no resource stamp mismatch behavior is byte-identical to pre-Stage-2A', async () => {
+      const { service, repo } = buildService({ PRODUCT_WORKSPACE_READ: false });
+      repo.findOne.mockResolvedValue(buildProduct(null));
       const scope = { legacySellerId: 200, workspaceId: 2, mode: 'workspace' as const };
       await expect(service.update(1, {} as any, { id: 200 } as any, false, scope)).resolves.toBeDefined();
     });

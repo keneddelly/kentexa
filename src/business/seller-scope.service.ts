@@ -57,6 +57,40 @@ export interface SellerScope {
   // -- callers must treat null as "no safe disambiguator", never guess.
   profileType?: string | null;
   profileId?: number | null;
+  // I2F. The canonical acting CommerceProfile from the authenticated RoleContext (never client input).
+  commerceProfileId?: number | null;
+  identityType?: 'PERSONAL' | 'BUSINESS' | null;
+  // I2F. true when legacySellerId is NOT the authenticated user (a legacy BusinessTeamMember
+  // acting for an employer). Such a caller is a compatibility delegation, not a legacy Seller
+  // acting as a Personal identity, and keeps the pre-I2F owner-user check.
+  delegated?: boolean;
+}
+
+/**
+ * I2F Business-scope invariant: ACTIVE BUSINESS = AUTHORIZED BUSINESS = RESOURCE BUSINESS.
+ * Same User.id ownership never authorizes cross-Business access. A resource stamped with a
+ * workspace (Product/Classified carry `workspaceId`; an Order inherits it from its Product)
+ * may only be touched by the context of THAT workspace:
+ *   - Business context, resource in another workspace  -> denied
+ *   - legacy/unbound Seller (PERSONAL), Business-stamped resource -> denied (a legacy Seller
+ *     never silently becomes a Business); a delegated legacy team member is unchanged
+ *   - resource with no workspace stamp (predates Business-First) -> unchanged owner-user
+ *     compatibility check by the caller (documented debt: cannot be partitioned without data
+ *     reconciliation)
+ * No scope (an unmigrated caller) is a no-op so legacy callers keep today's behavior.
+ */
+export function assertResourceInBusinessScope(
+  scope: SellerScope | undefined | null,
+  resourceWorkspaceId: number | null | undefined,
+): void {
+  if (!scope || resourceWorkspaceId == null) return;
+  if (scope.workspaceId == null && scope.delegated) return;
+  if (scope.workspaceId == null || scope.workspaceId !== resourceWorkspaceId) {
+    throw new ForbiddenException({
+      code: 'BUSINESS_SCOPE_MISMATCH',
+      message: 'BUSINESS_SCOPE_MISMATCH',
+    });
+  }
 }
 
 @Injectable()
@@ -153,6 +187,9 @@ export class SellerScopeService {
       mode: workspaceId != null ? 'workspace' : 'legacy',
       profileType: resolved.profileType ?? null,
       profileId: resolved.profileId ?? null,
+      commerceProfileId: resolved.commerceProfileId ?? null,
+      identityType: resolved.identityType ?? null,
+      delegated: legacySellerId !== user.id,
     };
   }
 

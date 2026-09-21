@@ -94,7 +94,7 @@ import { ParcelCollectionsService } from '../parcel-collections/parcel-collectio
 import { SmsService } from '../sms/sms.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
 import { ConversationService } from '../business/conversation.service';
-import { SellerScopeService } from '../business/seller-scope.service';
+import { SellerScopeService, SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
@@ -643,12 +643,14 @@ export class OrdersService {
       shippingNote?: string;
       shippingMethod?: string;
     },
+    scope?: SellerScope,
   ) {
     const order = await this.repo.findOne({
       where: { id: orderId },
       relations: { seller: true, product: true, buyer: true },
     });
     if (!order) throw new NotFoundException('Order not found');
+    assertResourceInBusinessScope(scope, order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (![OrderStatus.PAID, OrderStatus.PREPARING].includes(order.status)) {
@@ -737,12 +739,13 @@ export class OrdersService {
   }
 
   // ── Seller: Mark as shipped ───────────────────────────────────────────────
-  async markShipped(orderId: number, seller: User) {
+  async markShipped(orderId: number, seller: User, scope?: SellerScope) {
     const order = await this.repo.findOne({
       where: { id: orderId },
-      relations: { seller: true, buyer: true },
+      relations: { seller: true, buyer: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
+    assertResourceInBusinessScope(scope, order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.status !== OrderStatus.PREPARING)
@@ -800,12 +803,14 @@ export class OrdersService {
       superAgentCity: string;
       notes?: string;
     },
+    scope?: SellerScope,
   ) {
     const order = await this.repo.findOne({
       where: { id: orderId },
-      relations: { seller: true },
+      relations: { seller: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
+    assertResourceInBusinessScope(scope, order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.status !== OrderStatus.PAID)
@@ -844,12 +849,13 @@ export class OrdersService {
   // Explicitly refuses to touch an order whose parcel DOES have a Super
   // Agent assigned — that delivery's collection must be confirmed by the
   // agent who actually handled it, not self-reported by the seller.
-  async sellerCollectCodBalance(orderId: number, seller: User) {
+  async sellerCollectCodBalance(orderId: number, seller: User, scope?: SellerScope) {
     const order = await this.repo.findOne({
       where: { id: orderId },
-      relations: { seller: true, buyer: true },
+      relations: { seller: true, buyer: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
+    assertResourceInBusinessScope(scope, order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.paymentMethod !== OrderPaymentMethod.COD)

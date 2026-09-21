@@ -212,16 +212,19 @@ export class ClassifiedsController {
     return this.service.getSellerInvoiceRequests({ id: sellerId } as User);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('user/mine')
   async findMine(
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
     @Query('commerceProfileId') commerceProfileId?: string,
   ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
     return this.service.findMine(
       { id: sellerId } as User,
       commerceProfileId ? Number(commerceProfileId) : undefined,
+      scope,
     );
   }
 
@@ -412,11 +415,16 @@ export class ClassifiedsController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Patch(':id/sold')
-  async markAsSold(@Param('id', ParseIntPipe) id: number, @Request() req) {
+  async markAsSold(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
     const sellerId = await this.resolveClassifiedActorId(req.user);
-    return this.service.markAsSold(id, { id: sellerId } as User);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.service.markAsSold(id, { id: sellerId } as User, scope);
   }
 
   @UseGuards(JwtAuthGuard, RoleContextGuard)

@@ -44,7 +44,11 @@ export const presentationForRole = (role, profiles = [], user = null) => {
   // server profile link cannot be enriched, retain a safe synthetic label.
   return {
     ...(presentation || {}),
-    id: presentation?.id ?? null,
+    // I2F: when the server declared an identity, the acting CommerceProfile id is the server's
+    // canonical one -- never a loose sellerProfileId/type match (which for a migrated Business
+    // seller resolves the LEGACY profile). The enriched match is display-only fallback for
+    // responses that predate I2A.
+    id: role.identityType ? (role.commerceProfileId ?? null) : (presentation?.id ?? null),
     accountRoleId: role.accountRoleId,
     roleType: role.roleType,
     profileType: role.profileType,
