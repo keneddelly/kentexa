@@ -20,6 +20,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import { commenterIdentity } from '../utils/publicActor';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -159,10 +160,9 @@ const CommentRow = ({
   const PURCHASE_BADGE = getPurchaseBadge(t);
   const badge = PURCHASE_BADGE[c.purchaseVerification];
   // Show whichever profile the commenter was actually acting as — not
-  // always their personal account. Falls back to the account identity for
-  // comments predating this (commerceProfile null).
-  const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name;
-  const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.avatarUrl || c.author?.logo;
+  // always their personal account. No profile -> the author's Personal identity only
+  // (name/avatar, never storeName/logo) -- see commenterIdentity().
+  const { name: commenterName, photo: commenterPhoto } = commenterIdentity(c);
   const commenterNavParams = c.commerceProfile?.id ? { commerceProfileId: c.commerceProfile.id } : undefined;
 
   const submitReply = async () => {

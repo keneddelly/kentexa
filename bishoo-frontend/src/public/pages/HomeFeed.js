@@ -11,7 +11,7 @@
  *  All saves/shares/views go to POST /engagements (entity-based, works on virtual IDs)
  *  Comments go to POST /comments (entity-based)
  */
-import { actorProfileParams, isActorUnresolved } from '../utils/publicActor';
+import { actorProfileParams, isActorUnresolved, commenterIdentity } from '../utils/publicActor';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
@@ -251,10 +251,11 @@ const CommentSection = ({ post, isLoggedIn, onNavigate, currentUser, activeProfi
 
   const Comment = ({ c, isReply = false }) => {
     // Show whichever profile the commenter was actually acting as — not
-    // always their personal account. Falls back to the account identity
-    // for comments predating this (commerceProfile null).
-    const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name || t('home_feed.user_fallback');
-    const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.avatarUrl || c.author?.logo;
+    // always their personal account. No profile -> the author's Personal identity
+    // only (name/avatar, never storeName/logo) -- see commenterIdentity().
+    const identity = commenterIdentity(c);
+    const commenterName = identity.name || t('home_feed.user_fallback');
+    const commenterPhoto = identity.photo;
     return (
     <div style={{ display:'flex', gap:8,
       padding: isReply ? '6px 0 4px 36px' : '10px 0',

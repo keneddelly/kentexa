@@ -60,3 +60,20 @@ export const actorLabelParts = (profile, t) => {
 // Legacy unbound operational Seller: an owner may connect selling to a Business.
 export const isLegacyPersonalSeller = (role) =>
   role?.roleType === 'seller' && role?.identityType === 'PERSONAL' && role?.businessId == null;
+
+// Who a comment/reply is displayed as. authorId is authoritative:
+//  - comment stamped with a canonical CommerceProfile -> that profile (unchanged behavior);
+//  - NO CommerceProfile (a Personal account that has none) -> ONLY the Personal user
+//    identity of the author: name + avatar. Never storeName / logo / any business branding,
+//    and never a guessed or first-found profile.
+export const commenterIdentity = (comment) => {
+  const author = comment?.author;
+  const profile = comment?.commerceProfile;
+  if (profile) {
+    return {
+      name: profile.displayName || author?.storeName || author?.name,
+      photo: profile.photoUrl || author?.avatarUrl || author?.logo,
+    };
+  }
+  return { name: author?.name, photo: author?.avatarUrl };
+};

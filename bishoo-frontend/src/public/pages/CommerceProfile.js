@@ -12,6 +12,7 @@ import { trackProfileView } from '../hooks/useAnalytics';
 import ProfileCompletion from '../components/ProfileCompletion';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import api             from '../../api/api';
+import { commenterIdentity } from '../utils/publicActor';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -1579,8 +1580,7 @@ const PostThread = ({ postId, isLoggedIn, onNavigate, activeProfileId }) => {
       ) : comments.length === 0 ? (
         <div style={{ fontSize:12, color:GR, padding:'8px 0' }}>{t('commerce_profile.no_comments_yet')}</div>
       ) : comments.map(c => {
-        const commenterName = c.commerceProfile?.displayName || c.author?.storeName || c.author?.name;
-        const commenterPhoto = c.commerceProfile?.photoUrl || c.author?.avatarUrl || c.author?.logo;
+        const { name: commenterName, photo: commenterPhoto } = commenterIdentity(c);
         return (
         <div key={c.id} style={{ display:'flex', gap:8, marginBottom:10 }}>
           <div style={{ width:28, height:28, borderRadius:'50%', flexShrink:0,
