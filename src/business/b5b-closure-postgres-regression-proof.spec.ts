@@ -1,3 +1,4 @@
+import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import 'reflect-metadata';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
@@ -75,6 +76,8 @@ describe('B5B closure — final real-Postgres regression proof (COMMERCE + legac
     const assignment = await assignmentRepo().save(assignmentRepo().create({
       businessMembershipId: membership.id, workspaceId: workspace.id, status: WorkspaceAssignmentStatus.ACTIVE, permissions: {},
     } as any));
+    // The one canonical BUSINESS CommerceProfile every Business Selling path requires (shared invariant).
+    await ds.getRepository(CommerceProfile).save(ds.getRepository(CommerceProfile).create({ ownerId: owner.id, type: CommerceProfileType.BUSINESS, displayName: `Co ${business.id}`, username: `cb${business.id}x${Date.now() % 100000}`, businessId: business.id } as any));
     return { business, workspace, membership, assignment };
   };
 

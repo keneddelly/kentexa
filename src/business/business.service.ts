@@ -1,3 +1,4 @@
+import { assertBusinessSellingIdentity } from './business-selling-identity';
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import type { RoleContext } from '../role-context/role-context.types';
 import { assertBusinessWriteTarget, pickBusinessEditableFields } from './business-write-authority';
@@ -593,6 +594,7 @@ export class BusinessService {
     if (business.user.id !== user.id) {
       throw new NotFoundException('Business not found');
     }
+    await assertBusinessSellingIdentity(this.dataSource.manager, business.id);
     const existingSeller = await this.sellerProfileRepo.findOne({
       where: { user: { id: user.id } },
     });

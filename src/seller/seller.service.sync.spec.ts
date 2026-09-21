@@ -1,3 +1,5 @@
+// The shared Selling-identity invariant has its own real-Postgres proof (business/i2-selling-identity-invariant.spec.ts).
+jest.mock('../business/business-selling-identity', () => ({ assertBusinessSellingIdentity: jest.fn().mockResolvedValue({}) }));
 import { SellerService } from './seller.service';
 import { SellerProfile, SellerStatus } from './entities/seller-profile.entity';
 import { User } from '../users/entities/user.entity';

@@ -20,6 +20,7 @@ export const applyErrorKey = (e) => {
   if (code === 'SELLING_PENDING') return 'apply_capability.already_pending';
   if (code === 'SELLING_ALREADY_ACTIVE') return 'apply_capability.already_active';
   if (code === 'BUSINESS_PROFILE_CARDINALITY_INVALID') return 'connect_selling.blocker_BUSINESS_PROFILE_CARDINALITY_INVALID';
+  if (code === 'BUSINESS_PROFILE_RELATIONSHIP_INVALID') return 'connect_selling.blocker_BUSINESS_PROFILE_RELATIONSHIP_INVALID';
   if (code === 'ACTIVATION_CONTEXT_MISMATCH' || code === 'ACTIVATION_IDENTITY_MISMATCH') return 'apply_capability.mismatch';
   if (code === 'VERIFICATION_REQUIRED' || code === 'VERIFICATION_REJECTED') return 'apply_capability.verification_required';
   if (typeof code === 'string' && code.includes('ALREADY') && code.includes('ACTIVE')) return 'apply_capability.already_active';

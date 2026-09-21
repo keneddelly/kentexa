@@ -947,6 +947,7 @@
       "state_suspended": "Selling paused",
       "state_revoked": "Selling revoked",
       "blocker_BUSINESS_PROFILE_CARDINALITY_INVALID": "This Business needs exactly one public profile before it can sell. Please contact support.",
+      "blocker_BUSINESS_PROFILE_RELATIONSHIP_INVALID": "This Business's public profile does not match its owner. Please contact support.",
       "blocker_BUSINESS_NOT_ACTIVE": "This Business is not active.",
       "blocker_WORKSPACE_NOT_ACTIVE": "This Business has no active workspace.",
       "blocker_BUSINESS_WORKSPACE_UNRESOLVED": "This Business has no valid workspace assignment.",

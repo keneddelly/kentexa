@@ -793,6 +793,7 @@
       "state_suspended": "Uuzaji umesimamishwa",
       "state_revoked": "Uuzaji umefutwa",
       "blocker_BUSINESS_PROFILE_CARDINALITY_INVALID": "Biashara hii inahitaji wasifu mmoja wa umma kabla ya kuuza. Tafadhali wasiliana na msaada.",
+      "blocker_BUSINESS_PROFILE_RELATIONSHIP_INVALID": "Wasifu wa umma wa biashara hii haulingani na mmiliki wake. Tafadhali wasiliana na msaada.",
       "blocker_BUSINESS_NOT_ACTIVE": "Biashara hii haifanyi kazi.",
       "blocker_WORKSPACE_NOT_ACTIVE": "Biashara hii haina eneo la kazi linalofanya kazi.",
       "blocker_BUSINESS_WORKSPACE_UNRESOLVED": "Biashara hii haina ugawaji halali wa eneo la kazi.",

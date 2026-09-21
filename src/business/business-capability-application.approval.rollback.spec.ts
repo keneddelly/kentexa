@@ -1,3 +1,5 @@
+// Unit test of orchestration/ordering only: the shared Selling-identity invariant has its own real-Postgres proof (i2-selling-identity-invariant.spec.ts).
+jest.mock('./business-selling-identity', () => ({ assertBusinessSellingIdentity: jest.fn().mockResolvedValue({}), evaluateBusinessSellingIdentity: jest.fn().mockResolvedValue({ ok: true, identity: {} }) }));
 import { BusinessCapabilityApplicationService } from './business-capability-application.service';
 import { Business, BusinessStatus } from './entities/business.entity';
 import { OperationalWorkspace, OperationalWorkspaceStatus } from './entities/operational-workspace.entity';

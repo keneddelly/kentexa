@@ -17,6 +17,7 @@ import {
 import { Classified } from '../classifieds/entities/classified.entity';
 import { Product } from '../products/entities/products.entity';
 import { BusinessTeamMember } from '../business/entities/business-team-member.entity';
+import { assertBusinessSellingIdentity } from '../business/business-selling-identity';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { ProfileService } from '../profile/profile.service';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
@@ -821,6 +822,14 @@ export class SellerService {
         code: 'BUSINESS_CAPABILITY_NOT_ACTIVE',
         message: 'BUSINESS_CAPABILITY_NOT_ACTIVE',
       });
+    }
+
+    // Same shared Selling-identity invariant every other Business Selling
+    // entry point uses: a Business-bound Seller role may only activate when
+    // the Business has exactly one canonical CommerceProfile. Still before
+    // any write.
+    if (context.kind === 'organizational' && profile.businessId != null) {
+      await assertBusinessSellingIdentity(this.profileRepo.manager, profile.businessId);
     }
 
     // Runs FIRST, before any write to SellerProfile/User below — this is

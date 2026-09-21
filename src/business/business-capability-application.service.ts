@@ -32,7 +32,7 @@ import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
 import type { RoleContext } from '../role-context/role-context.types';
 import { TzLocationService } from '../tz-location/tz-location.service';
-import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
+import { assertBusinessSellingIdentity, evaluateBusinessSellingIdentity } from './business-selling-identity';
 
 export interface ApplyCapabilityDto {
   // I2C: an identity HINT only -- rejected when it conflicts with the route/
@@ -222,6 +222,13 @@ export class BusinessCapabilityApplicationService {
       // PENDING -- proceed with the real approval below.
 
       const chain = await this.revalidateApplicationChain(manager, application);
+
+      // Valid at application AND valid now: a Selling application whose
+      // Business no longer has exactly one canonical CommerceProfile can never
+      // be activated -- it fails here, before any write, with no guessing.
+      if (application.capabilityCode === BusinessCapabilityCode.COMMERCE) {
+        await assertBusinessSellingIdentity(manager, application.businessId, application.workspaceId);
+      }
 
       // Stage B5B: profile lookup/linkage-check dispatches by capability
       // code (COMMERCE's own branch is byte-for-byte what this method
@@ -874,10 +881,11 @@ export class BusinessCapabilityApplicationService {
       blocker = e?.response?.code ?? 'BUSINESS_WORKSPACE_UNRESOLVED';
     }
 
-    // The Business must have exactly ONE canonical CommerceProfile (linked by
-    // businessId) or a Business-bound Seller could never publish/appear as it.
-    const linkedProfiles = await this.dataSource.getRepository(CommerceProfile).count({ where: { businessId: business.id } });
-    if (!blocker && linkedProfiles !== 1) blocker = 'BUSINESS_PROFILE_CARDINALITY_INVALID';
+    // The one shared Selling-identity invariant (same function apply/approval use).
+    if (!blocker) {
+      const identity = await evaluateBusinessSellingIdentity(this.dataSource.manager, business.id);
+      if (identity.ok === false) blocker = identity.code;
+    }
 
     type SellingState = 'none' | 'pending' | 'active' | 'rejected' | 'suspended' | 'revoked';
     let sellingState = 'none' as SellingState;
@@ -976,6 +984,7 @@ export class BusinessCapabilityApplicationService {
     // below (Stage B2 mission §10 step 1-3) since these can race with a
     // concurrent request between here and the transaction's own reads.
     await this.resolveOwnerWorkspaceContext(businessId, user.id, undefined, explicitWorkspaceId);
+    if (code === BusinessCapabilityCode.COMMERCE) await assertBusinessSellingIdentity(this.dataSource.manager, businessId);
     await this.checkCapabilityNotGranted(businessId, code);
     // (workspaceId isn't known yet at this outer layer without a second
     // resolve call; validateNoPending's own re-check happens inside the
@@ -984,6 +993,7 @@ export class BusinessCapabilityApplicationService {
     try {
       return await this.dataSource.transaction(async (manager) => {
         const context = await this.resolveOwnerWorkspaceContext(businessId, user.id, manager, explicitWorkspaceId);
+        if (code === BusinessCapabilityCode.COMMERCE) await assertBusinessSellingIdentity(manager, businessId, context.workspaceId);
         await this.checkCapabilityNotGranted(businessId, code, manager, context.workspaceId);
 
         const applicationRepo = manager.getRepository(BusinessCapabilityApplication);

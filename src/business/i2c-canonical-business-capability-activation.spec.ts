@@ -1,3 +1,4 @@
+import { CommerceProfile, CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import 'reflect-metadata';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
@@ -55,6 +56,8 @@ describe('I2C — canonical Business capability activation, real disposable-DB',
     const workspace = await repo(OperationalWorkspace).save(repo(OperationalWorkspace).create({ businessId: business.id, name: 'Default Operations', isDefault: true, status: OperationalWorkspaceStatus.ACTIVE }));
     const membership = await repo(BusinessMembership).save(repo(BusinessMembership).create({ businessId: business.id, userId: owner.id, roleTemplate: BusinessMembershipRoleTemplate.OWNER, status: BusinessMembershipStatus.ACTIVE }));
     const assignment = await repo(WorkspaceAssignment).save(repo(WorkspaceAssignment).create({ businessMembershipId: membership.id, workspaceId: workspace.id, status: WorkspaceAssignmentStatus.ACTIVE, permissions: {} }));
+    // The one canonical BUSINESS CommerceProfile every Business Selling path requires (shared invariant).
+    await ds.getRepository(CommerceProfile).save(ds.getRepository(CommerceProfile).create({ ownerId: owner.id, type: CommerceProfileType.BUSINESS, displayName: `Co ${business.id}`, username: `cb${business.id}x${Date.now() % 100000}`, businessId: business.id } as any));
     return { business, workspace, membership, assignment };
   };
 

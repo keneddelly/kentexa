@@ -943,6 +943,7 @@
       "state_suspended": "Vente suspendue",
       "state_revoked": "Vente révoquée",
       "blocker_BUSINESS_PROFILE_CARDINALITY_INVALID": "Cette entreprise doit avoir exactement un profil public avant de vendre. Contactez le support.",
+      "blocker_BUSINESS_PROFILE_RELATIONSHIP_INVALID": "Le profil public de cette entreprise ne correspond pas à son propriétaire. Contactez le support.",
       "blocker_BUSINESS_NOT_ACTIVE": "Cette entreprise n'est pas active.",
       "blocker_WORKSPACE_NOT_ACTIVE": "Cette entreprise n'a pas d'espace de travail actif.",
       "blocker_BUSINESS_WORKSPACE_UNRESOLVED": "Cette entreprise n'a pas d'affectation d'espace de travail valide.",
