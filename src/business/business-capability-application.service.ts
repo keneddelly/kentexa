@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { assertBusinessWriteTarget } from './business-write-authority';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import {
@@ -826,13 +827,10 @@ export class BusinessCapabilityApplicationService {
     dto: ApplyCapabilityDto | undefined,
     roleContext?: RoleContext,
   ): void {
-    const hinted = dto?.businessId;
-    if (hinted != null && Number(hinted) !== businessId) {
-      throw new ForbiddenException({ code: 'ACTIVATION_IDENTITY_MISMATCH', message: 'ACTIVATION_IDENTITY_MISMATCH' });
-    }
-    if (roleContext?.identityType === 'BUSINESS' && Number(roleContext.businessId) !== businessId) {
-      throw new ForbiddenException({ code: 'ACTIVATION_CONTEXT_MISMATCH', message: 'ACTIVATION_CONTEXT_MISMATCH' });
-    }
+    assertBusinessWriteTarget(businessId, roleContext, {
+      hintedBusinessId: dto?.businessId,
+      codes: { identity: 'ACTIVATION_IDENTITY_MISMATCH', context: 'ACTIVATION_CONTEXT_MISMATCH' },
+    });
   }
 
   async applyForCapability(

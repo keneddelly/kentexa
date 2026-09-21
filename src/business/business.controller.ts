@@ -81,14 +81,20 @@ export class BusinessController {
     return this.businessService.listWorkspaces(id, req.user);
   }
 
+  // I2E: RoleContextGuard resolves the caller's canonical acting context so a
+  // BUSINESS context can only edit ITS OWN Business (BusinessService.update ->
+  // assertBusinessWriteTarget). A Personal context must name the exact Business
+  // (route id) and still pass the owner check; nothing infers one.
   @Patch(':id')
+  @UseGuards(RoleContextGuard)
   update(@Param('id', ParseIntPipe) id: number, @Request() req, @Body() dto: any) {
-    return this.businessService.update(id, req.user, dto);
+    return this.businessService.update(id, req.user, dto, req.roleContext);
   }
 
   @Post(':id/activate-seller')
+  @UseGuards(RoleContextGuard)
   activateSeller(@Param('id', ParseIntPipe) id: number, @Request() req) {
-    return this.businessService.activateSeller(id, req.user);
+    return this.businessService.activateSeller(id, req.user, req.roleContext);
   }
 
   // Business Capability Activation Stage B2. Ownership/membership/workspace

@@ -1,4 +1,6 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import type { RoleContext } from '../role-context/role-context.types';
+import { assertBusinessWriteTarget, pickBusinessEditableFields } from './business-write-authority';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, In } from 'typeorm';
 import { Business, BusinessStatus } from './entities/business.entity';
@@ -539,13 +541,22 @@ export class BusinessService {
       address: string;
       phone: string;
       email: string;
-    }>,
+    }> & { businessId?: number | string },
+    roleContext?: RoleContext,
   ): Promise<Business> {
+    // I2E: acting Business = authorized Business = mutated Business.
+    assertBusinessWriteTarget(businessId, roleContext, { hintedBusinessId: dto?.businessId });
     const business = await this.findById(businessId);
     if (business.user.id !== user.id) {
       throw new NotFoundException('Business not found');
     }
-    await this.businessRepo.update(businessId, dto);
+    // I2E: only the documented profile fields are writable. The raw body used
+    // to reach businessRepo.update() unfiltered, so trust/identity columns
+    // (status, businessVerificationStatus, user, ...) were client-writable.
+    const editable = pickBusinessEditableFields(dto as Record<string, unknown>);
+    if (Object.keys(editable).length > 0) {
+      await this.businessRepo.update(businessId, editable);
+    }
     const saved = await this.findById(businessId);
 
     // Keep the public CommerceProfile in sync -- same fields it was
@@ -576,7 +587,8 @@ export class BusinessService {
 
   // ── Activate Seller on an existing Business (spec section 9: "a
   // business can activate Seller later") ─────────────────────────────────
-  async activateSeller(businessId: number, user: User): Promise<SellerProfile> {
+  async activateSeller(businessId: number, user: User, roleContext?: RoleContext): Promise<SellerProfile> {
+    assertBusinessWriteTarget(businessId, roleContext);
     const business = await this.findById(businessId);
     if (business.user.id !== user.id) {
       throw new NotFoundException('Business not found');
