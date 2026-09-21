@@ -759,6 +759,12 @@
       "cta_pending": "Inasubiri ukaguzi",
       "cta_rejected": "Limekataliwa — omba tena"
   },
+  "business_entry": {
+      "mismatch_title": "Unafanya kazi kama biashara nyingine",
+      "mismatch_body": "Badilisha kwanza kwenda biashara hii, au endelea na biashara unayofanyia kazi sasa.",
+      "open_current": "Fungua biashara yangu ya sasa",
+      "choose": "Chagua biashara"
+  },
   "become_agent": {
     "page_title": "Kuwa Wakala",
     "hero_title": "Kuwa Wakala wa KenteXa",

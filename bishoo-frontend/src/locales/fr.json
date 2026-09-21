@@ -909,6 +909,12 @@
       "cta_pending": "En cours d'examen",
       "cta_rejected": "Refusée — postuler à nouveau"
   },
+  "business_entry": {
+      "mismatch_title": "Vous agissez en tant qu'une autre entreprise",
+      "mismatch_body": "Passez d'abord à cette entreprise, ou continuez avec celle en cours.",
+      "open_current": "Ouvrir mon entreprise actuelle",
+      "choose": "Choisir une entreprise"
+  },
   "become_agent": {
     "page_title": "Devenir agent",
     "hero_title": "Devenez agent KenteXa",

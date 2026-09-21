@@ -913,6 +913,12 @@
       "cta_pending": "Pending review",
       "cta_rejected": "Rejected — apply again"
   },
+  "business_entry": {
+      "mismatch_title": "You are acting as another business",
+      "mismatch_body": "Switch to this business first, or continue with the business you are acting as.",
+      "open_current": "Open my current business",
+      "choose": "Choose a business"
+  },
   "become_agent": {
     "page_title": "Become an Agent",
     "hero_title": "Become a KenteXa Agent",

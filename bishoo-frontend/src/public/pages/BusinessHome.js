@@ -19,7 +19,9 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import { getMyBusinesses, getBusinessWorkspaces, getBusinessCapabilityApplications } from '../../api/business';
-import { tilesForWorkspace, TILE_STATE, capabilityCtaState, CTA_STATE, CTA_CAPABILITIES } from '../../context/capabilityTiles';
+import { tilesForWorkspace, TILE_STATE, capabilityCtaState, CTA_STATE, CTA_CAPABILITIES, ctaDestination } from '../../context/capabilityTiles';
+import { resolveBusinessEntry, BUSINESS_ENTRY } from '../../context/businessEntry';
+import BusinessContextMismatch from '../components/BusinessContextMismatch';
 
 const B = '#2563EB';
 const DK = '#0F172A';
@@ -59,28 +61,22 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
   const [workspaces, setWorkspaces] = useState(null); // null = loading
   const [applications, setApplications] = useState([]);
   const [error, setError] = useState('');
+  const [mismatch, setMismatch] = useState(null);
 
   const load = async (id) => {
+    setMismatch(null);
     setError('');
     setWorkspaces(null);
     try {
-      let resolvedId = id;
-      if (!resolvedId) {
-        // Reached without an explicit id (e.g. bare 'BusinessHome' nav) --
-        // fall back to the user's own Businesses rather than guessing.
-        const mine = await getMyBusinesses();
-        if (mine.length === 1) {
-          resolvedId = mine[0].id;
-          setBusiness(mine[0]);
-        } else {
-          onNavigate('MyBusinesses');
-          return;
-        }
-      } else {
-        const mine = await getMyBusinesses();
-        const match = mine.find((b) => Number(b.id) === Number(resolvedId));
-        setBusiness(match || { id: resolvedId });
-      }
+      // I2D: which Business opens is decided by the canonical entry rules
+      // (exact route id / canonical BUSINESS context / explicit chooser) --
+      // never the first or oldest Business.
+      const mine = await getMyBusinesses();
+      const entry = resolveBusinessEntry({ activeContext, routeBusinessId: id, businesses: mine });
+      if (entry.status === BUSINESS_ENTRY.MISMATCH) { setMismatch(entry); return; }
+      if (entry.status !== BUSINESS_ENTRY.OK) { onNavigate('MyBusinesses'); return; }
+      const resolvedId = entry.businessId;
+      setBusiness(mine.find((b) => Number(b.id) === resolvedId) || { id: resolvedId });
       const ws = await getBusinessWorkspaces(resolvedId);
       setWorkspaces(ws);
       // I2C: application history for THIS exact Business, for the CTA state only.
@@ -110,7 +106,9 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
       <BackBar onBack={() => onNavigate('MyBusinesses')} title={business?.tradingName || business?.legalName || t('business_home.title')} top={0} />
 
       <div style={{ padding: 16, maxWidth: 560, margin: '0 auto' }}>
-        {workspaces === null && !error && (
+        {mismatch && <BusinessContextMismatch contextBusinessId={mismatch.contextBusinessId} onNavigate={onNavigate} />}
+
+        {workspaces === null && !error && !mismatch && (
           <div style={{ padding: '48px 0', textAlign: 'center', color: GR }}>⏳ {t('common.loading')}</div>
         )}
 
@@ -156,7 +154,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
           const state = capabilityCtaState(code, workspaces, applications);
           if (state === CTA_STATE.ACTIVE) return null;
           const bid = business?.id || businessId;
-          const destination = code === 'service' ? `BecomeBusinessServiceProvider-${bid}` : `BecomeBusinessCapability-${bid}-${code}`;
+          const destination = ctaDestination(code, bid);
           const pending = state === CTA_STATE.PENDING;
           return (
             <button key={code} disabled={pending} onClick={() => onNavigate(destination)}

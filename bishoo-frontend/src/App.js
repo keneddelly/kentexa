@@ -635,6 +635,8 @@ function App() {
       const [rawId, suffix] = page.split('ServiceDetail-')[1].split('-');
       return <ServiceDetail {...publicProps} serviceId={Number(rawId)} openComments={suffix === 'comments'} />;
     }
+    if (page.startsWith('BusinessDashboard-'))
+      return requireLogin(<BusinessDashboard {...publicProps} businessId={Number(page.split('BusinessDashboard-')[1])} />);
     if (page.startsWith('BusinessHome-'))
       return requireLogin(<BusinessHome {...publicProps} businessId={Number(page.split('BusinessHome-')[1])} />);
     if (page.startsWith('BecomeBusinessCapability-')) {

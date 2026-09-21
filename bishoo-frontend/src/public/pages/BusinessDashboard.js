@@ -18,6 +18,9 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import { getMyBusinesses } from '../../api/business';
+import { resolveBusinessEntry, BUSINESS_ENTRY } from '../../context/businessEntry';
+import BusinessContextMismatch from '../components/BusinessContextMismatch';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -48,16 +51,15 @@ const Row = ({ icon, label, value, onAction, color = DK, sub, locked }) => (
   </div>
 );
 
-const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext }) => {
+const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, businessId }) => {
   const { t, i18n } = useTranslation();
   const [business, setBusiness] = useState(null);
+  const [mismatch, setMismatch] = useState(null);
   // I2C: "Start Selling" is a capability of the Business the caller is ACTING as -- the
   // legacy personal /seller/apply flow (no Business at all) is no longer the CTA. Without a
   // Business context this page shows the oldest Business only implicitly, so the user must
   // pick the exact Business explicitly instead of the CTA guessing one.
-  const activateSellingTarget = activeContext?.identityType === 'BUSINESS' && activeContext?.businessId
-    ? `BecomeBusinessCapability-${activeContext.businessId}-commerce`
-    : 'MyBusinesses';
+  const activateSellingTarget = business ? `BecomeBusinessCapability-${business.id}-commerce` : 'MyBusinesses';
   const [dash, setDash] = useState(null);
   const [today, setToday] = useState(null);
   const [insight, setInsight] = useState(null);
@@ -72,22 +74,28 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext }) => {
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     fetchAll();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [businessId, activeContext?.identityType, activeContext?.businessId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const mine = await api.get('/business/mine');
-      if (!mine.data) { setError(t('business_dashboard.no_business')); return; }
-      setBusiness(mine.data);
+      // I2D: exact Business by canonical rules -- never GET /business/mine's oldest record.
+      const mine = await getMyBusinesses();
+      const entry = resolveBusinessEntry({ activeContext, routeBusinessId: businessId, businesses: mine });
+      if (entry.status === BUSINESS_ENTRY.MISMATCH) { setMismatch(entry); return; }
+      if (entry.status === BUSINESS_ENTRY.NONE) { setError(t('business_dashboard.no_business')); return; }
+      if (entry.status !== BUSINESS_ENTRY.OK) { onNavigate('MyBusinesses'); return; }
+      const selected = mine.find((b) => Number(b.id) === entry.businessId);
+      const chosen = { data: selected };
+      setBusiness(selected);
       const [dashRes, todayRes] = await Promise.all([
-        api.get(`/business/${mine.data.id}/dashboard`).catch(() => null),
-        api.get(`/business/${mine.data.id}/today`).catch(() => null),
+        api.get(`/business/${chosen.data.id}/dashboard`).catch(() => null),
+        api.get(`/business/${chosen.data.id}/today`).catch(() => null),
       ]);
       if (dashRes) setDash(dashRes.data);
       if (todayRes) {
         setToday(todayRes.data);
-        fetchInsight(mine.data.id, todayRes.data);
+        fetchInsight(chosen.data.id, todayRes.data);
       }
     } catch {
       setError(t('business_dashboard.load_failed'));
@@ -149,6 +157,13 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext }) => {
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: GR }}>
       ⏳ {t('common.loading')}
+    </div>
+  );
+
+  if (mismatch) return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
+      <BackBar onBack={() => onNavigate('back')} title={t('business_dashboard.title')} top={0} />
+      <BusinessContextMismatch contextBusinessId={mismatch.contextBusinessId} onNavigate={onNavigate} />
     </div>
   );
 

@@ -127,3 +127,10 @@ export const capabilityCtaState = (code, workspaces = [], applications = []) => 
 };
 
 export const CTA_CAPABILITIES = Object.freeze(['commerce', 'service', 'transport']);
+
+// I2D: the exact-Business destination for a capability CTA. The Business id is
+// the one BusinessHome resolved through the canonical entry rules; the
+// server (I2C) still compares it with the acting context before creating
+// anything.
+export const ctaDestination = (code, businessId) =>
+  code === 'service' ? `BecomeBusinessServiceProvider-${businessId}` : `BecomeBusinessCapability-${businessId}-${code}`;

@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, In, IsNull } from 'typeorm';
+import { DataSource, Repository, In } from 'typeorm';
 import { Business, BusinessStatus } from './entities/business.entity';
 import { OperationalWorkspace, OperationalWorkspaceStatus } from './entities/operational-workspace.entity';
 import { BusinessMembership, BusinessMembershipRoleTemplate, BusinessMembershipStatus } from './entities/business-membership.entity';
@@ -147,10 +147,12 @@ export class BusinessService {
   }
 
   // Multi-Business Authority Stage 1 helper for getDashboard() above.
+  // I2D: Business-LOCAL only. Only a SellerProfile linked to THIS exact Business
+  // counts; a legacy unbound SellerProfile (businessId IS NULL) or one linked
+  // to another Business the same account owns must never make this Business
+  // look Seller-active (it used to, hiding Start Selling and unlocking Team).
   private async resolveDashboardSellerProfile(userId: number, businessId: number): Promise<SellerProfile | null> {
-    const linked = await this.sellerProfileRepo.findOne({ where: { user: { id: userId }, businessId } });
-    if (linked) return linked;
-    return this.sellerProfileRepo.findOne({ where: { user: { id: userId }, businessId: IsNull() } });
+    return this.sellerProfileRepo.findOne({ where: { user: { id: userId }, businessId } });
   }
 
   async findById(id: number): Promise<Business> {
