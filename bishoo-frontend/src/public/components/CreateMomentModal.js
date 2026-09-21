@@ -8,6 +8,7 @@
  * can open it regardless of which page the user is currently on — not
  * just from HomeFeed's story ring.
  */
+import { actorLabelParts } from '../utils/publicActor';
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
@@ -95,7 +96,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         items.push({
           type: 'business',
           id: activeProfileId,
-          title: activeProfile?.displayName || currentUser?.storeName || currentUser?.name || t('create_moment_modal.type_label_business'),
+          title: activeProfile?.displayName || currentUser?.name || t('create_moment_modal.type_label_business'),
           image: activeProfile?.photoUrl || null,
         });
       }
@@ -131,7 +132,11 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
     setError('');
   };
 
+  const actor = actorLabelParts(activeProfile, t);
+  const actorUnresolved = !activeProfileId;
+
   const handlePost = async () => {
+    if (actorUnresolved) { setError(t('actor_label.unresolved')); return; }
     if (mode === 'selling') {
       if (!file)   { setError(t('create_moment_modal.validate_add_photo')); return; }
       if (!tagged) { setError(t('create_moment_modal.validate_tag_item')); return; }
@@ -200,6 +205,18 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           </div>
           <div style={{ width:28 }} />
         </div>
+
+        {/* I2: the canonical actor this Moment will be published as (server-resolved). */}
+        {actor && (
+          <div style={{ margin: '10px 16px 0', padding: '8px 12px', borderRadius: 10, backgroundColor: '#F8FAFC', fontSize: 12, color: GR, flexShrink: 0 }}>
+            {t('actor_label.posting_as')} <b style={{ color: DK }}>{actor.title}</b>{actor.subtitle ? ` · ${actor.subtitle}` : ''}
+          </div>
+        )}
+        {actorUnresolved && (
+          <div role="alert" style={{ margin: '8px 16px 0', padding: '8px 12px', borderRadius: 10, backgroundColor: '#FEF3C7', color: '#92400E', fontSize: 12, flexShrink: 0 }}>
+            {t('actor_label.unresolved')}
+          </div>
+        )}
 
         {/* Mode toggle */}
         <div style={{ display:'flex', gap:8, padding:'12px 16px 0', flexShrink:0 }}>
@@ -352,7 +369,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
 
         <div style={{ flexShrink:0, padding:'12px 16px max(12px, env(safe-area-inset-bottom))',
           borderTop:'1px solid #F1F5F9' }}>
-          <button onClick={handlePost} disabled={posting}
+          <button onClick={handlePost} disabled={posting || actorUnresolved}
             style={{ width:'100%', background: posting
               ? '#93C5FD' : mode==='selling'
                 ? `linear-gradient(135deg,${B},#7C3AED)`

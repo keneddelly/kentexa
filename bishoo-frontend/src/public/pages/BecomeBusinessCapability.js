@@ -9,7 +9,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
-import { getMyBusinesses, applyForBusinessCapability } from '../../api/business';
+import { getMyBusinesses, applyForBusinessCapability, connectSelling } from '../../api/business';
 
 const B = '#2563EB', DK = '#0F172A', GR = '#64748B', WH = '#FFFFFF';
 const TRANSPORT_TYPES = ['bus', 'courier', 'van', 'truck', 'boda'];
@@ -17,6 +17,9 @@ const TRANSPORT_TYPES = ['bus', 'courier', 'van', 'truck', 'boda'];
 export const applyErrorKey = (e) => {
   const code = e?.response?.data?.code || e?.response?.data?.message?.code;
   if (code === 'CAPABILITY_APPLICATION_ALREADY_PENDING') return 'apply_capability.already_pending';
+  if (code === 'SELLING_PENDING') return 'apply_capability.already_pending';
+  if (code === 'SELLING_ALREADY_ACTIVE') return 'apply_capability.already_active';
+  if (code === 'BUSINESS_PROFILE_CARDINALITY_INVALID') return 'connect_selling.blocker_BUSINESS_PROFILE_CARDINALITY_INVALID';
   if (code === 'ACTIVATION_CONTEXT_MISMATCH' || code === 'ACTIVATION_IDENTITY_MISMATCH') return 'apply_capability.mismatch';
   if (code === 'VERIFICATION_REQUIRED' || code === 'VERIFICATION_REJECTED') return 'apply_capability.verification_required';
   if (typeof code === 'string' && code.includes('ALREADY') && code.includes('ACTIVE')) return 'apply_capability.already_active';
@@ -44,7 +47,8 @@ const BecomeBusinessCapability = ({ businessId, code, onNavigate, isLoggedIn }) 
     try {
       setSubmitting(true);
       setError('');
-      await applyForBusinessCapability(businessId, code, code === 'transport' ? { type } : undefined);
+      if (code === 'commerce') await connectSelling(businessId);
+      else await applyForBusinessCapability(businessId, code, code === 'transport' ? { type } : undefined);
       setDone(true);
     } catch (e) {
       setError(t(applyErrorKey(e)));

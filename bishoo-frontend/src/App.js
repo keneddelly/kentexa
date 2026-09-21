@@ -69,6 +69,8 @@ import MyBusinesses from './public/pages/MyBusinesses';
 import BusinessHome from './public/pages/BusinessHome';
 import BecomeBusinessServiceProvider from './public/pages/BecomeBusinessServiceProvider';
 import BecomeBusinessCapability from './public/pages/BecomeBusinessCapability';
+import ConnectSelling from './public/pages/ConnectSelling';
+import { momentActorProfileId } from './public/utils/publicActor';
 import BecomeBusiness from './public/pages/BecomeBusiness';
 import BecomeAgent from './public/pages/BecomeAgent';
 import AgentDashboard from './public/pages/AgentDashboard';
@@ -514,6 +516,7 @@ function App() {
     onUserUpdated: handleUserUpdated,
     activeProfile, activeProfileId: activeProfile?.id,
     activeContext, availableRoles: roleContext.availableRoles,
+    onRefreshContext: roleContext.refreshContext,
     // Business-First Frontend Stage 1: roleOptions already carries
     // businessId/businessName/workspaceId per server-issued role
     // (rolePresentation.js) -- Business Home/My Businesses read it for
@@ -769,6 +772,7 @@ function App() {
       case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);
       case 'BusinessDashboard': return requireLogin(<BusinessDashboard {...publicProps} />);
       case 'MyBusinesses':      return requireLogin(<MyBusinesses {...publicProps} />);
+      case 'ConnectSelling':    return requireLogin(<ConnectSelling {...publicProps} />);
       case 'BusinessHome':      return requireLogin(<BusinessHome {...publicProps} businessId={null} />);
       case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);
       case 'CreateClassified':  return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" createOnly />);
@@ -926,7 +930,7 @@ function App() {
         <CreateMomentModal
           currentUser={currentUser}
           initialMode={momentModalMode}
-          activeProfileId={activeProfile?.identityType === 'BUSINESS' ? activeProfile.commerceProfileId : (activeProfile?.commerceProfileId ?? activeProfile?.id)}
+          activeProfileId={momentActorProfileId(activeProfile) ?? null}
           activeProfile={activeProfile}
           onClose={() => setShowMomentModal(false)}
           onPosted={() => {

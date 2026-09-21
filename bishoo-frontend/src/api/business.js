@@ -33,3 +33,12 @@ export const applyForBusinessCapability = (businessId, code, applicationData) =>
 // drives the Start / Pending / Rejected CTA state.
 export const getBusinessCapabilityApplications = (businessId) =>
   api.get(`/business/${businessId}/capability-applications`).then((res) => (Array.isArray(res.data) ? res.data : []));
+
+// I2 legacy-Business transition -- owner-scoped, server-derived options and the explicit
+// "start Selling for THIS Business" write. The Business is the route id; the server checks it
+// against the caller's authority and canonical context.
+export const getSellingConnectionOptions = () =>
+  api.get('/business/selling-connection').then((res) => res.data);
+
+export const connectSelling = (businessId) =>
+  api.post(`/business/${businessId}/connect-selling`, {}).then((res) => res.data);

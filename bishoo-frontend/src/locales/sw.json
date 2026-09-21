@@ -687,7 +687,7 @@
     "active_label": "Inatumika",
     "add_business": "Ongeza biashara nyingine",
     "my_businesses_header": "BIASHARA ZANGU",
-    "other_roles_header": "MAJUKUMU MENGINE",
+    "other_roles_header": "MAJUKUMU BINAFSI",
     "unnamed_business": "Biashara"
   },
   "my_businesses": {
@@ -732,6 +732,7 @@
     "back_to_business": "Rudi kwenye Biashara"
   },
   "apply_capability": {
+    "legacy_seller_hint": "Uuzaji wako wa sasa ni binafsi ({{name}}). Anza Kuuza ili uuze kama Biashara hii.",
       "page_title": "Washa uwezo",
       "hero_title_commerce": "Anza Kuuza kama {{business}}",
       "hero_title_transport": "Anza Usafirishaji kama {{business}}",
@@ -764,6 +765,39 @@
       "mismatch_body": "Badilisha kwanza kwenda biashara hii, au endelea na biashara unayofanyia kazi sasa.",
       "open_current": "Fungua biashara yangu ya sasa",
       "choose": "Chagua biashara"
+  },
+  "actor_label": {
+      "personal": "Binafsi",
+      "business": "Biashara",
+      "posting_as": "Unachapisha kama",
+      "selling_personal": "Kuuza · Binafsi",
+      "transport_personal": "Usafirishaji · Binafsi",
+      "hub_personal": "Kituo · Binafsi",
+      "agent_personal": "Wakala · Binafsi",
+      "service_personal": "Huduma · Binafsi",
+      "unresolved": "Bado huna wasifu mmoja wa umma wa kuchapisha kama, kwa hiyo uchapishaji umesimamishwa. Tafadhali wasiliana na msaada.",
+      "connect_banner": "Unauza kama {{name}} (Binafsi). Unataka kuuza kama moja ya Biashara zako?",
+      "connect_button": "Unganisha uuzaji na Biashara"
+  },
+  "connect_selling": {
+      "title": "Unganisha uuzaji na Biashara",
+      "intro": "Uuzaji wako wa sasa unabaki binafsi ({{name}}). Chagua Biashara unayotaka kuanza kuuza kwa ajili yake. Hakuna kinachobadilika hadi uchague na Biashara ikubaliwe.",
+      "legacy_note": "Uuzaji wako wa sasa ni binafsi na hautahamishwa.",
+      "empty": "Bado huna Biashara.",
+      "start": "Anza Kuuza",
+      "open": "Fungua Biashara",
+      "state_none": "Bado hauuzi",
+      "state_pending": "Inasubiri ukaguzi",
+      "state_active": "Inauza",
+      "state_rejected": "Imekataliwa — unaweza kuomba tena",
+      "state_suspended": "Uuzaji umesimamishwa",
+      "state_revoked": "Uuzaji umefutwa",
+      "blocker_BUSINESS_PROFILE_CARDINALITY_INVALID": "Biashara hii inahitaji wasifu mmoja wa umma kabla ya kuuza. Tafadhali wasiliana na msaada.",
+      "blocker_BUSINESS_NOT_ACTIVE": "Biashara hii haifanyi kazi.",
+      "blocker_WORKSPACE_NOT_ACTIVE": "Biashara hii haina eneo la kazi linalofanya kazi.",
+      "blocker_BUSINESS_WORKSPACE_UNRESOLVED": "Biashara hii haina ugawaji halali wa eneo la kazi.",
+      "blocker_BUSINESS_OWNER_REQUIRED": "Mmiliki pekee ndiye anaweza kuanza kuuza.",
+      "load_failed": "Imeshindwa kupakia Biashara zako."
   },
   "become_agent": {
     "page_title": "Kuwa Wakala",

@@ -10,6 +10,7 @@
  * a replacement for discovery. Post(+) and Profile (tab 5, always the
  * account hub where you switch profiles) stay constant across every type.
  */
+import { personalOperationalText } from '../utils/publicActor';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { itemsForRole } from '../../navigation/navigationRegistry';
@@ -143,7 +144,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
                 server-side (roleOptions), never asserted here. */}
             {activeBusinessName
               ? `${activeBusinessName} · ${t(CAPABILITY_LABEL_BY_ROLE[activeContext?.roleType] || 'profile_switcher.type_business')}`
-              : activeProfile.displayName}
+              : personalOperationalText(activeProfile, t)}
           </span>
           <span style={{ fontSize: 9, opacity: 0.7 }}>▾</span>
         </button>

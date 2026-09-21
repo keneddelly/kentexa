@@ -15,6 +15,7 @@
  * explicit state label (Requires activation / Coming soon) and never
  * calls switchRole at all.
  */
+import { isLegacyPersonalSeller } from '../utils/publicActor';
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
@@ -55,7 +56,7 @@ const Tile = ({ tile, onTap, t }) => {
   );
 };
 
-const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleOptions, onSwitchAccountRole }) => {
+const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleOptions, onSwitchAccountRole, onRefreshContext }) => {
   const { t } = useTranslation();
   const [business, setBusiness] = useState(null);
   const [workspaces, setWorkspaces] = useState(null); // null = loading
@@ -88,6 +89,9 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
+    // I2: an approval may have created a Business role since login -- rebuild roles/context
+    // from the server once on entry (never derived locally).
+    if (typeof onRefreshContext === 'function') Promise.resolve(onRefreshContext()).catch(() => {});
     load(businessId);
   }, [businessId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -150,6 +154,12 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
             (Start / Pending / Rejected), driven by the server's own reports
             for this exact Business. Selling and Transport open the generic
             apply page; Services keeps its existing apply page. */}
+        {workspaces && workspaces.length > 0 && (roleOptions || []).some(isLegacyPersonalSeller) &&
+          capabilityCtaState('commerce', workspaces, applications) !== CTA_STATE.ACTIVE && (
+          <div style={{ fontSize: 12, color: GR, marginBottom: 8 }}>
+            {t('apply_capability.legacy_seller_hint', { name: (roleOptions || []).find(isLegacyPersonalSeller)?.displayName })}
+          </div>
+        )}
         {workspaces && workspaces.length > 0 && CTA_CAPABILITIES.map((code) => {
           const state = capabilityCtaState(code, workspaces, applications);
           if (state === CTA_STATE.ACTIVE) return null;

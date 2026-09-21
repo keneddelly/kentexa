@@ -11,6 +11,23 @@ const ROLE_PRESENTATION = {
   arbitrator: { type: 'personal', icon: '⚖️', link: 'ownerId' },
 };
 
+// Account-level roles are always the person; every OTHER role type is an operational role.
+export const ACCOUNT_LEVEL_ROLES = ['buyer', 'admin', 'manager', 'customer_care', 'arbitrator'];
+
+// I2 legacy-Business transition: WHO is acting, as the SERVER declared it.
+//  BUSINESS             -> a Business context (bound workspace).
+//  PERSONAL             -> the person (buyer/admin/...).
+//  PERSONAL_OPERATIONAL -> an unbound operational role (e.g. legacy Seller): still the
+//                          person, never presented as a Business.
+//  UNRESOLVED           -> server-declared unresolved. null -> older response, unknown.
+export const actorKindFor = (role) => {
+  if (!role) return null;
+  if (role.identityType === 'BUSINESS') return 'BUSINESS';
+  if (role.identityType === 'PERSONAL') return ACCOUNT_LEVEL_ROLES.includes(role.roleType) ? 'PERSONAL' : 'PERSONAL_OPERATIONAL';
+  if (role.identityType === null) return 'UNRESOLVED';
+  return null;
+};
+
 export const presentationForRole = (role, profiles = [], user = null) => {
   if (!role) return null;
   const meta = ROLE_PRESENTATION[role.roleType] || ROLE_PRESENTATION.buyer;
@@ -70,6 +87,7 @@ export const presentationForRole = (role, profiles = [], user = null) => {
     // as businessId/businessName above.
     identityType: role.identityType ?? null,
     commerceProfileId: role.commerceProfileId ?? null,
+    actorKind: actorKindFor(role),
   };
 };
 

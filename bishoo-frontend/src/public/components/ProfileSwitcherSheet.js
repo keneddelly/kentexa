@@ -16,6 +16,7 @@
  * anything, via onOpenBusiness — a Business is a navigation grouping
  * here, never an authority the frontend asserts.
  */
+import { personalOperationalText } from '../utils/publicActor';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
@@ -138,7 +139,7 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
           {other.map((p) => (
             <ProfileRow key={p.accountRoleId} profile={p} isActive={isActive(p)} disabled={rowDisabled(p)}
               onClick={() => onSwitch(p.accountRoleId)}
-              label={p.displayName}
+              label={personalOperationalText(p, t)}
               icon={(TYPE_META[p.type] || TYPE_META.personal).icon} translatedActiveLabel={t('profile_switcher.active_label')} />
           ))}
 

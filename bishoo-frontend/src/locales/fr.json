@@ -837,7 +837,7 @@
     "active_label": "Actif",
     "add_business": "Ajouter une autre entreprise",
     "my_businesses_header": "MES ENTREPRISES",
-    "other_roles_header": "AUTRES RÔLES",
+    "other_roles_header": "RÔLES PERSONNELS",
     "unnamed_business": "Entreprise"
   },
   "my_businesses": {
@@ -882,6 +882,7 @@
     "back_to_business": "Retour à l'entreprise"
   },
   "apply_capability": {
+    "legacy_seller_hint": "Votre vente actuelle est personnelle ({{name}}). Commencez à vendre pour vendre au nom de cette entreprise.",
       "page_title": "Activer une capacité",
       "hero_title_commerce": "Commencer à vendre en tant que {{business}}",
       "hero_title_transport": "Commencer le transport en tant que {{business}}",
@@ -914,6 +915,39 @@
       "mismatch_body": "Passez d'abord à cette entreprise, ou continuez avec celle en cours.",
       "open_current": "Ouvrir mon entreprise actuelle",
       "choose": "Choisir une entreprise"
+  },
+  "actor_label": {
+      "personal": "Personnel",
+      "business": "Entreprise",
+      "posting_as": "Publier en tant que",
+      "selling_personal": "Vente · Personnel",
+      "transport_personal": "Transport · Personnel",
+      "hub_personal": "Hub · Personnel",
+      "agent_personal": "Agent · Personnel",
+      "service_personal": "Services · Personnel",
+      "unresolved": "Vous n'avez pas encore de profil public unique pour publier, la publication est donc suspendue. Contactez le support.",
+      "connect_banner": "Vous vendez en tant que {{name}} (Personnel). Voulez-vous vendre au nom de l’une de vos entreprises ?",
+      "connect_button": "Relier la vente à une entreprise"
+  },
+  "connect_selling": {
+      "title": "Relier la vente à une entreprise",
+      "intro": "Votre vente actuelle reste personnelle ({{name}}). Choisissez l’entreprise pour laquelle commencer à vendre. Rien ne change tant que vous n’avez pas choisi et que l’entreprise n’est pas approuvée.",
+      "legacy_note": "Votre vente actuelle est personnelle et ne sera pas déplacée.",
+      "empty": "Vous ne possédez pas encore d'entreprise.",
+      "start": "Commencer à vendre",
+      "open": "Ouvrir l'entreprise",
+      "state_none": "Ne vend pas encore",
+      "state_pending": "En cours d'examen",
+      "state_active": "Vend",
+      "state_rejected": "Refusée — vous pouvez postuler à nouveau",
+      "state_suspended": "Vente suspendue",
+      "state_revoked": "Vente révoquée",
+      "blocker_BUSINESS_PROFILE_CARDINALITY_INVALID": "Cette entreprise doit avoir exactement un profil public avant de vendre. Contactez le support.",
+      "blocker_BUSINESS_NOT_ACTIVE": "Cette entreprise n'est pas active.",
+      "blocker_WORKSPACE_NOT_ACTIVE": "Cette entreprise n'a pas d'espace de travail actif.",
+      "blocker_BUSINESS_WORKSPACE_UNRESOLVED": "Cette entreprise n'a pas d'affectation d'espace de travail valide.",
+      "blocker_BUSINESS_OWNER_REQUIRED": "Seul le propriétaire peut commencer à vendre.",
+      "load_failed": "Impossible de charger vos entreprises."
   },
   "become_agent": {
     "page_title": "Devenir agent",

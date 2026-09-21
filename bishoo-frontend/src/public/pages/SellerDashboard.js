@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { actorLabelParts } from '../utils/publicActor';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import PhoneNudgeBanner from '../components/PhoneNudgeBanner';
@@ -231,7 +232,7 @@ const BisCommerceDashboard = ({ data, onNavigate, t }) => {
   );
 };
 
-const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment, currentUser, activeProfileId }) => {
+const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMoment, currentUser, activeProfileId, activeProfile }) => {
   const { t, i18n } = useTranslation();
   const dateLocale = LOCALE_MAP[i18n.language] || 'en-GB';
   const [data, setData]                       = useState(null);
@@ -330,7 +331,11 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
   };
 
   const statusInfo  = statusConfig[profileStatus] || statusConfig['not_applied'];
-  const displayName = profile?.storeName || profile?.businessName || t('seller_dashboard.your_business');
+  // I2: the header names the CANONICAL acting identity. The legacy store name / seller
+  // businessName is only a store setting: it must not present an unbound (personal) Seller
+  // as a Business.
+  const actorParts = actorLabelParts(activeProfile, t);
+  const displayName = activeProfile?.actorKind ? activeProfile.displayName : (profile?.storeName || profile?.businessName || t('seller_dashboard.your_business'));
   const inputStyle  = { width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 14, boxSizing: 'border-box' };
 
   const vanBatch     = vanStatus?.batch;
@@ -363,6 +368,13 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
               🏪 {t('seller_dashboard.badge')}
             </div>
             <h1 style={{ fontSize: 19, fontWeight: 900, color: DK, margin: 0 }}>{displayName}</h1>
+            {actorParts?.subtitle && <div style={{ fontSize: 12, fontWeight: 700, color: GR, marginTop: 2 }}>{actorParts.subtitle}</div>}
+            {activeProfile?.actorKind === 'PERSONAL_OPERATIONAL' && activeProfile?.roleType === 'seller' && (
+              <button onClick={() => onNavigate('ConnectSelling')}
+                style={{ marginTop: 8, background: 'none', border: 'none', padding: 0, color: '#2563EB', fontSize: 12, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>
+                {t('actor_label.connect_button')} ›
+              </button>
+            )}
           </div>
           {profileStatus === 'approved' && (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

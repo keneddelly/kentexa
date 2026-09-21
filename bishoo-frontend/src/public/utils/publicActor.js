@@ -28,3 +28,35 @@ export const buildProductMomentPayload = (product, activeProfile) => ({
   linkedEntityId: product.id,
   commerceProfileId: momentActorProfileId(activeProfile),
 });
+
+// I2 legacy-Business transition. Presentation of the ACTIVE actor, always from the
+// canonical server identity (activeProfile.displayName / actorKind) -- never from
+// user.storeName, seller_profile.businessName or a legacy profile id.
+export const PERSONAL_OPERATIONAL_KEY = {
+  seller: 'actor_label.selling_personal',
+  transport_provider: 'actor_label.transport_personal',
+  super_agent: 'actor_label.hub_personal',
+  agent: 'actor_label.agent_personal',
+  service_provider: 'actor_label.service_personal',
+};
+
+// "Bob · Selling · Personal" for an unbound operational role; the plain name otherwise.
+export const personalOperationalText = (profile, t) =>
+  profile?.actorKind === 'PERSONAL_OPERATIONAL'
+    ? `${profile.displayName} · ${t(PERSONAL_OPERATIONAL_KEY[profile.roleType] || 'actor_label.personal')}`
+    : profile?.displayName;
+
+// { title, subtitle } for "Posting as ..." style labels.
+export const actorLabelParts = (profile, t) => {
+  if (!profile) return null;
+  if (profile.actorKind === 'BUSINESS') return { title: profile.displayName, subtitle: t('actor_label.business') };
+  if (profile.actorKind === 'PERSONAL_OPERATIONAL') {
+    return { title: profile.displayName, subtitle: t(PERSONAL_OPERATIONAL_KEY[profile.roleType] || 'actor_label.personal') };
+  }
+  if (profile.actorKind === 'PERSONAL') return { title: profile.displayName, subtitle: t('actor_label.personal') };
+  return { title: profile.displayName, subtitle: null };
+};
+
+// Legacy unbound operational Seller: an owner may connect selling to a Business.
+export const isLegacyPersonalSeller = (role) =>
+  role?.roleType === 'seller' && role?.identityType === 'PERSONAL' && role?.businessId == null;

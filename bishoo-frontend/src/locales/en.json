@@ -841,7 +841,7 @@
     "active_label": "Active",
     "add_business": "Add another business",
     "my_businesses_header": "MY BUSINESSES",
-    "other_roles_header": "OTHER ROLES",
+    "other_roles_header": "PERSONAL ROLES",
     "unnamed_business": "Business"
   },
   "my_businesses": {
@@ -886,6 +886,7 @@
     "back_to_business": "Back to Business"
   },
   "apply_capability": {
+    "legacy_seller_hint": "Your existing selling is personal ({{name}}). Start Selling to sell as this Business.",
       "page_title": "Activate a capability",
       "hero_title_commerce": "Start Selling as {{business}}",
       "hero_title_transport": "Start Transport as {{business}}",
@@ -918,6 +919,39 @@
       "mismatch_body": "Switch to this business first, or continue with the business you are acting as.",
       "open_current": "Open my current business",
       "choose": "Choose a business"
+  },
+  "actor_label": {
+      "personal": "Personal",
+      "business": "Business",
+      "posting_as": "Posting as",
+      "selling_personal": "Selling · Personal",
+      "transport_personal": "Transport · Personal",
+      "hub_personal": "Hub · Personal",
+      "agent_personal": "Agent · Personal",
+      "service_personal": "Services · Personal",
+      "unresolved": "You have no single public profile to post as yet, so posting is paused. Please contact support.",
+      "connect_banner": "You are selling as {{name}} (Personal). Want to sell as one of your Businesses?",
+      "connect_button": "Connect selling to a Business"
+  },
+  "connect_selling": {
+      "title": "Connect selling to a Business",
+      "intro": "Your existing selling stays personal ({{name}}). Choose the Business you want to start Selling for. Nothing is changed until you choose and the Business is approved.",
+      "legacy_note": "Your current selling is personal and will not be moved.",
+      "empty": "You do not own a Business yet.",
+      "start": "Start Selling",
+      "open": "Open Business",
+      "state_none": "Not selling yet",
+      "state_pending": "Pending review",
+      "state_active": "Selling",
+      "state_rejected": "Rejected — you can apply again",
+      "state_suspended": "Selling paused",
+      "state_revoked": "Selling revoked",
+      "blocker_BUSINESS_PROFILE_CARDINALITY_INVALID": "This Business needs exactly one public profile before it can sell. Please contact support.",
+      "blocker_BUSINESS_NOT_ACTIVE": "This Business is not active.",
+      "blocker_WORKSPACE_NOT_ACTIVE": "This Business has no active workspace.",
+      "blocker_BUSINESS_WORKSPACE_UNRESOLVED": "This Business has no valid workspace assignment.",
+      "blocker_BUSINESS_OWNER_REQUIRED": "Only the owner can start Selling.",
+      "load_failed": "Couldn't load your Businesses."
   },
   "become_agent": {
     "page_title": "Become an Agent",

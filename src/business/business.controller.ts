@@ -66,6 +66,14 @@ export class BusinessController {
     return this.businessService.findAllMine(req.user.id);
   }
 
+  // I2 legacy-Business transition: server-derived, owner-scoped options for
+  // "Connect your selling activity to a Business". Declared before the
+  // parameterized routes so 'selling-connection' is never parsed as an id.
+  @Get('selling-connection')
+  getSellingConnection(@Request() req) {
+    return this.capabilityApplications.getSellingConnectionOptions(req.user);
+  }
+
   @Post('create')
   create(@Request() req, @Body() dto: any) {
     return this.businessService.create(req.user, dto);
@@ -131,6 +139,19 @@ export class BusinessController {
   // requestedByUserId-scoped -- any active member of this Business (owner
   // today, future manager/staff) may read its own application history;
   // never another Business's.
+  // I2 legacy-Business transition: explicit, owner-initiated Selling activation
+  // for exactly ONE Business (see BusinessCapabilityApplicationService.
+  // connectSelling). Route id + canonical RoleContext are the only identity.
+  @Post(':businessId/connect-selling')
+  @UseGuards(RoleContextGuard)
+  connectSelling(
+    @Param('businessId', ParseIntPipe) businessId: number,
+    @Request() req,
+    @Body() dto: { applicationData?: Record<string, unknown>; businessId?: number | string },
+  ) {
+    return this.capabilityApplications.connectSelling(businessId, req.user, dto, req.roleContext);
+  }
+
   @Get(':businessId/capability-applications')
   listCapabilityApplications(@Param('businessId', ParseIntPipe) businessId: number, @Request() req) {
     return this.capabilityApplications.listForBusiness(businessId, req.user);

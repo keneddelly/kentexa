@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { assertBusinessWriteTarget } from './business-write-authority';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import {
   BusinessCapabilityApplication,
   BusinessCapabilityApplicationStatus,
@@ -32,6 +32,7 @@ import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
 import type { RoleContext } from '../role-context/role-context.types';
 import { TzLocationService } from '../tz-location/tz-location.service';
+import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 
 export interface ApplyCapabilityDto {
   // I2C: an identity HINT only -- rejected when it conflicts with the route/
@@ -831,6 +832,114 @@ export class BusinessCapabilityApplicationService {
       hintedBusinessId: dto?.businessId,
       codes: { identity: 'ACTIVATION_IDENTITY_MISMATCH', context: 'ACTIVATION_CONTEXT_MISMATCH' },
     });
+  }
+
+  /**
+   * I2 legacy-Business transition. Owner-scoped, SERVER-derived read behind
+   * "Connect your selling activity to a Business": which Businesses this
+   * caller may start Selling for, and why not otherwise. Nothing here is
+   * client-supplied identity -- the Business list is the caller's own owned
+   * Businesses, the legacy Seller is the caller's own active unbound Seller
+   * AccountRole (reported only so the UI can explain that it stays Personal;
+   * it is NEVER bound, mutated or attached to any Business by this flow).
+   */
+  async getSellingConnectionOptions(user: User) {
+    const legacySellers = await this.dataSource.getRepository(AccountRole).find({
+      where: {
+        userId: user.id,
+        roleType: AccountRoleType.SELLER,
+        status: AccountRoleStatus.ACTIVE,
+        workspaceAssignmentId: IsNull(),
+      },
+      order: { id: 'ASC' },
+    });
+    const businesses = await this.dataSource.getRepository(Business).find({
+      where: { user: { id: user.id } },
+      order: { id: 'ASC' },
+    });
+    const options = await Promise.all(businesses.map((b) => this.describeSellingConnection(b, user.id)));
+    return {
+      legacySeller: legacySellers[0] ? { accountRoleId: legacySellers[0].id } : null,
+      options,
+    };
+  }
+
+  private async describeSellingConnection(business: Business, userId: number) {
+    let blocker: string | null = null;
+    let workspaceId: number | null = null;
+    try {
+      const context = await this.resolveOwnerWorkspaceContext(business.id, userId);
+      workspaceId = context.workspaceId;
+    } catch (e: any) {
+      blocker = e?.response?.code ?? 'BUSINESS_WORKSPACE_UNRESOLVED';
+    }
+
+    // The Business must have exactly ONE canonical CommerceProfile (linked by
+    // businessId) or a Business-bound Seller could never publish/appear as it.
+    const linkedProfiles = await this.dataSource.getRepository(CommerceProfile).count({ where: { businessId: business.id } });
+    if (!blocker && linkedProfiles !== 1) blocker = 'BUSINESS_PROFILE_CARDINALITY_INVALID';
+
+    type SellingState = 'none' | 'pending' | 'active' | 'rejected' | 'suspended' | 'revoked';
+    let sellingState = 'none' as SellingState;
+    if (workspaceId != null) {
+      const capability = await this.capabilityRepo.findOne({
+        where: { workspaceId, capabilityCode: BusinessCapabilityCode.COMMERCE },
+      });
+      if (capability) {
+        sellingState = capability.status as unknown as SellingState;
+      } else {
+        const latest = await this.applicationRepo.findOne({
+          where: { workspaceId, capabilityCode: BusinessCapabilityCode.COMMERCE },
+          order: { id: 'DESC' },
+        });
+        if (latest?.status === BusinessCapabilityApplicationStatus.PENDING) sellingState = 'pending';
+        else if (latest?.status === BusinessCapabilityApplicationStatus.REJECTED) sellingState = 'rejected';
+      }
+    }
+
+    if (!blocker) {
+      if (sellingState === 'active') blocker = 'SELLING_ALREADY_ACTIVE';
+      else if (sellingState === 'pending') blocker = 'SELLING_PENDING';
+      else if (sellingState === 'suspended' || sellingState === 'revoked') blocker = 'SELLING_' + sellingState.toUpperCase();
+    }
+
+    return {
+      businessId: business.id,
+      businessName: business.tradingName || business.legalName,
+      sellingState,
+      eligible: blocker === null,
+      blocker,
+    };
+  }
+
+  /**
+   * I2 legacy-Business transition. The explicit, owner-initiated "start
+   * Selling for THIS Business" write. Validates -- server-side, from the
+   * caller's own authority, never from the request -- everything the mission
+   * requires BEFORE delegating to the canonical I2C apply: canonical acting
+   * Business match (route/body/context), owner + active membership, exact
+   * default workspace + valid assignment, exactly one canonical Business
+   * CommerceProfile, and no active/pending/suspended Selling already. It then
+   * creates a NEW Business-bound Seller AccountRole through the canonical
+   * mechanism. The caller's legacy unbound Seller role and SellerProfile are
+   * never read as authority and never modified: binding them in place would
+   * re-home their products, orders, conversations and the Personal profile
+   * linked to that SellerProfile onto a Business.
+   */
+  async connectSelling(businessId: number, user: User, dto: ApplyCapabilityDto, roleContext?: RoleContext) {
+    assertBusinessWriteTarget(businessId, roleContext, {
+      hintedBusinessId: dto?.businessId,
+      codes: { identity: 'ACTIVATION_IDENTITY_MISMATCH', context: 'ACTIVATION_CONTEXT_MISMATCH' },
+    });
+    // Ownership first: a non-owner must see BUSINESS_OWNER_REQUIRED, never Business facts.
+    await this.resolveOwnerWorkspaceContext(businessId, user.id);
+    const business = await this.dataSource.getRepository(Business).findOne({ where: { id: businessId } });
+    if (!business) throw new NotFoundException({ code: 'BUSINESS_NOT_FOUND', message: 'BUSINESS_NOT_FOUND' });
+    const option = await this.describeSellingConnection(business, user.id);
+    if (option.blocker) {
+      throw new ConflictException({ code: option.blocker, message: option.blocker });
+    }
+    return this.applyForCapability(businessId, 'commerce', user, { applicationData: dto?.applicationData }, roleContext);
   }
 
   async applyForCapability(
