@@ -33,12 +33,25 @@ const DYNAMIC_DESTINATIONS = [
   [/^SellerInbox-/, 'SellerInbox'], [/^SellerOrders-/, 'SellerOrders'], [/^SellerPayouts-/, 'SellerPayouts'], [/^SellerWarrantyClaims-/, 'SellerWarrantyClaims'],
   [/^EditProduct-/, 'SellerProducts'], [/^EditClassified-/, 'SellerClassifieds'], [/^BuyerParcelAction-/, 'MyOrders'], [/^BatchHandoff-/, 'BatchHandoff'],
   [/^BusinessHome-/, 'BusinessHome'],
+  // I2 correction: the I2C/I2D/B6C Business routes App.js already handles. Each
+  // pattern is anchored and numeric (and, for capabilities, limited to the two
+  // codes the App parser supports) -- deliberately NOT a broad wildcard.
+  [/^BusinessDashboard-\d+$/, 'BusinessDashboard'],
+  [/^BecomeBusinessCapability-\d+-(commerce|transport)$/, 'BecomeBusinessCapability'],
+  [/^BecomeBusinessServiceProvider-\d+$/, 'BecomeBusinessServiceProvider'],
 ];
+
+// Destinations that exist ONLY as dynamic routes: their bare names are not
+// navigable pages (App.js has no case for them), so they stay out of DESTINATIONS.
+const DYNAMIC_ONLY_DESTINATIONS = Object.freeze({
+  BecomeBusinessCapability: destination('BecomeBusinessCapability', DESTINATION_KIND.ACCOUNT),
+  BecomeBusinessServiceProvider: destination('BecomeBusinessServiceProvider', DESTINATION_KIND.ACCOUNT),
+});
 
 export const destinationForPage = (page) => {
   if (typeof page !== 'string') return null;
   if (DESTINATIONS[page]) return DESTINATIONS[page];
   const match = DYNAMIC_DESTINATIONS.find(([pattern]) => pattern.test(page));
-  return match ? DESTINATIONS[match[1]] || null : null;
+  return match ? DESTINATIONS[match[1]] || DYNAMIC_ONLY_DESTINATIONS[match[1]] || null : null;
 };
 export const destinationCount = Object.keys(DESTINATIONS).length;

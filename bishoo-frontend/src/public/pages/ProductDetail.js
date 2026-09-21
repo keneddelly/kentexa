@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { buildProductMomentPayload } from '../utils/publicActor';
 import api from '../../api/api';
 import { trackProductView, trackAddToCart } from '../hooks/useAnalytics';
 import { useCart } from '../../context/CartContext';
@@ -33,7 +34,7 @@ const Stars = ({ rating, size = 12, interactive = false, onRate }) => (
   </span>
 );
 
-const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, track, currentUser, onOpenMoment, initialTab, activeProfileId }) => {
+const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, track, currentUser, onOpenMoment, initialTab, activeProfileId, activeProfile }) => {
   const { t } = useTranslation();
   const [product, setProduct]           = useState(null);
   const [loading, setLoading]           = useState(true);
@@ -142,15 +143,9 @@ const ProductDetail = ({ onNavigate, isLoggedIn, onLogout, userRole, productId, 
     if (!product || sharingMoment) return;
     try {
       setSharingMoment(true);
-      await api.post('/feed/publish', {
-        type: 'moment',
-        title: product.name,
-        body: null,
-        imageUrl: product.images?.[0] || null,
-        linkedEntityType: 'product',
-        linkedEntityId: product.id,
-        commerceProfileId: activeProfileId || undefined,
-      });
+      // I2 correction: the acting profile is the canonical context profile, never the
+      // legacy activeProfile.id (a stale Business profile for a legacy unbound Seller).
+      await api.post('/feed/publish', buildProductMomentPayload(product, activeProfile));
       setMessage('📸 Shared to your Moments!');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
