@@ -107,14 +107,18 @@ export class BusinessController {
   // default workspace exactly as before this stage. No client-supplied
   // businessId/workspaceAssignmentId/accountRoleId/userId/profileId is
   // ever read.
+  // I2C: RoleContextGuard resolves the caller's canonical acting context so
+  // a BUSINESS context can only activate capabilities for ITS OWN Business
+  // (see BusinessCapabilityApplicationService.assertActivationTargetMatchesContext).
   @Post(':businessId/capabilities/:code/apply')
+  @UseGuards(RoleContextGuard)
   applyForCapability(
     @Param('businessId', ParseIntPipe) businessId: number,
     @Param('code') code: string,
     @Request() req,
-    @Body() dto: { applicationData?: Record<string, unknown>; workspaceId?: number },
+    @Body() dto: { applicationData?: Record<string, unknown>; workspaceId?: number; businessId?: number | string },
   ) {
-    return this.capabilityApplications.applyForCapability(businessId, code, req.user, dto);
+    return this.capabilityApplications.applyForCapability(businessId, code, req.user, dto, req.roleContext);
   }
 
   // Business Capability Activation Stage B3. Membership-scoped, never

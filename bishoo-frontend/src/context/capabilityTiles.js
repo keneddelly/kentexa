@@ -105,3 +105,25 @@ export const tilesForWorkspace = (workspace, activeAccountRoleId, availableRoles
 };
 
 export const isTileActionable = (tile) => tile.state === TILE_STATE.AVAILABLE || tile.state === TILE_STATE.ACTIVE;
+
+// I2C: CTA state for one Business capability, derived ONLY from the server's
+// own reports for THIS Business (active capabilities from
+// GET /business/:id/workspaces, application history from
+// GET /business/:id/capability-applications). Never inferred from the
+// user's role list, so a legacy unbound role can't make a Business look
+// activated. 'active' hides the CTA (the capability tile takes over);
+// 'pending' is inert; 'rejected'/'start' both open the apply page.
+export const CTA_STATE = Object.freeze({ START: 'start', PENDING: 'pending', REJECTED: 'rejected', ACTIVE: 'active' });
+
+export const capabilityCtaState = (code, workspaces = [], applications = []) => {
+  if ((workspaces || []).some((ws) => (ws.capabilities || []).includes(code))) return CTA_STATE.ACTIVE;
+  const mine = (applications || [])
+    .filter((row) => row?.application?.capabilityCode === code)
+    .sort((a, b) => Number(b.application.id) - Number(a.application.id));
+  if (mine.length === 0) return CTA_STATE.START;
+  if (mine[0].application.status === 'pending') return CTA_STATE.PENDING;
+  if (mine[0].application.status === 'rejected') return CTA_STATE.REJECTED;
+  return CTA_STATE.START;
+};
+
+export const CTA_CAPABILITIES = Object.freeze(['commerce', 'service', 'transport']);

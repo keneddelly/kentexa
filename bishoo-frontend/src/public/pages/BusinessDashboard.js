@@ -48,9 +48,16 @@ const Row = ({ icon, label, value, onAction, color = DK, sub, locked }) => (
   </div>
 );
 
-const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
+const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext }) => {
   const { t, i18n } = useTranslation();
   const [business, setBusiness] = useState(null);
+  // I2C: "Start Selling" is a capability of the Business the caller is ACTING as -- the
+  // legacy personal /seller/apply flow (no Business at all) is no longer the CTA. Without a
+  // Business context this page shows the oldest Business only implicitly, so the user must
+  // pick the exact Business explicitly instead of the CTA guessing one.
+  const activateSellingTarget = activeContext?.identityType === 'BUSINESS' && activeContext?.businessId
+    ? `BecomeBusinessCapability-${activeContext.businessId}-commerce`
+    : 'MyBusinesses';
   const [dash, setDash] = useState(null);
   const [today, setToday] = useState(null);
   const [insight, setInsight] = useState(null);
@@ -268,14 +275,14 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
               doesn't exist either way. */}
           <Row icon="📥" label={t('business_dashboard.leads_label')}
             sub={t('business_dashboard.leads_sub')} locked
-            onAction={dash?.hasSeller ? undefined : () => onNavigate('BecomeSeller')} />
+            onAction={dash?.hasSeller ? undefined : () => onNavigate(activateSellingTarget)} />
           {/* Team management genuinely works once Seller is active
               (SellerScopeService.resolve() already recognizes it) -- this
               was hardcoded locked regardless of hasSeller, which kept
               sending already-approved sellers back into BecomeSeller. */}
           <Row icon="👔" label={t('business_dashboard.team_label')}
             sub={t('business_dashboard.team_sub')} locked={!dash?.hasSeller}
-            onAction={dash?.hasSeller ? () => onNavigate('SellerTeam') : () => onNavigate('BecomeSeller')} />
+            onAction={dash?.hasSeller ? () => onNavigate('SellerTeam') : () => onNavigate(activateSellingTarget)} />
         </SCard>
 
         {/* Activate Seller — the sanctioned way a Business gains selling
@@ -289,7 +296,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
             <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 14, lineHeight: 1.5 }}>
               {t('business_dashboard.activate_seller_desc')}
             </div>
-            <button onClick={() => onNavigate('BecomeSeller')}
+            <button onClick={() => onNavigate(activateSellingTarget)}
               style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: '2px solid rgba(255,255,255,0.4)',
                 padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
               {t('business_dashboard.activate_seller_button')}

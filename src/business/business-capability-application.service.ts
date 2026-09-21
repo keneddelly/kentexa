@@ -29,9 +29,13 @@ import {
 } from '../role-context/entities/account-role.entity';
 import { VerificationService } from '../identity/verification.service';
 import { Feature } from '../identity/verification.constants';
+import type { RoleContext } from '../role-context/role-context.types';
 import { TzLocationService } from '../tz-location/tz-location.service';
 
 export interface ApplyCapabilityDto {
+  // I2C: an identity HINT only -- rejected when it conflicts with the route/
+  // canonical context, never used as authority.
+  businessId?: number | string;
   // Deliberately the ONLY client-supplied field. Every identity-bearing
   // value (businessId, workspaceId, workspaceAssignmentId, accountRoleId,
   // userId, profileId, roleType, any status) is either taken from the
@@ -803,12 +807,42 @@ export class BusinessCapabilityApplicationService {
    * the authenticated `user` are inputs; everything else is resolved fresh
    * from BusinessMembership/WorkspaceAssignment/SellerProfile/AccountRole.
    */
+  /**
+   * I2C. The Business a capability is activated for must be the exact
+   * Business the caller is acting as. In a BUSINESS context the canonical
+   * (server-resolved) businessId is authoritative: a route/body businessId
+   * naming ANY other Business -- including another one the same account
+   * owns -- is rejected explicitly, never silently retargeted. In a
+   * PERSONAL/unbound context there is nothing to compare against; the
+   * caller must have named an exact Business (route param), which the
+   * existing ownership/workspace validation still verifies -- no first-
+   * owned-Business or ownerId inference exists anywhere on this path. Every
+   * other client-supplied identity hint (workspaceAssignmentId,
+   * accountRoleId, profileId, commerceProfileId, ...) is non-authoritative
+   * and ignored: those ids are only ever resolved server-side.
+   */
+  private assertActivationTargetMatchesContext(
+    businessId: number,
+    dto: ApplyCapabilityDto | undefined,
+    roleContext?: RoleContext,
+  ): void {
+    const hinted = dto?.businessId;
+    if (hinted != null && Number(hinted) !== businessId) {
+      throw new ForbiddenException({ code: 'ACTIVATION_IDENTITY_MISMATCH', message: 'ACTIVATION_IDENTITY_MISMATCH' });
+    }
+    if (roleContext?.identityType === 'BUSINESS' && Number(roleContext.businessId) !== businessId) {
+      throw new ForbiddenException({ code: 'ACTIVATION_CONTEXT_MISMATCH', message: 'ACTIVATION_CONTEXT_MISMATCH' });
+    }
+  }
+
   async applyForCapability(
     businessId: number,
     codeParam: string,
     user: User,
     dto: ApplyCapabilityDto,
+    roleContext?: RoleContext,
   ) {
+    this.assertActivationTargetMatchesContext(businessId, dto, roleContext);
     const code = this.parseCapabilityCode(codeParam);
     if (!APPLICABLE_CAPABILITY_CODES.has(code)) {
       // CARGO (or any future code with no AccountRoleType/profile mapping)

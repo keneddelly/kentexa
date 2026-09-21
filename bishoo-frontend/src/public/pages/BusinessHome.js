@@ -18,8 +18,8 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
-import { getMyBusinesses, getBusinessWorkspaces } from '../../api/business';
-import { tilesForWorkspace, TILE_STATE } from '../../context/capabilityTiles';
+import { getMyBusinesses, getBusinessWorkspaces, getBusinessCapabilityApplications } from '../../api/business';
+import { tilesForWorkspace, TILE_STATE, capabilityCtaState, CTA_STATE, CTA_CAPABILITIES } from '../../context/capabilityTiles';
 
 const B = '#2563EB';
 const DK = '#0F172A';
@@ -57,6 +57,7 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
   const { t } = useTranslation();
   const [business, setBusiness] = useState(null);
   const [workspaces, setWorkspaces] = useState(null); // null = loading
+  const [applications, setApplications] = useState([]);
   const [error, setError] = useState('');
 
   const load = async (id) => {
@@ -82,6 +83,8 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
       }
       const ws = await getBusinessWorkspaces(resolvedId);
       setWorkspaces(ws);
+      // I2C: application history for THIS exact Business, for the CTA state only.
+      getBusinessCapabilityApplications(resolvedId).then(setApplications).catch(() => setApplications([]));
     } catch {
       setError(t('business_home.load_failed'));
     }
@@ -145,19 +148,26 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
           );
         })}
 
-        {/* B6C — no 'service' capability tile exists anywhere for this
-            Business yet (none applied for, or still pending admin review,
-            since listWorkspaces() only ever reports ACTIVE capabilities).
-            Always offered rather than gated behind a workspace pick — the
-            already-shipped apply endpoint only needs a businessId. */}
-        {workspaces && workspaces.length > 0 &&
-          !workspaces.some((ws) => (ws.capabilities || []).includes('service')) && (
-          <button onClick={() => onNavigate(`BecomeBusinessServiceProvider-${businessId || business?.id}`)}
-            style={{ width: '100%', backgroundColor: WH, color: B, border: `1.5px dashed ${B}`,
-              borderRadius: 12, padding: '12px 0', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-            {t('business_home.apply_service_provider_link')}
-          </button>
-        )}
+        {/* I2C: one canonical CTA per not-yet-active capability of THIS Business
+            (Start / Pending / Rejected), driven by the server's own reports
+            for this exact Business. Selling and Transport open the generic
+            apply page; Services keeps its existing apply page. */}
+        {workspaces && workspaces.length > 0 && CTA_CAPABILITIES.map((code) => {
+          const state = capabilityCtaState(code, workspaces, applications);
+          if (state === CTA_STATE.ACTIVE) return null;
+          const bid = business?.id || businessId;
+          const destination = code === 'service' ? `BecomeBusinessServiceProvider-${bid}` : `BecomeBusinessCapability-${bid}-${code}`;
+          const pending = state === CTA_STATE.PENDING;
+          return (
+            <button key={code} disabled={pending} onClick={() => onNavigate(destination)}
+              style={{ width: '100%', backgroundColor: WH, color: pending ? GR : B, border: `1.5px dashed ${pending ? '#CBD5E1' : B}`,
+                borderRadius: 12, padding: '12px 0', cursor: pending ? 'default' : 'pointer', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+              {pending ? `${t(`apply_capability.cta_start_${code}`)} · ${t('apply_capability.cta_pending')}`
+                : state === CTA_STATE.REJECTED ? `${t(`apply_capability.cta_start_${code}`)} · ${t('apply_capability.cta_rejected')}`
+                : t(`apply_capability.cta_start_${code}`)}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

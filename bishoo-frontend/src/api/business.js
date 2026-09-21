@@ -28,3 +28,8 @@ export const createBusiness = (dto) => api.post('/business/create', dto).then((r
 // capability-specific extra input (SERVICE needs none).
 export const applyForBusinessCapability = (businessId, code, applicationData) =>
   api.post(`/business/${businessId}/capabilities/${code}/apply`, { applicationData }).then((res) => res.data);
+
+// I2C - application history for ONE Business (membership-scoped server-side);
+// drives the Start / Pending / Rejected CTA state.
+export const getBusinessCapabilityApplications = (businessId) =>
+  api.get(`/business/${businessId}/capability-applications`).then((res) => (Array.isArray(res.data) ? res.data : []));

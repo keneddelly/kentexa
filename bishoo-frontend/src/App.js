@@ -68,6 +68,7 @@ import BusinessDashboard from './public/pages/BusinessDashboard';
 import MyBusinesses from './public/pages/MyBusinesses';
 import BusinessHome from './public/pages/BusinessHome';
 import BecomeBusinessServiceProvider from './public/pages/BecomeBusinessServiceProvider';
+import BecomeBusinessCapability from './public/pages/BecomeBusinessCapability';
 import BecomeBusiness from './public/pages/BecomeBusiness';
 import BecomeAgent from './public/pages/BecomeAgent';
 import AgentDashboard from './public/pages/AgentDashboard';
@@ -636,6 +637,10 @@ function App() {
     }
     if (page.startsWith('BusinessHome-'))
       return requireLogin(<BusinessHome {...publicProps} businessId={Number(page.split('BusinessHome-')[1])} />);
+    if (page.startsWith('BecomeBusinessCapability-')) {
+      const [, id, code] = page.split('-');
+      if (['commerce', 'transport'].includes(code)) return requireLogin(<BecomeBusinessCapability {...publicProps} businessId={Number(id)} code={code} />);
+    }
     if (page.startsWith('BecomeBusinessServiceProvider-'))
       return requireLogin(<BecomeBusinessServiceProvider {...publicProps} businessId={Number(page.split('BecomeBusinessServiceProvider-')[1])} />);
     if (page.startsWith('SellerStore-'))
