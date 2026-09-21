@@ -17,7 +17,7 @@ import { Business, BusinessStatus } from './entities/business.entity';
 import { OperationalWorkspace, OperationalWorkspaceStatus } from './entities/operational-workspace.entity';
 import { BusinessMembership, BusinessMembershipRoleTemplate, BusinessMembershipStatus } from './entities/business-membership.entity';
 import { WorkspaceAssignment, WorkspaceAssignmentStatus } from './entities/workspace-assignment.entity';
-import { SellerProfile, SellerStatus } from '../seller/entities/seller-profile.entity';
+import { SellerProfile, SellerStatus, SellerVerificationTier } from '../seller/entities/seller-profile.entity';
 import { TransportProvider, ProviderStatus, ProviderType } from '../transport/entities/transport-provider.entity';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { ServiceProvider, ServiceProviderStatus } from '../service-providers/entities/service-provider.entity';
@@ -196,7 +196,15 @@ export class BusinessCapabilityApplicationService {
    * (reviewedByUserId/approvedByUserId) -- the application row is the sole
    * source of businessId/workspaceId/capabilityCode/profile/role identity.
    */
-  async approveApplication(applicationId: number, admin: User) {
+  async approveApplication(applicationId: number, admin: User, options: { verificationTier?: string } = {}) {
+    // Admin's verification decision (Seller compatibility route): validated up front, then persisted
+    // INSIDE this same transaction with the approval -- never a second, separate write.
+    const verificationTier = options.verificationTier == null || options.verificationTier === ''
+      ? undefined
+      : options.verificationTier;
+    if (verificationTier !== undefined && !(Object.values(SellerVerificationTier) as string[]).includes(verificationTier)) {
+      throw new BadRequestException({ code: 'INVALID_VERIFICATION_TIER', message: 'INVALID_VERIFICATION_TIER' });
+    }
     return this.dataSource.transaction(async (manager) => {
       const applicationRepo = manager.getRepository(BusinessCapabilityApplication);
       const application = await applicationRepo.findOne({
@@ -217,7 +225,13 @@ export class BusinessCapabilityApplicationService {
         // Idempotent retry -- verify the three authoritative rows genuinely
         // still match this application rather than trusting the terminal
         // status alone (Stage B3 mission §17).
-        return this.verifyIdempotentApproval(manager, application);
+        const verified = await this.verifyIdempotentApproval(manager, application);
+        // Authority is already granted and verified; only the SellerProfile-owned tier the admin
+        // supplied is recorded, in this same transaction.
+        if (verificationTier && application.capabilityCode === BusinessCapabilityCode.COMMERCE && application.operationalProfileId != null) {
+          await manager.getRepository(SellerProfile).update(application.operationalProfileId, { verificationTier: verificationTier as SellerVerificationTier });
+        }
+        return verified;
       }
       // PENDING -- proceed with the real approval below.
 
@@ -272,7 +286,7 @@ export class BusinessCapabilityApplicationService {
         approvedByUserId: admin.id,
       }));
 
-      const approvedProfile = await this.markProfileApproved(manager, application.capabilityCode, profile.id);
+      const approvedProfile = await this.markProfileApproved(manager, application.capabilityCode, profile.id, verificationTier as SellerVerificationTier | undefined);
 
       role.status = AccountRoleStatus.ACTIVE;
       role.approvedAt = now;
@@ -597,11 +611,13 @@ export class BusinessCapabilityApplicationService {
     manager: EntityManager,
     capabilityCode: BusinessCapabilityCode,
     profileId: number,
+    verificationTier?: SellerVerificationTier,
   ): Promise<{ id: number; status: string }> {
     if (capabilityCode === BusinessCapabilityCode.COMMERCE) {
       const repo = manager.getRepository(SellerProfile);
       const profile = (await repo.findOne({ where: { id: profileId } }))!;
       profile.status = SellerStatus.APPROVED;
+      if (verificationTier) profile.verificationTier = verificationTier;
       profile.rejectionReason = null;
       await repo.save(profile);
       return { id: profile.id, status: profile.status };

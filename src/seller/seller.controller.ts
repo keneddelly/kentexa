@@ -12,6 +12,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { SellerService } from './seller.service';
+import { SellerApprovalBridgeService } from './seller-approval-bridge.service';
 import { CreateSellerProfileDto } from './dto/create-seller-profile.dto';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/optional-auth.guard';
@@ -26,6 +27,7 @@ import { Feature } from '../identity/verification.constants';
 export class SellerController {
   constructor(
     private sellerService: SellerService,
+    private approvalBridge: SellerApprovalBridgeService,
     private sellerScope: SellerScopeService,
     private verification: VerificationService,
   ) {}
@@ -140,9 +142,12 @@ export class SellerController {
   @Patch(':id/approve')
   approve(
     @Param('id', ParseIntPipe) id: number,
+    @Request() req,
     @Body('verificationTier') verificationTier?: string,
   ) {
-    return this.sellerService.approve(id, verificationTier as any);
+    // Business-linked profiles are approved by the canonical BusinessCapabilityApplication engine;
+    // the admin identity is always the authenticated user, never request input.
+    return this.approvalBridge.approve(id, req.user, verificationTier);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -150,9 +155,10 @@ export class SellerController {
   @Patch(':id/reject')
   reject(
     @Param('id', ParseIntPipe) id: number,
+    @Request() req,
     @Body('reason') reason: string,
   ) {
-    return this.sellerService.reject(id, reason);
+    return this.approvalBridge.reject(id, req.user, reason);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

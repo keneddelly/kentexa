@@ -8,6 +8,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SellerProfile } from './entities/seller-profile.entity';
 import { SellerController } from './seller.controller';
 import { SellerService } from './seller.service';
+import { SellerApprovalBridgeService } from './seller-approval-bridge.service';
+import { BusinessCapabilityApplication } from '../business/entities/business-capability-application.entity';
 import { User } from '../users/entities/user.entity';
 import { Order } from '../orders/entities/order.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
@@ -28,6 +30,7 @@ import { SellingCapabilityModule } from '../selling-capability/selling-capabilit
       Classified,
       Product,
       BusinessTeamMember, // ← added for team management
+      BusinessCapabilityApplication,
     ]),
     ProfileModule,
     BusinessModule,
@@ -36,7 +39,7 @@ import { SellingCapabilityModule } from '../selling-capability/selling-capabilit
     SellingCapabilityModule,
   ],
   controllers: [SellerController],
-  providers: [SellerService],
+  providers: [SellerService, SellerApprovalBridgeService],
   exports: [SellerService],
 })
 export class SellerModule {}
