@@ -76,6 +76,16 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // I2G: the OperationalWorkspace that owns this order's commerce/sender
+  // accounting (NOT the custody/hub workspace -- that is SuperAgent.workspaceId).
+  // Stamped ONLY server-side from the authoritative RoleContext (or, for a
+  // buyer-created order, from the Product's own stamped workspace) at creation;
+  // NULL is a valid permanent legacy state (Personal/legacy Seller, hub-side
+  // Class D orders, and any historical row whose ownership is not provable).
+  // Never inferred from sellerId.
+  @Column({ type: 'int', nullable: true })
+  workspaceId: number | null;
+
   // ✅ Nullable — offline customers may not have a KenteXa account
   @ManyToOne(() => User, { eager: true, nullable: true, onDelete: 'SET NULL' })
   @JoinColumn()

@@ -29,7 +29,7 @@ export class WalletTransaction {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Wallet, { onDelete: 'CASCADE' })
+  @ManyToOne(() => Wallet, { onDelete: 'RESTRICT' })
   @JoinColumn()
   wallet: Wallet;
 
@@ -61,6 +61,21 @@ export class WalletTransaction {
 
   @Column({ type: 'text', nullable: true })
   note: string | null;
+
+  // I2G: the routing entry this ledger row settles (UNIQUE -- at most one
+  // ledger row per entry, so a credit can never be applied twice).
+  @Column({ type: 'int', nullable: true })
+  routingEntryId: number | null;
+
+  // I2G: withdrawal destination used, plus an IMMUTABLE snapshot of it taken at
+  // request time (Personal: copied from User.payout*; Business: copied from
+  // the workspace PayoutDestination row). A later change can never redirect a
+  // pending withdrawal.
+  @Column({ type: 'int', nullable: true })
+  payoutDestinationId: number | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  payoutSnapshot: Record<string, unknown> | null;
 
   @CreateDateColumn()
   createdAt: Date;
