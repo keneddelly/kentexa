@@ -14,10 +14,17 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { SellerScopeService } from '../business/seller-scope.service';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import type { RoleContext } from '../role-context/role-context.types';
 
 @Controller('payouts')
 export class PayoutsController {
-  constructor(private payoutsService: PayoutsService) {}
+  constructor(
+    private payoutsService: PayoutsService,
+    private sellerScope: SellerScopeService,
+  ) {}
 
   // ─── Admin routes ─────────────────────────────────────────────────────────
   // Guards combined in a single @UseGuards() call per method — this codebase
@@ -88,15 +95,18 @@ export class PayoutsController {
 
   // ─── Seller routes ────────────────────────────────────────────────────────
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('my-payouts')
-  getMyPayouts(
+  async getMyPayouts(
     @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
     @Query('commerceProfileId') commerceProfileId?: string,
   ) {
+    const scope = await this.sellerScope.resolveScope(req.user.id, req.user, roleContext);
     return this.payoutsService.getMyPayouts(
       req.user,
       commerceProfileId ? Number(commerceProfileId) : undefined,
+      scope,
     );
   }
 }

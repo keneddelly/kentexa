@@ -22,6 +22,8 @@ import {
 import { SellerScopeService } from '../business/seller-scope.service';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { RoleContext } from '../role-context/role-context.types';
+import { SellerScope, workspacePartition } from '../business/seller-scope.service';
+import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 
 @Injectable()
 export class ShippingService {
@@ -230,13 +232,15 @@ export class ShippingService {
   }
 
   // ── Get seller orders ──
-  async getSellerOrders(sellerId: number) {
+  async getSellerOrders(sellerId: number, scope?: SellerScope) {
+    const part = workspacePartition(scope, 'order."workspaceId"', ownershipFlag('ORDER_WORKSPACE_ENFORCE'));
     return this.orderRepo
       .createQueryBuilder('order')
       .leftJoinAndSelect('order.product', 'product')
       .leftJoinAndSelect('order.buyer', 'buyer')
       .leftJoinAndSelect('product.seller', 'seller')
       .where('seller.id = :sellerId', { sellerId })
+      .andWhere(part ? part.clause : '1=1', part?.params ?? {})
       .orderBy('order.createdAt', 'DESC')
       .getMany();
   }

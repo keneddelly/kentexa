@@ -52,3 +52,7 @@ export class OwnershipFeatureFlagsService {
     return DEFAULTS[flag];
   }
 }
+
+const envReader = new OwnershipFeatureFlagsService();
+/** Stateless env-flag read for services that cannot take the injectable (keeps constructors stable). */
+export const ownershipFlag = (flag: OwnershipFeatureFlag): boolean => envReader.isEnabled(flag);

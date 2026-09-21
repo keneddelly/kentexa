@@ -213,3 +213,20 @@ export class SellerScopeService {
     );
   }
 }
+
+/**
+ * I2G read/mutation partition for workspace-stamped money records (Order, Sale).
+ * Returns the extra WHERE fragment for the caller's acting context, or null when the
+ * partition does not apply (no scope, a legacy delegated team member, or the enforcement
+ * flag is off). Business context -> only that workspace's rows; legacy/Personal context ->
+ * only NULL-workspace rows. Same-owner Business A never sees Business B.
+ */
+export function workspacePartition(
+  scope: SellerScope | undefined | null,
+  column: string,
+  enforced: boolean,
+): { clause: string; params: Record<string, unknown> } | null {
+  if (!enforced || !scope || scope.delegated) return null;
+  if (scope.workspaceId != null) return { clause: `${column} = :i2gWorkspaceId`, params: { i2gWorkspaceId: scope.workspaceId } };
+  return { clause: `${column} IS NULL`, params: {} };
+}

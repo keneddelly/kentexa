@@ -95,14 +95,15 @@ export class ShippingController {
   }
 
   // Seller: Get my orders
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('seller/orders')
-  async getSellerOrders(@Request() req) {
+  async getSellerOrders(@Request() req, @CurrentRoleContext() roleContext: RoleContext) {
     const sellerId = await this.sellerScope.resolve(
       req.user,
       'canViewOrders',
     );
-    return this.shippingService.getSellerOrders(sellerId);
+    const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
+    return this.shippingService.getSellerOrders(sellerId, scope);
   }
 
   // Admin: Resolve dispute

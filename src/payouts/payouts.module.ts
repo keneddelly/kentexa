@@ -4,9 +4,10 @@ import { PayoutsController } from './payouts.controller';
 import { PayoutsService } from './payouts.service';
 import { Payout } from './entities/payout.entity';
 import { Order } from '../orders/entities/order.entity';
+import { BusinessModule } from '../business/business.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Payout, Order])],
+  imports: [TypeOrmModule.forFeature([Payout, Order]), BusinessModule],
   controllers: [PayoutsController],
   providers: [PayoutsService],
   exports: [PayoutsService],

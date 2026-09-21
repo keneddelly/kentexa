@@ -100,6 +100,7 @@ import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { WalletService } from '../wallet/wallet.service';
 import { MoneyRoutingService } from '../money-routing/money-routing.service';
+import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
@@ -295,6 +296,9 @@ export class OrdersService {
       // that predate Product.commerceProfileId (profile-architecture-
       // audit-2026-08), same legacy-fallback convention as elsewhere.
       commerceProfileId: (product as any).commerceProfileId ?? null,
+      // I2G: commerce/sender workspace inherited from the purchased Product's own stamped
+      // workspace (a buyer-created order has no seller RoleContext). NULL when the product is unstamped.
+      workspaceId: ownershipFlag('ORDER_WORKSPACE_STAMP') ? ((product as any).workspaceId ?? null) : null,
       brandId,
       brandNameSnapshot,
       productNameSnapshot: product.name,
@@ -653,7 +657,7 @@ export class OrdersService {
       relations: { seller: true, product: true, buyer: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    assertResourceInBusinessScope(scope, order.product?.workspaceId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (![OrderStatus.PAID, OrderStatus.PREPARING].includes(order.status)) {
@@ -748,7 +752,7 @@ export class OrdersService {
       relations: { seller: true, buyer: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    assertResourceInBusinessScope(scope, order.product?.workspaceId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.status !== OrderStatus.PREPARING)
@@ -813,7 +817,7 @@ export class OrdersService {
       relations: { seller: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    assertResourceInBusinessScope(scope, order.product?.workspaceId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.status !== OrderStatus.PAID)
@@ -858,7 +862,7 @@ export class OrdersService {
       relations: { seller: true, buyer: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    assertResourceInBusinessScope(scope, order.product?.workspaceId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.paymentMethod !== OrderPaymentMethod.COD)
@@ -2928,34 +2932,40 @@ export class OrdersService {
       busCompany?: string;
       busTicketNumber?: string;
       externalTrackingRef?: string;
-      // Which CommerceProfile (personal vs a specific business) this order
-      // was created as — same pattern as createSellerShipment().
+      // IGNORED for authority (I2G): the acting CommerceProfile/workspace come from the
+      // authenticated RoleContext scope, never from the payload.
       commerceProfileId?: number;
     },
+    scope?: SellerScope,
   ) {
     const product = await this.productsService.findOne(dto.productId);
     if (!product) throw new NotFoundException('Product not found');
     if (product.seller?.id !== seller.id)
       throw new ForbiddenException('Not your product');
+    // Same-owner Business A must not sell Business B's product (and a legacy Seller never a Business's).
+    assertResourceInBusinessScope(scope, (product as any).workspaceId);
     if (!product.isAvailable)
       throw new BadRequestException('Product not available');
     if (product.stock < dto.quantity)
       throw new BadRequestException('Insufficient stock');
 
+    // I2G: actor identity is the RoleContext's (scope), never the client's commerceProfileId.
+    const actorProfileId = scope?.commerceProfileId ?? null;
     let senderDisplayName = (seller as any).storeName || seller.name;
-    if (dto.commerceProfileId) {
-      const authorized = await this.profileScope.isAuthorizedFor(
-        seller.id,
-        dto.commerceProfileId,
-        'canCreateOrders',
-      );
-      if (authorized) {
-        const profile = await this.commerceProfiles
-          .findById(dto.commerceProfileId)
-          .catch(() => null);
-        if (profile?.displayName) senderDisplayName = profile.displayName;
-      }
+    if (actorProfileId) {
+      const profile = await this.commerceProfiles
+        .findById(actorProfileId)
+        .catch(() => null);
+      if (profile?.displayName) senderDisplayName = profile.displayName;
     }
+    // Creation authority: the order is stamped with the acting Business workspace only when the
+    // product provably belongs to it; otherwise it stays NULL (legacy / Personal).
+    const orderWorkspaceId =
+      ownershipFlag('ORDER_WORKSPACE_STAMP') &&
+      scope?.workspaceId != null &&
+      (product as any).workspaceId === scope.workspaceId
+        ? scope.workspaceId
+        : null;
 
     const basePrice = Number(product.basePrice || 0);
     const deliveryFee = Number(product.deliveryFee || 0);
@@ -3008,7 +3018,8 @@ export class OrdersService {
       // senderDisplayName — never actually persisted, so this manual sale
       // had no way to be attributed to a specific business afterward
       // (profile-architecture-audit-2026-08 Stage 6).
-      commerceProfileId: dto.commerceProfileId ?? (product as any).commerceProfileId ?? null,
+      commerceProfileId: actorProfileId ?? (product as any).commerceProfileId ?? null,
+      workspaceId: orderWorkspaceId,
     } as any);
 
     const saved = await this.repo.save(order as any);
