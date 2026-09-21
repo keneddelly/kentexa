@@ -34,4 +34,20 @@ describe('release-writer boundary', () => {
     }
     expect(offenders).toEqual([]);
   });
+
+  it('INVARIANT: the canonical release has no bypass — routing is unconditional and no flag can skip it', () => {
+    const svc = fs.readFileSync(path.join(SRC, 'money-routing/order-release.service.ts'), 'utf8');
+    expect(svc).not.toMatch(/RELEASE_GUARD_ENFORCE/);
+    expect(svc).not.toMatch(/flags\.isEnabled|ownershipFlag\(/);
+    // the release-state UPDATE must be preceded by routing that returns early unless ROUTED
+    const update = svc.indexOf('"fundsReleasedAt" = now()');
+    const credit = svc.indexOf('creditSellerProceedsIn(');
+    const routedGate = svc.indexOf('MoneyRoutingState.ROUTED');
+    expect(credit).toBeGreaterThan(-1);
+    expect(routedGate).toBeGreaterThan(credit);
+    expect(update).toBeGreaterThan(routedGate);
+    // the flag no longer exists anywhere in production code
+    const stray = walk(SRC).filter((f) => /RELEASE_GUARD_ENFORCE/.test(fs.readFileSync(f, 'utf8')));
+    expect(stray).toEqual([]);
+  });
 });

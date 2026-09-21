@@ -3,7 +3,6 @@ import { DataSource } from 'typeorm';
 import { MoneyRoutingService, MoneyRoutingSource, RoutingOutcome } from './money-routing.service';
 import { MoneyRoutingBlockedException, resolveOrderRoutingTarget } from './order-routing-target';
 import { MoneyRoutingBlockReason, MoneyRoutingState } from './entities/money-routing-entry.entity';
-import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
 import { qRows } from './pg-rows';
 
 export type ReleaseSource = MoneyRoutingSource | 'DISPUTE_RESOLUTION' | 'ADMIN_RELEASE' | 'AUTO_RELEASE';
@@ -32,7 +31,7 @@ export interface ReleaseOutcome {
  *   -> idempotent wallet routing -> RELEASE STATE COMMITTED
  *
  * all in ONE database transaction. If the proceeds cannot be routed (BLOCKED: unresolved/ambiguous
- * ownership, amount conflict, cancelled by refund) the release state is NOT written, the wallet is
+ * ownership, amount conflict, cancelled by refund) the release state is NOT written (this is unconditional: there is no flag that skips routing), the wallet is
  * untouched, the BLOCKED routing entry is committed for investigation, and a
  * MoneyRoutingBlockedException is thrown. There is never a fall-back to the owner's Personal wallet.
  * Repeated calls (webhook/cron/buyer/admin retries) converge: an already-ROUTED event is not
@@ -45,7 +44,6 @@ export class OrderReleaseService {
   constructor(
     private dataSource: DataSource,
     private routing: MoneyRoutingService,
-    private flags: OwnershipFeatureFlagsService,
   ) {}
 
   async releaseSellerProceeds(input: {
@@ -86,30 +84,26 @@ export class OrderReleaseService {
       const amount = Math.round(Number(order.sellerAmount || 0) * 100) / 100;
       let routing: RoutingOutcome | null = null;
 
+      // Routing is MANDATORY whenever there is a seller and positive proceeds. No flag, config or
+      // rollback mode can skip it: the only "nothing owed" cases are no seller / amount <= 0.
       if (order.sellerId != null && amount > 0) {
-        if (!this.flags.isEnabled('RELEASE_GUARD_ENFORCE')) {
-          // Explicit rollback lever only (default ON): release without routing.
-          this.logger.warn(`RELEASE_GUARD_ENFORCE is off: releasing order #${orderId} without routing`);
-        } else {
-          const target = await resolveOrderRoutingTarget(m, orderId);
-          if (target.kind === 'BLOCKED') {
-            // record the reason durably (same transaction, committed) but do NOT release
-            routing = await this.routing.creditSellerProceedsIn(m, { orderId, amount, source: input.source as MoneyRoutingSource, ref: input.ref ?? null });
-            blocked = { reason: target.reason, detail: target.detail };
-            return null;
-          }
-          routing = await this.routing.creditSellerProceedsIn(m, { orderId, amount, source: input.source as MoneyRoutingSource, ref: input.ref ?? null });
-          if (routing.state === 'NOT_APPLICABLE') {
-            routing = null;
-          } else if (routing.state === MoneyRoutingState.CANCELLED) {
-            throw new ConflictException({ code: 'ORDER_SELLER_PROCEEDS_CANCELLED', message: 'ORDER_SELLER_PROCEEDS_CANCELLED', orderId });
-          } else if (routing.state !== MoneyRoutingState.ROUTED) {
-            blocked = {
-              reason: (routing.blockReason as MoneyRoutingBlockReason) ?? MoneyRoutingBlockReason.WALLET_UNRESOLVABLE,
-              detail: (routing.blockDetail as Record<string, unknown>) ?? { orderId },
-            };
-            return null;
-          }
+        const target = await resolveOrderRoutingTarget(m, orderId);
+        // for a BLOCKED target this durably records the BLOCKED entry (committed) and touches no wallet
+        routing = await this.routing.creditSellerProceedsIn(m, { orderId, amount, source: input.source as MoneyRoutingSource, ref: input.ref ?? null });
+        if (target.kind === 'BLOCKED') {
+          blocked = { reason: target.reason, detail: target.detail };
+          return null;
+        }
+        if (routing.state === MoneyRoutingState.CANCELLED) {
+          throw new ConflictException({ code: 'ORDER_SELLER_PROCEEDS_CANCELLED', message: 'ORDER_SELLER_PROCEEDS_CANCELLED', orderId });
+        }
+        if (routing.state !== MoneyRoutingState.ROUTED) {
+          // includes NOT_APPLICABLE for a seller order: not an escape hatch -> hold, fail closed
+          blocked = {
+            reason: (routing.blockReason as MoneyRoutingBlockReason) ?? MoneyRoutingBlockReason.WALLET_UNRESOLVABLE,
+            detail: (routing.blockDetail as Record<string, unknown>) ?? { orderId },
+          };
+          return null;
         }
       }
 

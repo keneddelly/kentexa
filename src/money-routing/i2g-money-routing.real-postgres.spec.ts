@@ -143,7 +143,6 @@ describe('I2G — Order/Sale/Wallet workspace partition, real disposable-DB', ()
     delete process.env.OWNERSHIP_FLAG_BUSINESS_PAYOUT_DESTINATION_ENABLED;
     delete process.env.OWNERSHIP_FLAG_BUSINESS_WITHDRAWAL_ENABLED;
     delete process.env.PAYOUT_DESTINATION_COOLING_OFF_SECONDS;
-    delete process.env.OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE;
     jest.restoreAllMocks();
   });
 
@@ -493,17 +492,18 @@ describe('I2G — Order/Sale/Wallet workspace partition, real disposable-DB', ()
       expect(await ledgerRows(o)).toHaveLength(0);
     });
 
-    it('the release guard can be switched off only explicitly (default ON)', async () => {
+    it('the release guard has NO flag: OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE=false changes nothing', async () => {
       if (!reachable) return;
-      expect(flags.isEnabled('RELEASE_GUARD_ENFORCE')).toBe(true);
       const owner = await makeUser('GUARD');
       const A = await makeBusiness(owner, 'GUARD-A', { selling: true });
       const product = await makeProduct(owner.id, A.workspace.id);
       const o = await makeOrder(owner.id, null, product);
       process.env.OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE = 'false';
-      await expect(routing.assertRoutable(o, 10, 'ESCROW_RELEASE')).resolves.toBeUndefined();
-      delete process.env.OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE;
-      await expect(routing.assertRoutable(o, 10, 'ESCROW_RELEASE')).rejects.toBeInstanceOf(MoneyRoutingBlockedException);
+      try {
+        await expect(routing.assertRoutable(o, 10, 'ESCROW_RELEASE')).rejects.toBeInstanceOf(MoneyRoutingBlockedException);
+      } finally {
+        delete process.env.OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE;
+      }
     });
   });
 

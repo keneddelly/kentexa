@@ -191,17 +191,70 @@ describe('I2G canonical order release (real disposable-DB)', () => {
     expect((await h.orderRow(o)).escrowStatus).toBe('holding');
   });
 
-  it('an unknown order is NotFound; RELEASE_GUARD_ENFORCE=false is the only explicit lever that skips routing (default ON)', async () => {
+  it('an unknown order is NotFound', async () => {
     if (!h.reachable) return;
     await expect(h.release.releaseSellerProceeds({ orderId: 987654321, source: 'ESCROW_RELEASE' })).rejects.toMatchObject({ status: 404 });
-    const owner = await h.makeUser('Lever');
-    const A = await h.makeBusiness(owner, 'LeverA', { selling: true });
-    const product = await h.makeProduct(owner.id, A.workspace.id);
-    const o = await h.makeOrder({ sellerId: owner.id, productId: product, workspaceId: null });
-    await expect(h.release.releaseSellerProceeds({ orderId: o, source: 'ESCROW_RELEASE' })).rejects.toBeInstanceOf(MoneyRoutingBlockedException);
-    process.env.OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE = 'false';
-    await h.release.releaseSellerProceeds({ orderId: o, source: 'ESCROW_RELEASE' });
-    expect((await h.orderRow(o)).escrowStatus).toBe('released');
-    expect(await h.ledgerRows(o)).toHaveLength(0); // explicit rollback lever: released, NOT routed, never to Personal
+  });
+
+  // ── ABSOLUTE INVARIANT: released <=> canonical SELLER_PROCEEDS event ROUTED (+ exactly one credit) ──
+  const assertInvariant = async (orderId: number, amount: number) => {
+    const row = await h.orderRow(orderId);
+    expect(row.escrowStatus).toBe('released');
+    expect(row.payoutStatus).toBe('released');
+    expect(row.fundsReleasedAt).toBeTruthy();
+    const entries = await h.q(`SELECT state, "eventKey", "eventType" FROM money_routing_entry WHERE "orderId" = $1`, [orderId]);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ eventKey: `ORDER:${orderId}:SELLER_PROCEEDS`, eventType: 'SELLER_PROCEEDS', state: 'ROUTED' });
+    const ledger = await h.ledgerRows(orderId);
+    expect(ledger).toHaveLength(1);
+    expect(Number(ledger[0].amount)).toBe(amount);
+  };
+
+  for (const state of ['unset', 'true', 'false'] as const) {
+    it(`OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE=${state}: no state can release without routing (routable order routed once; blocked order held)`, async () => {
+      if (!h.reachable) return;
+      if (state === 'unset') delete process.env.OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE;
+      else process.env.OWNERSHIP_FLAG_RELEASE_GUARD_ENFORCE = state;
+      const owner = await h.makeUser(`Inv${state}`);
+      const A = await h.makeBusiness(owner, `Inv${state}A`, { selling: true });
+      const product = await h.makeProduct(owner.id, A.workspace.id);
+      const good = await h.makeOrder({ sellerId: owner.id, workspaceId: A.workspace.id, sellerAmount: 250 });
+      const bad = await h.makeOrder({ sellerId: owner.id, productId: product, workspaceId: null, sellerAmount: 90 });
+      await h.release.releaseSellerProceeds({ orderId: good, source: 'ESCROW_RELEASE' });
+      await assertInvariant(good, 250);
+      await expect(h.release.releaseSellerProceeds({ orderId: bad, source: 'ESCROW_RELEASE' })).rejects.toBeInstanceOf(MoneyRoutingBlockedException);
+      const row = await h.orderRow(bad);
+      expect(row.escrowStatus).toBe('holding');
+      expect(row.payoutStatus).not.toBe('released');
+      expect(row.fundsReleasedAt).toBeNull();
+      expect(await h.ledgerRows(bad)).toHaveLength(0);
+      expect(await h.entryOf(bad)).toMatchObject({ state: 'BLOCKED' });
+    });
+  }
+
+  it('retry: releasing twice leaves one routing entry, one wallet credit and a converged released state', async () => {
+    if (!h.reachable) return;
+    const owner = await h.makeUser('InvRetry');
+    const A = await h.makeBusiness(owner, 'InvRetryA', { selling: true });
+    const o = await h.makeOrder({ sellerId: owner.id, workspaceId: A.workspace.id, sellerAmount: 400 });
+    const first = await h.release.releaseSellerProceeds({ orderId: o, source: 'ESCROW_RELEASE' });
+    const second = await h.release.releaseSellerProceeds({ orderId: o, source: 'ADMIN_RELEASE' });
+    expect(first.alreadyReleased).toBe(false);
+    expect(second.alreadyReleased).toBe(true);
+    await assertInvariant(o, 400);
+    expect(await h.balanceOf((await h.wallets.getOrCreateBusinessWallet(A.workspace.id)).id)).toBe(400);
+  });
+
+  it('nothing-owed cases (no seller / amount <= 0) release without an entry; a seller order with proceeds never does', async () => {
+    if (!h.reachable) return;
+    const owner = await h.makeUser('InvNone');
+    const A = await h.makeBusiness(owner, 'InvNoneA', { selling: true });
+    const zero = await h.makeOrder({ sellerId: owner.id, workspaceId: A.workspace.id, sellerAmount: 0 });
+    await h.release.releaseSellerProceeds({ orderId: zero, source: 'ESCROW_RELEASE' });
+    expect((await h.orderRow(zero)).escrowStatus).toBe('released');
+    expect(await h.entryOf(zero)).toBeFalsy();
+    const rows = await h.q(`SELECT id FROM "order" o WHERE o."escrowStatus" = 'released' AND o."sellerId" IS NOT NULL AND o."sellerAmount" > 0
+        AND NOT EXISTS (SELECT 1 FROM money_routing_entry e WHERE e."orderId" = o.id AND e."eventKey" = 'ORDER:' || o.id || ':SELLER_PROCEEDS' AND e.state = 'ROUTED')`);
+    expect(rows).toHaveLength(0); // GLOBAL invariant over every order this whole spec released
   });
 });

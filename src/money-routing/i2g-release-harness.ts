@@ -107,7 +107,7 @@ export async function setupReleaseHarness(): Promise<ReleaseHarness> {
   const destinations = new PayoutDestinationService(ds, new PayoutPolicyService(), flags);
   const wallets = new WalletService(repo(Wallet), repo(WalletTransaction), repo(User), ds, { getLevel: jest.fn().mockResolvedValue(1) } as any, destinations, flags);
   const routing = new MoneyRoutingService(ds, wallets, flags);
-  const release = new OrderReleaseService(ds, routing, flags);
+  const release = new OrderReleaseService(ds, routing);
 
   const makeUser = async (name: string) => {
     const n = ++seq;

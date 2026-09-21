@@ -12,7 +12,7 @@ import { Injectable } from '@nestjs/common';
  * must never affect the other.
  *
  * I2G adds the commerce-money partition flags. Defaults are conservative:
- * server-side workspace stamping and the fail-closed release guard are ON
+ * server-side workspace stamping is ON (the fail-closed release guard is unconditional and has NO flag)
  * (they only ever prevent misattribution); read/mutation ENFORCEMENT and every
  * Business payout capability are OFF until explicitly enabled per stage.
  */
@@ -23,7 +23,6 @@ export type OwnershipFeatureFlag =
   | 'CLASSIFIED_WORKSPACE_READ'
   // I2G
   | 'ORDER_WORKSPACE_STAMP'
-  | 'RELEASE_GUARD_ENFORCE'
   | 'SALE_WORKSPACE_ENFORCE'
   | 'ORDER_WORKSPACE_ENFORCE'
   | 'BUSINESS_PAYOUT_DESTINATION_ENABLED'
@@ -35,7 +34,6 @@ const DEFAULTS: Record<OwnershipFeatureFlag, boolean> = {
   CLASSIFIED_WORKSPACE_DUAL_WRITE: true,
   CLASSIFIED_WORKSPACE_READ: false,
   ORDER_WORKSPACE_STAMP: true,
-  RELEASE_GUARD_ENFORCE: true,
   SALE_WORKSPACE_ENFORCE: false,
   ORDER_WORKSPACE_ENFORCE: false,
   BUSINESS_PAYOUT_DESTINATION_ENABLED: false,

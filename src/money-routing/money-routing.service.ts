@@ -75,7 +75,6 @@ export class MoneyRoutingService {
    * Never changes ownership.
    */
   async assertRoutable(orderId: number, amount: number, source: MoneyRoutingSource): Promise<void> {
-    if (!this.flags.isEnabled('RELEASE_GUARD_ENFORCE')) return;
     if (!(amount > 0)) return; // nothing to route
     const target = await resolveOrderRoutingTarget(this.dataSource.manager, orderId);
     if (target.kind !== 'BLOCKED') return;
