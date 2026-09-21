@@ -27,7 +27,7 @@ import { RoleContextException } from '../role-context/role-context.exception';
 import { SuperAgentsService } from '../super-agents/super-agents.service';
 import { OrdersService } from '../orders/orders.service';
 import { SalesService } from '../sales/sales.service';
-import { SellerScope } from '../business/seller-scope.service';
+import { SellerScope, NoTeamMembershipException } from '../business/seller-scope.service';
 import { Business, BusinessStatus } from '../business/entities/business.entity';
 import { OperationalWorkspace, OperationalWorkspaceStatus } from '../business/entities/operational-workspace.entity';
 import { BusinessMembership, BusinessMembershipRoleTemplate, BusinessMembershipStatus } from '../business/entities/business-membership.entity';
@@ -649,7 +649,7 @@ describe('I2G — Order/Sale/Wallet workspace partition, real disposable-DB', ()
       const ctx: any = { identityType: 'PERSONAL', workspaceId: null, userId: 5 };
       await expect(new WalletController(walletService, revoked).getWallet({ user: { id: 5 } }, ctx)).rejects.toBeInstanceOf(RoleContextException);
       expect(walletService.getWalletForContext).not.toHaveBeenCalled();
-      const refused: any = { resolve: jest.fn().mockRejectedValue(new Error('no membership')) };
+      const refused: any = { resolve: jest.fn().mockRejectedValue(new NoTeamMembershipException('no membership')) };
       await new WalletController(walletService, refused).getWallet({ user: { id: 5 } }, ctx);
       expect(walletService.getWalletForContext).toHaveBeenCalledWith({ identityType: 'PERSONAL', workspaceId: null, userId: 5 });
     });

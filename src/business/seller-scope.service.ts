@@ -39,6 +39,19 @@ const OWNS_THEIR_OWN_BUSINESS: AccountRoleType[] = [
 // authorization. workspaceId is the NEW authoritative source for a
 // workspace-migrated resource, and it is NEVER derived from
 // legacySellerId -- see resolveScope() below.
+/**
+ * The caller is not the owner of the business they asked about AND holds no active team
+ * membership for it. Distinct from a member who merely lacks a permission (plain
+ * ForbiddenException, code SELLER_SCOPE_PERMISSION_DENIED). Callers that legitimately mean
+ * "this person is simply acting for themselves" (the Personal wallet) may treat ONLY this
+ * exception that way; every other error must propagate (uncertain authority = fail closed).
+ */
+export class NoTeamMembershipException extends ForbiddenException {
+  constructor(message: string) {
+    super({ code: 'SELLER_SCOPE_NO_TEAM_MEMBERSHIP', message });
+  }
+}
+
 export interface SellerScope {
   legacySellerId: number;
   workspaceId: number | null;
@@ -138,11 +151,11 @@ export class SellerScopeService {
       return membership.sellerId;
     }
 
-    throw new ForbiddenException(
-      permission
-        ? `You don't have the "${permission}" permission for this business.`
-        : 'You are not authorized to manage this business.',
-    );
+    const message = permission
+      ? `You don't have the "${permission}" permission for this business.`
+      : 'You are not authorized to manage this business.';
+    if (!membership) throw new NoTeamMembershipException(message);
+    throw new ForbiddenException({ code: 'SELLER_SCOPE_PERMISSION_DENIED', message });
   }
 
   /**

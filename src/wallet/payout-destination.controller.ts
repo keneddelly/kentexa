@@ -1,8 +1,8 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
@@ -36,18 +36,20 @@ export class PayoutDestinationController {
   }
 }
 
+// Financial administration: canonical RoleContext + exact ACTIVE admin role (never legacy User.role).
 @Controller('admin/payout-destinations')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+@RequireActiveRole(AccountRoleType.ADMIN)
 export class AdminPayoutDestinationController {
   constructor(private destinations: PayoutDestinationService) {}
 
   @Post(':id/verify')
   verify(
-    @Request() req,
+    @CurrentRoleContext() ctx: RoleContext,
     @Param('id', ParseIntPipe) id: number,
     @Body() body: { verificationMethod?: string; verificationRef?: string },
   ) {
-    return this.destinations.verify(req.user.id, id, body ?? {});
+    // The mutation actor is the validated RoleContext's user, not a request-level user field.
+    return this.destinations.verify(ctx.userId, id, body ?? {});
   }
 }

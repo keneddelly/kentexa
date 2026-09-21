@@ -11,13 +11,12 @@ import {
 } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
-import { SellerScopeService } from '../business/seller-scope.service';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { SellerScopeService, NoTeamMembershipException } from '../business/seller-scope.service';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
-import { RoleContextException } from '../role-context/role-context.exception';
 import type { RoleContext } from '../role-context/role-context.types';
 
 /**
@@ -55,22 +54,27 @@ export class WalletController {
     return this.walletService.requestPersonalWithdrawal(ownerId, Number(amount));
   }
 
-  // Legacy Personal/team-delegation compatibility: an authorization refusal
-  // (no team membership) means "the caller's own wallet"; a RoleContext failure
-  // (revoked/expired/invalid session) is NEVER swallowed.
+  // Legacy Personal/team-delegation compatibility. ONLY the exact
+  // NoTeamMembershipException ("this caller is not a member of anyone's business, so they
+  // are simply using their own wallet") selects the caller's Personal wallet. Every other
+  // failure -- revoked/expired session (RoleContextException), a member lacking the
+  // permission, workspace/scope mismatches, database or internal errors, anything unknown --
+  // propagates: uncertain authority never selects a wallet.
   private async legacyOwnerId(user: any): Promise<number> {
     try {
       return await this.sellerScope.resolve(user, 'canViewRevenue');
     } catch (e) {
-      if (e instanceof RoleContextException) throw e;
-      return user.id;
+      if (e instanceof NoTeamMembershipException) return user.id;
+      throw e;
     }
   }
 }
 
+// I2G financial administration: canonical server-validated RoleContext, exact ACTIVE admin role
+// (never legacy User.role). Same mechanism as every other financial-admin controller.
 @Controller('admin/wallet-withdrawals')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.ADMIN)
+@UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+@RequireActiveRole(AccountRoleType.ADMIN)
 export class AdminWalletController {
   constructor(private walletService: WalletService) {}
 
