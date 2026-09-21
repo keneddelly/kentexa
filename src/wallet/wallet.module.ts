@@ -18,6 +18,7 @@ import {
 } from './payout-destination.controller';
 import { BusinessModule } from '../business/business.module';
 import { IdentityModule } from '../identity/identity.module';
+import { OrderReleaseService } from '../money-routing/order-release.service';
 
 @Module({
   imports: [
@@ -39,7 +40,7 @@ import { IdentityModule } from '../identity/identity.module';
     AdminPayoutDestinationController,
     MoneyRoutingAdminController,
   ],
-  providers: [WalletService, PayoutPolicyService, PayoutDestinationService, MoneyRoutingService],
-  exports: [WalletService, MoneyRoutingService, PayoutDestinationService],
+  providers: [WalletService, PayoutPolicyService, PayoutDestinationService, MoneyRoutingService, OrderReleaseService],
+  exports: [WalletService, MoneyRoutingService, PayoutDestinationService, OrderReleaseService],
 })
 export class WalletModule {}

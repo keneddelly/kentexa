@@ -40,7 +40,7 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { WalletService } from '../wallet/wallet.service';
-import { MoneyRoutingService } from '../money-routing/money-routing.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
 import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
@@ -102,7 +102,7 @@ export class PaymentsService {
     private conversationService: ConversationService,
     private businessCustomerService: BusinessCustomerService,
     private communicationEngine: CommunicationEngineService,
-    private moneyRouting: MoneyRoutingService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   private getProvider(provider: string): IPaymentProvider {
@@ -293,38 +293,30 @@ export class PaymentsService {
   // after the fact via the existing DisputesService.
   private async completeDigitalOrder(order: Order): Promise<void> {
     const now = new Date();
-    // I2G fail-closed: if the seller proceeds cannot be routed, record the payment
-    // but do NOT complete/release; a BLOCKED routing entry explains why.
-    if (order.seller?.id) {
-      try {
-        await this.moneyRouting.assertRoutable(order.id, Number(order.sellerAmount || 0), 'DIGITAL_AUTO_COMPLETE');
-      } catch (e) {
-        if (e instanceof MoneyRoutingBlockedException) {
-          await this.orderRepo.update(order.id, { paymentStatus: OrderPaymentStatus.PAID } as any);
-          this.logger.warn(`Digital order #${order.id} completion held: ${e.reason}`);
-          return;
-        }
-        throw e;
+    // I2G: canonical release. Unroutable proceeds -> the payment is recorded but the order is NOT
+    // completed/released (a BLOCKED routing entry explains why); nothing is credited.
+    try {
+      await this.orderRelease.releaseSellerProceeds({
+        orderId: order.id,
+        source: 'DIGITAL_AUTO_COMPLETE',
+        orderUpdate: {
+          paymentStatus: OrderPaymentStatus.PAID,
+          status: OrderStatus.COMPLETED,
+          deliveredAt: now,
+          completedAt: now,
+        },
+      });
+    } catch (e) {
+      if (e instanceof MoneyRoutingBlockedException) {
+        await this.orderRepo.update(order.id, { paymentStatus: OrderPaymentStatus.PAID } as any);
+        this.logger.warn(`Digital order #${order.id} completion held: ${e.reason}`);
+        return;
       }
+      throw e;
     }
-    await this.orderRepo.update(order.id, {
-      paymentStatus: OrderPaymentStatus.PAID,
-      status: OrderStatus.COMPLETED,
-      deliveredAt: now,
-      completedAt: now,
-      payoutStatus: 'released',
-      escrowStatus: EscrowStatus.RELEASED,
-      fundsReleasedAt: now,
-    } as any);
     this.logger.log(`Digital order #${order.id} auto-completed after payment`);
 
-    if (order.seller?.id) {
-      await this.moneyRouting.creditSellerProceeds({
-        orderId: order.id,
-        amount: Number(order.sellerAmount || 0),
-        source: 'DIGITAL_AUTO_COMPLETE',
-      });
-    }
+
 
     try {
       if (order.buyer?.id) {
@@ -433,11 +425,8 @@ export class PaymentsService {
     });
     if (!order) throw new NotFoundException(`Order #${orderId} not found`);
 
-    await this.orderRepo.update(orderId, {
-      escrowStatus: 'released' as any,
-      payoutStatus: 'released',
-      fundsReleasedAt: new Date(),
-    });
+    // I2G: admin release goes through the SAME canonical operation (blocked -> 409, nothing released).
+    await this.orderRelease.releaseSellerProceeds({ orderId, source: 'ADMIN_RELEASE' });
 
     this.logger.log(
       `Escrow released for order #${orderId} by admin #${adminId}`,

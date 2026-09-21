@@ -15,7 +15,8 @@ describe('DisputesService legacy authority closure', () => {
     const disputeRepo: any = { findOne: jest.fn(), update: jest.fn().mockResolvedValue(undefined) };
     const orderRepo: any = { findOne: jest.fn(), update: jest.fn().mockResolvedValue(undefined) };
     const noop: any = {};
-    const service = new DisputesService(disputeRepo, orderRepo, noop, noop);
+    const orderRelease: any = { releaseSellerProceeds: jest.fn().mockResolvedValue({ released: true }), recordBuyerRefund: jest.fn().mockResolvedValue(undefined) };
+    const service = new DisputesService(disputeRepo, orderRepo, noop, noop, orderRelease);
     return { service, disputeRepo };
   };
 

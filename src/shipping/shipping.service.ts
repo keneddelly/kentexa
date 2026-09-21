@@ -24,6 +24,8 @@ import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { RoleContext } from '../role-context/role-context.types';
 import { SellerScope, workspacePartition } from '../business/seller-scope.service';
 import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 
 @Injectable()
 export class ShippingService {
@@ -34,6 +36,7 @@ export class ShippingService {
     private orderRepo: Repository<Order>,
     private disputesService: DisputesService,
     private sellerScope: SellerScopeService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   // ── Seller: Mark order as preparing ──
@@ -121,14 +124,14 @@ export class ShippingService {
       throw new BadRequestException('Order not yet delivered');
     }
 
-    order.status = OrderStatus.COMPLETED;
-    order.completedAt = new Date();
-    order.escrowStatus = EscrowStatus.RELEASED;
-    order.fundsReleasedAt = new Date();
-    order.paymentStatus = 'released' as any;
-
+    // I2G: the ONE canonical release (guard -> seller-proceeds routing -> release state, atomically).
+    await this.orderRelease.releaseSellerProceeds({
+      orderId,
+      source: 'ESCROW_RELEASE',
+      orderUpdate: { status: OrderStatus.COMPLETED, completedAt: new Date(), paymentStatus: 'released' },
+    });
     this.logger.log(`Order ${orderId} completed. Funds released to seller.`);
-    return this.orderRepo.save(order);
+    return (await this.orderRepo.findOne({ where: { id: orderId } })) as Order;
   }
 
   // ── Buyer: Open dispute ──
@@ -257,18 +260,28 @@ export class ShippingService {
       .andWhere('order.deliveredAt < :date', { date: sevenDaysAgo })
       .getMany();
 
+    let completed = 0;
     for (const order of orders) {
-      order.status = OrderStatus.COMPLETED;
-      order.completedAt = new Date();
-      order.escrowStatus = EscrowStatus.RELEASED;
-      order.fundsReleasedAt = new Date();
-      order.paymentStatus = 'released' as any;
-      await this.orderRepo.save(order);
-      this.logger.log(`Auto-completed order ${order.id}`);
+      try {
+        // I2G: canonical release; an unroutable order stays delivered/unreleased (BLOCKED entry recorded).
+        await this.orderRelease.releaseSellerProceeds({
+          orderId: order.id,
+          source: 'AUTO_RELEASE',
+          orderUpdate: { status: OrderStatus.COMPLETED, completedAt: new Date(), paymentStatus: 'released' },
+        });
+        completed += 1;
+        this.logger.log(`Auto-completed order ${order.id}`);
+      } catch (e) {
+        if (e instanceof MoneyRoutingBlockedException) {
+          this.logger.warn(`Auto-complete held for order ${order.id}: ${e.reason}`);
+        } else {
+          this.logger.error(`Auto-complete failed for order ${order.id}: ${(e as Error).message}`);
+        }
+      }
     }
 
-    if (orders.length > 0) {
-      this.logger.log(`Auto-completed ${orders.length} delivered orders`);
+    if (completed > 0) {
+      this.logger.log(`Auto-completed ${completed} delivered orders`);
     }
   }
 

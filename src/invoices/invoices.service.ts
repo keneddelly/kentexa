@@ -19,7 +19,8 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { WalletService } from '../wallet/wallet.service';
-import { MoneyRoutingService } from '../money-routing/money-routing.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 
@@ -39,7 +40,7 @@ export class InvoicesService {
     private commerceProfiles: CommerceProfilesService,
     private walletService: WalletService,
     private reputationService: ReputationService,
-    private moneyRouting: MoneyRoutingService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   async generateInvoiceNumber(): Promise<string> {
@@ -310,25 +311,13 @@ export class InvoicesService {
     if ((invoice.order?.product as any)?.productType === 'digital') {
       try {
         const now = new Date();
-        // I2G fail-closed: an unroutable digital order stays paid-but-held.
-        if (invoice.order.seller?.id) {
-          await this.moneyRouting.assertRoutable(invoice.order.id, Number(invoice.order.sellerAmount || 0), 'INVOICE_PAID');
-        }
-        await this.orderRepo.update(invoice.order.id, {
-          status: OrderStatus.COMPLETED,
-          deliveredAt: now,
-          completedAt: now,
-          payoutStatus: 'released',
-          escrowStatus: EscrowStatus.RELEASED,
-          fundsReleasedAt: now,
-        } as any);
-        if (invoice.order.seller?.id) {
-          await this.moneyRouting.creditSellerProceeds({
-            orderId: invoice.order.id,
-            amount: Number(invoice.order.sellerAmount || 0),
-            source: 'INVOICE_PAID',
-          });
-        }
+        // I2G: canonical release; an unroutable digital order stays paid-but-held (BLOCKED entry recorded).
+        await this.orderRelease.releaseSellerProceeds({
+          orderId: invoice.order.id,
+          source: 'INVOICE_PAID',
+          orderUpdate: { status: OrderStatus.COMPLETED, deliveredAt: now, completedAt: now },
+        });
+
         if (invoice.buyer?.id) {
           await this.reputationService
             .award(invoice.buyer.id, ReputationEventType.ORDER_COMPLETED, {

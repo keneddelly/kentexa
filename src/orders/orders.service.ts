@@ -99,7 +99,7 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { WalletService } from '../wallet/wallet.service';
-import { MoneyRoutingService } from '../money-routing/money-routing.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
 import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
@@ -163,7 +163,7 @@ export class OrdersService {
     private activityEvents: ActivityEventService,
     private codCalculation: CodCalculationService,
     private communicationEngine: CommunicationEngineService,
-    private moneyRouting: MoneyRoutingService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   // If this order was created from a paid Manual Classified Invoice
@@ -1423,19 +1423,18 @@ export class OrdersService {
       throw new BadRequestException('Order not yet delivered');
     }
 
-    // I2G fail-closed release guard: never complete an escrow release whose
-    // seller proceeds cannot be routed to the resource's canonical wallet.
-    if (order.seller?.id) {
-      await this.moneyRouting.assertRoutable(orderId, Number(order.sellerAmount || 0), 'ESCROW_RELEASE');
-    }
-    await this.repo.update(orderId, {
-      status: OrderStatus.COMPLETED,
-      buyerConfirmedAt: new Date(),
-      deliveredAt: new Date(),
-      completedAt: new Date(),
-      payoutStatus: 'released',
-      escrowStatus: EscrowStatus.RELEASED,
-      fundsReleasedAt: new Date(),
+    // I2G: the ONE canonical release operation (guard -> seller-proceeds routing -> release state,
+    // atomically). A BLOCKED/unresolvable order stays unreleased and the buyer's confirmation is
+    // refused with a stable code; nothing is credited.
+    await this.orderRelease.releaseSellerProceeds({
+      orderId,
+      source: 'ESCROW_RELEASE',
+      orderUpdate: {
+        status: OrderStatus.COMPLETED,
+        buyerConfirmedAt: new Date(),
+        deliveredAt: new Date(),
+        completedAt: new Date(),
+      },
     });
     await this.markClassifiedSoldIfLinked(orderId);
     const completedSellerProfile = order.seller
@@ -1487,11 +1486,7 @@ export class OrdersService {
     }
 
     if (order.seller?.id) {
-      await this.moneyRouting.creditSellerProceeds({
-        orderId,
-        amount: Number(order.sellerAmount || 0),
-        source: 'ESCROW_RELEASE',
-      });
+      // (seller proceeds were routed atomically with the release above)
       // This path never collects a rating (buyer just confirms receipt),
       // so this only increments completedOrders — but it must still run
       // here, since this is a real order completion that confirmViaToken
@@ -2022,11 +2017,7 @@ export class OrdersService {
       const { superAgent, transportProvider } =
         await this.resolveShippingParties(order.id);
 
-      // I2G fail-closed release guard (online orders release escrow here).
-      if ((order.seller as any)?.id && isOnlineOrder) {
-        await this.moneyRouting.assertRoutable(order.id, Number(order.sellerAmount || 0), 'ESCROW_RELEASE');
-      }
-      await this.repo.update(order.id, {
+      const confirmationFields = {
         status: OrderStatus.COMPLETED,
         buyerConfirmedAt: new Date(),
         completedAt: new Date(),
@@ -2046,15 +2037,13 @@ export class OrdersService {
               transportReview: data.transportReview || null,
             }
           : {}),
-        // Release escrow for online orders only
-        ...(isOnlineOrder
-          ? {
-              payoutStatus: 'released',
-              escrowStatus: EscrowStatus.RELEASED,
-              fundsReleasedAt: new Date(),
-            }
-          : {}),
-      });
+      };
+      if (isOnlineOrder) {
+        // I2G: release escrow for online orders ONLY through the canonical operation (atomic with routing).
+        await this.orderRelease.releaseSellerProceeds({ orderId: order.id, source: 'ESCROW_RELEASE', orderUpdate: confirmationFields });
+      } else {
+        await this.repo.update(order.id, confirmationFields);
+      }
       await this.markClassifiedSoldIfLinked(order.id);
 
       await this.syncParcelDeliveredForOrder(order);
@@ -2066,13 +2055,6 @@ export class OrdersService {
         order.product?.name || (order as any).manualProductName || 'Bidhaa';
       const stars = '⭐'.repeat(data.rating || 0);
       const sellerId = (order.seller as any)?.id;
-      if (sellerId && isOnlineOrder) {
-        await this.moneyRouting.creditSellerProceeds({
-          orderId: order.id,
-          amount: Number(order.sellerAmount || 0),
-          source: 'ESCROW_RELEASE',
-        });
-      }
       // In-app notification
       if (sellerId) {
         const orderCommerceProfileId = (order as any).commerceProfileId ?? null;
@@ -2245,37 +2227,32 @@ export class OrdersService {
       const threshold = isIntercity ? fiveDaysAgo : threeDaysAgo;
 
       if (new Date(deliveredAt) < threshold) {
-        // I2G fail-closed release guard: an unroutable order stays HOLDING (and a
-        // BLOCKED routing entry records why) instead of releasing to a wrong wallet.
-        if (order.seller?.id) {
-          try {
-            await this.moneyRouting.assertRoutable(order.id, Number(order.sellerAmount || 0), 'ESCROW_RELEASE');
-          } catch (e) {
-            if (e instanceof MoneyRoutingBlockedException) {
-              console.warn(`Auto-release held for order #${order.id}: ${e.reason}`);
-              continue;
-            }
-            throw e;
+        // I2G: the canonical release. An unroutable order stays unreleased (a BLOCKED routing entry
+        // records why) and is skipped; every other error is isolated per order so one bad order
+        // never stops the batch.
+        try {
+          await this.orderRelease.releaseSellerProceeds({
+            orderId: order.id,
+            source: 'AUTO_RELEASE',
+            orderUpdate: {
+              status: OrderStatus.COMPLETED,
+              buyerConfirmedAt: now,
+              completedAt: now,
+              autoConfirmed: true,
+              confirmationToken: null,
+            },
+          });
+        } catch (e) {
+          if (e instanceof MoneyRoutingBlockedException) {
+            console.warn(`Auto-release held for order #${order.id}: ${e.reason}`);
+          } else {
+            console.error(`Auto-release failed for order #${order.id}: ${(e as Error).message}`);
           }
+          continue;
         }
-        await this.repo.update(order.id, {
-          status: OrderStatus.COMPLETED,
-          buyerConfirmedAt: now,
-          completedAt: now,
-          autoConfirmed: true,
-          confirmationToken: null,
-          payoutStatus: 'released',
-          escrowStatus: EscrowStatus.RELEASED,
-          fundsReleasedAt: now,
-        });
         await this.markClassifiedSoldIfLinked(order.id);
 
         if (order.seller?.id) {
-          await this.moneyRouting.creditSellerProceeds({
-            orderId: order.id,
-            amount: Number(order.sellerAmount || 0),
-            source: 'ESCROW_RELEASE',
-          });
           // Every order this cron auto-completes is a real completion the
           // buyer never acted on — the majority-of-volume case this
           // undercount was missing entirely.
@@ -2351,14 +2328,31 @@ export class OrdersService {
       throw new BadRequestException('No active dispute');
 
     const isSeller = data.favour === 'seller';
-    await this.repo.update(orderId, {
-      status: isSeller ? OrderStatus.COMPLETED : OrderStatus.CANCELLED,
-      payoutStatus: isSeller ? 'released' : 'refunded',
-      escrowStatus: isSeller ? EscrowStatus.RELEASED : EscrowStatus.REFUNDED,
-      disputeResolution: data.resolution,
-      buyerConfirmedAt: new Date(),
-      fundsReleasedAt: isSeller ? new Date() : null,
-    });
+    if (isSeller) {
+      // I2G: seller favour = seller proceeds -> the ONE canonical release operation.
+      await this.orderRelease.releaseSellerProceeds({
+        orderId,
+        source: 'DISPUTE_RESOLUTION',
+        orderUpdate: {
+          status: OrderStatus.COMPLETED,
+          disputeResolution: data.resolution,
+          buyerConfirmedAt: new Date(),
+        },
+      });
+    } else {
+      // Buyer favour is a REFUND, not seller proceeds: state change only (no gateway refund and no
+      // wallet movement exists today). It also cancels any not-yet-routed seller-proceeds entry so
+      // a refunded order can never later credit the seller.
+      await this.repo.update(orderId, {
+        status: OrderStatus.CANCELLED,
+        payoutStatus: 'refunded',
+        escrowStatus: EscrowStatus.REFUNDED,
+        disputeResolution: data.resolution,
+        buyerConfirmedAt: new Date(),
+        fundsReleasedAt: null,
+      });
+      await this.orderRelease.recordBuyerRefund(orderId, 'dispute resolved in favour of buyer');
+    }
     if (isSeller) await this.markClassifiedSoldIfLinked(orderId);
 
     // A dispute resolved in the seller's favour is a real completion too —

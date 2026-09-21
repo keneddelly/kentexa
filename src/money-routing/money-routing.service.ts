@@ -111,6 +111,35 @@ export class MoneyRoutingService {
     return this.routeEntry(entryId);
   }
 
+  /** creditSellerProceeds inside the caller's transaction (errors propagate; nothing is swallowed). */
+  async creditSellerProceedsIn(
+    m: EntityManager,
+    input: { orderId: number; amount: number; source: MoneyRoutingSource; ref?: string | null },
+  ): Promise<RoutingOutcome> {
+    const { orderId, source } = input;
+    const amount = Math.round(Number(input.amount) * 100) / 100;
+    if (!(amount > 0)) return { entryId: null, eventKey: null, state: 'NOT_APPLICABLE' };
+    const eventKey = sellerProceedsEventKey(orderId);
+    const target = await resolveOrderRoutingTarget(m, orderId);
+    if (target.kind === 'NOT_APPLICABLE') return { entryId: null, eventKey, state: 'NOT_APPLICABLE' };
+    const entryId = await this.ensureEntry(orderId, eventKey, amount, source, input.ref ?? null, target, m);
+    await this.observeAmount(orderId, amount, m);
+    return this.routeEntryIn(m, entryId);
+  }
+
+  /**
+   * A refund to the buyer must never later be followed by a seller credit for the same order:
+   * any seller-proceeds entry that has NOT been routed is CANCELLED. (An already-ROUTED credit
+   * is left untouched -- reversing money is a separate, explicit financial event.)
+   */
+  async cancelSellerProceedsForRefund(orderId: number, note: string, manager?: EntityManager): Promise<void> {
+    await (manager ?? this.dataSource).query(
+      `UPDATE money_routing_entry SET state = 'CANCELLED', "resolutionNote" = $2
+        WHERE "eventKey" = $1 AND state IN ('PENDING','BLOCKED')`,
+      [sellerProceedsEventKey(orderId), note],
+    );
+  }
+
   private async ensureEntry(
     orderId: number,
     eventKey: string,
@@ -118,11 +147,12 @@ export class MoneyRoutingService {
     source: MoneyRoutingSource,
     ref: string | null,
     target: OrderRoutingTarget,
+    manager?: EntityManager,
   ): Promise<number> {
     const blocked = target.kind === 'BLOCKED';
     const targetType = target.kind === 'TARGET' ? target.targetType : MoneyRoutingTargetType.UNRESOLVED;
     const observation = JSON.stringify([{ source, at: new Date().toISOString(), ref }]);
-    return this.dataSource.transaction(async (m) => {
+    const run = async (m: EntityManager): Promise<number> => {
       await m.query(
         `INSERT INTO money_routing_entry ("eventKey","eventType","orderId",amount,"targetType","targetWorkspaceId","targetUserId",state,"blockReason","blockDetail",observations,"nextAttemptAt")
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb, now())
@@ -147,13 +177,26 @@ export class MoneyRoutingService {
         );
       }
       return row.id as number;
-    });
+    };
+    return manager ? run(manager) : this.dataSource.transaction(run);
   }
 
-  /** Lock the entry, and if PENDING credit it exactly once. */
+  /** Lock the entry, and if PENDING credit it exactly once (own transaction; transient failures are recorded for retry). */
   async routeEntry(entryId: number): Promise<RoutingOutcome> {
     try {
-      return await this.dataSource.transaction(async (m) => {
+      return await this.dataSource.transaction((m) => this.routeEntryIn(m, entryId));
+    } catch (err: any) {
+      return this.recordTransientFailure(entryId, err);
+    }
+  }
+
+  /**
+   * Same operation inside the CALLER's transaction (used by the canonical order release so the
+   * credit and the release state commit or roll back together). Errors propagate: nothing is
+   * half-applied and the caller's transaction aborts.
+   */
+  async routeEntryIn(m: EntityManager, entryId: number): Promise<RoutingOutcome> {
+    {
         const rows = await m.query(`SELECT * FROM money_routing_entry WHERE id = $1 FOR UPDATE`, [entryId]);
         const e: any = rows[0];
         if (!e) return { entryId, eventKey: null, state: 'NOT_APPLICABLE' } as RoutingOutcome;
@@ -210,9 +253,6 @@ export class MoneyRoutingService {
           [e.id, credit.transactionId],
         );
         return { entryId: e.id, eventKey: e.eventKey, state: MoneyRoutingState.ROUTED };
-      });
-    } catch (err: any) {
-      return this.recordTransientFailure(entryId, err);
     }
   }
 
@@ -221,9 +261,9 @@ export class MoneyRoutingService {
    * event never credits: the entry (unless already ROUTED) is BLOCKED for
    * review.
    */
-  async observeAmount(orderId: number, amount: number): Promise<void> {
+  async observeAmount(orderId: number, amount: number, manager?: EntityManager): Promise<void> {
     const eventKey = sellerProceedsEventKey(orderId);
-    await this.dataSource.query(
+    await (manager ?? this.dataSource).query(
       `UPDATE money_routing_entry
           SET state = 'BLOCKED', "blockReason" = 'AMOUNT_CONFLICT',
               "blockDetail" = jsonb_build_object('orderId', "orderId", 'recordedAmount', amount, 'observedAmount', $2::numeric)

@@ -10,6 +10,7 @@ import { Product } from '../products/entities/products.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommunicationModule } from '../communication/communication.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CommunicationModule } from '../communication/communication.module';
     ]),
     NotificationsModule,
     CommunicationModule,
+    WalletModule,
   ],
   controllers: [DailyBatchesController],
   providers: [DailyBatchesService],

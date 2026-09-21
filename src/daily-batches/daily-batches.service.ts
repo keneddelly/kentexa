@@ -17,6 +17,8 @@ import { Product } from '../products/entities/products.entity';
 import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 
 @Injectable()
 export class DailyBatchesService {
@@ -188,6 +190,7 @@ export class DailyBatchesService {
     private routeRepo: Repository<IntercityRoute>,
     private notificationsService: NotificationsService,
     private communicationEngine: CommunicationEngineService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   // ── Zone detection — match a delivery address to a known zone ────────────
@@ -1274,14 +1277,25 @@ export class DailyBatchesService {
 
       for (const order of overdueOrders) {
         try {
-          await this.orderRepo.update(order.id, {
-            status: 'completed',
-            escrowStatus: 'released',
-            payoutStatus: 'released',
-            completedAt: now,
-            fundsReleasedAt: now,
-            autoConfirmAt: now, // marks as auto-released, not buyer-confirmed
-          } as any);
+          // I2G: canonical release (guard -> seller-proceeds routing -> release state, atomically).
+          // An unroutable order is skipped and stays unreleased (BLOCKED routing entry recorded).
+          try {
+            await this.orderRelease.releaseSellerProceeds({
+              orderId: order.id,
+              source: 'AUTO_RELEASE',
+              orderUpdate: {
+                status: 'completed',
+                completedAt: now,
+                autoConfirmAt: now, // marks as auto-released, not buyer-confirmed
+              },
+            });
+          } catch (releaseErr) {
+            if (releaseErr instanceof MoneyRoutingBlockedException) {
+              console.warn(`[Auto-Release] Order #${order.id} held: ${releaseErr.reason}`);
+              continue;
+            }
+            throw releaseErr;
+          }
 
           // Notify both parties via notifications service
           await this.notificationsService
