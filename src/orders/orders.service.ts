@@ -99,6 +99,8 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { WalletService } from '../wallet/wallet.service';
+import { MoneyRoutingService } from '../money-routing/money-routing.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
@@ -160,6 +162,7 @@ export class OrdersService {
     private activityEvents: ActivityEventService,
     private codCalculation: CodCalculationService,
     private communicationEngine: CommunicationEngineService,
+    private moneyRouting: MoneyRoutingService,
   ) {}
 
   // If this order was created from a paid Manual Classified Invoice
@@ -1416,6 +1419,11 @@ export class OrdersService {
       throw new BadRequestException('Order not yet delivered');
     }
 
+    // I2G fail-closed release guard: never complete an escrow release whose
+    // seller proceeds cannot be routed to the resource's canonical wallet.
+    if (order.seller?.id) {
+      await this.moneyRouting.assertRoutable(orderId, Number(order.sellerAmount || 0), 'ESCROW_RELEASE');
+    }
     await this.repo.update(orderId, {
       status: OrderStatus.COMPLETED,
       buyerConfirmedAt: new Date(),
@@ -1475,13 +1483,11 @@ export class OrdersService {
     }
 
     if (order.seller?.id) {
-      await this.walletService
-        .creditFromEscrowRelease(
-          order.seller.id,
-          orderId,
-          Number(order.sellerAmount || 0),
-        )
-        .catch(() => {});
+      await this.moneyRouting.creditSellerProceeds({
+        orderId,
+        amount: Number(order.sellerAmount || 0),
+        source: 'ESCROW_RELEASE',
+      });
       // This path never collects a rating (buyer just confirms receipt),
       // so this only increments completedOrders — but it must still run
       // here, since this is a real order completion that confirmViaToken
@@ -2012,6 +2018,10 @@ export class OrdersService {
       const { superAgent, transportProvider } =
         await this.resolveShippingParties(order.id);
 
+      // I2G fail-closed release guard (online orders release escrow here).
+      if ((order.seller as any)?.id && isOnlineOrder) {
+        await this.moneyRouting.assertRoutable(order.id, Number(order.sellerAmount || 0), 'ESCROW_RELEASE');
+      }
       await this.repo.update(order.id, {
         status: OrderStatus.COMPLETED,
         buyerConfirmedAt: new Date(),
@@ -2053,13 +2063,11 @@ export class OrdersService {
       const stars = '⭐'.repeat(data.rating || 0);
       const sellerId = (order.seller as any)?.id;
       if (sellerId && isOnlineOrder) {
-        await this.walletService
-          .creditFromEscrowRelease(
-            sellerId,
-            order.id,
-            Number(order.sellerAmount || 0),
-          )
-          .catch(() => {});
+        await this.moneyRouting.creditSellerProceeds({
+          orderId: order.id,
+          amount: Number(order.sellerAmount || 0),
+          source: 'ESCROW_RELEASE',
+        });
       }
       // In-app notification
       if (sellerId) {
@@ -2233,6 +2241,19 @@ export class OrdersService {
       const threshold = isIntercity ? fiveDaysAgo : threeDaysAgo;
 
       if (new Date(deliveredAt) < threshold) {
+        // I2G fail-closed release guard: an unroutable order stays HOLDING (and a
+        // BLOCKED routing entry records why) instead of releasing to a wrong wallet.
+        if (order.seller?.id) {
+          try {
+            await this.moneyRouting.assertRoutable(order.id, Number(order.sellerAmount || 0), 'ESCROW_RELEASE');
+          } catch (e) {
+            if (e instanceof MoneyRoutingBlockedException) {
+              console.warn(`Auto-release held for order #${order.id}: ${e.reason}`);
+              continue;
+            }
+            throw e;
+          }
+        }
         await this.repo.update(order.id, {
           status: OrderStatus.COMPLETED,
           buyerConfirmedAt: now,
@@ -2246,13 +2267,11 @@ export class OrdersService {
         await this.markClassifiedSoldIfLinked(order.id);
 
         if (order.seller?.id) {
-          await this.walletService
-            .creditFromEscrowRelease(
-              order.seller.id,
-              order.id,
-              Number(order.sellerAmount || 0),
-            )
-            .catch(() => {});
+          await this.moneyRouting.creditSellerProceeds({
+            orderId: order.id,
+            amount: Number(order.sellerAmount || 0),
+            source: 'ESCROW_RELEASE',
+          });
           // Every order this cron auto-completes is a real completion the
           // buyer never acted on — the majority-of-volume case this
           // undercount was missing entirely.

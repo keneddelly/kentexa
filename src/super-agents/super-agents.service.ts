@@ -35,6 +35,7 @@ import {
 } from '../cod/cod-policy.config';
 import { SmsService } from '../sms/sms.service';
 import { WalletService } from '../wallet/wallet.service';
+import { MoneyRoutingService } from '../money-routing/money-routing.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
@@ -173,6 +174,7 @@ export class SuperAgentsService {
     private activityEvents: ActivityEventService,
     private walletService: WalletService,
     private roleContextService: RoleContextService,
+    private moneyRouting: MoneyRoutingService,
   ) {}
 
   // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
@@ -3059,9 +3061,18 @@ export class SuperAgentsService {
       );
 
       if (!isManuallyArrangedOrder && order.seller?.id) {
-        await this.walletService
-          .creditFromEscrowRelease(order.seller.id, order.id, sellerNetAfterCodFee)
-          .catch((e) => console.error('COD wallet credit failed (non-critical):', e.message));
+        // I2G: the cash is already collected, so this can never block the physical
+        // flow -- but the credit is fail-closed: an unroutable order records a
+        // BLOCKED routing entry (durable, investigable), never a Personal-wallet credit.
+        // Same immutable seller-proceeds event as escrow release / webhook / invoice-paid.
+        const routed = await this.moneyRouting.creditSellerProceeds({
+          orderId: order.id,
+          amount: sellerNetAfterCodFee,
+          source: 'COD_DELIVERY',
+        });
+        if (routed.state === 'BLOCKED') {
+          console.error(`COD seller proceeds BLOCKED for order #${order.id}: ${routed.blockReason}`);
+        }
       }
 
       // Attributed to whichever agent actually handled this delivery —

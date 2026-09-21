@@ -40,6 +40,8 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { WalletService } from '../wallet/wallet.service';
+import { MoneyRoutingService } from '../money-routing/money-routing.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { OrderStatus } from '../orders/entities/order.entity';
@@ -100,6 +102,7 @@ export class PaymentsService {
     private conversationService: ConversationService,
     private businessCustomerService: BusinessCustomerService,
     private communicationEngine: CommunicationEngineService,
+    private moneyRouting: MoneyRoutingService,
   ) {}
 
   private getProvider(provider: string): IPaymentProvider {
@@ -290,6 +293,20 @@ export class PaymentsService {
   // after the fact via the existing DisputesService.
   private async completeDigitalOrder(order: Order): Promise<void> {
     const now = new Date();
+    // I2G fail-closed: if the seller proceeds cannot be routed, record the payment
+    // but do NOT complete/release; a BLOCKED routing entry explains why.
+    if (order.seller?.id) {
+      try {
+        await this.moneyRouting.assertRoutable(order.id, Number(order.sellerAmount || 0), 'DIGITAL_AUTO_COMPLETE');
+      } catch (e) {
+        if (e instanceof MoneyRoutingBlockedException) {
+          await this.orderRepo.update(order.id, { paymentStatus: OrderPaymentStatus.PAID } as any);
+          this.logger.warn(`Digital order #${order.id} completion held: ${e.reason}`);
+          return;
+        }
+        throw e;
+      }
+    }
     await this.orderRepo.update(order.id, {
       paymentStatus: OrderPaymentStatus.PAID,
       status: OrderStatus.COMPLETED,
@@ -302,13 +319,11 @@ export class PaymentsService {
     this.logger.log(`Digital order #${order.id} auto-completed after payment`);
 
     if (order.seller?.id) {
-      await this.walletService
-        .creditFromEscrowRelease(
-          order.seller.id,
-          order.id,
-          Number(order.sellerAmount || 0),
-        )
-        .catch(() => {});
+      await this.moneyRouting.creditSellerProceeds({
+        orderId: order.id,
+        amount: Number(order.sellerAmount || 0),
+        source: 'DIGITAL_AUTO_COMPLETE',
+      });
     }
 
     try {
