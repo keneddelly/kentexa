@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,15 +15,21 @@ import {
 } from './entities/wallet-transaction.entity';
 import { User } from '../users/entities/user.entity';
 import { VerificationService } from '../identity/verification.service';
+import { Order } from '../orders/entities/order.entity';
+import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 
 @Injectable()
 export class WalletService {
+  private readonly logger = new Logger(WalletService.name);
+
   constructor(
     @InjectRepository(Wallet) private walletRepo: Repository<Wallet>,
     @InjectRepository(WalletTransaction)
     private txRepo: Repository<WalletTransaction>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Order) private orderRepo: Repository<Order>,
     private verification: VerificationService,
+    private paymentEvidence: PaymentEvidenceService,
   ) {}
 
   async getOrCreateWallet(userId: number): Promise<Wallet> {
@@ -35,18 +42,44 @@ export class WalletService {
     return wallet;
   }
 
-  // Called additively from orders.service.ts's three existing escrow-release
-  // points, alongside (not instead of) the existing Payout row — Payout
-  // stays the historical/audit record, Wallet becomes the live balance.
-  // Never throws: a wallet-credit failure must not roll back or block the
-  // escrow release itself, same non-fatal convention used for reputation
-  // awards at the same call sites.
+  // Called additively from every real seller-proceeds release point
+  // (buyerConfirm/confirmViaToken/autoConfirmDeliveredOrders, digital-order
+  // completion, COD delivery collection), alongside (not instead of) the
+  // existing Payout row — Payout stays the historical/audit record, Wallet
+  // becomes the live balance. Never throws: a wallet-credit failure must
+  // not roll back or block the escrow release itself, same non-fatal
+  // convention used for reputation awards at the same call sites.
+  //
+  // S0 Decision 13 — final fail-closed defence, defence-in-depth only: this
+  // does NOT decide "did Kentexa receive the required money" (that's
+  // PaymentConfirmationService's job, already enforced before any of these
+  // callers ever reach this point) — it only refuses to credit a checkout
+  // order's seller if verified PaymentEvidence is somehow still missing,
+  // in case a future caller is added that skips the earlier guards.
   async creditFromEscrowRelease(
     sellerId: number,
     orderId: number,
     amount: number,
   ): Promise<void> {
     if (!sellerId || !amount || amount <= 0) return;
+
+    const order = await this.orderRepo.findOne({ where: { id: orderId } });
+    if (order) {
+      const evidence = await this.paymentEvidence.check({
+        id: order.id,
+        source: order.source,
+        paymentMethod: order.paymentMethod,
+        totalAmount: order.totalAmount,
+        codUpfrontAmount: (order as any).codUpfrontAmount,
+      });
+      if (evidence.applicable && !evidence.sufficient) {
+        this.logger.error(
+          `Wallet credit BLOCKED for order #${orderId}, seller #${sellerId}: no verified payment evidence (purpose=${evidence.purpose}, required=${evidence.requiredMinor}, have=${evidence.totalMinor})`,
+        );
+        return;
+      }
+    }
+
     const wallet = await this.getOrCreateWallet(sellerId);
     const newBalance = Number(wallet.balance) + Number(amount);
     await this.walletRepo.update(wallet.id, {
