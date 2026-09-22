@@ -99,6 +99,9 @@ import { InAppNotificationService } from '../notifications/in-app-notification.s
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { WalletService } from '../wallet/wallet.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
+import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profile-scope.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
@@ -162,6 +165,7 @@ export class OrdersService {
     private codCalculation: CodCalculationService,
     private communicationEngine: CommunicationEngineService,
     private paymentEvidence: PaymentEvidenceService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   /** S0 shared guard — every checkout->fulfilment/COD-collection transition on Order goes through this. */
@@ -308,6 +312,9 @@ export class OrdersService {
       // that predate Product.commerceProfileId (profile-architecture-
       // audit-2026-08), same legacy-fallback convention as elsewhere.
       commerceProfileId: (product as any).commerceProfileId ?? null,
+      // I2G: commerce/sender workspace inherited from the purchased Product's own stamped
+      // workspace (a buyer-created order has no seller RoleContext). NULL when the product is unstamped.
+      workspaceId: ownershipFlag('ORDER_WORKSPACE_STAMP') ? ((product as any).workspaceId ?? null) : null,
       brandId,
       brandNameSnapshot,
       productNameSnapshot: product.name,
@@ -666,7 +673,7 @@ export class OrdersService {
       relations: { seller: true, product: true, buyer: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    assertResourceInBusinessScope(scope, order.product?.workspaceId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (![OrderStatus.PAID, OrderStatus.PREPARING].includes(order.status)) {
@@ -762,7 +769,7 @@ export class OrdersService {
       relations: { seller: true, buyer: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    assertResourceInBusinessScope(scope, order.product?.workspaceId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.status !== OrderStatus.PREPARING)
@@ -827,7 +834,7 @@ export class OrdersService {
       relations: { seller: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    assertResourceInBusinessScope(scope, order.product?.workspaceId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.status !== OrderStatus.PAID)
@@ -873,7 +880,7 @@ export class OrdersService {
       relations: { seller: true, buyer: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    assertResourceInBusinessScope(scope, order.product?.workspaceId);
+    assertResourceInBusinessScope(scope, (order as any).workspaceId ?? order.product?.workspaceId);
     if (order.seller?.id !== seller.id)
       throw new ForbiddenException('Not your order');
     if (order.paymentMethod !== OrderPaymentMethod.COD)
@@ -1447,14 +1454,18 @@ export class OrdersService {
       throw new BadRequestException('Order not yet delivered');
     }
 
-    await this.repo.update(orderId, {
-      status: OrderStatus.COMPLETED,
-      buyerConfirmedAt: new Date(),
-      deliveredAt: new Date(),
-      completedAt: new Date(),
-      payoutStatus: 'released',
-      escrowStatus: EscrowStatus.RELEASED,
-      fundsReleasedAt: new Date(),
+    // I2G: the ONE canonical release operation (guard -> seller-proceeds routing -> release state,
+    // atomically). A BLOCKED/unresolvable order stays unreleased and the buyer's confirmation is
+    // refused with a stable code; nothing is credited.
+    await this.orderRelease.releaseSellerProceeds({
+      orderId,
+      source: 'ESCROW_RELEASE',
+      orderUpdate: {
+        status: OrderStatus.COMPLETED,
+        buyerConfirmedAt: new Date(),
+        deliveredAt: new Date(),
+        completedAt: new Date(),
+      },
     });
     await this.markClassifiedSoldIfLinked(orderId);
     const completedSellerProfile = order.seller
@@ -1506,13 +1517,7 @@ export class OrdersService {
     }
 
     if (order.seller?.id) {
-      await this.walletService
-        .creditFromEscrowRelease(
-          order.seller.id,
-          orderId,
-          Number(order.sellerAmount || 0),
-        )
-        .catch(() => {});
+      // (seller proceeds were routed atomically with the release above)
       // This path never collects a rating (buyer just confirms receipt),
       // so this only increments completedOrders — but it must still run
       // here, since this is a real order completion that confirmViaToken
@@ -2043,7 +2048,7 @@ export class OrdersService {
       const { superAgent, transportProvider } =
         await this.resolveShippingParties(order.id);
 
-      await this.repo.update(order.id, {
+      const confirmationFields = {
         status: OrderStatus.COMPLETED,
         buyerConfirmedAt: new Date(),
         completedAt: new Date(),
@@ -2063,15 +2068,13 @@ export class OrdersService {
               transportReview: data.transportReview || null,
             }
           : {}),
-        // Release escrow for online orders only
-        ...(isOnlineOrder
-          ? {
-              payoutStatus: 'released',
-              escrowStatus: EscrowStatus.RELEASED,
-              fundsReleasedAt: new Date(),
-            }
-          : {}),
-      });
+      };
+      if (isOnlineOrder) {
+        // I2G: release escrow for online orders ONLY through the canonical operation (atomic with routing).
+        await this.orderRelease.releaseSellerProceeds({ orderId: order.id, source: 'ESCROW_RELEASE', orderUpdate: confirmationFields });
+      } else {
+        await this.repo.update(order.id, confirmationFields);
+      }
       await this.markClassifiedSoldIfLinked(order.id);
 
       await this.syncParcelDeliveredForOrder(order);
@@ -2083,15 +2086,6 @@ export class OrdersService {
         order.product?.name || (order as any).manualProductName || 'Bidhaa';
       const stars = '⭐'.repeat(data.rating || 0);
       const sellerId = (order.seller as any)?.id;
-      if (sellerId && isOnlineOrder) {
-        await this.walletService
-          .creditFromEscrowRelease(
-            sellerId,
-            order.id,
-            Number(order.sellerAmount || 0),
-          )
-          .catch(() => {});
-      }
       // In-app notification
       if (sellerId) {
         const orderCommerceProfileId = (order as any).commerceProfileId ?? null;
@@ -2264,26 +2258,32 @@ export class OrdersService {
       const threshold = isIntercity ? fiveDaysAgo : threeDaysAgo;
 
       if (new Date(deliveredAt) < threshold) {
-        await this.repo.update(order.id, {
-          status: OrderStatus.COMPLETED,
-          buyerConfirmedAt: now,
-          completedAt: now,
-          autoConfirmed: true,
-          confirmationToken: null,
-          payoutStatus: 'released',
-          escrowStatus: EscrowStatus.RELEASED,
-          fundsReleasedAt: now,
-        });
+        // I2G: the canonical release. An unroutable order stays unreleased (a BLOCKED routing entry
+        // records why) and is skipped; every other error is isolated per order so one bad order
+        // never stops the batch.
+        try {
+          await this.orderRelease.releaseSellerProceeds({
+            orderId: order.id,
+            source: 'AUTO_RELEASE',
+            orderUpdate: {
+              status: OrderStatus.COMPLETED,
+              buyerConfirmedAt: now,
+              completedAt: now,
+              autoConfirmed: true,
+              confirmationToken: null,
+            },
+          });
+        } catch (e) {
+          if (e instanceof MoneyRoutingBlockedException) {
+            console.warn(`Auto-release held for order #${order.id}: ${e.reason}`);
+          } else {
+            console.error(`Auto-release failed for order #${order.id}: ${(e as Error).message}`);
+          }
+          continue;
+        }
         await this.markClassifiedSoldIfLinked(order.id);
 
         if (order.seller?.id) {
-          await this.walletService
-            .creditFromEscrowRelease(
-              order.seller.id,
-              order.id,
-              Number(order.sellerAmount || 0),
-            )
-            .catch(() => {});
           // Every order this cron auto-completes is a real completion the
           // buyer never acted on — the majority-of-volume case this
           // undercount was missing entirely.
@@ -2359,14 +2359,31 @@ export class OrdersService {
       throw new BadRequestException('No active dispute');
 
     const isSeller = data.favour === 'seller';
-    await this.repo.update(orderId, {
-      status: isSeller ? OrderStatus.COMPLETED : OrderStatus.CANCELLED,
-      payoutStatus: isSeller ? 'released' : 'refunded',
-      escrowStatus: isSeller ? EscrowStatus.RELEASED : EscrowStatus.REFUNDED,
-      disputeResolution: data.resolution,
-      buyerConfirmedAt: new Date(),
-      fundsReleasedAt: isSeller ? new Date() : null,
-    });
+    if (isSeller) {
+      // I2G: seller favour = seller proceeds -> the ONE canonical release operation.
+      await this.orderRelease.releaseSellerProceeds({
+        orderId,
+        source: 'DISPUTE_RESOLUTION',
+        orderUpdate: {
+          status: OrderStatus.COMPLETED,
+          disputeResolution: data.resolution,
+          buyerConfirmedAt: new Date(),
+        },
+      });
+    } else {
+      // Buyer favour is a REFUND, not seller proceeds: state change only (no gateway refund and no
+      // wallet movement exists today). It also cancels any not-yet-routed seller-proceeds entry so
+      // a refunded order can never later credit the seller.
+      await this.repo.update(orderId, {
+        status: OrderStatus.CANCELLED,
+        payoutStatus: 'refunded',
+        escrowStatus: EscrowStatus.REFUNDED,
+        disputeResolution: data.resolution,
+        buyerConfirmedAt: new Date(),
+        fundsReleasedAt: null,
+      });
+      await this.orderRelease.recordBuyerRefund(orderId, 'dispute resolved in favour of buyer');
+    }
     if (isSeller) await this.markClassifiedSoldIfLinked(orderId);
 
     // A dispute resolved in the seller's favour is a real completion too —
@@ -2940,34 +2957,40 @@ export class OrdersService {
       busCompany?: string;
       busTicketNumber?: string;
       externalTrackingRef?: string;
-      // Which CommerceProfile (personal vs a specific business) this order
-      // was created as — same pattern as createSellerShipment().
+      // IGNORED for authority (I2G): the acting CommerceProfile/workspace come from the
+      // authenticated RoleContext scope, never from the payload.
       commerceProfileId?: number;
     },
+    scope?: SellerScope,
   ) {
     const product = await this.productsService.findOne(dto.productId);
     if (!product) throw new NotFoundException('Product not found');
     if (product.seller?.id !== seller.id)
       throw new ForbiddenException('Not your product');
+    // Same-owner Business A must not sell Business B's product (and a legacy Seller never a Business's).
+    assertResourceInBusinessScope(scope, (product as any).workspaceId);
     if (!product.isAvailable)
       throw new BadRequestException('Product not available');
     if (product.stock < dto.quantity)
       throw new BadRequestException('Insufficient stock');
 
+    // I2G: actor identity is the RoleContext's (scope), never the client's commerceProfileId.
+    const actorProfileId = scope?.commerceProfileId ?? null;
     let senderDisplayName = (seller as any).storeName || seller.name;
-    if (dto.commerceProfileId) {
-      const authorized = await this.profileScope.isAuthorizedFor(
-        seller.id,
-        dto.commerceProfileId,
-        'canCreateOrders',
-      );
-      if (authorized) {
-        const profile = await this.commerceProfiles
-          .findById(dto.commerceProfileId)
-          .catch(() => null);
-        if (profile?.displayName) senderDisplayName = profile.displayName;
-      }
+    if (actorProfileId) {
+      const profile = await this.commerceProfiles
+        .findById(actorProfileId)
+        .catch(() => null);
+      if (profile?.displayName) senderDisplayName = profile.displayName;
     }
+    // Creation authority: the order is stamped with the acting Business workspace only when the
+    // product provably belongs to it; otherwise it stays NULL (legacy / Personal).
+    const orderWorkspaceId =
+      ownershipFlag('ORDER_WORKSPACE_STAMP') &&
+      scope?.workspaceId != null &&
+      (product as any).workspaceId === scope.workspaceId
+        ? scope.workspaceId
+        : null;
 
     const basePrice = Number(product.basePrice || 0);
     const deliveryFee = Number(product.deliveryFee || 0);
@@ -3020,7 +3043,8 @@ export class OrdersService {
       // senderDisplayName — never actually persisted, so this manual sale
       // had no way to be attributed to a specific business afterward
       // (profile-architecture-audit-2026-08 Stage 6).
-      commerceProfileId: dto.commerceProfileId ?? (product as any).commerceProfileId ?? null,
+      commerceProfileId: actorProfileId ?? (product as any).commerceProfileId ?? null,
+      workspaceId: orderWorkspaceId,
     } as any);
 
     const saved = await this.repo.save(order as any);

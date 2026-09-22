@@ -11,6 +11,7 @@ import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { CommunicationModule } from '../communication/communication.module';
 import { PaymentCoreModule } from '../payments/payment-core.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { PaymentCoreModule } from '../payments/payment-core.module';
     NotificationsModule,
     CommunicationModule,
     PaymentCoreModule,
+    WalletModule,
   ],
   controllers: [DailyBatchesController],
   providers: [DailyBatchesService],

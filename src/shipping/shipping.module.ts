@@ -6,9 +6,10 @@ import { ShippingController } from './shipping.controller';
 import { DisputesModule } from '../disputes/disputes.module';
 import { BusinessModule } from '../business/business.module';
 import { PaymentCoreModule } from '../payments/payment-core.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Order]), DisputesModule, BusinessModule, PaymentCoreModule],
+  imports: [TypeOrmModule.forFeature([Order]), DisputesModule, BusinessModule, PaymentCoreModule, WalletModule],
   controllers: [ShippingController],
   providers: [ShippingService],
   exports: [ShippingService],

@@ -46,6 +46,11 @@ export class Sale {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // I2G: owning OperationalWorkspace (see Order.workspaceId). Stamped from the
+  // authoritative RoleContext at creation; NULL = legacy/Personal.
+  @Column({ type: 'int', nullable: true })
+  workspaceId: number | null;
+
   @ManyToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   @JoinColumn()
   seller: User;

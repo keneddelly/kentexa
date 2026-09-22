@@ -146,7 +146,16 @@ describeIfDb('PaymentConfirmationService — real Postgres', () => {
     expect(order2).toMatchObject({ status: 'preparing', paymentStatus: 'upfront_paid' });
   });
 
-  it('a digital product order completes atomically: status completed, escrow released, fundsReleasedAt set', async () => {
+  // S0 x I2G integration gate: a digital order's actual completion + escrow release moved out of
+  // this service and into the canonical OrderReleaseService (the ONE writer of escrow RELEASED /
+  // fundsReleasedAt across the whole codebase) -- confirmVerifiedPayment's job stops at "was this
+  // payment legitimately confirmed", classifying the transition so its caller
+  // (PaymentsService.completeDigitalOrder) performs the release immediately afterward. That full
+  // completed/released/credited chain is exercised end-to-end in
+  // money-routing/release-writers.real-postgres.spec.ts; this only re-affirms the boundary: the
+  // Payment is confirmed and classified, and the Order's own completion/escrow columns are left
+  // untouched by THIS service.
+  it('a digital product order: payment confirms and is classified DIGITAL_COMPLETED, but the order itself is left untouched here (release happens in the caller)', async () => {
     const seller = await makeUser();
     const product = await makeProduct(seller.id, 'digital');
     const order = await makeOrder({ sellerId: seller.id, productId: product.id, totalAmount: 5000 });
@@ -156,8 +165,10 @@ describeIfDb('PaymentConfirmationService — real Postgres', () => {
 
     expect(outcome).toMatchObject({ status: 'CONFIRMED', orderTransition: 'DIGITAL_COMPLETED' });
     const order2 = await orderRow(order.id);
-    expect(order2).toMatchObject({ status: 'completed', paymentStatus: 'paid', escrowStatus: 'released' });
-    expect(order2!.fundsReleasedAt).toBeTruthy();
+    expect(order2).toMatchObject({ status: 'pending_payment', paymentStatus: 'pending', escrowStatus: 'holding' });
+    expect(order2!.fundsReleasedAt).toBeFalsy();
+    const payment2 = await paymentRow(payment.id);
+    expect(payment2).toMatchObject({ status: 'success' });
   });
 
   it('retry: confirming the SAME already-SUCCESS payment is idempotent (ALREADY_CONFIRMED, no re-processing)', async () => {

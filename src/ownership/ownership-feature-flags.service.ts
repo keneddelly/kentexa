@@ -10,18 +10,34 @@ import { Injectable } from '@nestjs/common';
  * (writes on, scoped reads off). Product and Classified are independently
  * controlled and independently reversible -- activating/rolling back one
  * must never affect the other.
+ *
+ * I2G adds the commerce-money partition flags. Defaults are conservative:
+ * server-side workspace stamping is ON (the fail-closed release guard is unconditional and has NO flag)
+ * (they only ever prevent misattribution); read/mutation ENFORCEMENT and every
+ * Business payout capability are OFF until explicitly enabled per stage.
  */
 export type OwnershipFeatureFlag =
   | 'PRODUCT_WORKSPACE_DUAL_WRITE'
   | 'PRODUCT_WORKSPACE_READ'
   | 'CLASSIFIED_WORKSPACE_DUAL_WRITE'
-  | 'CLASSIFIED_WORKSPACE_READ';
+  | 'CLASSIFIED_WORKSPACE_READ'
+  // I2G
+  | 'ORDER_WORKSPACE_STAMP'
+  | 'SALE_WORKSPACE_ENFORCE'
+  | 'ORDER_WORKSPACE_ENFORCE'
+  | 'BUSINESS_PAYOUT_DESTINATION_ENABLED'
+  | 'BUSINESS_WITHDRAWAL_ENABLED';
 
 const DEFAULTS: Record<OwnershipFeatureFlag, boolean> = {
   PRODUCT_WORKSPACE_DUAL_WRITE: true,
   PRODUCT_WORKSPACE_READ: false,
   CLASSIFIED_WORKSPACE_DUAL_WRITE: true,
   CLASSIFIED_WORKSPACE_READ: false,
+  ORDER_WORKSPACE_STAMP: true,
+  SALE_WORKSPACE_ENFORCE: false,
+  ORDER_WORKSPACE_ENFORCE: false,
+  BUSINESS_PAYOUT_DESTINATION_ENABLED: false,
+  BUSINESS_WITHDRAWAL_ENABLED: false,
 };
 
 @Injectable()
@@ -34,3 +50,7 @@ export class OwnershipFeatureFlagsService {
     return DEFAULTS[flag];
   }
 }
+
+const envReader = new OwnershipFeatureFlagsService();
+/** Stateless env-flag read for services that cannot take the injectable (keeps constructors stable). */
+export const ownershipFlag = (flag: OwnershipFeatureFlag): boolean => envReader.isEnabled(flag);

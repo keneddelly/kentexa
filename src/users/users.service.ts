@@ -121,6 +121,29 @@ export class UsersService {
   async remove(id: number) {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException(`User #${id} not found`);
+    // I2G: durable financial history (sales, payouts, wallets, invoices, orders, routing entries)
+    // is RESTRICTed to its owner. A user who owns any of it is never hard-deleted; the caller
+    // gets an explicit, actionable refusal instead of a raw foreign-key violation.
+    const history = await this.userRepo.manager.query(
+      `SELECT
+         (SELECT count(*)::int FROM sale WHERE "sellerId" = $1) AS sales,
+         (SELECT count(*)::int FROM payout WHERE "sellerId" = $1) AS payouts,
+         (SELECT count(*)::int FROM wallet WHERE "userId" = $1) AS wallets,
+         (SELECT count(*)::int FROM invoice WHERE "buyerId" = $1) AS invoices,
+         (SELECT count(*)::int FROM "order" WHERE "sellerId" = $1) AS orders,
+         (SELECT count(*)::int FROM classified_invoice_request WHERE "sellerId" = $1 OR "buyerId" = $1) AS "classifiedInvoiceRequests",
+         (SELECT count(*)::int FROM money_routing_entry WHERE "targetUserId" = $1) AS "routingEntries"`,
+      [id],
+    );
+    const h = history[0] ?? {};
+    if (Object.values(h).some((n) => Number(n) > 0)) {
+      throw new ConflictException({
+        code: 'USER_HAS_FINANCIAL_HISTORY',
+        message: 'USER_HAS_FINANCIAL_HISTORY',
+        userId: id,
+        history: h,
+      });
+    }
     await this.userRepo.remove(user);
     return { message: `User #${id} deleted successfully` };
   }

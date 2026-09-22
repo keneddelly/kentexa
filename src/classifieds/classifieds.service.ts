@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
@@ -37,6 +38,7 @@ import { SuperAgentsService } from '../super-agents/super-agents.service';
 import { CodCalculationService } from '../cod/cod-calculation.service';
 import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
 import { SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
+import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 
 @Injectable()
 export class ClassifiedsService {
@@ -485,6 +487,14 @@ export class ClassifiedsService {
     if (!isActiveAdmin) assertResourceInBusinessScope(scope, listing.workspaceId);
     if (!isActiveAdmin && !this.isAuthorizedForClassifiedOwnership(listing, user.id, scope)) {
       throw new ForbiddenException('Not your listing');
+    }
+    // I2G: invoice requests carry money history that must outlive the listing (RESTRICT FK).
+    const invoiceRequests = await this.repo.manager.query(
+      `SELECT count(*)::int AS n FROM classified_invoice_request WHERE "classifiedId" = $1`,
+      [id],
+    );
+    if (Number(invoiceRequests[0]?.n) > 0) {
+      throw new ConflictException({ code: 'LISTING_HAS_INVOICE_REQUESTS', message: 'LISTING_HAS_INVOICE_REQUESTS', classifiedId: id });
     }
     await this.repo.remove(listing);
     this.searchIndex.remove('classified', id).catch(() => {});
@@ -1082,6 +1092,8 @@ export class ClassifiedsService {
       // for offline-style orders, so give it the classified's own title
       // instead of leaving it blank.
       manualProductName: request.classified?.title || null,
+      // I2G: commerce workspace inherited from the listing's own stamped workspace (NULL if unstamped).
+      workspaceId: ownershipFlag('ORDER_WORKSPACE_STAMP') ? ((request.classified as any)?.workspaceId ?? null) : null,
       totalAmount: amount,
       baseAmount: productAmount,
       deliveryFeeAmount: shippingAmount,

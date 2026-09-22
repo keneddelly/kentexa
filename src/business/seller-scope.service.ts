@@ -39,6 +39,19 @@ const OWNS_THEIR_OWN_BUSINESS: AccountRoleType[] = [
 // authorization. workspaceId is the NEW authoritative source for a
 // workspace-migrated resource, and it is NEVER derived from
 // legacySellerId -- see resolveScope() below.
+/**
+ * The caller is not the owner of the business they asked about AND holds no active team
+ * membership for it. Distinct from a member who merely lacks a permission (plain
+ * ForbiddenException, code SELLER_SCOPE_PERMISSION_DENIED). Callers that legitimately mean
+ * "this person is simply acting for themselves" (the Personal wallet) may treat ONLY this
+ * exception that way; every other error must propagate (uncertain authority = fail closed).
+ */
+export class NoTeamMembershipException extends ForbiddenException {
+  constructor(message: string) {
+    super({ code: 'SELLER_SCOPE_NO_TEAM_MEMBERSHIP', message });
+  }
+}
+
 export interface SellerScope {
   legacySellerId: number;
   workspaceId: number | null;
@@ -138,11 +151,11 @@ export class SellerScopeService {
       return membership.sellerId;
     }
 
-    throw new ForbiddenException(
-      permission
-        ? `You don't have the "${permission}" permission for this business.`
-        : 'You are not authorized to manage this business.',
-    );
+    const message = permission
+      ? `You don't have the "${permission}" permission for this business.`
+      : 'You are not authorized to manage this business.';
+    if (!membership) throw new NoTeamMembershipException(message);
+    throw new ForbiddenException({ code: 'SELLER_SCOPE_PERMISSION_DENIED', message });
   }
 
   /**
@@ -212,4 +225,21 @@ export class SellerScopeService {
       !!membership && (!permission || !!membership.permissions?.[permission])
     );
   }
+}
+
+/**
+ * I2G read/mutation partition for workspace-stamped money records (Order, Sale).
+ * Returns the extra WHERE fragment for the caller's acting context, or null when the
+ * partition does not apply (no scope, a legacy delegated team member, or the enforcement
+ * flag is off). Business context -> only that workspace's rows; legacy/Personal context ->
+ * only NULL-workspace rows. Same-owner Business A never sees Business B.
+ */
+export function workspacePartition(
+  scope: SellerScope | undefined | null,
+  column: string,
+  enforced: boolean,
+): { clause: string; params: Record<string, unknown> } | null {
+  if (!enforced || !scope || scope.delegated) return null;
+  if (scope.workspaceId != null) return { clause: `${column} = :i2gWorkspaceId`, params: { i2gWorkspaceId: scope.workspaceId } };
+  return { clause: `${column} IS NULL`, params: {} };
 }

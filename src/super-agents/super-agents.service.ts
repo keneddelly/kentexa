@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, IsNull, ILike } from 'typeorm';
@@ -35,6 +36,9 @@ import {
 } from '../cod/cod-policy.config';
 import { SmsService } from '../sms/sms.service';
 import { WalletService } from '../wallet/wallet.service';
+import { MoneyRoutingService } from '../money-routing/money-routing.service';
+import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
+import { SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
 import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
@@ -173,6 +177,7 @@ export class SuperAgentsService {
     private activityEvents: ActivityEventService,
     private walletService: WalletService,
     private roleContextService: RoleContextService,
+    private moneyRouting: MoneyRoutingService,
   ) {}
 
   // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
@@ -3059,9 +3064,18 @@ export class SuperAgentsService {
       );
 
       if (!isManuallyArrangedOrder && order.seller?.id) {
-        await this.walletService
-          .creditFromEscrowRelease(order.seller.id, order.id, sellerNetAfterCodFee)
-          .catch((e) => console.error('COD wallet credit failed (non-critical):', e.message));
+        // I2G: the cash is already collected, so this can never block the physical
+        // flow -- but the credit is fail-closed: an unroutable order records a
+        // BLOCKED routing entry (durable, investigable), never a Personal-wallet credit.
+        // Same immutable seller-proceeds event as escrow release / webhook / invoice-paid.
+        const routed = await this.moneyRouting.creditSellerProceeds({
+          orderId: order.id,
+          amount: sellerNetAfterCodFee,
+          source: 'COD_DELIVERY',
+        });
+        if (routed.state === 'BLOCKED') {
+          console.error(`COD seller proceeds BLOCKED for order #${order.id}: ${routed.blockReason}`);
+        }
       }
 
       // Attributed to whichever agent actually handled this delivery —
@@ -3286,6 +3300,22 @@ export class SuperAgentsService {
   // shipment/tracking can proceed.
   // ══════════════════════════════════════════════════════════════════════════
 
+  /**
+   * I2G exact billing-profile resolution. Only a seller RoleContext carries billing: the
+   * SellerProfile is the one the acting role is bound to, and it must belong to this user and
+   * to the SAME Business as the context (a Business role -> that Business's SellerProfile; an
+   * unbound legacy role -> the legacy SellerProfile). Any mismatch fails closed -- there is no
+   * fallback to a user-only lookup. Non-seller callers (admin/manager acting) have no billing.
+   */
+  private async resolveBillingSellerProfile(seller: User, scope?: SellerScope): Promise<SellerProfile | null> {
+    if (!scope || scope.profileType !== 'seller_profile' || scope.profileId == null) return null;
+    const profile = await this.sellerProfileRepo.findOne({ where: { id: scope.profileId } });
+    if (!profile || profile.userId !== seller.id || (profile.businessId ?? null) !== (scope.businessId ?? null)) {
+      throw new ConflictException({ code: 'BILLING_PROFILE_MISMATCH', message: 'BILLING_PROFILE_MISMATCH' });
+    }
+    return profile;
+  }
+
   async createSellerShipment(
     seller: User,
     dto: {
@@ -3353,6 +3383,7 @@ export class SuperAgentsService {
       isCod?: boolean;
       codAmountPaid?: number; // what the buyer has already paid, if anything
     },
+    scope?: SellerScope,
   ) {
     // Verify the linked Sale up front — before anything else gets created —
     // so a bad/foreign saleId fails cleanly instead of leaving an orphaned
@@ -3363,6 +3394,8 @@ export class SuperAgentsService {
       if (!linkedSale || linkedSale.sellerId !== seller.id) {
         throw new NotFoundException('Sale not found');
       }
+      // I2G: same-owner Business B can never ship Business A's sale.
+      assertResourceInBusinessScope(scope, (linkedSale as any).workspaceId);
       if (linkedSale.status !== SaleStatus.COMPLETED) {
         throw new BadRequestException('Only a completed sale can be shipped');
       }
@@ -3371,9 +3404,9 @@ export class SuperAgentsService {
     // Billing applies only to actual sellers — an ADMIN/MANAGER/SUPER_AGENT
     // acting on this route (all allowed by the controller's role guard)
     // won't have a SellerProfile, so there's nothing to gate or charge.
-    const sellerProfile = await this.sellerProfileRepo
-      .findOne({ where: { user: { id: seller.id } } })
-      .catch(() => null);
+    // I2G: the billing SellerProfile is resolved from the EXACT acting context (its own role's
+    // SellerProfile), never by a user-only lookup (a user can own several SellerProfiles).
+    const sellerProfile = await this.resolveBillingSellerProfile(seller, scope);
     if (sellerProfile) this.assertNotBillingBlocked(sellerProfile);
 
     // Business identity first, never the raw personal account name — a
@@ -3384,18 +3417,12 @@ export class SuperAgentsService {
     // still wins over storeName — it's the more specific, deliberately
     // chosen identity for whichever profile was actually active.
     let senderDisplayName = (seller as any).storeName || seller.name;
-    if (dto.commerceProfileId) {
-      const authorized = await this.profileScope.isAuthorizedFor(
-        seller.id,
-        dto.commerceProfileId,
-        'canCreateOrders',
-      );
-      if (authorized) {
-        const profile = await this.commerceProfiles
-          .findById(dto.commerceProfileId)
-          .catch(() => null);
-        if (profile?.displayName) senderDisplayName = profile.displayName;
-      }
+    // I2G: the displayed sender is the RoleContext's actor profile, never the client's commerceProfileId.
+    if (scope?.commerceProfileId) {
+      const profile = await this.commerceProfiles
+        .findById(scope.commerceProfileId)
+        .catch(() => null);
+      if (profile?.displayName) senderDisplayName = profile.displayName;
     }
 
     // Founding-pilot free-order check — same principle as
@@ -3457,6 +3484,9 @@ export class SuperAgentsService {
       this.orderRepo.create({
         source: OrderSource.SELLER_SHIPMENT as any,
         seller: { id: seller.id } as any,
+        // I2G creation authority: the acting Business workspace from the RoleContext scope
+        // (a linked Sale must already be in it); NULL for legacy/Personal/delegated contexts.
+        workspaceId: ownershipFlag('ORDER_WORKSPACE_STAMP') ? (scope?.workspaceId ?? null) : null,
         manualBuyerName: dto.recipientName,
         manualBuyerPhone: dto.recipientPhone,
         manualProductName: dto.description,

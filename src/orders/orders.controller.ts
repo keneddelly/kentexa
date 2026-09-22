@@ -120,10 +120,12 @@ export class OrdersController {
   }
 
   // Seller creates order on behalf of customer (offline payment)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post('on-behalf')
-  createOnBehalf(@Request() req, @Body() dto: any) {
-    return this.ordersService.createOnBehalf(req.user, dto);
+  async createOnBehalf(@Request() req, @Body() dto: any, @CurrentRoleContext() roleContext: RoleContext) {
+    // I2G: acting workspace/profile come from the authenticated context, never the payload.
+    const scope = await this.sellerScope.resolveScope(req.user.id, req.user, roleContext);
+    return this.ordersService.createOnBehalf(req.user, dto, scope);
   }
 
   // Admin: force change order status — requires the CURRENTLY ACTIVE role to

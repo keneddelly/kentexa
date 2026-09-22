@@ -26,6 +26,7 @@ import { RequireActiveRole } from '../role-context/require-active-role.decorator
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
+import { SellerScopeService } from '../business/seller-scope.service';
 
 @Controller('super-agents')
 export class SuperAgentsController {
@@ -33,6 +34,7 @@ export class SuperAgentsController {
     private service: SuperAgentsService,
     private agentsService: AgentsService,
     private verification: VerificationService,
+    private sellerScope: SellerScopeService,
   ) {}
 
   // ── Public ────────────────────────────────────────────────────────────────
@@ -588,7 +590,9 @@ export class SuperAgentsController {
     if (!isActiveStaff) {
       await this.verification.requireFeature(req.user.id, Feature.CREATE_SHIPMENT);
     }
-    return this.service.createSellerShipment(req.user, body);
+    // I2G: acting workspace/profile/billing profile come from the authenticated context, never the body.
+    const scope = await this.sellerScope.resolveScope(req.user.id, req.user, roleContext);
+    return this.service.createSellerShipment(req.user, body, scope);
   }
 
   @UseGuards(JwtAuthGuard)

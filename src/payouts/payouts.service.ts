@@ -13,6 +13,8 @@ import {
 } from '../orders/entities/order.entity';
 import { User } from '../users/entities/user.entity';
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
+import { SellerScope, workspacePartition } from '../business/seller-scope.service';
+import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 
 @Injectable()
 export class PayoutsService {
@@ -173,7 +175,7 @@ export class PayoutsService {
   // payout across all of them merged together (profile-architecture-
   // audit-2026-08 Stage 6). Legacy orders with no commerceProfileId of
   // their own still show up, same NULL-fallback rule used everywhere else.
-  async getMyPayouts(user: User, commerceProfileId?: number) {
+  async getMyPayouts(user: User, commerceProfileId?: number, scope?: SellerScope) {
     const qb = this.payoutRepo
       .createQueryBuilder('payout')
       .leftJoinAndSelect('payout.seller', 'seller')
@@ -182,6 +184,9 @@ export class PayoutsService {
       .leftJoinAndSelect('order.buyer', 'buyer')
       .where('payout."sellerId" = :sid', { sid: user.id })
       .orderBy('payout.createdAt', 'DESC');
+    // I2G: a payout inherits its workspace through its order (never carries its own column).
+    const part = workspacePartition(scope, 'order."workspaceId"', ownershipFlag('ORDER_WORKSPACE_ENFORCE'));
+    if (part) qb.andWhere(part.clause, part.params);
     if (commerceProfileId) {
       qb.andWhere(
         '(order."commerceProfileId" = :cpid OR order."commerceProfileId" IS NULL)',

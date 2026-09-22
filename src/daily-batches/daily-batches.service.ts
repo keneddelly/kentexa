@@ -18,6 +18,8 @@ import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 
 @Injectable()
 export class DailyBatchesService {
@@ -190,6 +192,7 @@ export class DailyBatchesService {
     private notificationsService: NotificationsService,
     private communicationEngine: CommunicationEngineService,
     private paymentEvidence: PaymentEvidenceService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   // ── Zone detection — match a delivery address to a known zone ────────────
@@ -1290,29 +1293,28 @@ export class DailyBatchesService {
 
       for (const order of overdueOrders) {
         try {
-          // S0: this query already filters on the mutable paymentStatus column, exactly the field
-          // the checkout/payment audit found could be forged (self-reported COD collection,
-          // markPreparing, etc.) — verified PaymentEvidence backstops it before an escrow release.
-          const evidence = await this.paymentEvidence.check({
-            id: order.id,
-            source: order.source,
-            paymentMethod: order.paymentMethod,
-            totalAmount: order.totalAmount,
-            codUpfrontAmount: (order as any).codUpfrontAmount,
-          });
-          if (evidence.applicable && !evidence.sufficient) {
-            console.warn(`[Auto-Release] Order #${order.id} held: no verified payment evidence`);
-            continue;
+          // I2G: canonical release (guard -> seller-proceeds routing -> release state, atomically).
+          // An unroutable order is skipped and stays unreleased (BLOCKED routing entry recorded).
+          // S0 x I2G integration gate: OrderReleaseService itself now independently re-checks
+          // PaymentEvidence before routing/committing — the standalone check this cron used to do
+          // inline is superseded by that shared choke point (same predicate, one fewer copy of it).
+          try {
+            await this.orderRelease.releaseSellerProceeds({
+              orderId: order.id,
+              source: 'AUTO_RELEASE',
+              orderUpdate: {
+                status: 'completed',
+                completedAt: now,
+                autoConfirmAt: now, // marks as auto-released, not buyer-confirmed
+              },
+            });
+          } catch (releaseErr) {
+            if (releaseErr instanceof MoneyRoutingBlockedException) {
+              console.warn(`[Auto-Release] Order #${order.id} held: ${releaseErr.reason}`);
+              continue;
+            }
+            throw releaseErr;
           }
-
-          await this.orderRepo.update(order.id, {
-            status: 'completed',
-            escrowStatus: 'released',
-            payoutStatus: 'released',
-            completedAt: now,
-            fundsReleasedAt: now,
-            autoConfirmAt: now, // marks as auto-released, not buyer-confirmed
-          } as any);
 
           // Notify both parties via notifications service
           await this.notificationsService

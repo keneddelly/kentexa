@@ -3,7 +3,6 @@ import { DataSource, EntityManager } from 'typeorm';
 import { PaymentStatus } from './entities/payment.entity';
 import {
   OrderStatus,
-  EscrowStatus,
   OrderPaymentMethod,
   PaymentStatus as OrderPaymentStatus,
 } from '../orders/entities/order.entity';
@@ -341,11 +340,12 @@ export class PaymentConfirmationService {
     const now = new Date();
 
     if (isDigital) {
-      await manager.query(
-        `UPDATE "order" SET "paymentStatus" = $2, status = $3, "deliveredAt" = $4, "completedAt" = $4,
-           "payoutStatus" = 'released', "escrowStatus" = $5, "fundsReleasedAt" = $4 WHERE id = $1`,
-        [order.id, OrderPaymentStatus.PAID, OrderStatus.COMPLETED, now, EscrowStatus.RELEASED],
-      );
+      // S0 x I2G integration gate: this method's job stops at "was this payment legitimately
+      // confirmed" — it deliberately does NOT write paymentStatus/status/escrowStatus/
+      // fundsReleasedAt for a digital order. OrderReleaseService is the one and only writer of
+      // escrow RELEASED / fundsReleasedAt; the caller (PaymentsService.completeDigitalOrder,
+      // triggered by the DIGITAL_COMPLETED classification returned below) performs the actual
+      // completion + canonical release immediately after this transaction commits.
     } else {
       await manager.query(`UPDATE "order" SET "paymentStatus" = $2, status = $3 WHERE id = $1`, [
         order.id,

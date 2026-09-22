@@ -40,6 +40,8 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { WalletService } from '../wallet/wallet.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { ConversationService } from '../business/conversation.service';
@@ -128,6 +130,7 @@ export class PaymentsService {
     private businessCustomerService: BusinessCustomerService,
     private communicationEngine: CommunicationEngineService,
     private paymentConfirmation: PaymentConfirmationService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   // ── Provider selection ──────────────────────────────────────────────────
@@ -186,7 +189,11 @@ export class PaymentsService {
     if (outcome.status !== 'CONFIRMED') return;
     if (outcome.orderId) {
       if (outcome.orderTransition === 'DIGITAL_COMPLETED') {
-        await this.sendDigitalOrderCompletedNotifications(outcome.orderId);
+        const order = await this.orderRepo.findOne({
+          where: { id: outcome.orderId },
+          relations: { buyer: true, seller: true, product: true },
+        });
+        if (order) await this.completeDigitalOrder(order);
       } else if (outcome.orderTransition === 'ORDER_PAID' || outcome.orderTransition === 'COD_DEPOSIT_CONFIRMED') {
         await this.sendOrderPaidNotifications(outcome.orderId);
       }
@@ -317,22 +324,48 @@ export class PaymentsService {
     }
   }
 
-  // ── Digital-order-completed notifications (extracted from the old
-  // completeDigitalOrder — the order transition itself now happens
-  // exclusively inside PaymentConfirmationService) ────────────────────────
-  private async sendDigitalOrderCompletedNotifications(orderId: number): Promise<void> {
-    const order = await this.orderRepo.findOne({
-      where: { id: orderId },
-      relations: { buyer: true, seller: true, product: true },
-    });
-    if (!order) return;
-    this.logger.log(`Digital order #${order.id} auto-completed after payment`);
-
-    if (order.seller?.id) {
-      await this.walletService
-        .creditFromEscrowRelease(order.seller.id, order.id, Number(order.sellerAmount || 0))
-        .catch(() => {});
+  // ── Digital products complete atomically on payment — no shipment, no
+  // buyer-confirms-delivery step. Escrow releases immediately (mirrors
+  // OrdersService.buyerConfirm()'s completion side effects: wallet credit,
+  // reputation, activity event) since there's no physical delivery signal
+  // to hold funds against — disputes/refunds handle the exception case
+  // after the fact via the existing DisputesService.
+  //
+  // S0 x I2G integration gate: PaymentConfirmationService.applyOrderTransitionIn
+  // deliberately leaves a digital order's own completion/escrow columns
+  // untouched and only classifies the transition DIGITAL_COMPLETED — this is
+  // now the ONLY place a digital order is actually completed and released,
+  // through OrderReleaseService (the canonical writer of escrow RELEASED /
+  // fundsReleasedAt; nothing else may write them). This replaces S0's original
+  // direct wallet-credit call, which is unreachable after I2G's wallet-ownership
+  // rework (no more generic "wallet for this user id" — Personal/Business
+  // wallets are resolved explicitly by workspace, never guessed). The caller
+  // (dispatchConfirmationSideEffects) loads the order — this takes the object
+  // directly rather than an id, matching every other release writer here.
+  private async completeDigitalOrder(order: Order): Promise<void> {
+    const now = new Date();
+    // I2G: canonical release. Unroutable proceeds -> the payment is recorded but the order is NOT
+    // completed/released (a BLOCKED routing entry explains why); nothing is credited.
+    try {
+      await this.orderRelease.releaseSellerProceeds({
+        orderId: order.id,
+        source: 'DIGITAL_AUTO_COMPLETE',
+        orderUpdate: {
+          paymentStatus: OrderPaymentStatus.PAID,
+          status: OrderStatus.COMPLETED,
+          deliveredAt: now,
+          completedAt: now,
+        },
+      });
+    } catch (e) {
+      if (e instanceof MoneyRoutingBlockedException) {
+        await this.orderRepo.update(order.id, { paymentStatus: OrderPaymentStatus.PAID, status: OrderStatus.PAID } as any);
+        this.logger.warn(`Digital order #${order.id} completion held: ${e.reason}`);
+        return;
+      }
+      throw e;
     }
+    this.logger.log(`Digital order #${order.id} auto-completed after payment`);
 
     try {
       if (order.buyer?.id) {
@@ -429,11 +462,8 @@ export class PaymentsService {
     });
     if (!order) throw new NotFoundException(`Order #${orderId} not found`);
 
-    await this.orderRepo.update(orderId, {
-      escrowStatus: 'released' as any,
-      payoutStatus: 'released',
-      fundsReleasedAt: new Date(),
-    });
+    // I2G: admin release goes through the SAME canonical operation (blocked -> 409, nothing released).
+    await this.orderRelease.releaseSellerProceeds({ orderId, source: 'ADMIN_RELEASE' });
 
     this.logger.log(`Escrow released for order #${orderId} by admin #${adminId}`);
 

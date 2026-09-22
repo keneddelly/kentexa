@@ -24,6 +24,7 @@ import { mergeActiveRole } from '../users/utils/merge-active-role.util';
 import { SmsService } from '../sms/sms.service';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { RoleContext } from '../role-context/role-context.types';
+import { OrderReleaseService } from '../money-routing/order-release.service';
 
 @Injectable()
 export class DisputesService {
@@ -32,6 +33,7 @@ export class DisputesService {
     @InjectRepository(Order) private orderRepo: Repository<Order>,
     @InjectRepository(User) private userRepo: Repository<User>,
     private smsService: SmsService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   // ── Buyer/Seller: raise a dispute ────────────────────────────────────────
@@ -254,15 +256,21 @@ export class DisputesService {
     if (!isAdmin && !isArbitrator)
       throw new ForbiddenException('Not authorised to resolve this dispute');
 
-    // Apply resolution to order
-    const orderUpdate: any = { status: 'completed', resolvedAt: new Date() };
+    // Apply resolution to order.
+    // I2G: ONLY a seller-favour resolution is a release of seller proceeds and it goes through the
+    // ONE canonical release operation (guard -> routing -> release state, atomically). Refund
+    // outcomes (buyer favour / refunded COD refusal) are accounting-state changes that also cancel
+    // any not-yet-routed seller-proceeds entry. SPLIT settlements have no computable seller amount:
+    // they never mark escrow released here; the escrow stays DISPUTED for an explicit admin release
+    // through the same canonical operation.
+    const orderUpdate: any = { status: 'completed' }; // (order has no resolvedAt column; the dispute row carries it)
+    let refundedNote: string | null = null;
     if (dto.resolution === DisputeResolution.FAVOUR_BUYER) {
       orderUpdate.escrowStatus = 'refunded';
       orderUpdate.payoutStatus = 'cancelled';
+      refundedNote = 'dispute resolved in favour of buyer';
     } else if (dto.resolution === DisputeResolution.FAVOUR_SELLER) {
-      orderUpdate.escrowStatus = 'released';
-      orderUpdate.payoutStatus = 'released';
-      orderUpdate.fundsReleasedAt = new Date();
+      // handled below by the canonical release (nothing is written on the order here)
     } else if (dto.resolution === DisputeResolution.SPLIT) {
       // Cash on Delivery, buyer refused at the door — the only SPLIT case
       // with a concrete, computable outcome: the upfront payment already
@@ -275,20 +283,30 @@ export class DisputesService {
         dispute.order.paymentMethod === OrderPaymentMethod.COD
       ) {
         orderUpdate.status = 'cancelled';
-        orderUpdate.escrowStatus = REFUSED_DELIVERY_UPFRONT_REFUNDABLE
-          ? 'refunded'
-          : 'released'; // seller keeps the already-collected upfront
-        orderUpdate.payoutStatus = REFUSED_DELIVERY_UPFRONT_REFUNDABLE
-          ? 'cancelled'
-          : 'released';
-      } else {
-        orderUpdate.escrowStatus = 'released';
-        // Partial — every other SPLIT reason still has no computable
-        // amount; handled manually by admin via resolutionNote/refundAmount.
+        if (REFUSED_DELIVERY_UPFRONT_REFUNDABLE) {
+          orderUpdate.escrowStatus = 'refunded';
+          orderUpdate.payoutStatus = 'cancelled';
+          refundedNote = 'COD refusal: upfront refunded';
+        }
+        // else: the seller keeping the collected upfront has no computable proceeds amount ->
+        // escrow stays DISPUTED for an explicit canonical admin release (never marked released here).
       }
+      // Partial — every other SPLIT reason still has no computable
+      // amount; handled manually by admin via resolutionNote/refundAmount.
     }
 
-    await this.orderRepo.update(dispute.order.id, orderUpdate);
+    if (dto.resolution === DisputeResolution.FAVOUR_SELLER) {
+      // Seller favour: the canonical release. If the proceeds cannot be routed this throws and the
+      // dispute stays unresolved (nothing is released, credited or rewritten).
+      await this.orderRelease.releaseSellerProceeds({
+        orderId: dispute.order.id,
+        source: 'DISPUTE_RESOLUTION',
+        orderUpdate: { status: 'completed', disputeResolution: dto.resolutionNote },
+      });
+    } else {
+      await this.orderRepo.update(dispute.order.id, orderUpdate);
+      if (refundedNote) await this.orderRelease.recordBuyerRefund(dispute.order.id, refundedNote);
+    }
     await this.disputeRepo.update(disputeId, {
       status: DisputeStatus.RESOLVED,
       resolution: dto.resolution,

@@ -27,6 +27,7 @@ describe('PaymentsService', () => {
   let businessCustomerService: any;
   let communicationEngine: any;
   let paymentConfirmation: any;
+  let orderRelease: any;
 
   const originalNodeEnv = process.env.NODE_ENV;
   const originalEnabled = process.env.PAYMENTS_ENABLED_PROVIDERS;
@@ -56,12 +57,13 @@ describe('PaymentsService', () => {
     invoicesService = { findByOrderId: jest.fn(async () => null), createForOrder: jest.fn() };
     activityEvents = { record: jest.fn() };
     commerceProfiles = { findForUserByType: jest.fn(async () => null) };
-    walletService = { creditFromEscrowRelease: jest.fn(async () => undefined) };
+    walletService = {}; // unused by PaymentsService since I2G's canonical release (kept only for constructor shape)
     reputationService = { award: jest.fn(async () => undefined) };
     conversationService = {};
     businessCustomerService = { findOrCreateForChat: jest.fn(async () => null) };
     communicationEngine = { dispatch: jest.fn(async () => undefined) };
     paymentConfirmation = { confirmVerifiedPayment: jest.fn() };
+    orderRelease = { releaseSellerProceeds: jest.fn(async () => ({ released: true, alreadyReleased: false, routing: null })) };
 
     service = new PaymentsService(
       paymentRepo,
@@ -86,6 +88,7 @@ describe('PaymentsService', () => {
       businessCustomerService,
       communicationEngine,
       paymentConfirmation,
+      orderRelease,
     );
   });
 

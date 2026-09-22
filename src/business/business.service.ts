@@ -23,6 +23,7 @@ import { Invoice, InvoiceStatus } from '../invoices/entities/invoice.entity';
 import { Product } from '../products/entities/products.entity';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AiBusinessInsightService } from '../ai/ai-business-insight.service';
+import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 
 // Phase 1 of the multi-role architecture: Business as a real entity,
 // independent of Seller. See seller.service.ts's apply() for the existing
@@ -257,6 +258,14 @@ export class BusinessService {
               '(o."commerceProfileId" = :pid OR o."commerceProfileId" IS NULL)',
               { pid: profileId },
             )
+            // I2G: a Business's intelligence covers ONLY that Business's workspaces' orders
+            // (same-owner Business B never leaks into Business A's dashboard).
+            .andWhere(
+              ownershipFlag('ORDER_WORKSPACE_ENFORCE')
+                ? 'o."workspaceId" IN (SELECT id FROM operational_workspace WHERE "businessId" = :i2gBid)'
+                : '1=1',
+              { i2gBid: businessId },
+            )
             .andWhere('i.status IN (:...statuses)', {
               statuses: [
                 InvoiceStatus.AWAITING_PAYMENT,
@@ -264,15 +273,20 @@ export class BusinessService {
               ],
             })
             .getCount()
-        : this.invoiceRepo.count({
-            where: {
-              order: { seller: { id: user.id } },
-              status: In([
-                InvoiceStatus.AWAITING_PAYMENT,
-                InvoiceStatus.PAYMENT_PROCESSING,
-              ]),
-            },
-          }),
+        : this.invoiceRepo
+            .createQueryBuilder('i')
+            .leftJoin('i.order', 'o')
+            .where('o."sellerId" = :sid', { sid: user.id })
+            .andWhere(
+              ownershipFlag('ORDER_WORKSPACE_ENFORCE')
+                ? 'o."workspaceId" IN (SELECT id FROM operational_workspace WHERE "businessId" = :i2gBid)'
+                : '1=1',
+              { i2gBid: businessId },
+            )
+            .andWhere('i.status IN (:...statuses)', {
+              statuses: [InvoiceStatus.AWAITING_PAYMENT, InvoiceStatus.PAYMENT_PROCESSING],
+            })
+            .getCount(),
       profileId
         ? this.productRepo
             .createQueryBuilder('p')

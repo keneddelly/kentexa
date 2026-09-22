@@ -5,13 +5,15 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, Between, MoreThanOrEqual } from 'typeorm';
+import { DataSource, Repository, Between, MoreThanOrEqual, IsNull } from 'typeorm';
 import { Sale, SaleChannel, SaleStatus } from './entities/sale.entity';
 import { SaleItem } from './entities/sale-item.entity';
 import { Product } from '../products/entities/products.entity';
 import { Order, OrderSource, OrderStatus } from '../orders/entities/order.entity';
 import { User } from '../users/entities/user.entity';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { SellerScope, assertResourceInBusinessScope, workspacePartition } from '../business/seller-scope.service';
+import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { InventoryMovementReason } from '../inventory/entities/inventory-movement.entity';
 import { InvoicesService } from '../invoices/invoices.service';
@@ -38,10 +40,17 @@ export class SalesService {
   // adjust stock for each item through InventoryService using THIS
   // transaction's manager — so if item 3 of 5 fails (insufficient stock),
   // nothing about the sale persists, not a partially-completed one.
+  /** I2G: repository WHERE fragment partitioning Sales by the acting workspace (flag SALE_WORKSPACE_ENFORCE). */
+  private saleWs(scope?: SellerScope): Record<string, unknown> {
+    if (!scope || scope.delegated || !ownershipFlag('SALE_WORKSPACE_ENFORCE')) return {};
+    return { workspaceId: scope.workspaceId != null ? scope.workspaceId : IsNull() };
+  }
+
   async createSale(
     sellerId: number,
     cashierId: number,
     dto: CreateSaleDto,
+    scope?: SellerScope,
   ): Promise<Sale> {
     if (dto.channel !== SaleChannel.LOCAL_POS && dto.channel !== SaleChannel.MANUAL) {
       throw new BadRequestException('Unsupported sale channel');
@@ -62,6 +71,8 @@ export class SalesService {
         if (product.seller?.id !== sellerId) {
           throw new ForbiddenException(`Product ${line.productId} is not yours to sell`);
         }
+        // I2G: same-owner Business A can never sell Business B's product (and a legacy Seller never a Business's).
+        assertResourceInBusinessScope(scope, (product as any).workspaceId);
         if (dto.channel === SaleChannel.LOCAL_POS && !product.availableInStore) {
           throw new BadRequestException(`"${product.name}" is not available for local shop sale`);
         }
@@ -111,6 +122,9 @@ export class SalesService {
 
       const sale = saleRepo.create({
         sellerId,
+        // I2G creation authority: the acting Business workspace from the authenticated RoleContext
+        // (never the payload); NULL for legacy/Personal/delegated contexts.
+        workspaceId: ownershipFlag('ORDER_WORKSPACE_STAMP') ? (scope?.workspaceId ?? null) : null,
         channel: dto.channel,
         receiptNumber,
         customerId: dto.customerId || null,
@@ -188,8 +202,8 @@ export class SalesService {
   // customer pays on delivery/pickup. No payment-gateway involvement here,
   // same as the rest of this manual-sale flow: Kentexa records that money
   // changed hands, it never held or moved it electronically.
-  async recordCodBalancePayment(sellerId: number, saleId: number): Promise<Sale> {
-    const sale = await this.saleRepo.findOne({ where: { id: saleId, sellerId } });
+  async recordCodBalancePayment(sellerId: number, saleId: number, scope?: SellerScope): Promise<Sale> {
+    const sale = await this.saleRepo.findOne({ where: { id: saleId, sellerId, ...this.saleWs(scope) } });
     if (!sale) throw new NotFoundException('Sale not found');
     if (!sale.isCod) throw new BadRequestException('This sale is not a COD sale');
     if (Number(sale.balanceDue) <= 0) {
@@ -213,8 +227,9 @@ export class SalesService {
   async getSales(
     sellerId: number,
     filters: { channel?: string; from?: string; to?: string; limit?: number } = {},
+    scope?: SellerScope,
   ) {
-    const where: any = { sellerId };
+    const where: any = { sellerId, ...this.saleWs(scope) };
     if (filters.channel) where.channel = filters.channel;
     if (filters.from && filters.to) {
       where.createdAt = Between(new Date(filters.from), new Date(filters.to));
@@ -226,8 +241,8 @@ export class SalesService {
     });
   }
 
-  async getSale(sellerId: number, id: number) {
-    const sale = await this.saleRepo.findOne({ where: { id, sellerId } });
+  async getSale(sellerId: number, id: number, scope?: SellerScope) {
+    const sale = await this.saleRepo.findOne({ where: { id, sellerId, ...this.saleWs(scope) } });
     if (!sale) throw new NotFoundException('Sale not found');
     return sale;
   }
@@ -236,10 +251,10 @@ export class SalesService {
   // ADJUSTMENT rather than RETURN — voiding is correcting a mistaken sale
   // that never really happened, distinct from a customer physically
   // returning goods after a completed one.
-  async voidSale(sellerId: number, id: number, reason: string, actorId: number) {
+  async voidSale(sellerId: number, id: number, reason: string, actorId: number, scope?: SellerScope) {
     return this.dataSource.transaction(async (manager) => {
       const saleRepo = manager.getRepository(Sale);
-      const sale = await saleRepo.findOne({ where: { id, sellerId } });
+      const sale = await saleRepo.findOne({ where: { id, sellerId, ...this.saleWs(scope) } });
       if (!sale) throw new NotFoundException('Sale not found');
       if (sale.status !== SaleStatus.COMPLETED) {
         throw new BadRequestException('Only a completed sale can be voided');
@@ -269,14 +284,15 @@ export class SalesService {
   // real sale once payment has gone through — anything still
   // PENDING_PAYMENT or CANCELLED is excluded, same "has the money actually
   // moved" bar Sale.status===COMPLETED uses on the other side.
-  async getDashboard(sellerId: number) {
+  async getDashboard(sellerId: number, scope?: SellerScope) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const now = new Date();
 
     const salesToday = await this.saleRepo.find({
-      where: { sellerId, status: SaleStatus.COMPLETED, createdAt: Between(startOfDay, now) },
+      where: { sellerId, ...this.saleWs(scope), status: SaleStatus.COMPLETED, createdAt: Between(startOfDay, now) },
     });
+    const orderPart = workspacePartition(scope, 'o."workspaceId"', ownershipFlag('ORDER_WORKSPACE_ENFORCE'));
     const onlineOrdersToday = await this.orderRepo
       .createQueryBuilder('o')
       .leftJoinAndSelect('o.product', 'product')
@@ -287,6 +303,7 @@ export class SalesService {
         excluded: [OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELLED],
       })
       .andWhere('o.createdAt >= :start', { start: startOfDay })
+      .andWhere(orderPart ? orderPart.clause : '1=1', orderPart?.params ?? {})
       .getMany();
 
     const byChannel: Record<string, number> = { local_pos: 0, manual: 0, kentexa_online: 0 };
@@ -326,7 +343,7 @@ export class SalesService {
     const since30 = new Date();
     since30.setDate(since30.getDate() - 30);
     const salesLast30 = await this.saleRepo.find({
-      where: { sellerId, status: SaleStatus.COMPLETED, createdAt: MoreThanOrEqual(since30) },
+      where: { sellerId, ...this.saleWs(scope), status: SaleStatus.COMPLETED, createdAt: MoreThanOrEqual(since30) },
     });
     const ordersLast30 = await this.orderRepo
       .createQueryBuilder('o')
@@ -338,6 +355,7 @@ export class SalesService {
         excluded: [OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELLED],
       })
       .andWhere('o.createdAt >= :start', { start: since30 })
+      .andWhere(orderPart ? orderPart.clause : '1=1', orderPart?.params ?? {})
       .getMany();
 
     const bestSellerMap = new Map<number, { productId: number; name: string; unitsSold: number; revenue: number }>();

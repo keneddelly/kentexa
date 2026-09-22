@@ -11,7 +11,7 @@ import { Repository, DataSource } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { InvoiceCounter } from './entities/invoice-counter.entity';
 import { ReceiptCounter } from './entities/receipt-counter.entity';
-import { Order, OrderStatus, EscrowStatus } from '../orders/entities/order.entity';
+import { Order, OrderStatus, PaymentStatus as OrderPaymentStatus } from '../orders/entities/order.entity';
 import { User } from '../users/entities/user.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import PDFDocument from 'pdfkit';
@@ -20,6 +20,8 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { CommerceProfilesService } from '../commerce-profiles/commerce-profiles.service';
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { WalletService } from '../wallet/wallet.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { Payment, PaymentStatus as GatewayPaymentStatus } from '../payments/entities/payment.entity';
@@ -45,6 +47,7 @@ export class InvoicesService {
     private walletService: WalletService,
     private reputationService: ReputationService,
     private paymentConfirmation: PaymentConfirmationService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   async generateInvoiceNumber(): Promise<string> {
@@ -368,10 +371,29 @@ export class InvoicesService {
       }
     }
 
-    // Digital orders complete atomically inside the canonical transition above (status/escrow/
-    // payout already set) — the reputation-award tail is the only thing still owed here.
+    // S0 x I2G integration gate: PaymentConfirmationService.applyOrderTransitionIn deliberately
+    // leaves a digital order's completion/escrow columns untouched for this classification — the
+    // canonical release (the ONE writer of escrow RELEASED / fundsReleasedAt) happens here instead.
     if (outcome.orderTransition === 'DIGITAL_COMPLETED') {
       try {
+        const now = new Date();
+        // I2G: canonical release; an unroutable digital order stays paid-but-held (BLOCKED entry recorded).
+        try {
+          await this.orderRelease.releaseSellerProceeds({
+            orderId: invoice.order.id,
+            source: 'INVOICE_PAID',
+            orderUpdate: { paymentStatus: OrderPaymentStatus.PAID, status: OrderStatus.COMPLETED, deliveredAt: now, completedAt: now },
+          });
+        } catch (e) {
+          // The outer catch below already logs+swallows (this is a best-effort post-confirmation
+          // side effect; the Payment itself already recorded SUCCESS) — a BLOCKED release still
+          // needs the order's paymentStatus persisted so it isn't left at PENDING_PAYMENT forever.
+          if (e instanceof MoneyRoutingBlockedException) {
+            await this.orderRepo.update(invoice.order.id, { paymentStatus: OrderPaymentStatus.PAID, status: OrderStatus.PAID } as any);
+          }
+          throw e;
+        }
+
         if (invoice.buyer?.id) {
           await this.reputationService
             .award(invoice.buyer.id, ReputationEventType.ORDER_COMPLETED, {

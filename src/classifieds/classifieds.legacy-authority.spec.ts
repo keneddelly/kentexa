@@ -13,6 +13,8 @@ describe('ClassifiedsService legacy authority closure', () => {
       findOne: jest.fn(),
       save: jest.fn().mockImplementation((l) => Promise.resolve(l)),
       remove: jest.fn().mockResolvedValue(undefined),
+      // I2G: remove() consults invoice-request history before deleting (RESTRICT FK).
+      manager: { query: jest.fn().mockResolvedValue([{ n: 0 }]) },
     };
     const invoiceRequestRepo: any = { findOne: jest.fn() };
     const invoiceRepo: any = { findOne: jest.fn() };
