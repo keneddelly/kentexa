@@ -104,6 +104,7 @@ import { CommerceProfileScopeService } from '../commerce-profiles/commerce-profi
 import { CommerceProfileType } from '../commerce-profiles/entities/commerce-profile.entity';
 import { FRONTEND_URL } from '../config/urls.config';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
+import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -160,7 +161,22 @@ export class OrdersService {
     private activityEvents: ActivityEventService,
     private codCalculation: CodCalculationService,
     private communicationEngine: CommunicationEngineService,
+    private paymentEvidence: PaymentEvidenceService,
   ) {}
+
+  /** S0 shared guard — every checkout->fulfilment/COD-collection transition on Order goes through this. */
+  private async assertVerifiedPaymentEvidence(order: Order, message: string): Promise<void> {
+    const evidence = await this.paymentEvidence.check({
+      id: order.id,
+      source: order.source,
+      paymentMethod: order.paymentMethod,
+      totalAmount: order.totalAmount,
+      codUpfrontAmount: (order as any).codUpfrontAmount,
+    });
+    if (evidence.applicable && !evidence.sufficient) {
+      throw new BadRequestException(message);
+    }
+  }
 
   // If this order was created from a paid Manual Classified Invoice
   // (classifieds.service.ts setShippingMethod()) and just completed, the
@@ -656,6 +672,7 @@ export class OrdersService {
     if (![OrderStatus.PAID, OrderStatus.PREPARING].includes(order.status)) {
       throw new BadRequestException('Order must be paid before shipping');
     }
+    await this.assertVerifiedPaymentEvidence(order, 'Cannot ship an order without verified payment evidence');
 
     const chosenMethod =
       data.shippingMethod || order.shippingMethod || 'direct';
@@ -815,6 +832,7 @@ export class OrdersService {
       throw new ForbiddenException('Not your order');
     if (order.status !== OrderStatus.PAID)
       throw new BadRequestException('Order must be paid');
+    await this.assertVerifiedPaymentEvidence(order, 'Cannot hand off an order without verified payment evidence');
 
     await this.repo.update(orderId, {
       status: OrderStatus.PREPARING,
@@ -865,6 +883,18 @@ export class OrdersService {
     const remaining = Number(order.codRemainingBalance || 0);
     if (remaining <= 0)
       throw new BadRequestException('Hakuna salio linalodaiwa kwenye agizo hili');
+
+    // S0: a seller must never be able to turn "deposit unpaid" into "COD paid/collectible" by
+    // pressing this button. seller_shipment keeps its existing self-reported trust model (no
+    // escrow ever held — ZERO FEE RULE); a real marketplace checkout order additionally requires
+    // the required upfront deposit to actually be verified AND the order to have reached a
+    // fulfilment stage that could only legitimately be reached after that deposit cleared.
+    if (order.source !== OrderSource.SELLER_SHIPMENT) {
+      if (![OrderStatus.PREPARING, OrderStatus.READY_PICKUP, OrderStatus.IN_TRANSIT].includes(order.status)) {
+        throw new BadRequestException('Agizo hili bado halijaandaliwa kwa ajili ya kukusanya salio');
+      }
+      await this.assertVerifiedPaymentEvidence(order, 'Hakuna uthibitisho wa malipo ya awali kwenye agizo hili');
+    }
 
     const parcel = await this.parcelRepo.findOne({
       where: { order: { id: orderId } },
@@ -997,6 +1027,7 @@ export class OrdersService {
         `Order status is ${order.status}. Must be paid or preparing.`,
       );
     }
+    await this.assertVerifiedPaymentEvidence(order, 'This order does not have verified payment evidence yet');
 
     const superAgentProfile = await this.superAgentRepo.findOne({
       where: { user: { id: superAgent.id } },

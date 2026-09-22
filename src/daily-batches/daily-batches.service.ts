@@ -17,6 +17,7 @@ import { Product } from '../products/entities/products.entity';
 import { User } from '../users/entities/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
+import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 
 @Injectable()
 export class DailyBatchesService {
@@ -188,6 +189,7 @@ export class DailyBatchesService {
     private routeRepo: Repository<IntercityRoute>,
     private notificationsService: NotificationsService,
     private communicationEngine: CommunicationEngineService,
+    private paymentEvidence: PaymentEvidenceService,
   ) {}
 
   // ── Zone detection — match a delivery address to a known zone ────────────
@@ -378,6 +380,20 @@ export class DailyBatchesService {
     if (!order) throw new NotFoundException('Order not found');
     if (order.seller?.id !== seller.id)
       throw new BadRequestException('Not your order');
+
+    // S0: this endpoint had NO payment check at all — a provisional, unpaid checkout order could
+    // enter real logistics (a batch/Parcel) purely by the seller calling it (see the checkout/
+    // payment integrity audit).
+    const evidence = await this.paymentEvidence.check({
+      id: order.id,
+      source: order.source,
+      paymentMethod: order.paymentMethod,
+      totalAmount: order.totalAmount,
+      codUpfrontAmount: (order as any).codUpfrontAmount,
+    });
+    if (evidence.applicable && !evidence.sufficient) {
+      throw new BadRequestException('This order does not have verified payment evidence yet');
+    }
 
     // ── Prevent duplicates — check if already assigned to any batch ──────────
     const existing = await this.parcelRepo.findOne({
@@ -1274,6 +1290,21 @@ export class DailyBatchesService {
 
       for (const order of overdueOrders) {
         try {
+          // S0: this query already filters on the mutable paymentStatus column, exactly the field
+          // the checkout/payment audit found could be forged (self-reported COD collection,
+          // markPreparing, etc.) — verified PaymentEvidence backstops it before an escrow release.
+          const evidence = await this.paymentEvidence.check({
+            id: order.id,
+            source: order.source,
+            paymentMethod: order.paymentMethod,
+            totalAmount: order.totalAmount,
+            codUpfrontAmount: (order as any).codUpfrontAmount,
+          });
+          if (evidence.applicable && !evidence.sufficient) {
+            console.warn(`[Auto-Release] Order #${order.id} held: no verified payment evidence`);
+            continue;
+          }
+
           await this.orderRepo.update(order.id, {
             status: 'completed',
             escrowStatus: 'released',

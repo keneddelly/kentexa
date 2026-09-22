@@ -12,6 +12,7 @@ import {
   PaymentStatus,
 } from '../orders/entities/order.entity';
 import { User } from '../users/entities/user.entity';
+import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 
 @Injectable()
 export class PayoutsService {
@@ -21,7 +22,29 @@ export class PayoutsService {
 
     @InjectRepository(Order)
     private orderRepo: Repository<Order>,
+    private paymentEvidence: PaymentEvidenceService,
   ) {}
+
+  // S0 — the individual and bulk payout paths must apply the SAME
+  // eligibility rule; the audit found bulk skipping this check entirely.
+  // paymentStatus is checked first (cheap, catches the common legitimate
+  // case), then PaymentEvidence backstops it for checkout orders so a
+  // forged/self-set paymentStatus can't reach a real payout either.
+  private async assertPayoutEligible(order: Order): Promise<void> {
+    if (order.paymentStatus !== PaymentStatus.PAID) {
+      throw new BadRequestException(`Order #${order.id} has not been paid yet`);
+    }
+    const evidence = await this.paymentEvidence.check({
+      id: order.id,
+      source: order.source,
+      paymentMethod: order.paymentMethod,
+      totalAmount: order.totalAmount,
+      codUpfrontAmount: (order as any).codUpfrontAmount,
+    });
+    if (evidence.applicable && !evidence.sufficient) {
+      throw new BadRequestException(`Order #${order.id} does not have verified payment evidence for a payout`);
+    }
+  }
 
   // ─── Admin: Get all pending payouts ──────────────────────────────────────
   async getAllPending() {
@@ -61,9 +84,7 @@ export class PayoutsService {
       relations: { seller: true, product: true },
     });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.paymentStatus !== PaymentStatus.PAID) {
-      throw new BadRequestException('Order has not been paid yet');
-    }
+    await this.assertPayoutEligible(order);
     if (order.payoutStatus === OrderPayoutStatus.PAID) {
       throw new BadRequestException('Payout already processed for this order');
     }
@@ -108,7 +129,18 @@ export class PayoutsService {
     }
 
     const now = new Date();
+    const processed: typeof pending = [];
+    const skipped: Array<{ orderId: number; reason: string }> = [];
     for (const payout of pending) {
+      try {
+        await this.assertPayoutEligible(payout.order);
+      } catch (err: any) {
+        // S0 fix: bulk payout previously had NO eligibility check at all (unlike processPayout) —
+        // an ineligible order in the batch is now skipped and reported, never silently paid out.
+        skipped.push({ orderId: payout.order.id, reason: err.message || 'not eligible' });
+        continue;
+      }
+
       payout.status = PayoutStatus.PAID;
       payout.paidAt = now;
       payout.paymentMethod = paymentMethod;
@@ -119,13 +151,19 @@ export class PayoutsService {
       await this.orderRepo.update(payout.order.id, {
         payoutStatus: OrderPayoutStatus.PAID,
       });
+      processed.push(payout);
     }
 
-    const totalPaid = pending.reduce((s, p) => s + Number(p.sellerAmount), 0);
+    if (processed.length === 0) {
+      throw new BadRequestException(`None of the ${pending.length} pending payouts for this seller are eligible right now`);
+    }
+
+    const totalPaid = processed.reduce((s, p) => s + Number(p.sellerAmount), 0);
     return {
-      message: `${pending.length} payouts processed`,
+      message: `${processed.length} payouts processed${skipped.length ? `, ${skipped.length} skipped` : ''}`,
       totalPaid,
-      count: pending.length,
+      count: processed.length,
+      skipped,
     };
   }
 

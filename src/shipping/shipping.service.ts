@@ -22,6 +22,7 @@ import {
 import { SellerScopeService } from '../business/seller-scope.service';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { RoleContext } from '../role-context/role-context.types';
+import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 
 @Injectable()
 export class ShippingService {
@@ -32,14 +33,29 @@ export class ShippingService {
     private orderRepo: Repository<Order>,
     private disputesService: DisputesService,
     private sellerScope: SellerScopeService,
+    private paymentEvidence: PaymentEvidenceService,
   ) {}
 
   // ── Seller: Mark order as preparing ──
+  // S0: the mutable paymentStatus column stays the cheap first check, but a
+  // checkout order additionally needs verified PaymentEvidence — closing
+  // the path where a forged/self-set paymentStatus alone could move an
+  // unpaid order into fulfilment (see the checkout/payment integrity audit).
   async markPreparing(orderId: number, sellerId: number): Promise<Order> {
     const order = await this.getSellerOrder(orderId, sellerId);
 
     if (order.paymentStatus !== ('paid' as any)) {
       throw new BadRequestException('Cannot prepare unpaid order');
+    }
+    const evidence = await this.paymentEvidence.check({
+      id: order.id,
+      source: order.source,
+      paymentMethod: order.paymentMethod,
+      totalAmount: order.totalAmount,
+      codUpfrontAmount: (order as any).codUpfrontAmount,
+    });
+    if (evidence.applicable && !evidence.sufficient) {
+      throw new BadRequestException('Cannot prepare an order without verified payment evidence');
     }
 
     order.status = OrderStatus.PREPARING;

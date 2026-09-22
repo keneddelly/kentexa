@@ -29,6 +29,7 @@ import { Classified } from '../classifieds/entities/classified.entity';
 import { CodModule } from '../cod/cod.module';
 import { Brand } from '../brands/entities/brand.entity';
 import { CommunicationModule } from '../communication/communication.module';
+import { PaymentCoreModule } from '../payments/payment-core.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { CommunicationModule } from '../communication/communication.module';
     IdentityModule,
     CodModule,
     CommunicationModule,
+    PaymentCoreModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],
