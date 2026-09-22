@@ -13,6 +13,10 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { Response } from 'express';
 
 @Controller('invoices')
@@ -99,14 +103,21 @@ export class InvoicesController {
     return this.invoicesService.cancel(invoiceNumber);
   }
 
-  // System — Mark Paid (called by payment webhook)
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  // Admin — manual/admin_manual payment confirmation. S0: this is NOT a
+  // second financial authority — it creates a real, sealed admin_manual
+  // Payment and runs it through the SAME canonical confirmation every
+  // provider webhook uses (see InvoicesService.markPaid's own comment).
+  // Unified onto RoleContext (not the legacy UserRole.role) to match every
+  // other financial-admin endpoint in this codebase.
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.ADMIN)
   @Patch(':invoiceNumber/mark-paid')
   markPaid(
     @Param('invoiceNumber') invoiceNumber: string,
     @Body('transactionReference') transactionReference: string,
+    @Body('reason') reason: string,
+    @Request() req,
   ) {
-    return this.invoicesService.markPaid(invoiceNumber, transactionReference);
+    return this.invoicesService.markPaid(invoiceNumber, transactionReference, reason, req.user.id);
   }
 }

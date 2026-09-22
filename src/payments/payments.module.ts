@@ -22,6 +22,7 @@ import { WalletModule } from '../wallet/wallet.module';
 import { ReputationModule } from '../reputation/reputation.module';
 import { BusinessModule } from '../business/business.module';
 import { CommunicationModule } from '../communication/communication.module';
+import { PaymentCoreModule } from './payment-core.module';
 
 @Module({
   imports: [
@@ -42,6 +43,9 @@ import { CommunicationModule } from '../communication/communication.module';
     ReputationModule,
     BusinessModule,
     CommunicationModule,
+    // S0 — the canonical confirmation/evidence services (shared with InvoicesModule's
+    // admin_manual mark-paid, avoiding a PaymentsModule <-> InvoicesModule import cycle).
+    PaymentCoreModule,
   ],
   controllers: [PaymentsController],
   providers: [

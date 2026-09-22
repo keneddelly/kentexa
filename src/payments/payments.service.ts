@@ -11,7 +11,7 @@ import { Payment, PaymentStatus } from './entities/payment.entity';
 import {
   Order,
   PaymentStatus as OrderPaymentStatus,
-  EscrowStatus,
+  OrderStatus,
   OrderPaymentMethod,
 } from '../orders/entities/order.entity';
 import { Invoice, InvoiceStatus } from '../invoices/entities/invoice.entity';
@@ -42,10 +42,15 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { WalletService } from '../wallet/wallet.service';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
-import { OrderStatus } from '../orders/entities/order.entity';
 import { ConversationService } from '../business/conversation.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
+import { PaymentConfirmationService, ConfirmationOutcome } from './payment-confirmation.service';
+import { deriveOrderPaymentObligation } from './order-payment-obligation';
+import { parseAmountToMinor, minorToNumber } from './payment-money';
+import { generateProviderReference } from './provider-reference';
+import { isProviderEnabled } from './enabled-providers';
+import { ProviderVerification } from './providers/payment-provider.interface';
 
 const USE_INDIVIDUAL_NETWORKS = false;
 
@@ -72,9 +77,15 @@ export interface InvoiceLookupResult {
   remainingBalance?: number;
 }
 
+const FAILURE_OUTCOMES = new Set(['PROVIDER_NOT_SUCCESS', 'AMOUNT_MISMATCH', 'CURRENCY_MISMATCH', 'REFERENCE_REUSED']);
+
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  /** S0 Decision 12 — no reconciliation poller; this is the only rate limit needed: an explicit,
+   * admin-triggered re-verify of one payment, throttled per payment so a mis-click can't hammer the provider. */
+  private readonly lastVerifyAttemptAt = new Map<number, number>();
+  private static readonly VERIFY_COOLDOWN_MS = 15_000;
 
   constructor(
     @InjectRepository(Payment) private paymentRepo: Repository<Payment>,
@@ -100,79 +111,118 @@ export class PaymentsService {
     private conversationService: ConversationService,
     private businessCustomerService: BusinessCustomerService,
     private communicationEngine: CommunicationEngineService,
+    private paymentConfirmation: PaymentConfirmationService,
   ) {}
 
+  // ── Provider selection ──────────────────────────────────────────────────
+  // S0: provider IMPLEMENTATION (the adapter exists in code) and provider
+  // ACTIVATION (it may actually be used against a real checkout) are
+  // separate. In production, a provider is reachable ONLY when it is both
+  // recognised here AND present in PAYMENTS_ENABLED_PROVIDERS (default
+  // EMPTY) — so simply deploying this code activates nothing.
   private getProvider(provider: string): IPaymentProvider {
     if (process.env.NODE_ENV !== 'production') {
-      this.logger.log(
-        `[DEV] Using mock payment provider instead of ${provider}`,
-      );
+      this.logger.log(`[DEV] Using mock payment provider instead of ${provider}`);
       return this.mockAgentService;
     }
-    // "mock" is NOT honored here in production — this is the one line that
-    // let anyone mark a payment SUCCESS for free by passing provider:"mock".
-    // Every request in production goes to a real provider, full stop.
-    // ClickPesa is opt-in only (explicit provider:"clickpesa") — the
-    // USE_INDIVIDUAL_NETWORKS default below is untouched, so nothing that
-    // already relies on landing on Selcom changes behavior.
-    if (provider === 'clickpesa') {
-      return this.clickPesaService;
+    const normalized = (provider || '').toLowerCase();
+    if (!isProviderEnabled(normalized)) {
+      throw new BadRequestException(`Payment provider "${provider}" is not enabled`);
     }
+    if (normalized === 'clickpesa') return this.clickPesaService;
+    if (normalized === 'selcom') return this.selcomService;
     if (USE_INDIVIDUAL_NETWORKS) {
-      switch (provider) {
-        case 'vodacom':
-          return this.vodacomService;
-        case 'airtel':
-          return this.airtelService;
-        default:
-          return this.selcomService;
+      if (normalized === 'vodacom') return this.vodacomService;
+      if (normalized === 'airtel') return this.airtelService;
+    }
+    throw new BadRequestException(`Payment provider "${provider}" is not supported`);
+  }
+
+  /** Never throws — used from unauthenticated webhook routes, where a disabled/unknown provider is just ignored, not a 500. */
+  private getProviderSafe(provider: string): IPaymentProvider | null {
+    try {
+      return this.getProvider(provider);
+    } catch {
+      return null;
+    }
+  }
+
+  // ── Canonical post-confirmation side effects (notifications only — every
+  // financial write already happened inside PaymentConfirmationService's
+  // own transaction). Only ever called for a CONFIRMED outcome, and only
+  // fires the notification matching what ACTUALLY transitioned, so a retry
+  // that lands on ALREADY_CONFIRMED/INELIGIBLE never re-notifies anyone. ──
+  private async dispatchConfirmationSideEffects(outcome: ConfirmationOutcome): Promise<void> {
+    if (outcome.status !== 'CONFIRMED') return;
+    if (outcome.orderId) {
+      if (outcome.orderTransition === 'DIGITAL_COMPLETED') {
+        await this.sendDigitalOrderCompletedNotifications(outcome.orderId);
+      } else if (outcome.orderTransition === 'ORDER_PAID' || outcome.orderTransition === 'COD_DEPOSIT_CONFIRMED') {
+        await this.sendOrderPaidNotifications(outcome.orderId);
+      }
+      // INELIGIBLE — the order itself was not touched (Decision 10/11): no notification.
+    } else if (outcome.classifiedInvoiceNumber && outcome.classifiedTransitioned) {
+      await this.sendClassifiedInvoicePaidNotifications(outcome.classifiedInvoiceNumber);
+    }
+  }
+
+  /** Shared tail for every source that can carry an agentId (agent-collected payments) — agent commission only ever runs on a genuine CONFIRMED transition, and a failed verification resets the invoice for retry exactly as before. */
+  private async finalizeAgentAwareConfirmation(
+    payment: Payment,
+    outcome: ConfirmationOutcome,
+    providerName: string,
+    agentId: number | null,
+  ): Promise<void> {
+    if (outcome.status === 'CONFIRMED') {
+      await this.dispatchConfirmationSideEffects(outcome);
+      if (agentId) {
+        const fresh = await this.paymentRepo.findOne({ where: { id: payment.id } });
+        const orderInvoice = outcome.orderId
+          ? await this.invoiceRepo.findOne({ where: { order: { id: outcome.orderId } } })
+          : null;
+        await this.recordAgentCommission(
+          agentId,
+          Number(payment.amount),
+          fresh?.providerReference || `KNT-TXN-${Date.now()}`,
+          providerName,
+          orderInvoice,
+          outcome.orderId,
+        );
+      }
+    } else if (FAILURE_OUTCOMES.has(outcome.status)) {
+      let meta: any = {};
+      try {
+        meta = payment.metadata ? JSON.parse(payment.metadata) : {};
+      } catch {
+        /* ignore */
+      }
+      if (meta.invoiceType === 'order' && meta.orderId) {
+        await this.invoiceRepo.update({ order: { id: meta.orderId } }, { status: InvoiceStatus.AWAITING_PAYMENT, agentId: null });
       }
     }
-    return this.selcomService;
   }
 
-  private generateReceiptNumber(): string {
-    const rand = Math.random().toString(36).substring(2, 7).toUpperCase();
-    return `KNT-RCP-${new Date().getFullYear()}-${rand}`;
-  }
-
-  // ── Auto-confirm order after payment + send notifications ─────────────────
-  private async autoConfirmOrder(orderId: number): Promise<void> {
+  // ── Order-paid notifications (extracted from the old autoConfirmOrder —
+  // the order/invoice DB transition itself now happens exclusively inside
+  // PaymentConfirmationService; this method is notification-only) ────────
+  private async sendOrderPaidNotifications(orderId: number): Promise<void> {
     const order = await this.orderRepo.findOne({
       where: { id: orderId },
       relations: { buyer: true, seller: true, product: true },
     });
     if (!order) return;
 
-    // Payment webhooks can retry — never re-process a completed order.
-    if (order.status === OrderStatus.COMPLETED) return;
-
-    // Drop a system message into the buyer↔seller thread so "did you pay?"
-    // is answered right there in the chat, mirroring the order-created card
-    // OrdersService already posts. Both online-payment webhook paths
-    // (handleCallback and the agent callback) funnel through this single
-    // method, so this is the one place that needs to know about it — no
-    // duplication at either call site. Non-critical: never let a chat-side
-    // failure block the actual payment confirmation below.
     if (order.buyer && order.seller) {
       try {
-        const invoice = await this.invoicesService
-          .findByOrderId(orderId)
-          .catch(() => null);
+        const invoice = await this.invoiceRepo.findOne({ where: { order: { id: orderId } } }).catch(() => null);
         if (invoice) {
-          const customer = await this.businessCustomerService.findOrCreateForChat(
-            order.seller.id,
-            {
-              id: order.buyer.id,
-              name: order.buyer.name || 'Mnunuzi',
-              phone: order.buyer.phone,
-              email: order.buyer.email,
-            },
-          );
-          const convo = await this.conversationService.getOrCreateConversation(
-            order.seller.id,
-            customer.id,
-          );
+          const customer = await this.businessCustomerService.findOrCreateForChat(order.seller.id, {
+            id: order.buyer.id,
+            name: order.buyer.name || 'Mnunuzi',
+            phone: order.buyer.phone,
+            email: order.buyer.email,
+          });
+          const convo = await this.conversationService.getOrCreateConversation(order.seller.id, customer.id);
           await this.conversationService.addInvoiceMessage(convo.id, {
             invoiceNumber: invoice.invoiceNumber,
             amount: Number(order.totalAmount || 0),
@@ -181,85 +231,42 @@ export class PaymentsService {
           });
         }
       } catch (err: any) {
-        this.logger.warn(
-          `Invoice-paid chat message failed for order #${orderId} (non-critical): ${err.message}`,
-        );
+        this.logger.warn(`Invoice-paid chat message failed for order #${orderId} (non-critical): ${err.message}`);
       }
     }
 
-    // Digital products (Layer 1 seller verification) have nothing to ship —
-    // this path (direct online payment, not invoice) previously left them
-    // stuck at status 'paid' forever, since only the invoice-payment path
-    // (invoices.service.ts's markPaid) auto-completed digital orders.
-    if ((order.product as any)?.productType === 'digital') {
-      await this.completeDigitalOrder(order);
-      return;
+    const isCod = order.paymentMethod === OrderPaymentMethod.COD;
+
+    // Receipt numbering — best-effort follow-up, same non-transactional shape this codebase already
+    // used before S0 (the counter's own transaction is independent of the confirmation transaction).
+    try {
+      const invoice = await this.invoiceRepo.findOne({ where: { order: { id: orderId } } });
+      if (invoice && !invoice.receiptNumber) {
+        await this.invoiceRepo.update(invoice.id, { receiptNumber: await this.invoicesService.generateReceiptNumber() });
+      }
+    } catch (err: any) {
+      this.logger.warn(`Receipt number generation failed for order #${orderId} (non-critical): ${err.message}`);
     }
 
-    // Cash on Delivery: the gateway only ever charged the upfront amount
-    // (see PaymentsService.lookupAnyInvoice() and InvoicesService.
-    // createForOrder()) — clearing that payment means the upfront is
-    // confirmed, NOT that the order is fully paid. UPFRONT_PAID keeps that
-    // distinction visible on the order itself; the order still moves to
-    // PREPARING (seller can start fulfilling) exactly like a normal order.
-    const isCod = order.paymentMethod === OrderPaymentMethod.COD;
-    await this.orderRepo.update(orderId, {
-      paymentStatus: (isCod ? 'upfront_paid' : 'paid') as any,
-      status: (isCod ? 'preparing' : 'paid') as any,
-    });
-    this.logger.log(`Order #${orderId} auto-confirmed after payment`);
-
-    // 📱 SMS (1 of 3 allowed) + 📧 Email — to BOTH buyer and seller
     try {
       await this.notificationsService.orderPaid(
-        {
-          email: order.buyer?.email,
-          phone: order.buyer?.phone,
-          name: order.buyer?.name,
-        },
-        {
-          email: order.seller?.email,
-          phone: order.seller?.phone,
-          name: order.seller?.name,
-        },
+        { email: order.buyer?.email, phone: order.buyer?.phone, name: order.buyer?.name },
+        { email: order.seller?.email, phone: order.seller?.phone, name: order.seller?.name },
         order.id,
         order.product?.name || 'Product',
         Number(order.totalAmount || 0),
         isCod
-          ? {
-              upfrontAmount: Number(order.codUpfrontAmount || 0),
-              remainingBalance: Number(order.codRemainingBalance || 0),
-            }
+          ? { upfrontAmount: Number(order.codUpfrontAmount || 0), remainingBalance: Number(order.codRemainingBalance || 0) }
           : undefined,
       );
-    } catch (err) {
-      this.logger.warn(
-        `Failed to send orderPaid notifications for order #${orderId}: ${err.message}`,
-      );
+    } catch (err: any) {
+      this.logger.warn(`Failed to send orderPaid notifications for order #${orderId}: ${err.message}`);
     }
 
-    // 🔔 In-app + push — via the Communication Engine (Phase A). Separate
-    // from the SMS/email call above: that leg already worked and is left
-    // untouched; this leg was previously completely dead (no in-app/push
-    // notification existed for a paid order at all).
     try {
       const recipients = [
-        order.buyer
-          ? {
-              userId: order.buyer.id,
-              role: 'buyer',
-              actionPage: 'MyOrders',
-              actionParam: String(order.id),
-            }
-          : null,
-        order.seller
-          ? {
-              userId: order.seller.id,
-              role: 'seller',
-              actionPage: 'SellerOrders',
-              actionParam: String(order.id),
-            }
-          : null,
+        order.buyer ? { userId: order.buyer.id, role: 'buyer', actionPage: 'MyOrders', actionParam: String(order.id) } : null,
+        order.seller ? { userId: order.seller.id, role: 'seller', actionPage: 'SellerOrders', actionParam: String(order.id) } : null,
       ].filter((r): r is NonNullable<typeof r> => r !== null);
 
       await this.communicationEngine.dispatch({
@@ -276,59 +283,40 @@ export class PaymentsService {
         },
       });
     } catch (err: any) {
-      this.logger.warn(
-        `Communication engine dispatch failed for order #${orderId}: ${err.message}`,
-      );
+      this.logger.warn(`Communication engine dispatch failed for order #${orderId}: ${err.message}`);
     }
   }
 
-  // ── Digital products complete atomically on payment — no shipment, no
-  // buyer-confirms-delivery step. Escrow releases immediately (mirrors
-  // OrdersService.buyerConfirm()'s completion side effects: wallet credit,
-  // reputation, activity event) since there's no physical delivery signal
-  // to hold funds against — disputes/refunds handle the exception case
-  // after the fact via the existing DisputesService.
-  private async completeDigitalOrder(order: Order): Promise<void> {
-    const now = new Date();
-    await this.orderRepo.update(order.id, {
-      paymentStatus: OrderPaymentStatus.PAID,
-      status: OrderStatus.COMPLETED,
-      deliveredAt: now,
-      completedAt: now,
-      payoutStatus: 'released',
-      escrowStatus: EscrowStatus.RELEASED,
-      fundsReleasedAt: now,
-    } as any);
+  // ── Digital-order-completed notifications (extracted from the old
+  // completeDigitalOrder — the order transition itself now happens
+  // exclusively inside PaymentConfirmationService) ────────────────────────
+  private async sendDigitalOrderCompletedNotifications(orderId: number): Promise<void> {
+    const order = await this.orderRepo.findOne({
+      where: { id: orderId },
+      relations: { buyer: true, seller: true, product: true },
+    });
+    if (!order) return;
     this.logger.log(`Digital order #${order.id} auto-completed after payment`);
 
     if (order.seller?.id) {
       await this.walletService
-        .creditFromEscrowRelease(
-          order.seller.id,
-          order.id,
-          Number(order.sellerAmount || 0),
-        )
+        .creditFromEscrowRelease(order.seller.id, order.id, Number(order.sellerAmount || 0))
         .catch(() => {});
     }
 
     try {
       if (order.buyer?.id) {
-        await this.reputationService.award(
-          order.buyer.id,
-          ReputationEventType.ORDER_COMPLETED,
-          { sourceEntityType: 'order', sourceEntityId: order.id },
-        );
+        await this.reputationService.award(order.buyer.id, ReputationEventType.ORDER_COMPLETED, {
+          sourceEntityType: 'order',
+          sourceEntityId: order.id,
+        });
       }
       if (order.seller?.id) {
-        await this.reputationService.award(
-          order.seller.id,
-          ReputationEventType.ORDER_COMPLETED,
-          {
-            sourceEntityType: 'order',
-            sourceEntityId: order.id,
-            commerceProfileId: (order as any).commerceProfileId ?? null,
-          },
-        );
+        await this.reputationService.award(order.seller.id, ReputationEventType.ORDER_COMPLETED, {
+          sourceEntityType: 'order',
+          sourceEntityId: order.id,
+          commerceProfileId: (order as any).commerceProfileId ?? null,
+        });
       }
     } catch {
       /* non-critical */
@@ -336,43 +324,19 @@ export class PaymentsService {
 
     try {
       await this.notificationsService.orderCompleted(
-        {
-          email: order.seller?.email,
-          phone: order.seller?.phone,
-          name: order.seller?.name,
-        },
-        {
-          email: order.buyer?.email,
-          phone: order.buyer?.phone,
-          name: order.buyer?.name,
-        },
+        { email: order.seller?.email, phone: order.seller?.phone, name: order.seller?.name },
+        { email: order.buyer?.email, phone: order.buyer?.phone, name: order.buyer?.name },
         order.id,
         Number(order.sellerAmount || 0),
       );
-    } catch (err) {
-      this.logger.warn(
-        `Failed to send orderCompleted notifications for order #${order.id}: ${err.message}`,
-      );
+    } catch (err: any) {
+      this.logger.warn(`Failed to send orderCompleted notifications for order #${order.id}: ${err.message}`);
     }
 
     try {
       const recipients = [
-        order.buyer
-          ? {
-              userId: order.buyer.id,
-              role: 'buyer',
-              actionPage: 'MyOrders',
-              actionParam: String(order.id),
-            }
-          : null,
-        order.seller
-          ? {
-              userId: order.seller.id,
-              role: 'seller',
-              actionPage: 'SellerOrders',
-              actionParam: String(order.id),
-            }
-          : null,
+        order.buyer ? { userId: order.buyer.id, role: 'buyer', actionPage: 'MyOrders', actionParam: String(order.id) } : null,
+        order.seller ? { userId: order.seller.id, role: 'seller', actionPage: 'SellerOrders', actionParam: String(order.id) } : null,
       ].filter((r): r is NonNullable<typeof r> => r !== null);
 
       await this.communicationEngine.dispatch({
@@ -380,22 +344,14 @@ export class PaymentsService {
         sourceType: 'order',
         sourceId: order.id,
         recipients,
-        context: {
-          orderId: order.id,
-          productName: order.product?.name || 'Product',
-          sellerAmount: Number(order.sellerAmount || 0),
-        },
+        context: { orderId: order.id, productName: order.product?.name || 'Product', sellerAmount: Number(order.sellerAmount || 0) },
       });
     } catch (err: any) {
-      this.logger.warn(
-        `Communication engine dispatch failed for completed digital order #${order.id}: ${err.message}`,
-      );
+      this.logger.warn(`Communication engine dispatch failed for completed digital order #${order.id}: ${err.message}`);
     }
 
     const sellerProfile = order.seller?.id
-      ? await this.commerceProfiles
-          .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)
-          .catch(() => null)
+      ? await this.commerceProfiles.findForUserByType(order.seller.id, CommerceProfileType.BUSINESS).catch(() => null)
       : null;
     this.activityEvents.record({
       eventType: 'ORDER_COMPLETED',
@@ -408,6 +364,31 @@ export class PaymentsService {
       targetId: order.id,
       metadata: { totalAmount: order.totalAmount, digital: true },
     });
+  }
+
+  // ── Classified/manual-invoice-paid notifications (extracted from the old
+  // markClassifiedInvoicePaidFromWebhook — the status flip itself now
+  // happens exclusively inside PaymentConfirmationService) ───────────────
+  private async sendClassifiedInvoicePaidNotifications(invoiceNumber: string): Promise<void> {
+    try {
+      const fullInvoice = await this.classifiedInvoiceRepo.findOne({
+        where: { invoiceNumber },
+        relations: { buyer: true, seller: true },
+      });
+      if (fullInvoice) {
+        const msgParts = (fullInvoice.buyerMessage || '').split(' | ');
+        const buyerName = msgParts.find((p) => p.startsWith('Name:'))?.replace('Name: ', '') || fullInvoice.buyer?.name || 'Customer';
+        const buyerPhone = msgParts.find((p) => p.startsWith('Phone:'))?.replace('Phone: ', '') || fullInvoice.buyer?.phone || null;
+        await this.notificationsService.classifiedInvoicePaid(
+          { email: fullInvoice.buyer?.email, phone: buyerPhone, name: buyerName },
+          { email: fullInvoice.seller?.email, phone: fullInvoice.seller?.phone, name: fullInvoice.seller?.name },
+          invoiceNumber,
+          Number(fullInvoice.amount || 0),
+        );
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to send classifiedInvoicePaid notifications: ${err.message}`);
+    }
   }
 
   // ── Escrow release (admin triggers) ─────────────────────────────────────
@@ -424,43 +405,20 @@ export class PaymentsService {
       fundsReleasedAt: new Date(),
     });
 
-    this.logger.log(
-      `Escrow released for order #${orderId} by admin #${adminId}`,
-    );
+    this.logger.log(`Escrow released for order #${orderId} by admin #${adminId}`);
 
-    // Notify seller
     try {
       if (order.seller) {
         await this.notificationsService.orderCompleted(
-          {
-            email: order.seller.email,
-            phone: order.seller.phone,
-            name: order.seller.name,
-          },
-          {
-            email: order.buyer?.email,
-            phone: order.buyer?.phone,
-            name: order.buyer?.name,
-          },
+          { email: order.seller.email, phone: order.seller.phone, name: order.seller.name },
+          { email: order.buyer?.email, phone: order.buyer?.phone, name: order.buyer?.name },
           order.id,
           Number(order.sellerAmount || order.totalAmount || 0),
         );
 
         const recipients = [
-          order.buyer
-            ? {
-                userId: order.buyer.id,
-                role: 'buyer',
-                actionPage: 'MyOrders',
-                actionParam: String(order.id),
-              }
-            : null,
-          {
-            userId: order.seller.id,
-            role: 'seller',
-            actionPage: 'SellerOrders',
-            actionParam: String(order.id),
-          },
+          order.buyer ? { userId: order.buyer.id, role: 'buyer', actionPage: 'MyOrders', actionParam: String(order.id) } : null,
+          { userId: order.seller.id, role: 'seller', actionPage: 'SellerOrders', actionParam: String(order.id) },
         ].filter((r): r is NonNullable<typeof r> => r !== null);
 
         await this.communicationEngine.dispatch({
@@ -468,11 +426,7 @@ export class PaymentsService {
           sourceType: 'order',
           sourceId: order.id,
           recipients,
-          context: {
-            orderId: order.id,
-            productName: order.product?.name || 'Product',
-            sellerAmount: Number(order.sellerAmount || order.totalAmount || 0),
-          },
+          context: { orderId: order.id, productName: order.product?.name || 'Product', sellerAmount: Number(order.sellerAmount || order.totalAmount || 0) },
         });
       }
     } catch {
@@ -481,44 +435,17 @@ export class PaymentsService {
   }
 
   // ── Get payout summary for admin ─────────────────────────────────────────
-  async getPayoutSummary(): Promise<{
-    pendingEscrow: number;
-    releasedToday: number;
-    totalReleased: number;
-    pendingOrders: number;
-  }> {
+  async getPayoutSummary(): Promise<{ pendingEscrow: number; releasedToday: number; totalReleased: number; pendingOrders: number }> {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    // EscrowStatus.HOLDING is 'holding', not 'held' — the two queries below
-    // that checked 'held' never matched a real row, so pendingEscrow and
-    // pendingOrders were always 0 regardless of actual held escrow.
     const [pending, releasedToday, totalReleased] = await Promise.all([
-      this.orderRepo
-        .createQueryBuilder('o')
-        .select('SUM(o.sellerAmount)', 'total')
-        .where('o.escrowStatus = :holding', { holding: EscrowStatus.HOLDING })
-        .andWhere("o.paymentStatus = 'paid'")
-        .getRawOne(),
-      this.orderRepo
-        .createQueryBuilder('o')
-        .select('SUM(o.sellerAmount)', 'total')
-        .where('o.escrowStatus = :released', { released: EscrowStatus.RELEASED })
-        .andWhere('o.fundsReleasedAt >= :today', { today })
-        .getRawOne(),
-      this.orderRepo
-        .createQueryBuilder('o')
-        .select('SUM(o.sellerAmount)', 'total')
-        .where('o.escrowStatus = :released', { released: EscrowStatus.RELEASED })
-        .getRawOne(),
+      this.orderRepo.createQueryBuilder('o').select('SUM(o.sellerAmount)', 'total').where("o.escrowStatus = 'holding'").andWhere("o.paymentStatus = 'paid'").getRawOne(),
+      this.orderRepo.createQueryBuilder('o').select('SUM(o.sellerAmount)', 'total').where("o.escrowStatus = 'released'").andWhere('o.fundsReleasedAt >= :today', { today }).getRawOne(),
+      this.orderRepo.createQueryBuilder('o').select('SUM(o.sellerAmount)', 'total').where("o.escrowStatus = 'released'").getRawOne(),
     ]);
 
-    const pendingCount = await this.orderRepo.count({
-      where: {
-        paymentStatus: 'paid' as any,
-        escrowStatus: EscrowStatus.HOLDING,
-      },
-    });
+    const pendingCount = await this.orderRepo.count({ where: { paymentStatus: 'paid' as any, escrowStatus: 'holding' as any } });
 
     return {
       pendingEscrow: Number(pending?.total || 0),
@@ -529,11 +456,7 @@ export class PaymentsService {
   }
 
   async lookupAnyInvoice(invoiceNumber: string): Promise<InvoiceLookupResult> {
-    if (
-      !invoiceNumber ||
-      typeof invoiceNumber !== 'string' ||
-      !invoiceNumber.trim()
-    ) {
+    if (!invoiceNumber || typeof invoiceNumber !== 'string' || !invoiceNumber.trim()) {
       throw new BadRequestException('Invoice number is required');
     }
     const cleanInvoiceNumber = invoiceNumber.trim();
@@ -566,14 +489,8 @@ export class PaymentsService {
     if (classifiedInvoice) {
       const isManual = !classifiedInvoice.buyer;
       const msgParts = (classifiedInvoice.buyerMessage || '').split(' | ');
-      const parsedName =
-        msgParts.find((p) => p.startsWith('Name:'))?.replace('Name: ', '') ||
-        classifiedInvoice.buyer?.name ||
-        '—';
-      const parsedPhone =
-        msgParts.find((p) => p.startsWith('Phone:'))?.replace('Phone: ', '') ||
-        classifiedInvoice.buyer?.phone ||
-        '—';
+      const parsedName = msgParts.find((p) => p.startsWith('Name:'))?.replace('Name: ', '') || classifiedInvoice.buyer?.name || '—';
+      const parsedPhone = msgParts.find((p) => p.startsWith('Phone:'))?.replace('Phone: ', '') || classifiedInvoice.buyer?.phone || '—';
 
       return {
         invoiceNumber: classifiedInvoice.invoiceNumber ?? invoiceNumber,
@@ -582,64 +499,35 @@ export class PaymentsService {
         orderId: null,
         customerName: parsedName,
         customerPhone: parsedPhone,
-        productName:
-          classifiedInvoice.invoiceDescription ||
-          classifiedInvoice.classified?.title ||
-          '—',
-        sellerName:
-          classifiedInvoice.seller?.name ||
-          classifiedInvoice.seller?.email ||
-          '—',
+        productName: classifiedInvoice.invoiceDescription || classifiedInvoice.classified?.title || '—',
+        sellerName: classifiedInvoice.seller?.name || classifiedInvoice.seller?.email || '—',
         quantity: 1,
-        // COD: charge only the upfront amount now — the remaining balance
-        // is collected physically at delivery (see setShippingMethod()/
-        // superAgentReceiveOrder() for the balance-collection side).
-        amount: classifiedInvoice.isCod
-          ? Number(classifiedInvoice.codUpfrontAmount || 0)
-          : Number(classifiedInvoice.amount),
+        amount: classifiedInvoice.isCod ? Number(classifiedInvoice.codUpfrontAmount || 0) : Number(classifiedInvoice.amount),
         dueDate: classifiedInvoice.dueDate,
         status: classifiedInvoice.status,
         isCod: classifiedInvoice.isCod,
         fullAmount: Number(classifiedInvoice.amount),
-        remainingBalance: classifiedInvoice.isCod
-          ? Number(classifiedInvoice.codRemainingBalance || 0)
-          : 0,
+        remainingBalance: classifiedInvoice.isCod ? Number(classifiedInvoice.codRemainingBalance || 0) : 0,
       };
     }
 
-    throw new NotFoundException(
-      `Invoice ${cleanInvoiceNumber} not found. Please check the invoice number and try again.`,
-    );
+    throw new NotFoundException(`Invoice ${cleanInvoiceNumber} not found. Please check the invoice number and try again.`);
   }
 
   private validatePayable(invoice: InvoiceLookupResult): void {
-    if (invoice.status === 'paid')
-      throw new BadRequestException('This invoice is already paid');
-    if (invoice.status === 'cancelled')
-      throw new BadRequestException('This invoice has been cancelled');
-    if (invoice.status === 'expired')
-      throw new BadRequestException('This invoice has expired');
+    if (invoice.status === 'paid') throw new BadRequestException('This invoice is already paid');
+    if (invoice.status === 'cancelled') throw new BadRequestException('This invoice has been cancelled');
+    if (invoice.status === 'expired') throw new BadRequestException('This invoice has expired');
   }
 
-  // Invoice-based payments (customer/agent) don't have a single order row
-  // to check like initiatePayment() does, so this looks for a PENDING
-  // payment already carrying this invoice number in its metadata instead —
-  // without it, a double-tap fires two independent STK pushes for the same
-  // invoice.
-  private async assertNoPendingPaymentForInvoice(
-    invoiceNumber: string,
-  ): Promise<void> {
+  private async assertNoPendingPaymentForInvoice(invoiceNumber: string): Promise<void> {
     const existingPending = await this.paymentRepo
       .createQueryBuilder('p')
       .where('p.status = :status', { status: PaymentStatus.PENDING })
-      .andWhere('p.metadata LIKE :needle', {
-        needle: `%"invoiceNumber":"${invoiceNumber}"%`,
-      })
+      .andWhere('p.metadata LIKE :needle', { needle: `%"invoiceNumber":"${invoiceNumber}"%` })
       .getOne();
     if (existingPending) {
-      throw new BadRequestException(
-        'A payment is already in progress for this invoice. Check your phone, or wait a moment before retrying.',
-      );
+      throw new BadRequestException('A payment is already in progress for this invoice. Check your phone, or wait a moment before retrying.');
     }
   }
 
@@ -669,9 +557,7 @@ export class PaymentsService {
         status: AgentTransactionStatus.CONFIRMED,
       }),
     );
-    const paymentAgentProfile = await this.commerceProfiles
-      .findForUserByType(agent.user.id, CommerceProfileType.AGENT)
-      .catch(() => null);
+    const paymentAgentProfile = await this.commerceProfiles.findForUserByType(agent.user.id, CommerceProfileType.AGENT).catch(() => null);
     this.activityEvents.record({
       eventType: 'COMMISSION_EARNED',
       category: ActivityCategory.AGENT,
@@ -683,68 +569,55 @@ export class PaymentsService {
 
     agent.totalEarnings = Number(agent.totalEarnings) + commission;
     agent.totalTransactions = Number(agent.totalTransactions) + 1;
-    // These two were never touched here — totalEarningsPayments was a
-    // fully dead column, and pendingEarnings never grew for
-    // payment-collection commissions at all, so an agent who only does
-    // payment-collection jobs never showed up in the admin payout queue
-    // (which filters on pendingEarnings > 0), despite genuinely being owed
-    // this exact commission.
     agent.totalEarningsPayments = Number(agent.totalEarningsPayments) + commission;
     agent.pendingEarnings = Number(agent.pendingEarnings) + commission;
     await this.agentRepo.save(agent);
 
     if (orderId) {
-      const payout = await this.payoutRepo.findOne({
-        where: { order: { id: orderId } },
-      });
+      const payout = await this.payoutRepo.findOne({ where: { order: { id: orderId } } });
       if (payout) {
         payout.agentCommission = commission;
-        payout.sellerAmount = parseFloat(
-          (Number(payout.sellerAmount) - commission).toFixed(2),
-        );
+        payout.sellerAmount = parseFloat((Number(payout.sellerAmount) - commission).toFixed(2));
         await this.payoutRepo.save(payout);
       }
       const order = await this.orderRepo.findOne({ where: { id: orderId } });
       if (order) {
         await this.orderRepo.update(orderId, {
           agentCommissionAmount: commission,
-          sellerAmount: parseFloat(
-            (
-              Number(order.totalAmount) -
-              Number(order.platformFeeAmount) -
-              commission
-            ).toFixed(2),
-          ),
+          sellerAmount: parseFloat((Number(order.totalAmount) - Number(order.platformFeeAmount) - commission).toFixed(2)),
         });
       }
     }
   }
 
+  // ── Payment initiation — the amount is ALWAYS the server-derived
+  // obligation (deriveOrderPaymentObligation), never a frontend value; the
+  // reference is ALWAYS our own compliant generator, never built inline
+  // per-call-site (Decision 8). ───────────────────────────────────────────
   async initiatePayment(dto: InitiatePaymentDto, user: User) {
-    const order = await this.orderRepo.findOne({
-      where: { id: dto.orderId, buyer: { id: user.id } },
-    });
+    const order = await this.orderRepo.findOne({ where: { id: dto.orderId, buyer: { id: user.id } } });
     if (!order) throw new NotFoundException('Order not found');
-    if (order.paymentStatus === OrderPaymentStatus.PAID)
-      throw new BadRequestException('Order already paid');
-
-    // A double-tap on "pay" (or a slow first STK push) previously fired a
-    // second, fully independent payment request for the same order — no
-    // check stopped it. This blocks a new one while one is still pending.
-    const existingPending = await this.paymentRepo.findOne({
-      where: { order: { id: order.id }, status: PaymentStatus.PENDING },
-    });
-    if (existingPending) {
-      throw new BadRequestException(
-        'A payment is already in progress for this order. Check your phone, or wait a moment before retrying.',
-      );
+    if (order.status !== OrderStatus.PENDING_PAYMENT) {
+      throw new BadRequestException('This order is not currently payable');
     }
 
+    const existingPending = await this.paymentRepo.findOne({ where: { order: { id: order.id }, status: PaymentStatus.PENDING } });
+    if (existingPending) {
+      throw new BadRequestException('A payment is already in progress for this order. Check your phone, or wait a moment before retrying.');
+    }
+
+    const obligation = deriveOrderPaymentObligation(order);
+    if (obligation.purpose === 'COD_DEPOSIT' && obligation.requiredMinor === 0) {
+      // S0 Decision 9: zero-upfront COD is never activated through the online-payment path.
+      throw new BadRequestException('This order does not require an online payment');
+    }
+    const amount = minorToNumber(obligation.requiredMinor);
+
     const provider = this.getProvider(dto.provider);
-    const reference = `KNT-ORD-${order.id}-${Date.now()}`;
+    const reference = generateProviderReference();
     const response = await provider.initiatePayment({
       phone: dto.phone,
-      amount: Number(order.totalAmount),
+      amount,
       reference,
       description: `Payment for Order #${order.id} on Kentexa`,
     });
@@ -753,191 +626,52 @@ export class PaymentsService {
       order,
       user,
       phone: dto.phone,
-      amount: order.totalAmount,
+      amount,
       provider: dto.provider,
       status: response.success ? PaymentStatus.PENDING : PaymentStatus.FAILED,
       providerRequestId: response.providerRequestId,
       failureReason: response.success ? null : response.message,
+      metadata: JSON.stringify({ purpose: obligation.purpose, invoiceType: 'order', orderId: order.id }),
     });
     await this.paymentRepo.save(payment);
     if (!response.success) throw new BadRequestException(response.message);
 
-    return {
-      message: response.message,
-      providerRequestId: response.providerRequestId,
-      provider: dto.provider,
-    };
+    return { message: response.message, providerRequestId: response.providerRequestId, provider: dto.provider };
   }
 
+  // ── Provider webhooks — SIGNAL ONLY. The callback body never confirms
+  // anything by itself; it only identifies which Payment to go re-verify
+  // with the provider's own authoritative query (Decision 3). ───────────
   async handleCallback(body: any, providerName: string) {
     this.logger.log(`Callback from ${providerName}`, JSON.stringify(body));
-    const provider = this.getProvider(providerName);
-    const result = provider.parseCallback(body);
+    const provider = this.getProviderSafe(providerName);
+    if (!provider) return { message: 'OK' };
 
-    const payment = await this.paymentRepo.findOne({
-      where: { providerRequestId: result.providerRequestId },
-    });
+    const signal = provider.parseCallbackSignal(body);
+    if (!signal) {
+      this.logger.warn(`Callback from ${providerName} carried no identifiable reference`);
+      return { message: 'OK' };
+    }
+
+    const payment = await this.paymentRepo.findOne({ where: { providerRequestId: signal.providerRequestId } });
     if (!payment) {
-      this.logger.warn(
-        `No payment found for requestId: ${result.providerRequestId}`,
-      );
+      this.logger.warn(`No payment found for requestId: ${signal.providerRequestId}`);
       return { message: 'OK' };
     }
-
-    // Idempotency — a settled payment is terminal. Without this, a
-    // duplicated webhook delivery (normal for mobile-money providers) or a
-    // forged replay re-runs order confirmation every time it arrives.
     if (payment.status === PaymentStatus.SUCCESS) {
-      this.logger.log(
-        `Callback for already-settled payment ${result.providerRequestId} ignored`,
-      );
+      this.logger.log(`Callback for already-settled payment ${signal.providerRequestId} ignored`);
       return { message: 'OK' };
     }
 
-    if (result.success) {
-      payment.status = PaymentStatus.SUCCESS;
-      payment.providerReference = result.providerReference ?? null;
-      await this.paymentRepo.save(payment);
-      if (payment.order) {
-        await this.autoConfirmOrder(payment.order.id);
-      } else {
-        // This is the webhook route Airtel/Vodacom actually call (see
-        // AIRTEL_CALLBACK_URL/VODACOM_CALLBACK_URL) — previously it never
-        // checked payment.metadata at all, so a classified/manual invoice
-        // paid directly by a buyer via real mobile money never flipped to
-        // PAID; only agentPaymentCallback()'s separate, differently-routed
-        // handler (POST /payments/agent/callback/:provider) did.
-        let meta: any = {};
-        try {
-          meta = JSON.parse((payment as any).metadata || '{}');
-        } catch {
-          /* not JSON / no metadata — not a classified/manual invoice payment */
-        }
-        if (
-          (meta.invoiceType === 'classified' || meta.invoiceType === 'manual') &&
-          meta.invoiceNumber
-        ) {
-          await this.markClassifiedInvoicePaidFromWebhook(
-            meta.invoiceNumber,
-            payment.providerReference || `KNT-TXN-${Date.now()}`,
-            providerName,
-          );
-        }
-      }
-    } else {
-      payment.status = PaymentStatus.FAILED;
-      payment.failureReason = result.failureReason ?? null;
-      await this.paymentRepo.save(payment);
-    }
+    const verification = await provider.verifyPayment(signal.providerRequestId);
+    const outcome = await this.paymentConfirmation.confirmVerifiedPayment(payment.id, verification);
+    await this.dispatchConfirmationSideEffects(outcome);
     return { message: 'OK' };
   }
 
-  // Shared by handleCallback() (the real Airtel/Vodacom webhook route) and
-  // agentPaymentCallback() (agent-confirmed payments) — single place a
-  // classified/manual invoice actually flips to PAID and notifies both
-  // parties, instead of two independently-drifting copies of this logic.
-  // markInvoicePaid() (ClassifiedsService) was a third, uncalled copy —
-  // removed in favor of this one.
-  private async markClassifiedInvoicePaidFromWebhook(
-    invoiceNumber: string,
-    transactionRef: string,
-    providerName: string,
-  ): Promise<void> {
-    await this.classifiedInvoiceRepo.update(
-      { invoiceNumber },
-      {
-        status: ClassifiedInvoiceStatus.PAID,
-        paidAt: new Date(),
-        transactionReference: transactionRef,
-        paymentMethod: providerName,
-      },
-    );
-
-    // 📱 SMS (1 of 3 allowed events — orderPaid equivalent for classifieds) + 📧 Email
-    try {
-      const fullInvoice = await this.classifiedInvoiceRepo.findOne({
-        where: { invoiceNumber },
-        relations: { buyer: true, seller: true },
-      });
-      if (fullInvoice) {
-        const msgParts = (fullInvoice.buyerMessage || '').split(' | ');
-        const buyerName =
-          msgParts.find((p) => p.startsWith('Name:'))?.replace('Name: ', '') ||
-          fullInvoice.buyer?.name ||
-          'Customer';
-        const buyerPhone =
-          msgParts.find((p) => p.startsWith('Phone:'))?.replace('Phone: ', '') ||
-          fullInvoice.buyer?.phone ||
-          null;
-        await this.notificationsService.classifiedInvoicePaid(
-          {
-            email: fullInvoice.buyer?.email,
-            phone: buyerPhone,
-            name: buyerName,
-          },
-          {
-            email: fullInvoice.seller?.email,
-            phone: fullInvoice.seller?.phone,
-            name: fullInvoice.seller?.name,
-          },
-          invoiceNumber,
-          Number(fullInvoice.amount || 0),
-        );
-      }
-    } catch (err) {
-      this.logger.warn(
-        `Failed to send classifiedInvoicePaid notifications: ${err.message}`,
-      );
-    }
-  }
-
-  async getMyPayments(user: User) {
-    return this.paymentRepo.find({
-      where: { user: { id: user.id } },
-      order: { createdAt: 'DESC' },
-    });
-  }
-
-  // ── Admin: all payments across all users ─────────────────────────────────
-  async getAllPayments() {
-    return this.paymentRepo.find({
-      order: { createdAt: 'DESC' },
-      relations: { order: { product: true }, user: true },
-      take: 200,
-    });
-  }
-
-  async getPaymentByOrder(orderId: number, user: User) {
-    const payment = await this.paymentRepo.findOne({
-      where: { order: { id: orderId }, user: { id: user.id } },
-    });
-    if (!payment)
-      throw new NotFoundException('Payment not found for this order');
-    return payment;
-  }
-
-  async publicLookupInvoice(
-    invoiceNumber: string,
-  ): Promise<InvoiceLookupResult> {
-    return this.lookupAnyInvoice(invoiceNumber);
-  }
-
-  async customerPayInvoice(
-    invoiceNumber: string | undefined,
-    phone: string,
-    provider: string,
-    user: User,
-    orderId?: number,
-  ) {
-    // ── Self-heal: if invoiceNumber is missing/blank but we have an orderId
-    // (checkout always knows this), look up — or create on the spot — the
-    // invoice for that order. This covers the case where invoice creation
-    // silently failed at order-placement time, which previously left the
-    // buyer stuck on "Invoice number is required" with no way to pay at all.
+  async customerPayInvoice(invoiceNumber: string | undefined, phone: string, provider: string, user: User, orderId?: number) {
     if (!invoiceNumber?.trim() && orderId) {
-      let existing = await this.invoiceRepo.findOne({
-        where: { order: { id: orderId } },
-      });
+      let existing = await this.invoiceRepo.findOne({ where: { order: { id: orderId } } });
       if (!existing) {
         const order = await this.orderRepo.findOne({ where: { id: orderId } });
         if (!order) throw new NotFoundException(`Order #${orderId} not found`);
@@ -946,16 +680,20 @@ export class PaymentsService {
       invoiceNumber = existing.invoiceNumber;
     }
 
-    if (!invoiceNumber?.trim())
-      throw new BadRequestException('Invoice number is required');
-    if (!phone?.trim())
-      throw new BadRequestException('Phone number is required');
+    if (!invoiceNumber?.trim()) throw new BadRequestException('Invoice number is required');
+    if (!phone?.trim()) throw new BadRequestException('Phone number is required');
     const found = await this.lookupAnyInvoice(invoiceNumber);
     this.validatePayable(found);
     await this.assertNoPendingPaymentForInvoice(invoiceNumber);
 
-    const reference = `KNT-CUST-${found.invoiceId}-${Date.now()}`;
+    let purpose: 'ORDER_FULL' | 'COD_DEPOSIT' | 'CLASSIFIED_INVOICE' = 'CLASSIFIED_INVOICE';
+    if (found.invoiceType === 'order' && found.orderId) {
+      const order = await this.orderRepo.findOne({ where: { id: found.orderId } });
+      purpose = order ? deriveOrderPaymentObligation(order).purpose : 'ORDER_FULL';
+    }
+
     const providerService = this.getProvider(provider);
+    const reference = generateProviderReference();
     const response = await providerService.initiatePayment({
       phone,
       amount: found.amount,
@@ -969,24 +707,25 @@ export class PaymentsService {
       invoiceNumber: found.invoiceNumber,
       invoiceId: found.invoiceId,
       orderId: found.orderId,
+      purpose,
     });
 
     const payment = this.paymentRepo.create({
       user,
       amount: found.amount,
-      provider: provider,
+      provider,
       status: PaymentStatus.PENDING,
       providerRequestId: response.providerRequestId,
       phone,
       metadata: meta,
+      // S0 fix: bind the Payment to its Order for an order-type invoice — this is what makes the
+      // NORMAL (non-agent) webhook route actually able to confirm a real Kentexa checkout order.
+      ...(found.invoiceType === 'order' && found.orderId ? { order: { id: found.orderId } as any } : {}),
     });
     await this.paymentRepo.save(payment);
 
     if (found.invoiceType === 'order') {
-      await this.invoiceRepo.update(
-        { invoiceNumber },
-        { status: InvoiceStatus.PAYMENT_PROCESSING, paymentMethod: provider },
-      );
+      await this.invoiceRepo.update({ invoiceNumber }, { status: InvoiceStatus.PAYMENT_PROCESSING, paymentMethod: provider });
     }
 
     return {
@@ -1000,44 +739,34 @@ export class PaymentsService {
     };
   }
 
-  async agentLookupInvoice(
-    invoiceNumber: string,
-    agentUser: User,
-  ): Promise<InvoiceLookupResult> {
-    if (!invoiceNumber?.trim())
-      throw new BadRequestException('Invoice number is required');
-    const agent = await this.agentRepo.findOne({
-      where: { user: { id: agentUser.id } },
-    });
+  async agentLookupInvoice(invoiceNumber: string, agentUser: User): Promise<InvoiceLookupResult> {
+    if (!invoiceNumber?.trim()) throw new BadRequestException('Invoice number is required');
+    const agent = await this.agentRepo.findOne({ where: { user: { id: agentUser.id } } });
     if (!agent) throw new BadRequestException('You are not a registered agent');
-    if ((agent as any).status !== 'approved')
-      throw new BadRequestException('Your agent account is not approved');
+    if ((agent as any).status !== 'approved') throw new BadRequestException('Your agent account is not approved');
     const found = await this.lookupAnyInvoice(invoiceNumber);
     this.validatePayable(found);
     return found;
   }
 
-  async agentInitiatePayment(
-    invoiceNumber: string,
-    agentPhone: string,
-    provider: string,
-    agentUser: User,
-  ) {
-    if (!invoiceNumber?.trim())
-      throw new BadRequestException('Invoice number is required');
-    if (!agentPhone?.trim())
-      throw new BadRequestException('Phone number is required');
-    const agent = await this.agentRepo.findOne({
-      where: { user: { id: agentUser.id } },
-    });
+  async agentInitiatePayment(invoiceNumber: string, agentPhone: string, provider: string, agentUser: User) {
+    if (!invoiceNumber?.trim()) throw new BadRequestException('Invoice number is required');
+    if (!agentPhone?.trim()) throw new BadRequestException('Phone number is required');
+    const agent = await this.agentRepo.findOne({ where: { user: { id: agentUser.id } } });
     if (!agent) throw new BadRequestException('You are not a registered agent');
-    if ((agent as any).status !== 'approved')
-      throw new BadRequestException('Your agent account is not approved');
+    if ((agent as any).status !== 'approved') throw new BadRequestException('Your agent account is not approved');
 
     const found = await this.lookupAnyInvoice(invoiceNumber);
     this.validatePayable(found);
     await this.assertNoPendingPaymentForInvoice(invoiceNumber);
-    const reference = `KNT-AGT-${found.invoiceId}-${Date.now()}`;
+
+    let purpose: 'ORDER_FULL' | 'COD_DEPOSIT' | 'CLASSIFIED_INVOICE' = 'CLASSIFIED_INVOICE';
+    if (found.invoiceType === 'order' && found.orderId) {
+      const order = await this.orderRepo.findOne({ where: { id: found.orderId } });
+      purpose = order ? deriveOrderPaymentObligation(order).purpose : 'ORDER_FULL';
+    }
+
+    const reference = generateProviderReference();
     const providerService = this.getProvider(provider);
     const response = await providerService.initiatePayment({
       phone: agentPhone,
@@ -1053,27 +782,22 @@ export class PaymentsService {
       invoiceId: found.invoiceId,
       orderId: found.orderId,
       agentId: agent.id,
+      purpose,
     });
 
     const payment = this.paymentRepo.create({
       amount: found.amount,
-      provider: provider,
+      provider,
       status: PaymentStatus.PENDING,
       providerRequestId: response.providerRequestId,
       phone: agentPhone,
       metadata: meta,
+      ...(found.invoiceType === 'order' && found.orderId ? { order: { id: found.orderId } as any } : {}),
     });
     await this.paymentRepo.save(payment);
 
     if (found.invoiceType === 'order') {
-      await this.invoiceRepo.update(
-        { invoiceNumber },
-        {
-          status: InvoiceStatus.PAYMENT_PROCESSING,
-          paymentMethod: provider,
-          agentId: agent.id,
-        },
-      );
+      await this.invoiceRepo.update({ invoiceNumber }, { status: InvoiceStatus.PAYMENT_PROCESSING, paymentMethod: provider, agentId: agent.id });
     }
 
     return {
@@ -1088,130 +812,116 @@ export class PaymentsService {
   }
 
   async agentPaymentCallback(body: any, providerName: string) {
-    this.logger.log(
-      `Agent callback from ${providerName}`,
-      JSON.stringify(body),
-    );
-    const providerService = this.getProvider(providerName);
-    const result = providerService.parseCallback(body);
+    this.logger.log(`Agent callback from ${providerName}`, JSON.stringify(body));
+    const providerService = this.getProviderSafe(providerName);
+    if (!providerService) return { message: 'OK' };
 
-    const payment = await this.paymentRepo.findOne({
-      where: { providerRequestId: result.providerRequestId },
-      relations: { order: { buyer: true, product: true } },
-    });
+    const signal = providerService.parseCallbackSignal(body);
+    if (!signal) return { message: 'OK' };
 
+    const payment = await this.paymentRepo.findOne({ where: { providerRequestId: signal.providerRequestId } });
     if (!payment) {
-      this.logger.warn(
-        `No payment found for requestId: ${result.providerRequestId}`,
-      );
+      this.logger.warn(`No payment found for requestId: ${signal.providerRequestId}`);
       return { message: 'OK' };
     }
-
-    // Idempotency — see handleCallback() above for why this matters. Without
-    // it, a replayed/duplicated callback re-runs recordAgentCommission()
-    // and double-credits agent earnings on every redelivery.
     if (payment.status === PaymentStatus.SUCCESS) {
-      this.logger.log(
-        `Agent callback for already-settled payment ${result.providerRequestId} ignored`,
-      );
+      this.logger.log(`Agent callback for already-settled payment ${signal.providerRequestId} ignored`);
       return { message: 'OK' };
     }
 
     let meta: any = {};
     try {
       meta = JSON.parse((payment as any).metadata || '{}');
-    } catch (e) {
+    } catch (e: any) {
       this.logger.warn(`Failed to parse payment metadata: ${e.message}`);
     }
 
-    const invoiceType = meta.invoiceType || 'order';
-    const invoiceNumber = meta.invoiceNumber || null;
-    const orderId = meta.orderId || payment.order?.id || null;
-    const agentId = meta.agentId || null;
+    const verification = await providerService.verifyPayment(signal.providerRequestId);
+    const outcome = await this.paymentConfirmation.confirmVerifiedPayment(payment.id, verification);
+    await this.finalizeAgentAwareConfirmation(payment, outcome, providerName, meta.agentId ?? null);
 
-    if (!result.success) {
-      payment.status = PaymentStatus.FAILED;
-      payment.failureReason = result.failureReason ?? null;
-      await this.paymentRepo.save(payment);
-      if (invoiceType === 'order' && orderId) {
-        await this.invoiceRepo.update(
-          { order: { id: orderId } },
-          { status: InvoiceStatus.AWAITING_PAYMENT, agentId: null },
-        );
-      }
-      return { message: 'OK' };
-    }
-
-    const transactionRef = result.providerReference ?? `KNT-TXN-${Date.now()}`;
-    payment.status = PaymentStatus.SUCCESS;
-    payment.providerReference = transactionRef;
-    await this.paymentRepo.save(payment);
-
-    let orderInvoice: Invoice | null = null;
-
-    if (invoiceType === 'order' && orderId) {
-      // ✅ AUTO-CONFIRM — also sends orderPaid SMS + email to buyer & seller
-      await this.autoConfirmOrder(orderId);
-
-      orderInvoice = await this.invoiceRepo.findOne({
-        where: { order: { id: orderId } },
-      });
-      if (orderInvoice) {
-        orderInvoice.status = InvoiceStatus.PAID;
-        orderInvoice.paidAt = new Date();
-        orderInvoice.transactionReference = transactionRef;
-        orderInvoice.receiptNumber = this.generateReceiptNumber();
-        orderInvoice.paymentMethod = providerName;
-        await this.invoiceRepo.save(orderInvoice);
-      }
-    } else if (
-      (invoiceType === 'classified' || invoiceType === 'manual') &&
-      invoiceNumber
-    ) {
-      await this.markClassifiedInvoicePaidFromWebhook(
-        invoiceNumber,
-        transactionRef,
-        providerName,
-      );
-    }
-
-    if (agentId) {
-      await this.recordAgentCommission(
-        agentId,
-        Number(payment.amount),
-        transactionRef,
-        providerName,
-        orderInvoice,
-        orderId,
-      );
-    }
-
-    this.logger.log(
-      `Payment confirmed & order auto-confirmed: ${transactionRef} type=${invoiceType}`,
-    );
+    this.logger.log(`Payment confirmation processed: ${signal.providerRequestId} -> ${outcome.status}`);
     return { message: 'OK' };
   }
 
   async mockAgentCallback(providerRequestId: string) {
     if (process.env.NODE_ENV === 'production') {
-      throw new ForbiddenException(
-        'Mock payment confirmation is not available in production.',
-      );
+      throw new ForbiddenException('Mock payment confirmation is not available in production.');
     }
-    return this.agentPaymentCallback(
-      {
-        status: 'SUCCESS',
-        providerRequestId,
-        transactionId: `MOCK-TXN-${Date.now()}`,
-      },
-      'mock',
-    );
+    const payment = await this.paymentRepo.findOne({ where: { providerRequestId } });
+    if (!payment) throw new NotFoundException(`No pending payment found for ${providerRequestId}`);
+
+    // Dev-only convenience: the "verification" here is built from OUR OWN already-stored Payment
+    // amount, never from anything the caller supplies — see MockAgentService's own comment.
+    const verification: ProviderVerification = {
+      status: 'SUCCESS',
+      amountMinor: parseAmountToMinor(payment.amount),
+      currency: 'TZS',
+      providerReference: `MOCK-TXN-${Date.now()}`,
+    };
+    let meta: any = {};
+    try {
+      meta = payment.metadata ? JSON.parse(payment.metadata) : {};
+    } catch {
+      /* ignore */
+    }
+    const outcome = await this.paymentConfirmation.confirmVerifiedPayment(payment.id, verification);
+    await this.finalizeAgentAwareConfirmation(payment, outcome, 'mock', meta.agentId ?? null);
+    return { message: 'OK' };
+  }
+
+  // ── Admin: explicit re-verify (Decision 12 — the deliberately-small
+  // alternative to a reconciliation poller). Rate-limited per payment. ───
+  async adminVerifyPayment(paymentId: number): Promise<{ message: string; outcome: ConfirmationOutcome }> {
+    const now = Date.now();
+    const last = this.lastVerifyAttemptAt.get(paymentId) || 0;
+    if (now - last < PaymentsService.VERIFY_COOLDOWN_MS) {
+      throw new BadRequestException('Verification was already attempted recently for this payment — try again shortly.');
+    }
+    this.lastVerifyAttemptAt.set(paymentId, now);
+
+    const payment = await this.paymentRepo.findOne({ where: { id: paymentId } });
+    if (!payment) throw new NotFoundException('Payment not found');
+    if (payment.status === PaymentStatus.SUCCESS) {
+      return { message: 'Already confirmed', outcome: { status: 'ALREADY_CONFIRMED', paymentId } };
+    }
+    if (!payment.providerRequestId) throw new BadRequestException('Payment has no provider reference to verify');
+
+    const provider = this.getProvider(payment.provider);
+    const verification = await provider.verifyPayment(payment.providerRequestId);
+    const outcome = await this.paymentConfirmation.confirmVerifiedPayment(payment.id, verification);
+
+    let meta: any = {};
+    try {
+      meta = payment.metadata ? JSON.parse(payment.metadata) : {};
+    } catch {
+      /* ignore */
+    }
+    await this.finalizeAgentAwareConfirmation(payment, outcome, payment.provider, meta.agentId ?? null);
+
+    return { message: 'Verification complete', outcome };
+  }
+
+  async getMyPayments(user: User) {
+    return this.paymentRepo.find({ where: { user: { id: user.id } }, order: { createdAt: 'DESC' } });
+  }
+
+  async getAllPayments() {
+    return this.paymentRepo.find({ order: { createdAt: 'DESC' }, relations: { order: { product: true }, user: true }, take: 200 });
+  }
+
+  async getPaymentByOrder(orderId: number, user: User) {
+    const payment = await this.paymentRepo.findOne({ where: { order: { id: orderId }, user: { id: user.id } } });
+    if (!payment) throw new NotFoundException('Payment not found for this order');
+    return payment;
+  }
+
+  async publicLookupInvoice(invoiceNumber: string): Promise<InvoiceLookupResult> {
+    return this.lookupAnyInvoice(invoiceNumber);
   }
 
   async getAgentDashboard(agentUser: User) {
-    const agent = await this.agentRepo.findOne({
-      where: { user: { id: agentUser.id } },
-    });
+    const agent = await this.agentRepo.findOne({ where: { user: { id: agentUser.id } } });
     if (!agent) throw new NotFoundException('Agent profile not found');
 
     const transactions = await this.agentTransactionRepo.find({
@@ -1221,24 +931,14 @@ export class PaymentsService {
       relations: { invoice: { order: { buyer: true } } },
     });
 
-    const confirmed = transactions.filter(
-      (t) => t.status === AgentTransactionStatus.CONFIRMED,
-    );
-    const pending = transactions.filter(
-      (t) => t.status === AgentTransactionStatus.PENDING,
-    );
+    const confirmed = transactions.filter((t) => t.status === AgentTransactionStatus.CONFIRMED);
+    const pending = transactions.filter((t) => t.status === AgentTransactionStatus.PENDING);
 
     return {
       stats: {
         totalTransactions: transactions.length,
-        confirmedEarnings: confirmed.reduce(
-          (s, t) => s + Number(t.commissionAmount),
-          0,
-        ),
-        pendingEarnings: pending.reduce(
-          (s, t) => s + Number(t.commissionAmount),
-          0,
-        ),
+        confirmedEarnings: confirmed.reduce((s, t) => s + Number(t.commissionAmount), 0),
+        pendingEarnings: pending.reduce((s, t) => s + Number(t.commissionAmount), 0),
         commissionRate: Number(agent.commissionRate ?? 2.5),
       },
       recentTransactions: transactions,

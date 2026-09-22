@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -21,6 +22,10 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { WalletService } from '../wallet/wallet.service';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
+import { Payment, PaymentStatus as GatewayPaymentStatus } from '../payments/entities/payment.entity';
+import { PaymentConfirmationService } from '../payments/payment-confirmation.service';
+import { deriveOrderPaymentObligation } from '../payments/order-payment-obligation';
+import { parseAmountToMinor } from '../payments/payment-money';
 
 @Injectable()
 export class InvoicesService {
@@ -33,11 +38,13 @@ export class InvoicesService {
     @InjectRepository(ReceiptCounter)
     private receiptCounterRepo: Repository<ReceiptCounter>,
     @InjectRepository(Order) private orderRepo: Repository<Order>,
+    @InjectRepository(Payment) private paymentRepo: Repository<Payment>,
     private dataSource: DataSource,
     private activityEvents: ActivityEventService,
     private commerceProfiles: CommerceProfilesService,
     private walletService: WalletService,
     private reputationService: ReputationService,
+    private paymentConfirmation: PaymentConfirmationService,
   ) {}
 
   async generateInvoiceNumber(): Promise<string> {
@@ -265,9 +272,18 @@ export class InvoicesService {
     return this.invoiceRepo.save(invoice);
   }
 
+  // S0 Decision 1/5/6: admin/manual "mark paid" is NOT a second, independent
+  // financial authority. It creates a real Payment(provider='admin_manual')
+  // carrying who/why (actorUserId/reason), then goes through the SAME
+  // canonical PaymentConfirmationService every provider webhook uses — the
+  // exact same atomic order/invoice transition, the exact same sealed
+  // PaymentEvidence. "Invoice PAID" is the CONSEQUENCE of that Payment
+  // existing, never a fact recorded independently of it.
   async markPaid(
     invoiceNumber: string,
     transactionReference: string,
+    reason: string,
+    actorUserId: number,
   ): Promise<Invoice> {
     const invoice = await this.findByInvoiceNumber(invoiceNumber);
 
@@ -283,48 +299,79 @@ export class InvoicesService {
         `Invoice cannot be marked paid. Current status: ${invoice.status}`,
       );
     }
+    if (!transactionReference?.trim()) {
+      throw new BadRequestException('A transaction/receipt reference is required');
+    }
+    if (!reason?.trim() || reason.trim().length < 5) {
+      throw new BadRequestException('A reason (at least 5 characters) is required to manually confirm a payment');
+    }
+    if (!invoice.order) {
+      throw new BadRequestException('This invoice has no linked order to confirm');
+    }
 
-    const receiptNumber = await this.generateReceiptNumber();
-    invoice.status = InvoiceStatus.PAID;
-    invoice.transactionReference = transactionReference;
-    invoice.receiptNumber = receiptNumber;
-    invoice.paidAt = new Date();
+    const obligation = deriveOrderPaymentObligation(invoice.order);
+    const amount = Number(invoice.amount);
+    const amountMinor = parseAmountToMinor(amount);
+    if (amountMinor === null) {
+      throw new BadRequestException('Invoice amount is not a valid payable amount');
+    }
 
-    const saved = await this.invoiceRepo.save(invoice);
+    const payment = await this.paymentRepo.save(
+      this.paymentRepo.create({
+        order: { id: invoice.order.id } as any,
+        amount,
+        provider: 'admin_manual',
+        status: GatewayPaymentStatus.PENDING,
+        providerRequestId: `ADMIN-${invoice.order.id}-${Date.now()}`,
+        metadata: JSON.stringify({
+          purpose: obligation.purpose,
+          invoiceType: 'order',
+          invoiceNumber,
+          orderId: invoice.order.id,
+          actorUserId,
+          reason: reason.trim(),
+        }),
+      }),
+    );
 
-    // ✅ AUTO-CONFIRM — update both paymentStatus AND status
-    // No admin approval needed — system confirms automatically
-    await this.orderRepo.update(invoice.order.id, {
-      paymentStatus: 'paid' as any,
-      status: 'paid' as any,
+    const outcome = await this.paymentConfirmation.confirmVerifiedPayment(payment.id, {
+      status: 'SUCCESS',
+      amountMinor,
+      currency: 'TZS',
+      providerReference: transactionReference,
     });
 
-    // Layer 1 seller verification — a digital product (eBook/PDF/etc) has
-    // nothing to ship, so it skips the entire physical fulfillment chain
-    // (shipping/agent/buyer-confirms) and completes the moment payment
-    // clears. Additive and isolated: never touches the physical-order
-    // path above, and a failure here can never block the payment
-    // confirmation the buyer is waiting on.
-    if ((invoice.order?.product as any)?.productType === 'digital') {
+    if (outcome.status !== 'CONFIRMED') {
+      // Decision 10 — a historical contradiction (e.g. the order is no longer PENDING_PAYMENT) is
+      // reported, never silently "repaired". The admin_manual Payment itself is still recorded.
+      throw new ConflictException(`Manual payment confirmation could not be applied: ${outcome.status}`);
+    }
+
+    this.activityEvents.record({
+      eventType: 'PAYMENT_MANUALLY_CONFIRMED',
+      category: ActivityCategory.PAYMENT,
+      actorId: actorUserId,
+      actorType: 'admin',
+      relatedUserId: invoice.order.seller?.id ?? null,
+      targetType: 'invoice',
+      targetId: invoice.id,
+      metadata: { orderId: invoice.order.id, amount, transactionReference, reason: reason.trim(), provider: 'admin_manual' },
+    });
+
+    // Receipt numbering stays a best-effort follow-up, same non-transactional shape this codebase
+    // already used before S0 (its own counter transaction is independent of the confirmation above).
+    if (!invoice.receiptNumber) {
       try {
-        const now = new Date();
-        await this.orderRepo.update(invoice.order.id, {
-          status: OrderStatus.COMPLETED,
-          deliveredAt: now,
-          completedAt: now,
-          payoutStatus: 'released',
-          escrowStatus: EscrowStatus.RELEASED,
-          fundsReleasedAt: now,
-        } as any);
-        if (invoice.order.seller?.id) {
-          await this.walletService
-            .creditFromEscrowRelease(
-              invoice.order.seller.id,
-              invoice.order.id,
-              Number(invoice.order.sellerAmount || 0),
-            )
-            .catch(() => {});
-        }
+        await this.invoiceRepo.update(invoice.id, { receiptNumber: await this.generateReceiptNumber() });
+      } catch (err: any) {
+        this.logger.warn(`Receipt number generation failed for invoice ${invoiceNumber} (non-critical): ${err.message}`);
+      }
+    }
+
+    // Digital orders complete atomically inside the canonical transition above (status/escrow/
+    // payout already set) — the reputation-award tail is the only thing still owed here.
+    if (outcome.orderTransition === 'DIGITAL_COMPLETED') {
+      try {
         if (invoice.buyer?.id) {
           await this.reputationService
             .award(invoice.buyer.id, ReputationEventType.ORDER_COMPLETED, {
@@ -343,30 +390,31 @@ export class InvoicesService {
             .catch(() => {});
         }
       } catch (err) {
-        this.logger.warn(`Digital order auto-complete failed: ${err.message}`);
+        this.logger.warn(`Digital order reputation award failed: ${err.message}`);
       }
     }
 
+    const refreshed = await this.findByInvoiceNumber(invoiceNumber);
     this.logger.log(
-      `Invoice ${invoiceNumber} PAID & Order auto-confirmed. Receipt: ${receiptNumber}`,
+      `Invoice ${invoiceNumber} manually confirmed PAID by admin #${actorUserId} (ref: ${transactionReference}, orderTransition: ${outcome.orderTransition}).`,
     );
-    const paidSellerProfile = invoice.order?.seller
+    const paidSellerProfile = refreshed.order?.seller
       ? await this.commerceProfiles
-          .findForUserByType(invoice.order.seller.id, CommerceProfileType.BUSINESS)
+          .findForUserByType(refreshed.order.seller.id, CommerceProfileType.BUSINESS)
           .catch(() => null)
       : null;
     this.activityEvents.record({
       eventType: 'INVOICE_PAID',
       category: ActivityCategory.PAYMENT,
-      actorId: invoice.buyer?.id ?? null,
+      actorId: refreshed.buyer?.id ?? null,
       actorType: 'buyer',
       businessId: paidSellerProfile?.id ?? null,
-      relatedUserId: invoice.order?.seller?.id ?? null,
+      relatedUserId: refreshed.order?.seller?.id ?? null,
       targetType: 'invoice',
-      targetId: saved.id,
-      metadata: { orderId: invoice.order?.id, amount: saved.amount },
+      targetId: refreshed.id,
+      metadata: { orderId: refreshed.order?.id, amount: refreshed.amount },
     });
-    return saved;
+    return refreshed;
   }
 
   async cancel(invoiceNumber: string): Promise<Invoice> {

@@ -150,6 +150,16 @@ export class PaymentsController {
     return this.paymentsService.getPayoutSummary();
   }
 
+  // S0 — the explicit, admin-triggered alternative to a reconciliation
+  // poller (Decision 12): re-asks the provider for the truth about ONE
+  // payment right now and runs it through the same canonical confirmation.
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('admin/:id/verify')
+  adminVerifyPayment(@Param('id', ParseIntPipe) id: number) {
+    return this.paymentsService.adminVerifyPayment(id);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('agent/dashboard')
   getAgentDashboard(@Request() req) {
