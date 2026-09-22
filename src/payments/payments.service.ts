@@ -79,6 +79,10 @@ export interface InvoiceLookupResult {
 
 // NOT_YET_SETTLED is deliberately excluded — a provider PENDING/PROCESSING result is not a failure
 // and must never reset an invoice for retry (that would let a second payment attempt race the first).
+// PAYMENT_NOT_PENDING (C10) is also deliberately excluded: this specific Payment was already
+// terminal FAILED before this call, so whatever caused THAT failure already reset the invoice (or
+// didn't need to) — resetting it again here on a stale retry could clobber a genuinely new payment
+// attempt that has since moved the same invoice into PAYMENT_PROCESSING.
 const FAILURE_OUTCOMES = new Set([
   'PROVIDER_NOT_SUCCESS',
   'AMOUNT_MISMATCH',
@@ -88,6 +92,7 @@ const FAILURE_OUTCOMES = new Set([
   'OBLIGATION_MISMATCH',
   'PURPOSE_MISMATCH',
   'OBLIGATION_UNRESOLVABLE',
+  'INVOICE_NOT_PAYABLE',
 ]);
 
 @Injectable()

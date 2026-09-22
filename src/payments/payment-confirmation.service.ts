@@ -47,11 +47,16 @@ type TerminalFailureStatus =
   | 'MISSING_PROVIDER_REFERENCE'
   | 'OBLIGATION_MISMATCH'
   | 'PURPOSE_MISMATCH'
-  | 'OBLIGATION_UNRESOLVABLE';
+  | 'OBLIGATION_UNRESOLVABLE'
+  | 'INVOICE_NOT_PAYABLE';
 
 export type ConfirmationOutcome =
   | { status: 'PAYMENT_NOT_FOUND'; paymentId: number }
   | { status: 'ALREADY_CONFIRMED'; paymentId: number }
+  /** C10 — entry-state eligibility: the Payment was not PENDING (e.g. already FAILED) when this
+   * was called. A terminal/non-pending Payment must never be resurrected by a later verification,
+   * however convincing — nothing is mutated. */
+  | { status: 'PAYMENT_NOT_PENDING'; paymentId: number; currentStatus: string }
   /** Provider says not-yet-settled (PENDING/PROCESSING/UNKNOWN/NOT_SUPPORTED) — NOT a failure. The
    * Payment row is left exactly as it was and remains eligible for a later re-verification. */
   | { status: 'NOT_YET_SETTLED'; paymentId: number; providerStatus: string }
@@ -64,6 +69,12 @@ export type ConfirmationOutcome =
       orderTransition: 'NONE' | 'DIGITAL_COMPLETED' | 'ORDER_PAID' | 'COD_DEPOSIT_CONFIRMED' | 'INELIGIBLE';
       classifiedTransitioned: boolean;
     };
+
+/** C11 — the only ClassifiedInvoiceRequest statuses a payment may ever transition FROM. PAID is
+ * handled separately (idempotent no-op, not a transition). Anything else — CANCELLED today, or any
+ * future non-payable terminal status such as an EXPIRED this schema doesn't yet have — fails closed
+ * rather than being revived by a late-arriving provider callback. */
+const CLASSIFIED_INVOICE_PAYABLE_STATUSES = new Set<string>([ClassifiedInvoiceStatus.PENDING, ClassifiedInvoiceStatus.SENT]);
 
 /**
  * S0 Decision 4 — THE canonical payment-confirmation writer. Every source
@@ -119,6 +130,14 @@ export class PaymentConfirmationService {
 
       if (payment.status === PaymentStatus.SUCCESS) {
         return { status: 'ALREADY_CONFIRMED' as const, paymentId };
+      }
+      // C10 — explicit entry-state eligibility: canonical confirmation may only ever OPERATE on a
+      // currently PENDING payment (SUCCESS already short-circuited above as idempotent). A Payment
+      // already FAILED (amount mismatch, purpose mismatch, reused reference, initiation failure,
+      // a prior terminal provider FAILED, ...) must never be resurrected by a later verification
+      // that happens to look valid — nothing below this point may run for it.
+      if (payment.status !== PaymentStatus.PENDING) {
+        return { status: 'PAYMENT_NOT_PENDING' as const, paymentId, currentStatus: payment.status };
       }
 
       const fail = async (reason: TerminalFailureStatus | string) => {
@@ -182,9 +201,14 @@ export class PaymentConfirmationService {
           await fail('OBLIGATION_UNRESOLVABLE');
           return { status: 'OBLIGATION_UNRESOLVABLE' as const, paymentId };
         }
-        if (inv.status === ClassifiedInvoiceStatus.CANCELLED) {
-          await fail('OBLIGATION_UNRESOLVABLE');
-          return { status: 'OBLIGATION_UNRESOLVABLE' as const, paymentId };
+        // C11 — an ALLOW-list, not a deny-list: PAID is handled as an idempotent no-op below;
+        // anything else must be a currently payable/in-flight status (PENDING/SENT) or this
+        // late-arriving verification is fail-closed rather than reviving a CANCELLED (or any
+        // future non-payable terminal status this schema doesn't have yet, e.g. an EXPIRED) invoice.
+        if (inv.status !== ClassifiedInvoiceStatus.PAID && !CLASSIFIED_INVOICE_PAYABLE_STATUSES.has(inv.status)) {
+          await fail('INVOICE_NOT_PAYABLE');
+          this.logger.warn(`Payment #${paymentId} INVOICE_NOT_PAYABLE: classified_invoice_request ${meta.invoiceNumber} is ${inv.status}`);
+          return { status: 'INVOICE_NOT_PAYABLE' as const, paymentId };
         }
         canonicalPurpose = 'CLASSIFIED_INVOICE';
         canonicalRequiredMinor = parseAmountToMinor(inv.isCod ? inv.codUpfrontAmount : inv.amount) ?? -1;
@@ -215,15 +239,21 @@ export class PaymentConfirmationService {
         return { status: 'AMOUNT_MISMATCH' as const, paymentId };
       }
 
-      if (verification.currency !== null && !isSupportedCurrency(verification.currency)) {
+      // C8 — a missing currency is not "unknown, assume TZS", it is a fail-closed case. Real
+      // financial confirmation requires POSITIVELY verified TZS, not merely "not something else".
+      if (!isSupportedCurrency(verification.currency)) {
         await fail('CURRENCY_MISMATCH');
         return { status: 'CURRENCY_MISMATCH' as const, paymentId };
       }
 
-      // C5 — a genuine provider SUCCESS must carry real provider transaction identity. Reusing a
-      // reference this exact row already recorded from a prior attempt is fine; INVENTING one
-      // (e.g. `${provider}-${id}`) when none exists anywhere is not — that was the old bug.
-      const providerReference = verification.providerReference || payment.providerReference || null;
+      // C9 — a genuine provider SUCCESS must carry the provider's OWN verified transaction
+      // reference from THIS verification call. A value merely stored on the row from an earlier
+      // attempt is not proof the provider verified this one — it is never substituted here.
+      // admin_manual/mock always construct an explicit verification.providerReference themselves
+      // (the admin's own receipt reference / the dev mock's own synthetic one), so this never
+      // affects them; it only closes the real-provider gap where verifyPayment() reports SUCCESS
+      // with no identity at all.
+      const providerReference = verification.providerReference || null;
       if (!providerReference) {
         await fail('MISSING_PROVIDER_REFERENCE');
         return { status: 'MISSING_PROVIDER_REFERENCE' as const, paymentId };
@@ -348,6 +378,10 @@ export class PaymentConfirmationService {
     );
     const invoice = rows[0];
     if (!invoice || invoice.status === ClassifiedInvoiceStatus.PAID) return false;
+    // C11 defensive mirror — confirmVerifiedPayment already validated this against the same
+    // allow-list under the same lock before sealing, but this transition never runs on anything
+    // outside PENDING/SENT even if called independently in the future.
+    if (!CLASSIFIED_INVOICE_PAYABLE_STATUSES.has(invoice.status)) return false;
     await manager.query(
       `UPDATE classified_invoice_request SET status = $2, "paidAt" = $3, "transactionReference" = $4, "paymentMethod" = $5 WHERE id = $1`,
       [invoice.id, ClassifiedInvoiceStatus.PAID, new Date(), providerReference, provider],

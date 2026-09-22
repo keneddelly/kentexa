@@ -322,15 +322,32 @@ describeIfDb('PaymentConfirmationService — real Postgres', () => {
       expect(row!.providerReference).toBeNull();
     });
 
-    it('a SUCCESS verification with no reference is still fine if the row ALREADY carries one from a prior attempt (not synthesis — reuse of a real value)', async () => {
+    // C9 correction (review #2): a stored row reference is NOT proof the provider verified THIS
+    // transaction — this inverts the previous (now-rejected) test that let a null verification
+    // fall back to whatever the row already had.
+    it('C9: a SUCCESS verification with NO reference is rejected even when the row already carries one from a prior attempt — a stored value is never substituted', async () => {
       const seller = await makeUser();
       const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
       const payment = await makePayment({ orderId: order.id, amount: 10000, providerReference: 'CP-ALREADY-REAL', metadata: { purpose: 'ORDER_FULL' } });
 
       const outcome = await service.confirmVerifiedPayment(payment.id, { status: 'SUCCESS', amountMinor: 1000000, currency: 'TZS', providerReference: null });
 
-      expect(outcome).toMatchObject({ status: 'CONFIRMED' });
+      expect(outcome).toEqual({ status: 'MISSING_PROVIDER_REFERENCE', paymentId: payment.id });
+      expect((await orderRow(order.id))!.status).toBe('pending_payment');
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.FAILED);
+      // the pre-existing stored reference is left exactly as it was — never promoted into "verified".
       expect((await paymentRow(payment.id))!.providerReference).toBe('CP-ALREADY-REAL');
+    });
+
+    it('a genuine verification.providerReference from THIS call is what confirms — not anything pre-stored', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, providerReference: 'STALE-OLD-REF', metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, successVerification(1000000, 'CP-REF-FRESH'));
+
+      expect(outcome).toMatchObject({ status: 'CONFIRMED' });
+      expect((await paymentRow(payment.id))!.providerReference).toBe('CP-REF-FRESH');
     });
   });
 
@@ -380,6 +397,132 @@ describeIfDb('PaymentConfirmationService — real Postgres', () => {
       expect(outcome).toEqual({ status: 'PROVIDER_NOT_SUCCESS', paymentId: payment.id, providerStatus: 'FAILED' });
       expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.FAILED);
       expect((await orderRow(order.id))!.status).toBe('pending_payment');
+    });
+  });
+
+  describe('C8 correction (review #2) — a missing currency fails closed exactly like an unsupported one', () => {
+    it('CURRENCY_MISMATCH: verification.currency = null is rejected, never treated as "assume TZS"', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, { status: 'SUCCESS', amountMinor: 1000000, currency: null, providerReference: 'CP-REF-NOCUR' });
+
+      expect(outcome).toEqual({ status: 'CURRENCY_MISMATCH', paymentId: payment.id });
+      expect((await orderRow(order.id))!.status).toBe('pending_payment');
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.FAILED);
+    });
+
+    it('CURRENCY_MISMATCH: a real but unsupported currency (USD) is rejected the same way (unchanged, re-affirmed)', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, { status: 'SUCCESS', amountMinor: 1000000, currency: 'USD', providerReference: 'CP-REF-USD' });
+
+      expect(outcome).toEqual({ status: 'CURRENCY_MISMATCH', paymentId: payment.id });
+    });
+
+    it('a positively verified TZS confirms normally (control case)', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, successVerification(1000000, 'CP-REF-TZS-OK'));
+
+      expect(outcome).toMatchObject({ status: 'CONFIRMED' });
+    });
+  });
+
+  describe('C10 correction (review #2) — only a currently PENDING Payment may enter canonical confirmation', () => {
+    it('a Payment already FAILED cannot be resurrected by a later, seemingly-valid SUCCESS verification: it stays FAILED, and the Order remains untouched', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      // First, this Payment genuinely fails (amount mismatch).
+      const first = await service.confirmVerifiedPayment(payment.id, successVerification(1, 'CP-REF-FIRST'));
+      expect(first).toEqual({ status: 'AMOUNT_MISMATCH', paymentId: payment.id });
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.FAILED);
+
+      // Now a second, perfectly valid-looking SUCCESS verification arrives for the SAME payment.
+      const second = await service.confirmVerifiedPayment(payment.id, successVerification(1000000, 'CP-REF-RESURRECT-ATTEMPT'));
+
+      expect(second).toEqual({ status: 'PAYMENT_NOT_PENDING', paymentId: payment.id, currentStatus: PaymentStatus.FAILED });
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.FAILED); // still FAILED, not flipped to SUCCESS
+      expect((await paymentRow(payment.id))!.providerReference).not.toBe('CP-REF-RESURRECT-ATTEMPT'); // never adopted
+      expect((await orderRow(order.id))!.status).toBe('pending_payment'); // never touched
+    });
+
+    it('the same non-resurrection holds for a Payment that failed via a genuine terminal provider FAILED', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      await service.confirmVerifiedPayment(payment.id, { status: 'FAILED', amountMinor: null, currency: null, providerReference: null });
+      const resurrectAttempt = await service.confirmVerifiedPayment(payment.id, successVerification(1000000, 'CP-REF-LATE'));
+
+      expect(resurrectAttempt).toEqual({ status: 'PAYMENT_NOT_PENDING', paymentId: payment.id, currentStatus: PaymentStatus.FAILED });
+      expect((await orderRow(order.id))!.status).toBe('pending_payment');
+    });
+
+    it('SUCCESS remains its own idempotent no-op (ALREADY_CONFIRMED), distinct from the FAILED case', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      await service.confirmVerifiedPayment(payment.id, successVerification(1000000, 'CP-REF-ONCE'));
+      const retry = await service.confirmVerifiedPayment(payment.id, successVerification(1000000, 'CP-REF-ONCE'));
+
+      expect(retry).toEqual({ status: 'ALREADY_CONFIRMED', paymentId: payment.id });
+    });
+  });
+
+  describe('C11 correction (review #2) — a late callback cannot revive a non-payable classified/manual invoice', () => {
+    it('CANCELLED (the schema\'s actual non-payable terminal status — this codebase has no EXPIRED value for classified invoices) is never transitioned to PAID by a late SUCCESS callback', async () => {
+      const seller = await makeUser();
+      const invoice = await dataSource.getRepository(ClassifiedInvoiceRequest).save(
+        dataSource.getRepository(ClassifiedInvoiceRequest).create({ seller: { id: seller.id } as any, invoiceNumber: `CINV-${Date.now()}-A`, amount: 50000, status: ClassifiedInvoiceStatus.SENT }),
+      );
+      // Payment initiated while the invoice was still payable...
+      const payment = await makePayment({ orderId: null, amount: 50000, metadata: { purpose: 'CLASSIFIED_INVOICE', invoiceType: 'classified', invoiceNumber: invoice.invoiceNumber } });
+      // ...but the invoice becomes CANCELLED before the provider verification arrives.
+      await dataSource.getRepository(ClassifiedInvoiceRequest).update(invoice.id, { status: ClassifiedInvoiceStatus.CANCELLED });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, successVerification(5000000, 'CP-REF-LATE-CANCELLED'));
+
+      expect(outcome).toEqual({ status: 'INVOICE_NOT_PAYABLE', paymentId: payment.id });
+      const invoice2 = await dataSource.getRepository(ClassifiedInvoiceRequest).findOne({ where: { id: invoice.id } });
+      expect(invoice2!.status).toBe(ClassifiedInvoiceStatus.CANCELLED); // never revived to PAID
+      expect(invoice2!.transactionReference).toBeNull();
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.FAILED); // no actionable evidence created
+    });
+
+    it('PENDING and SENT (the actually payable/in-flight statuses) still confirm normally — the allow-list is not overly strict', async () => {
+      const seller = await makeUser();
+      for (const status of [ClassifiedInvoiceStatus.PENDING, ClassifiedInvoiceStatus.SENT]) {
+        const invoice = await dataSource.getRepository(ClassifiedInvoiceRequest).save(
+          dataSource.getRepository(ClassifiedInvoiceRequest).create({ seller: { id: seller.id } as any, invoiceNumber: `CINV-${Date.now()}-${status}`, amount: 20000, status }),
+        );
+        const payment = await makePayment({ orderId: null, amount: 20000, metadata: { purpose: 'CLASSIFIED_INVOICE', invoiceType: 'classified', invoiceNumber: invoice.invoiceNumber } });
+        const outcome = await service.confirmVerifiedPayment(payment.id, successVerification(2000000, `CP-REF-${status}`));
+        expect(outcome).toMatchObject({ status: 'CONFIRMED', classifiedTransitioned: true });
+        const invoice2 = await dataSource.getRepository(ClassifiedInvoiceRequest).findOne({ where: { id: invoice.id } });
+        expect(invoice2!.status).toBe(ClassifiedInvoiceStatus.PAID);
+      }
+    });
+
+    it('an already-PAID classified invoice still lets the Payment itself be recorded SUCCESS (money genuinely verified) without re-transitioning — symmetric with the Order INELIGIBLE case', async () => {
+      const seller = await makeUser();
+      const invoice = await dataSource.getRepository(ClassifiedInvoiceRequest).save(
+        dataSource.getRepository(ClassifiedInvoiceRequest).create({ seller: { id: seller.id } as any, invoiceNumber: `CINV-${Date.now()}-PAID`, amount: 15000, status: ClassifiedInvoiceStatus.PAID }),
+      );
+      const payment = await makePayment({ orderId: null, amount: 15000, metadata: { purpose: 'CLASSIFIED_INVOICE', invoiceType: 'classified', invoiceNumber: invoice.invoiceNumber } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, successVerification(1500000, 'CP-REF-ALREADY-PAID'));
+
+      expect(outcome).toMatchObject({ status: 'CONFIRMED', classifiedTransitioned: false });
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.SUCCESS);
     });
   });
 });
