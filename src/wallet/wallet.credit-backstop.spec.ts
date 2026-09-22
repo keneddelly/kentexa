@@ -65,10 +65,14 @@ describe('WalletService.creditFromEscrowRelease — payment-evidence backstop', 
     expect(walletRepo.update).not.toHaveBeenCalled();
   });
 
-  it('never throws even if the order lookup or evidence check fails to find anything (order missing => skip the check entirely, credit proceeds)', async () => {
+  // C4 correction: a referenced Order that cannot be resolved must FAIL CLOSED, not fail open.
+  // (Previously this exact scenario credited unconditionally — the review's blocker finding.)
+  it('FAILS CLOSED — no credit at all — when the referenced Order cannot be resolved', async () => {
     orderRepo.findOne.mockResolvedValue(null);
     await expect(service.creditFromEscrowRelease(5, 999, 1000)).resolves.toBeUndefined();
-    expect(walletRepo.update).toHaveBeenCalled();
+    expect(walletRepo.update).not.toHaveBeenCalled();
+    expect(txRepo.save).not.toHaveBeenCalled();
+    expect(paymentEvidence.check).not.toHaveBeenCalled(); // nothing to evaluate evidence against
   });
 
   it('still short-circuits on the pre-existing no-op guards (no sellerId / amount<=0) before ever touching the order', async () => {

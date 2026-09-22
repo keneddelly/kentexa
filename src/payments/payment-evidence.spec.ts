@@ -185,4 +185,32 @@ describe('isValidEvidenceRow / sumValidEvidence / isEvidenceSufficient — the P
   it('isEvidenceSufficient(requiredMinor<=0) is vacuously true (nothing owed)', () => {
     expect(isEvidenceSufficient([], ctx, 0)).toBe(true);
   });
+
+  describe('C3 correction — exact invoice binding is actually enforced when an invoice is expected', () => {
+    const ctxWithInvoice = { orderId: 100, purpose: 'COD_DEPOSIT', invoiceNumber: 'INV-100' };
+
+    it('a row with NO invoiceNumber in its metadata is rejected once the caller expects one — previously this silently passed', () => {
+      const meta = buildEvidenceMetadata(sealInput()); // sealed with invoiceNumber: null
+      const row: EvidenceCandidateRow = { id: 1, status: 'success', provider: 'clickpesa', orderId: 100, providerReference: 'CP-REF-1', metadata: JSON.stringify(meta) };
+      expect(isValidEvidenceRow(row, ctxWithInvoice)).toMatchObject({ ok: false, reason: 'INVOICE_MISMATCH' });
+    });
+
+    it('a row sealed for the CORRECT invoice number is valid evidence', () => {
+      const meta = buildEvidenceMetadata(sealInput({ invoiceNumber: 'INV-100' }));
+      const row: EvidenceCandidateRow = { id: 1, status: 'success', provider: 'clickpesa', orderId: 100, providerReference: 'CP-REF-1', metadata: JSON.stringify(meta) };
+      expect(isValidEvidenceRow(row, ctxWithInvoice)).toMatchObject({ ok: true });
+    });
+
+    it('a row sealed for a DIFFERENT invoice number is rejected even though the order/purpose/amount all match', () => {
+      const meta = buildEvidenceMetadata(sealInput({ invoiceNumber: 'INV-999' }));
+      const row: EvidenceCandidateRow = { id: 1, status: 'success', provider: 'clickpesa', orderId: 100, providerReference: 'CP-REF-1', metadata: JSON.stringify(meta) };
+      expect(isValidEvidenceRow(row, ctxWithInvoice)).toMatchObject({ ok: false, reason: 'INVOICE_MISMATCH' });
+    });
+
+    it('when the caller expects NO invoice (ctx.invoiceNumber null) a row with no invoiceNumber is still valid — this is the legitimate no-invoice case, not weakened', () => {
+      const meta = buildEvidenceMetadata(sealInput());
+      const row: EvidenceCandidateRow = { id: 1, status: 'success', provider: 'clickpesa', orderId: 100, providerReference: 'CP-REF-1', metadata: JSON.stringify(meta) };
+      expect(isValidEvidenceRow(row, { orderId: 100, purpose: 'COD_DEPOSIT' })).toMatchObject({ ok: true });
+    });
+  });
 });

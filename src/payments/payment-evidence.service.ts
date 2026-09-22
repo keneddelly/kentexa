@@ -56,6 +56,12 @@ export class PaymentEvidenceService {
       };
     }
 
+    // C3 correction: the canonical invoice for this order is looked up and passed into the
+    // predicate so it can actually enforce exact invoice binding (previously this call site never
+    // supplied one at all, so isValidEvidenceRow's invoice check was a silent no-op).
+    const invoiceRows = await this.paymentRepo.query(`SELECT "invoiceNumber" FROM invoice WHERE "orderId" = $1`, [order.id]);
+    const invoiceNumber: string | null = invoiceRows[0]?.invoiceNumber ?? null;
+
     const rows = await this.paymentRepo.query(
       `SELECT id, status, provider, "orderId", "providerReference", metadata FROM payment WHERE "orderId" = $1`,
       [order.id],
@@ -68,7 +74,7 @@ export class PaymentEvidenceService {
       providerReference: r.providerReference,
       metadata: r.metadata,
     }));
-    const { totalMinor } = sumValidEvidence(candidates, { orderId: order.id, purpose: obligation.purpose });
+    const { totalMinor } = sumValidEvidence(candidates, { orderId: order.id, purpose: obligation.purpose, invoiceNumber });
     return {
       applicable: true,
       sufficient: totalMinor >= obligation.requiredMinor,

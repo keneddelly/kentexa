@@ -264,4 +264,122 @@ describeIfDb('PaymentConfirmationService — real Postgres', () => {
     const outcome = await service.confirmVerifiedPayment(987654321, successVerification(1, 'X'));
     expect(outcome).toEqual({ status: 'PAYMENT_NOT_FOUND', paymentId: 987654321 });
   });
+
+  describe('C2 correction — the CURRENT server-owned obligation is re-derived, not trusted from Payment.amount/metadata alone', () => {
+    it('OBLIGATION_MISMATCH: a stored Payment.amount that disagrees with the order\'s CURRENT total can never become sealed evidence, even if the provider agrees with it', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 250000 }); // real obligation is 250,000
+      const payment = await makePayment({ orderId: order.id, amount: 198000, metadata: { purpose: 'ORDER_FULL' } }); // wrongly-created Payment
+
+      // the provider even agrees with the WRONG stored amount — this must still be rejected.
+      const outcome = await service.confirmVerifiedPayment(payment.id, successVerification(19800000, 'CP-REF-OBLIGATION'));
+
+      expect(outcome).toEqual({ status: 'OBLIGATION_MISMATCH', paymentId: payment.id });
+      expect((await orderRow(order.id))!.status).toBe('pending_payment');
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.FAILED);
+      expect((await paymentRow(payment.id))!.failureReason).toBe('OBLIGATION_MISMATCH');
+    });
+
+    it('PURPOSE_MISMATCH: a Payment recorded as ORDER_FULL for what is actually a COD order (whose real obligation is the deposit) cannot confirm', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, paymentMethod: OrderPaymentMethod.COD, totalAmount: 180000, codUpfrontAmount: 36000 as any });
+      // stored as the FULL total under the WRONG purpose, rather than the deposit under COD_DEPOSIT
+      const payment = await makePayment({ orderId: order.id, amount: 180000, metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, successVerification(18000000, 'CP-REF-PURPOSE'));
+
+      expect(outcome).toEqual({ status: 'PURPOSE_MISMATCH', paymentId: payment.id });
+      expect((await orderRow(order.id))!.status).toBe('pending_payment');
+    });
+
+    it('a Payment whose obligation the order NO LONGER matches (order total changed after initiation) is rejected — the obligation is re-derived fresh, not cached', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 100000 });
+      const payment = await makePayment({ orderId: order.id, amount: 100000, metadata: { purpose: 'ORDER_FULL' } });
+
+      // the order's total is edited after the Payment was created (e.g. a price correction)
+      await dataSource.getRepository(Order).update(order.id, { totalAmount: 120000 as any });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, successVerification(10000000, 'CP-REF-STALE'));
+
+      expect(outcome).toEqual({ status: 'OBLIGATION_MISMATCH', paymentId: payment.id });
+    });
+  });
+
+  describe('C5 correction — a genuine provider SUCCESS must carry real provider transaction identity', () => {
+    it('MISSING_PROVIDER_REFERENCE: a SUCCESS verification with no reference, for a Payment with no prior reference either, is rejected rather than synthesizing one', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, { status: 'SUCCESS', amountMinor: 1000000, currency: 'TZS', providerReference: null });
+
+      expect(outcome).toEqual({ status: 'MISSING_PROVIDER_REFERENCE', paymentId: payment.id });
+      expect((await orderRow(order.id))!.status).toBe('pending_payment');
+      const row = await paymentRow(payment.id);
+      expect(row!.status).toBe(PaymentStatus.FAILED);
+      // never a synthesized `${provider}-${id}`-shaped reference anywhere on the row — it stays null.
+      expect(row!.providerReference).toBeNull();
+    });
+
+    it('a SUCCESS verification with no reference is still fine if the row ALREADY carries one from a prior attempt (not synthesis — reuse of a real value)', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, providerReference: 'CP-ALREADY-REAL', metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, { status: 'SUCCESS', amountMinor: 1000000, currency: 'TZS', providerReference: null });
+
+      expect(outcome).toMatchObject({ status: 'CONFIRMED' });
+      expect((await paymentRow(payment.id))!.providerReference).toBe('CP-ALREADY-REAL');
+    });
+  });
+
+  describe('C6 correction — PENDING/PROCESSING/UNKNOWN is "not settled yet", never a terminal failure', () => {
+    it('NOT_YET_SETTLED: a PENDING verification leaves the Payment exactly as PENDING, authorises nothing, and does not fail closed permanently', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, { status: 'PENDING', amountMinor: null, currency: null, providerReference: null });
+
+      expect(outcome).toEqual({ status: 'NOT_YET_SETTLED', paymentId: payment.id, providerStatus: 'PENDING' });
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.PENDING); // NOT failed
+      expect((await orderRow(order.id))!.status).toBe('pending_payment');
+    });
+
+    it('PROCESSING/UNKNOWN behave the same way — never converted to FAILED', async () => {
+      const seller = await makeUser();
+      for (const status of ['PROCESSING', 'UNKNOWN'] as const) {
+        const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+        const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+        const outcome = await service.confirmVerifiedPayment(payment.id, { status, amountMinor: null, currency: null, providerReference: null });
+        expect(outcome).toEqual({ status: 'NOT_YET_SETTLED', paymentId: payment.id, providerStatus: status });
+        expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.PENDING);
+      }
+    });
+
+    it('a Payment that came back NOT_YET_SETTLED remains re-verifiable and confirms normally once the provider actually settles it', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      const first = await service.confirmVerifiedPayment(payment.id, { status: 'PROCESSING', amountMinor: null, currency: null, providerReference: null });
+      expect(first.status).toBe('NOT_YET_SETTLED');
+
+      const second = await service.confirmVerifiedPayment(payment.id, successVerification(1000000, 'CP-REF-SETTLED-LATER'));
+      expect(second).toMatchObject({ status: 'CONFIRMED', orderTransition: 'ORDER_PAID' });
+      expect((await orderRow(order.id))!.status).toBe('paid');
+    });
+
+    it('terminal FAILED (distinct from PENDING/PROCESSING) still authorises nothing and cannot later be resurrected by this same confirmVerifiedPayment call', async () => {
+      const seller = await makeUser();
+      const order = await makeOrder({ sellerId: seller.id, totalAmount: 10000 });
+      const payment = await makePayment({ orderId: order.id, amount: 10000, metadata: { purpose: 'ORDER_FULL' } });
+
+      const outcome = await service.confirmVerifiedPayment(payment.id, { status: 'FAILED', amountMinor: null, currency: null, providerReference: null });
+      expect(outcome).toEqual({ status: 'PROVIDER_NOT_SUCCESS', paymentId: payment.id, providerStatus: 'FAILED' });
+      expect((await paymentRow(payment.id))!.status).toBe(PaymentStatus.FAILED);
+      expect((await orderRow(order.id))!.status).toBe('pending_payment');
+    });
+  });
 });

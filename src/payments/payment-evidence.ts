@@ -153,7 +153,10 @@ export function isValidEvidenceRow(
   }
 
   if (meta.purpose !== ctx.purpose) return { ok: false, reason: 'PURPOSE_MISMATCH' };
-  if (ctx.invoiceNumber && meta.invoiceNumber && meta.invoiceNumber !== ctx.invoiceNumber) {
+  // C3 correction: when the order HAS a canonical invoice, the row's own metadata must carry that
+  // EXACT invoice number — a row with no invoiceNumber at all no longer slips through unchecked.
+  // Only when the order genuinely has no invoice (ctx.invoiceNumber null/undefined) is this skipped.
+  if (ctx.invoiceNumber && meta.invoiceNumber !== ctx.invoiceNumber) {
     return { ok: false, reason: 'INVOICE_MISMATCH' };
   }
   if (meta.currency !== CURRENCY_TZS) return { ok: false, reason: 'CURRENCY_MISMATCH' };

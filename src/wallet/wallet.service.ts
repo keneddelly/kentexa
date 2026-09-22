@@ -63,21 +63,27 @@ export class WalletService {
   ): Promise<void> {
     if (!sellerId || !amount || amount <= 0) return;
 
+    // C4 correction: a referenced Order that cannot be resolved must FAIL CLOSED, never fail open.
+    // Every real caller of this method always has a concrete orderId — an order lookup that comes
+    // back empty is not "nothing to check", it is "we cannot prove this credit is legitimate",
+    // which for the final seller-proceeds defence means refusing the credit, not allowing it.
     const order = await this.orderRepo.findOne({ where: { id: orderId } });
-    if (order) {
-      const evidence = await this.paymentEvidence.check({
-        id: order.id,
-        source: order.source,
-        paymentMethod: order.paymentMethod,
-        totalAmount: order.totalAmount,
-        codUpfrontAmount: (order as any).codUpfrontAmount,
-      });
-      if (evidence.applicable && !evidence.sufficient) {
-        this.logger.error(
-          `Wallet credit BLOCKED for order #${orderId}, seller #${sellerId}: no verified payment evidence (purpose=${evidence.purpose}, required=${evidence.requiredMinor}, have=${evidence.totalMinor})`,
-        );
-        return;
-      }
+    if (!order) {
+      this.logger.error(`Wallet credit BLOCKED for order #${orderId}, seller #${sellerId}: order could not be resolved`);
+      return;
+    }
+    const evidence = await this.paymentEvidence.check({
+      id: order.id,
+      source: order.source,
+      paymentMethod: order.paymentMethod,
+      totalAmount: order.totalAmount,
+      codUpfrontAmount: (order as any).codUpfrontAmount,
+    });
+    if (evidence.applicable && !evidence.sufficient) {
+      this.logger.error(
+        `Wallet credit BLOCKED for order #${orderId}, seller #${sellerId}: no verified payment evidence (purpose=${evidence.purpose}, required=${evidence.requiredMinor}, have=${evidence.totalMinor})`,
+      );
+      return;
     }
 
     const wallet = await this.getOrCreateWallet(sellerId);

@@ -77,7 +77,18 @@ export interface InvoiceLookupResult {
   remainingBalance?: number;
 }
 
-const FAILURE_OUTCOMES = new Set(['PROVIDER_NOT_SUCCESS', 'AMOUNT_MISMATCH', 'CURRENCY_MISMATCH', 'REFERENCE_REUSED']);
+// NOT_YET_SETTLED is deliberately excluded — a provider PENDING/PROCESSING result is not a failure
+// and must never reset an invoice for retry (that would let a second payment attempt race the first).
+const FAILURE_OUTCOMES = new Set([
+  'PROVIDER_NOT_SUCCESS',
+  'AMOUNT_MISMATCH',
+  'CURRENCY_MISMATCH',
+  'REFERENCE_REUSED',
+  'MISSING_PROVIDER_REFERENCE',
+  'OBLIGATION_MISMATCH',
+  'PURPOSE_MISMATCH',
+  'OBLIGATION_UNRESOLVABLE',
+]);
 
 @Injectable()
 export class PaymentsService {
@@ -151,7 +162,21 @@ export class PaymentsService {
   // financial write already happened inside PaymentConfirmationService's
   // own transaction). Only ever called for a CONFIRMED outcome, and only
   // fires the notification matching what ACTUALLY transitioned, so a retry
-  // that lands on ALREADY_CONFIRMED/INELIGIBLE never re-notifies anyone. ──
+  // that lands on ALREADY_CONFIRMED/INELIGIBLE never DOUBLE-notifies anyone.
+  //
+  // C7 correction — documented limitation, not a guarantee: this is NOT
+  // retry-safe delivery. If a notification call below throws on the ONE
+  // winning confirmation (the only time this method ever runs for that
+  // Payment), a later provider retry of the same webhook finds the Payment
+  // already SUCCESS and returns { message: 'OK' } from handleCallback/
+  // agentPaymentCallback WITHOUT calling this method again — the financial
+  // state is correct and exactly-once, but that one notification is simply
+  // never redelivered. Each notification step below is independently
+  // try/caught and logged, so a failure is visible in logs, but nothing
+  // here or in the callback response should be read as promising automatic
+  // redelivery. Real redelivery needs an outbox/durable-queue, which is
+  // explicitly deferred to S1/S2 (Decision 14) — this is the smallest
+  // correct thing to say about it in S0, not a fix for it. ──────────────
   private async dispatchConfirmationSideEffects(outcome: ConfirmationOutcome): Promise<void> {
     if (outcome.status !== 'CONFIRMED') return;
     if (outcome.orderId) {
@@ -612,31 +637,58 @@ export class PaymentsService {
       throw new BadRequestException('This order does not require an online payment');
     }
     const amount = minorToNumber(obligation.requiredMinor);
-
     const provider = this.getProvider(dto.provider);
     const reference = generateProviderReference();
-    const response = await provider.initiatePayment({
-      phone: dto.phone,
-      amount,
-      reference,
-      description: `Payment for Order #${order.id} on Kentexa`,
-    });
 
-    const payment = this.paymentRepo.create({
-      order,
-      user,
-      phone: dto.phone,
-      amount,
-      provider: dto.provider,
-      status: response.success ? PaymentStatus.PENDING : PaymentStatus.FAILED,
-      providerRequestId: response.providerRequestId,
-      failureReason: response.success ? null : response.message,
-      metadata: JSON.stringify({ purpose: obligation.purpose, invoiceType: 'order', orderId: order.id }),
-    });
-    await this.paymentRepo.save(payment);
-    if (!response.success) throw new BadRequestException(response.message);
+    // C3: the canonical invoice for this order (if any) is stamped into the Payment's own
+    // metadata now, so PaymentEvidence's exact-invoice-binding check has something real to compare
+    // against later — not left to default to "no invoice expected" just because this code path
+    // never looked it up.
+    const orderInvoice = await this.invoiceRepo.findOne({ where: { order: { id: order.id } } });
 
-    return { message: response.message, providerRequestId: response.providerRequestId, provider: dto.provider };
+    // C1: the Payment row is created PENDING and durable, bound to the order, with our own
+    // provider-compliant reference as providerRequestId, BEFORE the provider is ever contacted. A
+    // webhook racing the initiation call can already find this row; a crash between the DB write
+    // and the provider call is a stuck PENDING payment (safely re-verifiable / expires), never a
+    // provider charge with no Kentexa record at all.
+    const payment = await this.paymentRepo.save(
+      this.paymentRepo.create({
+        order,
+        user,
+        phone: dto.phone,
+        amount,
+        provider: dto.provider,
+        status: PaymentStatus.PENDING,
+        providerRequestId: reference,
+        metadata: JSON.stringify({ purpose: obligation.purpose, invoiceType: 'order', orderId: order.id, invoiceNumber: orderInvoice?.invoiceNumber ?? null }),
+      }),
+    );
+
+    let response;
+    try {
+      response = await provider.initiatePayment({
+        phone: dto.phone,
+        amount,
+        reference,
+        description: `Payment for Order #${order.id} on Kentexa`,
+      });
+    } catch (err: any) {
+      await this.paymentRepo.update(payment.id, { status: PaymentStatus.FAILED, failureReason: err.message || 'Provider request failed' });
+      throw new BadRequestException('Payment initiation failed');
+    }
+
+    if (!response.success) {
+      await this.paymentRepo.update(payment.id, { status: PaymentStatus.FAILED, failureReason: response.message });
+      throw new BadRequestException(response.message);
+    }
+    // Every adapter is designed to echo our own reference back — but if a future provider ever
+    // assigns its own id instead, the SAME row is updated to match what its callback will carry,
+    // never a second row.
+    if (response.providerRequestId && response.providerRequestId !== reference) {
+      await this.paymentRepo.update(payment.id, { providerRequestId: response.providerRequestId });
+    }
+
+    return { message: response.message, providerRequestId: response.providerRequestId || reference, provider: dto.provider };
   }
 
   // ── Provider webhooks — SIGNAL ONLY. The callback body never confirms
@@ -694,14 +746,6 @@ export class PaymentsService {
 
     const providerService = this.getProvider(provider);
     const reference = generateProviderReference();
-    const response = await providerService.initiatePayment({
-      phone,
-      amount: found.amount,
-      reference,
-      description: `Kentexa payment for invoice ${invoiceNumber}`,
-    });
-    if (!response.success) throw new BadRequestException(response.message);
-
     const meta = JSON.stringify({
       invoiceType: found.invoiceType,
       invoiceNumber: found.invoiceNumber,
@@ -710,19 +754,42 @@ export class PaymentsService {
       purpose,
     });
 
-    const payment = this.paymentRepo.create({
-      user,
-      amount: found.amount,
-      provider,
-      status: PaymentStatus.PENDING,
-      providerRequestId: response.providerRequestId,
-      phone,
-      metadata: meta,
-      // S0 fix: bind the Payment to its Order for an order-type invoice — this is what makes the
-      // NORMAL (non-agent) webhook route actually able to confirm a real Kentexa checkout order.
-      ...(found.invoiceType === 'order' && found.orderId ? { order: { id: found.orderId } as any } : {}),
-    });
-    await this.paymentRepo.save(payment);
+    // C1: durable, order-bound Payment created BEFORE the provider is contacted — see
+    // initiatePayment()'s own comment for the full rationale.
+    const payment = await this.paymentRepo.save(
+      this.paymentRepo.create({
+        user,
+        amount: found.amount,
+        provider,
+        status: PaymentStatus.PENDING,
+        providerRequestId: reference,
+        phone,
+        metadata: meta,
+        // S0 fix: bind the Payment to its Order for an order-type invoice — this is what makes the
+        // NORMAL (non-agent) webhook route actually able to confirm a real Kentexa checkout order.
+        ...(found.invoiceType === 'order' && found.orderId ? { order: { id: found.orderId } as any } : {}),
+      }),
+    );
+
+    let response;
+    try {
+      response = await providerService.initiatePayment({
+        phone,
+        amount: found.amount,
+        reference,
+        description: `Kentexa payment for invoice ${invoiceNumber}`,
+      });
+    } catch (err: any) {
+      await this.paymentRepo.update(payment.id, { status: PaymentStatus.FAILED, failureReason: err.message || 'Provider request failed' });
+      throw new BadRequestException('Payment initiation failed');
+    }
+    if (!response.success) {
+      await this.paymentRepo.update(payment.id, { status: PaymentStatus.FAILED, failureReason: response.message });
+      throw new BadRequestException(response.message);
+    }
+    if (response.providerRequestId && response.providerRequestId !== reference) {
+      await this.paymentRepo.update(payment.id, { providerRequestId: response.providerRequestId });
+    }
 
     if (found.invoiceType === 'order') {
       await this.invoiceRepo.update({ invoiceNumber }, { status: InvoiceStatus.PAYMENT_PROCESSING, paymentMethod: provider });
@@ -731,7 +798,7 @@ export class PaymentsService {
     return {
       success: true,
       message: response.message,
-      providerRequestId: response.providerRequestId,
+      providerRequestId: response.providerRequestId || reference,
       invoiceNumber,
       amount: found.amount,
       phone,
@@ -768,14 +835,6 @@ export class PaymentsService {
 
     const reference = generateProviderReference();
     const providerService = this.getProvider(provider);
-    const response = await providerService.initiatePayment({
-      phone: agentPhone,
-      amount: found.amount,
-      reference,
-      description: `Kentexa agent payment for invoice ${invoiceNumber}`,
-    });
-    if (!response.success) throw new BadRequestException(response.message);
-
     const meta = JSON.stringify({
       invoiceType: found.invoiceType,
       invoiceNumber: found.invoiceNumber,
@@ -785,16 +844,38 @@ export class PaymentsService {
       purpose,
     });
 
-    const payment = this.paymentRepo.create({
-      amount: found.amount,
-      provider,
-      status: PaymentStatus.PENDING,
-      providerRequestId: response.providerRequestId,
-      phone: agentPhone,
-      metadata: meta,
-      ...(found.invoiceType === 'order' && found.orderId ? { order: { id: found.orderId } as any } : {}),
-    });
-    await this.paymentRepo.save(payment);
+    // C1: durable, order-bound Payment created BEFORE the provider is contacted.
+    const payment = await this.paymentRepo.save(
+      this.paymentRepo.create({
+        amount: found.amount,
+        provider,
+        status: PaymentStatus.PENDING,
+        providerRequestId: reference,
+        phone: agentPhone,
+        metadata: meta,
+        ...(found.invoiceType === 'order' && found.orderId ? { order: { id: found.orderId } as any } : {}),
+      }),
+    );
+
+    let response;
+    try {
+      response = await providerService.initiatePayment({
+        phone: agentPhone,
+        amount: found.amount,
+        reference,
+        description: `Kentexa agent payment for invoice ${invoiceNumber}`,
+      });
+    } catch (err: any) {
+      await this.paymentRepo.update(payment.id, { status: PaymentStatus.FAILED, failureReason: err.message || 'Provider request failed' });
+      throw new BadRequestException('Payment initiation failed');
+    }
+    if (!response.success) {
+      await this.paymentRepo.update(payment.id, { status: PaymentStatus.FAILED, failureReason: response.message });
+      throw new BadRequestException(response.message);
+    }
+    if (response.providerRequestId && response.providerRequestId !== reference) {
+      await this.paymentRepo.update(payment.id, { providerRequestId: response.providerRequestId });
+    }
 
     if (found.invoiceType === 'order') {
       await this.invoiceRepo.update({ invoiceNumber }, { status: InvoiceStatus.PAYMENT_PROCESSING, paymentMethod: provider, agentId: agent.id });
@@ -803,7 +884,7 @@ export class PaymentsService {
     return {
       success: true,
       message: response.message,
-      providerRequestId: response.providerRequestId,
+      providerRequestId: response.providerRequestId || reference,
       invoiceNumber,
       amount: found.amount,
       agentPhone,

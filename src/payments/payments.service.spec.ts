@@ -33,7 +33,14 @@ describe('PaymentsService', () => {
 
   beforeEach(() => {
     const noPendingQB = { where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue(null) };
-    paymentRepo = { findOne: jest.fn(), create: jest.fn((x) => x), save: jest.fn(), find: jest.fn(), createQueryBuilder: jest.fn(() => noPendingQB) };
+    paymentRepo = {
+      findOne: jest.fn(),
+      create: jest.fn((x) => x),
+      save: jest.fn(async (x: any) => ({ id: 1, ...x })),
+      update: jest.fn(),
+      find: jest.fn(),
+      createQueryBuilder: jest.fn(() => noPendingQB),
+    };
     payoutRepo = { findOne: jest.fn(), save: jest.fn() };
     orderRepo = { findOne: jest.fn(), update: jest.fn(), createQueryBuilder: jest.fn(), count: jest.fn() };
     invoiceRepo = { findOne: jest.fn(), update: jest.fn() };
@@ -304,6 +311,57 @@ describe('PaymentsService', () => {
         expect.objectContaining({ order: expect.objectContaining({ id: 5 }), metadata: expect.stringContaining('"purpose":"ORDER_FULL"') }),
       );
     });
+
+    // C1 regression tests (review comment 5774703073)
+    it('C1: the Payment is saved BEFORE the provider is ever contacted, not after', async () => {
+      orderRepo.findOne.mockResolvedValue({ id: 5, status: OrderStatus.PENDING_PAYMENT, totalAmount: 198000, paymentMethod: 'online', codUpfrontAmount: null });
+      paymentRepo.findOne.mockResolvedValue(null);
+      const order: string[] = [];
+      paymentRepo.save.mockImplementation(async (x: any) => { order.push('save'); return { id: 1, ...x }; });
+      mockAgentService.initiatePayment.mockImplementation(async () => { order.push('provider'); return { success: true, providerRequestId: 'req', message: 'ok' }; });
+
+      await service.initiatePayment({ orderId: 5, phone: '255700000000', provider: 'selcom' } as any, { id: 1 } as any);
+
+      expect(order).toEqual(['save', 'provider']);
+    });
+
+    it('C1: a durable Payment already carries our own reference as providerRequestId BEFORE the provider call resolves — a racing callback could already find it', async () => {
+      orderRepo.findOne.mockResolvedValue({ id: 5, status: OrderStatus.PENDING_PAYMENT, totalAmount: 198000, paymentMethod: 'online', codUpfrontAmount: null });
+      paymentRepo.findOne.mockResolvedValue(null);
+      let savedProviderRequestId: string | undefined;
+      paymentRepo.save.mockImplementation(async (x: any) => { savedProviderRequestId = x.providerRequestId; return { id: 1, ...x }; });
+      mockAgentService.initiatePayment.mockImplementation(async (req: any) => {
+        // At this exact moment (before initiatePayment() has returned), the durable row must
+        // already exist and already carry the same reference the provider was just asked to use.
+        expect(savedProviderRequestId).toBe(req.reference);
+        return { success: true, providerRequestId: req.reference, message: 'ok' };
+      });
+
+      await service.initiatePayment({ orderId: 5, phone: '255700000000', provider: 'selcom' } as any, { id: 1 } as any);
+      expect(mockAgentService.initiatePayment).toHaveBeenCalled();
+    });
+
+    it('C1: on provider initiation failure, the SAME Payment row is updated to FAILED — never a second row created', async () => {
+      orderRepo.findOne.mockResolvedValue({ id: 5, status: OrderStatus.PENDING_PAYMENT, totalAmount: 198000, paymentMethod: 'online', codUpfrontAmount: null });
+      paymentRepo.findOne.mockResolvedValue(null);
+      mockAgentService.initiatePayment.mockResolvedValue({ success: false, providerRequestId: 'req', message: 'insufficient balance' });
+
+      await expect(service.initiatePayment({ orderId: 5, phone: '255700000000', provider: 'selcom' } as any, { id: 1 } as any)).rejects.toThrow(BadRequestException);
+
+      expect(paymentRepo.create).toHaveBeenCalledTimes(1);
+      expect(paymentRepo.save).toHaveBeenCalledTimes(1);
+      expect(paymentRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({ status: PaymentStatus.FAILED, failureReason: 'insufficient balance' }));
+    });
+
+    it('C1: a thrown/rejected provider call also updates the SAME row to FAILED, never leaves it stuck PENDING silently', async () => {
+      orderRepo.findOne.mockResolvedValue({ id: 5, status: OrderStatus.PENDING_PAYMENT, totalAmount: 198000, paymentMethod: 'online', codUpfrontAmount: null });
+      paymentRepo.findOne.mockResolvedValue(null);
+      mockAgentService.initiatePayment.mockRejectedValue(new Error('network timeout'));
+
+      await expect(service.initiatePayment({ orderId: 5, phone: '255700000000', provider: 'selcom' } as any, { id: 1 } as any)).rejects.toThrow(BadRequestException);
+
+      expect(paymentRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({ status: PaymentStatus.FAILED }));
+    });
   });
 
   describe('customerPayInvoice() — S0 fix: binds Payment.order for an order-type invoice', () => {
@@ -333,13 +391,28 @@ describe('PaymentsService', () => {
       const createArgs = paymentRepo.create.mock.calls[0][0];
       expect(createArgs.order).toBeUndefined();
     });
+
+    it('C1: the Payment is saved BEFORE the provider is contacted, and initiation failure updates the SAME row', async () => {
+      invoiceRepo.findOne.mockResolvedValue({ invoiceNumber: 'INV-1', order: { id: 42 }, amount: 198000, status: 'awaiting_payment' });
+      orderRepo.findOne.mockResolvedValue({ id: 42, paymentMethod: 'online', totalAmount: 198000, codUpfrontAmount: null });
+      const order: string[] = [];
+      paymentRepo.save.mockImplementation(async (x: any) => { order.push('save'); return { id: 1, ...x }; });
+      mockAgentService.initiatePayment.mockImplementation(async () => { order.push('provider'); return { success: false, providerRequestId: 'req', message: 'declined' }; });
+
+      await expect(service.customerPayInvoice('INV-1', '255700000000', 'selcom', { id: 1 } as any)).rejects.toThrow(BadRequestException);
+
+      expect(order).toEqual(['save', 'provider']);
+      expect(paymentRepo.create).toHaveBeenCalledTimes(1);
+      expect(paymentRepo.update).toHaveBeenCalledWith(1, expect.objectContaining({ status: PaymentStatus.FAILED, failureReason: 'declined' }));
+    });
   });
 
   describe('adminVerifyPayment() — the explicit re-verify, rate-limited', () => {
     it('rejects a second attempt for the same payment within the cooldown window', async () => {
       paymentRepo.findOne.mockResolvedValue({ id: 3, status: PaymentStatus.PENDING, provider: 'selcom', providerRequestId: 'req-1', metadata: null });
       selcomService.verifyPayment.mockResolvedValue({ status: 'PENDING', amountMinor: null, currency: null, providerReference: null });
-      paymentConfirmation.confirmVerifiedPayment.mockResolvedValue({ status: 'PROVIDER_NOT_SUCCESS', paymentId: 3, providerStatus: 'PENDING' });
+      // C6: PENDING is NOT_YET_SETTLED, never PROVIDER_NOT_SUCCESS — it must not authorise or reset anything.
+      paymentConfirmation.confirmVerifiedPayment.mockResolvedValue({ status: 'NOT_YET_SETTLED', paymentId: 3, providerStatus: 'PENDING' });
       process.env.NODE_ENV = 'production';
       process.env.PAYMENTS_ENABLED_PROVIDERS = 'selcom';
 
@@ -353,6 +426,32 @@ describe('PaymentsService', () => {
       const result = await service.adminVerifyPayment(4);
       expect(result.outcome).toEqual({ status: 'ALREADY_CONFIRMED', paymentId: 4 });
       expect(selcomService.verifyPayment).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('C6 — NOT_YET_SETTLED authorises nothing and resets nothing (distinct from a terminal failure)', () => {
+    it('a NOT_YET_SETTLED outcome does not reset the invoice for retry', async () => {
+      paymentRepo.findOne.mockResolvedValue({ id: 20, status: PaymentStatus.PENDING, provider: 'selcom', providerRequestId: 'req-x', metadata: JSON.stringify({ invoiceType: 'order', orderId: 42 }) });
+      selcomService.verifyPayment.mockResolvedValue({ status: 'PROCESSING', amountMinor: null, currency: null, providerReference: null });
+      paymentConfirmation.confirmVerifiedPayment.mockResolvedValue({ status: 'NOT_YET_SETTLED', paymentId: 20, providerStatus: 'PROCESSING' });
+      process.env.NODE_ENV = 'production';
+      process.env.PAYMENTS_ENABLED_PROVIDERS = 'selcom';
+
+      await service.adminVerifyPayment(20);
+
+      expect(invoiceRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('a genuine terminal failure (e.g. AMOUNT_MISMATCH) DOES reset the invoice for retry', async () => {
+      paymentRepo.findOne.mockResolvedValue({ id: 21, status: PaymentStatus.PENDING, provider: 'selcom', providerRequestId: 'req-y', metadata: JSON.stringify({ invoiceType: 'order', orderId: 42 }) });
+      selcomService.verifyPayment.mockResolvedValue({ status: 'SUCCESS', amountMinor: 1, currency: 'TZS', providerReference: 'ref' });
+      paymentConfirmation.confirmVerifiedPayment.mockResolvedValue({ status: 'AMOUNT_MISMATCH', paymentId: 21 });
+      process.env.NODE_ENV = 'production';
+      process.env.PAYMENTS_ENABLED_PROVIDERS = 'selcom';
+
+      await service.adminVerifyPayment(21);
+
+      expect(invoiceRepo.update).toHaveBeenCalledWith({ order: { id: 42 } }, expect.objectContaining({ status: 'awaiting_payment', agentId: null }));
     });
   });
 });
