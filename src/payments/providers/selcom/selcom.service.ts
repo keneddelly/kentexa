@@ -1,146 +1,150 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { IPaymentProvider } from '../payment-provider.interface';
+import { IPaymentProvider, PaymentRequest, PaymentResponse, CallbackSignal, ProviderVerification } from '../payment-provider.interface';
+import { signSelcomRequest, fieldsFromBody } from './selcom-signing';
+import { parseAmountToMinor } from '../../payment-money';
 import * as crypto from 'crypto';
 
+/**
+ * Selcom Checkout API, per developers.selcommobile.com (verified against
+ * the published API reference, not assumed):
+ *   - POST /v1/checkout/create-order-minimal   (creates the order on Selcom's side)
+ *   - POST /v1/checkout/wallet-payment          (pushes the USSD PIN prompt)
+ *   - GET  /v1/checkout/order-status            <- the ONLY authoritative verification path
+ *
+ * Documented limitation, accepted explicitly (see the S0 pre-implementation
+ * verification report): order-status never echoes a currency field. We
+ * always create the order ourselves with currency=TZS on a single-currency
+ * TZS merchant account, so verifyPayment() reports 'TZS' rather than a
+ * genuinely ambiguous null — there is nothing else the order could be.
+ */
 @Injectable()
 export class SelcomService implements IPaymentProvider {
+  readonly name = 'selcom';
   private readonly logger = new Logger(SelcomService.name);
+  private readonly apiUrl = process.env.SELCOM_API_URL || 'https://apigw.selcommobile.com/v1';
 
-  // ─── Plug in your Selcom credentials here ────────────────────────────────
-  private readonly apiUrl =
-    process.env.SELCOM_API_URL || 'https://apigw.selcommobile.com/v1';
-  private readonly apiKey = process.env.SELCOM_API_KEY || 'YOUR_SELCOM_API_KEY';
-  private readonly apiSecret =
-    process.env.SELCOM_API_SECRET || 'YOUR_SELCOM_API_SECRET';
-  private readonly vendorId = process.env.SELCOM_VENDOR_ID || 'YOUR_VENDOR_ID';
-  private readonly callbackUrl =
-    process.env.SELCOM_CALLBACK_URL ||
-    'https://yourdomain.com/payments/selcom/callback';
-  private readonly cancelUrl =
-    process.env.SELCOM_CANCEL_URL ||
-    'https://yourdomain.com/payments/selcom/cancel';
-  // ─────────────────────────────────────────────────────────────────────────
-
-  // Selcom requires HMAC-SHA256 signed headers
-  private generateHeaders(body: string): Record<string, string> {
-    const timestamp = new Date()
-      .toISOString()
-      .replace('T', ' ')
-      .substring(0, 19);
-    const digest = crypto
-      .createHmac('sha256', this.apiSecret)
-      .update(this.apiKey + timestamp + body)
-      .digest('base64');
-
-    return {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      Authorization: `SELCOM ${this.apiKey}`,
-      'Digest-Method': 'HS256',
-      Digest: digest,
-      Timestamp: timestamp,
-      'Signed-Fields': 'timestamp',
-    };
+  private get apiKey() {
+    return process.env.SELCOM_API_KEY || '';
+  }
+  private get apiSecret() {
+    return process.env.SELCOM_API_SECRET || '';
+  }
+  private get vendorId() {
+    return process.env.SELCOM_VENDOR_ID || '';
+  }
+  private get webhookUrl() {
+    return process.env.SELCOM_CALLBACK_URL || '';
   }
 
-  async initiatePayment(request: any): Promise<any> {
-    this.logger.log(
-      `Selcom: initiating payment of ${request.amount} to ${request.phone}`,
-    );
+  private isConfigured(): boolean {
+    return !!(this.apiKey && this.apiSecret && this.vendorId);
+  }
 
+  private async signedRequest(method: 'GET' | 'POST', path: string, body?: Record<string, unknown>) {
+    const fields = fieldsFromBody(body ?? {});
+    const { headers } = signSelcomRequest(this.apiKey, this.apiSecret, fields);
+    const url = method === 'GET' && body ? `${this.apiUrl}${path}?${new URLSearchParams(body as any).toString()}` : `${this.apiUrl}${path}`;
+    const response = await fetch(url, {
+      method,
+      headers,
+      ...(method === 'POST' ? { body: JSON.stringify(body ?? {}) } : {}),
+    });
+    const data: any = await response.json().catch(() => ({}));
+    return { response, data };
+  }
+
+  async initiatePayment(request: PaymentRequest): Promise<PaymentResponse> {
+    if (!this.isConfigured()) {
+      return { success: false, providerRequestId: request.reference, message: 'Selcom is not configured' };
+    }
     try {
-      const payload = {
+      // 1) Create the order on Selcom's side — fields per the Checkout API's
+      // "Create Order - Minimal" JSON payload parameters table.
+      const orderBody = {
         vendor: this.vendorId,
         order_id: request.reference,
+        buyer_email: 'customer@kentexa.com',
+        buyer_name: 'Kentexa Customer',
         buyer_phone: request.phone,
-        amount: request.amount,
+        amount: String(request.amount),
         currency: 'TZS',
-        due_date: new Date(Date.now() + 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split('T')[0], // tomorrow
-        memo: request.description,
-        webhook: this.callbackUrl,
-        cancel_url: this.cancelUrl,
-        billing: {
-          firstname: 'Customer',
-          lastname: 'Kentexa',
-          msisdn: request.phone,
-          email: 'customer@kentexa.com',
-        },
+        no_of_items: 1,
+        webhook: this.webhookUrl ? Buffer.from(this.webhookUrl).toString('base64') : undefined,
       };
-
-      const bodyStr = JSON.stringify(payload);
-      const headers = this.generateHeaders(bodyStr);
-
-      const response = await fetch(
-        `${this.apiUrl}/checkout/create-order-minimal-c2b`,
-        {
-          method: 'POST',
-          headers,
-          body: bodyStr,
-        },
-      );
-
-      const data = await response.json();
-      this.logger.log('Selcom response', JSON.stringify(data));
-
-      if (data.resultcode === '000' || data.result === 'SUCCESS') {
+      const created = await this.signedRequest('POST', '/checkout/create-order-minimal', orderBody);
+      const createOk = created.data.resultcode === '000' || created.data.result === 'SUCCESS';
+      if (!createOk) {
+        this.logger.warn(`Selcom create-order-minimal failed: ${JSON.stringify(created.data)}`);
         return {
-          success: true,
-          message:
-            'Payment request sent to your phone. Enter your PIN to confirm.',
-          providerRequestId: data.transid || data.order_id || request.reference,
+          success: false,
+          providerRequestId: request.reference,
+          message: created.data.message || created.data.resultdesc || 'Payment initiation failed',
+          raw: created.data,
         };
       }
 
+      // 2) Push the wallet PIN prompt — order-status is what we actually verify against afterwards.
+      const transid = `TXN${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+      const pushed = await this.signedRequest('POST', '/checkout/wallet-payment', {
+        transid,
+        order_id: request.reference,
+        msisdn: request.phone,
+      });
+      const pushOk = ['000', '111'].includes(pushed.data.resultcode) || ['SUCCESS', 'PENDING'].includes(pushed.data.result);
       return {
-        success: false,
-        message: data.message || data.resultdesc || 'Payment initiation failed',
-        providerRequestId: request.reference,
+        success: pushOk,
+        providerRequestId: request.reference, // we always verify by OUR order_id — see verifyPayment()
+        message: pushOk
+          ? 'Payment request sent to your phone. Enter your PIN to confirm.'
+          : pushed.data.message || 'Payment initiation failed',
+        raw: pushed.data,
       };
-    } catch (err) {
+    } catch (err: any) {
       this.logger.error('Selcom initiatePayment error', err);
-      // Dev-only fallback so local/staging testing works without real
-      // credentials. In production a failed API call must surface as a
-      // failure — silently reporting success:true here previously meant a
-      // Selcom outage told every buyer their payment worked while nothing
-      // was ever charged.
-      if (process.env.NODE_ENV !== 'production') {
-        return {
-          success: true,
-          message: '[DEV] Selcom mock payment initiated',
-          providerRequestId: `SELCOM-${Date.now()}`,
-        };
-      }
-      return {
-        success: false,
-        message: 'Selcom is temporarily unavailable. Please try again.',
-        providerRequestId: request.reference,
-      };
+      return { success: false, providerRequestId: request.reference, message: 'Selcom is temporarily unavailable. Please try again.' };
     }
   }
 
-  parseCallback(body: any): any {
-    this.logger.log('Selcom callback received', JSON.stringify(body));
+  /** The webhook body is a SIGNAL ONLY (Decision 3) — extracts order_id to go verify, nothing more. */
+  parseCallbackSignal(body: any): CallbackSignal | null {
+    const orderId = body?.order_id;
+    if (!orderId) return null;
+    return { providerRequestId: orderId };
+  }
 
-    // Selcom callback payload fields
-    const resultCode = body.resultcode || body.result_code;
-    const success =
-      resultCode === '000' ||
-      body.result === 'SUCCESS' ||
-      body.status === 'SUCCESS';
-
-    return {
-      success,
-      providerRequestId:
-        body.transid || body.order_id || body.providerRequestId,
-      providerReference: body.reference_id || body.transid || null,
-      failureReason: success
-        ? null
-        : body.resultdesc ||
-          body.message ||
-          body.failure_reason ||
-          'Payment failed',
-    };
+  /** THE authoritative check: GET /v1/checkout/order-status?order_id=<our reference>. */
+  async verifyPayment(providerRequestId: string): Promise<ProviderVerification> {
+    if (!this.isConfigured()) {
+      return { status: 'NOT_SUPPORTED', amountMinor: null, currency: null, providerReference: null };
+    }
+    try {
+      const { response, data } = await this.signedRequest('GET', '/checkout/order-status', { order_id: providerRequestId });
+      if (!response.ok || !(data.resultcode === '000' || data.result === 'SUCCESS') || !Array.isArray(data.data) || data.data.length === 0) {
+        return { status: 'UNKNOWN', amountMinor: null, currency: null, providerReference: null, raw: data };
+      }
+      const entry = data.data[0];
+      // payment_status: PENDING, COMPLETED, CANCELLED, USERCANCELLED, REJECTED, INPROGRESS
+      const status: ProviderVerification['status'] =
+        entry.payment_status === 'COMPLETED'
+          ? 'SUCCESS'
+          : entry.payment_status === 'INPROGRESS'
+            ? 'PROCESSING'
+            : entry.payment_status === 'PENDING'
+              ? 'PENDING'
+              : ['CANCELLED', 'USERCANCELLED', 'REJECTED'].includes(entry.payment_status)
+                ? 'FAILED'
+                : 'UNKNOWN';
+      return {
+        status,
+        amountMinor: parseAmountToMinor(entry.amount),
+        // Selcom's order-status never returns a currency field (documented gap) — our own account/order is TZS-only.
+        currency: 'TZS',
+        providerReference: entry.reference ?? entry.transid ?? null,
+        raw: entry,
+      };
+    } catch (err: any) {
+      this.logger.error('Selcom verifyPayment error', err);
+      return { status: 'UNKNOWN', amountMinor: null, currency: null, providerReference: null };
+    }
   }
 }

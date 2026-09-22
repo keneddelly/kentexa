@@ -1,46 +1,37 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  IPaymentProvider,
-  PaymentRequest,
-  PaymentResponse,
-  CallbackResult,
-} from '../payment-provider.interface';
+import { IPaymentProvider, PaymentRequest, PaymentResponse, CallbackSignal, ProviderVerification } from '../payment-provider.interface';
 
 /**
- * MOCK AGENT PAYMENT PROVIDER
- * Simulates mobile money USSD push for agent payments.
- * When real API is ready:
- *   - Replace initiatePayment() with real API call
- *   - Replace parseCallback() with real callback parsing
- *   - Everything else stays the same
+ * MOCK payment provider — local/dev testing only, never selectable in
+ * production (see payments.service.ts's getProvider()). verifyPayment()
+ * intentionally returns NOT_SUPPORTED: the mock has no real transaction
+ * store to authoritatively verify against, and per Decision 2, S0 never
+ * lets a provider fabricate a SUCCESS from a callback body. The dev-only
+ * confirm-now convenience (mockAgentCallback in PaymentsService) instead
+ * builds its verification directly from our OWN already-stored Payment
+ * amount, not from anything this class returns.
  */
 @Injectable()
 export class MockAgentService implements IPaymentProvider {
+  readonly name = 'mock';
   private readonly logger = new Logger(MockAgentService.name);
 
   async initiatePayment(request: PaymentRequest): Promise<PaymentResponse> {
-    this.logger.log(
-      `[MOCK] USSD push to ${request.phone} for TZS ${request.amount} ref: ${request.reference}`,
-    );
-
-    // Simulate network delay
+    this.logger.log(`[MOCK] USSD push to ${request.phone} for TZS ${request.amount} ref: ${request.reference}`);
     await new Promise((res) => setTimeout(res, 500));
-
-    // Mock always succeeds — replace with real API call when ready
     return {
       success: true,
-      providerRequestId: `MOCK-${request.reference}-${Date.now()}`,
+      providerRequestId: request.reference,
       message: `Payment request sent to ${request.phone}. Approve on your phone.`,
     };
   }
 
-  parseCallback(body: any): CallbackResult {
-    // Replace with real callback parsing when API is ready
-    return {
-      success: body?.status === 'SUCCESS',
-      providerRequestId: body?.providerRequestId || '',
-      providerReference: body?.transactionId,
-      failureReason: body?.reason,
-    };
+  parseCallbackSignal(body: any): CallbackSignal | null {
+    const id = body?.providerRequestId;
+    return id ? { providerRequestId: id } : null;
+  }
+
+  async verifyPayment(): Promise<ProviderVerification> {
+    return { status: 'NOT_SUPPORTED', amountMinor: null, currency: null, providerReference: null };
   }
 }
