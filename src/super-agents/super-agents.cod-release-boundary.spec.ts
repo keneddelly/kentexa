@@ -13,7 +13,11 @@ import { SuperAgentsService } from './super-agents.service';
 // This suite drives updateParcelStatus() end-to-end (mocking only its I/O
 // dependencies) to prove the fix: the canonical release is now the only path
 // to a COD seller credit, using the correct net-of-fee amount, with the
-// SELLER_SHIPMENT zero-fee exemption preserved exactly as before.
+// SELLER_SHIPMENT zero-fee exemption preserved exactly as before. A BLOCKED/
+// failed release is deliberately NOT caught-and-continued: it must reject
+// the whole request, so parcel status, buyerConfirmed, and the COD companion
+// facts either all advance together or none do -- never a partial success
+// where the parcel is marked delivered but the seller was never paid.
 describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () => {
   let service: SuperAgentsService;
   let parcelRepo: any;
@@ -152,26 +156,26 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
     );
   });
 
-  it('a BLOCKED release is caught and logged, never propagated -- the physical delivery flow must not fail because of it', async () => {
+  it('a BLOCKED canonical release rejects the WHOLE delivery request -- never catch-and-continue', async () => {
     const order = baseOrder();
     parcelRepo.findOne.mockResolvedValue(baseParcel(order));
-    orderRelease.releaseSellerProceeds.mockRejectedValue(
-      new MoneyRoutingBlockedException(MoneyRoutingBlockReason.WALLET_UNRESOLVABLE, { orderId: 900 }),
-    );
-    const errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const blocked = new MoneyRoutingBlockedException(MoneyRoutingBlockReason.WALLET_UNRESOLVABLE, { orderId: 900 });
+    orderRelease.releaseSellerProceeds.mockRejectedValue(blocked);
 
-    const result = await service.updateParcelStatus(
-      { id: 1, name: 'Agent' } as any,
-      'KTX-DAR-MZA-000010',
-      { status: ParcelStatus.DELIVERED, city: 'Dar es Salaam', codBalanceCollected: 5000 },
-      roleContext,
-    );
+    await expect(
+      service.updateParcelStatus(
+        { id: 1, name: 'Agent' } as any,
+        'KTX-DAR-MZA-000010',
+        { status: ParcelStatus.DELIVERED, city: 'Dar es Salaam', codBalanceCollected: 5000 },
+        roleContext,
+      ),
+    ).rejects.toBe(blocked);
 
-    expect(result).toMatchObject({ status: ParcelStatus.DELIVERED });
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('COD seller proceeds BLOCKED for order #900'));
-    // The parcel itself still gets marked delivered even though the release was blocked.
-    expect(parcelRepo.update).toHaveBeenCalledWith(10, expect.objectContaining({ status: ParcelStatus.DELIVERED }));
-    errSpy.mockRestore();
+    // Parcel/order/financial facts must advance together or not at all: the
+    // parcel is NOT marked DELIVERED, and no companion order state is
+    // written, when the canonical release blocks.
+    expect(parcelRepo.update).not.toHaveBeenCalled();
+    expect(orderRepo.update).not.toHaveBeenCalled();
   });
 
   it('an unexpected (non-blocked) error from the release still propagates -- never silently swallowed', async () => {

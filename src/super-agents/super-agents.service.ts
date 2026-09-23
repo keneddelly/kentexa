@@ -38,7 +38,6 @@ import { SmsService } from '../sms/sms.service';
 import { WalletService } from '../wallet/wallet.service';
 import { MoneyRoutingService } from '../money-routing/money-routing.service';
 import { OrderReleaseService } from '../money-routing/order-release.service';
-import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 import { SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
@@ -3078,26 +3077,21 @@ export class SuperAgentsService {
         // order.sellerAmount OrderReleaseService would otherwise derive —
         // order.sellerAmount itself is left untouched (still the gross
         // entitlement for historical/display purposes).
-        try {
-          await this.orderRelease.releaseSellerProceeds({
-            orderId: order.id,
-            source: 'COD_DELIVERY',
-            amount: sellerNetAfterCodFee,
-            orderUpdate: codCompanionUpdate,
-          });
-        } catch (e) {
-          if (e instanceof MoneyRoutingBlockedException) {
-            // Durably recorded as a BLOCKED routing entry by
-            // releaseSellerProceeds itself (never a Personal-wallet
-            // fallback) — the cash is already collected, so this can never
-            // block the physical delivery flow. An admin resolves the
-            // BLOCKED entry via the existing operator flow; codBalanceCollected
-            // stays false so this block is safely re-enterable on retry.
-            console.error(`COD seller proceeds BLOCKED for order #${order.id}: ${e.reason}`);
-          } else {
-            throw e;
-          }
-        }
+        //
+        // Deliberately NOT caught here. A BLOCKED/failed release (durably
+        // recorded by releaseSellerProceeds itself — never a Personal-wallet
+        // fallback) must abort this ENTIRE delivery transition, not just the
+        // financial half of it: parcel status, buyerConfirmed, and the COD
+        // companion facts all stay uncommitted together with it, so a retry
+        // of the same request is what re-attempts everything atomically,
+        // rather than the request "succeeding" with the parcel marked
+        // DELIVERED while the seller was never actually paid.
+        await this.orderRelease.releaseSellerProceeds({
+          orderId: order.id,
+          source: 'COD_DELIVERY',
+          amount: sellerNetAfterCodFee,
+          orderUpdate: codCompanionUpdate,
+        });
       } else {
         // SELLER_SHIPMENT (ZERO FEE RULE): no escrow was ever held for these
         // orders and no seller-proceeds release applies — preserved exactly
