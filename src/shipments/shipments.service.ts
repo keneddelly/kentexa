@@ -27,6 +27,12 @@ import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import {
+  ShipmentLocationInput,
+  buildLocationSnapshot,
+  toDestinationSnapshotColumns,
+  toOriginSnapshotColumns,
+} from './shipment-location-snapshot';
 
 // Public, unauthenticated projection for GET /shipments/track/:trackingNumber.
 // Deliberately excludes id, requestedByUserId, sender/receiver phone
@@ -67,6 +73,11 @@ export interface CreateShipmentDto {
   destinationWard?: string;
   destinationRegionId?: number;
   destinationWardId?: number;
+  // Optional by-value snapshot of the place the user actually SELECTED (a
+  // subset of Stage 2A's LocationCandidate). Captured once here and never
+  // rewritten; absent for free-text shipments, which simply store none.
+  originLocation?: ShipmentLocationInput;
+  destinationLocation?: ShipmentLocationInput;
   itemDescription: string;
   weightKg?: number;
   routeId?: number;
@@ -210,6 +221,8 @@ export class ShipmentsService {
         destinationRegionId,
         destinationWard: dto.destinationWard?.trim() || null,
         destinationWardId: dto.destinationWardId || null,
+        ...toOriginSnapshotColumns(buildLocationSnapshot(dto.originLocation)),
+        ...toDestinationSnapshotColumns(buildLocationSnapshot(dto.destinationLocation)),
         itemDescription: dto.itemDescription.trim(),
         weightKg: dto.weightKg || 0,
         routeId: dto.routeId || null,
