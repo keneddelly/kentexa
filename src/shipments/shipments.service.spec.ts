@@ -87,8 +87,9 @@ describe('ShipmentsService', () => {
       const result = await service.confirmShipment(7, 1, { providerId: 5 });
 
       expect(transportService.assertEligibleProvider).toHaveBeenCalledWith(5);
+      // Atomic claim: only a still-PENDING row can be confirmed.
       expect(shipmentRepo.update).toHaveBeenCalledWith(
-        1,
+        { id: 1, status: ShipmentStatus.PENDING },
         expect.objectContaining({ status: ShipmentStatus.CONFIRMED, providerId: 5 }),
       );
       expect(result.parcel).toBeDefined();

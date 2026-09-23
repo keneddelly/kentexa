@@ -2,7 +2,9 @@
  * Shipment historical location snapshot (Stage 2B) -- pure normalization.
  *
  * Turns a user-selected Stage 2A LocationCandidate (or a client-sent subset
- * of one) into the by-value columns persisted on Shipment. No I/O, no
+ * of one) into the by-value columns persisted on Shipment. Every value is
+ * UNTRUSTED, client-asserted historical input -- what the user submitted,
+ * not something the server or a provider verified. No I/O, no
  * provider lookup, no guessing: an absent or unusable input yields an
  * all-null snapshot, which is exactly what a legacy/free-text shipment has.
  */

@@ -97,8 +97,10 @@ export class Shipment {
   // none, and a label-only/administrative location is valid without
   // coordinates. Coordinates are stored as a pair or not at all. No FK to any
   // place table -- these are values, so later seed-data or address changes can
-  // never rewrite where this shipment was actually going. Provider fields are
-  // provenance only (as asserted by the selecting client), not a trust signal.
+  // never rewrite where this shipment was actually going. All values,
+  // including provider fields, are UNTRUSTED client-asserted historical
+  // input (what the user submitted), never verified provider truth and not
+  // a trust signal.
   // Never exposed by the public tracking projection.
   @Column({ type: 'varchar', length: 200, nullable: true })
   originLocationLabel: string | null;

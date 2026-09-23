@@ -194,10 +194,13 @@ describe('Shipment historical location snapshot (Stage 2B)', () => {
     parcelRepo.findOne.mockResolvedValue(null);
     const first = await service.confirmShipment(7, 1, { providerId: 5 });
 
-    // Retry: the shipment is already CONFIRMED -> rejected, nothing written.
+    // Retry: the shipment is already CONFIRMED -> idempotent completion,
+    // no Shipment write at all (so no snapshot write either).
     shipmentRepo.findOne.mockResolvedValue({ ...pendingShipment(), status: ShipmentStatus.CONFIRMED, providerId: 5 });
+    parcelRepo.findOne.mockResolvedValue({ id: 500 });
     shipmentRepo.update.mockClear();
-    await expect(service.confirmShipment(7, 1, { providerId: 5 })).rejects.toThrow();
+    const retry = await service.confirmShipment(7, 1, { providerId: 5 });
+    expect(retry.parcel.id).toBe(500);
     expect(shipmentRepo.update).not.toHaveBeenCalled();
 
     expect(first.parcel).toBeDefined();
