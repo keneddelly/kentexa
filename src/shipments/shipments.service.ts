@@ -28,6 +28,28 @@ import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 
+// Public, unauthenticated projection for GET /shipments/track/:trackingNumber.
+// Deliberately excludes id, requestedByUserId, sender/receiver phone
+// numbers, and every loose internal id (routeId/availabilityId/providerId/
+// originWardId/destinationWardId) — a receiver tracking a shipment has no
+// account and no business seeing any of Kentexa's internal bookkeeping.
+export interface PublicShipmentTracking {
+  trackingNumber: string | null;
+  status: ShipmentStatus;
+  originCity: string;
+  destinationCity: string;
+  itemDescription: string;
+  weightKg: number;
+  pickupOption: ShipmentHandoffOption;
+  deliveryOption: ShipmentHandoffOption;
+  receiverName: string;
+  collectedAt: Date | null;
+  deliveredAt: Date | null;
+  completedAt: Date | null;
+  createdAt: Date;
+  parcelTrackingNumber: string | null;
+}
+
 export interface CreateShipmentDto {
   senderName?: string;
   senderPhone?: string;
@@ -213,17 +235,35 @@ export class ShipmentsService {
     });
   }
 
-  async trackShipment(trackingNumber: string) {
+  // Public, unauthenticated — a receiver who never created a Kentexa
+  // account still needs to track a shipment addressed to them. Returns a
+  // curated PublicShipmentTracking projection only (see its own doc
+  // comment for exactly what is and isn't included) rather than spreading
+  // the raw Shipment entity. Once a Parcel exists, the frontend re-fetches
+  // /super-agents/track/:parcelTrackingNumber for the richer, already-curated
+  // Parcel view — this method never grows to replicate that shape itself.
+  async trackShipment(trackingNumber: string): Promise<PublicShipmentTracking> {
     const s = await this.shipmentRepo.findOne({ where: { trackingNumber } });
     if (!s) throw new NotFoundException('Shipment not found');
-    // Once a Parcel exists, point the caller at it — TrackParcel.js re-fetches
-    // /super-agents/track/:parcelTrackingNumber for the same rich tracking
-    // view an Order-based delivery already gets, rather than this module
-    // rebuilding that shape itself.
     const parcel = await this.parcelRepo.findOne({
       where: { shipment: { id: s.id } },
     });
-    return { ...s, parcelTrackingNumber: parcel?.trackingNumber || null };
+    return {
+      trackingNumber: s.trackingNumber,
+      status: s.status,
+      originCity: s.originCity,
+      destinationCity: s.destinationCity,
+      itemDescription: s.itemDescription,
+      weightKg: s.weightKg,
+      pickupOption: s.pickupOption,
+      deliveryOption: s.deliveryOption,
+      receiverName: s.receiverName,
+      collectedAt: s.collectedAt,
+      deliveredAt: s.deliveredAt,
+      completedAt: s.completedAt,
+      createdAt: s.createdAt,
+      parcelTrackingNumber: parcel?.trackingNumber || null,
+    };
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -263,6 +303,10 @@ export class ShipmentsService {
     if (!providerId) {
       throw new BadRequestException('Select a provider before confirming');
     }
+    // Delegated to the transport domain's own provider policy — never
+    // redefined here. A nonexistent/unverified/suspended provider fails
+    // closed with the same error createAssignment() already gives.
+    await this.transportService.assertEligibleProvider(providerId);
 
     const updates: Partial<Shipment> = {
       status: ShipmentStatus.CONFIRMED,
@@ -350,7 +394,25 @@ export class ShipmentsService {
       source: 'shipment',
       status: ParcelStatus.PENDING,
     });
-    const saved = await this.parcelRepo.save(created);
+    // UQ_parcel_shipmentId (Stage 1 integrity migration) is the real
+    // authority on "at most one Parcel per Shipment" — the find-then-create
+    // check above is only a fast path, not the guarantee. Under a genuine
+    // concurrent confirmShipment() race, two requests can both pass that
+    // check before either insert commits; exactly one INSERT then wins and
+    // the other hits the unique index (23505). Recover deterministically by
+    // returning the winner's row instead of surfacing a raw database error.
+    let saved: Parcel;
+    try {
+      saved = await this.parcelRepo.save(created);
+    } catch (err: any) {
+      if (err?.code === '23505') {
+        const winner = await this.parcelRepo.findOne({
+          where: { shipment: { id: shipment.id } },
+        });
+        if (winner) return winner;
+      }
+      throw err;
+    }
     saved.trackingNumber = `KTX-PCL-${saved.id}`;
     return this.parcelRepo.save(saved);
   }

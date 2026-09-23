@@ -205,6 +205,19 @@ export class TransportService {
     return p;
   }
 
+  // Single source of truth for "is this provider id real and eligible to be
+  // selected for a shipment/assignment right now" — mirrors the exact check
+  // createAssignment() already applies, so any caller (Shipment confirmation
+  // included) gets the same provider policy without redefining it locally.
+  async assertEligibleProvider(providerId: number): Promise<TransportProvider> {
+    const provider = await this.providerRepo.findOne({ where: { id: providerId } });
+    if (!provider) throw new NotFoundException('Msafirishaji hajapatikana');
+    if (![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(provider.status)) {
+      throw new BadRequestException('Msafirishaji huyu hajahakikiwa au hafanyi kazi kwa sasa');
+    }
+    return provider;
+  }
+
   // ── Public: provider info + active routes for CommerceProfile.js ─────────
   // Never exposes apiKey, webhookEnabled, contract/fee details.
   async findPublicByUserId(userId: number) {
