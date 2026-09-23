@@ -27,6 +27,12 @@ import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import {
+  ShipmentLocationInput,
+  buildLocationSnapshot,
+  toDestinationSnapshotColumns,
+  toOriginSnapshotColumns,
+} from './shipment-location-snapshot';
 
 // Public, unauthenticated projection for GET /shipments/track/:trackingNumber.
 // Deliberately excludes id, requestedByUserId, sender/receiver phone
@@ -67,6 +73,14 @@ export interface CreateShipmentDto {
   destinationWard?: string;
   destinationRegionId?: number;
   destinationWardId?: number;
+  // Optional by-value snapshot of the place the user actually SELECTED (a
+  // subset of Stage 2A's LocationCandidate). Captured once here and never
+  // rewritten; absent for free-text shipments, which simply store none.
+  // UNTRUSTED, client-asserted historical input: coordinates, providerKey
+  // and resolutionMethod are recorded as the user submitted them, not
+  // verified by the server or by any provider. Never treat as verified truth.
+  originLocation?: ShipmentLocationInput;
+  destinationLocation?: ShipmentLocationInput;
   itemDescription: string;
   weightKg?: number;
   routeId?: number;
@@ -183,14 +197,27 @@ export class ShipmentsService {
       dto.destinationRegionId ?? this.resolveRegionId(dto.destinationCity),
     ]);
 
+    // A providerId on create is only a stored SELECTION -- it never confirms
+    // anything (see status below). Still validated here with the canonical
+    // provider policy so a nonexistent/unverified/suspended provider is
+    // rejected up front, before any capacity is reserved or row inserted.
+    // confirmShipment() re-validates, since provider state can change.
+    if (dto.providerId) {
+      await this.transportService.assertEligibleProvider(dto.providerId);
+    }
+
     let priceQuoted: number | null = null;
     if (dto.routeId) {
       priceQuoted = await this.estimateShipmentPrice(dto.routeId, dto.weightKg || 0);
     }
 
-    // A shipment against a chosen slot is real demand against it, whether
-    // or not a formal TransportAssignment gets created later by a provider/
-    // super-agent dispatching it — same accounting createAssignment does.
+    // Capacity boundary: a reservation FOLLOWS availabilityId -- acquired
+    // when a slot is first attached to a Shipment (here, or in
+    // confirmShipment if the slot changes), released when detached or on
+    // cancel. It is deliberately not deferred to confirmation: pre-existing
+    // PENDING rows already hold their reservation from creation, and moving
+    // it would double-reserve them. A shipment against a chosen slot is real
+    // demand whether or not a TransportAssignment is created later.
     if (dto.availabilityId) {
       await this.transportService.reserveCapacity(dto.availabilityId, dto.weightKg || 0);
     }
@@ -210,6 +237,8 @@ export class ShipmentsService {
         destinationRegionId,
         destinationWard: dto.destinationWard?.trim() || null,
         destinationWardId: dto.destinationWardId || null,
+        ...toOriginSnapshotColumns(buildLocationSnapshot(dto.originLocation)),
+        ...toDestinationSnapshotColumns(buildLocationSnapshot(dto.destinationLocation)),
         itemDescription: dto.itemDescription.trim(),
         weightKg: dto.weightKg || 0,
         routeId: dto.routeId || null,
@@ -218,7 +247,12 @@ export class ShipmentsService {
         pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
         deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
         priceQuoted,
-        status: dto.providerId ? ShipmentStatus.CONFIRMED : ShipmentStatus.PENDING,
+        // Always PENDING. CONFIRMED is reachable only through
+        // confirmShipment(), the one boundary that claims the transition,
+        // handles capacity and creates the Parcel. Minting CONFIRMED here
+        // used to produce a Shipment with no Parcel that could never be
+        // confirmed afterwards.
+        status: ShipmentStatus.PENDING,
       }),
     );
 
@@ -283,10 +317,18 @@ export class ShipmentsService {
     }
   }
 
-  // Marks a Shipment as matched to a provider/slot and — this is the point
-  // it actually enters Kentexa's logistics network — creates (or reuses)
-  // its Parcel. Requester-initiated (picking a provider they liked) or
-  // staff-initiated; either way the shipment's own owner check happens here.
+  // The single canonical confirmation boundary. This is the ONLY place a
+  // Shipment becomes CONFIRMED and the only place its Parcel is created --
+  // createShipment() never confirms, whatever it is given.
+  //
+  // PENDING -> CONFIRMED is an atomic conditional claim
+  // (UPDATE ... WHERE id = ? AND status = 'pending'). Only the caller that
+  // wins the claim performs side effects (slot change), so a retried or
+  // concurrent confirmation can never reserve capacity twice. Anyone else --
+  // a client retry, a lost race, or a legacy row that was born CONFIRMED --
+  // takes completeConfirmedShipment(): no Shipment write, no capacity change,
+  // just "make sure exactly one Parcel exists". Location snapshot columns are
+  // never part of any write here.
   async confirmShipment(
     userId: number,
     shipmentId: number,
@@ -296,6 +338,10 @@ export class ShipmentsService {
     if (!shipment) throw new NotFoundException('Shipment not found');
     if (shipment.requestedByUserId !== userId) {
       throw new ForbiddenException('Not your shipment');
+    }
+
+    if (shipment.status === ShipmentStatus.CONFIRMED) {
+      return this.completeConfirmedShipment(shipment);
     }
     this.assertTransition(shipment.status, ShipmentStatus.CONFIRMED);
 
@@ -312,20 +358,54 @@ export class ShipmentsService {
       status: ShipmentStatus.CONFIRMED,
       providerId,
     };
-    if (dto.availabilityId && dto.availabilityId !== shipment.availabilityId) {
-      await this.transportService.reserveCapacity(
-        dto.availabilityId,
-        Number(shipment.weightKg) || 1,
-      );
-      updates.availabilityId = dto.availabilityId;
-    }
+    const switchesSlot =
+      !!dto.availabilityId && dto.availabilityId !== shipment.availabilityId;
+    if (switchesSlot) updates.availabilityId = dto.availabilityId;
     if (dto.routeId) updates.routeId = dto.routeId;
 
-    await this.shipmentRepo.update(shipment.id, updates);
-    const updated = await this.shipmentRepo.findOne({ where: { id: shipment.id } });
+    // Claim BEFORE any capacity side effect: exactly one concurrent caller
+    // gets affected = 1.
+    const claim = await this.shipmentRepo.update(
+      { id: shipment.id, status: ShipmentStatus.PENDING },
+      updates,
+    );
+    if (claim?.affected === 0) {
+      const current = await this.shipmentRepo.findOne({ where: { id: shipment.id } });
+      if (current?.status === ShipmentStatus.CONFIRMED) {
+        return this.completeConfirmedShipment(current);
+      }
+      this.assertTransition(current?.status ?? shipment.status, ShipmentStatus.CONFIRMED);
+    }
 
+    // Claim winner only. The old slot's reservation (held since creation) is
+    // superseded, so it is given back rather than leaked.
+    if (switchesSlot) {
+      const weight = Number(shipment.weightKg) || 1;
+      await this.transportService.reserveCapacity(dto.availabilityId!, weight);
+      if (shipment.availabilityId) {
+        await this.transportService.releaseCapacity(shipment.availabilityId, weight);
+      }
+    }
+
+    const updated = await this.shipmentRepo.findOne({ where: { id: shipment.id } });
     const parcel = await this.ensureParcelForShipment(updated!);
     return { shipment: updated!, parcel };
+  }
+
+  // Idempotent completion for a Shipment that is already CONFIRMED. Never
+  // writes the Shipment or touches capacity and ignores any provider/slot/
+  // route in the request (a confirmed Shipment's provider is not editable
+  // here). Re-validates the stored provider, failing closed, then reuses or
+  // creates exactly one Parcel under UQ_parcel_shipmentId.
+  private async completeConfirmedShipment(
+    shipment: Shipment,
+  ): Promise<{ shipment: Shipment; parcel: Parcel }> {
+    if (!shipment.providerId) {
+      throw new BadRequestException('Select a provider before confirming');
+    }
+    await this.transportService.assertEligibleProvider(shipment.providerId);
+    const parcel = await this.ensureParcelForShipment(shipment);
+    return { shipment, parcel };
   }
 
   // Only reachable before physical collection has started — matches

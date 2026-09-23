@@ -89,6 +89,61 @@ export class Shipment {
   @Column({ type: 'int', nullable: true })
   destinationWardId: number | null;
 
+  // ── Historical location snapshot (Stage 2B) ──────────────────────────────
+  // By-value record of the place the requester SELECTED, captured once in
+  // createShipment() and never written again (no code path edits Shipment
+  // location after creation; shipment-location-snapshot.spec.ts guards that).
+  // Every column is nullable: legacy rows and free-text shipments simply have
+  // none, and a label-only/administrative location is valid without
+  // coordinates. Coordinates are stored as a pair or not at all. No FK to any
+  // place table -- these are values, so later seed-data or address changes can
+  // never rewrite where this shipment was actually going. All values,
+  // including provider fields, are UNTRUSTED client-asserted historical
+  // input (what the user submitted), never verified provider truth and not
+  // a trust signal.
+  // Never exposed by the public tracking projection.
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  originLocationLabel: string | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  originLatitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  originLongitude: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  originRegionName: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  originDistrictName: string | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  originProviderKey: string | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  originResolutionMethod: string | null;
+
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  destinationLocationLabel: string | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  destinationLatitude: number | null;
+
+  @Column({ type: 'double precision', nullable: true })
+  destinationLongitude: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  destinationRegionName: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  destinationDistrictName: string | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  destinationProviderKey: string | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  destinationResolutionMethod: string | null;
+
   @Column({ type: 'text' })
   itemDescription: string;
 
