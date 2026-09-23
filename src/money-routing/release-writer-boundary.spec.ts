@@ -40,6 +40,29 @@ describe('release-writer boundary', () => {
     expect(offenders).toEqual([]);
   });
 
+  it('only OrderReleaseService calls MoneyRoutingService.creditSellerProceeds/creditSellerProceedsIn directly', () => {
+    // The escrow-column scan above guards the STATE write; it does not (and
+    // structurally cannot, as written) guard the lower-level money-movement
+    // primitive itself. This is the gap SuperAgentsService.updateParcelStatus()
+    // exploited: it called MoneyRoutingService.creditSellerProceeds() directly,
+    // reaching a real wallet credit while leaving order.escrowStatus /
+    // fundsReleasedAt permanently unsynchronized with it (S0/I2G Issue #12).
+    const CALLER_ALLOWED = new Set(['money-routing/order-release.service.ts']);
+    const offenders: string[] = [];
+    for (const file of walk(SRC)) {
+      const rel = path.relative(SRC, file).split(path.sep).join('/');
+      if (CALLER_ALLOWED.has(rel) || rel === 'money-routing/money-routing.service.ts') continue;
+      fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+        const t = line.trim();
+        if (t.startsWith('//') || t.startsWith('*')) return;
+        if (/\b(creditSellerProceeds|creditSellerProceedsIn)\s*\(/.test(t)) {
+          offenders.push(`${rel}:${i + 1}: ${t}`);
+        }
+      });
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it('INVARIANT: the canonical release has no bypass — routing is unconditional and no flag can skip it', () => {
     const svc = fs.readFileSync(path.join(SRC, 'money-routing/order-release.service.ts'), 'utf8');
     expect(svc).not.toMatch(/RELEASE_GUARD_ENFORCE/);

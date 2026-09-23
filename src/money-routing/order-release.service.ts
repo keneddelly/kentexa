@@ -13,6 +13,7 @@ const RELEASE_COMPANION_COLUMNS = new Set([
   'status', 'paymentStatus', 'buyerConfirmedAt', 'deliveredAt', 'completedAt', 'confirmationToken',
   'buyerRating', 'buyerReview', 'reviewedAt', 'superAgentRating', 'superAgentReview',
   'transportRating', 'transportReview', 'autoConfirmed', 'autoConfirmAt', 'disputeResolution',
+  'codBalanceCollected', 'codBalanceCollectedByAgentId', 'codBalanceCollectedAt',
 ]);
 
 export interface ReleaseOutcome {
@@ -61,6 +62,16 @@ export class OrderReleaseService {
     /** Completion facts to write atomically WITH the release (allow-listed order columns only). */
     orderUpdate?: Record<string, unknown>;
     ref?: string | null;
+    /**
+     * Explicit override for the amount actually credited, when it is NOT
+     * simply order.sellerAmount -- e.g. COD delivery, where the real payout
+     * is sellerAmount minus a handling fee only known once the agent reports
+     * what was physically collected. order.sellerAmount itself is left
+     * untouched (it remains the gross entitlement); only the wallet credit
+     * uses this figure. Omit to keep the existing sellerAmount-derived
+     * behavior unchanged for every other caller.
+     */
+    amount?: number;
   }): Promise<ReleaseOutcome> {
     const { orderId } = input;
     const companion = Object.entries(input.orderUpdate ?? {}).filter(([, v]) => v !== undefined);
@@ -110,7 +121,10 @@ export class OrderReleaseService {
         });
       }
 
-      const amount = Math.round(Number(order.sellerAmount || 0) * 100) / 100;
+      const amount =
+        input.amount !== undefined
+          ? Math.round(Number(input.amount) * 100) / 100
+          : Math.round(Number(order.sellerAmount || 0) * 100) / 100;
       let routing: RoutingOutcome | null = null;
 
       // Routing is MANDATORY whenever there is a seller and positive proceeds. No flag, config or

@@ -37,6 +37,8 @@ import {
 import { SmsService } from '../sms/sms.service';
 import { WalletService } from '../wallet/wallet.service';
 import { MoneyRoutingService } from '../money-routing/money-routing.service';
+import { OrderReleaseService } from '../money-routing/order-release.service';
+import { MoneyRoutingBlockedException } from '../money-routing/order-routing-target';
 import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
 import { SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
 import { BusinessCustomerService } from '../business/business-customer.service';
@@ -178,6 +180,7 @@ export class SuperAgentsService {
     private walletService: WalletService,
     private roleContextService: RoleContextService,
     private moneyRouting: MoneyRoutingService,
+    private orderRelease: OrderReleaseService,
   ) {}
 
   // Multi-Business Authority Stage 1B. Centralizes every "resolve THIS
@@ -3024,12 +3027,12 @@ export class SuperAgentsService {
         );
       }
       const codAgentId = handlerAgent?.id ?? null;
-      await this.orderRepo.update(order.id, {
+      const codCompanionUpdate = {
         codBalanceCollected: true,
         codBalanceCollectedByAgentId: codAgentId,
         codBalanceCollectedAt: new Date(),
         paymentStatus: OrderPaymentStatus.PAID,
-      } as any);
+      };
 
       // COD is not free to run — collecting cash/mobile money at the door
       // is real extra risk and work for the delivering agent, on top of
@@ -3064,18 +3067,42 @@ export class SuperAgentsService {
       );
 
       if (!isManuallyArrangedOrder && order.seller?.id) {
-        // I2G: the cash is already collected, so this can never block the physical
-        // flow -- but the credit is fail-closed: an unroutable order records a
-        // BLOCKED routing entry (durable, investigable), never a Personal-wallet credit.
-        // Same immutable seller-proceeds event as escrow release / webhook / invoice-paid.
-        const routed = await this.moneyRouting.creditSellerProceeds({
-          orderId: order.id,
-          amount: sellerNetAfterCodFee,
-          source: 'COD_DELIVERY',
-        });
-        if (routed.state === 'BLOCKED') {
-          console.error(`COD seller proceeds BLOCKED for order #${order.id}: ${routed.blockReason}`);
+        // S0/I2G: route through the canonical release so the wallet credit,
+        // the escrow/payout release state, and these companion facts commit
+        // atomically in ONE transaction — never a separate, uncoordinated
+        // write (as before) followed by an independent money-routing call
+        // that could succeed or fail on its own. `amount` is an explicit
+        // override, not order.sellerAmount: the real payout here is net of
+        // a COD handling fee only knowable once the agent reports what was
+        // physically collected, so it can differ from the gross
+        // order.sellerAmount OrderReleaseService would otherwise derive —
+        // order.sellerAmount itself is left untouched (still the gross
+        // entitlement for historical/display purposes).
+        try {
+          await this.orderRelease.releaseSellerProceeds({
+            orderId: order.id,
+            source: 'COD_DELIVERY',
+            amount: sellerNetAfterCodFee,
+            orderUpdate: codCompanionUpdate,
+          });
+        } catch (e) {
+          if (e instanceof MoneyRoutingBlockedException) {
+            // Durably recorded as a BLOCKED routing entry by
+            // releaseSellerProceeds itself (never a Personal-wallet
+            // fallback) — the cash is already collected, so this can never
+            // block the physical delivery flow. An admin resolves the
+            // BLOCKED entry via the existing operator flow; codBalanceCollected
+            // stays false so this block is safely re-enterable on retry.
+            console.error(`COD seller proceeds BLOCKED for order #${order.id}: ${e.reason}`);
+          } else {
+            throw e;
+          }
         }
+      } else {
+        // SELLER_SHIPMENT (ZERO FEE RULE): no escrow was ever held for these
+        // orders and no seller-proceeds release applies — preserved exactly
+        // as before, a plain companion write with no money-routing involved.
+        await this.orderRepo.update(order.id, codCompanionUpdate as any);
       }
 
       // Attributed to whichever agent actually handled this delivery —
