@@ -274,13 +274,31 @@ export class OrdersService {
     const isDigitalProduct = (product as any).productType === 'digital';
     if (isDigitalProduct) deliveryFee = 0;
 
+    // 'agent'/'bus'/'courier' are the intercity shipping methods (see the
+    // COD comment further below); everything else ('boda', 'kentexa_delivery',
+    // 'direct') is same-city. Computed here (moved up from its original spot
+    // below) because the collection-intent gate immediately following needs
+    // it — collection pickup is an intercity-agent concept only, never
+    // something a same-city boda/Kentexa Delivery order offers.
+    const isIntercity = ['agent', 'bus', 'courier'].includes(chosenMethod);
+
     // ── Collection fee — added to total when seller requests agent pickup ────
     // Buyer pays this as part of delivery, seller not penalised for rural
     // area. needsCollection/isRuralCollection are legitimate buyer-declared
-    // intent (real, typed DTO fields); the FEE itself remains a fixed,
+    // intent (real, typed DTO fields), but the frontend's own rule
+    // (needsCollection && !isSameCity, i.e. intercity only) must be
+    // enforced server-side too — the backend must not rely on the client to
+    // have honored it. A same-city (boda/Kentexa Delivery) order requesting
+    // collection is silently normalized to "no collection" rather than
+    // trusted or rejected outright, matching how every other
+    // buyer-declared-but-contextually-inapplicable intent is already
+    // handled in this method (e.g. isDigitalProduct zeroing deliveryFee
+    // above) rather than failing the whole checkout over it.
+    // isRuralCollection has no effect at all unless collection is both
+    // requested AND actually eligible. The FEE itself remains a fixed,
     // server-derived rate — never a client-submitted amount.
-    const needsCollection = !isDigitalProduct && Boolean(dto.needsCollection);
-    const isRuralCollection = Boolean(dto.isRuralCollection);
+    const needsCollection = !isDigitalProduct && isIntercity && Boolean(dto.needsCollection);
+    const isRuralCollection = needsCollection && Boolean(dto.isRuralCollection);
     const collectionFee = needsCollection ? (isRuralCollection ? 3000 : 1500) : 0;
 
     const totalAmount =
@@ -291,10 +309,9 @@ export class OrdersService {
     const commission = calcCommission(baseAmount, category);
 
     // ── Cash on Delivery ─────────────────────────────────────────────────────
-    // 'agent'/'bus'/'courier' are the intercity shipping methods elsewhere
-    // in this file's own comment above (line ~192-194); everything else
-    // ('boda', 'kentexa_delivery', 'direct') is same-city. Digital products
-    // have nothing to deliver, so COD never applies to them.
+    // isIntercity is computed above now (the collection-intent gate needs
+    // it first). Digital products have nothing to deliver, so COD never
+    // applies to them.
     //
     // codEnabled is the seller's own explicit, product-level permission —
     // never assumed. Checked server-side (never trust the frontend, which
@@ -307,7 +324,6 @@ export class OrdersService {
       );
     }
     const isCod = !isDigitalProduct && buyerRequestedCod;
-    const isIntercity = ['agent', 'bus', 'courier'].includes(chosenMethod);
     let codUpfrontAmount: number | null = null;
     let codRemainingBalance: number | null = null;
     if (isCod) {

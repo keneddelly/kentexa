@@ -113,11 +113,86 @@ describe('OrdersService.create() — Checkout DTO Integrity', () => {
     );
   });
 
+  // Collection intent must be validated against the resolved shipping
+  // context server-side, exactly like shippingMethod itself — the frontend
+  // already only ever sends needsCollection for intercity/agent orders
+  // (needsCollection && !isSameCity), but the backend must not rely on that.
+  describe('collection intent — contextual validation, not trusted at face value', () => {
+    it('intercity/agent + needsCollection=true succeeds and charges the server-derived urban/rural rate', async () => {
+      const product = baseProduct({ shippingMethod: 'agent' });
+      const productsService = { findOne: jest.fn().mockResolvedValue(product), decreaseStock: jest.fn().mockResolvedValue(undefined) };
+      const repo = { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 910 })), update: jest.fn().mockResolvedValue(undefined) };
+      const svc = build<OrdersService>({ repo, productsService });
+
+      await svc.create(
+        { productId: 10, quantity: 1, deliveryAddress: 'Mwanza', needsCollection: true, isRuralCollection: false } as any,
+        buyer as any,
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ needsCollection: true, isRuralCollection: false, collectionFee: 1500 }),
+      );
+    });
+
+    it('same-city boda + needsCollection=true does NOT create a paid collection service (silently normalized, not trusted)', async () => {
+      const product = baseProduct({ shippingMethod: 'agent' });
+      const productsService = { findOne: jest.fn().mockResolvedValue(product), decreaseStock: jest.fn().mockResolvedValue(undefined) };
+      const repo = { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 911 })), update: jest.fn().mockResolvedValue(undefined) };
+      const getDeliveryMethods = jest.fn().mockResolvedValue({ isSameCity: true, batchZone: null, methods: [{ key: 'boda', fee: 2500 }] });
+      const svc = build<OrdersService>({ repo, productsService, getDeliveryMethods });
+
+      await svc.create(
+        { productId: 10, quantity: 1, deliveryAddress: 'Kariakoo', shippingMethod: 'boda', needsCollection: true, isRuralCollection: true } as any,
+        buyer as any,
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ needsCollection: false, isRuralCollection: false, collectionFee: null }),
+      );
+    });
+
+    it('same-city Kentexa Delivery + needsCollection=true does NOT create a paid collection service either', async () => {
+      const product = baseProduct({ shippingMethod: 'agent' });
+      const productsService = { findOne: jest.fn().mockResolvedValue(product), decreaseStock: jest.fn().mockResolvedValue(undefined) };
+      const repo = { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 912 })), update: jest.fn().mockResolvedValue(undefined) };
+      const getDeliveryMethods = jest.fn().mockResolvedValue({ isSameCity: true, batchZone: 'Mbezi', methods: [{ key: 'kentexa_delivery', fee: 3000 }] });
+      const svc = build<OrdersService>({ repo, productsService, getDeliveryMethods });
+
+      await svc.create(
+        { productId: 10, quantity: 1, deliveryAddress: 'Mbezi', shippingMethod: 'kentexa_delivery', needsCollection: true } as any,
+        buyer as any,
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ needsCollection: false, collectionFee: null }),
+      );
+    });
+
+    it('isRuralCollection=true with needsCollection=false (or normalized-false) cannot create a fee/state side effect', async () => {
+      const product = baseProduct({ shippingMethod: 'agent' });
+      const productsService = { findOne: jest.fn().mockResolvedValue(product), decreaseStock: jest.fn().mockResolvedValue(undefined) };
+      const repo = { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 913 })), update: jest.fn().mockResolvedValue(undefined) };
+      const svc = build<OrdersService>({ repo, productsService });
+
+      await svc.create(
+        { productId: 10, quantity: 1, deliveryAddress: 'Mwanza', needsCollection: false, isRuralCollection: true } as any,
+        buyer as any,
+      );
+
+      expect(repo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ needsCollection: false, isRuralCollection: false, collectionFee: null }),
+      );
+    });
+  });
+
   it('a client-forged deliveryFee/collectionFee on the raw request object has NO effect on the persisted amounts', async () => {
     const product = baseProduct(); // bodaFee: 2500
     const productsService = { findOne: jest.fn().mockResolvedValue(product), decreaseStock: jest.fn().mockResolvedValue(undefined) };
     const repo = { create: jest.fn((v) => v), save: jest.fn(async (v) => ({ ...v, id: 903 })), update: jest.fn().mockResolvedValue(undefined) };
-    const getDeliveryMethods = jest.fn().mockResolvedValue({ isSameCity: true, batchZone: null, methods: [{ key: 'boda', fee: 2500 }] });
+    // Intercity ('agent') so needsCollection is legitimately eligible here —
+    // this test is specifically about fee tampering, not collection-context
+    // gating (covered separately below).
+    const getDeliveryMethods = jest.fn().mockResolvedValue({ isSameCity: false, batchZone: null, methods: [{ key: 'agent', fee: 4000 }] });
     const svc = build<OrdersService>({ repo, productsService, getDeliveryMethods });
 
     // Simulates a payload that bypassed the DTO's own type (e.g. a direct API
@@ -127,8 +202,8 @@ describe('OrdersService.create() — Checkout DTO Integrity', () => {
     const tamperedDto: any = {
       productId: 10,
       quantity: 1,
-      deliveryAddress: 'Kariakoo',
-      shippingMethod: 'boda',
+      deliveryAddress: 'Mwanza',
+      shippingMethod: 'agent',
       needsCollection: true,
       isRuralCollection: false,
       deliveryFee: 1,
@@ -138,7 +213,7 @@ describe('OrdersService.create() — Checkout DTO Integrity', () => {
     await svc.create(tamperedDto, buyer as any);
 
     expect(repo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ deliveryFeeAmount: 2500, collectionFee: 1500 }), // server-derived, ignoring the tampered 1/1
+      expect.objectContaining({ deliveryFeeAmount: 4000, collectionFee: 1500 }), // server-derived, ignoring the tampered 1/1
     );
   });
 
