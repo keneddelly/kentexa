@@ -18,6 +18,7 @@ import {
   releaseSlotAtomic,
   reserveSlotAtomic,
 } from './slot-capacity';
+import { cityMatchParams, cityMatchSql, normalizeDiscoveryCity } from './city-match';
 import {
   TransportProvider,
   ProviderStatus,
@@ -557,10 +558,19 @@ export class TransportService {
     fromCity: string,
     toCity: string,
     weightKg = 0,
+    opts: { allowUnconstrainedSide?: boolean } = {},
   ): Promise<{
     published: ProviderAvailability[];
     providers: TransportProvider[];
   }> {
+    // Stage 2E hardening (shared PUBLIC path): trimmed 2..80 characters, LIKE
+    // wildcards literal (see city-match.ts). null = an explicitly
+    // unconstrained side, only ever allowed for GET /transport/available.
+    const from = normalizeDiscoveryCity(fromCity, opts.allowUnconstrainedSide);
+    const to = normalizeDiscoveryCity(toCity, opts.allowUnconstrainedSide);
+    if (from === null && to === null) {
+      throw new BadRequestException('At least one of the two cities is required');
+    }
     const today = new Date().toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
@@ -574,8 +584,7 @@ export class TransportService {
     // abbreviation than the other. Checking both containment directions
     // fixes it without requiring every existing free-text city value to be
     // rewritten.
-    const cityMatch = (column: string, param: string) =>
-      `(LOWER(${column}) LIKE LOWER(:${param}) OR LOWER(:${param}Raw) LIKE '%' || LOWER(${column}) || '%')`;
+    const cityMatch = cityMatchSql;
 
     const publishedQuery = this.availabilityRepo
       .createQueryBuilder('a')
@@ -589,8 +598,9 @@ export class TransportService {
         publishedProviderStatuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
       })
       .andWhere('a.date IN (:...dates)', { dates: [today, tomorrow] })
-      .andWhere('a.usedSlots < a.totalSlots')
-      .andWhere(
+      .andWhere('a.usedSlots < a.totalSlots');
+    if (from !== null) {
+      publishedQuery.andWhere(
         // Origin/destination-city columns only cover intercity routes — a
         // last-mile route's coverage lives in coverageWards/coverageCity
         // instead, and a local-loop van's in loopStops. Without matching
@@ -599,12 +609,15 @@ export class TransportService {
         // who actually cover exactly that — only real intercity routes
         // ever matched at all.
         `(${cityMatch('a.fromCity', 'from')} OR ${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')})`,
-        { from: `%${fromCity}%`, fromRaw: fromCity },
-      )
-      .andWhere(
-        `(${cityMatch('a.toCity', 'to')} OR ${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
-        { to: `%${toCity}%`, toRaw: toCity },
+        cityMatchParams('from', from),
       );
+    }
+    if (to !== null) {
+      publishedQuery.andWhere(
+        `(${cityMatch('a.toCity', 'to')} OR ${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
+        cityMatchParams('to', to),
+      );
+    }
     if (weightKg > 0) {
       publishedQuery.andWhere(
         '(a.totalCapacityKg - a.usedCapacityKg) >= :weightKg',
@@ -627,16 +640,20 @@ export class TransportService {
       )
       .where('p.status IN (:...verifiedStatuses)', {
         verifiedStatuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
-      })
-      .andWhere(
+      });
+    if (from !== null) {
+      providersQuery.andWhere(
         // Same last-mile/local-loop coverage extension as publishedQuery above.
         `(${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.destinationCity', 'from')} OR ${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')})`,
-        { from: `%${fromCity}%`, fromRaw: fromCity },
-      )
-      .andWhere(
-        `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.originCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
-        { to: `%${toCity}%`, toRaw: toCity },
+        cityMatchParams('from', from),
       );
+    }
+    if (to !== null) {
+      providersQuery.andWhere(
+        `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.originCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
+        cityMatchParams('to', to),
+      );
+    }
     if (weightKg > 0) {
       // 0 means "not specified" on registration, not "zero capacity" —
       // never exclude a provider who simply never declared a max.
@@ -658,9 +675,14 @@ export class TransportService {
   // notes) embedded in every result the way findAvailableForRoute's
   // internal shape does. Same underlying query, safe projection on top.
   async findPublicAvailabilityForRoute(fromCity: string, toCity: string) {
+    // The public coverage page sends `to=` (empty) meaning "from X, anywhere":
+    // an absent/exactly-empty side is an explicit, literal "unconstrained"
+    // here only -- never a wildcard pattern, and never whitespace-only text.
     const { published, providers } = await this.findAvailableForRoute(
       fromCity,
       toCity,
+      0,
+      { allowUnconstrainedSide: true },
     );
     return {
       trips: published.map((a) => ({

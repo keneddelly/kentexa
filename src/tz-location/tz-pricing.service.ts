@@ -21,6 +21,7 @@
  *   Remote rural (Rombo)               → 15% surcharge
  */
 
+import { TZ_REGION_CAPITALS } from './region-capitals';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike } from 'typeorm';
@@ -67,39 +68,7 @@ export class TzPricingService {
   // ── Tanzania region capitals — maps region name to route city ────────────
   // IntercityRoute uses city names (e.g. 'Moshi') not region names ('Kilimanjaro')
   // This map lets us find the right route when given a region name
-  private readonly REGION_CAPITALS: Record<string, string> = {
-    'Dar es Salaam': 'Dar es Salaam',
-    Mwanza: 'Mwanza',
-    Arusha: 'Arusha',
-    Kilimanjaro: 'Moshi',
-    Tanga: 'Tanga',
-    Morogoro: 'Morogoro',
-    Dodoma: 'Dodoma',
-    Mbeya: 'Mbeya',
-    Iringa: 'Iringa',
-    Mara: 'Musoma',
-    Kagera: 'Bukoba',
-    Kigoma: 'Kigoma',
-    Tabora: 'Tabora',
-    Shinyanga: 'Shinyanga',
-    Singida: 'Singida',
-    Lindi: 'Lindi',
-    Mtwara: 'Mtwara',
-    Ruvuma: 'Songea',
-    Pwani: 'Kibaha',
-    Rukwa: 'Sumbawanga',
-    Manyara: 'Babati',
-    Geita: 'Geita',
-    Katavi: 'Mpanda',
-    Njombe: 'Njombe',
-    Simiyu: 'Bariadi',
-    Songwe: 'Vwawa',
-    'Zanzibar North': 'Mkokotoni',
-    'Zanzibar South': 'Koani',
-    'Zanzibar West': 'Zanzibar City',
-    'Pemba North': 'Wete',
-    'Pemba South': 'Chake Chake',
-  };
+  private readonly REGION_CAPITALS: Record<string, string> = TZ_REGION_CAPITALS;
 
   // ── Round to nearest TZS 500 ─────────────────────────────────────────────
 

@@ -31,6 +31,14 @@ import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-age
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
 import { LocationCandidate } from '../location-intelligence/location-provider.interface';
 import {
+  LogisticsSide,
+  MAX_KEY_PAIRS,
+  RouteKey,
+  RouteKeyKind,
+  buildLogisticsLocationContext,
+  buildTextLogisticsContext,
+} from './logistics-location-context';
+import {
   PlaceSelection,
   deriveLegacyRoutingCity,
   snapshotFromFreeText,
@@ -59,6 +67,20 @@ export interface PublicShipmentTracking {
   completedAt: Date | null;
   createdAt: Date;
   parcelTrackingNumber: string | null;
+}
+
+// One side of a route-discovery request: a selected place reference OR free text.
+export interface DiscoverySideInput {
+  place?: { providerKey: string; providerPlaceId: string };
+  text?: string;
+}
+
+// Diagnostic only: which key pair produced a hit. Never a selection.
+export interface MatchedOn {
+  originKey: string;
+  originKind: RouteKeyKind;
+  destinationKey: string;
+  destinationKind: RouteKeyKind;
 }
 
 export interface CreateShipmentDto {
@@ -157,23 +179,92 @@ export class ShipmentsService {
     }
   }
 
-  // Real available trips + verified providers for a city pair — reuses
-  // TransportService.findAvailableForRoute() rather than re-querying, so
-  // this can never drift from what super-agent dispatch already sees.
+  // Real available trips + verified providers -- reuses
+  // TransportService.findAvailableForRoute() rather than re-querying, so this
+  // can never drift from what super-agent dispatch already sees.
   // weightKg, when given, hard-excludes anything that can't structurally
   // carry it (see findAvailableForRoute's own doc comment) — a 20ft
   // container search should never surface a boda or courier.
+  //
+  // Legacy string API: both sides typed text. Behaviour is unchanged for
+  // legitimate input (the shared public path is hardened: trimmed 2..80
+  // chars, LIKE wildcards literal); the response gains explanatory blocks.
   async findAvailableRoutes(origin: string, destination: string, weightKg = 0) {
     if (!origin?.trim() || !destination?.trim()) {
       throw new BadRequestException('Origin and destination are required');
     }
-    const { published, providers } = await this.transportService.findAvailableForRoute(
-      origin.trim(),
-      destination.trim(),
-      weightKg,
+    return this.findAvailableRoutesForSides({ text: origin }, { text: destination }, weightKg);
+  }
+
+  // Stage 2E: place-aware discovery. Each side is EITHER a selected place
+  // reference (re-resolved by the server, exactly, then turned into ordered
+  // routing keys by the explicit LogisticsLocationContext policy) OR free text
+  // (used as typed, labelled unresolved, never enriched). A place wins over
+  // text for its side; neither => 400; a mixed request is fine.
+  //
+  // This returns CANDIDATES, never a decision: the existing discovery runs for
+  // each (bounded) pair of keys, results are unioned and de-duplicated
+  // deterministically, and every item says which keys matched (diagnostic
+  // only). 0, 1 or many results are all lists for the caller to choose from;
+  // binding a Shipment to a route/provider/slot stays the explicit,
+  // Stage-2C-validated routeId/providerId/availabilityId of createShipment/
+  // confirmShipment. No hub is selected, ranked or returned.
+  async findAvailableRoutesForSides(
+    originSide: DiscoverySideInput,
+    destinationSide: DiscoverySideInput,
+    weightKg = 0,
+  ) {
+    const [origin, destination] = await Promise.all([
+      this.resolveDiscoverySide('origin', originSide),
+      this.resolveDiscoverySide('destination', destinationSide),
+    ]);
+
+    const pairs: Array<{ o: RouteKey; d: RouteKey }> = [];
+    for (const o of origin.routeKeys) for (const d of destination.routeKeys) pairs.push({ o, d });
+    if (pairs.length > MAX_KEY_PAIRS) {
+      throw new Error('discovery key-pair bound exceeded'); // unreachable: per-side keys are bounded
+    }
+
+    // Sequential index order (origin-major) => deterministic merge order.
+    const results = await Promise.all(
+      pairs.map((pair) =>
+        this.transportService.findAvailableForRoute(pair.o.key, pair.d.key, weightKg),
+      ),
     );
+
+    const trips = new Map<number, { row: any; matchedOn: MatchedOn[] }>();
+    const providers = new Map<number, { row: any; matchedOn: MatchedOn[] }>();
+    results.forEach((result, i) => {
+      const matched: MatchedOn = {
+        originKey: pairs[i].o.key,
+        originKind: pairs[i].o.kind,
+        destinationKey: pairs[i].d.key,
+        destinationKind: pairs[i].d.kind,
+      };
+      for (const a of result.published) {
+        const seen = trips.get(a.id);
+        if (seen) seen.matchedOn.push(matched);
+        else trips.set(a.id, { row: a, matchedOn: [matched] });
+      }
+      for (const pr of result.providers) {
+        const seen = providers.get(pr.id);
+        if (seen) seen.matchedOn.push(matched);
+        else providers.set(pr.id, { row: pr, matchedOn: [matched] });
+      }
+    });
+
+    const tripList = [...trips.values()].sort(
+      (x, y) =>
+        String(x.row.date).localeCompare(String(y.row.date)) ||
+        String(x.row.departureTime ?? '').localeCompare(String(y.row.departureTime ?? '')) ||
+        x.row.id - y.row.id,
+    );
+    const providerList = [...providers.values()].sort(
+      (x, y) => (Number(y.row.rating) || 0) - (Number(x.row.rating) || 0) || x.row.id - y.row.id,
+    );
+
     return {
-      availableTrips: published.map((a) => ({
+      availableTrips: tripList.map(({ row: a, matchedOn }) => ({
         availabilityId: a.id,
         providerId: a.providerId,
         providerName: (a as any).provider?.name ?? null,
@@ -187,8 +278,9 @@ export class ShipmentsService {
         capacityAvailableKg: Math.max(0, Number(a.totalCapacityKg) - Number(a.usedCapacityKg)),
         pricePerKg: (a as any).route?.pricePerKg ?? null,
         fixedFee: (a as any).route?.fixedFee ?? null,
+        matchedOn,
       })),
-      providers: providers.map((p) => ({
+      providers: providerList.map(({ row: p, matchedOn }) => ({
         id: p.id,
         name: p.name,
         type: p.type,
@@ -196,8 +288,46 @@ export class ShipmentsService {
         rating: Number(p.rating) || 0,
         whatsappPhone: p.whatsappPhone,
         contactPhone: p.contactPhone,
+        matchedOn,
       })),
+      origin: this.describeSide(origin),
+      destination: this.describeSide(destination),
     };
+  }
+
+  private async resolveDiscoverySide(
+    side: 'origin' | 'destination',
+    input: DiscoverySideInput,
+  ): Promise<LogisticsSide> {
+    if (input.place) {
+      const candidate = await this.locationIntelligence.resolve({
+        providerKey: input.place.providerKey,
+        providerPlaceId: input.place.providerPlaceId,
+      });
+      if (!candidate) throw new BadRequestException(`Unknown ${side} place selection`);
+      const context = buildLogisticsLocationContext(candidate);
+      if (!context) throw new BadRequestException('The selected place has no usable city context');
+      return context;
+    }
+    if (typeof input.text === 'string' && input.text.trim()) {
+      return buildTextLogisticsContext(input.text.trim());
+    }
+    throw new BadRequestException(`A ${side} place or city is required`);
+  }
+
+  // Public, explanatory view of a side: never coordinates or internal ids.
+  private describeSide(side: LogisticsSide) {
+    if (side.source === 'place') {
+      return {
+        source: 'place' as const,
+        resolved: true,
+        label: side.label,
+        level: side.level,
+        placeRef: { providerKey: side.providerKey, providerPlaceId: side.providerPlaceId },
+        keys: side.routeKeys,
+      };
+    }
+    return { source: 'text' as const, resolved: false, keys: side.routeKeys };
   }
 
   // Price comes from the route's own configured rate — never estimated by
