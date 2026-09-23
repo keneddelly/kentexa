@@ -399,13 +399,24 @@ export class ShipmentsService {
     // check above is only a fast path, not the guarantee. Under a genuine
     // concurrent confirmShipment() race, two requests can both pass that
     // check before either insert commits; exactly one INSERT then wins and
-    // the other hits the unique index (23505). Recover deterministically by
+    // the other hits this unique index (23505). Recover deterministically by
     // returning the winner's row instead of surfacing a raw database error.
+    //
+    // Must recognize THIS specific constraint, not bare 23505 — Parcel has
+    // other unique constraints (e.g. trackingNumber) an insert could
+    // conceivably violate for an unrelated reason, and blindly recovering
+    // via "any Parcel already linked to this shipment" for a violation that
+    // has nothing to do with the shipment link would misclassify a real
+    // error as a race and silently return the wrong outcome. Mirrors the
+    // existing isUniqueViolation(e, constraintName) pattern already used in
+    // business-capability-application.service.ts — checked against the
+    // error text since not every pg/TypeORM error surfaces a bare
+    // `.constraint` property consistently.
     let saved: Parcel;
     try {
       saved = await this.parcelRepo.save(created);
     } catch (err: any) {
-      if (err?.code === '23505') {
+      if (this.isParcelShipmentUniqueViolation(err)) {
         const winner = await this.parcelRepo.findOne({
           where: { shipment: { id: shipment.id } },
         });
@@ -415,5 +426,19 @@ export class ShipmentsService {
     }
     saved.trackingNumber = `KTX-PCL-${saved.id}`;
     return this.parcelRepo.save(saved);
+  }
+
+  private isParcelShipmentUniqueViolation(err: any): boolean {
+    const pgCode = err?.code ?? err?.driverError?.code;
+    if (pgCode !== '23505') return false;
+    const text = String(
+      err?.constraint ??
+        err?.driverError?.constraint ??
+        err?.detail ??
+        err?.driverError?.detail ??
+        err?.message ??
+        '',
+    );
+    return text.includes('UQ_parcel_shipmentId');
   }
 }

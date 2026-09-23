@@ -153,6 +153,42 @@ describe('ShipmentsService', () => {
       expect(parcelRepo.save).toHaveBeenCalledTimes(1); // never retried into a second insert
     });
 
+    it('recovers using the driver error\'s explicit .constraint field when present (not just message text)', async () => {
+      const winner = { id: 778, trackingNumber: 'KTX-PCL-778' };
+      parcelRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(winner);
+      superAgentRepo.findOne.mockResolvedValue(null);
+      const conflict = Object.assign(new Error('duplicate key value violates unique constraint'), {
+        code: '23505',
+        constraint: 'UQ_parcel_shipmentId',
+      });
+      parcelRepo.save.mockRejectedValueOnce(conflict);
+
+      const result = await (service as any).ensureParcelForShipment(shipment);
+
+      expect(result).toBe(winner);
+    });
+
+    it('rethrows a 23505 for a DIFFERENT constraint unchanged, even if a Parcel for this shipment could be fetched', async () => {
+      // e.g. a concurrent insert violating Parcel.trackingNumber's own
+      // uniqueness has nothing to do with the Shipment link race — recovering
+      // by returning "whatever Parcel exists for this shipment" here would
+      // be misclassifying a real, unrelated error as the expected race.
+      const unrelatedWinner = { id: 900, trackingNumber: 'KTX-PCL-900' };
+      parcelRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(unrelatedWinner);
+      superAgentRepo.findOne.mockResolvedValue(null);
+      const conflict = Object.assign(
+        new Error('duplicate key value violates unique constraint "UQ_7ff24933d56b16307681c3b67b4"'),
+        { code: '23505', constraint: 'UQ_7ff24933d56b16307681c3b67b4' },
+      );
+      parcelRepo.save.mockRejectedValueOnce(conflict);
+
+      await expect((service as any).ensureParcelForShipment(shipment)).rejects.toBe(conflict);
+
+      // The recovery re-fetch must never even be attempted for an
+      // unrelated constraint violation.
+      expect(parcelRepo.findOne).toHaveBeenCalledTimes(1);
+    });
+
     it('rethrows a non-unique-violation error rather than masking it', async () => {
       parcelRepo.findOne.mockResolvedValue(null);
       superAgentRepo.findOne.mockResolvedValue(null);
