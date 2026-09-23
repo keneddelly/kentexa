@@ -20,6 +20,11 @@ describe('ShipmentsService', () => {
       update: jest.fn(),
       find: jest.fn(),
     };
+    // Stage 2C: create/confirm/cancel run inside manager.transaction(); the
+    // pass-through EntityManager hands back the same mock repository.
+    shipmentRepo.manager = {
+      transaction: (cb: any) => cb({ getRepository: () => shipmentRepo }),
+    };
     routeRepo = { findOne: jest.fn() };
     parcelRepo = {
       findOne: jest.fn(),
@@ -30,6 +35,8 @@ describe('ShipmentsService', () => {
     transportService = {
       assertEligibleProvider: jest.fn(),
       reserveCapacity: jest.fn(),
+      reserveSlot: jest.fn(),
+      assertHeldSlotMatches: jest.fn(),
       releaseCapacity: jest.fn(),
       findAvailableForRoute: jest.fn(),
     };

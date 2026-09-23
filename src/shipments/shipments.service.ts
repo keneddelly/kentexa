@@ -21,6 +21,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportService } from '../transport/transport.service';
@@ -206,9 +207,13 @@ export class ShipmentsService {
       await this.transportService.assertEligibleProvider(dto.providerId);
     }
 
+    // Non-finite / negative weights are rejected up front (they would corrupt
+    // the capacity arithmetic); unspecified stays 0 exactly as before.
+    const weightKg = this.normalizeWeightKg(dto.weightKg);
+
     let priceQuoted: number | null = null;
     if (dto.routeId) {
-      priceQuoted = await this.estimateShipmentPrice(dto.routeId, dto.weightKg || 0);
+      priceQuoted = await this.estimateShipmentPrice(dto.routeId, weightKg);
     }
 
     // Capacity boundary: a reservation FOLLOWS availabilityId -- acquired
@@ -218,48 +223,72 @@ export class ShipmentsService {
     // PENDING rows already hold their reservation from creation, and moving
     // it would double-reserve them. A shipment against a chosen slot is real
     // demand whether or not a TransportAssignment is created later.
-    if (dto.availabilityId) {
-      await this.transportService.reserveCapacity(dto.availabilityId, dto.weightKg || 0);
+    //
+    // Reserve + insert + tracking number are ONE transaction, and every
+    // write inside it goes through that transaction's EntityManager: if the
+    // slot can't be validly reserved nothing is inserted, and if any later
+    // write fails the reservation rolls back with it (no leaked slot).
+    return this.shipmentRepo.manager.transaction(async (em) => {
+      const shipments = em.getRepository(Shipment);
+      if (dto.availabilityId) {
+        await this.transportService.reserveSlot(
+          dto.availabilityId,
+          capacityWeightKg(weightKg),
+          { providerId: dto.providerId, routeId: dto.routeId },
+          em,
+        );
+      }
+
+      const saved = await shipments.save(
+        shipments.create({
+          requestedByUserId: userId,
+          senderName: dto.senderName?.trim() || null,
+          senderPhone: dto.senderPhone?.trim() || null,
+          receiverName: dto.receiverName.trim(),
+          receiverPhone: dto.receiverPhone.trim(),
+          originCity: dto.originCity.trim(),
+          originRegionId,
+          originWard: dto.originWard?.trim() || null,
+          originWardId: dto.originWardId || null,
+          destinationCity: dto.destinationCity.trim(),
+          destinationRegionId,
+          destinationWard: dto.destinationWard?.trim() || null,
+          destinationWardId: dto.destinationWardId || null,
+          ...toOriginSnapshotColumns(buildLocationSnapshot(dto.originLocation)),
+          ...toDestinationSnapshotColumns(buildLocationSnapshot(dto.destinationLocation)),
+          itemDescription: dto.itemDescription.trim(),
+          weightKg,
+          routeId: dto.routeId || null,
+          availabilityId: dto.availabilityId || null,
+          providerId: dto.providerId || null,
+          pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
+          deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
+          priceQuoted,
+          // Always PENDING. CONFIRMED is reachable only through
+          // confirmShipment(), the one boundary that claims the transition,
+          // handles capacity and creates the Parcel. Minting CONFIRMED here
+          // used to produce a Shipment with no Parcel that could never be
+          // confirmed afterwards.
+          status: ShipmentStatus.PENDING,
+        }),
+      );
+
+      // KTX-SHP-{id} — same "id-derived, set once, never regenerated"
+      // convention already used for orders (KTX-ORD-{id}).
+      saved.trackingNumber = `KTX-SHP-${saved.id}`;
+      return shipments.save(saved);
+    });
+  }
+
+  // One canonical numeric rule for the stored shipment weight: unspecified
+  // stays 0 (as before), anything non-finite or negative is rejected.
+  private normalizeWeightKg(raw: unknown): number {
+    if (raw === undefined || raw === null || raw === '') return 0;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new BadRequestException('weightKg must be a non-negative number');
     }
-
-    const saved = await this.shipmentRepo.save(
-      this.shipmentRepo.create({
-        requestedByUserId: userId,
-        senderName: dto.senderName?.trim() || null,
-        senderPhone: dto.senderPhone?.trim() || null,
-        receiverName: dto.receiverName.trim(),
-        receiverPhone: dto.receiverPhone.trim(),
-        originCity: dto.originCity.trim(),
-        originRegionId,
-        originWard: dto.originWard?.trim() || null,
-        originWardId: dto.originWardId || null,
-        destinationCity: dto.destinationCity.trim(),
-        destinationRegionId,
-        destinationWard: dto.destinationWard?.trim() || null,
-        destinationWardId: dto.destinationWardId || null,
-        ...toOriginSnapshotColumns(buildLocationSnapshot(dto.originLocation)),
-        ...toDestinationSnapshotColumns(buildLocationSnapshot(dto.destinationLocation)),
-        itemDescription: dto.itemDescription.trim(),
-        weightKg: dto.weightKg || 0,
-        routeId: dto.routeId || null,
-        availabilityId: dto.availabilityId || null,
-        providerId: dto.providerId || null,
-        pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
-        deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
-        priceQuoted,
-        // Always PENDING. CONFIRMED is reachable only through
-        // confirmShipment(), the one boundary that claims the transition,
-        // handles capacity and creates the Parcel. Minting CONFIRMED here
-        // used to produce a Shipment with no Parcel that could never be
-        // confirmed afterwards.
-        status: ShipmentStatus.PENDING,
-      }),
-    );
-
-    // KTX-SHP-{id} — same "id-derived, set once, never regenerated"
-    // convention already used for orders (KTX-ORD-{id}).
-    saved.trackingNumber = `KTX-SHP-${saved.id}`;
-    return this.shipmentRepo.save(saved);
+    return n;
   }
 
   async getMyShipments(userId: number): Promise<Shipment[]> {
@@ -363,28 +392,62 @@ export class ShipmentsService {
     if (switchesSlot) updates.availabilityId = dto.availabilityId;
     if (dto.routeId) updates.routeId = dto.routeId;
 
-    // Claim BEFORE any capacity side effect: exactly one concurrent caller
-    // gets affected = 1.
-    const claim = await this.shipmentRepo.update(
-      { id: shipment.id, status: ShipmentStatus.PENDING },
-      updates,
-    );
-    if (claim?.affected === 0) {
+    // Claim + capacity are ONE transaction (every write below goes through
+    // this transaction's EntityManager): the PENDING->CONFIRMED claim, the
+    // reservation of a new slot and the release of the superseded one commit
+    // together or not at all, so CONFIRMED always implies its capacity is
+    // committed and a lost claim rolls the capacity changes back. The claim
+    // is first, so a loser does nothing else. Parcel creation stays AFTER
+    // commit (idempotent, retry-completable, never touches capacity).
+    const finalRouteId = dto.routeId || shipment.routeId;
+    const outcome = await this.shipmentRepo.manager.transaction(async (em) => {
+      const claim = await em
+        .getRepository(Shipment)
+        .update({ id: shipment.id, status: ShipmentStatus.PENDING }, updates);
+      if (claim?.affected === 0) return 'lost' as const;
+
+      const weight = capacityWeightKg(shipment.weightKg);
+      if (switchesSlot) {
+        // New slot: validated + atomic, fail-closed (throws => rollback).
+        const reserveNew = () =>
+          this.transportService.reserveSlot(
+            dto.availabilityId!,
+            weight,
+            { providerId, routeId: finalRouteId },
+            em,
+          );
+        // The old slot's reservation (held since creation) is superseded.
+        const releaseOld = () =>
+          this.transportService.releaseCapacity(shipment.availabilityId!, weight, em);
+        // Both are inside one transaction, so their order can't change the
+        // outcome -- but two shipments switching slots in opposite directions
+        // would take the two slot rows in opposite orders and could deadlock.
+        // Always touch the lower slot id first.
+        if (shipment.availabilityId && shipment.availabilityId < dto.availabilityId!) {
+          await releaseOld();
+          await reserveNew();
+        } else {
+          await reserveNew();
+          if (shipment.availabilityId) await releaseOld();
+        }
+      } else if (shipment.availabilityId) {
+        // Slot attached at create: it must still agree with the provider/
+        // route being confirmed. No capacity change.
+        await this.transportService.assertHeldSlotMatches(
+          shipment.availabilityId,
+          { providerId, routeId: finalRouteId },
+          em,
+        );
+      }
+      return 'won' as const;
+    });
+
+    if (outcome === 'lost') {
       const current = await this.shipmentRepo.findOne({ where: { id: shipment.id } });
       if (current?.status === ShipmentStatus.CONFIRMED) {
         return this.completeConfirmedShipment(current);
       }
       this.assertTransition(current?.status ?? shipment.status, ShipmentStatus.CONFIRMED);
-    }
-
-    // Claim winner only. The old slot's reservation (held since creation) is
-    // superseded, so it is given back rather than leaked.
-    if (switchesSlot) {
-      const weight = Number(shipment.weightKg) || 1;
-      await this.transportService.reserveCapacity(dto.availabilityId!, weight);
-      if (shipment.availabilityId) {
-        await this.transportService.releaseCapacity(shipment.availabilityId, weight);
-      }
     }
 
     const updated = await this.shipmentRepo.findOne({ where: { id: shipment.id } });
@@ -412,21 +475,35 @@ export class ShipmentsService {
   // TransportAssignment's own cancel-before-departure rule. Releases any
   // capacity this shipment had reserved.
   async cancelShipment(userId: number, shipmentId: number): Promise<Shipment> {
-    const shipment = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
-    if (!shipment) throw new NotFoundException('Shipment not found');
-    if (shipment.requestedByUserId !== userId) {
+    const preliminary = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
+    if (!preliminary) throw new NotFoundException('Shipment not found');
+    if (preliminary.requestedByUserId !== userId) {
       throw new ForbiddenException('Not your shipment');
     }
-    this.assertTransition(shipment.status, ShipmentStatus.CANCELLED);
 
-    if (shipment.availabilityId) {
-      await this.transportService.releaseCapacity(
-        shipment.availabilityId,
-        Number(shipment.weightKg) || 1,
-      );
-    }
-    await this.shipmentRepo.update(shipment.id, { status: ShipmentStatus.CANCELLED });
-    return (await this.shipmentRepo.findOne({ where: { id: shipment.id } }))!;
+    // Transition + release are ONE transaction on a row-locked re-read, so a
+    // concurrent or retried cancel (or a racing confirm) sees the committed
+    // state and can never double-release: only the caller that actually moves
+    // the shipment to CANCELLED releases its slot, exactly once.
+    return this.shipmentRepo.manager.transaction(async (em) => {
+      const shipments = em.getRepository(Shipment);
+      const shipment = await shipments.findOne({
+        where: { id: shipmentId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!shipment) throw new NotFoundException('Shipment not found');
+      this.assertTransition(shipment.status, ShipmentStatus.CANCELLED);
+
+      if (shipment.availabilityId) {
+        await this.transportService.releaseCapacity(
+          shipment.availabilityId,
+          capacityWeightKg(shipment.weightKg),
+          em,
+        );
+      }
+      await shipments.update(shipment.id, { status: ShipmentStatus.CANCELLED });
+      return (await shipments.findOne({ where: { id: shipment.id } }))!;
+    });
   }
 
   // Idempotent by construction: a Shipment can only ever have one Parcel

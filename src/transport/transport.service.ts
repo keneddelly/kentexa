@@ -7,11 +7,17 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import {
+  capacityWeightKg,
+  releaseSlotAtomic,
+  reserveSlotAtomic,
+} from './slot-capacity';
 import {
   TransportProvider,
   ProviderStatus,
@@ -209,8 +215,12 @@ export class TransportService {
   // selected for a shipment/assignment right now" — mirrors the exact check
   // createAssignment() already applies, so any caller (Shipment confirmation
   // included) gets the same provider policy without redefining it locally.
-  async assertEligibleProvider(providerId: number): Promise<TransportProvider> {
-    const provider = await this.providerRepo.findOne({ where: { id: providerId } });
+  async assertEligibleProvider(
+    providerId: number,
+    em?: EntityManager,
+  ): Promise<TransportProvider> {
+    const repo = em ? em.getRepository(TransportProvider) : this.providerRepo;
+    const provider = await repo.findOne({ where: { id: providerId } });
     if (!provider) throw new NotFoundException('Msafirishaji hajapatikana');
     if (![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(provider.status)) {
       throw new BadRequestException('Msafirishaji huyu hajahakikiwa au hafanyi kazi kwa sasa');
@@ -572,6 +582,12 @@ export class TransportService {
       .leftJoinAndSelect('a.provider', 'p')
       .leftJoinAndSelect('a.route', 'r')
       .where('a.status = :open', { open: AvailabilityStatus.OPEN })
+      // A suspended/unverified provider's slots must not be published (or
+      // therefore bookable): the provider is joined above but was never
+      // constrained by status here, unlike the providers query below.
+      .andWhere('p.status IN (:...publishedProviderStatuses)', {
+        publishedProviderStatuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
+      })
       .andWhere('a.date IN (:...dates)', { dates: [today, tomorrow] })
       .andWhere('a.usedSlots < a.totalSlots')
       .andWhere(
@@ -682,33 +698,123 @@ export class TransportService {
   // Extracted so ShipmentsService can reserve capacity against a slot at
   // shipment-request time too — a shipment against a slot is real demand
   // whether or not a formal TransportAssignment has been created yet.
-  async reserveCapacity(availabilityId: number, weightKg: number): Promise<void> {
-    const avail = await this.availabilityRepo.findOne({
-      where: { id: availabilityId },
-    });
-    if (avail && avail.usedSlots < avail.totalSlots) {
-      avail.usedSlots++;
-      avail.usedCapacityKg += weightKg || 1;
-      if (avail.usedSlots >= avail.totalSlots)
-        avail.status = AvailabilityStatus.FULL;
-      await this.availabilityRepo.save(avail);
+  //
+  // Legacy entry point, kept for createAssignment (which pre-validates its
+  // own slot) with its previous condition -- "a free slot" -- and its
+  // previous no-throw contract, but now a single atomic SQL UPDATE with
+  // correct numeric kg arithmetic (see slot-capacity.ts). Shipments use the
+  // validated, fail-closed reserveSlot() below instead.
+  async reserveCapacity(
+    availabilityId: number,
+    weightKg: number,
+    em?: EntityManager,
+  ): Promise<void> {
+    await reserveSlotAtomic(
+      em ?? this.availabilityRepo.manager,
+      availabilityId,
+      capacityWeightKg(weightKg),
+    );
+  }
+
+  // Shipment slot attachment (Stage 2C): validated + atomic + fail-closed.
+  // Identity (provider/route), status and date are read from ONE slot row,
+  // and the same identity/status/date/free-slot/kg conditions are then
+  // re-asserted inside the conditional UPDATE itself, which is the final
+  // authority -- there is no validate-then-update gap to race through. Pass
+  // the transaction's EntityManager so the reservation commits or rolls back
+  // with the caller's other writes. ctx.providerId / ctx.routeId are the
+  // shipment's selected provider/route (when any); the slot must agree.
+  async reserveSlot(
+    availabilityId: number,
+    weightKg: number,
+    ctx: { providerId?: number | null; routeId?: number | null },
+    em?: EntityManager,
+  ): Promise<void> {
+    const manager = em ?? this.availabilityRepo.manager;
+    const weight = capacityWeightKg(weightKg);
+    const slot = await this.loadSlotFor(manager, availabilityId, ctx);
+    if (slot.status !== AvailabilityStatus.OPEN || this.isPastDate(slot.date)) {
+      throw new BadRequestException('That slot is no longer available');
     }
+    if (slot.usedSlots >= slot.totalSlots) {
+      throw new ConflictException('That slot is full');
+    }
+    await this.assertEligibleProvider(slot.providerId, manager);
+    const reserved = await reserveSlotAtomic(manager, availabilityId, weight, {
+      today: new Date().toISOString().slice(0, 10),
+      providerId: slot.providerId,
+      routeId: slot.routeId ?? null,
+    });
+    if (!reserved) {
+      throw new ConflictException('That slot is full or no longer available');
+    }
+  }
+
+  // For a Shipment that ALREADY holds a slot (attached at create): confirms
+  // the slot still agrees with the provider/route being confirmed and is
+  // still bookable, without touching capacity. FULL is fine -- this
+  // shipment may be the one filling it.
+  async assertHeldSlotMatches(
+    availabilityId: number,
+    ctx: { providerId?: number | null; routeId?: number | null },
+    em?: EntityManager,
+  ): Promise<void> {
+    const slot = await this.loadSlotFor(
+      em ?? this.availabilityRepo.manager,
+      availabilityId,
+      ctx,
+    );
+    if (
+      slot.status === AvailabilityStatus.DEPARTED ||
+      slot.status === AvailabilityStatus.CANCELLED
+    ) {
+      throw new BadRequestException('That slot is no longer available');
+    }
+  }
+
+  private async loadSlotFor(
+    manager: EntityManager,
+    availabilityId: number,
+    ctx: { providerId?: number | null; routeId?: number | null },
+  ): Promise<ProviderAvailability> {
+    const slot = await manager
+      .getRepository(ProviderAvailability)
+      .findOne({ where: { id: availabilityId } });
+    if (!slot) throw new NotFoundException('Availability slot not found');
+    if (ctx.providerId && slot.providerId !== ctx.providerId) {
+      throw new BadRequestException(
+        "That availability slot doesn't belong to the selected provider",
+      );
+    }
+    if (ctx.routeId && slot.routeId && slot.routeId !== ctx.routeId) {
+      throw new BadRequestException(
+        "That availability slot isn't for the selected route",
+      );
+    }
+    return slot;
+  }
+
+  private isPastDate(date: string): boolean {
+    return String(date).slice(0, 10) < new Date().toISOString().slice(0, 10);
   }
 
   // Counterpart to reserveCapacity — an assignment cancelled/declined
   // before departure must give its slot back, or a provider's real
   // capacity silently shrinks every time a booking falls through.
-  async releaseCapacity(availabilityId: number, weightKg: number): Promise<void> {
-    const avail = await this.availabilityRepo.findOne({
-      where: { id: availabilityId },
-    });
-    if (!avail) return;
-    avail.usedSlots = Math.max(0, avail.usedSlots - 1);
-    avail.usedCapacityKg = Math.max(0, Number(avail.usedCapacityKg) - (weightKg || 1));
-    if (avail.status === AvailabilityStatus.FULL && avail.usedSlots < avail.totalSlots) {
-      avail.status = AvailabilityStatus.OPEN;
-    }
-    await this.availabilityRepo.save(avail);
+  //
+  // Atomic and underflow-safe; the only status change is FULL -> OPEN, so a
+  // DEPARTED/CANCELLED slot is never reopened. Uses the same weight rule as
+  // reserve. Pass the transaction's EntityManager to make it part of it.
+  async releaseCapacity(
+    availabilityId: number,
+    weightKg: number,
+    em?: EntityManager,
+  ): Promise<void> {
+    await releaseSlotAtomic(
+      em ?? this.availabilityRepo.manager,
+      availabilityId,
+      capacityWeightKg(weightKg),
+    );
   }
 
   // Only these transitions are reachable via updateAssignmentStatus() —

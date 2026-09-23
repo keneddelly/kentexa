@@ -40,6 +40,9 @@ describe('Shipment historical location snapshot (Stage 2B)', () => {
       update: jest.fn(),
       find: jest.fn(),
     };
+    shipmentRepo.manager = {
+      transaction: (cb: any) => cb({ getRepository: () => shipmentRepo }),
+    };
     parcelRepo = {
       findOne: jest.fn(),
       create: jest.fn((v) => v),
@@ -49,6 +52,8 @@ describe('Shipment historical location snapshot (Stage 2B)', () => {
     transportService = {
       assertEligibleProvider: jest.fn(),
       reserveCapacity: jest.fn(),
+      reserveSlot: jest.fn(),
+      assertHeldSlotMatches: jest.fn(),
       releaseCapacity: jest.fn(),
     };
     tzLocation = { search: jest.fn().mockResolvedValue([]) };
