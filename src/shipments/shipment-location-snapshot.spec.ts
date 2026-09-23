@@ -2,10 +2,9 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
 import { ShipmentsService } from './shipments.service';
 import { ShipmentStatus } from './entities/shipment.entity';
-import { buildLocationSnapshot } from './shipment-location-snapshot';
 import { SHIPMENT_LOCATION_SNAPSHOT_COLUMNS } from '../database/migrations/1788271200000-AddShipmentLocationSnapshot';
 
-describe('Shipment historical location snapshot (Stage 2B)', () => {
+describe('Shipment location snapshot: confirmation boundary, immutability, tracking (Stage 2B, unchanged by 2D)', () => {
   let shipmentRepo: any;
   let parcelRepo: any;
   let superAgentRepo: any;
@@ -64,109 +63,11 @@ describe('Shipment historical location snapshot (Stage 2B)', () => {
       superAgentRepo,
       transportService,
       tzLocation,
+      { resolve: jest.fn() } as any,
     );
   });
 
   const created = () => shipmentRepo.create.mock.calls[0][0];
-
-  // 1 ─────────────────────────────────────────────────────────────────────
-  it('a valid normalized candidate becomes a by-value snapshot on each side', async () => {
-    await service.createShipment(7, {
-      ...baseDto(),
-      originLocation: seedCandidate(),
-      destinationLocation: { ...seedCandidate(), displayLabel: 'Ilemela, Mwanza', latitude: -2.5, longitude: 32.9, regionName: 'Mwanza', districtName: 'Ilemela' },
-    });
-    expect(created()).toMatchObject({
-      originLocationLabel: 'Mbezi, Kinondoni, Dar es Salaam',
-      originLatitude: -6.75,
-      originLongitude: 39.2,
-      originRegionName: 'Dar es Salaam',
-      originDistrictName: 'Kinondoni',
-      originProviderKey: 'tz_seed',
-      originResolutionMethod: 'admin_seed',
-      destinationLocationLabel: 'Ilemela, Mwanza',
-      destinationLatitude: -2.5,
-      destinationLongitude: 32.9,
-      destinationRegionName: 'Mwanza',
-      destinationDistrictName: 'Ilemela',
-    });
-  });
-
-  // 2 ─────────────────────────────────────────────────────────────────────
-  it('a label/admin-only location with no coordinates is valid and creates the shipment', async () => {
-    const { latitude, longitude, ...labelOnly } = seedCandidate();
-    const saved = await service.createShipment(7, { ...baseDto(), originLocation: labelOnly });
-    expect(saved.id).toBeDefined();
-    expect(created().originLocationLabel).toBe('Mbezi, Kinondoni, Dar es Salaam');
-    expect(created().originLatitude).toBeNull();
-    expect(created().originLongitude).toBeNull();
-  });
-
-  // 3 ─────────────────────────────────────────────────────────────────────
-  it('a valid coordinate pair is preserved exactly', () => {
-    const v = buildLocationSnapshot({ displayLabel: 'X', latitude: -6.7500001, longitude: 39.2000002 });
-    expect(v.latitude).toBe(-6.7500001);
-    expect(v.longitude).toBe(39.2000002);
-  });
-
-  // 4 ─────────────────────────────────────────────────────────────────────
-  describe('partial / NaN / out-of-range coordinates are never persisted', () => {
-    const cases: Array<[string, unknown, unknown]> = [
-      ['lat only', -6.75, undefined],
-      ['lng only', undefined, 39.2],
-      ['NaN lat', NaN, 39.2],
-      ['non-numeric lat', 'abc', 39.2],
-      ['Infinity lng', -6.75, Infinity],
-      ['lat > 90', 95, 39.2],
-      ['lat < -90', -91, 39.2],
-      ['lng > 180', -6.75, 181],
-      ['lng < -180', -6.75, -181],
-      ['null lat', null, 39.2],
-    ];
-    it.each(cases)('%s -> both dropped, label kept, shipment still created', async (_n, lat, lng) => {
-      const saved = await service.createShipment(7, {
-        ...baseDto(),
-        originLocation: { displayLabel: 'Somewhere', latitude: lat as any, longitude: lng as any },
-      });
-      expect(saved.id).toBeDefined();
-      expect(created().originLatitude).toBeNull();
-      expect(created().originLongitude).toBeNull();
-      expect(created().originLocationLabel).toBe('Somewhere');
-      shipmentRepo.create.mockClear();
-    });
-  });
-
-  // 5 ─────────────────────────────────────────────────────────────────────
-  it('later mutation of the source candidate cannot change the persisted snapshot', async () => {
-    const candidate = seedCandidate();
-    await service.createShipment(7, { ...baseDto(), originLocation: candidate });
-    const persisted = created();
-    const before = JSON.stringify(persisted);
-
-    candidate.displayLabel = 'CHANGED';
-    candidate.latitude = 1;
-    candidate.longitude = 1;
-    candidate.regionName = 'CHANGED';
-    candidate.providerKey = 'other';
-
-    expect(JSON.stringify(persisted)).toBe(before);
-    expect(persisted.originLocationLabel).toBe('Mbezi, Kinondoni, Dar es Salaam');
-    expect(persisted.originLatitude).toBe(-6.75);
-  });
-
-  it('a candidate with no usable displayLabel, junk types, or oversized text is normalized safely', () => {
-    expect(buildLocationSnapshot({ latitude: 1, longitude: 1 }).label).toBeNull();
-    expect(buildLocationSnapshot({ displayLabel: '   ', latitude: 1, longitude: 1 })).toEqual(
-      expect.objectContaining({ label: null, latitude: null, longitude: null }),
-    );
-    expect(buildLocationSnapshot('nope')).toEqual(expect.objectContaining({ label: null }));
-    expect(buildLocationSnapshot(undefined)).toEqual(expect.objectContaining({ label: null }));
-    expect(buildLocationSnapshot({ displayLabel: 123 as any }).label).toBeNull();
-    const big = buildLocationSnapshot({ displayLabel: 'x'.repeat(500), providerKey: 'k'.repeat(99), regionName: 'r'.repeat(500) });
-    expect(big.label).toHaveLength(200);
-    expect(big.providerKey).toHaveLength(40);
-    expect(big.regionName).toHaveLength(120);
-  });
 
   // ── Confirmation boundary ────────────────────────────────────────────────
   const pendingShipment = () => ({
@@ -264,24 +165,6 @@ describe('Shipment historical location snapshot (Stage 2B)', () => {
     expect(tracked.destinationCity).toBe('Dodoma');
   });
 
-  // 9 ─────────────────────────────────────────────────────────────────────
-  it('existing city / region resolution behaviour is unchanged, with or without a snapshot', async () => {
-    tzLocation.search.mockResolvedValue([{ regionId: 4 }]);
-    await service.createShipment(7, { ...baseDto(), originCity: '  Dar es Salaam ', originWard: ' Mbezi ', originWardId: 12 });
-    expect(created()).toMatchObject({
-      originCity: 'Dar es Salaam', originRegionId: 4, originWard: 'Mbezi', originWardId: 12,
-      destinationCity: 'Mwanza', destinationRegionId: 4,
-    });
-    // Free-text shipment: no snapshot at all.
-    for (const col of SHIPMENT_LOCATION_SNAPSHOT_COLUMNS) expect(created()[col]).toBeNull();
-
-    // A supplied snapshot does not cross-fill or override legacy ids.
-    shipmentRepo.create.mockClear();
-    await service.createShipment(7, { ...baseDto(), originRegionId: 9, originLocation: seedCandidate() });
-    expect(created().originRegionId).toBe(9);
-    expect(created().originWardId).toBeNull();
-  });
-
   // 10 ────────────────────────────────────────────────────────────────────
   it('public tracking exposes exactly the existing allow-list and none of the snapshot values', async () => {
     shipmentRepo.findOne.mockResolvedValue({
@@ -314,8 +197,15 @@ describe('Shipment historical location snapshot (Stage 2B)', () => {
     const { parcel } = await service.confirmShipment(7, 1, { providerId: 5 });
     expect(parcel.order).toBeNull();
     expect(parcel.source).toBe('shipment');
-    // The service has no order/payment/wallet collaborator at all.
-    expect(ShipmentsService.length).toBe(6);
+    // The service has no order/payment/wallet collaborator at all: its 7 injected
+    // dependencies are the shipment/route/parcel/hub repositories, transport, tz-location
+    // and (Stage 2D) location intelligence.
+    expect(ShipmentsService.length).toBe(7);
+    const src = require('fs')
+      .readFileSync(require('path').join(__dirname, 'shipments.service.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, ''); // code only, not comments
+    expect(src).not.toMatch(/OrdersService|PaymentsService|WalletService|MoneyRouting|PaymentEvidence/);
   });
 
   // 12 ────────────────────────────────────────────────────────────────────
@@ -355,11 +245,4 @@ describe('Shipment historical location snapshot (Stage 2B)', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('createShipment is the only ShipmentsService method that uses the snapshot helpers', () => {
-    const src = readFileSync(join(__dirname, 'shipments.service.ts'), 'utf8');
-    const uses = (src.match(/buildLocationSnapshot\(/g) || []).length;
-    expect(uses).toBe(2); // origin + destination, both inside createShipment
-    const createBody = src.slice(src.indexOf('async createShipment('), src.indexOf('async getMyShipments('));
-    expect((createBody.match(/buildLocationSnapshot\(/g) || []).length).toBe(2);
-  });
 });

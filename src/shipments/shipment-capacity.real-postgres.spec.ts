@@ -125,7 +125,7 @@ suite('Shipment capacity attachment — real PostgreSQL', () => {
     args[0] = providers; args[1] = routes; args[2] = slotsRepo; args[9] = shipmentsRepo;
     transport = new (TransportService as any)(...args);
     service = new ShipmentsService(
-      shipmentsRepo, routes, parcelRepo, { findOne: async () => null } as any, transport, { search: async () => [] } as any,
+      shipmentsRepo, routes, parcelRepo, { findOne: async () => null } as any, transport, { search: async () => [] } as any, { resolve: async () => null } as any,
     );
   });
 

@@ -28,9 +28,13 @@ import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
+import { LocationCandidate } from '../location-intelligence/location-provider.interface';
 import {
-  ShipmentLocationInput,
-  buildLocationSnapshot,
+  PlaceSelection,
+  deriveLegacyRoutingCity,
+  snapshotFromFreeText,
+  snapshotFromResolvedPlace,
   toDestinationSnapshotColumns,
   toOriginSnapshotColumns,
 } from './shipment-location-snapshot';
@@ -62,26 +66,30 @@ export interface CreateShipmentDto {
   senderPhone?: string;
   receiverName: string;
   receiverPhone: string;
-  originCity: string;
+  // ── Where from / to: EITHER a selected place OR free text, per side ───────
+  // originPlace/destinationPlace: a REFERENCE to a place the user selected from
+  // GET /location-intelligence/places ({providerKey, providerPlaceId}). The
+  // server re-resolves it exactly and derives the snapshot, provenance,
+  // coordinates and the legacy city/region/ward columns ITSELF; when present it
+  // takes precedence over every free-text/legacy field of that side. The client
+  // can never assert coordinates, names, providerKey or resolutionMethod (the
+  // Stage 2B originLocation/destinationLocation input was retired; any such
+  // property is ignored).
+  originPlace?: PlaceSelection;
+  destinationPlace?: PlaceSelection;
+  // Free-text path (no place selected): the typed city is required, the
+  // snapshot is a server-authored 'user_typed' one (no coordinates, no admin
+  // claims). originRegionId/originWardId are legacy, UNVERIFIED hints kept only
+  // for compatibility on this path -- they are never provenance and never
+  // reach the snapshot. Ignored entirely when a place is selected.
+  originCity?: string;
   originWard?: string;
-  // Set when the frontend's location picker resolved a real tz-location
-  // suggestion (the user actually SELECTED a place, not just typed text) —
-  // when present, this is authoritative and skips the fuzzy server-side
-  // re-resolution below entirely.
   originRegionId?: number;
   originWardId?: number;
-  destinationCity: string;
+  destinationCity?: string;
   destinationWard?: string;
   destinationRegionId?: number;
   destinationWardId?: number;
-  // Optional by-value snapshot of the place the user actually SELECTED (a
-  // subset of Stage 2A's LocationCandidate). Captured once here and never
-  // rewritten; absent for free-text shipments, which simply store none.
-  // UNTRUSTED, client-asserted historical input: coordinates, providerKey
-  // and resolutionMethod are recorded as the user submitted them, not
-  // verified by the server or by any provider. Never treat as verified truth.
-  originLocation?: ShipmentLocationInput;
-  destinationLocation?: ShipmentLocationInput;
   itemDescription: string;
   weightKg?: number;
   routeId?: number;
@@ -113,7 +121,31 @@ export class ShipmentsService {
     @InjectRepository(SuperAgent) private superAgentRepo: Repository<SuperAgent>,
     private readonly transportService: TransportService,
     private readonly tzLocation: TzLocationService,
+    private readonly locationIntelligence: LocationIntelligenceService,
   ) {}
+
+  // Re-resolves a client-selected place reference EXACTLY (no name search, no
+  // fallback). An absent selection is fine (free-text path); a present-but-
+  // unresolvable one is a 400 and nothing has been written or reserved yet.
+  private async resolvePlaceSelection(
+    side: 'origin' | 'destination',
+    selection: PlaceSelection | undefined,
+  ): Promise<{ candidate: LocationCandidate; localityText: unknown } | null> {
+    if (selection === undefined || selection === null) return null;
+    if (
+      typeof selection !== 'object' ||
+      typeof selection.providerKey !== 'string' ||
+      typeof selection.providerPlaceId !== 'string'
+    ) {
+      throw new BadRequestException(`Invalid ${side} place selection`);
+    }
+    const candidate = await this.locationIntelligence.resolve({
+      providerKey: selection.providerKey,
+      providerPlaceId: selection.providerPlaceId,
+    });
+    if (!candidate) throw new BadRequestException(`Unknown ${side} place selection`);
+    return { candidate, localityText: selection.localityText };
+  }
 
   private async resolveRegionId(city: string | null | undefined): Promise<number | null> {
     if (!city?.trim()) return null;
@@ -182,21 +214,60 @@ export class ShipmentsService {
     if (!dto.receiverName?.trim() || !dto.receiverPhone?.trim()) {
       throw new BadRequestException('Receiver name and phone are required');
     }
-    if (!dto.originCity?.trim() || !dto.destinationCity?.trim()) {
+    // Each side needs EITHER a selected place OR a typed city.
+    if (
+      (!dto.originPlace && !dto.originCity?.trim()) ||
+      (!dto.destinationPlace && !dto.destinationCity?.trim())
+    ) {
       throw new BadRequestException('Origin and destination are required');
     }
     if (!dto.itemDescription?.trim()) {
       throw new BadRequestException('Describe what you are sending');
     }
 
-    // Prefer what the user actually SELECTED from the location engine over
-    // guessing again from the typed city string — only fall back to the
-    // fuzzy search when the frontend didn't resolve a suggestion (e.g. the
-    // user typed a city and never picked from the dropdown).
-    const [originRegionId, destinationRegionId] = await Promise.all([
-      dto.originRegionId ?? this.resolveRegionId(dto.originCity),
-      dto.destinationRegionId ?? this.resolveRegionId(dto.destinationCity),
+    // Selected places are re-resolved by the SERVER, exactly. This happens
+    // before anything is reserved or written, so an unknown/forged/malformed
+    // reference is a clean 400.
+    const [origin, destination] = await Promise.all([
+      this.resolvePlaceSelection('origin', dto.originPlace),
+      this.resolvePlaceSelection('destination', dto.destinationPlace),
     ]);
+    const side = (
+      resolved: { candidate: LocationCandidate; localityText: unknown } | null,
+      typedCity: string | undefined,
+      typedWard: string | undefined,
+      typedRegionId: number | undefined,
+      typedWardId: number | undefined,
+    ) => {
+      if (resolved) {
+        // Compatibility columns come from the resolved place through ONE
+        // explicit policy (see deriveLegacyRoutingCity); if the place has no
+        // region context we refuse rather than guess a city.
+        const city = deriveLegacyRoutingCity(resolved.candidate) ?? typedCity?.trim() ?? null;
+        if (!city) throw new BadRequestException('The selected place has no usable city context');
+        return {
+          city,
+          regionId: Promise.resolve(resolved.candidate.regionId ?? null),
+          ward: resolved.candidate.wardName ?? null,
+          wardId: resolved.candidate.wardId ?? null,
+          snapshot: snapshotFromResolvedPlace(resolved.candidate, resolved.localityText),
+        };
+      }
+      // Free text: typed values as before; the region falls back to the legacy
+      // (fuzzy, first-result) resolution, a hint only; the snapshot is
+      // server-authored 'user_typed' with no coordinates or admin claims.
+      const cityText = typedCity!.trim();
+      return {
+        city: cityText,
+        regionId: typedRegionId != null ? Promise.resolve(typedRegionId) : this.resolveRegionId(cityText),
+        ward: typedWard?.trim() || null,
+        wardId: typedWardId || null,
+        snapshot: snapshotFromFreeText([typedWard?.trim(), cityText].filter(Boolean).join(', ')),
+      };
+    };
+    const o = side(origin, dto.originCity, dto.originWard, dto.originRegionId, dto.originWardId);
+    const d = side(destination, dto.destinationCity, dto.destinationWard, dto.destinationRegionId, dto.destinationWardId);
+    const [originRegionId, destinationRegionId] = await Promise.all([o.regionId, d.regionId]);
 
     // A providerId on create is only a stored SELECTION -- it never confirms
     // anything (see status below). Still validated here with the canonical
@@ -246,16 +317,16 @@ export class ShipmentsService {
           senderPhone: dto.senderPhone?.trim() || null,
           receiverName: dto.receiverName.trim(),
           receiverPhone: dto.receiverPhone.trim(),
-          originCity: dto.originCity.trim(),
+          originCity: o.city,
           originRegionId,
-          originWard: dto.originWard?.trim() || null,
-          originWardId: dto.originWardId || null,
-          destinationCity: dto.destinationCity.trim(),
+          originWard: o.ward,
+          originWardId: o.wardId,
+          destinationCity: d.city,
           destinationRegionId,
-          destinationWard: dto.destinationWard?.trim() || null,
-          destinationWardId: dto.destinationWardId || null,
-          ...toOriginSnapshotColumns(buildLocationSnapshot(dto.originLocation)),
-          ...toDestinationSnapshotColumns(buildLocationSnapshot(dto.destinationLocation)),
+          destinationWard: d.ward,
+          destinationWardId: d.wardId,
+          ...toOriginSnapshotColumns(o.snapshot),
+          ...toDestinationSnapshotColumns(d.snapshot),
           itemDescription: dto.itemDescription.trim(),
           weightKg,
           routeId: dto.routeId || null,

@@ -83,7 +83,7 @@ export interface LocationCandidate {
   landmark?: string;
   /** Open string identifier, e.g. 'tz_seed' -- never a closed vendor enum. */
   providerKey: string;
-  /** Never populated by tz_seed -- no external provider ids exist for seeded rows. */
+  /** Stable, provider-scoped id usable with resolve(); tz_seed: ward:<id> | district:<id> | region:<id>. */
   providerPlaceId?: string;
   resolutionMethod: LocationResolutionMethod;
   /**
@@ -96,6 +96,37 @@ export interface LocationCandidate {
 }
 
 /**
+ * A stable reference to ONE provider place, as returned in search results and
+ * later submitted by a client that selected it. It is only a lookup key: the
+ * server re-resolves it exactly (resolve()) and takes every fact -- names,
+ * hierarchy, coordinates, provenance -- from its own data, never from the
+ * client. For tz_seed the id grammar is `ward:<id>` | `district:<id>` |
+ * `region:<id>`.
+ */
+export interface PlaceRef {
+  providerKey: string;
+  providerPlaceId: string;
+}
+
+/**
+ * How the query text related to the returned candidates. 'partial' means only
+ * the LEADING part of the query matched a known place; `unmatchedText` is the
+ * remainder the provider could NOT verify (e.g. "Mbezi Mwisho" -> candidates
+ * for "Mbezi", unmatchedText "Mwisho"). It is a search-suggestion aid only:
+ * unmatched text is never geographic truth.
+ */
+export interface PlaceSearchMatch {
+  quality: 'full' | 'partial';
+  matchedText: string;
+  unmatchedText?: string;
+}
+
+export interface PlaceSearchResult {
+  candidates: LocationCandidate[];
+  match?: PlaceSearchMatch;
+}
+
+/**
  * Implemented by exactly one provider in this stage (TzSeedLocationProvider).
  * Kentexa's domain code never references a vendor name outside a provider's
  * own implementation file -- LocationIntelligenceService only ever sees this
@@ -104,6 +135,19 @@ export interface LocationCandidate {
 export interface LocationProvider {
   readonly key: string;
   search(query: string, opts?: LocationSearchOptions): Promise<LocationCandidate[]>;
+  /**
+   * Discovery for a place picker: candidates across ALL administrative levels
+   * (so "Mwanza" is selectable as a region, not only as a ward), ranked, each
+   * carrying a stable providerPlaceId. Search may be fuzzy/partial.
+   */
+  searchPlaces?(query: string, opts?: { limit?: number }): Promise<PlaceSearchResult>;
+  /**
+   * Exact resolution of a previously returned providerPlaceId. Must be exact:
+   * parse only the supported grammar, load exactly that place, return null for
+   * malformed / nonexistent / inactive references, and NEVER fall back to a
+   * name search.
+   */
+  resolve?(providerPlaceId: string): Promise<LocationCandidate | null>;
   /** Optional: no provider in this stage implements it (no external geocoder exists yet). */
   reverseGeocode?(point: GeoPoint): Promise<LocationCandidate | null>;
 }

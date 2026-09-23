@@ -38,6 +38,7 @@ describe('TzSeedLocationProvider', () => {
       wardId: 12,
       wardName: 'Mbezi',
       providerKey: 'tz_seed',
+      providerPlaceId: 'ward:12',
       resolutionMethod: 'admin_seed',
     });
     // No raw TzLocationService field names (`type`, `ward`, `district`, `region`)
@@ -83,7 +84,7 @@ describe('TzSeedLocationProvider', () => {
     expect(candidate.latitude).toBeUndefined();
     expect(candidate.longitude).toBeUndefined();
     expect(candidate.confidence).toBeUndefined();
-    expect(candidate.providerPlaceId).toBeUndefined();
+    expect(candidate.providerPlaceId).toBe('ward:5'); // stable reference, not an external vendor id
     expect(candidate.landmark).toBeUndefined();
   });
 

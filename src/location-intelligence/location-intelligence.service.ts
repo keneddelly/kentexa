@@ -15,7 +15,13 @@
  * future external-provider DTO directly.
  */
 import { Injectable } from '@nestjs/common';
-import { LocationCandidate, LocationProvider, LocationSearchOptions } from './location-provider.interface';
+import {
+  LocationCandidate,
+  LocationProvider,
+  LocationSearchOptions,
+  PlaceRef,
+  PlaceSearchResult,
+} from './location-provider.interface';
 import { TzSeedLocationProvider } from './providers/tz-seed-location.provider';
 
 @Injectable()
@@ -53,5 +59,37 @@ export class LocationIntelligenceService {
       if (results.length > 0) return results;
     }
     return [];
+  }
+
+  /**
+   * Discovery for a place picker (Stage 2D): the first provider that
+   * supports searchPlaces() and has candidates wins. Candidates carry a stable
+   * placeRef basis (providerKey + providerPlaceId). Fuzzy/partial by design --
+   * a search result is a SUGGESTION, never authority; only resolve() is.
+   */
+  async searchPlaces(query: string, opts?: { limit?: number }): Promise<PlaceSearchResult> {
+    const trimmed = query?.trim();
+    if (!trimmed) return { candidates: [] };
+    for (const provider of this.providers) {
+      if (!provider.searchPlaces) continue;
+      const result = await provider.searchPlaces(trimmed, opts);
+      if (result.candidates.length > 0) return result;
+    }
+    return { candidates: [] };
+  }
+
+  /**
+   * EXACT resolution of a reference a client selected (Stage 2D). The
+   * provider is chosen strictly by `providerKey` (no provider guessing, no
+   * fallback to other providers or to a name search); a key that matches no
+   * provider, a provider without resolve(), or any malformed/unknown/inactive
+   * id all yield null. Every field of the returned candidate comes from the
+   * provider's own data -- the caller never contributes facts.
+   */
+  async resolve(ref: PlaceRef): Promise<LocationCandidate | null> {
+    if (!ref || typeof ref.providerKey !== 'string' || typeof ref.providerPlaceId !== 'string') return null;
+    const provider = this.providers.find((p) => p.key === ref.providerKey);
+    if (!provider?.resolve) return null;
+    return provider.resolve(ref.providerPlaceId);
   }
 }

@@ -207,6 +207,21 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
       { findOne: async () => null } as any,
       transportService,
       { search: async () => [] } as any,
+      {
+        resolve: async (ref: any) =>
+          ref.providerKey === 'tz_seed' && ref.providerPlaceId === 'ward:56'
+            ? {
+                displayLabel: 'Mbezi, Ubungo, Dar es Salaam', latitude: -6.72, longitude: 39.08, regionId: 1,
+                regionName: 'Dar es Salaam', districtId: 3, districtName: 'Ubungo', wardId: 56, wardName: 'Mbezi',
+                providerKey: 'tz_seed', providerPlaceId: 'ward:56', resolutionMethod: 'admin_seed',
+              }
+            : ref.providerKey === 'tz_seed' && ref.providerPlaceId === 'region:9'
+              ? {
+                  displayLabel: 'Mwanza', latitude: -2.52, longitude: 32.9, regionId: 9, regionName: 'Mwanza',
+                  providerKey: 'tz_seed', providerPlaceId: 'region:9', resolutionMethod: 'admin_seed',
+                }
+              : null,
+      } as any,
     );
   });
 
@@ -572,14 +587,15 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
       7,
       dto({
         providerId: 5, availabilityId: 3,
-        originLocation: { displayLabel: 'Mbezi, Kinondoni', latitude: -6.75, longitude: 39.2, providerKey: 'tz_seed', resolutionMethod: 'admin_seed' },
-        destinationLocation: { displayLabel: 'Ilemela, Mwanza' },
+        originPlace: { providerKey: 'tz_seed', providerPlaceId: 'ward:56' },
+        destinationPlace: { providerKey: 'tz_seed', providerPlaceId: 'region:9' },
       }),
     );
     const snap = (id: number) => Object.fromEntries(SHIPMENT_LOCATION_SNAPSHOT_COLUMNS.map((c) => [c, rows.get(id)[c]]));
     const frozen = snap(s.id);
-    expect(frozen.originLocationLabel).toBe('Mbezi, Kinondoni');
-    expect(frozen.destinationLatitude).toBeNull();
+    expect(frozen.originLocationLabel).toBe('Mbezi, Ubungo, Dar es Salaam');
+    expect(frozen.originLatitude).toBe(-6.72);
+    expect(frozen.destinationLocationLabel).toBe('Mwanza');
 
     await Promise.all([
       service.confirmShipment(7, s.id, { availabilityId: 4 }),

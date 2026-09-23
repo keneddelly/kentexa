@@ -263,6 +263,119 @@ export class TzLocationService {
     }));
   }
 
+  // ── Place discovery + exact resolution (Stage 2D) ────────────────────────
+  // search() above keeps its historical "first non-empty level wins" cascade
+  // for its existing consumers. These two methods serve the Location
+  // Intelligence place picker: searchPlaces() is DISCOVERY (all levels,
+  // ranked, wildcard-escaped) and findPlaceById() is EXACT resolution (one
+  // active row by id, no name matching of any kind).
+
+  /** Makes user text literal inside an ILIKE pattern (backslash, % and _ lose their special meaning). */
+  static escapeLikePattern(text: string): string {
+    return text.replace(/[\\%_]/g, '\\$&');
+  }
+
+  private static placeRank(name: string, q: string): number {
+    const n = name.trim().toLowerCase();
+    const needle = q.trim().toLowerCase();
+    if (n === needle) return 0; // exact name
+    if (n.startsWith(needle)) return 1; // prefix
+    return 2; // contains
+  }
+
+  private static readonly LEVEL_ORDER: Record<string, number> = { region: 0, district: 1, ward: 2 };
+
+  private static wardRow(w: TzWard) {
+    const d: any = w.district;
+    return {
+      type: 'ward',
+      wardId: w.id,
+      ward: w.name,
+      districtId: w.districtId,
+      district: d?.name,
+      regionId: w.regionId,
+      region: d?.region?.name,
+      lat: w.lat,
+      lng: w.lng,
+      fullAddress: `${w.name}, ${d?.name}, ${d?.region?.name}`,
+    };
+  }
+
+  private static districtRow(d: TzDistrict) {
+    const r: any = d.region;
+    return {
+      type: 'district',
+      districtId: d.id,
+      district: d.name,
+      regionId: d.regionId,
+      region: r?.name,
+      lat: d.lat,
+      lng: d.lng,
+      fullAddress: `${d.name}, ${r?.name}`,
+    };
+  }
+
+  private static regionRow(r: TzRegion) {
+    return { type: 'region', regionId: r.id, region: r.name, lat: r.lat, lng: r.lng, fullAddress: r.name };
+  }
+
+  /**
+   * Candidates across ALL administrative levels whose name contains the
+   * query, ranked (exact name, then prefix, then contains; region before
+   * district before ward on ties; then name/id), capped at `limit` (1..10).
+   * Same row shape as search().
+   */
+  async searchPlaces(query: string, limit = 8) {
+    const q = (query ?? '').trim();
+    if (!q) return [];
+    const cap = Math.max(1, Math.min(Math.floor(Number(limit)) || 8, 10));
+    const pattern = ILike(`%${TzLocationService.escapeLikePattern(q)}%`);
+    const [wards, districts, regions] = await Promise.all([
+      this.wardRepo.find({ where: { name: pattern, isActive: true }, relations: { district: { region: true } }, take: 10 }),
+      this.districtRepo.find({ where: { name: pattern, isActive: true }, relations: { region: true }, take: 10 }),
+      this.regionRepo.find({ where: { name: pattern, isActive: true }, take: 10 }),
+    ]);
+    const rows = [
+      ...regions.map((r) => ({ id: r.id, name: r.name, row: TzLocationService.regionRow(r) })),
+      ...districts.map((d) => ({ id: d.id, name: d.name, row: TzLocationService.districtRow(d) })),
+      ...wards.map((w) => ({ id: w.id, name: w.name, row: TzLocationService.wardRow(w) })),
+    ];
+    rows.sort(
+      (a, b) =>
+        TzLocationService.placeRank(a.name, q) - TzLocationService.placeRank(b.name, q) ||
+        TzLocationService.LEVEL_ORDER[a.row.type] - TzLocationService.LEVEL_ORDER[b.row.type] ||
+        a.name.localeCompare(b.name) ||
+        a.id - b.id,
+    );
+    return rows.slice(0, cap).map((r) => r.row);
+  }
+
+  /**
+   * Exact lookup of ONE place. Returns null unless that exact row exists, is
+   * active, and its whole parent chain is active too. Never searches by name.
+   */
+  async findPlaceById(level: 'ward' | 'district' | 'region', id: number) {
+    if (!Number.isSafeInteger(id) || id < 1) return null;
+    if (level === 'ward') {
+      const w = await this.wardRepo.findOne({ where: { id }, relations: { district: { region: true } } });
+      const d: any = w?.district;
+      if (!w || !w.isActive || !d?.isActive || !d?.region?.isActive) return null;
+      return TzLocationService.wardRow(w);
+    }
+    if (level === 'district') {
+      const d = await this.districtRepo.findOne({ where: { id }, relations: { region: true } });
+      const r: any = d?.region;
+      if (!d || !d.isActive || !r?.isActive) return null;
+      return TzLocationService.districtRow(d);
+    }
+    if (level === 'region') {
+      const r = await this.regionRepo.findOne({ where: { id } });
+      if (!r || !r.isActive) return null;
+      return TzLocationService.regionRow(r);
+    }
+    return null;
+  }
+
   // ── Delivery type ─────────────────────────────────────────────────────────
   // same_ward | same_district | same_region | intercity
 

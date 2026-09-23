@@ -11,6 +11,7 @@ import { ShipmentsService } from './shipments.service';
 import { ShipmentsController } from './shipments.controller';
 import { TransportModule } from '../transport/transport.module';
 import { TzLocationModule } from '../tz-location/tz-location.module';
+import { LocationIntelligenceModule } from '../location-intelligence/location-intelligence.module';
 import { Parcel } from '../super-agents/entities/parcel.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 
@@ -23,6 +24,8 @@ import { SuperAgent } from '../super-agents/entities/super-agent.entity';
     TypeOrmModule.forFeature([Shipment, TransportRoute, Parcel, SuperAgent]),
     TransportModule,
     TzLocationModule,
+    // Stage 2D: server-side, exact re-resolution of selected place references.
+    LocationIntelligenceModule,
   ],
   controllers: [ShipmentsController],
   providers: [ShipmentsService],

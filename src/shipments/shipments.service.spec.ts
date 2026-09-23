@@ -49,6 +49,7 @@ describe('ShipmentsService', () => {
       superAgentRepo,
       transportService,
       tzLocation,
+      { resolve: jest.fn(), searchPlaces: jest.fn() } as any,
     );
   });
 

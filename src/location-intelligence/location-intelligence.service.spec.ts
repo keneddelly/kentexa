@@ -110,7 +110,7 @@ describe('LocationIntelligenceService', () => {
     const [candidate] = await service.search('Bunju');
 
     expect(Object.keys(candidate).sort()).toEqual(
-      ['displayLabel', 'latitude', 'longitude', 'regionId', 'regionName', 'districtId', 'districtName', 'wardId', 'wardName', 'providerKey', 'resolutionMethod'].sort(),
+      ['displayLabel', 'latitude', 'longitude', 'regionId', 'regionName', 'districtId', 'districtName', 'wardId', 'wardName', 'providerKey', 'providerPlaceId', 'resolutionMethod'].sort(),
     );
   });
 });
