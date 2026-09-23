@@ -38,6 +38,7 @@ import { OffersModule } from './offers/offers.module';
 import { PickupPointsModule } from './pickup-points/pickup-points.module';
 import { ServicesModule } from './services/services.module';
 import { TzLocationModule } from './tz-location/tz-location.module';
+import { LocationIntelligenceModule } from './location-intelligence/location-intelligence.module';
 import { SuperAgentsModule } from './super-agents/super-agents.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
@@ -103,6 +104,7 @@ export const allowDevelopmentSchemaSync =
     ShippingModule,
     SuperAgentsModule,
     TzLocationModule,
+    LocationIntelligenceModule,
     BusinessModule,
     NotificationsModule,
     TransportModule,
