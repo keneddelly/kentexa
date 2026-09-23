@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export enum CheckoutPaymentMethod {
   ONLINE = 'online',
@@ -35,4 +35,28 @@ export class CreateOrderDto {
   @IsOptional()
   @IsEnum(CheckoutPaymentMethod)
   paymentMethod?: CheckoutPaymentMethod;
+
+  // Checkout DTO Integrity hotfix. Legitimate buyer intent, declared here so
+  // the global ValidationPipe (whitelist: true) stops silently discarding
+  // them before OrdersService.create() ever sees them. shippingMethod is
+  // validated CONTEXTUALLY against OrdersService.getDeliveryMethods() (the
+  // existing delivery-method authority) in the service, not against a bare
+  // static enum here — a syntactically valid key can still be ineligible
+  // for a given product/address. Deliberately does NOT include
+  // deliveryFee/collectionFee (fee amounts are never client-trusted; the
+  // server always derives them) or regionId/districtId/wardId/
+  // destinationCity (Order has no matching persisted column today — adding
+  // them here would silently require a migration this hotfix does not
+  // include; deferred to the Location/Order integration stage).
+  @IsOptional()
+  @IsString()
+  shippingMethod?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  needsCollection?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isRuralCollection?: boolean;
 }

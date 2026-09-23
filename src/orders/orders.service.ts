@@ -223,8 +223,32 @@ export class OrdersService {
       : null;
 
     const basePrice = Number(product.basePrice || 0);
-    const chosenMethod =
-      (dto as any).shippingMethod || product.shippingMethod || 'agent';
+
+    // Checkout DTO Integrity hotfix. shippingMethod is a real, typed DTO
+    // field now, but a syntactically valid key must still be ELIGIBLE for
+    // this product/delivery address — validated against the same authority
+    // the checkout UI itself calls to list options (getDeliveryMethods()),
+    // never a second, static ruleset. Omitted -> falls back to the
+    // product's own default, unchanged from before this hotfix.
+    // Typed as string, not ShippingMethod: chosenMethod's real runtime
+    // domain ('boda'/'kentexa_delivery'/'bus'/'courier'/'agent'/'direct')
+    // has always been broader than Product.shippingMethod's own ShippingMethod
+    // enum ('direct'|'agent' only) -- this was previously masked by the
+    // removed (dto as any) cast collapsing the whole expression to `any`.
+    let chosenMethod: string = product.shippingMethod || 'agent';
+    if (dto.shippingMethod) {
+      const { methods } = await this.getDeliveryMethods(
+        dto.deliveryAddress || '',
+        dto.productId,
+      );
+      const eligible = methods.some((m: any) => m.key === dto.shippingMethod);
+      if (!eligible) {
+        throw new BadRequestException(
+          `Shipping method "${dto.shippingMethod}" is not available for this delivery address`,
+        );
+      }
+      chosenMethod = dto.shippingMethod;
+    }
 
     // Pricing logic:
     // - Dar intra-city (boda/kentexa_delivery): basePrice + bodaFee or flat van fee
@@ -234,11 +258,10 @@ export class OrdersService {
 
     let deliveryFee: number;
     if (chosenMethod === 'boda') {
-      // Use bodaFee from DTO if provided (checkout sends it), else product bodaFee
-      deliveryFee =
-        (dto as any).deliveryFee !== undefined
-          ? Number((dto as any).deliveryFee)
-          : bodaFee;
+      // Server-derived only. A client-submitted fee amount is never
+      // trusted here — whatever the checkout UI displayed as a quote, the
+      // charged amount is always recomputed from the product's own bodaFee.
+      deliveryFee = bodaFee;
     } else if (chosenMethod === 'kentexa_delivery') {
       deliveryFee = BATCH_FEE;
     } else {
@@ -252,12 +275,13 @@ export class OrdersService {
     if (isDigitalProduct) deliveryFee = 0;
 
     // ── Collection fee — added to total when seller requests agent pickup ────
-    // Buyer pays this as part of delivery, seller not penalised for rural area.
-    const needsCollection = !isDigitalProduct && Boolean((dto as any).needsCollection);
-    const isRuralCollection = Boolean((dto as any).isRuralCollection);
-    const collectionFee = needsCollection
-      ? Number((dto as any).collectionFee || (isRuralCollection ? 3000 : 1500))
-      : 0;
+    // Buyer pays this as part of delivery, seller not penalised for rural
+    // area. needsCollection/isRuralCollection are legitimate buyer-declared
+    // intent (real, typed DTO fields); the FEE itself remains a fixed,
+    // server-derived rate — never a client-submitted amount.
+    const needsCollection = !isDigitalProduct && Boolean(dto.needsCollection);
+    const isRuralCollection = Boolean(dto.isRuralCollection);
+    const collectionFee = needsCollection ? (isRuralCollection ? 3000 : 1500) : 0;
 
     const totalAmount =
       (basePrice + deliveryFee) * dto.quantity + collectionFee;
