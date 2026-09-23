@@ -9,17 +9,22 @@
  */
 
 /**
- * How a LocationCandidate was actually produced. An open string, not a
- * closed set enforced anywhere -- new providers may introduce new methods
- * without touching this file. The values below are simply the ones this
- * stage's own provider and near-future providers are expected to use.
+ * How a LocationCandidate was actually produced. Genuinely open: the
+ * `| (string & {})` member is a standard TypeScript technique that keeps
+ * autocomplete/documentation for the known values below WITHOUT collapsing
+ * the type to plain `string` (which would lose that autocomplete) -- any
+ * other string literal is still structurally assignable, so a future
+ * provider can introduce e.g. 'geocoded' or 'provider_search' without
+ * modifying this file. Previously the type was a closed union while its own
+ * comment claimed otherwise; this makes the code match that claim.
  */
 export type LocationResolutionMethod =
   | 'admin_seed' // matched against seeded administrative-geography text (what tz_seed does)
   | 'user_typed' // free text, unresolved beyond echoing it back
   | 'gps' // device coordinates
   | 'reverse_geocoded' // coordinates -> label
-  | 'manual_entry'; // staff/admin correction
+  | 'manual_entry' // staff/admin correction
+  | (string & {});
 
 export interface GeoPoint {
   latitude: number;
@@ -30,6 +35,28 @@ export interface LocationSearchOptions {
   near?: GeoPoint;
   countryCode?: string;
   limit?: number;
+}
+
+/**
+ * Only exposes a GeoPoint when BOTH values convert to finite numbers within
+ * valid geographic ranges (latitude -90..90, longitude -180..180). A
+ * candidate must never appear partially coordinate-resolved (one side
+ * present, the other missing/invalid) or expose NaN -- either both
+ * coordinates are trustworthy together, or neither is exposed and the
+ * candidate remains valid as a label/administrative-only result. Exported
+ * so every provider (not just tz_seed) validates coordinates identically.
+ */
+export function toValidatedPoint(
+  rawLatitude: unknown,
+  rawLongitude: unknown,
+): Partial<GeoPoint> {
+  if (rawLatitude == null || rawLongitude == null) return {};
+  const latitude = Number(rawLatitude);
+  const longitude = Number(rawLongitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return {};
+  if (latitude < -90 || latitude > 90) return {};
+  if (longitude < -180 || longitude > 180) return {};
+  return { latitude, longitude };
 }
 
 /**

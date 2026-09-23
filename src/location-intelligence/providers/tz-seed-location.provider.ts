@@ -17,6 +17,7 @@ import {
   LocationCandidate,
   LocationProvider,
   LocationSearchOptions,
+  toValidatedPoint,
 } from '../location-provider.interface';
 
 interface TzSearchResult {
@@ -59,8 +60,10 @@ export class TzSeedLocationProvider implements LocationProvider {
   private toCandidate(r: TzSearchResult): LocationCandidate {
     return {
       displayLabel: r.fullAddress,
-      latitude: r.lat != null ? Number(r.lat) : undefined,
-      longitude: r.lng != null ? Number(r.lng) : undefined,
+      // Validated as a pair -- see toValidatedPoint's own doc comment. Never
+      // exposes one coordinate without the other, and never a NaN/
+      // out-of-range value; seed data is trusted but not blindly assumed.
+      ...toValidatedPoint(r.lat, r.lng),
       regionId: r.regionId ?? undefined,
       regionName: r.region ?? undefined,
       districtId: r.districtId ?? undefined,

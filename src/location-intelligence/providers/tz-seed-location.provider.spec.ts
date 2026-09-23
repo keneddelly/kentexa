@@ -115,6 +115,49 @@ describe('TzSeedLocationProvider', () => {
     ]);
   });
 
+  // Coordinates must be validated as a pair, never independently -- one
+  // side present without the other, or an invalid value on either side,
+  // must omit BOTH rather than expose a partial/NaN GeoPoint.
+  describe('coordinate-pair validation', () => {
+    const row = (lat: unknown, lng: unknown) => ({
+      type: 'ward', wardId: 1, ward: 'X', districtId: 1, district: 'Y', regionId: 1, region: 'Z', lat, lng, fullAddress: 'X, Y, Z',
+    });
+
+    it('preserves a valid coordinate pair', async () => {
+      tzLocation.search.mockResolvedValue([row('-6.75', '39.20')]);
+      const [candidate] = await provider.search('X');
+      expect(candidate.latitude).toBe(-6.75);
+      expect(candidate.longitude).toBe(39.2);
+    });
+
+    it('omits BOTH coordinates when one side is missing', async () => {
+      tzLocation.search.mockResolvedValue([row('-6.75', null)]);
+      const [candidate] = await provider.search('X');
+      expect(candidate.latitude).toBeUndefined();
+      expect(candidate.longitude).toBeUndefined();
+    });
+
+    it('omits BOTH coordinates when a value is non-numeric (would produce NaN)', async () => {
+      tzLocation.search.mockResolvedValue([row('not-a-number', '39.20')]);
+      const [candidate] = await provider.search('X');
+      expect(candidate.latitude).toBeUndefined();
+      expect(candidate.longitude).toBeUndefined();
+      expect(candidate).not.toHaveProperty('latitude');
+    });
+
+    it('omits BOTH coordinates when a value is out of valid geographic range', async () => {
+      tzLocation.search.mockResolvedValue([row('95', '39.20')]); // lat > 90
+      const [candidate] = await provider.search('X');
+      expect(candidate.latitude).toBeUndefined();
+      expect(candidate.longitude).toBeUndefined();
+
+      tzLocation.search.mockResolvedValue([row('-6.75', '200')]); // lng > 180
+      const [second] = await provider.search('X');
+      expect(second.latitude).toBeUndefined();
+      expect(second.longitude).toBeUndefined();
+    });
+  });
+
   it('carries providerKey and resolutionMethod on every candidate (provenance retained)', async () => {
     tzLocation.search.mockResolvedValue([
       { type: 'region', regionId: 1, region: 'Dar es Salaam', lat: -6.8, lng: 39.28, fullAddress: 'Dar es Salaam' },
