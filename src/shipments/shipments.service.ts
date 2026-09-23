@@ -241,9 +241,10 @@ export class ShipmentsService {
     ) => {
       if (resolved) {
         // Compatibility columns come from the resolved place through ONE
-        // explicit policy (see deriveLegacyRoutingCity); if the place has no
-        // region context we refuse rather than guess a city.
-        const city = deriveLegacyRoutingCity(resolved.candidate) ?? typedCity?.trim() ?? null;
+        // explicit policy (see deriveLegacyRoutingCity) and NOTHING else: if
+        // the place has no region context we refuse -- we never fall back to
+        // the request's typed city, which is ignored on a resolved side.
+        const city = deriveLegacyRoutingCity(resolved.candidate);
         if (!city) throw new BadRequestException('The selected place has no usable city context');
         return {
           city,

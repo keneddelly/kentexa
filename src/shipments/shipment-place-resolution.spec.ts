@@ -29,7 +29,14 @@ const MWANZA_REGION: LocationCandidate = {
   displayLabel: 'Mwanza', latitude: -2.52, longitude: 32.9, regionId: 9, regionName: 'Mwanza',
   providerKey: 'tz_seed', providerPlaceId: 'region:9', resolutionMethod: 'admin_seed',
 };
-const CANDIDATES: Record<string, LocationCandidate> = { 'tz_seed|ward:56': MBEZI, 'tz_seed|region:9': MWANZA_REGION };
+// An exact, server-resolved candidate that carries NO region context (e.g. a future provider's place).
+const REGIONLESS: LocationCandidate = {
+  displayLabel: 'Somewhere Unmapped', latitude: -3.1, longitude: 35.2,
+  providerKey: 'tz_seed', providerPlaceId: 'ward:77', resolutionMethod: 'admin_seed',
+};
+const CANDIDATES: Record<string, LocationCandidate> = {
+  'tz_seed|ward:56': MBEZI, 'tz_seed|region:9': MWANZA_REGION, 'tz_seed|ward:77': REGIONLESS,
+};
 
 describe('snapshot construction (pure)', () => {
   it('a resolved place copies EVERY value from the server candidate', () => {
@@ -231,6 +238,46 @@ describe('ShipmentsService.createShipment — server-resolved places', () => {
       expect(resolveCalls).toHaveLength(1);
       expect(tz.search).toHaveBeenCalledTimes(1); // only the FREE-TEXT destination's legacy region hint
       expect(tz.search).toHaveBeenCalledWith('Mwanza');
+    });
+  });
+
+  describe('a resolved place with no region context never borrows the typed city from the request', () => {
+    const regionless = { providerKey: 'tz_seed', providerPlaceId: 'ward:77' };
+
+    it.each([['origin'], ['destination']])('%s: forged/typed city + region-less resolved place => 400, nothing inserted, nothing reserved', async (side) => {
+      const dtoWith = side === 'origin'
+        ? base({ originPlace: regionless, originCity: 'Forged City', destinationCity: 'Mwanza', availabilityId: 3 })
+        : base({ destinationPlace: regionless, destinationCity: 'Forged City', originCity: 'Songea', availabilityId: 3 });
+      await expect(service.createShipment(7, dtoWith)).rejects.toThrow('The selected place has no usable city context');
+      expect(rows).toHaveLength(0);
+      expect(reserveCalls).toBe(0);
+    });
+
+    it('all legacy client fields of that side stay ignored (ward/region/city hints do not rescue it)', async () => {
+      await expect(service.createShipment(7, base({
+        originPlace: regionless, originCity: 'Dar es Salaam', originWard: 'Mbezi', originRegionId: 1, originWardId: 56, destinationCity: 'Mwanza',
+      }))).rejects.toThrow(BadRequestException);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('a normal tz_seed candidate still derives its routing city from the SERVER-resolved region, ignoring a forged typed city', async () => {
+      await service.createShipment(7, base({ originPlace: { providerKey: 'tz_seed', providerPlaceId: 'ward:56' }, originCity: 'Forged City', destinationCity: 'Mwanza' }));
+      expect(created()).toMatchObject({ originCity: 'Dar es Salaam', originRegionId: 1 });
+      expect(JSON.stringify(created())).not.toContain('Forged City');
+    });
+
+    it('free-text (no place) behaviour is unchanged: the typed city is used as before', async () => {
+      await service.createShipment(7, base({ originCity: 'Songea', destinationCity: 'Mwanza' }));
+      expect(created()).toMatchObject({ originCity: 'Songea', originProviderKey: 'user', originResolutionMethod: 'user_typed' });
+    });
+
+    it('the source has no typed-city fallback on the resolved path', () => {
+      const svc = readFileSync(join(__dirname, 'shipments.service.ts'), 'utf8').replace(/\/\/.*$/gm, '');
+      expect(svc).not.toMatch(/deriveLegacyRoutingCity\([^)]*\)\s*\?\?/);
+      // and the resolved branch never reads the typed city at all
+      const resolvedBranch = svc.slice(svc.indexOf('if (resolved) {'), svc.indexOf('const cityText'));
+      expect(resolvedBranch.length).toBeGreaterThan(100); // the anchors matched a real block
+      expect(resolvedBranch).not.toMatch(/typedCity/);
     });
   });
 
