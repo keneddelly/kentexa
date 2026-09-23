@@ -40,9 +40,20 @@ function rowsOf(result: any): any[] {
 export interface StrictReserveGuard {
   /** UTC calendar day, 'YYYY-MM-DD'; the slot's date must not be before it. */
   today: string;
-  /** Identity read from the SAME slot row the validation used; re-checked in the UPDATE. */
+  /**
+   * The provider whose eligibility was validated (the shipment's selected
+   * provider, or the slot's own provider when none was selected); re-checked
+   * inside the UPDATE.
+   */
   providerId: number;
-  routeId: number | null;
+  /**
+   * The ROUTE CONTRACT the caller validated: the route the shipment selected.
+   * When present the slot must have exactly this route -- a route-less slot
+   * does NOT satisfy it. When absent (the shipment selected no route) no
+   * route requirement exists and none is invented. Never derive this from the
+   * slot row itself: that would let a mismatch validate itself.
+   */
+  routeId?: number;
 }
 
 /**
@@ -52,8 +63,9 @@ export interface StrictReserveGuard {
  * - `strict` (Shipment attach): the UPDATE itself requires status OPEN,
  *   date not past, a free slot, remaining kg >= weight (only when the slot
  *   declares a kg bound: totalCapacityKg = 0 means "not specified", as the
- *   provider UI already treats it), and the same provider/route the
- *   validation saw. So no validate-then-update gap can be exploited.
+ *   provider UI already treats it), the validated provider, and -- when the
+ *   shipment selected a route -- exactly that route. So no
+ *   validate-then-update gap can be exploited.
  * - non-strict (legacy TransportService.reserveCapacity callers, i.e.
  *   createAssignment, which pre-validates its own slot): only "a free slot",
  *   exactly the previous condition, but with correct numeric kg arithmetic.
@@ -70,9 +82,7 @@ export async function reserveSlotAtomic(
     params.push(strict.today, strict.providerId);
     where += ` AND "status" = 'open' AND "date" >= $3::date AND "providerId" = $4`;
     where += ` AND ("totalCapacityKg" = 0 OR ("totalCapacityKg" - "usedCapacityKg") >= $2::numeric)`;
-    if (strict.routeId === null) {
-      where += ` AND "routeId" IS NULL`;
-    } else {
+    if (strict.routeId) {
       params.push(strict.routeId);
       where += ` AND "routeId" = $5`;
     }

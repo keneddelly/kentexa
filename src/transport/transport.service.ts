@@ -740,10 +740,15 @@ export class TransportService {
       throw new ConflictException('That slot is full');
     }
     await this.assertEligibleProvider(slot.providerId, manager);
+    // The UPDATE re-asserts the EXPECTED contract (the shipment's selected
+    // provider/route), not values read back from the slot row -- deriving them
+    // from the slot would let a mismatch validate itself. With no selected
+    // provider the slot's own provider (whose eligibility was just checked) is
+    // pinned; with no selected route no route requirement is invented.
     const reserved = await reserveSlotAtomic(manager, availabilityId, weight, {
       today: new Date().toISOString().slice(0, 10),
-      providerId: slot.providerId,
-      routeId: slot.routeId ?? null,
+      providerId: ctx.providerId || slot.providerId,
+      routeId: ctx.routeId || undefined,
     });
     if (!reserved) {
       throw new ConflictException('That slot is full or no longer available');
@@ -786,7 +791,10 @@ export class TransportService {
         "That availability slot doesn't belong to the selected provider",
       );
     }
-    if (ctx.routeId && slot.routeId && slot.routeId !== ctx.routeId) {
+    // Route contract: when the shipment selected a route, the slot must have
+    // exactly that route. A route-less (NULL) slot does NOT satisfy it. When no
+    // route was selected there is no route requirement.
+    if (ctx.routeId && slot.routeId !== ctx.routeId) {
       throw new BadRequestException(
         "That availability slot isn't for the selected route",
       );

@@ -182,8 +182,8 @@ suite('Shipment capacity attachment — real PostgreSQL', () => {
   // in the UPDATE's own WHERE must refuse on its own, because between a
   // pre-check and the UPDATE the row can change under a concurrent writer.
   describe('the atomic UPDATE re-asserts every condition itself', () => {
-    const strict = (o: Partial<{ providerId: number; routeId: number | null; today: string }> = {}) => ({
-      today: TODAY, providerId: p1.id, routeId: null as number | null, ...o,
+    const strict = (o: Partial<{ providerId: number; routeId: number; today: string }> = {}) => ({
+      today: TODAY, providerId: p1.id, ...o,
     });
     const cases: Array<[string, () => Partial<ProviderAvailability>, () => any, number]> = [
       ['no free slot although status still says OPEN', () => ({ totalSlots: 2, usedSlots: 2 }), () => strict(), 1],
@@ -192,7 +192,7 @@ suite('Shipment capacity attachment — real PostgreSQL', () => {
       ['a date in the past', () => ({ date: YESTERDAY }), () => strict(), 1],
       ['a different provider than the one validated', () => ({}), () => strict({ providerId: p2.id }), 1],
       ['a different route than the one validated', () => ({ routeId: r1.id }), () => strict({ routeId: r2.id }), 1],
-      ['a route where none was validated', () => ({ routeId: r1.id }), () => strict({ routeId: null }), 1],
+      ['a ROUTE-LESS slot when a route was expected', () => ({}), () => strict({ routeId: r1.id }), 1],
       ['insufficient kg', () => ({ totalCapacityKg: 10, usedCapacityKg: 9 }), () => strict(), 3],
     ];
     it.each(cases)('refuses %s and changes nothing', async (_n, overrideOf, guardOf, weight) => {
@@ -208,6 +208,18 @@ suite('Shipment capacity attachment — real PostgreSQL', () => {
       expect(await slotRow(slot.id)).toEqual({ used: 1, kg: '2.50', status: 'open' });
     });
 
+    it('with NO expected route there is no route requirement (route-less and routed slots both accepted)', async () => {
+      const routeless = await mkSlot();
+      const routed = await mkSlot({ routeId: r1.id });
+      expect(await reserveSlotAtomic(ds.manager, routeless.id, 1, strict())).toBe(true);
+      expect(await reserveSlotAtomic(ds.manager, routed.id, 1, strict())).toBe(true);
+    });
+
+    it('with the expected route present on the slot it accepts', async () => {
+      const routed = await mkSlot({ routeId: r1.id });
+      expect(await reserveSlotAtomic(ds.manager, routed.id, 1, strict({ routeId: r1.id }))).toBe(true);
+    });
+
     it('a kg bound of 0 ("not declared") does not block', async () => {
       const slot = await mkSlot({ totalCapacityKg: 0 });
       expect(await reserveSlotAtomic(ds.manager, slot.id, 500, strict())).toBe(true);
@@ -219,6 +231,7 @@ suite('Shipment capacity attachment — real PostgreSQL', () => {
     const cases: Array<[string, () => Promise<Record<string, unknown>>]> = [
       ['a slot of another provider', async () => ({ providerId: p2.id, availabilityId: (await mkSlot()).id })],
       ['a slot of another route', async () => ({ routeId: r2.id, availabilityId: (await mkSlot({ routeId: r1.id })).id })],
+      ['a ROUTE-LESS slot when the shipment selected a route', async () => ({ routeId: r1.id, availabilityId: (await mkSlot({ routeId: null })).id })],
       ['a CANCELLED slot', async () => ({ availabilityId: (await mkSlot({ status: AvailabilityStatus.CANCELLED })).id })],
       ['a DEPARTED slot', async () => ({ availabilityId: (await mkSlot({ status: AvailabilityStatus.DEPARTED })).id })],
       ['a past-dated slot', async () => ({ availabilityId: (await mkSlot({ date: YESTERDAY })).id })],
@@ -301,6 +314,41 @@ suite('Shipment capacity attachment — real PostgreSQL', () => {
     expect(await slotRow(a.id)).toEqual({ used: 1, kg: '2.00', status: 'open' });
     expect(await slotRow(full.id)).toEqual({ used: 1, kg: '0.00', status: 'full' });
     expect(parcels).toHaveLength(0);
+  });
+
+  describe('route contract (real database)', () => {
+    it('shipment route X + slot route X => attaches and confirms', async () => {
+      const a = await mkSlot({ routeId: r1.id });
+      const s = await service.createShipment(7, dto({ routeId: r1.id, availabilityId: a.id }));
+      await service.confirmShipment(7, s.id, {});
+      expect(await slotRow(a.id)).toEqual({ used: 1, kg: '2.00', status: 'open' });
+      expect((await shipmentsRepo.findOneByOrFail({ id: s.id })).status).toBe(ShipmentStatus.CONFIRMED);
+    });
+
+    it('no shipment route: route-less slot attaches (no route requirement invented)', async () => {
+      const a = await mkSlot({ routeId: null });
+      await service.createShipment(7, dto({ availabilityId: a.id }));
+      expect((await slotRow(a.id)).used).toBe(1);
+    });
+
+    it('held ROUTE-LESS slot + confirm selecting route X => rejected, claim rolled back, slot still held once', async () => {
+      const a = await mkSlot({ routeId: null });
+      const s = await service.createShipment(7, dto({ availabilityId: a.id }));
+      await expect(service.confirmShipment(7, s.id, { routeId: r1.id })).rejects.toThrow(BadRequestException);
+      const row = await shipmentsRepo.findOneByOrFail({ id: s.id });
+      expect(row).toMatchObject({ status: ShipmentStatus.PENDING, routeId: null, availabilityId: a.id });
+      expect(await slotRow(a.id)).toEqual({ used: 1, kg: '2.00', status: 'open' });
+      expect(parcels).toHaveLength(0);
+    });
+
+    it('confirm switching a routed shipment to a ROUTE-LESS slot is rejected and everything rolls back', async () => {
+      const a = await mkSlot({ routeId: r1.id }); const b = await mkSlot({ routeId: null });
+      const s = await service.createShipment(7, dto({ routeId: r1.id, availabilityId: a.id }));
+      await expect(service.confirmShipment(7, s.id, { availabilityId: b.id })).rejects.toThrow(BadRequestException);
+      expect(await shipmentsRepo.findOneByOrFail({ id: s.id })).toMatchObject({ status: ShipmentStatus.PENDING, availabilityId: a.id });
+      expect(await slotRow(a.id)).toEqual({ used: 1, kg: '2.00', status: 'open' });
+      expect(await slotRow(b.id)).toEqual({ used: 0, kg: '0.00', status: 'open' });
+    });
   });
 
   it('two shipments switching slots in opposite directions at once do not deadlock and end consistent', async () => {

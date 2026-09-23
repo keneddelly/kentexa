@@ -163,7 +163,7 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
       const s = slots.get(id);
       if (!s) throw new NotFoundException('Availability slot not found');
       if (ctx.providerId && s.providerId !== ctx.providerId) throw new BadRequestException("slot doesn't belong to the selected provider");
-      if (ctx.routeId && s.routeId && s.routeId !== ctx.routeId) throw new BadRequestException("slot isn't for the selected route");
+      if (ctx.routeId && s.routeId !== ctx.routeId) throw new BadRequestException("slot isn't for the selected route");
       return s;
     };
     const transportService: any = {
@@ -377,6 +377,65 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
       await expect(service.createShipment(7, dto({ providerId: 5, availabilityId: 3 }))).rejects.toThrow('simulated insert failure');
       expect(rows.size).toBe(0);
       expect(slotState(3)).toEqual({ used: 0, kg: 0, status: 'open' });
+    });
+  });
+
+  // ═══ route contract ════════════════════════════════════════════════════
+  describe('route contract between the shipment and its slot', () => {
+    it('shipment route X + ROUTE-LESS slot => rejected, nothing inserted, counters unchanged', async () => {
+      slots.set(3, slot({ id: 3, routeId: null }));
+      await expect(service.createShipment(7, dto({ providerId: 5, availabilityId: 3, routeId: 8 }))).rejects.toThrow(BadRequestException);
+      expect(rows.size).toBe(0);
+      expect(slotState(3)).toEqual({ used: 0, kg: 0, status: 'open' });
+    });
+
+    it('shipment route X + slot route Y => rejected, nothing inserted, counters unchanged', async () => {
+      slots.set(3, slot({ id: 3, routeId: 9 }));
+      await expect(service.createShipment(7, dto({ providerId: 5, availabilityId: 3, routeId: 8 }))).rejects.toThrow(BadRequestException);
+      expect(rows.size).toBe(0);
+      expect(slotState(3)).toEqual({ used: 0, kg: 0, status: 'open' });
+    });
+
+    it('shipment route X + slot route X => succeeds', async () => {
+      slots.set(3, slot({ id: 3, routeId: 8 }));
+      const s = await service.createShipment(7, dto({ providerId: 5, availabilityId: 3, routeId: 8 }));
+      expect(rows.get(s.id)).toMatchObject({ routeId: 8, availabilityId: 3 });
+      expect(slotState(3).used).toBe(1);
+    });
+
+    it('no shipment route: NO route requirement is invented (route-less slot and routed slot both attach)', async () => {
+      slots.set(3, slot({ id: 3, routeId: null }));
+      slots.set(4, slot({ id: 4, routeId: 9 }));
+      await service.createShipment(7, dto({ providerId: 5, availabilityId: 3 }));
+      await service.createShipment(7, dto({ providerId: 5, availabilityId: 4 }));
+      expect(slotState(3).used).toBe(1);
+      expect(slotState(4).used).toBe(1);
+    });
+
+    it('held ROUTE-LESS slot + confirm selecting route X => rejected and the claim rolls back', async () => {
+      slots.set(3, slot({ id: 3, routeId: null }));
+      const s = await service.createShipment(7, dto({ providerId: 5, availabilityId: 3 }));
+      await expect(service.confirmShipment(7, s.id, { routeId: 8 })).rejects.toThrow(BadRequestException);
+      expect(rows.get(s.id)).toMatchObject({ status: ShipmentStatus.PENDING, routeId: null, availabilityId: 3 });
+      expect(slotState(3).used).toBe(1);
+      expect(parcels).toHaveLength(0);
+    });
+
+    it('confirm switching to a ROUTE-LESS slot while a route is selected is rejected and rolled back', async () => {
+      slots.set(3, slot({ id: 3, routeId: 8 }));
+      slots.set(4, slot({ id: 4, routeId: null }));
+      const s = await service.createShipment(7, dto({ providerId: 5, availabilityId: 3, routeId: 8 }));
+      await expect(service.confirmShipment(7, s.id, { availabilityId: 4 })).rejects.toThrow(BadRequestException);
+      expect(rows.get(s.id)).toMatchObject({ status: ShipmentStatus.PENDING, availabilityId: 3 });
+      expect(slotState(3).used).toBe(1);
+      expect(slotState(4).used).toBe(0);
+    });
+
+    it('confirm with a matching route on the held slot succeeds', async () => {
+      slots.set(3, slot({ id: 3, routeId: 8 }));
+      const s = await service.createShipment(7, dto({ providerId: 5, availabilityId: 3, routeId: 8 }));
+      const { shipment } = await service.confirmShipment(7, s.id, {});
+      expect(shipment.status).toBe(ShipmentStatus.CONFIRMED);
     });
   });
 

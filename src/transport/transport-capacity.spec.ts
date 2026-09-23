@@ -44,13 +44,22 @@ describe('reserveSlotAtomic / releaseSlotAtomic — SQL contract', () => {
     expect(placeholders(sql)).toBe(params.length);
   });
 
-  it('a route-less slot is matched with IS NULL and binds no route parameter (placeholder count == parameter count)', async () => {
+  it('with NO expected route the UPDATE adds no route clause at all (no route requirement is invented); placeholder count == parameter count', async () => {
     const { manager, query } = managerReturning([{ id: 3 }]);
-    await reserveSlotAtomic(manager, 3, 1, { today: TODAY, providerId: 5, routeId: null });
+    await reserveSlotAtomic(manager, 3, 1, { today: TODAY, providerId: 5 });
     const [sql, params] = query.mock.calls[0] as unknown as [string, any[]];
-    expect(sql).toContain(`"routeId" IS NULL`);
+    expect(sql).not.toContain('"routeId"');
     expect(params).toEqual([3, 1, TODAY, 5]);
     expect(placeholders(sql)).toBe(params.length);
+  });
+
+  it('an expected route is asserted by equality, so a route-less (NULL) slot can never satisfy it', async () => {
+    const { manager, query } = managerReturning([{ id: 3 }]);
+    await reserveSlotAtomic(manager, 3, 1, { today: TODAY, providerId: 5, routeId: 8 });
+    const [sql] = query.mock.calls[0] as unknown as [string, any[]];
+    expect(sql).toContain('AND "routeId" = $5');
+    expect(sql).not.toContain('IS NULL');
+    expect(sql).not.toContain('IS NOT DISTINCT');
   });
 
   it('non-strict (legacy createAssignment path) keeps only its previous condition: a free slot', async () => {
@@ -69,7 +78,7 @@ describe('reserveSlotAtomic / releaseSlotAtomic — SQL contract', () => {
     ['[[], 0]', [[], 0]],
   ])('reports false when no row was updated (%s)', async (_n, rows) => {
     const { manager } = managerReturning(rows as any);
-    expect(await reserveSlotAtomic(manager, 3, 1, { today: TODAY, providerId: 5, routeId: null })).toBe(false);
+    expect(await reserveSlotAtomic(manager, 3, 1, { today: TODAY, providerId: 5 })).toBe(false);
   });
 
   it('understands the [rows, affected] result shape too', async () => {
@@ -120,10 +129,33 @@ describe('TransportService.reserveSlot — validated, fail-closed attach', () =>
     expect(params).toEqual([3, 2, TODAY, 5, 8]);
   });
 
+  it('the UPDATE is bound to the EXPECTED contract (selected provider/route), not to values read back from the slot row', async () => {
+    const { svc, query, manager } = build({ slot: slot({ providerId: 5, routeId: 8 }) });
+    await svc.reserveSlot(3, 2, { providerId: 5, routeId: 8 }, manager);
+    expect((query.mock.calls[0] as unknown as [string, any[]])[1]).toEqual([3, 2, TODAY, 5, 8]);
+  });
+
+  it('no route selected: NO route requirement is invented, whether the slot has a route or not (deliberate, preserved behaviour)', async () => {
+    for (const routeId of [null, 8]) {
+      const { svc, query, manager } = build({ slot: slot({ routeId }) });
+      await svc.reserveSlot(3, 2, { providerId: 5 }, manager);
+      const [sql, params] = query.mock.calls[0] as unknown as [string, any[]];
+      expect(sql).not.toContain('"routeId"');
+      expect(params).toEqual([3, 2, TODAY, 5]);
+    }
+  });
+
+  it("no provider selected: the slot's own (eligibility-checked) provider is pinned in the UPDATE", async () => {
+    const { svc, query, manager } = build({ slot: slot({ providerId: 5 }) });
+    await svc.reserveSlot(3, 2, {}, manager);
+    expect((query.mock.calls[0] as unknown as [string, any[]])[1][3]).toBe(5);
+  });
+
   it.each([
     ['a missing slot', { slot: null }, {}, NotFoundException],
     ['a slot of another provider', {}, { providerId: 6 }, BadRequestException],
     ['a slot of another route', { slot: slot({ routeId: 2 }) }, { routeId: 9 }, BadRequestException],
+    ['a ROUTE-LESS slot when the shipment selected a route', { slot: slot({ routeId: null }) }, { routeId: 9 }, BadRequestException],
     ['a CANCELLED slot', { slot: slot({ status: AvailabilityStatus.CANCELLED }) }, {}, BadRequestException],
     ['a DEPARTED slot', { slot: slot({ status: AvailabilityStatus.DEPARTED }) }, {}, BadRequestException],
     ['a FULL-status slot', { slot: slot({ status: AvailabilityStatus.FULL }) }, {}, BadRequestException],
@@ -155,6 +187,13 @@ describe('TransportService.reserveSlot — validated, fail-closed attach', () =>
     await expect(full.svc.assertHeldSlotMatches(3, { providerId: 5 }, full.manager)).resolves.toBeUndefined();
     const other = build();
     await expect(other.svc.assertHeldSlotMatches(3, { providerId: 6 }, other.manager)).rejects.toThrow(BadRequestException);
+    const routeless = build({ slot: slot({ routeId: null }) });
+    await expect(routeless.svc.assertHeldSlotMatches(3, { providerId: 5, routeId: 8 }, routeless.manager)).rejects.toThrow(BadRequestException);
+    await expect(routeless.svc.assertHeldSlotMatches(3, { providerId: 5 }, routeless.manager)).resolves.toBeUndefined(); // no route selected => no requirement
+    const wrongRoute = build({ slot: slot({ routeId: 2 }) });
+    await expect(wrongRoute.svc.assertHeldSlotMatches(3, { providerId: 5, routeId: 8 }, wrongRoute.manager)).rejects.toThrow(BadRequestException);
+    const rightRoute = build({ slot: slot({ routeId: 8 }) });
+    await expect(rightRoute.svc.assertHeldSlotMatches(3, { providerId: 5, routeId: 8 }, rightRoute.manager)).resolves.toBeUndefined();
     const gone = build({ slot: slot({ status: AvailabilityStatus.DEPARTED }) });
     await expect(gone.svc.assertHeldSlotMatches(3, { providerId: 5 }, gone.manager)).rejects.toThrow(BadRequestException);
     expect(full.query).not.toHaveBeenCalled();
