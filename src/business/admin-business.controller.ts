@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Query, Request, UseGuards } from '@nestjs/common';
-import { DataSource, ILike } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
@@ -21,14 +21,14 @@ export class AdminBusinessController {
     }
     const query = (search ?? '').trim();
     if (query.length > 100) throw new BadRequestException('Search is too long');
-    return this.dataSource.getRepository(Business).find({
-      where: {
-        ...(status ? { status: status as BusinessStatus } : {}),
-        ...(query ? { legalName: ILike(`%${query.replace(/[%_]/g, '\\$&')}%`) } : {}),
-      },
-      order: { id: 'DESC' },
-      take: 100,
-    });
+    const rows = this.dataSource.getRepository(Business).createQueryBuilder('business')
+      .select('business.id', 'id')
+      .addSelect('business.legalName', 'legalName')
+      .addSelect('business.status', 'status')
+      .orderBy('business.id', 'DESC').limit(100);
+    if (status) rows.andWhere('business.status = :status', { status });
+    if (query) rows.andWhere('business.legalName ILIKE :query', { query: `%${query.replace(/[\\%_]/g, '\\$&')}%` });
+    return rows.getRawMany();
   }
 
   @Post(':id/restore')
