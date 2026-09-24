@@ -118,6 +118,54 @@ export class UsersService {
     return this.exclude(updated);
   }
 
+  // Emergency account-recovery path for OTP delivery failures. This verifies
+  // only the base Kentexa account; it does NOT approve NIDA/BRELA/KYC,
+  // seller, agent, transport-provider or business verification.
+  //
+  // OTP material is invalidated at the same time so an old code cannot be
+  // replayed after the admin override. Idempotent for an already-verified user.
+  async adminVerifyAccount(id: number) {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) throw new NotFoundException(`User #${id} not found`);
+
+    if (!user.isVerified) {
+      user.isVerified = true;
+      user.otp = null;
+      user.otpExpiry = null;
+      user.otpAttempts = 0;
+      await this.userRepo.save(user);
+    }
+
+    // Match the normal OTP-verification side effect: every verified account
+    // should have a PERSONAL CommerceProfile. Failure is non-fatal here for
+    // the same reason it is non-fatal in AuthService.verifyOtp().
+    try {
+      const existing = await this.commerceProfiles.findForUserByType(
+        user.id,
+        CommerceProfileType.PERSONAL,
+      );
+      if (!existing) {
+        await this.commerceProfiles.createProfile({
+          ownerId: user.id,
+          type: CommerceProfileType.PERSONAL,
+          displayName: user.name || `User ${user.id}`,
+          usernameSeed: user.name || `user${user.id}`,
+          photoUrl: user.avatarUrl,
+        });
+      }
+    } catch {
+      // Verification itself remains successful; existing admin/profile repair
+      // tooling can recover a missing personal profile later.
+    }
+
+    return {
+      message: user.isVerified
+        ? 'Account verified successfully'
+        : 'Account was already verified',
+      user: this.exclude(user),
+    };
+  }
+
   async remove(id: number) {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) throw new NotFoundException(`User #${id} not found`);
