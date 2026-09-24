@@ -93,7 +93,7 @@ export class AddShipmentHubDecision1788274800000 implements MigrationInterface {
       CREATE OR REPLACE FUNCTION public."fn_shipment_hub_decision_guard"()
       RETURNS trigger
       LANGUAGE plpgsql
-      AS $
+      AS $$
       DECLARE
         origin_deleted boolean := false;
         destination_deleted boolean := false;
@@ -137,7 +137,7 @@ export class AddShipmentHubDecision1788274800000 implements MigrationInterface {
         END IF;
 
         RETURN NEW;
-      END $`
+      END $$`
     );
     await queryRunner.query(`DROP TRIGGER IF EXISTS "TRG_shipment_hub_decision_guard" ON public.shipment`);
     await queryRunner.query(`
