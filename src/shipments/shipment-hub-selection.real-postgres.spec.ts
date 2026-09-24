@@ -15,6 +15,7 @@ import { TransportProvider, ProviderStatus, ProviderType } from '../transport/en
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { User } from '../users/entities/user.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { Parcel } from '../super-agents/entities/parcel.entity';
 import { AddShipmentHubDecision1788274800000, SHIPMENT_HUB_DECISION_COLUMNS } from '../database/migrations/1788274800000-AddShipmentHubDecision';
 import { HUB_DECISION_CONFLICT, HUB_SELECTION_REQUIRED, ShipmentHubSource } from './shipment-hub-selection';
 import { SHIPMENT_LOCATION_SNAPSHOT_COLUMNS } from '../database/migrations/1788271200000-AddShipmentLocationSnapshot';
@@ -166,11 +167,25 @@ suite('Shipment hub decision — real PostgreSQL', () => {
         return saved;
       },
     };
+    // This suite keeps Parcel in memory, but the Shipment row and transaction
+    // are real PostgreSQL. Route only the Parcel repository to the fake while
+    // preserving the real transaction manager and its row locks.
+    const realTransaction = ds.manager.transaction.bind(ds.manager);
+    const shipmentRepoForService: any = Object.create(shipmentsRepo);
+    shipmentRepoForService.manager = {
+      transaction: (cb: any) => realTransaction((em: any) => cb(new Proxy(em, {
+        get(target, prop) {
+          if (prop === 'getRepository') return (entity: any) => entity === Parcel ? parcelRepo : target.getRepository(entity);
+          const value = target[prop];
+          return typeof value === 'function' ? value.bind(target) : value;
+        },
+      }))),
+    };
     const args: any[] = new Array(14).fill({});
     args[0] = providers; args[1] = routes; args[2] = slotsRepo; args[9] = shipmentsRepo;
     transport = new (TransportService as any)(...args);
     service = new ShipmentsService(
-      shipmentsRepo, routes, parcelRepo, ds.getRepository(SuperAgent), transport, { search: async () => [] } as any,
+      shipmentRepoForService, routes, parcelRepo, ds.getRepository(SuperAgent), transport, { search: async () => [] } as any,
       { resolve: async ({ providerPlaceId }: any) => PLACES[providerPlaceId] ?? null } as any,
     );
   });
@@ -517,6 +532,34 @@ suite('Shipment hub decision — real PostgreSQL', () => {
       await expect(service.confirmShipment(7, id, {})).rejects.toThrow(BadRequestException);
       await undecided(id);
       expect(parcels).toHaveLength(0);
+    });
+
+    it('cancellation after confirm commits but before Parcel creation cannot insert a Parcel', async () => {
+      const slot = await mkSlot();
+      const shipment = await mk({ availabilityId: slot.id });
+      let entered!: () => void;
+      let resume!: () => void;
+      const atGap = new Promise<void>((resolve) => { entered = resolve; });
+      const released = new Promise<void>((resolve) => { resume = resolve; });
+      const original = (service as any).ensureParcelForShipment.bind(service);
+      (service as any).ensureParcelForShipment = async (s: Shipment) => {
+        entered();
+        await released;
+        return original(s);
+      };
+
+      const confirming = service.confirmShipment(7, shipment.id, { providerId: p1.id });
+      try {
+        await atGap; // The confirm transaction has committed; Parcel has not been written.
+        expect((await row(shipment.id)).status).toBe('confirmed');
+        await service.cancelShipment(7, shipment.id);
+      } finally {
+        resume();
+      }
+      await expect(confirming).rejects.toThrow(BadRequestException);
+      expect((await row(shipment.id)).status).toBe('cancelled');
+      expect(parcels).toHaveLength(0);
+      expect((await slotRow(slot.id)).used).toBe(0);
     });
 
     it('migration + release leave existing rows untouched: nothing decides a row until its owner explicitly confirms', async () => {
