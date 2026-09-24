@@ -170,6 +170,12 @@ export class SellerController {
   ) {
     return this.sellerService.suspend(id, reason);
   }
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/restore')
+  restore(@Param('id', ParseIntPipe) id: number, @Request() req, @Body('reason') reason: string) {
+    return this.approvalBridge.restore(id, req.user, reason);
+  }
   // ── Team Management ───────────────────────────────────────────────────────
   @Get('team')
   @UseGuards(JwtAuthGuard)
