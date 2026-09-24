@@ -62,9 +62,9 @@ export class VerificationService {
   // 32: identityVerified/sellerVerified/etc. must always be backend-derived).
   async getLevel(userId: number): Promise<number> {
     const identity = await this.getIdentityProfile(userId);
-    const level1 =
-      identity?.status === IdentityVerificationStatus.PENDING ||
-      identity?.status === IdentityVerificationStatus.VERIFIED;
+    // A submitted document is awaiting review; it cannot authorize money,
+    // custody, or regulated operational authority until approved.
+    const level1 = identity?.status === IdentityVerificationStatus.VERIFIED;
     if (!level1) return 0;
 
     const sellerProfile = await this.sellerProfileRepo.findOne({
@@ -101,9 +101,7 @@ export class VerificationService {
   // caller is blocked so the frontend can route them correctly instead of
   // always showing "verify your identity": NOT_SUBMITTED/REJECTED are
   // genuinely an identity problem the VerifyIdentityModal flow fixes;
-  // PENDING is never a reason to block on its own (it already satisfies
-  // Level 1 — see getLevel()'s comment, a deliberate "pending counts"
-  // policy, not an oversight); a level-1-clear user still short of a
+  // PENDING remains below Level 1 until an admin approves it; a level-1-clear user still short of a
   // HIGHER requirement (e.g. CREATE_PRODUCT needs an approved seller
   // application too) is missing something resubmitting NIDA can't fix, so
   // that gets its own distinct code rather than a misleading identity
@@ -441,8 +439,7 @@ export class VerificationService {
       ]);
 
       // Real money-equivalent value is granted here, so require an actual
-      // admin-verified identity -- a stricter bar than the Level-1
-      // feature-gate's "pending counts" rule used elsewhere.
+      // admin-verified identity, matching the Level-1 requirement.
       if (referredIdentity?.status !== IdentityVerificationStatus.VERIFIED) {
         return;
       }
