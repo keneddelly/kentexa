@@ -752,7 +752,9 @@ export class ShipmentsService {
     } else {
       current = await this.recordLateHubDecision(shipment.id, hubInputs);
     }
-    const parcel = existing ?? (await this.ensureParcelForShipment(current));
+    // Even an existing Parcel is re-read behind the Shipment lock so a retry
+    // cannot return success after a concurrent cancellation committed.
+    const parcel = await this.ensureParcelForShipment(current);
     return { shipment: current, parcel };
   }
 
@@ -943,7 +945,24 @@ export class ShipmentsService {
   // Order -> Parcel creation, just triggered from the Shipment side (hubs
   // aside: see below).
   private async ensureParcelForShipment(shipment: Shipment): Promise<Parcel> {
-    const existing = await this.parcelRepo.findOne({
+    // Cancellation locks this same Shipment row. Keep the status check and
+    // Parcel insert in one transaction so a cancellation cannot commit in
+    // between them (including after the confirm claim commits).
+    return this.shipmentRepo.manager.transaction(async (em) => {
+      const current = await em.getRepository(Shipment).findOne({
+        where: { id: shipment.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!current) throw new NotFoundException('Shipment not found');
+      if (current.status !== ShipmentStatus.CONFIRMED) {
+        throw new BadRequestException(`Cannot create a Parcel for a shipment that is "${current.status}"`);
+      }
+      return this.createParcelForConfirmedShipment(current, em.getRepository(Parcel));
+    });
+  }
+
+  private async createParcelForConfirmedShipment(shipment: Shipment, parcels: Repository<Parcel>): Promise<Parcel> {
+    const existing = await parcels.findOne({
       where: { shipment: { id: shipment.id } },
     });
     if (existing) return existing;
@@ -963,7 +982,7 @@ export class ShipmentsService {
       ? ({ id: shipment.destinationHubId } as SuperAgent)
       : null;
 
-    const created: Parcel = this.parcelRepo.create({
+    const created: Parcel = parcels.create({
       shipment: { id: shipment.id } as any,
       order: null,
       senderName: shipment.senderName,
@@ -984,51 +1003,10 @@ export class ShipmentsService {
       source: 'shipment',
       status: ParcelStatus.PENDING,
     });
-    // UQ_parcel_shipmentId (Stage 1 integrity migration) is the real
-    // authority on "at most one Parcel per Shipment" — the find-then-create
-    // check above is only a fast path, not the guarantee. Under a genuine
-    // concurrent confirmShipment() race, two requests can both pass that
-    // check before either insert commits; exactly one INSERT then wins and
-    // the other hits this unique index (23505). Recover deterministically by
-    // returning the winner's row instead of surfacing a raw database error.
-    //
-    // Must recognize THIS specific constraint, not bare 23505 — Parcel has
-    // other unique constraints (e.g. trackingNumber) an insert could
-    // conceivably violate for an unrelated reason, and blindly recovering
-    // via "any Parcel already linked to this shipment" for a violation that
-    // has nothing to do with the shipment link would misclassify a real
-    // error as a race and silently return the wrong outcome. Mirrors the
-    // existing isUniqueViolation(e, constraintName) pattern already used in
-    // business-capability-application.service.ts — checked against the
-    // error text since not every pg/TypeORM error surfaces a bare
-    // `.constraint` property consistently.
-    let saved: Parcel;
-    try {
-      saved = await this.parcelRepo.save(created);
-    } catch (err: any) {
-      if (this.isParcelShipmentUniqueViolation(err)) {
-        const winner = await this.parcelRepo.findOne({
-          where: { shipment: { id: shipment.id } },
-        });
-        if (winner) return winner;
-      }
-      throw err;
-    }
+    // Concurrent confirmations take the Shipment lock in order, so only the
+    // first caller inserts. Keep the unique index as a database backstop.
+    const saved = await parcels.save(created);
     saved.trackingNumber = `KTX-PCL-${saved.id}`;
-    return this.parcelRepo.save(saved);
-  }
-
-  private isParcelShipmentUniqueViolation(err: any): boolean {
-    const pgCode = err?.code ?? err?.driverError?.code;
-    if (pgCode !== '23505') return false;
-    const text = String(
-      err?.constraint ??
-        err?.driverError?.constraint ??
-        err?.detail ??
-        err?.driverError?.detail ??
-        err?.message ??
-        '',
-    );
-    return text.includes('UQ_parcel_shipmentId');
+    return parcels.save(saved);
   }
 }
