@@ -17,8 +17,12 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *    and a user deletion is never blocked by a historical selection;
  *  - partial indexes on each hub id (serve the FK action / lookups);
  *  - CHK_shipment_origin_hub_decision / CHK_shipment_destination_hub_decision:
- *    source NULL => no hub; 'none_available'/'not_required' => no hub;
- *    naming sources may have a NULL id afterwards (hub row deleted);
+ *    source NULL => no hub; 'none_available'/'not_required' => no hub; naming
+ *    sources use a hub id when the decision is first written;
+ *  - TRG_shipment_hub_decision_guard: rejects INSERT/UPDATE that creates a
+ *    naming source with NULL hub id. It permits only an unchanged historical
+ *    naming source whose id was cleared because its referenced SuperAgent row
+ *    no longer exists (the FK's ON DELETE SET NULL action);
  *  - CHK_shipment_hub_decision_atomic: both sides and hubDecidedAt are decided
  *    together or not at all.
  * The source vocabulary below is a frozen copy on purpose (a migration must
@@ -85,6 +89,64 @@ export class AddShipmentHubDecision1788274800000 implements MigrationInterface {
         ),
       );
     }
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION public."fn_shipment_hub_decision_guard"()
+      RETURNS trigger
+      LANGUAGE plpgsql
+      AS $
+      DECLARE
+        origin_deleted boolean := false;
+        destination_deleted boolean := false;
+      BEGIN
+        IF TG_OP = 'UPDATE' THEN
+          origin_deleted :=
+            OLD."originHubId" IS NOT NULL
+            AND NEW."originHubId" IS NULL
+            AND NEW."originHubSource" = OLD."originHubSource"
+            AND NEW."originHubSource" IN ('sender_selected', 'auto_single_candidate')
+            AND NOT EXISTS (SELECT 1 FROM public.super_agent WHERE id = OLD."originHubId");
+
+          destination_deleted :=
+            OLD."destinationHubId" IS NOT NULL
+            AND NEW."destinationHubId" IS NULL
+            AND NEW."destinationHubSource" = OLD."destinationHubSource"
+            AND NEW."destinationHubSource" IN ('sender_selected', 'auto_single_candidate')
+            AND NOT EXISTS (SELECT 1 FROM public.super_agent WHERE id = OLD."destinationHubId");
+        END IF;
+
+        IF NEW."originHubSource" IN ('sender_selected', 'auto_single_candidate')
+           AND NEW."originHubId" IS NULL
+           AND NOT (
+             (TG_OP = 'UPDATE' AND OLD."originHubId" IS NULL AND OLD."originHubSource" = NEW."originHubSource")
+             OR origin_deleted
+           )
+        THEN
+          RAISE EXCEPTION 'origin naming hub source requires a hub id'
+            USING ERRCODE = '23514', CONSTRAINT = 'TRG_shipment_hub_decision_guard';
+        END IF;
+
+        IF NEW."destinationHubSource" IN ('sender_selected', 'auto_single_candidate')
+           AND NEW."destinationHubId" IS NULL
+           AND NOT (
+             (TG_OP = 'UPDATE' AND OLD."destinationHubId" IS NULL AND OLD."destinationHubSource" = NEW."destinationHubSource")
+             OR destination_deleted
+           )
+        THEN
+          RAISE EXCEPTION 'destination naming hub source requires a hub id'
+            USING ERRCODE = '23514', CONSTRAINT = 'TRG_shipment_hub_decision_guard';
+        END IF;
+
+        RETURN NEW;
+      END $`
+    );
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TRG_shipment_hub_decision_guard" ON public.shipment`);
+    await queryRunner.query(`
+      CREATE TRIGGER "TRG_shipment_hub_decision_guard"
+      BEFORE INSERT OR UPDATE OF "originHubId", "destinationHubId", "originHubSource", "destinationHubSource"
+      ON public.shipment
+      FOR EACH ROW EXECUTE FUNCTION public."fn_shipment_hub_decision_guard"()
+    `);
+
     await queryRunner.query(
       addConstraint(
         'CHK_shipment_hub_decision_atomic',
@@ -97,6 +159,8 @@ export class AddShipmentHubDecision1788274800000 implements MigrationInterface {
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TRG_shipment_hub_decision_guard" ON public.shipment`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS public."fn_shipment_hub_decision_guard"()`);
     await queryRunner.query(
       `ALTER TABLE public.shipment DROP CONSTRAINT IF EXISTS "CHK_shipment_hub_decision_atomic"`,
     );
