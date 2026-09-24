@@ -1,6 +1,7 @@
 import { VerificationService } from './verification.service';
 import { Feature } from './verification.constants';
 import { IdentityVerificationStatus } from './entities/identity-profile.entity';
+import { WalletService } from '../wallet/wallet.service';
 
 describe('risk-based verification', () => {
   const identity = { findOne: jest.fn() };
@@ -33,5 +34,15 @@ describe('risk-based verification', () => {
     identity.findOne.mockResolvedValue({ status: IdentityVerificationStatus.VERIFIED });
     await expect(service.requireFeature(5, Feature.BECOME_TRANSPORTER)).resolves.toBeUndefined();
     await expect(service.requireFeature(5, Feature.RECEIVE_PAYMENT)).rejects.toMatchObject({ response: { code: 'SELLER_APPLICATION_REQUIRED' } });
+  });
+
+  it('blocks a business withdrawal before resolving a payout destination when identity is pending', async () => {
+    identity.findOne.mockResolvedValue({ status: IdentityVerificationStatus.PENDING });
+    const payout = { assertBusinessOwner: jest.fn(), getUsableDestination: jest.fn() };
+    const wallet = new WalletService({} as any, {} as any, {} as any, {} as any,
+      service, payout as any, { isEnabled: () => true } as any);
+    await expect(wallet.requestBusinessWithdrawal({ identityType: 'BUSINESS', workspaceId: 3, userId: 5 }, 100))
+      .rejects.toMatchObject({ response: { code: 'VERIFICATION_REQUIRED' } });
+    expect(payout.assertBusinessOwner).not.toHaveBeenCalled();
   });
 });
