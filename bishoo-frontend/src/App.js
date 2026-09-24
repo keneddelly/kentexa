@@ -778,12 +778,12 @@ function App() {
       case 'MyClassifieds':     return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" />);
       case 'CreateClassified':  return requireLogin(<SellerClassifieds {...publicProps} listingMode="personal" createOnly />);
       case 'BecomeBusiness':    return <BecomeBusiness {...publicProps} />;
-      case 'SellerProducts':    return requireVerifiedSeller(<SellerProducts {...publicProps} />);
+      case 'SellerProducts':    return requireLogin(<SellerProducts {...publicProps} />);
       case 'MyBrands':          return requireVerifiedSeller(<MyBrands {...publicProps} />);
       case 'BrandDashboard':    return requireLogin(<BrandDashboard {...publicProps} />);
       case 'BrandCatalog':      return requireLogin(<BrandCatalog {...publicProps} />);
       case 'POS':               return requireVerifiedSeller(<POS {...publicProps} />);
-      case 'SellerClassifieds': return requireVerifiedSeller(<SellerClassifieds {...publicProps} listingMode="business" />);
+      case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} listingMode="business" />);
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
       case 'SellerShipping':    return requireVerifiedSeller(<SellerShipping {...publicProps} />);
       case 'SendShipment':      return requireVerifiedSeller(<SendShipment {...publicProps} navParams={navParams} />);
@@ -805,7 +805,9 @@ function App() {
       case 'Orders':      return requireAdmin(<Orders activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
-      case 'Businesses':  return requireAdmin(<Businesses activePage={page} {...adminProps} />);
+      case 'Businesses':  return activeContext?.roleType === 'admin'
+        ? requireAdmin(<Businesses activePage={page} {...adminProps} />)
+        : <HomeFeed {...publicProps} />;
       // 'AdminServices', not 'Services' — that page key is already taken by
       // the public services-browse page below; a duplicate case label would
       // have silently made this the only one that ever executes, breaking
