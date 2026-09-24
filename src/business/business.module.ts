@@ -29,6 +29,7 @@ import { BusinessBackfillService } from './business-backfill.service';
 import { BusinessCapabilityApplicationService } from './business-capability-application.service';
 import { BusinessCapabilityLifecycleService } from './business-capability-lifecycle.service';
 import { BusinessController } from './business.controller';
+import { AdminBusinessController } from './admin-business.controller';
 import { AdminBusinessCapabilityApplicationController } from './admin-business-capability-application.controller';
 import { AdminBusinessCapabilityController } from './admin-business-capability.controller';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -90,7 +91,7 @@ import { ConversationClassifierService } from './conversation-classifier.service
       },
     }),
   ],
-  controllers: [BusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController],
+  controllers: [BusinessController, AdminBusinessController, AdminBusinessCapabilityApplicationController, AdminBusinessCapabilityController],
   providers: [
     BusinessCustomerService,
     ConversationService,

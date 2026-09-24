@@ -20,7 +20,7 @@ export const ROLE_NAVIGATION = Object.freeze({
 });
 
 export const ADMIN_NAVIGATION = Object.freeze([
-  ['Dashboard','Dashboard','dashboard'],['Users','Users','users'],['Sellers','Sellers','seller'],['IdentityVerifications','Identity Verification','identity'],
+  ['Dashboard','Dashboard','dashboard'],['Users','Users','users'],['Sellers','Sellers','seller'],['Businesses','Businesses','business'],['IdentityVerifications','Identity Verification','identity'],
   ['Agents','Agents','agent'],['SuperAgents','Super Agents','hub'],['AgentPerformance','Agent Performance','analytics'],['Products','Products','products'],
   ['AdminBrands','Brands','brand'],['AdminBrandAuthorizations','Brand Authorizations','verified'],['AdminWarrantyClaims','Warranty Claims','warranty'],
   ['OfficialProducts','Official Catalog','catalog'],['AdminServices','Services','services'],['Classifieds','Classifieds','listings'],['Orders','Orders','orders'],

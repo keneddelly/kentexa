@@ -211,6 +211,11 @@ export class WalletService {
       throw new ForbiddenException({ code: 'BUSINESS_WITHDRAWAL_DISABLED', message: 'BUSINESS_WITHDRAWAL_DISABLED' });
     }
     if (!amount || amount <= 0) throw new BadRequestException('Invalid withdrawal amount');
+    // A verified destination proves where the money goes; it does not
+    // verify the person authorizing the withdrawal.
+    if (await this.verification.getLevel(ctx.userId) < 1) {
+      throw new ForbiddenException({ code: 'VERIFICATION_REQUIRED', requiredLevel: 1, message: 'Verify your identity before withdrawing earnings' });
+    }
     const workspaceId = await this.payoutDestinations.assertBusinessOwner(ctx);
     const destination = await this.payoutDestinations.getUsableDestination(workspaceId);
     return this.dataSource.transaction(async (m) => {
