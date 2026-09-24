@@ -1,0 +1,83 @@
+name: Stage 2F Integrity Gate
+
+on:
+  pull_request:
+    branches:
+      - worktree-service-provider-profiles
+    paths:
+      - 'src/shipments/**'
+      - 'src/database/migrations/1788274800000-AddShipmentHubDecision.ts'
+      - 'src/database/migrations/add-shipment-hub-decision*.spec.ts'
+      - '.github/workflows/stage2f-integrity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  stage2f:
+    name: Stage 2F PostgreSQL and focused regression gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      B5B_TEST_DB_HOST: localhost
+      B5B_TEST_DB_PORT: 5432
+      B5B_TEST_DB_PASSWORD: stage2f_ci_only
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create isolated least-privileged PostgreSQL test database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE kentexa_b5b_test_user LOGIN PASSWORD 'stage2f_ci_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+          CREATE DATABASE kentexa_b5b_test OWNER kentexa_b5b_test_user;
+          SQL
+
+      - name: Stage 2F migration unit proof
+        run: npm test -- --runInBand database/migrations/add-shipment-hub-decision.spec.ts
+
+      - name: Stage 2F migration real PostgreSQL proof
+        run: npm test -- --runInBand database/migrations/add-shipment-hub-decision.real-postgres.spec.ts
+
+      - name: Stage 2F hub-selection unit proof
+        run: npm test -- --runInBand shipments/shipment-hub-selection.spec.ts
+
+      - name: Stage 2F hub-selection real PostgreSQL race/crash proof
+        run: npm test -- --runInBand shipments/shipment-hub-selection.real-postgres.spec.ts
+
+      - name: Shipment service regression
+        run: npm test -- --runInBand shipments/shipments.service.spec.ts
+
+      - name: TypeScript compile
+        run: npx tsc --noEmit
+
+      - name: Nest build
+        run: npm run build
