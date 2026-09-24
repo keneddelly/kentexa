@@ -1,13 +1,15 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SellerProfile } from './entities/seller-profile.entity';
 import { SellerService } from './seller.service';
 import { User } from '../users/entities/user.entity';
 import { BusinessCapabilityApplicationService } from '../business/business-capability-application.service';
-import { BusinessCapabilityApplication } from '../business/entities/business-capability-application.entity';
+import { BusinessCapabilityApplication, BusinessCapabilityApplicationStatus } from '../business/entities/business-capability-application.entity';
 import { BusinessCapabilityCode } from '../business/entities/business-capability.entity';
 import { RoleProfileType } from '../role-context/entities/account-role.entity';
+import { SellerStatus } from './entities/seller-profile.entity';
+import { AuditLog } from '../audit-log/entities/audit-log.entity';
 
 /**
  * Compatibility routing for the existing admin Seller Approve/Reject buttons
@@ -48,6 +50,50 @@ export class SellerApprovalBridgeService {
 
     const application = await this.findCanonicalApplication(profile);
     return this.capabilityApplications.rejectApplication(application.id, admin, reason);
+  }
+
+  /** Restore an already suspended Seller, without replaying an old application approval. */
+  async restore(profileId: number, admin: User, reason: string) {
+    const note = reason?.trim() ?? '';
+    if (note.length < 3 || note.length > 1000) throw new BadRequestException('A restore reason of 3 to 1000 characters is required');
+    const profile = await this.loadProfile(profileId);
+    if (profile.status !== SellerStatus.SUSPENDED) {
+      throw new ConflictException({ code: 'SELLER_NOT_SUSPENDED', message: 'SELLER_NOT_SUSPENDED' });
+    }
+    if (profile.businessId != null) {
+      // A legacy migrated Seller can have an active commerce entitlement yet
+      // no application row. Require its exact suspended role and the full
+      // active organizational chain; never approve a fresh or pending role.
+      const rows = await this.profileRepo.manager.query(`
+        SELECT ar.id FROM account_role ar
+        JOIN workspace_assignment wa ON wa.id = ar."workspaceAssignmentId" AND wa.status = 'active'
+        JOIN business_membership bm ON bm.id = wa."businessMembershipId" AND bm.status = 'active'
+        JOIN operational_workspace w ON w.id = wa."workspaceId" AND w.status = 'active'
+        JOIN business b ON b.id = w."businessId" AND b.status = 'active'
+        JOIN business_capability bc ON bc."workspaceId" = w.id AND bc."capabilityCode" = 'commerce' AND bc.status = 'active'
+        WHERE ar."userId" = $1 AND ar."profileType" = 'seller_profile' AND ar."profileId" = $2
+          AND ar."roleType" = 'seller' AND ar.status = 'suspended'
+          AND bm."userId" = $1 AND b.id = $3
+        LIMIT 1`, [profile.user.id, profile.id, profile.businessId]);
+      if (rows.length !== 1) {
+        throw new ConflictException({ code: 'SELLER_RESTORE_AUTHORITY_INACTIVE', message: 'SELLER_RESTORE_AUTHORITY_INACTIVE' });
+      }
+      const applications = await this.applicationRepo.find({ where: {
+        operationalProfileType: RoleProfileType.SELLER_PROFILE,
+        operationalProfileId: profile.id,
+        capabilityCode: BusinessCapabilityCode.COMMERCE,
+        businessId: profile.businessId,
+      } });
+      if (applications.length && !applications.some(a => a.status === BusinessCapabilityApplicationStatus.APPROVED)) {
+        throw new ConflictException({ code: 'SELLER_RESTORE_APPLICATION_NOT_APPROVED', message: 'SELLER_RESTORE_APPLICATION_NOT_APPROVED' });
+      }
+    }
+    const restored = await this.sellerService.approve(profileId);
+    await this.profileRepo.manager.getRepository(AuditLog).save({
+      actorId: admin.id, actorRole: 'admin', action: 'seller.restore', entityType: 'SellerProfile', entityId: profileId,
+      previousValue: { status: SellerStatus.SUSPENDED }, newValue: { status: SellerStatus.APPROVED, reason: note },
+    });
+    return restored;
   }
 
   private async loadProfile(profileId: number): Promise<SellerProfile> {

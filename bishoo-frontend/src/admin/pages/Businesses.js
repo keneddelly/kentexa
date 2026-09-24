@@ -39,7 +39,7 @@ export default function Businesses({ activePage, onNavigate, onLogout }) {
     <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
     <main style={{ marginLeft: 250, padding: 24 }}>
       <h1>Businesses</h1>
-      <p>Review Business status and restore access after a suspension.</p>
+      <p>Business status is separate from Seller status. If selling remains suspended after restoring a Business, open Sellers and restore the linked Seller profile there.</p>
       <form onSubmit={event => { event.preventDefault(); load(); }}>
         <input aria-label="Search business name" value={search} onChange={event => setSearch(event.target.value)} placeholder="Business name" />
         <select aria-label="Business status" value={status} onChange={event => setStatus(event.target.value)}>
