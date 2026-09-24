@@ -137,9 +137,19 @@ suite('AddShipmentHubDecision1788274800000 — real PostgreSQL execution proof',
       await ok({ originHubSource: 'not_required', destinationHubSource: 'not_required', hubDecidedAt: at });
       await ok({ originHubSource: 'none_available', destinationHubSource: 'not_required', hubDecidedAt: at });
       await ok({ originHubSource: 'sender_selected', originHubId: hubId, destinationHubSource: 'auto_single_candidate', destinationHubId: hubId, hubDecidedAt: at });
-      // a naming source whose hub row is gone (id NULL) is legitimate history
-      await ok({ originHubSource: 'sender_selected', originHubId: null, destinationHubSource: 'not_required', hubDecidedAt: at });
+
     });
+    it('rejects direct creation of either naming source with a NULL hub id', async () => {
+      await rejects(
+        ok({ originHubSource: 'sender_selected', originHubId: null, destinationHubSource: 'not_required', hubDecidedAt: at }),
+        /naming hub source requires a hub id/,
+      );
+      await rejects(
+        ok({ originHubSource: 'auto_single_candidate', originHubId: null, destinationHubSource: 'not_required', hubDecidedAt: at }),
+        /naming hub source requires a hub id/,
+      );
+    });
+
     it('rejects an unknown source value', async () => {
       await rejects(ok({ originHubSource: 'bogus', destinationHubSource: 'not_required', hubDecidedAt: at }), /CHK_shipment_origin_hub_decision/);
     });
@@ -171,6 +181,8 @@ suite('AddShipmentHubDecision1788274800000 — real PostgreSQL execution proof',
     for (const c of SHIPMENT_HUB_DECISION_COLUMNS) expect(cols.has(c)).toBe(false);
     expect((await constraints()).filter((c) => /hub/i.test(c.conname))).toEqual([]);
     expect(await indexes()).toEqual([]);
+    expect((await ds.query(`SELECT tgname FROM pg_trigger WHERE tgrelid='public.shipment'::regclass AND tgname='TRG_shipment_hub_decision_guard' AND NOT tgisinternal`))).toEqual([]);
+    expect((await ds.query(`SELECT proname FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname='fn_shipment_hub_decision_guard'`))).toEqual([]);
     expect(await ds.query(`SELECT * FROM public.shipment ORDER BY id`)).toEqual(legacyBefore);
     await down(); // idempotent
     await up();
