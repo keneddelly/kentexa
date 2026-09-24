@@ -20,36 +20,23 @@ export enum Feature {
   ACCESS_SELLER_WALLET = 'ACCESS_SELLER_WALLET',
 }
 
-// 2026-08-28 identity-verification architecture audit: CREATE_SHIPMENT sat
-// declared here since Phase 1 but was never actually wired to any
-// controller — the same gap now closed for every other operational
-// (transaction/logistics/service) action a user can take. The rule this
-// table encodes: BUYING/browsing needs nothing (level 0); the moment an
-// account performs a SELLING/logistics/service action on behalf of itself
-// or others, identity verification (level 1) is required first — this is
-// the actual role-activation gate, not a side effect of Seller Level 1
-// (CREATE_PRODUCT/RECEIVE_PAYMENT staying at level 2 is unrelated: that's
-// the separate, later "approved seller" bar for the catalog/escrow
-// pipeline specifically, not a precondition for identity verification
-// itself). Every controller that performs an operational action should
-// call VerificationService.requireFeature() against this table — never
-// hardcode a level check inline, and never rely on a role/permission
-// check (SellerScopeService, RolesGuard) alone, since role can describe
-// WHICH business a caller may act for without saying anything about
-// whether the real person behind the account has been identity-verified.
+// Low-risk presence and listing creation is available without identity
+// documents. Identity remains necessary for funds/custody and authority
+// applications below. RoleContext and capability checks are independent
+// and still run at their respective service boundaries.
 export const FEATURE_REQUIREMENTS: Record<Feature, number> = {
   [Feature.VIEW_LISTING]: 0,
   [Feature.BASIC_MESSAGING]: 0,
-  [Feature.POST_CLASSIFIED]: 1,
-  [Feature.CREATE_STORE]: 1,
-  [Feature.CREATE_PRODUCT]: 2,
+  [Feature.POST_CLASSIFIED]: 0,
+  [Feature.CREATE_STORE]: 0,
+  [Feature.CREATE_PRODUCT]: 0,
   [Feature.RECEIVE_PAYMENT]: 2,
   [Feature.REQUEST_INVOICE]: 0,
   [Feature.CREATE_INVOICE]: 1,
   [Feature.USE_ESCROW]: 2,
   [Feature.BECOME_SUPER_AGENT]: 1,
   [Feature.BECOME_TRANSPORTER]: 1,
-  [Feature.CREATE_SERVICE]: 1,
+  [Feature.CREATE_SERVICE]: 0,
   [Feature.CREATE_SHIPMENT]: 1,
   [Feature.ACCESS_SELLER_WALLET]: 2,
 };
