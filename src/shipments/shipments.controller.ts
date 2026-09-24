@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { ShipmentsService } from './shipments.service';
-import type { CreateShipmentDto, DiscoverySideInput } from './shipments.service';
+import type { ConfirmShipmentDto, CreateShipmentDto, DiscoverySideInput } from './shipments.service';
 import { parsePlaceRefParam } from './logistics-location-context';
 
 @Controller('shipments')
@@ -57,6 +57,19 @@ export class ShipmentsController {
     );
   }
 
+  // Stage 2F hub discovery -- authenticated, READ-ONLY: lists eligible hubs,
+  // never selects or writes. Sender-safe fields only (hubId, name, city,
+  // address). Declared before the ':id' routes so 'hubs' is never an id.
+  // Place preview: an exact <providerKey>:<providerPlaceId> reference; a
+  // malformed one is a 400, never reinterpreted as text.
+  @Get('hubs')
+  @UseGuards(JwtAuthGuard)
+  hubsForPlace(@Query('place') place?: string, @Query('side') side?: string) {
+    const ref = parsePlaceRefParam(place);
+    if (!ref) throw new BadRequestException('place must be <providerKey>:<providerPlaceId>');
+    return this.svc.discoverHubsForPlace(ref, side);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Request() req, @Body() dto: CreateShipmentDto) {
@@ -74,7 +87,7 @@ export class ShipmentsController {
   confirm(
     @Request() req,
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: { providerId?: number; availabilityId?: number; routeId?: number },
+    @Body() dto: ConfirmShipmentDto,
   ) {
     return this.svc.confirmShipment(req.user.id, id, dto);
   }
@@ -90,5 +103,17 @@ export class ShipmentsController {
   @Get('track/:trackingNumber')
   track(@Param('trackingNumber') trackingNumber: string) {
     return this.svc.trackShipment(trackingNumber);
+  }
+
+  // Shipment-bound hub discovery: owner-only, from the stored server-derived
+  // snapshot (the same keys the confirm-time decision uses).
+  @Get(':id/hubs')
+  @UseGuards(JwtAuthGuard)
+  hubsForShipment(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Query('side') side?: string,
+  ) {
+    return this.svc.discoverHubsForShipment(req.user.id, id, side);
   }
 }

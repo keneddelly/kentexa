@@ -119,10 +119,10 @@ describe('AddServiceBusinessAuthorityFoundation1788263400000', () => {
     expect(businessIndex?.options?.unique).not.toBe(true);
   });
 
-  it('tracks the repository migration implementation count (12 pre-I2G + 6 I2G + 1 Stage-1 shipment-integrity migration + 1 Stage-2B shipment-location-snapshot migration = 20)', () => {
+  it('tracks the repository migration implementation count (12 pre-I2G + 6 I2G + 1 Stage-1 shipment-integrity migration + 1 Stage-2B shipment-location-snapshot migration + 1 Stage-2F shipment-hub-decision migration = 21)', () => {
     const migrations = readdirSync(__dirname).filter((name) =>
       /^\d{13}-.+\.ts$/.test(name),
     );
-    expect(migrations).toHaveLength(20);
+    expect(migrations).toHaveLength(21);
   });
 });

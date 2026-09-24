@@ -168,3 +168,44 @@ export function toDestinationSnapshotColumns(v: LocationSnapshotValues) {
     destinationResolutionMethod: v.resolutionMethod,
   };
 }
+
+/**
+ * READ-ONLY view of one side of a stored snapshot (Stage 2F hub discovery/
+ * decision). Kept here so the snapshot column names stay confined to this
+ * helper, the entity and the migration (a source-guard test enforces that);
+ * ShipmentsService never names a snapshot column. Nothing here writes.
+ */
+export interface StoredSnapshotSide {
+  label: string | null;
+  regionName: string | null;
+  providerKey: string | null;
+  resolutionMethod: string | null;
+}
+
+export function readStoredSnapshotSide(
+  shipment: {
+    originLocationLabel?: string | null;
+    originRegionName?: string | null;
+    originProviderKey?: string | null;
+    originResolutionMethod?: string | null;
+    destinationLocationLabel?: string | null;
+    destinationRegionName?: string | null;
+    destinationProviderKey?: string | null;
+    destinationResolutionMethod?: string | null;
+  },
+  side: 'origin' | 'destination',
+): StoredSnapshotSide {
+  return side === 'origin'
+    ? {
+        label: shipment.originLocationLabel ?? null,
+        regionName: shipment.originRegionName ?? null,
+        providerKey: shipment.originProviderKey ?? null,
+        resolutionMethod: shipment.originResolutionMethod ?? null,
+      }
+    : {
+        label: shipment.destinationLocationLabel ?? null,
+        regionName: shipment.destinationRegionName ?? null,
+        providerKey: shipment.destinationProviderKey ?? null,
+        resolutionMethod: shipment.destinationResolutionMethod ?? null,
+      };
+}

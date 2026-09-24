@@ -3,6 +3,10 @@ import { ShipmentsService } from './shipments.service';
 import { ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { ParcelStatus } from '../super-agents/entities/parcel.entity';
 
+// Stage 2F: a Shipment reaching Parcel creation always carries its durable hub
+// decision (recorded inside the claim transaction). 'not_required' = no hub asked for.
+const DECIDED: any = { originHubSource: 'not_required', destinationHubSource: 'not_required', originHubId: null, destinationHubId: null };
+
 describe('ShipmentsService', () => {
   let shipmentRepo: any;
   let routeRepo: any;
@@ -86,7 +90,7 @@ describe('ShipmentsService', () => {
     it('proceeds to confirm when the provider is eligible', async () => {
       shipmentRepo.findOne
         .mockResolvedValueOnce({ ...baseShipment })
-        .mockResolvedValueOnce({ ...baseShipment, status: ShipmentStatus.CONFIRMED, providerId: 5 });
+        .mockResolvedValueOnce({ ...baseShipment, status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
       transportService.assertEligibleProvider.mockResolvedValue({ id: 5 });
       parcelRepo.findOne.mockResolvedValue(null);
       superAgentRepo.findOne.mockResolvedValue(null);
@@ -131,6 +135,7 @@ describe('ShipmentsService', () => {
       senderPhone: null,
       receiverName: 'Asha',
       receiverPhone: '0700000000',
+      ...DECIDED,
     };
 
     it('returns the existing Parcel without creating a new one when one already exists', async () => {
