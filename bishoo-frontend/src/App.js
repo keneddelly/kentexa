@@ -107,6 +107,7 @@ import Announcements from './admin/pages/Announcements';
 import Analytics from './admin/pages/Analytics';
 import Payments from './admin/pages/Payments';
 import Sellers from './admin/pages/Sellers';
+import Businesses from './admin/pages/Businesses';
 import AdminServices from './admin/pages/Services';
 import IdentityVerifications from './admin/pages/IdentityVerifications';
 import AdminBrands from './admin/pages/AdminBrands';
@@ -804,6 +805,7 @@ function App() {
       case 'Orders':      return requireAdmin(<Orders activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
+      case 'Businesses':  return requireAdmin(<Businesses activePage={page} {...adminProps} />);
       // 'AdminServices', not 'Services' — that page key is already taken by
       // the public services-browse page below; a duplicate case label would
       // have silently made this the only one that ever executes, breaking
