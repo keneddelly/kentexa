@@ -1,7 +1,11 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ShipmentsService } from './shipments.service';
 import { ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
-import { ParcelStatus } from '../super-agents/entities/parcel.entity';
+import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
+
+// Stage 2F: a Shipment reaching Parcel creation always carries its durable hub
+// decision (recorded inside the claim transaction). 'not_required' = no hub asked for.
+const DECIDED: any = { originHubSource: 'not_required', destinationHubSource: 'not_required', originHubId: null, destinationHubId: null };
 
 describe('ShipmentsService', () => {
   let shipmentRepo: any;
@@ -23,7 +27,7 @@ describe('ShipmentsService', () => {
     // Stage 2C: create/confirm/cancel run inside manager.transaction(); the
     // pass-through EntityManager hands back the same mock repository.
     shipmentRepo.manager = {
-      transaction: (cb: any) => cb({ getRepository: () => shipmentRepo }),
+      transaction: (cb: any) => cb({ getRepository: (entity: any) => entity === Parcel ? parcelRepo : shipmentRepo }),
     };
     routeRepo = { findOne: jest.fn() };
     parcelRepo = {
@@ -86,7 +90,7 @@ describe('ShipmentsService', () => {
     it('proceeds to confirm when the provider is eligible', async () => {
       shipmentRepo.findOne
         .mockResolvedValueOnce({ ...baseShipment })
-        .mockResolvedValueOnce({ ...baseShipment, status: ShipmentStatus.CONFIRMED, providerId: 5 });
+        .mockResolvedValue({ ...baseShipment, status: ShipmentStatus.CONFIRMED, providerId: 5, ...DECIDED });
       transportService.assertEligibleProvider.mockResolvedValue({ id: 5 });
       parcelRepo.findOne.mockResolvedValue(null);
       superAgentRepo.findOne.mockResolvedValue(null);
@@ -122,6 +126,7 @@ describe('ShipmentsService', () => {
   describe('ensureParcelForShipment (private, exercised via confirmShipment internals)', () => {
     const shipment = {
       id: 10,
+      status: ShipmentStatus.CONFIRMED,
       originCity: 'Dar es Salaam',
       destinationCity: 'Arusha',
       weightKg: 3,
@@ -131,7 +136,10 @@ describe('ShipmentsService', () => {
       senderPhone: null,
       receiverName: 'Asha',
       receiverPhone: '0700000000',
+      ...DECIDED,
     };
+
+    beforeEach(() => shipmentRepo.findOne.mockResolvedValue(shipment));
 
     it('returns the existing Parcel without creating a new one when one already exists', async () => {
       const existing = { id: 501, trackingNumber: 'KTX-PCL-501' };
@@ -142,39 +150,6 @@ describe('ShipmentsService', () => {
       expect(result).toBe(existing);
       expect(parcelRepo.save).not.toHaveBeenCalled();
       expect(superAgentRepo.findOne).not.toHaveBeenCalled();
-    });
-
-    it('recovers deterministically when a concurrent request wins the UQ_parcel_shipmentId race (23505)', async () => {
-      const winner = { id: 777, trackingNumber: 'KTX-PCL-777' };
-      parcelRepo.findOne
-        .mockResolvedValueOnce(null) // fast-path check: no existing parcel yet
-        .mockResolvedValueOnce(winner); // recovery re-fetch after 23505
-      superAgentRepo.findOne.mockResolvedValue(null);
-      const conflict = Object.assign(
-        new Error('duplicate key value violates unique constraint "UQ_parcel_shipmentId"'),
-        { code: '23505' },
-      );
-      parcelRepo.save.mockRejectedValueOnce(conflict);
-
-      const result = await (service as any).ensureParcelForShipment(shipment);
-
-      expect(result).toBe(winner);
-      expect(parcelRepo.save).toHaveBeenCalledTimes(1); // never retried into a second insert
-    });
-
-    it('recovers using the driver error\'s explicit .constraint field when present (not just message text)', async () => {
-      const winner = { id: 778, trackingNumber: 'KTX-PCL-778' };
-      parcelRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(winner);
-      superAgentRepo.findOne.mockResolvedValue(null);
-      const conflict = Object.assign(new Error('duplicate key value violates unique constraint'), {
-        code: '23505',
-        constraint: 'UQ_parcel_shipmentId',
-      });
-      parcelRepo.save.mockRejectedValueOnce(conflict);
-
-      const result = await (service as any).ensureParcelForShipment(shipment);
-
-      expect(result).toBe(winner);
     });
 
     it('rethrows a 23505 for a DIFFERENT constraint unchanged, even if a Parcel for this shipment could be fetched', async () => {

@@ -111,7 +111,11 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
           const r = rows.get(id);
           if (!r) return { affected: 0 };
           if (typeof criteria === 'object') {
-            for (const [k, v] of Object.entries(criteria)) if (r[k] !== v) return { affected: 0 };
+            for (const [k, v] of Object.entries(criteria)) {
+              // TypeORM IsNull() FindOperator (Stage 2F compare-and-set on the hub decision).
+              if ((v as any)?.type === 'isNull') { if (r[k] != null) return { affected: 0 }; }
+              else if (r[k] !== v) return { affected: 0 };
+            }
           }
           remember(id);
           Object.assign(r, values);
@@ -305,7 +309,7 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
   });
 
   // ═══ legacy born-CONFIRMED rows ════════════════════════════════════════
-  it('a legacy row born CONFIRMED with no Parcel is completed by confirm: one Parcel, no Shipment write, no capacity change', async () => {
+  it('a legacy row born CONFIRMED with no Parcel is completed by confirm: one Parcel, no capacity change, and the ONLY Shipment write is the late hub decision (not_required, no hub)', async () => {
     rows.set(40, {
       id: 40, requestedByUserId: 7, status: ShipmentStatus.CONFIRMED, providerId: 5, availabilityId: 3, routeId: null,
       weightKg: 2, orderId: null, originCity: 'Arusha', destinationCity: 'Dodoma', receiverName: 'R', receiverPhone: '0', itemDescription: 'Box',
@@ -313,7 +317,15 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
     const { parcel } = await service.confirmShipment(7, 40, {});
     expect(parcel.originCity).toBe('Arusha');
     expect(parcels).toHaveLength(1);
-    expect(updateCalls).toHaveLength(0);
+    // Stage 2F: an explicit confirm on a decision-less legacy row records the
+    // late decision (nothing requested => not_required) and nothing else.
+    expect(updateCalls).toHaveLength(1);
+    expect(Object.keys(updateCalls[0][1]).sort()).toEqual(
+      ['destinationHubId', 'destinationHubSource', 'hubDecidedAt', 'originHubId', 'originHubSource'],
+    );
+    expect(updateCalls[0][1]).toMatchObject({ originHubSource: 'not_required', destinationHubSource: 'not_required', originHubId: null, destinationHubId: null });
+    expect(parcel.superAgent ?? null).toBeNull();
+    expect(parcel.destinationSuperAgent ?? null).toBeNull();
     expect(calls.reserve).toHaveLength(0);
     expect(calls.release).toHaveLength(0);
   });

@@ -18,18 +18,20 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
 import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
-import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
 import { LocationCandidate } from '../location-intelligence/location-provider.interface';
+import { ShipmentHubSource } from './shipment-hub-source';
 import {
   LogisticsSide,
   MAX_KEY_PAIRS,
@@ -39,8 +41,25 @@ import {
   buildTextLogisticsContext,
 } from './logistics-location-context';
 import {
+  HubCandidate,
+  HubDecision,
+  HubSelectionInput,
+  HubSide,
+  NO_HUB_INPUT,
+  anyHubRequested,
+  assertNoDecisionConflict,
+  decideHubForSide,
+  decisionConflictError,
+  discoverHubCandidates,
+  hubRepoOf,
+  parseHubSelectionInput,
+  parseHubSide,
+  storedSideHubKeys,
+} from './shipment-hub-selection';
+import {
   PlaceSelection,
   deriveLegacyRoutingCity,
+  readStoredSnapshotSide,
   snapshotFromFreeText,
   snapshotFromResolvedPlace,
   toDestinationSnapshotColumns,
@@ -119,6 +138,31 @@ export interface CreateShipmentDto {
   providerId?: number;
   pickupOption?: ShipmentHandoffOption;
   deliveryOption?: ShipmentHandoffOption;
+}
+
+// Stage 2F: hub selection is EXPLICIT and independent of pickupOption/
+// deliveryOption. A side is hub-mediated only when the sender supplies its hub
+// id or sets its request flag; otherwise that side's decision is 'not_required'.
+export interface ConfirmShipmentDto {
+  providerId?: number;
+  availabilityId?: number;
+  routeId?: number;
+  originHubId?: number;
+  destinationHubId?: number;
+  requestOriginHub?: boolean;
+  requestDestinationHub?: boolean;
+}
+
+// The shape returned by both hub-discovery doors. Sender-safe fields only.
+export interface HubDiscoveryResult {
+  side: HubSide;
+  resolved: boolean;
+  place: { label: string | null } | null;
+  matchedOn: { keys: string[] };
+  count: number;
+  hubs: HubCandidate[];
+  // Shipment-bound door only: the stored (immutable) decision, if any.
+  decision?: { source: ShipmentHubSource; hubId: number | null } | null;
 }
 
 @Injectable()
@@ -563,16 +607,19 @@ export class ShipmentsService {
   async confirmShipment(
     userId: number,
     shipmentId: number,
-    dto: { providerId?: number; availabilityId?: number; routeId?: number },
+    dto: ConfirmShipmentDto,
   ): Promise<{ shipment: Shipment; parcel: Parcel }> {
     const shipment = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
     if (!shipment) throw new NotFoundException('Shipment not found');
     if (shipment.requestedByUserId !== userId) {
       throw new ForbiddenException('Not your shipment');
     }
+    // Shape-validated up front (400), before any lock or write. The request
+    // only ever NAMES a hub; whether it is eligible is decided under lock.
+    const hubInputs = this.parseHubInputs(dto);
 
     if (shipment.status === ShipmentStatus.CONFIRMED) {
-      return this.completeConfirmedShipment(shipment);
+      return this.completeConfirmedShipment(shipment, hubInputs);
     }
     this.assertTransition(shipment.status, ShipmentStatus.CONFIRMED);
 
@@ -607,6 +654,18 @@ export class ShipmentsService {
         .getRepository(Shipment)
         .update({ id: shipment.id, status: ShipmentStatus.PENDING }, updates);
       if (claim?.affected === 0) return 'lost' as const;
+
+      // Stage 2F hub decision: made HERE, after winning the claim (a loser
+      // takes no hub locks) and BEFORE anything can commit as CONFIRMED. Any
+      // failure -- ineligible hub, several hubs without a choice, concurrent
+      // suspension -- throws and rolls the claim and capacity back with it, so
+      // CONFIRMED always implies a durable, valid decision. Candidates are read
+      // FOR SHARE from the Shipment's stored, server-derived geography only.
+      await this.writeHubDecision(
+        em,
+        shipment.id,
+        await this.decideHubs(em, shipment, hubInputs),
+      );
 
       const weight = capacityWeightKg(shipment.weightKg);
       if (switchesSlot) {
@@ -647,7 +706,7 @@ export class ShipmentsService {
     if (outcome === 'lost') {
       const current = await this.shipmentRepo.findOne({ where: { id: shipment.id } });
       if (current?.status === ShipmentStatus.CONFIRMED) {
-        return this.completeConfirmedShipment(current);
+        return this.completeConfirmedShipment(current, hubInputs);
       }
       this.assertTransition(current?.status ?? shipment.status, ShipmentStatus.CONFIRMED);
     }
@@ -658,19 +717,190 @@ export class ShipmentsService {
   }
 
   // Idempotent completion for a Shipment that is already CONFIRMED. Never
-  // writes the Shipment or touches capacity and ignores any provider/slot/
-  // route in the request (a confirmed Shipment's provider is not editable
-  // here). Re-validates the stored provider, failing closed, then reuses or
-  // creates exactly one Parcel under UQ_parcel_shipmentId.
+  // touches capacity and ignores any provider/slot/route in the request (a
+  // confirmed Shipment's provider is not editable here). Re-validates the
+  // stored provider, failing closed, then reuses or creates exactly one Parcel
+  // under UQ_parcel_shipmentId.
+  //
+  // Hub decision (Stage 2F): the STORED decision always wins.
+  //  - decided: a request that would need a different hub is a 409 and is never
+  //    applied; omitting hub input is fine;
+  //  - undecided (a legacy / old-code CONFIRMED row) and a Parcel already
+  //    exists: the Parcel is returned untouched, no decision is invented (a
+  //    request to choose a hub now is a 409);
+  //  - undecided and no Parcel: the late decision (recordLateHubDecision),
+  //    a locked compare-and-set, then the Parcel from that stored decision.
   private async completeConfirmedShipment(
     shipment: Shipment,
+    hubInputs: Record<HubSide, HubSelectionInput> = NO_HUB_INPUT,
   ): Promise<{ shipment: Shipment; parcel: Parcel }> {
     if (!shipment.providerId) {
       throw new BadRequestException('Select a provider before confirming');
     }
     await this.transportService.assertEligibleProvider(shipment.providerId);
-    const parcel = await this.ensureParcelForShipment(shipment);
-    return { shipment, parcel };
+
+    let current = shipment;
+    const existing = await this.parcelRepo.findOne({
+      where: { shipment: { id: shipment.id } },
+    });
+    if (this.hasHubDecision(current)) {
+      assertNoDecisionConflict(current, hubInputs);
+    } else if (existing) {
+      if (anyHubRequested(hubInputs)) {
+        throw decisionConflictError(hubInputs.origin.requested ? 'origin' : 'destination');
+      }
+    } else {
+      current = await this.recordLateHubDecision(shipment.id, hubInputs);
+    }
+    // Even an existing Parcel is re-read behind the Shipment lock so a retry
+    // cannot return success after a concurrent cancellation committed.
+    const parcel = await this.ensureParcelForShipment(current);
+    return { shipment: current, parcel };
+  }
+
+  private hasHubDecision(s: Pick<Shipment, 'originHubSource'>): boolean {
+    return s.originHubSource !== null && s.originHubSource !== undefined;
+  }
+
+  private parseHubInputs(dto: ConfirmShipmentDto | undefined): Record<HubSide, HubSelectionInput> {
+    const d = dto ?? {};
+    return {
+      origin: parseHubSelectionInput('origin', d.originHubId, d.requestOriginHub),
+      destination: parseHubSelectionInput('destination', d.destinationHubId, d.requestDestinationHub),
+    };
+  }
+
+  // The ONE decision routine for a Shipment (used by the claim transaction and
+  // the late-decision transaction). Must run inside a transaction: candidates
+  // are read FOR SHARE. Geography comes ONLY from the Shipment's stored,
+  // server-derived snapshot -- never from the request, never from a city
+  // string. Origin is decided before destination (deterministic lock order).
+  private async decideHubs(
+    em: EntityManager,
+    shipment: Shipment,
+    inputs: Record<HubSide, HubSelectionInput>,
+  ): Promise<Record<HubSide, HubDecision>> {
+    const decideSide = async (side: HubSide): Promise<HubDecision> => {
+      const input = inputs[side];
+      if (!input.requested) return decideHubForSide(side, input, null, []);
+      const keys = storedSideHubKeys(readStoredSnapshotSide(shipment, side));
+      const candidates = await discoverHubCandidates(hubRepoOf(em), keys, true);
+      return decideHubForSide(side, input, keys, candidates);
+    };
+    const origin = await decideSide('origin');
+    const destination = await decideSide('destination');
+    return { origin, destination };
+  }
+
+  // Sanctioned writer #1/#2 of the decision columns: a compare-and-set that
+  // only succeeds while BOTH sources are still NULL. Both sides and the
+  // timestamp are written together (the migration's CHECK requires it).
+  private async writeHubDecision(
+    em: EntityManager,
+    shipmentId: number,
+    decision: Record<HubSide, HubDecision>,
+  ): Promise<void> {
+    const res = await em.getRepository(Shipment).update(
+      { id: shipmentId, originHubSource: IsNull(), destinationHubSource: IsNull() },
+      {
+        originHubId: decision.origin.hubId,
+        originHubSource: decision.origin.source,
+        destinationHubId: decision.destination.hubId,
+        destinationHubSource: decision.destination.source,
+        hubDecidedAt: new Date(),
+      },
+    );
+    if (res?.affected === 0) {
+      // Unreachable while the row lock is held; fail closed rather than continue.
+      throw new ConflictException('The hub decision for this shipment was already recorded');
+    }
+  }
+
+  // Late decision for a CONFIRMED row with NO decision and NO Parcel (legacy /
+  // old-code rows). Row-locked re-read, so a concurrent late decision, a
+  // concurrent claim-transaction or a cancel serialise on the shipment row;
+  // whoever finds a decision already stored compares instead of writing. Never
+  // infers a hub from a city string; free-text geography has no authority.
+  private async recordLateHubDecision(
+    shipmentId: number,
+    inputs: Record<HubSide, HubSelectionInput>,
+  ): Promise<Shipment> {
+    return this.shipmentRepo.manager.transaction(async (em) => {
+      const shipments = em.getRepository(Shipment);
+      const row = await shipments.findOne({
+        where: { id: shipmentId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!row) throw new NotFoundException('Shipment not found');
+      if (row.status !== ShipmentStatus.CONFIRMED) {
+        throw new BadRequestException(`Cannot decide hubs for a shipment that is "${row.status}"`);
+      }
+      if (this.hasHubDecision(row)) {
+        assertNoDecisionConflict(row, inputs);
+        return row;
+      }
+      await this.writeHubDecision(em, row.id, await this.decideHubs(em, row, inputs));
+      return (await shipments.findOne({ where: { id: shipmentId } }))!;
+    });
+  }
+
+  // ── Hub discovery (read-only; never selects, never writes) ───────────────
+  // Two doors, ONE policy (hubMatchKeys / discoverHubCandidates):
+  //  - shipment-bound: owner-only, from the stored server-derived snapshot --
+  //    the same keys the decision uses, so listing and validation cannot drift;
+  //  - place preview: an exact, server-re-resolved PlaceRef.
+  // Advisory reads: no locks. The decision path re-reads under lock.
+  async discoverHubsForShipment(
+    userId: number,
+    shipmentId: number,
+    rawSide: unknown,
+  ): Promise<HubDiscoveryResult> {
+    const side = parseHubSide(rawSide);
+    const shipment = await this.shipmentRepo.findOne({ where: { id: shipmentId } });
+    if (!shipment) throw new NotFoundException('Shipment not found');
+    if (shipment.requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
+    const stored = readStoredSnapshotSide(shipment, side);
+    const keys = storedSideHubKeys(stored);
+    const hubs = await discoverHubCandidates(this.superAgentRepo, keys, false);
+    const source = side === 'origin' ? shipment.originHubSource : shipment.destinationHubSource;
+    return {
+      side,
+      resolved: keys !== null,
+      place: keys ? { label: stored.label } : null,
+      matchedOn: { keys: keys ?? [] },
+      count: hubs.length,
+      hubs,
+      decision: source
+        ? { source, hubId: (side === 'origin' ? shipment.originHubId : shipment.destinationHubId) ?? null }
+        : null,
+    };
+  }
+
+  async discoverHubsForPlace(
+    place: { providerKey: string; providerPlaceId: string },
+    rawSide: unknown,
+  ): Promise<HubDiscoveryResult> {
+    const side = parseHubSide(rawSide);
+    const candidate = await this.locationIntelligence.resolve({
+      providerKey: place.providerKey,
+      providerPlaceId: place.providerPlaceId,
+    });
+    if (!candidate) throw new BadRequestException(`Unknown ${side} place selection`);
+    const keys = storedSideHubKeys({
+      regionName: candidate.regionName,
+      providerKey: candidate.providerKey,
+      resolutionMethod: candidate.resolutionMethod,
+    });
+    if (!keys) throw new BadRequestException('The selected place has no usable city context');
+    const hubs = await discoverHubCandidates(this.superAgentRepo, keys, false);
+    return {
+      side,
+      resolved: true,
+      place: { label: candidate.displayLabel ?? null },
+      matchedOn: { keys },
+      count: hubs.length,
+      hubs,
+    };
   }
 
   // Only reachable before physical collection has started — matches
@@ -712,27 +942,47 @@ export class ShipmentsService {
   // (checked by querying for an existing one before creating), so calling
   // this twice — e.g. a retried request — never creates a duplicate.
   // Mirrors OrdersService.superAgentReceiveOrder()'s existing
-  // Order -> Parcel creation exactly, just triggered from the Shipment side.
+  // Order -> Parcel creation, just triggered from the Shipment side (hubs
+  // aside: see below).
   private async ensureParcelForShipment(shipment: Shipment): Promise<Parcel> {
-    const existing = await this.parcelRepo.findOne({
+    // Cancellation locks this same Shipment row. Keep the status check and
+    // Parcel insert in one transaction so a cancellation cannot commit in
+    // between them (including after the confirm claim commits).
+    return this.shipmentRepo.manager.transaction(async (em) => {
+      const current = await em.getRepository(Shipment).findOne({
+        where: { id: shipment.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!current) throw new NotFoundException('Shipment not found');
+      if (current.status !== ShipmentStatus.CONFIRMED) {
+        throw new BadRequestException(`Cannot create a Parcel for a shipment that is "${current.status}"`);
+      }
+      return this.createParcelForConfirmedShipment(current, em.getRepository(Parcel));
+    });
+  }
+
+  private async createParcelForConfirmedShipment(shipment: Shipment, parcels: Repository<Parcel>): Promise<Parcel> {
+    const existing = await parcels.findOne({
       where: { shipment: { id: shipment.id } },
     });
     if (existing) return existing;
 
-    // Best-effort hub match by city — same convention OrdersService.create()
-    // already uses. No active hub on a route is a valid, common state (not
-    // every city has a Super Agent yet); the Parcel is still created with
-    // a null hub rather than blocking the shipment.
-    const [originSuperAgent, destinationSuperAgent] = await Promise.all([
-      this.superAgentRepo.findOne({
-        where: { city: shipment.originCity, status: SuperAgentStatus.ACTIVE },
-      }),
-      this.superAgentRepo.findOne({
-        where: { city: shipment.destinationCity, status: SuperAgentStatus.ACTIVE },
-      }),
-    ]);
+    // Stage 2F: the hubs come ONLY from the Shipment's durable decision. No
+    // search, no city match, no fallback and no re-selection -- a retry after
+    // a crash reproduces exactly the custody decision that caused the
+    // confirmation. A decided hub is referenced by id even if it has since
+    // been suspended (substituting another hub would be a different decision);
+    // a side decided 'not_required' / 'none_available' has no hub. Reaching
+    // this point without a decision is a bug: fail closed.
+    if (!this.hasHubDecision(shipment)) {
+      throw new Error(`Shipment ${shipment.id} has no recorded hub decision`);
+    }
+    const originSuperAgent = shipment.originHubId ? ({ id: shipment.originHubId } as SuperAgent) : null;
+    const destinationSuperAgent = shipment.destinationHubId
+      ? ({ id: shipment.destinationHubId } as SuperAgent)
+      : null;
 
-    const created: Parcel = this.parcelRepo.create({
+    const created: Parcel = parcels.create({
       shipment: { id: shipment.id } as any,
       order: null,
       senderName: shipment.senderName,
@@ -753,51 +1003,10 @@ export class ShipmentsService {
       source: 'shipment',
       status: ParcelStatus.PENDING,
     });
-    // UQ_parcel_shipmentId (Stage 1 integrity migration) is the real
-    // authority on "at most one Parcel per Shipment" — the find-then-create
-    // check above is only a fast path, not the guarantee. Under a genuine
-    // concurrent confirmShipment() race, two requests can both pass that
-    // check before either insert commits; exactly one INSERT then wins and
-    // the other hits this unique index (23505). Recover deterministically by
-    // returning the winner's row instead of surfacing a raw database error.
-    //
-    // Must recognize THIS specific constraint, not bare 23505 — Parcel has
-    // other unique constraints (e.g. trackingNumber) an insert could
-    // conceivably violate for an unrelated reason, and blindly recovering
-    // via "any Parcel already linked to this shipment" for a violation that
-    // has nothing to do with the shipment link would misclassify a real
-    // error as a race and silently return the wrong outcome. Mirrors the
-    // existing isUniqueViolation(e, constraintName) pattern already used in
-    // business-capability-application.service.ts — checked against the
-    // error text since not every pg/TypeORM error surfaces a bare
-    // `.constraint` property consistently.
-    let saved: Parcel;
-    try {
-      saved = await this.parcelRepo.save(created);
-    } catch (err: any) {
-      if (this.isParcelShipmentUniqueViolation(err)) {
-        const winner = await this.parcelRepo.findOne({
-          where: { shipment: { id: shipment.id } },
-        });
-        if (winner) return winner;
-      }
-      throw err;
-    }
+    // Concurrent confirmations take the Shipment lock in order, so only the
+    // first caller inserts. Keep the unique index as a database backstop.
+    const saved = await parcels.save(created);
     saved.trackingNumber = `KTX-PCL-${saved.id}`;
-    return this.parcelRepo.save(saved);
-  }
-
-  private isParcelShipmentUniqueViolation(err: any): boolean {
-    const pgCode = err?.code ?? err?.driverError?.code;
-    if (pgCode !== '23505') return false;
-    const text = String(
-      err?.constraint ??
-        err?.driverError?.constraint ??
-        err?.detail ??
-        err?.driverError?.detail ??
-        err?.message ??
-        '',
-    );
-    return text.includes('UQ_parcel_shipmentId');
+    return parcels.save(saved);
   }
 }

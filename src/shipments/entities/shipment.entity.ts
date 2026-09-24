@@ -21,6 +21,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { ShipmentHubSource } from '../shipment-hub-source';
 
 export enum ShipmentStatus {
   PENDING = 'pending', // requested, not yet matched to a provider/slot
@@ -143,6 +144,33 @@ export class Shipment {
 
   @Column({ type: 'varchar', length: 40, nullable: true })
   destinationResolutionMethod: string | null;
+
+  // ── Hub decision (Stage 2F) ──────────────────────────────────────────────
+  // The canonical, WRITE-ONCE record of which SuperAgent hub (if any) the
+  // sender chose for each side. Written by exactly two statements in
+  // ShipmentsService -- the PENDING->CONFIRMED claim transaction and the
+  // late-decision compare-and-set for legacy CONFIRMED rows -- and never
+  // rewritten (shipment-hub-selection.spec.ts guards that). Both sides always
+  // get a source together; NULL sources = undecided (legacy / pending rows).
+  // This is the SELECTION, not custody: Parcel.superAgent/destinationSuperAgent
+  // are the current operational hubs and operator hand-offs may change the
+  // latter. Independent of pickupOption/deliveryOption. The hub FKs are
+  // ON DELETE SET NULL (the source survives); FKs, partial indexes and CHECKs
+  // live in the migration, like the rest of this table's constraints.
+  @Column({ type: 'int', nullable: true })
+  originHubId: number | null;
+
+  @Column({ type: 'int', nullable: true })
+  destinationHubId: number | null;
+
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  originHubSource: ShipmentHubSource | null;
+
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  destinationHubSource: ShipmentHubSource | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  hubDecidedAt: Date | null;
 
   @Column({ type: 'text' })
   itemDescription: string;
