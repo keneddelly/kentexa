@@ -109,6 +109,21 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
     finally { setActionLoading(false); }
   };
 
+  const handleRestore = async (seller) => {
+    const reason = window.prompt(`Sababu ya kurejesha ${seller.businessName || seller.user?.name}:`);
+    if (reason === null) return;
+    if (reason.trim().length < 3) { showErr('Weka sababu ya kurejesha (herufi 3 au zaidi)'); return; }
+    if (!window.confirm(`Thibitisha kurejesha muuzaji #${seller.id}?`)) return;
+    try {
+      setActionLoading(true);
+      await api.patch(`/seller/${seller.id}/restore`, { reason: reason.trim() });
+      showMsg('✅ Muuzaji amerejeshwa');
+      setSelected(null);
+      fetchSellers();
+    } catch (err) { showErr(err?.response?.data?.message || 'Imeshindwa kurejesha muuzaji'); }
+    finally { setActionLoading(false); }
+  };
+
   const handleReject = async (id) => {
     if (!rejectReason.trim()) { showErr('Weka sababu ya kukataa'); return; }
     try {
@@ -366,7 +381,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                             </button>
                           )}
                           {['rejected','suspended'].includes(seller.status) && (
-                            <button onClick={e => { e.stopPropagation(); handleApprove(seller.id); }} disabled={actionLoading}
+                            <button onClick={e => { e.stopPropagation(); seller.status === 'suspended' ? handleRestore(seller) : handleApprove(seller.id); }} disabled={actionLoading}
                               style={{ backgroundColor: '#6366f1', color: '#fff', border: 'none', padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                               🔄 Amilisha
                             </button>
@@ -628,7 +643,7 @@ const Sellers = ({ activePage, onNavigate, onLogout }) => {
                 </button>
               )}
               {['rejected','suspended'].includes(selected.status) && (
-                <button onClick={() => handleApprove(selected.id)} disabled={actionLoading}
+                <button onClick={() => selected.status === 'suspended' ? handleRestore(selected) : handleApprove(selected.id)} disabled={actionLoading}
                   style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', padding: 14, borderRadius: 10, cursor: 'pointer', fontWeight: 800 }}>
                   🔄 Amilisha Tena
                 </button>
