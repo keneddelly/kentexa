@@ -3,6 +3,7 @@ import { User, UserRole } from './entities/user.entity';
 
 describe('UsersService', () => {
   let service: UsersService;
+  let commerceProfiles: { findForUserByType: jest.Mock; createProfile: jest.Mock; updatePublicFields: jest.Mock };
   let userRepo: {
     findOne: jest.Mock;
     find: jest.Mock;
@@ -32,7 +33,12 @@ describe('UsersService', () => {
       save: jest.fn(),
       remove: jest.fn(),
     };
-    service = new UsersService(userRepo as any);
+    commerceProfiles = {
+      findForUserByType: jest.fn().mockResolvedValue(null),
+      createProfile: jest.fn().mockResolvedValue({ id: 10 }),
+      updatePublicFields: jest.fn(),
+    };
+    service = new UsersService(userRepo as any, commerceProfiles as any);
   });
 
   // Regression: exclude() used to be a plain destructure that only worked
@@ -78,4 +84,38 @@ describe('UsersService', () => {
       expect(result).not.toHaveProperty('otp');
     });
   });
+  describe('adminVerifyAccount()', () => {
+    it('verifies only the base account, clears OTP material and creates the personal profile', async () => {
+      const user = fullUser();
+      user.isVerified = false;
+      userRepo.findOne.mockResolvedValue(user);
+      userRepo.save.mockImplementation(async (x) => x);
+
+      const result = await service.adminVerifyAccount(1);
+
+      expect(userRepo.save).toHaveBeenCalledWith(expect.objectContaining({
+        isVerified: true,
+        otp: null,
+        otpExpiry: null,
+        otpAttempts: 0,
+      }));
+      expect(commerceProfiles.createProfile).toHaveBeenCalledWith(expect.objectContaining({
+        ownerId: 1,
+        type: 'personal',
+      }));
+      expect(result.user).not.toHaveProperty('otp');
+      expect(result.user).not.toHaveProperty('password');
+    });
+
+    it('is idempotent for an already verified account', async () => {
+      const user = fullUser();
+      user.isVerified = true;
+      userRepo.findOne.mockResolvedValue(user);
+
+      await service.adminVerifyAccount(1);
+
+      expect(userRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
 });

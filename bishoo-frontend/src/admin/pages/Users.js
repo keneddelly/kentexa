@@ -51,6 +51,21 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
     finally { setActionLoading(false); }
   };
 
+  const handleVerifyAccount = async (user) => {
+    if (!window.confirm(`Thibitisha akaunti ya ${user.name || user.phone || user.email}? Tumia hii tu pale OTP haijamfikia mtumiaji.`)) return;
+    try {
+      setActionLoading(true);
+      await api.post(`/users/${user.id}/admin-verify`);
+      showMsg(`✅ Akaunti ya ${user.name || 'mtumiaji'} imethibitishwa na Admin`);
+      setSelected(null);
+      await fetchUsers();
+    } catch (err) {
+      showErr(err?.response?.data?.message || 'Imeshindwa kuthibitisha akaunti');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleDelete = async (userId, name) => {
     if (!window.confirm(`Futa akaunti ya ${name}? Hatua hii haiwezi kutenduliwa.`)) return;
     try {
@@ -161,6 +176,12 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
                       </td>
                       <td style={{ padding: '11px 14px' }}>
                         <div style={{ display: 'flex', gap: 6 }}>
+                          {!user.isVerified && (
+                            <button onClick={e => { e.stopPropagation(); handleVerifyAccount(user); }} disabled={actionLoading}
+                              style={{ backgroundColor: '#dcfce7', color: '#15803d', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700 }}>
+                              ✅ Thibitisha
+                            </button>
+                          )}
                           <button onClick={e => { e.stopPropagation(); setSelected(user); setShowRoleModal(true); setNewRole(user.role); }}
                             style={{ backgroundColor: '#ede9fe', color: '#7c3aed', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
                             🔄 Jukumu

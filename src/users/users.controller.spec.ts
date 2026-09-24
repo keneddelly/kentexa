@@ -4,12 +4,13 @@ import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 describe('UsersController', () => {
   let controller: UsersController;
-  let usersService: { findOne: jest.Mock; update: jest.Mock };
+  let usersService: { findOne: jest.Mock; update: jest.Mock; adminVerifyAccount: jest.Mock };
 
   beforeEach(() => {
     usersService = {
       findOne: jest.fn().mockResolvedValue({ id: 2, name: 'Someone' }),
       update: jest.fn().mockResolvedValue({ id: 2, name: 'Updated' }),
+      adminVerifyAccount: jest.fn().mockResolvedValue({ message: 'Account verified successfully' }),
     };
     controller = new UsersController(usersService as any);
   });
@@ -86,4 +87,23 @@ describe('UsersController', () => {
       ).toThrow(ForbiddenException);
     });
   });
+  describe('adminVerifyAccount() emergency OTP override', () => {
+    it('allows only a session actively operating as ADMIN', async () => {
+      await expect(
+        controller.adminVerifyAccount(2, roleContext(AccountRoleType.ADMIN)),
+      ).resolves.toEqual({ message: 'Account verified successfully' });
+      expect(usersService.adminVerifyAccount).toHaveBeenCalledWith(2);
+    });
+
+    it('denies manager, buyer, seller and stale-admin-in-another-role contexts', () => {
+      for (const role of [
+        AccountRoleType.MANAGER,
+        AccountRoleType.BUYER,
+        AccountRoleType.SELLER,
+      ]) {
+        expect(() => controller.adminVerifyAccount(2, roleContext(role))).toThrow(ForbiddenException);
+      }
+    });
+  });
+
 });
