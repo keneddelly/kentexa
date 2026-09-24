@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseIntPipe, Post, Query, Request, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, ParseIntPipe, Post, Query, Request, UseGuards } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RoleContextGuard } from '../role-context/role-context.guard';
@@ -16,6 +16,9 @@ export class AdminBusinessController {
 
   @Get()
   async list(@Query('search') search?: string, @Query('status') status?: string) {
+    if ((search != null && typeof search !== 'string') || (status != null && typeof status !== 'string')) {
+      throw new BadRequestException('Invalid business search');
+    }
     if (status && !Object.values(BusinessStatus).includes(status as BusinessStatus)) {
       throw new BadRequestException('Invalid business status');
     }
@@ -47,7 +50,7 @@ export class AdminBusinessController {
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(Business);
       const business = await repo.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
-      if (!business) throw new BadRequestException('Business not found');
+      if (!business) throw new NotFoundException('Business not found');
       if (business.status === next) return { id, status: business.status, changed: false };
       const previousStatus = business.status;
       business.status = next;
