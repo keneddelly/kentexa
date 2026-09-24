@@ -15,6 +15,14 @@ describe('admin Business lifecycle', () => {
     expect(Reflect.getMetadata(REQUIRED_ACTIVE_ROLES, AdminBusinessController)).toEqual([AccountRoleType.ADMIN]);
   });
 
+  it('rejects malformed search parameters before querying the database', async () => {
+    const dataSource = { getRepository: jest.fn() };
+    const controller = new AdminBusinessController(dataSource as any);
+    await expect(controller.list({ nested: 'value' } as any)).rejects.toThrow('Invalid business search');
+    await expect(controller.list('', ['active'] as any)).rejects.toThrow('Invalid business search');
+    expect(dataSource.getRepository).not.toHaveBeenCalled();
+  });
+
   it('restores once and writes the actor and status change in the same transaction', async () => {
     const business = { id: 4, status: BusinessStatus.SUSPENDED };
     const saveBusiness = jest.fn(async () => business);
