@@ -98,6 +98,21 @@ export class UsersController {
     return this.usersService.update(id, dto);
   }
 
+  // Emergency recovery for accounts stranded by OTP delivery failure.
+  // ADMIN active context only: this bypasses OTP for the base account and
+  // deliberately does not approve any separate identity/business verification.
+  @UseGuards(RoleContextGuard)
+  @Post(':id/admin-verify')
+  adminVerifyAccount(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    if (roleContext?.roleType !== AccountRoleType.ADMIN) {
+      throw new ForbiddenException('Only an active admin can verify an account manually');
+    }
+    return this.usersService.adminVerifyAccount(id);
+  }
+
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
