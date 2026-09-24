@@ -171,16 +171,21 @@ suite('Shipment hub decision — real PostgreSQL', () => {
     // are real PostgreSQL. Route only the Parcel repository to the fake while
     // preserving the real transaction manager and its row locks.
     const realTransaction = ds.manager.transaction.bind(ds.manager);
-    const shipmentRepoForService: any = Object.create(shipmentsRepo);
-    shipmentRepoForService.manager = {
-      transaction: (cb: any) => realTransaction((em: any) => cb(new Proxy(em, {
-        get(target, prop) {
-          if (prop === 'getRepository') return (entity: any) => entity === Parcel ? parcelRepo : target.getRepository(entity);
-          const value = target[prop];
-          return typeof value === 'function' ? value.bind(target) : value;
-        },
-      }))),
-    };
+    const shipmentRepoForService: any = new Proxy(shipmentsRepo, {
+      get(target: any, prop) {
+        if (prop === 'manager') return {
+          transaction: (cb: any) => realTransaction((em: any) => cb(new Proxy(em, {
+            get(tx: any, txProp) {
+              if (txProp === 'getRepository') return (entity: any) => entity === Parcel ? parcelRepo : tx.getRepository(entity);
+              const value = tx[txProp];
+              return typeof value === 'function' ? value.bind(tx) : value;
+            },
+          }))),
+        };
+        const value = target[prop];
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
     const args: any[] = new Array(14).fill({});
     args[0] = providers; args[1] = routes; args[2] = slotsRepo; args[9] = shipmentsRepo;
     transport = new (TransportService as any)(...args);
