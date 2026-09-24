@@ -18,7 +18,7 @@ export default function Businesses({ activePage, onNavigate, onLogout }) {
       setError(err?.response?.data?.message || 'Could not load businesses');
     }
   }
-  useEffect(() => { load(); }, [status]); // Search submits on demand.
+  useEffect(() => { load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps -- Search submits on demand.
 
   async function change(business, action) {
     const reason = window.prompt(`Reason to ${action} ${business.legalName}:`);
