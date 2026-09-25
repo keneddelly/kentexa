@@ -72,4 +72,11 @@ describe('collection hub handover', () => {
     expect(changes).toEqual([]);
     collection.city = 'Dar';
   });
+
+  it('does not let an admin cancel a collection after pickup', async () => {
+    collection.handedOverAt = new Date();
+    await expect(service.adminCancel(5, 'No agent')).rejects.toThrow('Only an unclaimed collection');
+    expect(changes).toEqual([]);
+    expect(parcel.status).toBe(ParcelStatus.COLLECTED_BY_AGENT);
+  });
 });
