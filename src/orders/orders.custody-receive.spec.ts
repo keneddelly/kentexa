@@ -61,6 +61,13 @@ describe('OrdersService.superAgentReceiveOrder custody boundary', () => {
     expect(notifications.parcelDispatched).not.toHaveBeenCalled();
   });
 
+  it('returns a committed receipt even if post-commit email delivery fails', async () => {
+    const { service, writes, notifications } = setup();
+    notifications.parcelDispatched.mockRejectedValueOnce(new Error('email offline'));
+    await expect(service.superAgentReceiveOrder(order.id, user, {}, context)).resolves.toMatchObject({ orderId: order.id });
+    expect(writes).toEqual(['order', 'parcel', 'custody', 'tracking']);
+  });
+
   it('fails closed when the active role does not identify the receiving hub', async () => {
     const { service, writes } = setup();
     await expect(service.superAgentReceiveOrder(order.id, user, {}, { ...context, profileId: 99 })).rejects.toThrow();
