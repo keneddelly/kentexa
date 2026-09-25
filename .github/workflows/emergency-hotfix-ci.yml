@@ -57,5 +57,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Mobile install and service worker safety tests
+        run: CI=true npm test -- --watch=false --runInBand src/public/hooks/usePWA.test.js src/serviceWorkerPolicy.test.js
+
       - name: Frontend build
         run: npm run build
