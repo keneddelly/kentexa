@@ -622,7 +622,7 @@ export class SuperAgentsController {
   requestDelivery(
     @Param('trackingNumber') tn: string,
     @Request() req,
-    @Body() body: { agentId: number; agreedFee: number; address?: string },
+    @Body() body: { agentId: number; agreedFee?: number; address?: string },
   ) {
     return this.service.buyerRequestDelivery(req.user, tn, body);
   }
