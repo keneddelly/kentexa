@@ -228,8 +228,8 @@ export class SuperAgentsController {
   // Update parcel status — ownership/direction enforced in the service
   // (origin hub owns pre-dispatch statuses, destination hub owns
   // arrival/delivery statuses).
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Patch('parcels/:trackingNumber/status')
   updateStatus(
     @Request() req,
@@ -605,7 +605,8 @@ export class SuperAgentsController {
     return this.service.updateShipmentTransport(req.user, tn, body);
   }
 
-  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
   @Patch('shipments/:trackingNumber/arrived')
   confirmArrived(
     @Param('trackingNumber') tn: string,

@@ -3050,6 +3050,75 @@ export class SuperAgentsService {
   // transit hubs (e.g. Songea receiving and re-dispatching to Mbinga)
   // ══════════════════════════════════════════════════════════════════════════
 
+  // A receiving hub's own confirmation is the first verified possession
+  // after transit. A provider's arrival report is never enough for this.
+  // The previous carrier is left unknown until a separately proven carrier
+  // handoff exists; no transport custodian is invented from status alone.
+  private async recordDestinationHubReceipt(
+    parcel: Parcel, hub: SuperAgent, user: User, roleContext: RoleContext,
+    target: ParcelStatus.ARRIVED_AT_HUB | ParcelStatus.AWAITING_BUYER,
+    note: string,
+  ): Promise<void> {
+    await this.dataSource.transaction(async manager => {
+      if (target === ParcelStatus.AWAITING_BUYER && parcel.order?.id) {
+        await manager.query('SELECT id FROM public."order" WHERE id=$1 FOR UPDATE', [parcel.order.id]);
+      }
+      await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
+      const current = await manager.getRepository(Parcel).findOne({
+        where: { id: parcel.id },
+        relations: { superAgent: true, destinationSuperAgent: true, order: true },
+      });
+      if (!current || ![ParcelStatus.DISPATCHED, ParcelStatus.IN_TRANSIT, ParcelStatus.ARRIVED_AT_HUB].includes(current.status)) {
+        throw new ConflictException('Parcel is not awaiting destination hub receipt');
+      }
+      if (current.destinationSuperAgent?.id != null
+        ? current.destinationSuperAgent.id !== hub.id
+        : current.destinationCity.trim().toLowerCase() !== hub.city.trim().toLowerCase()) {
+        throw new ForbiddenException('Only the assigned destination hub can receive this parcel');
+      }
+      const receipt = await manager.getRepository(ParcelCustodyEvent).findOne({
+        where: { parcelId: parcel.id, eventKind: 'destination_hub_received' },
+      });
+      if (receipt && (current.status !== ParcelStatus.ARRIVED_AT_HUB ||
+          target !== ParcelStatus.AWAITING_BUYER || receipt.toCustodianId !== hub.id)) {
+        throw new ConflictException('Destination hub already received this parcel');
+      }
+      if (!receipt) {
+        await manager.getRepository(ParcelCustodyEvent).insert({
+          parcelId: parcel.id, eventKind: 'destination_hub_received',
+          operationKey: `destination-hub-received:${hub.id}`,
+          fromCustodianType: null, fromCustodianId: null,
+          toCustodianType: 'super_agent', toCustodianId: hub.id,
+          actorSource: 'account_role', actorUserId: user.id,
+          actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,
+          actorWorkspaceId: roleContext.workspaceId ?? null,
+          actorProviderId: null, hubId: hub.id, assignmentId: null, evidenceRef: null,
+        });
+        await manager.getRepository(ParcelTracking).insert({
+          parcel: current, status: ParcelStatus.ARRIVED_AT_HUB, city: hub.city,
+          note: target === ParcelStatus.ARRIVED_AT_HUB ? note : `Imepokelewa kwenye hub ya ${hub.city}`,
+          updatedBy: hub.businessName, handlerPhone: hub.phone || user.phone || null,
+          handlerLocation: hub.address || hub.city, handlerType: 'super_agent',
+        });
+      }
+      await manager.getRepository(Parcel).update(parcel.id, {
+        status: target, arrivedAtHubTime: current.arrivedAtHubTime || new Date(),
+        ...(current.destinationSuperAgent ? {} : { destinationSuperAgent: { id: hub.id } as SuperAgent }),
+      });
+      if (target === ParcelStatus.AWAITING_BUYER) {
+        if (current.order?.id) {
+          await manager.getRepository(Order).update(current.order.id, { status: OrderStatus.READY_PICKUP });
+        }
+        await manager.getRepository(ParcelTracking).insert({
+          parcel: current, status: ParcelStatus.AWAITING_BUYER, city: hub.city,
+          note, updatedBy: hub.businessName,
+          handlerPhone: hub.phone || user.phone || null,
+          handlerLocation: hub.address || hub.city, handlerType: 'super_agent',
+        });
+      }
+    });
+  }
+
   async updateParcelStatus(
     user: User,
     trackingNumber: string,
@@ -3085,6 +3154,18 @@ export class SuperAgentsService {
     if (dto.status === ParcelStatus.IN_TRANSIT && PRE_DISPATCH_STATUSES.has(parcel.status)) {
       throw new BadRequestException('Parcel must be dispatched before it can be marked in transit');
     }
+    if (DESTINATION_ONLY_STATUSES.has(dto.status) && dto.status !== ParcelStatus.ARRIVED_AT_HUB) {
+      if (PRE_DISPATCH_STATUSES.has(parcel.status) ||
+          [ParcelStatus.DISPATCHED, ParcelStatus.IN_TRANSIT].includes(parcel.status)) {
+        throw new BadRequestException('Receiving hub must confirm the parcel before destination delivery');
+      }
+      if (parcel.status === ParcelStatus.ARRIVED_AT_HUB) {
+        const receipt = await this.dataSource.getRepository(ParcelCustodyEvent).findOne({
+          where: { parcelId: parcel.id, eventKind: 'destination_hub_received' },
+        });
+        if (!receipt) throw new BadRequestException('Receiving hub must confirm physical receipt first');
+      }
+    }
 
     // Ownership + direction check — the origin hub owns everything up
     // through dispatch; only the destination hub may declare a parcel
@@ -3094,7 +3175,18 @@ export class SuperAgentsService {
     // for destination-side statuses ONLY if no destination hub was ever
     // assigned (single-agent-covers-both-ends case) — otherwise a real
     // assigned destination hub is the sole owner of those statuses.
-    const handlerAgent = await this.resolveActingSuperAgent(user.id).catch(() => null);
+    const handlerAgent = dto.status === ParcelStatus.ARRIVED_AT_HUB &&
+      roleContext?.roleType === AccountRoleType.SUPER_AGENT && roleContext.userId === user.id
+      ? await this.superAgentRepo.findOne({ where: {
+          id: roleContext.profileId, userId: user.id, status: SuperAgentStatus.ACTIVE,
+        } })
+      : await this.resolveActingSuperAgent(user.id).catch(() => null);
+    if (dto.status === ParcelStatus.ARRIVED_AT_HUB &&
+        (!roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
+          roleContext.userId !== user.id || !handlerAgent || roleContext.profileId !== handlerAgent.id ||
+          (handlerAgent.workspaceId != null && handlerAgent.workspaceId !== roleContext.workspaceId))) {
+      throw new ForbiddenException('An active receiving hub must confirm parcel arrival');
+    }
     const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
     if (!isAdmin) {
       const isOriginAgent = parcel.superAgent?.id === handlerAgent?.id;
@@ -3109,7 +3201,9 @@ export class SuperAgentsService {
         const destinationAssigned = !!parcel.destinationSuperAgent;
         const allowed = destinationAssigned
           ? isDestinationAgent
-          : isOriginAgent;
+          : dto.status === ParcelStatus.ARRIVED_AT_HUB
+            ? handlerAgent?.city.trim().toLowerCase() === parcel.destinationCity.trim().toLowerCase()
+            : isOriginAgent;
         if (!allowed) {
           throw new ForbiddenException(
             'Hali hii inaweza kubadilishwa na hub ya kupokea pekee.',
@@ -3204,6 +3298,17 @@ export class SuperAgentsService {
         }));
       });
       // Existing notifications and activity are sent below, after commit.
+    }
+
+    if (dto.status === ParcelStatus.ARRIVED_AT_HUB) {
+      dto.city = handlerAgent!.city;
+      await this.recordDestinationHubReceipt(
+        parcel, handlerAgent!, user, roleContext!, ParcelStatus.ARRIVED_AT_HUB,
+        dto.note || `Imepokelewa hubuni ${handlerAgent!.city}`,
+      );
+      // The transaction may have bound an unassigned destination; use the
+      // verified receiver's own contact details in the post-commit SMS.
+      parcel.destinationSuperAgent = handlerAgent!;
     }
 
     // Build update payload
@@ -3361,7 +3466,7 @@ export class SuperAgentsService {
       });
     }
 
-    if (dto.status !== ParcelStatus.RECEIVED_AT_HUB) {
+    if (dto.status !== ParcelStatus.RECEIVED_AT_HUB && dto.status !== ParcelStatus.ARRIVED_AT_HUB) {
       await this.parcelRepo.update(parcel.id, updates);
     }
 
@@ -3377,7 +3482,7 @@ export class SuperAgentsService {
         location: handlerAgent?.address || dto.city,
         type: 'super_agent',
       },
-      dto.status === ParcelStatus.RECEIVED_AT_HUB,
+      dto.status === ParcelStatus.RECEIVED_AT_HUB || dto.status === ParcelStatus.ARRIVED_AT_HUB,
     );
 
     // ── SMS to buyer/recipient on key status changes ──────────────────────
@@ -4397,57 +4502,24 @@ export class SuperAgentsService {
     });
     if (!parcel) throw new NotFoundException('Parcel not found');
 
-    // Real bug, found via live testing: this had NO authorization check at
-    // all — any authenticated Super Agent could confirm arrival on ANY
-    // parcel by tracking number, from any city, and it blindly trusted
-    // whatever city they typed for both the tracking event and the SMS.
-    // That's how a Dar-based agent confirming Emmy's Dar→Kilindi parcel
-    // recorded it as "arrived in Dar es Salaam" — the origin, not the real
-    // destination — since nothing checked who was allowed to confirm this
-    // parcel or where it was actually supposed to arrive.
-    //
-    // Only the parcel's actual destinationSuperAgent (or ADMIN) may confirm
-    // arrival. If no destination hub was pre-assigned at creation time
-    // (destAgent lookup can miss), fall back to allowing whichever Super
-    // Agent's own hub city matches the parcel's real destinationCity —
-    // the next-best proxy for "the hub that's actually supposed to have
-    // this parcel," never an arbitrary unrelated agent.
-    const isAdmin = roleContext?.roleType === AccountRoleType.ADMIN;
-    let callingAgent: SuperAgent | null = null;
-    if (!isAdmin) {
-      callingAgent = await this.resolveActingSuperAgent(user.id);
-      const destHub = (parcel as any).destinationSuperAgent as SuperAgent | null;
-      const authorized = destHub
-        ? destHub.id === callingAgent?.id
-        : callingAgent?.city === (parcel as any).destinationCity;
-      if (!authorized) {
-        throw new ForbiddenException(
-          'Only the destination Super Agent for this parcel can confirm arrival.',
-        );
-      }
+    if (!roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
+        roleContext.userId !== user.id) {
+      throw new ForbiddenException('A receiving Super Agent must confirm physical arrival');
     }
-
-    // The parcel's own real destination — never the caller-supplied city,
-    // which is exactly what let a wrong-city confirmation silently flip
-    // the recorded direction of travel.
-    const arrivalCity = (parcel as any).destinationCity || dto.city || '';
-
-    await this.parcelRepo.update((parcel as any).id, {
-      status: ParcelStatus.AWAITING_BUYER,
-      arrivedAtHubTime: new Date(),
-    });
-    // Keep the linked Order in the same lifecycle — previously only the
-    // Parcel advanced here, so an order already progressing through its
-    // real parcel could still independently pass superAgentReceiveOrder()'s
-    // ['paid','preparing'] check and get "received" a second time by a
-    // completely different Super Agent. READY_PICKUP, not DELIVERED —
-    // arriving at the destination hub means the buyer can now choose
-    // pickup or delivery, not that they've actually received it yet.
-    if ((parcel as any).order?.id) {
-      await this.orderRepo.update((parcel as any).order.id, {
-        status: OrderStatus.READY_PICKUP,
-      });
+    const callingAgent = await this.superAgentRepo.findOne({ where: {
+      id: roleContext.profileId, userId: user.id, status: SuperAgentStatus.ACTIVE,
+    } });
+    if (!callingAgent || (callingAgent.workspaceId != null &&
+        callingAgent.workspaceId !== roleContext.workspaceId)) {
+      throw new ForbiddenException('An active receiving hub is required');
     }
+    const arrivalCity = callingAgent.city;
+    await this.recordDestinationHubReceipt(
+      parcel, callingAgent, user, roleContext, ParcelStatus.AWAITING_BUYER,
+      dto.note || `Imefika ${arrivalCity}. Inasubiri uamuzi wa mpokeaji.`,
+    );
+    // The transaction binds an unassigned destination to the real receiver.
+    (parcel as any).destinationSuperAgent = callingAgent;
 
     await this.addTrackingEvent(
       parcel,
@@ -4460,6 +4532,7 @@ export class SuperAgentsService {
         location: arrivalCity || undefined,
         type: 'super_agent',
       },
+      true,
     );
 
     const recipientName = (parcel as any).recipientName || 'Mpokeaji';
