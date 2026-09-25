@@ -11,3 +11,10 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Safari enlarges the viewport when a focused form control uses text under 16px. */
+html.kentexa-apple-mobile input,
+html.kentexa-apple-mobile textarea,
+html.kentexa-apple-mobile select {
+  font-size: 16px !important;
+}

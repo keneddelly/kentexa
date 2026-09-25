@@ -12,6 +12,7 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
+import { isAppleMobile } from '../utils/isAppleMobile';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -61,7 +62,7 @@ const POS = ({ onNavigate, currentUser }) => {
       .then(r => setProducts((r.data || []).filter(p => p.isActive && p.availableInStore !== false)))
       .catch(() => setError(t('pos.load_products_failed')))
       .finally(() => setLoading(false));
-    searchRef.current?.focus();
+    if (!isAppleMobile()) searchRef.current?.focus();
   }, [t]);
 
   const results = useMemo(() => {

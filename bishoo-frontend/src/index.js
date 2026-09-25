@@ -5,6 +5,9 @@ import App from './App';
 import './i18n'; // ← import i18n before App
 import { RoleContextProvider } from './context/RoleContext';
 import { SocketProvider } from './context/SocketProvider';
+import { isAppleMobile } from './public/utils/isAppleMobile';
+
+if (isAppleMobile()) document.documentElement.classList.add('kentexa-apple-mobile');
 
 // Temporary on-page error overlay — lets a real crash be read directly off
 // the phone screen (photographed/typed back) without needing Safari's

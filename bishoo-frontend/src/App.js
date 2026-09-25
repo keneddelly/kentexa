@@ -190,7 +190,7 @@ function App() {
       const track   = params.get('track');
       const confirm = params.get('confirm');
       const token   = params.get('token');
-      if (params.get('notification') === '1') return 'Activity';
+      if (params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')) return 'Activity';
       if (confirm && token) return `ConfirmDelivery-${token}`;
       if (track) return `TrackParcel-${track}`;
       // Real shareable paths (/product/42, /store/7, ...) — resolves
@@ -298,7 +298,12 @@ function App() {
     setShowProfileSwitcher(false);
     setRoleSwitchError('');
     setNavParams(null);
-    if (activeContext?.roleType) setPage(homeForRole(activeContext.roleType));
+    // Restoring a session from a notification tap must preserve that exact
+    // destination; an ordinary role switch still lands on its role home.
+    const params = new URLSearchParams(window.location.search);
+    if (activeContext?.roleType) setPage(
+      params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
+        ? 'Activity' : homeForRole(activeContext.roleType));
   }, [contextEpoch, activeContext?.roleType]);
 
   // Syncs the visible browser URL for the 4 shareable content types
@@ -398,7 +403,9 @@ function App() {
             // priority tier as the plain 'Home' fallback it replaces. Never
             // overrides an explicit targetPage a caller already asked for.
             const intentDestination = destinationForIntent(consumeIntent());
-            setPage(intentDestination || 'Home');
+            const params = new URLSearchParams(window.location.search);
+            setPage(params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
+              ? 'Activity' : (intentDestination || 'Home'));
           } else {
             setPage(options.targetPage);
           }

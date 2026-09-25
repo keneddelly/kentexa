@@ -37,6 +37,7 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
   const [notifs,  setNotifs]  = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab,     setTab]     = useState('all');
+  const [linkError, setLinkError] = useState(false);
 
   // GET /notifications/my is already server-scoped to the caller's current
   // active role/workspace (RoleContextGuard + CurrentRoleContext, see
@@ -68,6 +69,30 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
       setNotifs(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
     } catch {}
   };
+
+  const openNotification = (notification) => {
+    markRead(notification.id);
+    if (notification.actionPage) onNavigate(
+      notification.actionParam
+        ? `${notification.actionPage}-${notification.actionParam}` : notification.actionPage,
+      notification.actionCommerceProfileId
+        ? { commerceProfileId: notification.actionCommerceProfileId } : undefined,
+    );
+  };
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('notificationId');
+    if (!isLoggedIn || !id || !/^\d+$/.test(id)) return;
+    let cancelled = false;
+    api.get(`/notifications/${id}`).then(({ data }) => {
+      if (cancelled) return;
+      // Consume this one-shot link before navigating so reloads cannot
+      // redirect again. The server already checked user and active audience.
+      window.history.replaceState(window.history.state, '', window.location.pathname);
+      openNotification(data);
+    }).catch(() => { if (!cancelled) setLinkError(true); });
+    return () => { cancelled = true; };
+  }, [isLoggedIn, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unreadCount = notifs.filter(n => !n.isRead).length;
 
@@ -119,6 +144,11 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
 
       {/* Content */}
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '8px 0' }}>
+        {linkError && <div role="alert" style={{ padding: 14, margin: 12, background: '#fff7ed',
+          borderRadius: 10, color: '#9a3412' }}>
+          This alert belongs to another Kentexa role or is no longer available. Switch to the
+          role that received it and reopen the alert.
+        </div>}
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#94a3b8' }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>❤️</div>
@@ -144,13 +174,7 @@ const Activity = ({ onNavigate, isLoggedIn, currentUser, contextEpoch }) => {
           const style = NOTIF_ICON[n.type] || NOTIF_ICON.default;
           return (
             <div key={n.id}
-              onClick={() => {
-                markRead(n.id);
-                if (n.actionPage) onNavigate(
-                  n.actionParam ? `${n.actionPage}-${n.actionParam}` : n.actionPage,
-                  n.actionCommerceProfileId ? { commerceProfileId: n.actionCommerceProfileId } : undefined
-                );
-              }}
+              onClick={() => openNotification(n)}
               style={{
                 display: 'flex', gap: 14, padding: '14px 16px',
                 backgroundColor: n.isRead ? '#fff' : '#eff6ff',

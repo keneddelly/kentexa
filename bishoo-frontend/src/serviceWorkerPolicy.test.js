@@ -66,3 +66,20 @@ test('service worker never handles transaction or navigation fetches as cached c
   await Promise.resolve();
   expect(cache.put).toHaveBeenCalledTimes(1);
 });
+
+test('tapping an alert navigates an open installed app to its exact notification', async () => {
+  const handlers = {};
+  const focus = jest.fn().mockResolvedValue(undefined);
+  const navigate = jest.fn().mockResolvedValue({ focus });
+  const openWindow = jest.fn();
+  vm.runInNewContext(fs.readFileSync(path.join(process.cwd(), 'public', 'service-worker.js'), 'utf8'), {
+    self: { location: { origin: 'https://kentexa.com' }, addEventListener: (type, handler) => { handlers[type] = handler; } },
+    URL, clients: { matchAll: jest.fn().mockResolvedValue([{ url: 'https://kentexa.com/', navigate }]), openWindow },
+  });
+  const event = { notification: { data: '/?notificationId=47', close: jest.fn() }, waitUntil: jest.fn() };
+  handlers.notificationclick(event);
+  await event.waitUntil.mock.calls[0][0];
+  expect(navigate).toHaveBeenCalledWith('https://kentexa.com/?notificationId=47');
+  expect(focus).toHaveBeenCalledTimes(1);
+  expect(openWindow).not.toHaveBeenCalled();
+});
