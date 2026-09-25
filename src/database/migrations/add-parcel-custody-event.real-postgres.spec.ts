@@ -75,6 +75,7 @@ suite('Stage 3A1 custody migration: real PostgreSQL', () => {
     await expect(insert('receipt-1')).rejects.toThrow();
     await expect(ds.query(`UPDATE public.parcel_custody_event SET "eventKind"='other' WHERE id=$1`, [row.id])).rejects.toThrow();
     await expect(ds.query(`DELETE FROM public.parcel_custody_event WHERE id=$1`, [row.id])).rejects.toThrow();
+    await expect(ds.query(`TRUNCATE public.parcel_custody_event`)).rejects.toThrow();
     await expect(ds.query(`DELETE FROM public.parcel WHERE id=1`)).rejects.toThrow();
     await expect(down()).rejects.toThrow('nonempty parcel custody ledger');
     expect((await ds.query(`SELECT count(*)::int AS n FROM public.parcel_custody_event`))[0].n).toBe(2);
