@@ -2,12 +2,12 @@ import { OrdersService } from './orders.service';
 import { Order, OrderStatus, OrderSource, OrderPaymentMethod } from './entities/order.entity';
 import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
-import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 describe('OrdersService.superAgentReceiveOrder custody boundary', () => {
   const user = { id: 7 };
-  const hub = { id: 12, businessName: 'Origin Hub', city: 'Dar', commissionRate: 0 };
+  const hub = { id: 12, businessName: 'Origin Hub', city: 'Dar', commissionRate: 0, status: SuperAgentStatus.ACTIVE };
   const context = { userId: 7, accountRoleId: 23, roleType: AccountRoleType.SUPER_AGENT, profileId: 12, workspaceId: 5 };
   const order = { id: 41, status: OrderStatus.PAID, source: OrderSource.ONLINE,
     paymentMethod: OrderPaymentMethod.ONLINE, trackingNumber: 'KTX-ORD-41',
