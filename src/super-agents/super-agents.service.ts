@@ -3052,8 +3052,9 @@ export class SuperAgentsService {
 
   // A receiving hub's own confirmation is the first verified possession
   // after transit. A provider's arrival report is never enough for this.
-  // The previous carrier is left unknown until a separately proven carrier
-  // handoff exists; no transport custodian is invented from status alone.
+  // A provider's verified collection identifies the previous custodian only
+  // when its assignment still binds this exact parcel and destination.
+  // Older parcels with no verified carrier collection retain unknown origin.
   private async recordDestinationHubReceipt(
     parcel: Parcel, hub: SuperAgent, user: User, roleContext: RoleContext,
     target: ParcelStatus.ARRIVED_AT_HUB | ParcelStatus.AWAITING_BUYER,
@@ -3084,15 +3085,38 @@ export class SuperAgentsService {
         throw new ConflictException('Destination hub already received this parcel');
       }
       if (!receipt) {
+        const previous = await manager.getRepository(ParcelCustodyEvent).findOne({
+          where: { parcelId: parcel.id }, order: { recordedAt: 'DESC', id: 'DESC' },
+        });
+        let carrierAssignment: TransportAssignment | null = null;
+        if (previous?.eventKind === 'transport_provider_collected') {
+          if (previous.toCustodianType !== 'transport_provider' ||
+              previous.toCustodianId == null || previous.assignmentId == null) {
+            throw new ConflictException('Carrier custody evidence is incomplete');
+          }
+          await manager.query('SELECT id FROM public.transport_assignment WHERE id=$1 FOR UPDATE', [previous.assignmentId]);
+          carrierAssignment = await manager.getRepository(TransportAssignment).findOne({
+            where: { id: previous.assignmentId },
+          });
+          if (!carrierAssignment || carrierAssignment.parcelRefId !== current.id ||
+              carrierAssignment.providerId !== previous.toCustodianId ||
+              ![AssignmentStatus.COLLECTED, AssignmentStatus.DEPARTED,
+                AssignmentStatus.ARRIVED, AssignmentStatus.COMPLETED].includes(carrierAssignment.status) ||
+              carrierAssignment.toCity?.trim().toLowerCase() !== hub.city.trim().toLowerCase()) {
+            throw new ConflictException('Carrier assignment does not match destination receipt');
+          }
+        }
         await manager.getRepository(ParcelCustodyEvent).insert({
           parcelId: parcel.id, eventKind: 'destination_hub_received',
           operationKey: `destination-hub-received:${hub.id}`,
-          fromCustodianType: null, fromCustodianId: null,
+          fromCustodianType: carrierAssignment ? 'transport_provider' : null,
+          fromCustodianId: carrierAssignment?.providerId ?? null,
           toCustodianType: 'super_agent', toCustodianId: hub.id,
           actorSource: 'account_role', actorUserId: user.id,
           actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,
           actorWorkspaceId: roleContext.workspaceId ?? null,
-          actorProviderId: null, hubId: hub.id, assignmentId: null, evidenceRef: null,
+          actorProviderId: null, hubId: hub.id,
+          assignmentId: carrierAssignment?.id ?? null, evidenceRef: null,
         });
         await manager.getRepository(ParcelTracking).insert({
           parcel: current, status: ParcelStatus.ARRIVED_AT_HUB, city: hub.city,
