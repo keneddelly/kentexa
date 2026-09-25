@@ -4734,7 +4734,7 @@ export class SuperAgentsService {
   }
 
   private async assertPickupPayment(parcel: Parcel): Promise<void> {
-    if (parcel.order && [OrderStatus.CANCELLED, OrderStatus.DISPUTED].includes(parcel.order.status)) {
+    if (parcel.order && ![OrderStatus.READY_PICKUP, OrderStatus.IN_TRANSIT, OrderStatus.DELIVERED].includes(parcel.order.status)) {
       throw new ConflictException('Order is not eligible for recipient handover');
     }
     if (parcel.order?.escrowStatus === 'refunded') {
@@ -4767,7 +4767,7 @@ export class SuperAgentsService {
     });
     if (!parcel || parcel.order?.id !== snapshot.order?.id || parcel.trackingNumber !== trackingNumber ||
         ![ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status) ||
-        parcel.buyerRequestedDelivery !== false) {
+        parcel.buyerRequestedDelivery === true) {
       throw new ConflictException('Parcel is not awaiting recipient pickup');
     }
     if (parcel.destinationSuperAgent?.id !== hub.id) {
@@ -4861,8 +4861,16 @@ export class SuperAgentsService {
       });
       await manager.getRepository(Parcel).update(parcel.id, {
         status: ParcelStatus.SELF_PICKUP, deliveredTime: new Date(),
+        buyerRequestedDelivery: false,
         pickupCodeHash: null, pickupCodeExpiresAt: null, pickupCodeAttempts: 0,
       });
+      // Physical fulfilment only. The buyer's later confirmation remains the
+      // canonical seller-release operation; this transaction never credits funds.
+      if (parcel.order?.id && parcel.order.status !== OrderStatus.DELIVERED) {
+        await manager.getRepository(Order).update(parcel.order.id, {
+          status: OrderStatus.DELIVERED, deliveredAt: new Date(),
+        });
+      }
       if (parcel.shipment?.id) {
         await manager.getRepository(Shipment).update(parcel.shipment.id, { status: ShipmentStatus.DELIVERED });
       }

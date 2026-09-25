@@ -2559,12 +2559,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               marginBottom: 14 }}>
               {statusParcel.trackingNumber}
             </div>
-            {statusParcel.buyerRequestedDelivery === false &&
+            {statusParcel.buyerRequestedDelivery !== true &&
               ['arrived_at_hub', 'awaiting_buyer'].includes(statusParcel.status) &&
               statusParcel.myRole !== 'origin' && (
                 <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, backgroundColor: '#eff6ff' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', marginBottom: 8 }}>
-                    🚶 Mpokeaji amechagua kuchukua mwenyewe
+                    🚶 Mpokeaji anaweza kuchukua hapa kwa namba ya SMS
                   </div>
                   {statusParcel.order?.paymentMethod === 'cod' ? (
                     <div style={{ fontSize: 12, color: '#92400e' }}>Makabidhiano ya COD yanasubiri njia salama ya kuthibitisha malipo.</div>

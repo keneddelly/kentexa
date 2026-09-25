@@ -3,6 +3,7 @@ import { SuperAgentsService } from './super-agents.service';
 import { Parcel, ParcelStatus, ParcelTracking } from './entities/parcel.entity';
 import { ParcelCustodyEvent } from './entities/parcel-custody-event.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
+import { Order, OrderStatus, OrderPaymentMethod, OrderSource } from '../orders/entities/order.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 describe('recipient-held pickup code', () => {
@@ -27,6 +28,7 @@ describe('recipient-held pickup code', () => {
         toCustodianType: 'super_agent', toCustodianId: 6 })),
         insert: jest.fn(async () => { writes.push('custody'); }) }],
       [Shipment, { update: jest.fn(async () => { writes.push('shipment'); }) }],
+      [Order, { update: jest.fn(async () => { writes.push('order'); }) }],
       [ParcelTracking, { insert: jest.fn(async () => {
         if (failTracking) throw Error('tracking unavailable'); writes.push('tracking');
       }) }],
@@ -53,6 +55,29 @@ describe('recipient-held pickup code', () => {
     expect(writes).toEqual(['custody', 'parcel', 'shipment', 'tracking']);
   });
 
+  it('lets an external recipient choose pickup by presenting their code at the hub', async () => {
+    const { service, parcel, writes } = setup({ buyerRequestedDelivery: null });
+    await service.confirmRecipientPickup(user, 'KTX-31', '123456', context);
+    expect(parcel.buyerRequestedDelivery).toBe(false);
+    expect(writes).toEqual(['custody', 'parcel', 'shipment', 'tracking']);
+  });
+
+  it('records physical Order delivery only after payment evidence and leaves seller release alone', async () => {
+    const order = { id: 12, status: OrderStatus.READY_PICKUP,
+      paymentMethod: OrderPaymentMethod.ONLINE, source: OrderSource.ONLINE, totalAmount: 100,
+      codUpfrontAmount: null, escrowStatus: 'holding' };
+    const { service, writes, repos } = setup({ order });
+    service.paymentEvidence.check.mockResolvedValue({ applicable: true, sufficient: true });
+    service.paymentEvidence.check.mockResolvedValueOnce({ applicable: true, sufficient: false });
+    await expect(service.confirmRecipientPickup(user, 'KTX-31', '123456', context))
+      .rejects.toThrow('payment evidence');
+    expect(writes).toEqual([]);
+    await service.confirmRecipientPickup(user, 'KTX-31', '123456', context);
+    expect(repos.get(Order).update).toHaveBeenCalledWith(12,
+      expect.objectContaining({ status: OrderStatus.DELIVERED, deliveredAt: expect.any(Date) }));
+    expect(writes).toEqual(['custody', 'parcel', 'order', 'shipment', 'tracking']);
+  });
+
   it('counts wrong codes without custody, and rejects expired codes', async () => {
     const wrong = setup();
     await expect(wrong.service.confirmRecipientPickup(user, 'KTX-31', '000000', context))
@@ -63,8 +88,15 @@ describe('recipient-held pickup code', () => {
       .confirmRecipientPickup(user, 'KTX-31', '123456', context)).rejects.toThrow('expired');
   });
 
+  it('rejects a code if the recipient phone changed after issue', async () => {
+    const changed = setup({ buyerPhone: '255700000008' });
+    await expect(changed.service.confirmRecipientPickup(user, 'KTX-31', '123456', context))
+      .rejects.toThrow('Incorrect pickup code');
+    expect(changed.writes).toEqual(['parcel']);
+  });
+
   it('rejects COD, another hub, and tracking failure', async () => {
-    await expect(setup({ order: { id: 12, paymentMethod: 'cod' } }).service
+    await expect(setup({ order: { id: 12, status: OrderStatus.READY_PICKUP, paymentMethod: 'cod' } }).service
       .confirmRecipientPickup(user, 'KTX-31', '123456', context)).rejects.toThrow('COD pickup');
     await expect(setup({ destinationSuperAgent: { id: 8 } }).service
       .confirmRecipientPickup(user, 'KTX-31', '123456', context)).rejects.toThrow('receiving hub');
@@ -78,5 +110,19 @@ describe('recipient-held pickup code', () => {
     expect(result).not.toHaveProperty('code');
     expect(service.smsService.sendSms).toHaveBeenCalledWith('255700000007',
       expect.stringContaining('KTX-31'), true);
+  });
+
+  it('invalidates the challenge if SMS delivery fails', async () => {
+    const { service } = setup({ pickupCodeIssuedAt: null });
+    const execute = jest.fn(async () => ({}));
+    const where = jest.fn(() => ({ execute }));
+    const set = jest.fn(() => ({ where }));
+    service.parcelRepo.createQueryBuilder = () => ({ update: () => ({ set }) });
+    service.smsService.sendSms.mockResolvedValue(false);
+    await expect(service.issueRecipientPickupCode(user, 'KTX-31', context))
+      .rejects.toThrow('could not be sent');
+    expect(set).toHaveBeenCalledWith(expect.objectContaining({ pickupCodeHash: null,
+      pickupCodeExpiresAt: null, pickupCodeIssuedAt: null }));
+    expect(execute).toHaveBeenCalled();
   });
 });

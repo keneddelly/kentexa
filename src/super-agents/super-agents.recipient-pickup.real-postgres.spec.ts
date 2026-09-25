@@ -30,7 +30,7 @@ const config = getB5BTestConnectionConfig();
       username: config!.user, password: config!.password, database: config!.database,
       entities: [], synchronize: false });
     await db.initialize();
-    await db.query('CREATE TABLE public."order" (id integer PRIMARY KEY, status varchar NOT NULL)');
+    await db.query('CREATE TABLE public."order" (id integer PRIMARY KEY, status varchar NOT NULL, "deliveredAt" timestamp)');
     await db.query(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "trackingNumber" varchar,
       status varchar NOT NULL, "buyerRequestedDelivery" boolean, "buyerPhone" varchar,
       "destinationSuperAgentId" integer, "destinationCity" varchar, "orderId" integer,
@@ -68,7 +68,8 @@ const config = getB5BTestConnectionConfig();
         if (entity === Parcel) return {
           findOne: async () => {
             const [row] = await manager.query('SELECT * FROM public.parcel WHERE id=31');
-            return { ...row, order: { id: 12, paymentMethod: 'online' },
+            return { ...row, order: { id: 12, status: OrderStatus.READY_PICKUP,
+              paymentMethod: 'online', source: 'offline_intercity', totalAmount: 0, codUpfrontAmount: null },
               shipment: null, destinationSuperAgent: { id: row.destinationSuperAgentId } };
           },
           update: (_id: number, value: any) => {
@@ -89,7 +90,8 @@ const config = getB5BTestConnectionConfig();
         };
         if (entity === User) return { findOne: async () => ({ id: 7 }) };
         if (entity === Order) return { update: (_id: number, value: any) =>
-          manager.query('UPDATE public."order" SET status=$1 WHERE id=12', [value.status]) };
+          manager.query('UPDATE public."order" SET status=$1,"deliveredAt"=$2 WHERE id=12',
+            [value.status, value.deliveredAt]) };
         if (entity === ParcelTracking) return { insert: (v: any) => {
           if (failTracking) throw Error('tracking unavailable');
           return manager.query('INSERT INTO public.parcel_tracking ("parcelId",status) VALUES (31,$1)', [v.status]);
@@ -108,9 +110,13 @@ const config = getB5BTestConnectionConfig();
     expect((await db.query('SELECT status FROM public.parcel WHERE id=31'))[0].status).toBe(ParcelStatus.AWAITING_BUYER);
     expect((await db.query('SELECT status FROM public."order" WHERE id=12'))[0].status).toBe(OrderStatus.READY_PICKUP);
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_custody_event'))[0].n).toBe(1);
-    await service().confirmRecipientPickup(user, 'KTX-31', issuedCode, context);
+    const race = await Promise.allSettled([
+      service().confirmRecipientPickup(user, 'KTX-31', issuedCode, context),
+      service().confirmRecipientPickup(user, 'KTX-31', issuedCode, context),
+    ]);
+    expect(race.map(result => result.status).sort()).toEqual(['fulfilled', 'rejected']);
     expect((await db.query('SELECT status FROM public.parcel WHERE id=31'))[0].status).toBe(ParcelStatus.SELF_PICKUP);
-    expect((await db.query('SELECT status FROM public."order" WHERE id=12'))[0].status).toBe(OrderStatus.READY_PICKUP);
+    expect((await db.query('SELECT status FROM public."order" WHERE id=12'))[0].status).toBe(OrderStatus.DELIVERED);
     const [event] = await db.query(`SELECT "fromCustodianType","fromCustodianId","toCustodianType","toCustodianId"
       FROM public.parcel_custody_event WHERE "eventKind"='recipient_self_pickup'`);
     expect(event).toMatchObject({ fromCustodianType: 'super_agent', fromCustodianId: 6,
