@@ -1342,7 +1342,20 @@
     "method_agent_label": "KenteXa Agent",
     "method_agent_desc": "Super Agent network"
   },
+  "install_kentexa": {
+    "title": "Install Kentexa",
+    "subtitle": "Get faster access to Kentexa from your Home Screen.",
+    "action": "Install",
+    "later": "Not now",
+    "ios_safari": "In Safari, tap Share, then Add to Home Screen. Turn on Open as Web App if shown.",
+    "ios_other": "Open your browser's Share menu and choose Add to Home Screen. If you don't see it, open kentexa.com in Safari and tap Share.",
+    "android_other": "Open your browser menu and choose Install app or Add to Home screen. If you don't see it, open kentexa.com in Chrome.",
+    "ios_login_note": "You may need to sign in once after installing.",
+    "done": "Got it"
+  },
   "my_profile": {
+    "install_kentexa_label": "Install Kentexa",
+    "install_kentexa_sub": "Keep Kentexa on your Home Screen",
     "role_buyer": "Buyer",
     "role_seller": "Seller",
     "role_agent": "Agent",
