@@ -1188,7 +1188,20 @@
     "method_agent_label": "KenteXa Agent",
     "method_agent_desc": "Mtandao wa Super Agents"
   },
+  "install_kentexa": {
+    "title": "Sakinisha Kentexa",
+    "subtitle": "Fungua Kentexa kwa urahisi kutoka kwenye skrini ya simu.",
+    "action": "Sakinisha",
+    "later": "Baadaye",
+    "ios_safari": "Kwenye Safari, gusa Share, kisha Add to Home Screen. Washa Open as Web App ikionekana.",
+    "ios_other": "Fungua menyu ya Share kwenye kivinjari chako, kisha chagua Add to Home Screen. Usipoiona, fungua kentexa.com kwenye Safari kisha gusa Share.",
+    "android_other": "Fungua menyu ya kivinjari uchague Install app au Add to Home screen. Usipoiona, fungua kentexa.com kwenye Chrome.",
+    "ios_login_note": "Huenda ukahitaji kuingia tena mara moja baada ya kusakinisha.",
+    "done": "Nimeelewa"
+  },
   "my_profile": {
+    "install_kentexa_label": "Sakinisha Kentexa",
+    "install_kentexa_sub": "Weka Kentexa kwenye skrini ya simu",
     "role_buyer": "Mnunuzi",
     "role_seller": "Muuzaji",
     "role_agent": "Agent",
