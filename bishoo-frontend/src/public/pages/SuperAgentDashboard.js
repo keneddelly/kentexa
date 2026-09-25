@@ -767,9 +767,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         !window.confirm('Je, mpokeaji yupo hapa na ameonyesha namba ya kuthibitisha?')) return;
     try {
       setActionLoading(true); setError('');
-      await api.post(`/super-agents/parcels/${statusParcel.trackingNumber}/confirm-pickup`, { code: pickupCode.trim() });
+      await api.post(`/super-agents/parcels/${statusParcel.trackingNumber}/confirm-pickup`, {
+        code: pickupCode.trim(),
+        ...(statusParcel.order?.paymentMethod === 'cod'
+          ? { codBalanceCollected: Number(codBalanceAmount) } : {}),
+      });
       setSuccess('✅ Kifurushi kimekabidhiwa kwa mpokeaji');
-      setStatusParcel(null); setStatusNote(''); setNewStatus(''); setPickupCode('');
+      setStatusParcel(null); setStatusNote(''); setNewStatus(''); setPickupCode(''); setCodBalanceAmount('');
       fetchAll();
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha makabidhiano');
@@ -2566,9 +2570,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', marginBottom: 8 }}>
                     🚶 Mpokeaji anaweza kuchukua hapa kwa namba ya SMS
                   </div>
-                  {statusParcel.order?.paymentMethod === 'cod' ? (
-                    <div style={{ fontSize: 12, color: '#92400e' }}>Makabidhiano ya COD yanasubiri njia salama ya kuthibitisha malipo.</div>
-                  ) : (
                     <div>
                     <button onClick={handleSendPickupCode} disabled={actionLoading}
                       style={{ width: '100%', padding: 12, marginBottom: 8, border: 'none', borderRadius: 8,
@@ -2578,13 +2579,19 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     <input value={pickupCode} onChange={e => setPickupCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       inputMode="numeric" autoComplete="one-time-code" placeholder="Namba ya tarakimu 6"
                       style={{ ...inp, marginBottom: 8 }} />
-                    <button onClick={handleConfirmPickup} disabled={actionLoading || pickupCode.length !== 6}
+                    {statusParcel.order?.paymentMethod === 'cod' && (
+                      <input value={codBalanceAmount} onChange={e => setCodBalanceAmount(e.target.value)}
+                        inputMode="decimal" type="number" min="0" step="0.01"
+                        placeholder={`Salio la COD: TZS ${Number(statusParcel.order?.codRemainingBalance || 0).toLocaleString()}`}
+                        style={{ ...inp, marginBottom: 8 }} />
+                    )}
+                    <button onClick={handleConfirmPickup} disabled={actionLoading || pickupCode.length !== 6 ||
+                      (statusParcel.order?.paymentMethod === 'cod' && codBalanceAmount.trim() === '')}
                       style={{ width: '100%', padding: 12, border: 'none', borderRadius: 8,
                         backgroundColor: '#16a34a', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
                       {actionLoading ? '⏳' : '✅ Nimekabidhi kwa mpokeaji'}
                     </button>
                     </div>
-                  )}
                 </div>
               )}
             <select value={newStatus} onChange={e => {

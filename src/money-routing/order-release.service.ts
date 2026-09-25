@@ -1,5 +1,5 @@
 import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { MoneyRoutingService, MoneyRoutingSource, RoutingOutcome } from './money-routing.service';
 import { MoneyRoutingBlockedException, resolveOrderRoutingTarget } from './order-routing-target';
 import { MoneyRoutingBlockReason, MoneyRoutingState } from './entities/money-routing-entry.entity';
@@ -72,6 +72,13 @@ export class OrderReleaseService {
      * behavior unchanged for every other caller.
      */
     amount?: number;
+    /**
+     * Stage 3J: a physical COD handover may supply companion writes that must
+     * commit with seller routing and release. Runs only after successful
+     * routing, inside the same transaction. A throw rolls everything back.
+     * Do not use for outbound SMS, receipts, or other network side effects.
+     */
+    completeInTransaction?: (manager: EntityManager) => Promise<void>;
   }): Promise<ReleaseOutcome> {
     const { orderId } = input;
     const companion = Object.entries(input.orderUpdate ?? {}).filter(([, v]) => v !== undefined);
@@ -96,6 +103,9 @@ export class OrderReleaseService {
       if (!order) throw new NotFoundException(`Order #${orderId} not found`);
 
       if (order.escrowStatus === 'released') {
+        if (input.completeInTransaction) {
+          throw new ConflictException({ code: 'ORDER_ALREADY_RELEASED_BEFORE_HANDOVER', orderId });
+        }
         return { released: true, alreadyReleased: true, routing: null }; // convergent retry
       }
       if (order.escrowStatus === 'refunded') {
@@ -159,6 +169,7 @@ export class OrderReleaseService {
       }
       const upd = await qRows(m, `UPDATE "order" SET ${sets.join(', ')} WHERE id = $1 RETURNING id`, params);
       if (!upd[0]) throw new NotFoundException(`Order #${orderId} not found`);
+      if (input.completeInTransaction) await input.completeInTransaction(m);
       return { released: true, alreadyReleased: false, routing };
     });
 

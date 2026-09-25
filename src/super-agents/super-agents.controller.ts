@@ -263,9 +263,13 @@ export class SuperAgentsController {
   confirmRecipientPickup(
     @Request() req,
     @Param('trackingNumber') tn: string,
-    @Body() body: { code: string },
+    @Body() body: { code: string; codBalanceCollected?: number },
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
+    if (body?.codBalanceCollected !== undefined) {
+      return this.service.confirmCodRecipientPickup(req.user, tn, body?.code,
+        body.codBalanceCollected, roleContext);
+    }
     return this.service.confirmRecipientPickup(req.user, tn, body?.code, roleContext);
   }
 

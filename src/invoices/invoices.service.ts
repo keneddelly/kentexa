@@ -133,16 +133,17 @@ export class InvoicesService {
   // ever created (e.g. a zero-upfront COD order, which skips the online
   // payment step entirely), one is created now, already settled — same
   // "money already changed hands" shape as recordManualPayment().
-  async recordCodBalanceCollected(order: Order, fullAmountReceived: number): Promise<Invoice> {
-    const existing = await this.invoiceRepo.findOne({ where: { order: { id: order.id } } });
+  async recordCodBalanceCollected(order: Order, fullAmountReceived: number, manager?: EntityManager): Promise<Invoice> {
+    const repo = manager ? manager.getRepository(Invoice) : this.invoiceRepo;
+    const existing = await repo.findOne({ where: { order: { id: order.id } } });
     if (existing) {
       existing.amount = fullAmountReceived;
       existing.status = InvoiceStatus.PAID;
       existing.paidAt = new Date();
       if (!existing.receiptNumber) {
-        existing.receiptNumber = await this.generateReceiptNumber();
+        existing.receiptNumber = await this.generateReceiptNumber(manager);
       }
-      return this.invoiceRepo.save(existing);
+      return repo.save(existing);
     }
     return this.recordManualPayment(order, {
       amount: fullAmountReceived,
@@ -150,7 +151,7 @@ export class InvoicesService {
       buyerId: order.buyer?.id ?? null,
       payerName: order.recipientName,
       payerPhone: order.phone,
-    });
+    }, manager);
   }
 
   // For a payment collected outside the online provider pipeline — e.g. a

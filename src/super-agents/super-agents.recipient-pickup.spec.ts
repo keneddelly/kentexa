@@ -5,6 +5,7 @@ import { ParcelCustodyEvent } from './entities/parcel-custody-event.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { Order, OrderStatus, OrderPaymentMethod, OrderSource } from '../orders/entities/order.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { SuperAgent } from './entities/super-agent.entity';
 
 describe('recipient-held pickup code', () => {
   const user: any = { id: 9, phone: '255700000009' };
@@ -21,7 +22,8 @@ describe('recipient-held pickup code', () => {
       pickupCodeAttempts: 0, ...changes };
     const writes: string[] = [];
     const repos = new Map<any, any>([
-      [Parcel, { findOne: jest.fn(async () => parcel), update: jest.fn(async (_: any, value: any) => {
+      [Parcel, { findOne: jest.fn(async () => parcel), increment: jest.fn(async () => { writes.push('agent-share'); }),
+        update: jest.fn(async (_: any, value: any) => {
         writes.push('parcel'); Object.assign(parcel, value);
       }) }],
       [ParcelCustodyEvent, { findOne: jest.fn(async () => ({ eventKind: 'destination_hub_received',
@@ -29,19 +31,26 @@ describe('recipient-held pickup code', () => {
         insert: jest.fn(async () => { writes.push('custody'); }) }],
       [Shipment, { update: jest.fn(async () => { writes.push('shipment'); }) }],
       [Order, { update: jest.fn(async () => { writes.push('order'); }) }],
+      [SuperAgent, { increment: jest.fn(async () => { writes.push('cash-held'); }) }],
       [ParcelTracking, { insert: jest.fn(async () => {
         if (failTracking) throw Error('tracking unavailable'); writes.push('tracking');
       }) }],
     ]);
     const manager: any = { query: jest.fn(async (sql: string) => sql.includes('pickupCodeHash')
       ? [{ pickupCodeHash: parcel.pickupCodeHash, pickupCodeExpiresAt: parcel.pickupCodeExpiresAt,
-        pickupCodeIssuedAt: parcel.pickupCodeIssuedAt, pickupCodeAttempts: parcel.pickupCodeAttempts }] : []),
+        pickupCodeIssuedAt: parcel.pickupCodeIssuedAt, pickupCodeAttempts: parcel.pickupCodeAttempts }]
+      : sql.includes('"codBalanceCollected"') ? [{ codBalanceCollected: false }] : []),
     getRepository: (entity: any) => repos.get(entity) };
     const service: any = Object.create(SuperAgentsService.prototype);
     service.superAgentRepo = { findOne: jest.fn(async () => ({ id: 6, userId: 9, city: 'Mwanza', status: 'active' })) };
     service.parcelRepo = { findOne: jest.fn(async () => parcel) };
     service.paymentEvidence = { check: jest.fn(async () => ({ applicable: false, sufficient: true })) };
     service.smsService = { sendSms: jest.fn(async () => true) };
+    service.invoicesService = { recordCodBalanceCollected: jest.fn(async () => ({})) };
+    service.orderRelease = { releaseSellerProceeds: jest.fn(async (input: any) => {
+      await input.completeInTransaction(manager);
+      writes.push('release');
+    }) };
     service.dataSource = { transaction: jest.fn(async (fn: any) => fn(manager)) };
     return { service, writes, repos, manager, parcel };
   }
@@ -102,6 +111,43 @@ describe('recipient-held pickup code', () => {
       .confirmRecipientPickup(user, 'KTX-31', '123456', context)).rejects.toThrow('receiving hub');
     await expect(setup({}, true).service.confirmRecipientPickup(user, 'KTX-31', '123456', context))
       .rejects.toThrow('tracking unavailable');
+  });
+
+  it('joins COD cash, custody, and seller routing through the canonical release callback', async () => {
+    const order = { id: 12, status: OrderStatus.READY_PICKUP, paymentMethod: OrderPaymentMethod.COD,
+      source: OrderSource.ONLINE, sellerAmount: 6000, codRemainingBalance: 5000,
+      codBalanceCollected: false, escrowStatus: 'holding', totalAmount: 10000, codUpfrontAmount: 5000 };
+    const { service, writes, repos } = setup({ order });
+    await service.confirmCodRecipientPickup(user, 'KTX-31', '123456', 5000, context);
+    expect(service.orderRelease.releaseSellerProceeds).toHaveBeenCalledWith(expect.objectContaining({
+      orderId: 12, source: 'COD_DELIVERY', amount: expect.any(Number),
+      orderUpdate: expect.objectContaining({ codBalanceCollected: true, status: OrderStatus.DELIVERED }),
+      completeInTransaction: expect.any(Function),
+    }));
+    expect(repos.get(SuperAgent).increment).toHaveBeenCalledWith({ id: 6 }, 'codCashHeld', 5000);
+    expect(service.invoicesService.recordCodBalanceCollected).toHaveBeenCalledWith(order, 10000, expect.anything());
+    expect(writes).toEqual(['custody', 'parcel', 'order', 'shipment', 'agent-share', 'cash-held', 'tracking', 'release']);
+  });
+
+  it('never writes custody or cash if the canonical COD release is blocked', async () => {
+    const order = { id: 12, status: OrderStatus.READY_PICKUP, paymentMethod: OrderPaymentMethod.COD,
+      source: OrderSource.ONLINE, sellerAmount: 6000, codRemainingBalance: 5000,
+      codBalanceCollected: false, escrowStatus: 'holding' };
+    const { service, writes } = setup({ order });
+    service.orderRelease.releaseSellerProceeds.mockRejectedValueOnce(Error('routing blocked'));
+    await expect(service.confirmCodRecipientPickup(user, 'KTX-31', '123456', 5000, context))
+      .rejects.toThrow('routing blocked');
+    expect(writes).toEqual([]);
+  });
+
+  it('propagates receipt failure from the COD transaction instead of reporting a completed pickup', async () => {
+    const order = { id: 12, status: OrderStatus.READY_PICKUP, paymentMethod: OrderPaymentMethod.COD,
+      source: OrderSource.ONLINE, sellerAmount: 6000, codRemainingBalance: 5000,
+      codBalanceCollected: false, escrowStatus: 'holding', totalAmount: 10000 };
+    const { service } = setup({ order });
+    service.invoicesService.recordCodBalanceCollected.mockRejectedValueOnce(Error('receipt unavailable'));
+    await expect(service.confirmCodRecipientPickup(user, 'KTX-31', '123456', 5000, context))
+      .rejects.toThrow('receipt unavailable');
   });
 
   it('does not let the generic status endpoint bypass an undecided recipient handover', async () => {

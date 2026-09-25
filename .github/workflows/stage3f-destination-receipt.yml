@@ -7,6 +7,8 @@ on:
     paths:
       - 'src/super-agents/**'
       - 'src/transport/**'
+      - 'src/money-routing/**'
+      - 'src/invoices/**'
       - '.github/workflows/stage3f-destination-receipt.yml'
 
 permissions:
@@ -57,4 +59,5 @@ jobs:
       - run: npm test -- --runInBand super-agents/super-agents.buyer-choice.real-postgres.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.recipient-pickup.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.recipient-pickup.real-postgres.spec.ts
+      - run: npm test -- --runInBand money-routing/order-release-handover.real-postgres.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json
