@@ -94,7 +94,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const inputStyle = {
     width: '100%', padding: '13px 16px',
     backgroundColor: '#f8fafc', border: '2px solid #e2e8f0',
-    borderRadius: 12, color: '#0f172a', fontSize: 15,
+    borderRadius: 12, color: '#0f172a', fontSize: 16,
     boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
   };
 
