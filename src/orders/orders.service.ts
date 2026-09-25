@@ -31,7 +31,7 @@ import {
   ParcelTracking,
 } from '../super-agents/entities/parcel.entity';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
-import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import {
   AgentTransaction,
@@ -1084,7 +1084,8 @@ export class OrdersService {
     if (
       !roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
       roleContext.userId !== superAgent.id || !superAgentProfile ||
-      superAgentProfile.id !== roleContext.profileId
+      superAgentProfile.id !== roleContext.profileId ||
+      superAgentProfile.status !== SuperAgentStatus.ACTIVE
     ) {
       throw new ForbiddenException('An active Super Agent hub is required to receive this order.');
     }
