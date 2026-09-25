@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import {
   ParcelCollection,
   CollectionStatus,
@@ -15,6 +15,7 @@ import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/p
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { User } from '../users/entities/user.entity';
 import { Agent, AgentStatus } from '../agents/entities/agent.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { SmsService } from '../sms/sms.service';
 import { RoleContext } from '../role-context/role-context.types';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
@@ -125,7 +126,7 @@ export class ParcelCollectionsService {
     return this.collectionRepo.find({
       where: {
         agent: { id: agent.id },
-        status: CollectionStatus.CLAIMED,
+        status: In([CollectionStatus.CLAIMED, CollectionStatus.COLLECTED]),
       },
       relations: {
         order: { product: true, seller: true },
@@ -307,45 +308,104 @@ export class ParcelCollectionsService {
       );
     }
 
-    await this.collectionRepo.update(collectionId, {
-      status: CollectionStatus.HANDED_OVER,
-      handedOverAt: new Date(),
+    await this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT id FROM public.parcel_collection WHERE id = $1 FOR UPDATE', [collectionId]);
+      const current = await manager.getRepository(ParcelCollection).findOne({ where: { id: collectionId }, relations: { agent: true, parcel: true } });
+      if (!current || current.agent?.id !== agent.id || current.status !== CollectionStatus.COLLECTED || !current.parcel) {
+        throw new BadRequestException('Collection is no longer ready for handover');
+      }
+      const parcel = await manager.getRepository(Parcel).findOne({ where: { id: current.parcel.id } });
+      if (!parcel || parcel.status !== ParcelStatus.COLLECTED_BY_AGENT) {
+        throw new BadRequestException('Parcel is no longer held by the collecting agent');
+      }
+      if (!current.handedOverAt) await manager.getRepository(ParcelCollection).update(collectionId, { handedOverAt: new Date() });
+    });
+    return { message: 'Handover requested. Awaiting receiving hub confirmation.' };
+  }
+
+  private async receivingHub(user: User, roleContext: RoleContext): Promise<SuperAgent> {
+    if (!roleContext || roleContext.userId !== user.id || roleContext.roleType !== AccountRoleType.SUPER_AGENT) {
+      throw new ForbiddenException('An active Super Agent role is required');
+    }
+    const hub = await this.dataSource.getRepository(SuperAgent).findOne({ where: { id: roleContext.profileId, userId: user.id } });
+    if (!hub || hub.status !== SuperAgentStatus.ACTIVE ||
+        (hub.workspaceId != null && hub.workspaceId !== roleContext.workspaceId)) {
+      throw new ForbiddenException('An active receiving hub is required');
+    }
+    return hub;
+  }
+
+  async getHubHandoverRequests(user: User, roleContext: RoleContext): Promise<ParcelCollection[]> {
+    const hub = await this.receivingHub(user, roleContext);
+    return this.collectionRepo.createQueryBuilder('job')
+      .leftJoinAndSelect('job.agent', 'agent')
+      .leftJoinAndSelect('job.parcel', 'parcel')
+      .leftJoinAndSelect('job.order', 'order')
+      .where('job.status = :status', { status: CollectionStatus.COLLECTED })
+      .andWhere('job."handedOverAt" IS NOT NULL')
+      .andWhere('LOWER(TRIM(job.city)) = LOWER(TRIM(:city))', { city: hub.city })
+      .andWhere('(parcel."superAgentId" IS NULL OR parcel."superAgentId" = :hubId)', { hubId: hub.id })
+      .orderBy('job.handedOverAt', 'ASC').take(100).getMany();
+  }
+
+  async acceptHubHandover(collectionId: number, user: User, roleContext: RoleContext): Promise<any> {
+    const hub = await this.receivingHub(user, roleContext);
+    const job = await this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT id FROM public.parcel_collection WHERE id = $1 FOR UPDATE', [collectionId]);
+      const current = await manager.getRepository(ParcelCollection).findOne({
+        where: { id: collectionId }, relations: { agent: true, parcel: true, order: { buyer: true, seller: true } },
+      });
+      if (!current) throw new NotFoundException('Collection job not found');
+      if (current.status !== CollectionStatus.COLLECTED || !current.handedOverAt || !current.agent || !current.parcel) {
+        throw new BadRequestException('No pending handover for this collection');
+      }
+      if (current.city.trim().toLowerCase() !== hub.city.trim().toLowerCase()) {
+        throw new ForbiddenException('Collection belongs to a different city');
+      }
+      await manager.query('SELECT id FROM public.parcel WHERE id = $1 FOR UPDATE', [current.parcel.id]);
+      const parcel = await manager.getRepository(Parcel).findOne({ where: { id: current.parcel.id }, relations: { superAgent: true, order: true } });
+      if (!parcel || parcel.status !== ParcelStatus.COLLECTED_BY_AGENT || parcel.order?.id !== current.order.id ||
+          (parcel.superAgent && parcel.superAgent.id !== hub.id)) {
+        throw new BadRequestException('Parcel cannot be received by this hub');
+      }
+      const pickup = await manager.getRepository(ParcelCustodyEvent).findOne({
+        where: { parcelId: parcel.id, operationKey: `collection-collected:${collectionId}` },
+      });
+      const agentProfile = await manager.getRepository(Agent).findOne({ where: { user: { id: current.agent.id } } });
+      if (!pickup || !agentProfile || pickup.toCustodianType !== 'local_agent' || pickup.toCustodianId !== agentProfile.id) {
+        throw new BadRequestException('Agent pickup custody is missing');
+      }
+      await manager.getRepository(ParcelCustodyEvent).insert({
+        parcelId: parcel.id, eventKind: 'collection_received_at_origin_hub',
+        operationKey: `collection-hub-accepted:${collectionId}`,
+        fromCustodianType: 'local_agent', fromCustodianId: agentProfile.id,
+        toCustodianType: 'super_agent', toCustodianId: hub.id,
+        actorSource: 'account_role', actorUserId: user.id,
+        actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,
+        actorWorkspaceId: roleContext.workspaceId ?? null, actorProviderId: null,
+        hubId: hub.id, assignmentId: null, evidenceRef: `collection:${collectionId}`,
+      });
+      await manager.getRepository(Parcel).update(parcel.id, { status: ParcelStatus.RECEIVED_AT_HUB, superAgent: hub });
+      await manager.getRepository(ParcelCollection).update(collectionId, { status: CollectionStatus.HANDED_OVER });
+      await manager.getRepository(Agent).increment({ id: agentProfile.id }, 'totalCollectionsCompleted', 1);
+      for (const field of ['totalEarningsCollections', 'pendingEarnings', 'totalEarnings'] as const) {
+        await manager.getRepository(Agent).increment({ id: agentProfile.id }, field, Number(current.collectionFee));
+      }
+      await manager.getRepository(ParcelTracking).insert({
+        parcel, status: ParcelStatus.RECEIVED_AT_HUB, city: hub.city,
+        note: 'Imepokelewa kutoka kwa wakala kwenye hub', updatedBy: hub.businessName,
+        handlerPhone: hub.phone || user.phone || null, handlerLocation: hub.address || hub.city,
+        handlerType: 'super_agent',
+      });
+      return current;
     });
 
-    // Parcel status becomes received_at_hub — normal intercity flow resumes
-    if (job.parcel) {
-      await this.parcelRepo.update(job.parcel.id, {
-        status: ParcelStatus.RECEIVED_AT_HUB,
-      });
-    }
-
-    // Credit agent's collection earnings and count
-    const agentProfile = await this.agentRepo.findOne({
-      where: { user: { id: agent.id } },
-    });
-    if (agentProfile) {
-      await this.agentRepo.update(agentProfile.id, {
-        totalCollectionsCompleted: agentProfile.totalCollectionsCompleted + 1,
-        totalEarningsCollections:
-          Number(agentProfile.totalEarningsCollections) +
-          Number(job.collectionFee),
-        pendingEarnings:
-          Number(agentProfile.pendingEarnings) + Number(job.collectionFee),
-        // Was never added to totalEarnings here — the "Mapato" headline
-        // stat on the admin Agents page permanently understated real
-        // earnings by however much an agent earned from collection jobs.
-        totalEarnings:
-          Number(agentProfile.totalEarnings) + Number(job.collectionFee),
-      });
-    }
-
-    // Notify seller — parcel is at hub, on its way
     if ((job.order.seller as any)?.phone) {
       await this.smsService.sendSms(
         (job.order.seller as any).phone,
         `KenteXa: Kifurushi chako cha Agizo #${job.order.id} kimefika kituo cha ` +
           `Super Agent. Kinaandaliwa kutumwa. Asante! 🎉`,
-      );
+      ).catch(() => {});
     }
 
     // Notify buyer
@@ -354,11 +414,11 @@ export class ParcelCollectionsService {
         job.order.buyer.phone,
         `KenteXa: Bidhaa yako ya Agizo #${job.order.id} iko kituo cha KenteXa ` +
           `na inaandaliwa kutumwa kwako.`,
-      );
+      ).catch(() => {});
     }
 
     return {
-      message: 'Umekabidhi kwa Super Agent. Kazi imekamilika! 🎉',
+      message: 'Receiving hub confirmed collection. 🎉',
       collectionFee: Number(job.collectionFee),
     };
   }
