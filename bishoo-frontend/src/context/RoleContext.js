@@ -104,7 +104,7 @@ export const RoleContextProvider = ({ children }) => {
   useEffect(() => {
     if (!getAccessToken()) return;
     refreshContext().catch((error) => {
-      if (error?.code !== 'STALE_CONTEXT_RESPONSE' &&
+      if (getAccessToken() && error?.code !== 'STALE_CONTEXT_RESPONSE' &&
           [401, 403].includes(error?.response?.status)) clearLocalAuthority('restore_rejected');
     });
   }, [clearLocalAuthority, refreshContext]);
