@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { Invoice, InvoiceStatus } from './entities/invoice.entity';
 import { InvoiceCounter } from './entities/invoice-counter.entity';
 import { ReceiptCounter } from './entities/receipt-counter.entity';
@@ -50,28 +50,32 @@ export class InvoicesService {
     private orderRelease: OrderReleaseService,
   ) {}
 
-  async generateInvoiceNumber(): Promise<string> {
+  async generateInvoiceNumber(existingManager?: EntityManager): Promise<string> {
     const year = new Date().getFullYear();
-    return await this.dataSource.transaction(async (manager) => {
+    const generate = async (manager: EntityManager) => {
+      await manager.query('SELECT pg_advisory_xact_lock($1, $2)', [1347312105, year]);
       let counter = await manager.findOne(InvoiceCounter, { where: { year } });
       if (!counter)
         counter = manager.create(InvoiceCounter, { year, lastSequence: 0 });
       counter.lastSequence += 1;
       await manager.save(InvoiceCounter, counter);
       return `KNT-INV-${year}-${String(counter.lastSequence).padStart(5, '0')}`;
-    });
+    };
+    return existingManager ? generate(existingManager) : this.dataSource.transaction(generate);
   }
 
-  async generateReceiptNumber(): Promise<string> {
+  async generateReceiptNumber(existingManager?: EntityManager): Promise<string> {
     const year = new Date().getFullYear();
-    return await this.dataSource.transaction(async (manager) => {
+    const generate = async (manager: EntityManager) => {
+      await manager.query('SELECT pg_advisory_xact_lock($1, $2)', [1347312106, year]);
       let counter = await manager.findOne(ReceiptCounter, { where: { year } });
       if (!counter)
         counter = manager.create(ReceiptCounter, { year, lastSequence: 0 });
       counter.lastSequence += 1;
       await manager.save(ReceiptCounter, counter);
       return `KNT-RCP-${year}-${String(counter.lastSequence).padStart(5, '0')}`;
-    });
+    };
+    return existingManager ? generate(existingManager) : this.dataSource.transaction(generate);
   }
 
   async createForOrder(order: Order): Promise<Invoice> {
@@ -166,10 +170,12 @@ export class InvoicesService {
       payerName?: string | null;
       payerPhone?: string | null;
     },
+    manager?: EntityManager,
   ): Promise<Invoice> {
-    const invoiceNumber = await this.generateInvoiceNumber();
-    const receiptNumber = await this.generateReceiptNumber();
-    const invoice = this.invoiceRepo.create({
+    const invoiceNumber = await this.generateInvoiceNumber(manager);
+    const receiptNumber = await this.generateReceiptNumber(manager);
+    const repo = manager ? manager.getRepository(Invoice) : this.invoiceRepo;
+    const invoice = repo.create({
       invoiceNumber,
       order,
       buyer: params.buyerId ? ({ id: params.buyerId } as any) : null,
@@ -182,7 +188,7 @@ export class InvoicesService {
       agentId: params.agentId ?? null,
       paidAt: new Date(),
     } as any);
-    return this.invoiceRepo.save(invoice) as unknown as Promise<Invoice>;
+    return repo.save(invoice) as unknown as Promise<Invoice>;
   }
 
   async findByOrderId(orderId: number): Promise<Invoice> {
