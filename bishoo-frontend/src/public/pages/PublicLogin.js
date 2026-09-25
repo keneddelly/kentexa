@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { isAppleMobile } from '../utils/isAppleMobile';
 
 const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const { t } = useTranslation();
@@ -94,7 +95,7 @@ const PublicLogin = ({ onNavigate, onLoginSuccess }) => {
   const inputStyle = {
     width: '100%', padding: '13px 16px',
     backgroundColor: '#f8fafc', border: '2px solid #e2e8f0',
-    borderRadius: 12, color: '#0f172a', fontSize: 16,
+    borderRadius: 12, color: '#0f172a', fontSize: isAppleMobile() ? 16 : 15,
     boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
   };
 
