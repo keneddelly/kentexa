@@ -7,6 +7,10 @@ on:
     paths:
       - 'src/super-agents/super-agents.service.ts'
       - 'src/super-agents/super-agents.custody-intake.spec.ts'
+      - 'src/orders/orders.service.ts'
+      - 'src/orders/orders.controller.ts'
+      - 'src/orders/orders.module.ts'
+      - 'src/orders/orders.custody-receive.spec.ts'
       - '.github/workflows/stage3a2-intake-postgres.yml'
 
 permissions:
@@ -51,4 +55,5 @@ jobs:
           SQL
       - run: npm test -- --runInBand database/migrations/add-parcel-custody-event.real-postgres.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.custody-intake.spec.ts
+      - run: npm test -- --runInBand orders/orders.custody-receive.spec.ts orders/orders.service.payment-guards.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json
