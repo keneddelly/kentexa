@@ -44,6 +44,9 @@ export class ParcelCustodyEvent {
   @Column({ type: 'int', nullable: true })
   actorAccountRoleId: number | null;
 
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  actorRoleType: string | null;
+
   @Column({ type: 'int', nullable: true })
   actorWorkspaceId: number | null;
 
