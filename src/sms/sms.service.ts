@@ -39,11 +39,11 @@ export class SmsService {
   }
 
   // ── Send SMS ──────────────────────────────────────────────────────────
-  async sendSms(phone: string, message: string): Promise<boolean> {
+  async sendSms(phone: string, message: string, sensitive = false): Promise<boolean> {
     const formatted = this.formatPhone(phone);
 
     // DEV mode — log OTP to terminal, still try to send via sandbox
-    this.logger.log(`[SMS] To: ${formatted} | ${message}`);
+    this.logger.log(`[SMS] To: ${formatted} | ${sensitive ? '[sensitive message omitted]' : message}`);
 
     try {
       const result = await this.sms.send({
@@ -80,7 +80,7 @@ export class SmsService {
   // ── Send OTP ──────────────────────────────────────────────────────────
   async sendOtp(phone: string, otp: string): Promise<boolean> {
     const message = `Your KenteXa verification code is: ${otp}. Valid for 10 minutes. Do not share this code with anyone.`;
-    return this.sendSms(phone, message);
+    return this.sendSms(phone, message, true);
   }
 
   // ── Send welcome SMS ──────────────────────────────────────────────────
