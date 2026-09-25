@@ -2564,14 +2564,22 @@ export class SuperAgentsService {
       trackingNumbers: string[];
       notes?: string;
     },
+    roleContext?: RoleContext,
   ) {
     const agent = await this.resolveActingSuperAgent(user.id);
-    if (!agent) throw new BadRequestException('Super Agent profile not found');
+    if (!agent || !roleContext || roleContext.userId !== user.id ||
+        roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
+        roleContext.profileId !== agent.id || agent.status !== SuperAgentStatus.ACTIVE) {
+      throw new ForbiddenException('An active origin hub must create the shipment');
+    }
     if (!dto.trackingNumbers?.length) {
       throw new BadRequestException('At least one order/parcel is required');
     }
 
     const { lastMileAgent, shipmentFields } = await this.resolveLastMile(dto);
+    if (lastMileAgent && lastMileAgent.city.trim().toLowerCase() !== dto.destinationCity.trim().toLowerCase()) {
+      throw new BadRequestException('Receiving hub must be in the shipment destination city');
+    }
 
     const shipment = await this.bulkRepo.save(
       this.bulkRepo.create({
@@ -2652,36 +2660,37 @@ export class SuperAgentsService {
     trackingNumbers: string[],
     lastMileAgent: SuperAgent | null,
   ) {
-    const parcels = await this.parcelRepo.find({
-      where: {
-        trackingNumber: In(trackingNumbers),
-        superAgent: { id: agent.id },
-        bulkShipmentId: IsNull(),
-      },
+    const eligible = [ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH];
+    const parcels = await this.dataSource.transaction(async manager => {
+      await manager.query('SELECT id FROM public.bulk_shipment WHERE id=$1 FOR UPDATE', [shipment.id]);
+      const current = await manager.getRepository(BulkShipment).findOne({
+        where: { id: shipment.id }, relations: { superAgent: true },
+      });
+      if (!current || current.status !== BulkShipmentStatus.OPEN || current.superAgent?.id !== agent.id) {
+        throw new BadRequestException('This shipment is no longer open for parcels');
+      }
+      const candidates = await manager.getRepository(Parcel).find({
+        where: { trackingNumber: In(trackingNumbers), superAgent: { id: agent.id }, bulkShipmentId: IsNull() },
+      });
+      if (candidates.length) {
+        await manager.query('SELECT id FROM public.parcel WHERE id=ANY($1::integer[]) ORDER BY id FOR UPDATE',
+          [candidates.map(p => p.id)]);
+      }
+      const valid = candidates.length ? await manager.getRepository(Parcel).find({
+        where: { id: In(candidates.map(p => p.id)), superAgent: { id: agent.id },
+          bulkShipmentId: IsNull(), status: In(eligible) },
+      }) : [];
+      const matching = valid.filter(p => p.destinationCity.trim().toLowerCase() === current.destinationCity.trim().toLowerCase());
+      if (matching.length) {
+        const parcelUpdate: any = { bulkShipmentId: shipment.id };
+        if (lastMileAgent) parcelUpdate.destinationSuperAgent = { id: lastMileAgent.id };
+        await manager.getRepository(Parcel).update({ id: In(matching.map(p => p.id)) }, parcelUpdate);
+        const addedWeight = matching.reduce((sum, p) => sum + Number(p.weightKg || 0), 0);
+        await manager.getRepository(BulkShipment).increment({ id: shipment.id }, 'totalParcels', matching.length);
+        await manager.getRepository(BulkShipment).increment({ id: shipment.id }, 'totalWeightKg', addedWeight);
+      }
+      return matching;
     });
-    if (parcels.length) {
-      const parcelUpdate: any = { bulkShipmentId: shipment.id };
-      // Without this, trackParcel() (and the buyer-facing tracking page)
-      // had no way to show who's actually receiving a Shehena-batched
-      // parcel — only the BulkShipment itself knew, never the parcel row
-      // tracking reads from. Same field the single-parcel Hamisha flow
-      // already sets.
-      if (lastMileAgent) parcelUpdate.destinationSuperAgent = { id: lastMileAgent.id };
-      await this.parcelRepo.update(
-        { id: In(parcels.map((p) => p.id)) },
-        parcelUpdate,
-      );
-    }
-
-    const addedWeight = parcels.reduce(
-      (sum, p) => sum + Number(p.weightKg || 0),
-      0,
-    );
-    await this.bulkRepo.update(shipment.id, {
-      totalParcels: () => `"totalParcels" + ${parcels.length}` as any,
-      totalWeightKg: () =>
-        `"totalWeightKg" + ${addedWeight}` as any,
-    } as any);
 
     const receiverName =
       lastMileAgent?.businessName ||
@@ -2790,25 +2799,12 @@ export class SuperAgentsService {
     if (shipment.status !== BulkShipmentStatus.OPEN) {
       throw new BadRequestException('This shipment has already been dispatched');
     }
-
-    const parcels = await this.parcelRepo.find({
-      where: { bulkShipmentId: shipmentId },
-    });
-    if (!parcels.length) {
-      throw new BadRequestException(
-        'Add at least one parcel to this shipment before dispatching',
-      );
+    if (!roleContext || roleContext.userId !== user.id ||
+        ![AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN].includes(roleContext.roleType) ||
+        (roleContext.roleType === AccountRoleType.SUPER_AGENT &&
+          (roleContext.profileId !== agent?.id || agent?.status !== SuperAgentStatus.ACTIVE))) {
+      throw new ForbiddenException('An active origin hub or admin role must dispatch this shipment');
     }
-
-    await this.bulkRepo.update(shipmentId, {
-      status: BulkShipmentStatus.DISPATCHED,
-      dispatchTime: new Date(),
-      transportCompany: dto.transportCompany || null,
-      transportRef: dto.transportRef || null,
-      totalShippingCost: dto.totalShippingCost || 0,
-      courierCostReceipt: dto.courierCostReceipt || null,
-      notes: dto.notes || shipment.notes,
-    });
 
     const lastMileAgent = (shipment as any).lastMileSuperAgent as SuperAgent | null;
     const receiverName =
@@ -2816,11 +2812,56 @@ export class SuperAgentsService {
     const receiverPhone =
       lastMileAgent?.phone || (shipment as any).lastMileContactPhone;
 
-    for (const parcel of parcels) {
-      await this.parcelRepo.update(parcel.id, {
-        status: ParcelStatus.DISPATCHED,
-        dispatchTime: new Date(),
+    const parcels = await this.dataSource.transaction(async manager => {
+      await manager.query('SELECT id FROM public.bulk_shipment WHERE id=$1 FOR UPDATE', [shipmentId]);
+      const current = await manager.getRepository(BulkShipment).findOne({
+        where: { id: shipmentId }, relations: { superAgent: true },
       });
+      if (!current || current.status !== BulkShipmentStatus.OPEN ||
+          current.superAgent?.id !== shipment.superAgent?.id) {
+        throw new BadRequestException('This shipment is no longer open for dispatch');
+      }
+      const candidates = await manager.getRepository(Parcel).find({
+        where: { bulkShipmentId: shipmentId }, relations: { superAgent: true }, order: { id: 'ASC' },
+      });
+      if (!candidates.length) throw new BadRequestException('Add a parcel before dispatching');
+      await manager.query('SELECT id FROM public.parcel WHERE id=ANY($1::integer[]) ORDER BY id FOR UPDATE',
+        [candidates.map(p => p.id)]);
+      const locked = await manager.getRepository(Parcel).find({
+        where: { bulkShipmentId: shipmentId }, relations: { superAgent: true }, order: { id: 'ASC' },
+      });
+      const eligible = [ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH];
+      if (locked.length !== candidates.length || locked.some(p =>
+        !eligible.includes(p.status) || p.superAgent?.id !== current.superAgent?.id ||
+        p.destinationCity.trim().toLowerCase() !== current.destinationCity.trim().toLowerCase())) {
+        throw new BadRequestException('Shipment contains a parcel that is no longer ready for dispatch');
+      }
+      const dispatchedAt = new Date();
+      await manager.getRepository(BulkShipment).update(shipmentId, {
+        status: BulkShipmentStatus.DISPATCHED,
+        dispatchTime: dispatchedAt,
+        transportCompany: dto.transportCompany || null,
+        transportRef: dto.transportRef || null,
+        totalShippingCost: dto.totalShippingCost || 0,
+        courierCostReceipt: dto.courierCostReceipt || null,
+        notes: dto.notes || shipment.notes,
+      });
+      for (const parcel of locked) {
+        await manager.getRepository(Parcel).update(parcel.id, {
+          status: ParcelStatus.DISPATCHED, dispatchTime: dispatchedAt,
+        });
+        await manager.getRepository(ParcelTracking).insert({
+          parcel, status: ParcelStatus.DISPATCHED, city: shipment.originCity,
+          note: `Imetumwa pamoja na vifurushi vingine kwenda kwa ${receiverName}${dto.transportCompany ? ` via ${dto.transportCompany}` : ''}`,
+          updatedBy: agent?.businessName || user.name || '',
+          handlerPhone: agent?.phone || user.phone || null,
+          handlerLocation: shipment.originCity || null, handlerType: 'super_agent',
+        });
+      }
+      return locked;
+    });
+
+    for (const parcel of parcels) {
       await this.addTrackingEvent(
         parcel,
         ParcelStatus.DISPATCHED,
@@ -2832,6 +2873,7 @@ export class SuperAgentsService {
           location: shipment.originCity || undefined,
           type: 'super_agent',
         },
+        true,
       );
     }
 
@@ -2889,11 +2931,17 @@ export class SuperAgentsService {
     shipment: BulkShipment,
     roleContext?: RoleContext,
   ) {
+    if (!roleContext || roleContext.userId !== user.id ||
+        ![AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN].includes(roleContext.roleType)) {
+      throw new ForbiddenException('An active hub or admin role is required');
+    }
+    if (!shipment.superAgent) throw new BadRequestException('Shipment has no verified origin hub');
     if (roleContext?.roleType === AccountRoleType.ADMIN) {
       return shipment.superAgent || null;
     }
     const agent = await this.resolveActingSuperAgent(user.id);
-    if (!agent || shipment.superAgent?.id !== agent.id) {
+    if (!agent || shipment.superAgent?.id !== agent.id || roleContext.profileId !== agent.id ||
+        agent.status !== SuperAgentStatus.ACTIVE) {
       throw new ForbiddenException('Not your consolidated shipment');
     }
     return agent;
