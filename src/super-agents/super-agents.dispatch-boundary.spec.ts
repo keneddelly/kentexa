@@ -79,4 +79,14 @@ describe('single parcel dispatch boundary', () => {
       expect.any(Object), true,
     );
   });
+
+  it('does not allow free-form status edits to invent dispatch or transit', async () => {
+    await expect(service.updateParcelStatus(user, 'KTX-31', {
+      status: ParcelStatus.DISPATCHED, city: 'Dar',
+    })).rejects.toThrow('Use the dispatch action');
+    await expect(service.updateParcelStatus(user, 'KTX-31', {
+      status: ParcelStatus.IN_TRANSIT, city: 'Dar',
+    })).rejects.toThrow('must be dispatched');
+    expect(writes).toEqual([]);
+  });
 });
