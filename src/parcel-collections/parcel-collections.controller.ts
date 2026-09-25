@@ -15,6 +15,12 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { RoleContextGuard } from '../role-context/role-context.guard';
+import { ActiveRoleGuard } from '../role-context/active-role.guard';
+import { RequireActiveRole } from '../role-context/require-active-role.decorator';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
+import type { RoleContext } from '../role-context/role-context.types';
 
 @Controller('collections')
 @UseGuards(JwtAuthGuard)
@@ -46,15 +52,16 @@ export class ParcelCollectionsController {
   }
 
   // ── Agent: confirm picked up from seller ─────────────────────────────────
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.AGENT)
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
   @Patch(':id/collected')
   confirmCollected(
     @Param('id', ParseIntPipe) id: number,
     @Request() req,
     @Body() body: { notes?: string },
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
-    return this.service.confirmCollected(id, req.user, body.notes);
+    return this.service.confirmCollected(id, req.user, body.notes, roleContext);
   }
 
   // ── Agent: confirm handed to Super Agent hub ─────────────────────────────
