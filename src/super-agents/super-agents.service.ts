@@ -1679,10 +1679,19 @@ export class SuperAgentsService {
     });
     if (!parcel) throw new NotFoundException('Parcel not found');
 
+    if (!roleContext || roleContext.userId !== user.id ||
+        ![AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN].includes(roleContext.roleType)) {
+      throw new ForbiddenException('An active hub or admin role is required to dispatch');
+    }
+
     // Ownership check — a Super Agent may only dispatch parcels registered
     // under their own hub; ADMIN can act on any parcel. This did not exist
     // anywhere in the parcel-action code paths before.
     const agent = await this.assertOwnsParcel(user, parcel, roleContext);
+    if (roleContext.roleType === AccountRoleType.SUPER_AGENT &&
+        (roleContext.profileId !== agent?.id || agent?.status !== SuperAgentStatus.ACTIVE)) {
+      throw new ForbiddenException('This is not the active hub for this parcel');
+    }
     // A dispatch is a new movement, not an editable tracking label. Check
     // again under the row lock below, since another request can race here.
     const dispatchable = [ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH];
