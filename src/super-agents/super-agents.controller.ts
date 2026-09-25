@@ -327,8 +327,8 @@ export class SuperAgentsController {
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Post('bulk-shipments')
-  createBulkShipment(@Request() req, @Body() dto: any) {
-    return this.service.createBulkShipment(req.user, dto);
+  createBulkShipment(@Request() req, @Body() dto: any, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.service.createBulkShipment(req.user, dto, roleContext);
   }
 
   // Add more parcels to an already-open shipment later the same day.
