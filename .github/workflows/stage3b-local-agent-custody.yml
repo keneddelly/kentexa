@@ -50,4 +50,5 @@ jobs:
           SQL
       - run: npm test -- --runInBand parcel-collections/parcel-collections.custody-pickup.spec.ts
       - run: npm test -- --runInBand parcel-collections/parcel-collections.custody-pickup.real-postgres.spec.ts
+      - run: npm test -- --runInBand parcel-collections/parcel-collections.hub-handover.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json
