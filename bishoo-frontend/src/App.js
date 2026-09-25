@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePWA, InstallBanner, subscribeToPush } from './public/hooks/usePWA';
+import { usePWA, InstallBanner, InstallGuide, subscribeToPush } from './public/hooks/usePWA';
 import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
@@ -167,7 +167,8 @@ function App() {
     refreshContext,
     logout: roleLogout,
   } = roleContext;
-  const { showInstallPrompt, handleInstall, handleDismiss } = usePWA();
+  const { showInstallPrompt, showGuide, handleInstall, handleDismiss, closeGuide,
+    canInstall, environment } = usePWA();
   const [showPostModal, setShowPostModal] = useState(false);
   const [showMomentModal, setShowMomentModal] = useState(false);
   const [momentModalMode, setMomentModalMode] = useState('selling');
@@ -371,10 +372,6 @@ function App() {
           // Subscribe to push notifications in background
           if ('Notification' in window && Notification.permission === 'granted') {
             subscribeToPush(process.env.REACT_APP_API_URL || '').catch(() => {});
-          } else if ('Notification' in window && Notification.permission !== 'denied') {
-            Notification.requestPermission().then(perm => {
-              if (perm === 'granted') subscribeToPush(process.env.REACT_APP_API_URL || '').catch(() => {});
-            });
           }
           localStorage.setItem('kentexa_user', JSON.stringify(profile));
         } catch {}
@@ -514,6 +511,7 @@ function App() {
 
   const publicProps = {
     onNavigate: handleNavigate, isLoggedIn, onLogout: handleLogout, userRole, currentUser,
+    canInstallKentexa: canInstall, onInstallKentexa: handleInstall,
     onUserUpdated: handleUserUpdated,
     activeProfile, activeProfileId: activeProfile?.id,
     activeContext, availableRoles: roleContext.availableRoles,
@@ -970,7 +968,10 @@ function App() {
           </div>
         </div>
       )}
-      {showInstallPrompt && <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} />}
+      {canInstall && showInstallPrompt && page === 'Home' && !showLangPicker && !showPostModal &&
+        !showMomentModal && !showGuide &&
+        <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} />}
+      {showGuide && <InstallGuide environment={environment} onClose={closeGuide} />}
     </CartProvider>
     </OnboardingProvider>
   );
