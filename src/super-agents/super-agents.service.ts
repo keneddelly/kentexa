@@ -3183,9 +3183,10 @@ export class SuperAgentsService {
     if (!parcel)
       throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
 
-    if (parcel.buyerRequestedDelivery === false &&
+    if ([ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status) &&
+        parcel.buyerRequestedDelivery !== true &&
         [ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status)) {
-      throw new ConflictException('This parcel is reserved for recipient pickup at the hub');
+      throw new ConflictException('Recipient choice or verified hub pickup is required');
     }
 
     // Dedicated dispatch owns the row lock, assignment validation and

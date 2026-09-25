@@ -104,6 +104,13 @@ describe('recipient-held pickup code', () => {
       .rejects.toThrow('tracking unavailable');
   });
 
+  it('does not let the generic status endpoint bypass an undecided recipient handover', async () => {
+    const { service } = setup({ buyerRequestedDelivery: null });
+    await expect(service.updateParcelStatus(user, 'KTX-31', {
+      status: ParcelStatus.DELIVERED, city: 'Mwanza',
+    }, context)).rejects.toThrow('Recipient choice or verified hub pickup');
+  });
+
   it('sends the code only to the parcel recipient phone', async () => {
     const { service } = setup({ pickupCodeIssuedAt: null });
     const result = await service.issueRecipientPickupCode(user, 'KTX-31', context);
