@@ -18,6 +18,7 @@ export class AddParcelCustodyEvent1788278400000 implements MigrationInterface {
         "actorSource" character varying(24) NOT NULL,
         "actorUserId" integer,
         "actorAccountRoleId" integer,
+        "actorRoleType" character varying(32),
         "actorWorkspaceId" integer,
         "actorProviderId" integer,
         "hubId" integer,
@@ -32,11 +33,14 @@ export class AddParcelCustodyEvent1788278400000 implements MigrationInterface {
           (("toCustodianType" IS NULL) = ("toCustodianId" IS NULL)),
         CONSTRAINT "CHK_parcel_custody_actor" CHECK
           (("actorSource" = 'account_role' AND "actorUserId" IS NOT NULL
-               AND "actorAccountRoleId" IS NOT NULL AND "actorProviderId" IS NULL)
+               AND "actorAccountRoleId" IS NOT NULL AND "actorRoleType" IS NOT NULL
+               AND "actorProviderId" IS NULL)
            OR ("actorSource" = 'system' AND "actorUserId" IS NULL
-               AND "actorAccountRoleId" IS NULL AND "actorWorkspaceId" IS NULL AND "actorProviderId" IS NULL)
+               AND "actorAccountRoleId" IS NULL AND "actorRoleType" IS NULL
+               AND "actorWorkspaceId" IS NULL AND "actorProviderId" IS NULL)
            OR ("actorSource" = 'provider_webhook' AND "actorProviderId" IS NOT NULL
-               AND "actorUserId" IS NULL AND "actorAccountRoleId" IS NULL AND "actorWorkspaceId" IS NULL))
+               AND "actorUserId" IS NULL AND "actorAccountRoleId" IS NULL
+               AND "actorRoleType" IS NULL AND "actorWorkspaceId" IS NULL))
       )`);
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_parcel_custody_operation"
       ON public.parcel_custody_event ("parcelId", "operationKey")`);
