@@ -28,6 +28,7 @@ describe('TransportService.assertEligibleProvider', () => {
       stub, // commerceProfiles
       stub, // tzLocation
       stub, // roleContextService
+      stub, // dataSource
     );
   });
 
