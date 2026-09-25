@@ -4843,7 +4843,7 @@ export class SuperAgentsService {
         throw new ConflictException('Pickup code has expired or is unavailable');
       }
       const [salt, expected] = parcel.pickupCodeHash.split(':');
-    const actual = scryptSync(`${code}:${parcel.buyerPhone || ''}`, salt, 32);
+      const actual = scryptSync(`${code}:${parcel.buyerPhone || ''}`, salt, 32);
       if (!expected || expected.length !== 64 || !timingSafeEqual(Buffer.from(expected, 'hex'), actual)) {
         await manager.getRepository(Parcel).update(parcel.id, { pickupCodeAttempts: parcel.pickupCodeAttempts + 1 });
         return { invalid: true };

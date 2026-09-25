@@ -42,7 +42,7 @@ export class SmsService {
   async sendSms(phone: string, message: string, sensitive = false): Promise<boolean> {
     const formatted = this.formatPhone(phone);
 
-    // DEV mode — log OTP to terminal, still try to send via sandbox
+    // Keep credentials out of application logs in every environment.
     this.logger.log(`[SMS] To: ${formatted} | ${sensitive ? '[sensitive message omitted]' : message}`);
 
     try {
@@ -66,13 +66,13 @@ export class SmsService {
       // so a failure is actually diagnosable instead of just "undefined".
       this.logger.warn(
         `⚠️ SMS not sent to ${formatted} — recipient: ${JSON.stringify(recipient)}` +
-          (recipient ? '' : ` — full result: ${JSON.stringify(result)}`),
+          (recipient || sensitive ? '' : ` — full result: ${JSON.stringify(result)}`),
       );
       return false;
     } catch (err) {
       this.logger.error(`❌ SMS error: ${err.message}`);
       // In dev mode don't fail the whole request if SMS fails
-      if (this.isDev) return true;
+      if (this.isDev && !sensitive) return true;
       return false;
     }
   }
