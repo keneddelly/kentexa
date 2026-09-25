@@ -103,7 +103,7 @@ export class ParcelCollection {
   collectedAt: Date | null; // agent confirms pickup from seller
 
   @Column({ type: 'timestamp', nullable: true })
-  handedOverAt: Date | null; // agent confirms handover at Super Agent hub
+  handedOverAt: Date | null; // agent requests handover; hub confirms by setting status HANDED_OVER
 
   // ── Notes ─────────────────────────────────────────────────────────────────
   @Column({ type: 'text', nullable: true })
