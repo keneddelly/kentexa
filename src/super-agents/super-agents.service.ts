@@ -524,10 +524,17 @@ export class SuperAgentsService {
       paymentMethod?: string; // cash | mpesa | airtel
       notes?: string;
     },
+    roleContext?: RoleContext,
   ) {
-    const superAgent = await this.resolveActingSuperAgent(superAgentUser.id);
-    if (!superAgent)
-      throw new BadRequestException('Super Agent profile not found');
+    const superAgent = roleContext?.roleType === AccountRoleType.SUPER_AGENT
+      ? await this.superAgentRepo.findOne({
+          where: { id: roleContext.profileId, user: { id: superAgentUser.id } },
+        })
+      : null;
+    if (
+      !superAgent || !roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
+      roleContext.userId !== superAgentUser.id || roleContext.profileId !== superAgent.id
+    ) throw new ForbiddenException('An active Super Agent hub must register this receipt');
 
     this.assertNotBillingBlocked(superAgent);
 
@@ -547,6 +554,16 @@ export class SuperAgentsService {
     const destinationCity = dto.destinationCity;
     const weightKg = dto.weightKg || 0.5;
 
+    const { savedOrder, savedParcel, trackingNumber, destAgent, agentEarnings,
+      isFreeOrder, platformFeeCharged, platformFeeWaived, invoice } =
+      await this.dataSource.transaction(async (manager) => {
+        // Serialize free-order allowance and dashboard totals for this hub.
+        await manager.query('SELECT id FROM public.super_agent WHERE id = $1 FOR UPDATE', [superAgent.id]);
+        const currentAgent = await manager.getRepository(SuperAgent).findOne({ where: { id: superAgent.id } });
+        if (!currentAgent || currentAgent.status !== SuperAgentStatus.ACTIVE) {
+          throw new ForbiddenException('Receiving hub is no longer active');
+        }
+        this.assertNotBillingBlocked(currentAgent);
     // 1. Create a minimal order record — for tracking purposes only
     //    No seller, no product, no escrow. source = 'offline_intercity'
     const order = this.orderRepo.create({
@@ -582,9 +599,9 @@ export class SuperAgentsService {
       shippingFeeCollectedAt: new Date(),
     } as any);
 
-    const savedOrder = await this.orderRepo.save(order as any);
+    const savedOrder = await manager.getRepository(Order).save(order as any) as unknown as Order;
     const trackingNumber = `KTX-ORD-${savedOrder.id}`;
-    await this.orderRepo.update(savedOrder.id, { trackingNumber });
+    await manager.getRepository(Order).update(savedOrder.id, { trackingNumber });
 
     // 2. Super agent earnings = the FULL cash they physically collected —
     // not a commission. Kentexa never holds this money (unlike an online
@@ -620,9 +637,9 @@ export class SuperAgentsService {
     // 3b. Founding-pilot free-order check — computed once per created
     // parcel, never re-run on a retry of an already-succeeded request, so
     // a duplicate/replayed submission can't consume the allowance twice.
-    const isFreeOrder = superAgent.freeOrdersUsed < superAgent.freeOrdersGranted;
+    const isFreeOrder = currentAgent.freeOrdersUsed < currentAgent.freeOrdersGranted;
     const feePerOrder =
-      Number(superAgent.platformFeePerOrder) || SUPER_AGENT_PLATFORM_FEE;
+      Number(currentAgent.platformFeePerOrder) || SUPER_AGENT_PLATFORM_FEE;
     const platformFeeCharged = isFreeOrder ? 0 : feePerOrder;
     const platformFeeWaived = isFreeOrder ? feePerOrder : 0;
 
@@ -656,9 +673,83 @@ export class SuperAgentsService {
       status: ParcelStatus.RECEIVED_AT_HUB, // already at hub — super agent has it
     } as any);
 
-    const savedParcel = (await this.parcelRepo.save(
+    const savedParcel = (await manager.getRepository(Parcel).save(
       parcel as any,
     )) as unknown as Parcel;
+
+    // Aggregate the free-order/fee counters onto the Super Agent's own
+    // record — same tracked-only principle as the parcel-level fields above.
+    // totalEarnings/totalParcelsHandled were missing here entirely — every
+    // counter order registered through this endpoint (the flagship
+    // walk-in flow) permanently undercounted both on the admin dashboard,
+    // since this is the only write site for this specific event.
+    await manager.getRepository(SuperAgent).update(superAgent.id, {
+      freeOrdersUsed: isFreeOrder
+        ? currentAgent.freeOrdersUsed + 1
+        : currentAgent.freeOrdersUsed,
+      totalPlatformFeesCharged:
+        Number(currentAgent.totalPlatformFeesCharged) + platformFeeCharged,
+      totalPlatformFeesWaived:
+        Number(currentAgent.totalPlatformFeesWaived) + platformFeeWaived,
+      totalEarnings: Number(currentAgent.totalEarnings) + agentEarnings,
+      totalParcelsHandled: currentAgent.totalParcelsHandled + 1,
+      paidOrders: isFreeOrder
+        ? currentAgent.paidOrders
+        : currentAgent.paidOrders + 1,
+      outstandingBalance: isFreeOrder
+        ? Number(currentAgent.outstandingBalance)
+        : Number(currentAgent.outstandingBalance) + platformFeeCharged,
+    });
+
+    // Custody evidence and the public tracking history commit together.
+    await manager.getRepository(ParcelCustodyEvent).insert({
+      parcelId: savedParcel.id,
+      eventKind: 'origin_hub_received',
+      operationKey: `offline-counter-received:${savedOrder.id}`,
+      fromCustodianType: null,
+      fromCustodianId: null,
+      toCustodianType: 'super_agent',
+      toCustodianId: superAgent.id,
+      actorSource: 'account_role',
+      actorUserId: superAgentUser.id,
+      actorAccountRoleId: roleContext.accountRoleId,
+      actorRoleType: roleContext.roleType,
+      actorWorkspaceId: roleContext.workspaceId ?? null,
+      actorProviderId: null,
+      hubId: superAgent.id,
+      assignmentId: null,
+      evidenceRef: null,
+    });
+    await manager.getRepository(ParcelTracking).insert({
+      parcel: savedParcel,
+      status: ParcelStatus.RECEIVED_AT_HUB,
+      city: originCity,
+      note: `Imepokewa na ${superAgent.businessName} — ${originCity}. Inasubiri kutumwa kwenda ${destinationCity}.`,
+      updatedBy: superAgent.businessName,
+      handlerPhone: superAgent.phone || null,
+      handlerLocation: superAgent.address || originCity,
+      handlerType: 'super_agent',
+    });
+
+    // 6. Receipt — evidence the Super Agent received the sender's cash.
+    // Reuses the same transactional receipt-number generator every other
+    // paid invoice in the app uses; created already PAID since the money
+    // changed hands before this call ever ran.
+    const invoice = await this.invoicesService.recordManualPayment(
+      savedOrder,
+      {
+        amount: dto.shippingFeeCollected,
+        paymentMethod: dto.paymentMethod || 'cash',
+        agentId: superAgent.id,
+        payerName: dto.senderName,
+        payerPhone: dto.senderPhone,
+      },
+      manager,
+    );
+
+    return { savedOrder, savedParcel, trackingNumber, destAgent, agentEarnings,
+      isFreeOrder, platformFeeCharged, platformFeeWaived, invoice };
+    });
 
     // Who declared the value and when — reuses the existing generic audit
     // log rather than building a second history mechanism. There is no
@@ -675,57 +766,12 @@ export class SuperAgentsService {
       })
       .catch(() => {});
 
-    // Aggregate the free-order/fee counters onto the Super Agent's own
-    // record — same tracked-only principle as the parcel-level fields above.
-    // totalEarnings/totalParcelsHandled were missing here entirely — every
-    // counter order registered through this endpoint (the flagship
-    // walk-in flow) permanently undercounted both on the admin dashboard,
-    // since this is the only write site for this specific event.
-    await this.superAgentRepo.update(superAgent.id, {
-      freeOrdersUsed: isFreeOrder
-        ? superAgent.freeOrdersUsed + 1
-        : superAgent.freeOrdersUsed,
-      totalPlatformFeesCharged:
-        Number(superAgent.totalPlatformFeesCharged) + platformFeeCharged,
-      totalPlatformFeesWaived:
-        Number(superAgent.totalPlatformFeesWaived) + platformFeeWaived,
-      totalEarnings: Number(superAgent.totalEarnings) + agentEarnings,
-      totalParcelsHandled: superAgent.totalParcelsHandled + 1,
-      paidOrders: isFreeOrder
-        ? superAgent.paidOrders
-        : superAgent.paidOrders + 1,
-      outstandingBalance: isFreeOrder
-        ? Number(superAgent.outstandingBalance)
-        : Number(superAgent.outstandingBalance) + platformFeeCharged,
-    });
-
-    // 5. Tracking event
     await this.addTrackingEvent(
-      savedParcel,
-      ParcelStatus.RECEIVED_AT_HUB,
-      originCity,
+      savedParcel, ParcelStatus.RECEIVED_AT_HUB, originCity,
       `Imepokewa na ${superAgent.businessName} — ${originCity}. Inasubiri kutumwa kwenda ${destinationCity}.`,
       superAgent.businessName,
-      {
-        phone: superAgent.phone || (superAgent as any).user?.phone,
-        location: superAgent.address || originCity,
-        type: 'super_agent',
-      },
-    );
-
-    // 6. Receipt — evidence the Super Agent received the sender's cash.
-    // Reuses the same transactional receipt-number generator every other
-    // paid invoice in the app uses; created already PAID since the money
-    // changed hands before this call ever ran.
-    const invoice = await this.invoicesService.recordManualPayment(
-      savedOrder,
-      {
-        amount: dto.shippingFeeCollected,
-        paymentMethod: dto.paymentMethod || 'cash',
-        agentId: superAgent.id,
-        payerName: dto.senderName,
-        payerPhone: dto.senderPhone,
-      },
+      { phone: superAgent.phone || undefined, location: superAgent.address || originCity, type: 'super_agent' },
+      true,
     );
 
     // 7. SMS #1 — to the SENDER only, confirming the cash payment was
