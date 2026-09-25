@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePWA, InstallBanner, InstallGuide, subscribeToPush } from './public/hooks/usePWA';
+import { usePWA, InstallBanner, InstallGuide, subscribeToPush, disablePushNotifications } from './public/hooks/usePWA';
 import api from './api/api';
 import { CartProvider } from './context/CartContext';
 import { OnboardingProvider } from './onboarding/OnboardingContext';
@@ -190,6 +190,7 @@ function App() {
       const track   = params.get('track');
       const confirm = params.get('confirm');
       const token   = params.get('token');
+      if (params.get('notification') === '1') return 'Activity';
       if (confirm && token) return `ConfirmDelivery-${token}`;
       if (track) return `TrackParcel-${track}`;
       // Real shareable paths (/product/42, /store/7, ...) — resolves
@@ -500,6 +501,7 @@ function App() {
   };
 
   const handleLogout = async () => {
+    await disablePushNotifications().catch(() => {});
     await roleLogout();
     setCurrentUser(null);
     localStorage.removeItem('kentexa_user');

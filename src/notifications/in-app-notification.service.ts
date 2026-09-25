@@ -251,10 +251,10 @@ export class InAppNotificationService {
       .sendToUser(params.userId, {
         title: params.title,
         body: params.body,
-        icon: '/icons/icon-192x192.png',
-        url: params.actionPage
-          ? `/?page=${params.actionPage}${params.actionParam ? `&param=${params.actionParam}` : ''}`
-          : '/',
+        icon: '/logo512.png',
+        // The app's URL router has no ?page= handler. Open the notification
+        // inbox so the user can follow the existing role-aware action link.
+        url: '/?notification=1',
         tag: params.type,
       })
       .catch(() => {});

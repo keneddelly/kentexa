@@ -10,7 +10,7 @@
  *     VAPID_PRIVATE_KEY=...
  *     VAPID_EMAIL=mailto:admin@kentexa.com
  */
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -59,6 +59,9 @@ export class PushService {
       userAgent?: string;
     },
   ): Promise<PushSubscription> {
+    if (!this.vapidConfigured) throw new ServiceUnavailableException('Push notifications are not configured');
+    if (!sub?.endpoint?.startsWith('https://') || !sub?.keys?.p256dh || !sub?.keys?.auth)
+      throw new BadRequestException('Invalid push subscription');
     // Upsert by endpoint (device)
     const existing = await this.subRepo.findOne({
       where: { endpoint: sub.endpoint },
@@ -106,7 +109,7 @@ export class PushService {
     const pushPayload = JSON.stringify({
       title: payload.title,
       body: payload.body,
-      icon: payload.icon || '/icons/icon-192x192.png',
+      icon: payload.icon || '/logo512.png',
       url: payload.url || '/',
       tag: payload.tag || 'kentexa',
     });
@@ -138,7 +141,7 @@ export class PushService {
 
   // ── Get VAPID public key for client ───────────────────────────────────────
   getPublicKey(): string {
-    return this.config.get('VAPID_PUBLIC_KEY') || '';
+    return this.vapidConfigured ? this.config.get('VAPID_PUBLIC_KEY') || '' : '';
   }
 
   async getSubscriptionCount(): Promise<number> {
