@@ -19,6 +19,7 @@ export class AddParcelCustodyEvent1788278400000 implements MigrationInterface {
         "actorUserId" integer,
         "actorAccountRoleId" integer,
         "actorWorkspaceId" integer,
+        "actorProviderId" integer,
         "hubId" integer,
         "assignmentId" integer,
         "evidenceRef" character varying(128),
@@ -30,8 +31,11 @@ export class AddParcelCustodyEvent1788278400000 implements MigrationInterface {
         CONSTRAINT "CHK_parcel_custody_to" CHECK
           (("toCustodianType" IS NULL) = ("toCustodianId" IS NULL)),
         CONSTRAINT "CHK_parcel_custody_actor" CHECK
-          (("actorSource" = 'account_role' AND "actorUserId" IS NOT NULL AND "actorAccountRoleId" IS NOT NULL)
-           OR ("actorSource" IN ('system', 'provider_webhook', 'external')
+          (("actorSource" = 'account_role' AND "actorUserId" IS NOT NULL
+               AND "actorAccountRoleId" IS NOT NULL AND "actorProviderId" IS NULL)
+           OR ("actorSource" = 'system' AND "actorUserId" IS NULL
+               AND "actorAccountRoleId" IS NULL AND "actorWorkspaceId" IS NULL AND "actorProviderId" IS NULL)
+           OR ("actorSource" = 'provider_webhook' AND "actorProviderId" IS NOT NULL
                AND "actorUserId" IS NULL AND "actorAccountRoleId" IS NULL AND "actorWorkspaceId" IS NULL))
       )`);
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_parcel_custody_operation"
