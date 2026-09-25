@@ -470,8 +470,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const handleHandedOver = async (collectionId) => {
     try {
       setActionLoading(true); setError('');
-      const res = await api.patch(`/collections/${collectionId}/handed-over`);
-      setSuccess(t('agent_dashboard.handed_over_success', { amount: Number(res.data?.collectionFee || 0).toLocaleString() }));
+      await api.patch(`/collections/${collectionId}/handed-over`);
+      setSuccess('Handover requested. The receiving hub must confirm the parcel before your collection fee is credited.');
       setSelectedItem(null); setNote('');
       fetchWork(profile);
     } catch (err) {
@@ -1011,7 +1011,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {myCollections.map(job => {
                       const isSelected = selectedItem?.type === 'collection' && selectedItem?.id === job.id;
                       const canConfirmCollected = job.status === 'claimed';
-                      const canHandOver = job.status === 'collected';
+                      const canHandOver = job.status === 'collected' && !job.handedOverAt;
                       return (
                         <div key={job.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 10, borderLeft: '4px solid #ca8a04' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -1042,6 +1042,9 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
                               {t('agent_dashboard.handed_over_button')}
                             </button>
+                          )}
+                          {job.status === 'collected' && job.handedOverAt && (
+                            <div role="status" style={{ padding: 10, color: '#92400e' }}>Awaiting receiving hub confirmation</div>
                           )}
                         </div>
                       );

@@ -72,6 +72,23 @@ export class ParcelCollectionsController {
     return this.service.confirmHandedOver(id, req.user);
   }
 
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Get('hub/handover-requests')
+  getHubHandoverRequests(@Request() req, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.service.getHubHandoverRequests(req.user, roleContext);
+  }
+
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Patch(':id/hub-accept')
+  acceptHubHandover(
+    @Param('id', ParseIntPipe) id: number, @Request() req,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.acceptHubHandover(id, req.user, roleContext);
+  }
+
   // ── Admin: all collections ───────────────────────────────────────────────
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MANAGER)

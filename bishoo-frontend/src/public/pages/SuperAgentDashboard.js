@@ -184,6 +184,20 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [refLinkCopied, setRefLinkCopied] = useState(false);
   const [success, setSuccess]           = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [handoverRequests, setHandoverRequests] = useState([]);
+
+  const acceptHandover = async (id) => {
+    try {
+      setActionLoading(true); setError('');
+      await api.patch(`/collections/${id}/hub-accept`);
+      setSuccess('Parcel received at your hub.');
+      const requests = await api.get('/collections/hub/handover-requests');
+      setHandoverRequests(requests.data || []);
+      fetchAll();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Could not confirm the handover');
+    } finally { setActionLoading(false); }
+  };
 
   // ── POKEA sub-modes ───────────────────────────────────────────────────────
   // 'list' | 'walk_in' | 'online_order' | 'confirm_arrival'
@@ -418,6 +432,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         setRevenue(revenueRes.data);
         setRates(ratesRes.data || []);
         setLocalAgents(agentsRes.data || []);
+        api.get('/collections/hub/handover-requests')
+          .then(r => setHandoverRequests(r.data || []))
+          .catch(() => setHandoverRequests([]));
         api.get('/super-agents/my-referrals').then(r => setReferralData(r.data)).catch(() => {});
       }
     } catch (err) {
@@ -1048,6 +1065,20 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 </div>
 
                 {/* Parcels at hub */}
+                {handoverRequests.length > 0 && (
+                  <section style={{ marginBottom: 20 }}>
+                    <h3 style={{ fontSize: 14 }}>Agent handovers awaiting receipt ({handoverRequests.length})</h3>
+                    {handoverRequests.map(job => (
+                      <div key={job.id} style={{ background: '#fff', padding: 12, marginBottom: 8, borderRadius: 10 }}>
+                        <strong>{job.parcel?.trackingNumber || `Collection #${job.id}`}</strong>
+                        <div>{job.agent?.name || 'Agent'} · {job.agent?.phone || ''} · {job.city}</div>
+                        <button disabled={actionLoading} onClick={() => acceptHandover(job.id)}>
+                          Confirm parcel physically received
+                        </button>
+                      </div>
+                    ))}
+                  </section>
+                )}
                 {atHub.length > 0 && (
                   <>
                     <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 8 }}>
