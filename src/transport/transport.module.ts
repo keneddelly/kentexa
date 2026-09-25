@@ -18,6 +18,7 @@ import { ReputationModule } from '../reputation/reputation.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { TzLocationModule } from '../tz-location/tz-location.module';
 import { Parcel, ParcelTracking } from '../super-agents/entities/parcel.entity';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { IdentityModule } from '../identity/identity.module';
@@ -47,6 +48,7 @@ import { IdentityModule } from '../identity/identity.module';
       // Parcel/Shipment it's carrying (Phases 1, 3-5).
       Parcel,
       ParcelTracking,
+      ParcelCustodyEvent,
       SuperAgent,
       Shipment,
     ]),

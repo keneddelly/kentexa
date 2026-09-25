@@ -12,7 +12,7 @@ import {
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import {
   capacityWeightKg,
   releaseSlotAtomic,
@@ -49,6 +49,7 @@ import {
 } from '../commerce-profiles/entities/commerce-profile.entity';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/parcel.entity';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
 import { RoleContextService } from '../role-context/role-context.service';
@@ -81,6 +82,7 @@ export class TransportService {
     private commerceProfiles: CommerceProfilesService,
     private readonly tzLocation: TzLocationService,
     private readonly roleContextService: RoleContextService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ── Safe, credential-free provider projection ────────────────────────────
@@ -873,7 +875,6 @@ export class TransportService {
   private static readonly PARCEL_SYNC: Partial<
     Record<AssignmentStatus, ParcelStatus>
   > = {
-    [AssignmentStatus.COLLECTED]: ParcelStatus.DISPATCHED,
     [AssignmentStatus.DEPARTED]: ParcelStatus.IN_TRANSIT,
   };
 
@@ -911,6 +912,12 @@ export class TransportService {
     const targetParcelStatus = TransportService.PARCEL_SYNC[newStatus];
     if (!parcelId || !targetParcelStatus) return;
     try {
+      // A legacy or administratively advanced assignment must never make a
+      // parcel appear in transit without the provider collection evidence.
+      if (newStatus === AssignmentStatus.DEPARTED &&
+          !(await this.dataSource.getRepository(ParcelCustodyEvent).findOne({
+            where: { parcelId, assignmentId: a.id, eventKind: 'transport_provider_collected' },
+          }))) return;
       const parcel = await this.parcelRepo.findOne({ where: { id: parcelId } });
       if (!parcel || TransportService.PARCEL_SYNC_BLOCKED.has(parcel.status) ||
           parcel.status === targetParcelStatus) return;
@@ -939,6 +946,77 @@ export class TransportService {
     } catch {
       /* non-fatal — the transport status update itself already succeeded */
     }
+  }
+
+  // The provider's authenticated collection is the first carrier-side
+  // possession evidence. Lock the parcel before its assignment, matching the
+  // dispatch path's lock order, so either action sees the other's result.
+  private async collectAssignedParcel(
+    caller: User, assignmentId: number, dto: { proofUrl?: string; notes?: string },
+    context: RoleContext,
+  ): Promise<TransportAssignment> {
+    const snapshot = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    if (!snapshot) throw new NotFoundException('Mgawo haukupatikana');
+    if (!snapshot.parcelRefId || (snapshot.parcelId != null && snapshot.parcelId !== snapshot.parcelRefId)) {
+      throw new ConflictException('Assignment has no verified parcel binding');
+    }
+    const parcelId = snapshot.parcelRefId;
+    return this.dataSource.transaction(async manager => {
+      await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [parcelId]);
+      await manager.query('SELECT id FROM public.transport_assignment WHERE id=$1 FOR UPDATE', [assignmentId]);
+      const assignment = await manager.getRepository(TransportAssignment).findOne({ where: { id: assignmentId } });
+      if (!assignment || assignment.parcelRefId !== snapshot.parcelRefId ||
+          assignment.parcelId !== snapshot.parcelRefId || assignment.status !== AssignmentStatus.ACCEPTED) {
+        throw new ConflictException('Assignment is no longer awaiting collection');
+      }
+      const provider = await manager.getRepository(TransportProvider).findOne({ where: { id: assignment.providerId } });
+      if (!provider || provider.userId !== caller.id || context.profileId !== provider.id ||
+          ![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(provider.status) ||
+          (provider.businessId != null && context.businessId !== provider.businessId)) {
+        throw new ForbiddenException('Only the assigned active provider can confirm collection');
+      }
+      const parcel = await manager.getRepository(Parcel).findOne({
+        where: { id: parcelId }, relations: { superAgent: true },
+      });
+      const hub = parcel?.superAgent;
+      if (!parcel || !hub || hub.userId !== assignment.assignedById ||
+          assignment.trackingNumber !== parcel.trackingNumber ||
+          ![ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH,
+            ParcelStatus.DISPATCHED].includes(parcel.status)) {
+        throw new ConflictException('Parcel is not available for origin hub collection');
+      }
+      const lastCustody = await manager.getRepository(ParcelCustodyEvent).findOne({
+        where: { parcelId: parcel.id }, order: { recordedAt: 'DESC', id: 'DESC' },
+      });
+      if (!lastCustody || lastCustody.toCustodianType !== 'super_agent' ||
+          lastCustody.toCustodianId !== hub.id) {
+        throw new ConflictException('Origin hub custody must be confirmed before collection');
+      }
+      const now = new Date();
+      assignment.status = AssignmentStatus.COLLECTED;
+      assignment.collectedAt = now;
+      assignment.collectionProofUrl = dto.proofUrl || null;
+      if (dto.notes) assignment.providerNotes = dto.notes;
+      await manager.getRepository(ParcelCustodyEvent).insert({
+        parcelId: parcel.id, eventKind: 'transport_provider_collected',
+        operationKey: `transport-collected:${assignment.id}`,
+        fromCustodianType: 'super_agent', fromCustodianId: hub.id,
+        toCustodianType: 'transport_provider', toCustodianId: provider.id,
+        actorSource: 'account_role', actorUserId: caller.id,
+        actorAccountRoleId: context.accountRoleId, actorRoleType: context.roleType,
+        actorWorkspaceId: context.workspaceId ?? null, actorProviderId: provider.id,
+        hubId: hub.id, assignmentId: assignment.id, evidenceRef: null,
+      });
+      if (parcel.status !== ParcelStatus.DISPATCHED) {
+        await manager.getRepository(Parcel).update(parcel.id, { status: ParcelStatus.DISPATCHED });
+      }
+      await manager.getRepository(ParcelTracking).insert({
+        parcel, status: ParcelStatus.DISPATCHED, city: parcel.originCity,
+        note: `Collected by assigned transport provider #${provider.id}`,
+        updatedBy: provider.name, handlerType: 'transport_provider',
+      });
+      return manager.getRepository(TransportAssignment).save(assignment);
+    });
   }
 
   async createAssignment(
@@ -1105,6 +1183,13 @@ export class TransportService {
     },
     roleContext?: RoleContext,
   ) {
+    if (dto.status === AssignmentStatus.COLLECTED) {
+      if (!roleContext || roleContext.roleType !== AccountRoleType.TRANSPORT_PROVIDER ||
+          roleContext.userId !== caller.id) {
+        throw new ForbiddenException('Only the assigned provider can confirm collection');
+      }
+      return this.collectAssignedParcel(caller, assignmentId, dto, roleContext);
+    }
     const a = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
     if (!a) throw new NotFoundException('Mgawo haukupatikana');
 
@@ -1135,10 +1220,6 @@ export class TransportService {
     if (dto.notes) a.providerNotes = dto.notes;
 
     switch (dto.status) {
-      case AssignmentStatus.COLLECTED:
-        a.collectedAt = now;
-        a.collectionProofUrl = dto.proofUrl || null;
-        break;
       case AssignmentStatus.DEPARTED:
         a.departedAt = now;
         a.departureProofUrl = dto.proofUrl || null;
