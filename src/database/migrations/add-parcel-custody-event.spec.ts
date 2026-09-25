@@ -15,6 +15,7 @@ describe('Stage 3A1 custody schema rollback', () => {
     expect(query.mock.calls.map(([sql]) => sql)).toEqual([
       expect.stringContaining('LOCK TABLE'),
       expect.stringContaining('SELECT EXISTS'),
+      expect.stringContaining('DROP TRIGGER IF EXISTS "TRG_parcel_custody_no_truncate"'),
       expect.stringContaining('DROP TRIGGER IF EXISTS'),
       expect.stringContaining('DROP FUNCTION IF EXISTS'),
       expect.stringContaining('DROP TABLE IF EXISTS'),
