@@ -122,7 +122,7 @@ const BottomNav = ({ currentPage, onNavigate, isLoggedIn, currentUser, onPostCli
       {showPill && (
         <button onClick={onOpenSwitcher}
           style={{
-            position: 'fixed', bottom: 66, left: '50%', transform: 'translateX(-50%)',
+            position: 'fixed', bottom: 'calc(66px + env(safe-area-inset-bottom, 0px))', left: '50%', transform: 'translateX(-50%)',
             zIndex: 999, display: 'flex', alignItems: 'center', gap: 6,
             backgroundColor: '#0F172A', color: '#fff', border: 'none',
             borderRadius: 100, padding: '6px 14px 6px 8px', cursor: 'pointer',
