@@ -2566,7 +2566,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       ['verified',         '✅ Imethibitishwa'],
                       ['ready_for_dispatch','📦 Tayari Kutuma'],
                     ] : []),
-                    ['dispatched',       '🚌 Imetumwa'],
                     ['in_transit',       '🚚 Njiani'],
                   ] : []),
                   // Destination-side statuses — only offered when this hub is

@@ -50,7 +50,7 @@ import {
   CommerceProfileType,
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
-import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
+import { TransportAssignment, AssignmentStatus } from '../transport/entities/transport-assignment.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
@@ -1672,16 +1672,32 @@ export class SuperAgentsService {
       where: { trackingNumber },
       relations: {
         order: { buyer: true },
+        shipment: true,
         superAgent: true,
         destinationSuperAgent: true,
       },
     });
     if (!parcel) throw new NotFoundException('Parcel not found');
 
+    if (!roleContext || roleContext.userId !== user.id ||
+        ![AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN].includes(roleContext.roleType)) {
+      throw new ForbiddenException('An active hub or admin role is required to dispatch');
+    }
+
     // Ownership check — a Super Agent may only dispatch parcels registered
     // under their own hub; ADMIN can act on any parcel. This did not exist
     // anywhere in the parcel-action code paths before.
     const agent = await this.assertOwnsParcel(user, parcel, roleContext);
+    if (roleContext.roleType === AccountRoleType.SUPER_AGENT &&
+        (roleContext.profileId !== agent?.id || agent?.status !== SuperAgentStatus.ACTIVE)) {
+      throw new ForbiddenException('This is not the active hub for this parcel');
+    }
+    // A dispatch is a new movement, not an editable tracking label. Check
+    // again under the row lock below, since another request can race here.
+    const dispatchable = [ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH];
+    if (!dispatchable.includes(parcel.status) || parcel.bulkShipmentId != null) {
+      throw new BadRequestException('Parcel must be at the origin hub and outside a bulk shipment before dispatch');
+    }
 
     const updates: any = {
       status: ParcelStatus.DISPATCHED,
@@ -1732,21 +1748,20 @@ export class SuperAgentsService {
         where: { id: dto.transportAssignmentId },
         relations: { provider: true },
       });
-      if (assignment && assignment.assignedById === user.id) {
-        if (!assignment.parcelRefId) {
-          await this.transportAssignmentRepo.update(assignment.id, {
-            parcelRefId: parcel.id,
-            parcelId: parcel.id,
-            trackingNumber: parcel.trackingNumber,
-          });
-        }
-        linkedProviderName = assignment.provider?.name || null;
-        if (linkedProviderName && !dto.courierName && !dto.busCompany) {
-          updates.courierName = linkedProviderName;
-        }
-        if (!dto.transportRef) {
-          updates.transportRef = `TA-${assignment.id}`;
-        }
+      if (!assignment || assignment.assignedById !== user.id ||
+          ![AssignmentStatus.ACCEPTED, AssignmentStatus.COLLECTED].includes(assignment.status) ||
+          (assignment.parcelRefId != null && assignment.parcelRefId !== parcel.id) ||
+          (assignment.parcelId != null && assignment.parcelId !== parcel.id) ||
+          (assignment.trackingNumber && assignment.trackingNumber !== trackingNumber) ||
+          (assignment.shipmentId != null && assignment.shipmentId !== parcel.shipment?.id)) {
+        throw new BadRequestException('Transport assignment is not accepted for this parcel');
+      }
+      linkedProviderName = assignment.provider?.name || null;
+      if (linkedProviderName && !dto.courierName && !dto.busCompany) {
+        updates.courierName = linkedProviderName;
+      }
+      if (!dto.transportRef) {
+        updates.transportRef = `TA-${assignment.id}`;
       }
     }
 
@@ -1769,15 +1784,14 @@ export class SuperAgentsService {
     // an "Inakuja" (incoming) parcel — no other wiring needed.
     if (dto.destinationSuperAgentId) {
       const destHub = await this.superAgentRepo.findOne({
-        where: { id: dto.destinationSuperAgentId },
+        where: { id: dto.destinationSuperAgentId, status: SuperAgentStatus.ACTIVE },
       });
-      if (destHub) {
-        updates.destinationSuperAgent = { id: destHub.id } as any;
-        (parcel as any).destinationSuperAgent = destHub;
+      if (!destHub || destHub.city.trim().toLowerCase() !== parcel.destinationCity.trim().toLowerCase()) {
+        throw new BadRequestException('Destination hub must be active in the destination city');
       }
+      updates.destinationSuperAgent = { id: destHub.id } as any;
+      (parcel as any).destinationSuperAgent = destHub;
     }
-
-    await this.parcelRepo.update(parcel.id, updates);
 
     // Build human-readable tracking note
     let trackNote = 'Imetumwa';
@@ -1798,6 +1812,41 @@ export class SuperAgentsService {
       trackNote += ` — atapokelewa na ${(parcel as any).destinationSuperAgent.businessName}`;
     }
 
+    await this.dataSource.transaction(async manager => {
+      await manager.query('SELECT id FROM public.parcel WHERE id = $1 FOR UPDATE', [parcel.id]);
+      const current = await manager.getRepository(Parcel).findOne({
+        where: { id: parcel.id }, relations: { superAgent: true },
+      });
+      if (!current || !dispatchable.includes(current.status) || current.bulkShipmentId != null ||
+          (roleContext?.roleType !== AccountRoleType.ADMIN && current.superAgent?.id !== agent?.id)) {
+        throw new BadRequestException('Parcel has already moved beyond origin dispatch');
+      }
+      if (dto.transportAssignmentId) {
+        await manager.query('SELECT id FROM public.transport_assignment WHERE id = $1 FOR UPDATE', [dto.transportAssignmentId]);
+        const assignment = await manager.getRepository(TransportAssignment).findOne({ where: { id: dto.transportAssignmentId } });
+        if (!assignment || assignment.assignedById !== user.id ||
+            ![AssignmentStatus.ACCEPTED, AssignmentStatus.COLLECTED].includes(assignment.status) ||
+            (assignment.parcelRefId != null && assignment.parcelRefId !== parcel.id) ||
+            (assignment.parcelId != null && assignment.parcelId !== parcel.id) ||
+            (assignment.trackingNumber && assignment.trackingNumber !== trackingNumber) ||
+            (assignment.shipmentId != null && assignment.shipmentId !== parcel.shipment?.id)) {
+          throw new BadRequestException('Transport assignment changed before dispatch');
+        }
+        if (assignment.parcelRefId == null) {
+          await manager.getRepository(TransportAssignment).update(assignment.id, {
+            parcelRefId: parcel.id, parcelId: parcel.id, trackingNumber: parcel.trackingNumber,
+          });
+        }
+      }
+      await manager.getRepository(Parcel).update(parcel.id, updates);
+      await manager.getRepository(ParcelTracking).insert({
+        parcel, status: ParcelStatus.DISPATCHED, city: agent?.city || '',
+        note: trackNote, updatedBy: agent?.businessName || user.name || '',
+        handlerPhone: agent?.phone || user.phone || null,
+        handlerLocation: agent?.city || null, handlerType: 'super_agent',
+      });
+    });
+
     await this.addTrackingEvent(
       parcel,
       ParcelStatus.DISPATCHED,
@@ -1809,6 +1858,7 @@ export class SuperAgentsService {
         location: agent?.city || undefined,
         type: 'super_agent',
       },
+      true,
     );
 
     // SMS #2 — to the RECEIVER only, and only now, at actual handoff to
@@ -2978,6 +3028,15 @@ export class SuperAgentsService {
     });
     if (!parcel)
       throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
+
+    // Dedicated dispatch owns the row lock, assignment validation and
+    // tracking transaction. A free-form status edit must not bypass it.
+    if (dto.status === ParcelStatus.DISPATCHED) {
+      throw new BadRequestException('Use the dispatch action to send this parcel');
+    }
+    if (dto.status === ParcelStatus.IN_TRANSIT && PRE_DISPATCH_STATUSES.has(parcel.status)) {
+      throw new BadRequestException('Parcel must be dispatched before it can be marked in transit');
+    }
 
     // Ownership + direction check — the origin hub owns everything up
     // through dispatch; only the destination hub may declare a parcel
