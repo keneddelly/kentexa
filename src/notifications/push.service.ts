@@ -134,6 +134,9 @@ export class PushService {
         if (status === 410 || status === 404) {
           await this.subRepo.delete({ endpoint: subs[i].endpoint });
           this.logger.log(`Removed expired push sub for user ${userId}`);
+        } else {
+          // Never print the endpoint or cryptographic keys in production logs.
+          this.logger.warn(`Push delivery failed (status ${status || 'unknown'})`);
         }
       }
     }
@@ -146,5 +149,10 @@ export class PushService {
 
   async getSubscriptionCount(): Promise<number> {
     return this.subRepo.count();
+  }
+
+  async hasSubscription(userId: number, endpoint: string): Promise<boolean> {
+    if (!endpoint || !endpoint.startsWith('https://')) return false;
+    return Boolean(await this.subRepo.findOne({ where: { userId, endpoint } }));
   }
 }

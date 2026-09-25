@@ -1,4 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AccountRoleStatus, AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
 
@@ -44,5 +45,53 @@ describe('AuthService Phase B session lifecycle', () => {
     await service.logout({ sub: 1, sid: 'session-1' } as any);
     expect(roleContext.revokeCurrentSession).toHaveBeenCalledTimes(2);
     expect(roleContext.revokeCurrentSession).toHaveBeenCalledWith('session-1', 'logout');
+  });
+
+  it('renews only a valid, still-authorized session without changing roles', async () => {
+    const oldSecret = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = 'test-only-secret';
+    const context = { userId: 1, sessionId: 'session-1', accountRoleId: 2,
+      roleType: AccountRoleType.SELLER, contextVersion: 1 };
+    const roleContext = {
+      resolveContext: jest.fn().mockResolvedValue(context),
+      listRoles: jest.fn().mockResolvedValue([target]),
+    };
+    const service = serviceWith(roleContext);
+    const jwt = (service as any).jwtService;
+    jwt.verify = jest.fn().mockReturnValue({ purpose: 'refresh', sub: 1,
+      sid: 'session-1', rid: 2, rt: AccountRoleType.SELLER, cv: 1 });
+    try {
+      const renewed = await service.refresh('signed-cookie');
+      expect(roleContext.resolveContext).toHaveBeenCalledWith(expect.objectContaining({
+        sid: 'session-1', rid: 2, cv: 1,
+      }));
+      expect(renewed.activeContext).toEqual(context);
+      expect(renewed.accessToken).toBe('new-jwt');
+      roleContext.resolveContext.mockRejectedValueOnce(new ForbiddenException('revoked'));
+      await expect(service.refresh('signed-cookie')).rejects.toBeInstanceOf(ForbiddenException);
+    } finally {
+      if (oldSecret === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = oldSecret;
+    }
+  });
+
+  it('uses a distinct refresh signature that an access-token verifier rejects', () => {
+    const oldSecret = process.env.JWT_SECRET;
+    process.env.JWT_SECRET = 'test-only-access-secret';
+    try {
+      const service = serviceWith({});
+      (service as any).jwtService = new JwtService({ secret: 'test-only-access-secret',
+        signOptions: { expiresIn: '30m' } });
+      const refresh = service.issueRefreshCredential({ userId: 1, sessionId: 'session-1',
+        accountRoleId: 2, roleType: AccountRoleType.SELLER, contextVersion: 1 } as any);
+      const accessVerifier = new JwtService({ secret: 'test-only-access-secret' });
+      expect(() => accessVerifier.verify(refresh)).toThrow();
+      const decoded = accessVerifier.decode(refresh) as any;
+      expect(decoded.purpose).toBe('refresh');
+      expect(decoded.exp - decoded.iat).toBe(7 * 24 * 60 * 60);
+    } finally {
+      if (oldSecret === undefined) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = oldSecret;
+    }
   });
 });

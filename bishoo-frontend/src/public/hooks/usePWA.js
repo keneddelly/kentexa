@@ -62,11 +62,12 @@ export const subscribeToPush = async (apiBase = '') => {
 };
 
 // Called only from Settings, after the user asks for alerts.
-export const enablePushNotifications = async () => {
+export const enablePushNotifications = async (publicKey) => {
   if (!('Notification' in window) || !('serviceWorker' in navigator) ||
       !('PushManager' in window)) return 'unsupported';
-  const { data } = await api.get('/notifications/push/vapid-key');
-  if (!data?.publicKey) return 'unavailable';
+  if (!publicKey) return 'unavailable';
+  // Must be the first async operation of the click handler on iPhone: a
+  // preflight fetch here loses the transient user activation Safari requires.
   const permission = Notification.permission === 'default'
     ? await Notification.requestPermission() : Notification.permission;
   if (permission !== 'granted') return 'denied';
@@ -90,7 +91,12 @@ export const disablePushNotifications = async () => {
 export const getPushNotificationState = async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
   const reg = await navigator.serviceWorker.getRegistration();
-  return await reg?.pushManager?.getSubscription() ? 'enabled' : 'off';
+  const subscription = await reg?.pushManager?.getSubscription();
+  if (!subscription) return 'off';
+  const { data } = await api.get('/notifications/push/status', {
+    params: { endpoint: subscription.endpoint },
+  });
+  return data?.subscribed ? 'enabled' : 'off';
 };
 
 export const detectInstallEnvironment = (nav = navigator, win = window) => {

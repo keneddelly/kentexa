@@ -104,9 +104,23 @@ export const RoleContextProvider = ({ children }) => {
   useEffect(() => {
     if (!getAccessToken()) return;
     refreshContext().catch((error) => {
-      if (error?.code !== 'STALE_CONTEXT_RESPONSE') clearLocalAuthority('restore_failed');
+      if (error?.code !== 'STALE_CONTEXT_RESPONSE' &&
+          [401, 403].includes(error?.response?.status)) clearLocalAuthority('restore_rejected');
     });
   }, [clearLocalAuthority, refreshContext]);
+
+  useEffect(() => {
+    if (status !== 'restoring') return;
+    const retry = () => {
+      if (navigator.onLine !== false && getAccessToken()) refreshContext().catch(() => {});
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retry);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retry);
+    };
+  }, [status, refreshContext]);
 
   const switchRole = useCallback(async (accountRoleId) => {
     if (switchLock.current) throw new Error('ROLE_SWITCH_IN_PROGRESS');

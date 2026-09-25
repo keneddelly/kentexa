@@ -83,6 +83,11 @@ export class NotificationController {
     return { publicKey: this.pushService.getPublicKey() };
   }
 
+  @Get('push/status')
+  async pushStatus(@Request() req, @Query('endpoint') endpoint: string) {
+    return { subscribed: await this.pushService.hasSubscription(req.user.id, endpoint) };
+  }
+
   @Post('push/subscribe')
   subscribe(@Request() req, @Body() body: any) {
     return this.pushService.subscribe(req.user.id, body);

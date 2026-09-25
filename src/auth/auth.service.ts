@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash } from 'crypto';
 import { User } from '../users/entities/user.entity';
 import { SmsService } from '../sms/sms.service';
 import { MailService } from '../mail/mail.service';
@@ -68,6 +69,59 @@ export class AuthService {
       rt: role.roleType,
       cv: role.contextVersion,
     });
+  }
+
+  // The refresh credential is scoped to this server-side session and uses a
+  // separate signing key. It is only sent in an HttpOnly cookie.
+  private refreshSecret(): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error('JWT_SECRET is required for refresh credentials');
+    return createHash('sha256').update(`kentexa-refresh:${secret}`).digest('hex');
+  }
+
+  issueRefreshCredential(context: RoleContext): string {
+    return this.jwtService.sign({ purpose: 'refresh', sub: context.userId,
+      sid: context.sessionId, rid: context.accountRoleId,
+      rt: context.roleType, cv: context.contextVersion },
+      { secret: this.refreshSecret(), expiresIn: '7d' });
+  }
+
+  private verifyRefreshCredential(credential: string): RoleJwtPayload {
+    try {
+      const payload = this.jwtService.verify(credential, { secret: this.refreshSecret() });
+      if (payload?.purpose !== 'refresh' || !payload.sub || !payload.sid || !payload.rid ||
+          !payload.rt || !Number.isInteger(payload.cv)) throw new Error('INVALID_REFRESH');
+      return payload;
+    } catch { throw new UnauthorizedException('Refresh session expired'); }
+  }
+
+  async refresh(credential: string) {
+    const payload = this.verifyRefreshCredential(credential);
+    // resolveContext checks the DB session expiry/revocation, account owner,
+    // role version, suspended role and organizational chain on every renewal.
+    const context = await this.roleContextService.resolveContext(payload);
+    const user = await this.userRepo.findOne({ where: { id: context.userId } });
+    if (!user) throw new UnauthorizedException('Account not found');
+    const accessToken = this.jwtService.sign({ sub: user.id, sid: context.sessionId,
+      rid: context.accountRoleId, rt: context.roleType, cv: context.contextVersion });
+    return { accessToken, access_token: accessToken, user: this.serializeUser(user),
+      activeContext: context, availableRoles: await this.roleContextService.listRoles(user.id) };
+  }
+
+  async logoutWithCredential(credential?: string, authorization?: string) {
+    let payload: RoleJwtPayload | undefined;
+    if (credential) {
+      try { payload = this.verifyRefreshCredential(credential); } catch { /* expired cookie */ }
+    }
+    if (!payload && authorization?.startsWith('Bearer ')) {
+      try {
+        const bearer = this.jwtService.verify<RoleJwtPayload>(authorization.slice(7), { ignoreExpiration: true });
+        if (bearer?.sid && bearer?.sub) payload = bearer;
+      }
+      catch { /* invalid access token */ }
+    }
+    if (payload?.sid && payload?.sub) await this.logout(payload);
+    return { success: true };
   }
 
   private serializeUser(user: User) {
