@@ -20,6 +20,7 @@ import { personalOperationalText } from '../utils/publicActor';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
+import { isAppleMobile } from '../utils/isAppleMobile';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -69,6 +70,7 @@ const ProfileRow = ({ profile, isActive, disabled, onClick, label, icon, transla
 
 const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose, onNavigate, onOpenBusiness, switching, error }) => {
   const { t } = useTranslation();
+  const appleMobile = isAppleMobile();
   const { personal, businesses, other } = groupProfilesForSwitcher(profiles || []);
 
   const isActive = (p) => Number(p.accountRoleId) === Number(activeAccountRoleId);
@@ -80,8 +82,11 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
         zIndex:4000, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
       <div onClick={e => e.stopPropagation()}
         style={{ width:'100%', maxWidth:480, backgroundColor:WH,
-          borderRadius:'20px 20px 0 0', maxHeight:'75vh', display:'flex',
-          flexDirection:'column', fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
+          boxSizing:appleMobile ? 'border-box' : undefined, borderRadius:'20px 20px 0 0',
+          maxHeight:appleMobile ? 'min(75dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px))' : '75vh',
+          paddingBottom:appleMobile ? 'env(safe-area-inset-bottom, 0px)' : undefined,
+          display:'flex', flexDirection:'column', overflow:appleMobile ? 'hidden' : undefined,
+          fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
 
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
@@ -93,7 +98,9 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
               fontSize:20, color:GR }}>×</button>
         </div>
 
-        <div style={{ flex:1, overflowY:'auto', padding:'8px 16px 16px' }}>
+        <div style={{ flex:1, minHeight:appleMobile ? 0 : undefined, overflowY:'auto',
+          WebkitOverflowScrolling:appleMobile ? 'touch' : undefined,
+          overscrollBehavior:appleMobile ? 'contain' : undefined, padding:'8px 16px 16px' }}>
           {error && <div role="alert" style={{ margin:'4px 0 10px', padding:'9px 10px', borderRadius:10,
             backgroundColor:'#FEE2E2', color:'#B91C1C', fontSize:11, fontWeight:700 }}>{error}</div>}
 
@@ -115,7 +122,10 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'6px 10px',
                   border:'none', background:'none', cursor:'pointer', textAlign:'left' }}>
                 <span style={{ fontSize:14 }}>🏢</span>
-                <span style={{ fontSize:13, fontWeight:800, color:DK }}>
+                <span style={{ fontSize:13, fontWeight:800, color:DK,
+                  minWidth:appleMobile ? 0 : undefined, overflow:appleMobile ? 'hidden' : undefined,
+                  textOverflow:appleMobile ? 'ellipsis' : undefined,
+                  whiteSpace:appleMobile ? 'nowrap' : undefined }}>
                   {group.businessName || t('profile_switcher.unnamed_business')}
                 </span>
                 <span style={{ marginLeft:'auto', fontSize:14, color:'#CBD5E1' }}>›</span>

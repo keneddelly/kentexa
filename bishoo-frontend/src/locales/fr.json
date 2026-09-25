@@ -1338,7 +1338,20 @@
     "method_agent_label": "Agent KenteXa",
     "method_agent_desc": "Réseau de Super Agents"
   },
+  "install_kentexa": {
+    "title": "Installer Kentexa",
+    "subtitle": "Accédez rapidement à Kentexa depuis l'écran d'accueil.",
+    "action": "Installer",
+    "later": "Plus tard",
+    "ios_safari": "Dans Safari, touchez Partager, puis Ajouter à l'écran d'accueil. Activez Ouvrir comme app si proposé.",
+    "ios_other": "Ouvrez le menu Partager du navigateur et choisissez Ajouter à l'écran d'accueil. Si l'option manque, ouvrez kentexa.com dans Safari.",
+    "android_other": "Dans le menu du navigateur, choisissez Installer l'application ou Ajouter à l'écran d'accueil. Sinon, ouvrez kentexa.com dans Chrome.",
+    "ios_login_note": "Vous devrez peut-être vous reconnecter une fois après l’installation.",
+    "done": "Compris"
+  },
   "my_profile": {
+    "install_kentexa_label": "Installer Kentexa",
+    "install_kentexa_sub": "Gardez Kentexa sur l'écran d'accueil",
     "role_buyer": "Acheteur",
     "role_seller": "Vendeur",
     "role_agent": "Agent",

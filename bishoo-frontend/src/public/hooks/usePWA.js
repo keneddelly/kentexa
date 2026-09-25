@@ -1,12 +1,9 @@
 /**
- * usePWA.js — PWA install prompt hook
- * Place at: src/public/hooks/usePWA.js
- *
- * Usage in App.js:
- *   const { showInstallPrompt, handleInstall, handleDismiss } = usePWA();
- *   {showInstallPrompt && <InstallBanner onInstall={handleInstall} onDismiss={handleDismiss} />}
+ * One install entry point for Android browser prompts and iOS instructions.
+ * Push subscriptions remain a separate, user-initiated action.
  */
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { getAccessToken } from '../../api/tokenStore';
 
 
@@ -61,87 +58,121 @@ export const subscribeToPush = async (apiBase = '') => {
   }
 };
 
+export const detectInstallEnvironment = (nav = navigator, win = window) => {
+  const ua = nav.userAgent || '';
+  const ios = /iPad|iPhone|iPod/.test(ua) ||
+    (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
+  const mobile = ios || /Android/i.test(ua);
+  const safari = ios && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(ua);
+  const standalone = Boolean(nav.standalone) || Boolean(win.matchMedia?.('(display-mode: standalone)').matches);
+  return { ios, mobile, safari, standalone };
+};
+
+const DISMISS_KEY = 'kx_pwa_dismissed';
+const dismissedRecently = () => {
+  try { return Date.now() - Number(localStorage.getItem(DISMISS_KEY)) < 7 * 86400000; }
+  catch { return false; }
+};
+
 export const usePWA = () => {
-  const [deferredPrompt,    setDeferredPrompt]    = useState(null);
+  const [environment] = useState(detectInstallEnvironment);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [isInstalled, setIsInstalled] = useState(environment.standalone);
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [isInstalled,       setIsInstalled]       = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
-    // Already installed (standalone mode)
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true);
-      return;
-    }
-    // Dismissed within last 7 days
-    const dismissed = localStorage.getItem('kx_pwa_dismissed');
-    if (dismissed && Date.now() - Number(dismissed) < 7 * 86400000) return;
-
-    const handler = (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      // Show after 30 seconds of use or on 2nd visit
-      const visits = Number(localStorage.getItem('kx_visits') || 0) + 1;
-      localStorage.setItem('kx_visits', String(visits));
-      if (visits >= 2) {
-        setTimeout(() => setShowInstallPrompt(true), 5000);
-      }
+    if (!environment.mobile || isInstalled) return;
+    const onPrompt = (event) => {
+      event.preventDefault();
+      setDeferredPrompt(event);
     };
-    window.addEventListener('beforeinstallprompt', handler);
-    return () => window.removeEventListener('beforeinstallprompt', handler);
-  }, []);
+    const onInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      setShowInstallPrompt(false);
+      setShowGuide(false);
+    };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    // Show only after the user has had time to browse; App limits this
+    // suggestion to Home and keeps registration, login and role flows clear.
+    const timer = dismissedRecently() ? null : window.setTimeout(() => setShowInstallPrompt(true), 20000);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [environment.mobile, isInstalled]);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-    }
-    setDeferredPrompt(null);
+    if (isInstalled || !environment.mobile) return;
     setShowInstallPrompt(false);
+    if (!deferredPrompt) {
+      setShowGuide(true);
+      return;
+    }
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'dismissed') handleDismiss();
+    } catch { setShowGuide(true); }
+    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
-    localStorage.setItem('kx_pwa_dismissed', String(Date.now()));
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch { /* private mode */ }
     setShowInstallPrompt(false);
+    setShowGuide(false);
   };
 
-  return { showInstallPrompt, handleInstall, handleDismiss, isInstalled };
+  return { showInstallPrompt, showGuide, handleInstall, handleDismiss,
+    closeGuide: () => setShowGuide(false), isInstalled, canInstall: environment.mobile && !isInstalled,
+    environment };
 };
 
-// ── Install Banner Component ──────────────────────────────────────────────────
-export const InstallBanner = ({ onInstall, onDismiss }) => (
-  <div style={{
-    position: 'fixed', bottom: 70, left: 16, right: 16, zIndex: 9000,
-    backgroundColor: '#0f172a', borderRadius: 16,
-    padding: '14px 16px', boxShadow: '0 8px 30px rgba(0,0,0,0.3)',
-    display: 'flex', alignItems: 'center', gap: 14,
-    animation: 'slideUp 0.3s ease',
+export const InstallBanner = ({ onInstall, onDismiss }) => {
+  const { t } = useTranslation();
+  return (
+  <div role="complementary" aria-label={t('install_kentexa.title')} style={{
+    position: 'fixed', bottom: 76, left: 16, right: 16, maxWidth: 440, margin: '0 auto', zIndex: 9000,
+    background: '#0f172a', borderRadius: 16, padding: 14,
+    boxShadow: '0 8px 30px rgba(0,0,0,0.24)', display: 'flex', alignItems: 'center', gap: 12,
   }}>
-    <style>{`@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }`}</style>
-    <div style={{ fontSize: 32 }}>📦</div>
-    <div style={{ flex: 1 }}>
-      <div style={{ fontSize: 13, fontWeight: 900, color: '#fff', marginBottom: 2 }}>
-        Pakua App ya KenteXa
-      </div>
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
-        Haraka zaidi · Inafanya kazi bila intaneti · Bila App Store
-      </div>
+    <img src="/logo192.png" alt="" width="40" height="40" style={{ borderRadius: 10 }} />
+    <div style={{ flex: 1, color: '#fff', minWidth: 0 }}>
+      <strong style={{ fontSize: 13 }}>{t('install_kentexa.title')}</strong>
+      <div style={{ fontSize: 11, marginTop: 3, opacity: 0.8 }}>{t('install_kentexa.subtitle')}</div>
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <button onClick={onInstall}
-        style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
-          padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
-          fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap' }}>
-        📲 Pakua
-      </button>
-      <button onClick={onDismiss}
-        style={{ background: 'none', color: 'rgba(255,255,255,0.5)', border: 'none',
-          padding: '4px 0', cursor: 'pointer', fontSize: 11 }}>
-        Baadaye
-      </button>
-    </div>
+    <button onClick={onInstall} style={{ background: '#2563eb', color: '#fff', border: 0,
+      borderRadius: 8, padding: '10px 12px', fontWeight: 700, cursor: 'pointer' }}>{t('install_kentexa.action')}</button>
+    <button onClick={onDismiss} aria-label={t('install_kentexa.later')} style={{ background: 'none', color: '#fff',
+      border: 0, fontSize: 20, cursor: 'pointer' }}>×</button>
   </div>
-);
+  );
+};
+
+export const InstallGuide = ({ environment, onClose }) => {
+  const { t } = useTranslation();
+  const instructions = environment.ios
+    ? environment.safari
+      ? t('install_kentexa.ios_safari')
+      : t('install_kentexa.ios_other')
+    : t('install_kentexa.android_other');
+  return (
+    <div role="dialog" aria-modal="true" aria-label={t('install_kentexa.title')} onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 9500, background: 'rgba(15,23,42,.65)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={event => event.stopPropagation()} style={{ background: '#fff', padding: 24,
+        borderRadius: '20px 20px 0 0', width: '100%', maxWidth: 440 }}>
+        <h2 style={{ margin: '0 0 10px', fontSize: 20 }}>{t('install_kentexa.title')}</h2>
+        <p style={{ lineHeight: 1.5, color: '#475569' }}>{instructions}</p>
+        {environment.ios && <p style={{ color: '#475569', fontSize: 13 }}>{t('install_kentexa.ios_login_note')}</p>}
+        <button onClick={onClose} style={{ width: '100%', padding: 12, border: 0, borderRadius: 9,
+          background: '#2563eb', color: '#fff', fontWeight: 700 }}>{t('install_kentexa.done')}</button>
+      </div>
+    </div>
+  );
+};
 
 export default usePWA;

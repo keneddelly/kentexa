@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'kentexa-static-v2';
+const STATIC_CACHE = 'kentexa-static-v3';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -27,9 +27,15 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.origin !== self.location.origin) return;
+  // Never serve a stale document or cache a same-origin user image. Only
+  // versioned build assets and the published Kentexa icon set are static.
+  const isStatic = url.pathname.startsWith('/static/') ||
+    /^\/(?:logo(?:192|512)\.png|favicon(?:-16|-32)?\.(?:png|ico)|icon-(?:source|maskable)\.svg)$/.test(url.pathname);
+  if (!isStatic) return;
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok && ['script', 'style', 'image', 'font'].includes(request.destination)) {
+      if (response.ok && response.type === 'basic' &&
+          ['script', 'style', 'image', 'font'].includes(request.destination)) {
         const clone = response.clone();
         caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone));
       }

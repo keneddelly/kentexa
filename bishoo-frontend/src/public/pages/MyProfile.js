@@ -82,7 +82,8 @@ const Row = ({ icon, label, value, action, onAction, color='#1e293b', sub }) => 
 );
 
 // ── Main ─────────────────────────────────────────────────────────────────────
-const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment, activeProfile, availableRoles = [], roleOptions = [] }) => {
+const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onOpenMoment,
+  activeProfile, availableRoles = [], roleOptions = [], canInstallKentexa, onInstallKentexa }) => {
   const { t, i18n } = useTranslation();
   const TIERS = getTiers(t);
   const ROLE_META = getRoleMeta(t);
@@ -1036,6 +1037,10 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               </div>
               <Row icon="✏️" label={t('my_profile.edit_profile_label')}
                 onAction={() => onNavigate('CustomerProfile')} />
+              {canInstallKentexa && (
+                <Row icon="📲" label={t('my_profile.install_kentexa_label')}
+                  sub={t('my_profile.install_kentexa_sub')} onAction={onInstallKentexa} />
+              )}
               {isBusinessOwner && (
                 <Row icon="🏪" label={t('my_profile.store_settings_label')}
                   onAction={() => onNavigate('StoreSettings')} />
