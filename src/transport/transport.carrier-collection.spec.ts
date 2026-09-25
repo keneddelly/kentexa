@@ -35,7 +35,7 @@ describe('carrier collection custody boundary', () => {
     const noop: any = {};
     const service = new TransportService(noop, noop, noop, repos.get(TransportAssignment),
       noop, noop, noop, noop, noop, noop, noop, noop, noop, noop, dataSource);
-    return { service, writes, manager, dataSource, current };
+    return { service, writes, manager, dataSource, current, repos };
   }
 
   it('requires the assigned provider role even when an admin requests collected', async () => {
@@ -46,13 +46,17 @@ describe('carrier collection custody boundary', () => {
   });
 
   it('records carrier custody, parcel progress and tracking in the same transaction', async () => {
-    const { service, writes, manager } = setup();
+    const { service, writes, manager, repos } = setup();
     await service.updateAssignmentStatus(caller, 8, { status: AssignmentStatus.COLLECTED }, context);
     expect(manager.query.mock.calls.map(([sql]: [string]) => sql)).toEqual([
       'SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE',
       'SELECT id FROM public.transport_assignment WHERE id=$1 FOR UPDATE',
     ]);
     expect(writes).toEqual(['custody', 'parcel', 'tracking', 'assignment']);
+    expect(repos.get(ParcelCustodyEvent).insert).toHaveBeenCalledWith(
+      expect.objectContaining({ actorSource: 'account_role', actorProviderId: null,
+        toCustodianType: 'transport_provider', toCustodianId: 11 }),
+    );
   });
 
   it('rejects collection without an origin hub custody event', async () => {
