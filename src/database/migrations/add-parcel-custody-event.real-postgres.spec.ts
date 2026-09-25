@@ -67,7 +67,7 @@ suite('Stage 3A1 custody migration: real PostgreSQL', () => {
     await expect(insert('pair', '"toCustodianType"')).rejects.toThrow();
     await expect(ds.query(`INSERT INTO public.parcel_custody_event
       ("parcelId","eventKind","operationKey","actorSource","actorProviderId")
-      VALUES (1,'hub_received','web-good','provider_webhook',7)`)).resolves.toHaveLength(1);
+      VALUES (1,'hub_received','web-good','provider_webhook',7) RETURNING id`)).resolves.toHaveLength(1);
   });
 
   it('keeps events unique, immutable and attached to their Parcel; populated DOWN refuses', async () => {
