@@ -1356,7 +1356,7 @@ export class OrdersService {
       trackingNumber,
       originCity,
       destinationCity,
-    );
+    ).catch((err) => console.warn('Post-commit parcel email failed:', err?.message));
 
     // 🔔 In-app + push for the buyer — via the Communication Engine
     // (Phase F). Email above stays untouched.
