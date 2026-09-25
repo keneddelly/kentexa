@@ -24,8 +24,8 @@ suite('Stage 3A1 custody migration: real PostgreSQL', () => {
     finally { await runner.release(); }
   };
   const insert = (key: string, extra = '') => ds.query(`
-    INSERT INTO public.parcel_custody_event ("parcelId", "eventKind", "operationKey", "actorSource", "actorUserId", "actorAccountRoleId" ${extra ? ', ' + extra : ''})
-    VALUES (1, 'hub_received', $1, 'account_role', 2, 5 ${extra ? ', 8' : ''}) RETURNING id`, [key]);
+    INSERT INTO public.parcel_custody_event ("parcelId", "eventKind", "operationKey", "actorSource", "actorUserId", "actorAccountRoleId", "actorRoleType" ${extra ? ', ' + extra : ''})
+    VALUES (1, 'hub_received', $1, 'account_role', 2, 5, 'super_agent' ${extra ? ', 8' : ''}) RETURNING id`, [key]);
 
   beforeAll(async () => {
     const client = new Client(config!);
