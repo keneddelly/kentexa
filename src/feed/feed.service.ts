@@ -368,8 +368,8 @@ export class FeedService {
         .notify({
           userId: post.businessId,
           type: 'save' as any,
-          title: '❤️ New like',
-          body: `${saver?.name || saver?.storeName || 'Someone'} liked your post`,
+          title: '🔖 Moment saved',
+          body: `${saver?.name || saver?.storeName || 'Someone'} saved your moment`,
           icon: '❤️',
           actionPage: 'CommerceProfile',
           actionParam: `${post.businessId}-feed-${postId}`,
