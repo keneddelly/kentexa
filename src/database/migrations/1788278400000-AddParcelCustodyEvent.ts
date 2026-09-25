@@ -52,6 +52,8 @@ export class AddParcelCustodyEvent1788278400000 implements MigrationInterface {
 
   async down(queryRunner: QueryRunner): Promise<void> {
     // Refuse a destructive rollback once custody evidence has been written.
+    // The lock prevents a concurrent insert between the empty check and DROP.
+    await queryRunner.query(`LOCK TABLE public.parcel_custody_event IN ACCESS EXCLUSIVE MODE`);
     const rows: { exists: boolean }[] = await queryRunner.query(
       `SELECT EXISTS(SELECT 1 FROM public.parcel_custody_event LIMIT 1) AS "exists"`,
     );
