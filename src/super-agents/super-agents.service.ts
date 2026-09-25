@@ -16,6 +16,7 @@ import {
 import { IntercityRoute } from './entities/intercity-route.entity';
 import { TANZANIA_ROUTE_SEEDS } from '../database/seed-routes';
 import { Parcel, ParcelStatus, ParcelTracking } from './entities/parcel.entity';
+import { ParcelCustodyEvent } from './entities/parcel-custody-event.entity';
 import { ShippingRate } from './entities/shipping-rate.entity';
 import { BulkShipment, BulkShipmentStatus } from './entities/bulk-shipment.entity';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -229,8 +230,9 @@ export class SuperAgentsService {
       location?: string;
       type?: 'super_agent' | 'local_agent' | 'system';
     },
+    trackingAlreadySaved = false,
   ) {
-    await this.trackingRepo
+    if (!trackingAlreadySaved) await this.trackingRepo
       .save(
         this.trackingRepo.create({
           parcel,
@@ -2994,6 +2996,63 @@ export class SuperAgentsService {
       }
     }
 
+    // First physical handoff: a registered origin hub receives an existing
+    // parcel. Lock the parcel so two intake requests cannot each claim it.
+    // Admin overrides are deliberately excluded: they cannot supply a hub
+    // custodian or a validated super-agent account role for this evidence.
+    if (dto.status === ParcelStatus.RECEIVED_AT_HUB) {
+      if (
+        !roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
+        roleContext.userId !== user.id || !handlerAgent ||
+        roleContext.profileId !== handlerAgent.id ||
+        parcel.superAgent?.id !== handlerAgent.id
+      ) {
+        throw new ForbiddenException('A verified origin hub must receive this parcel.');
+      }
+      const note = dto.note || this.statusLabel(dto.status, dto.city);
+      await this.dataSource.transaction(async (manager) => {
+        const current = await manager.getRepository(Parcel).findOne({
+          where: { id: parcel.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        // Other pre-intake states can represent a local agent holding the
+        // parcel; their custody chain needs a separately proven handoff.
+        if (!current || current.status !== ParcelStatus.PENDING) {
+          throw new ConflictException('Parcel has already been received or moved beyond intake.');
+        }
+        await manager.getRepository(Parcel).update(parcel.id, { status: ParcelStatus.RECEIVED_AT_HUB });
+        await manager.getRepository(ParcelCustodyEvent).insert({
+          parcelId: parcel.id,
+          eventKind: 'origin_hub_received',
+          operationKey: `origin-hub-received:${handlerAgent.id}`,
+          fromCustodianType: null,
+          fromCustodianId: null,
+          toCustodianType: 'super_agent',
+          toCustodianId: handlerAgent.id,
+          actorSource: 'account_role',
+          actorUserId: user.id,
+          actorAccountRoleId: roleContext.accountRoleId,
+          actorRoleType: roleContext.roleType,
+          actorWorkspaceId: roleContext.workspaceId ?? null,
+          actorProviderId: null,
+          hubId: handlerAgent.id,
+          assignmentId: null,
+          evidenceRef: null,
+        });
+        await manager.getRepository(ParcelTracking).save(manager.getRepository(ParcelTracking).create({
+          parcel,
+          status: ParcelStatus.RECEIVED_AT_HUB,
+          city: dto.city,
+          note,
+          updatedBy: handlerAgent.businessName,
+          handlerPhone: handlerAgent.phone || user.phone || null,
+          handlerLocation: handlerAgent.address || dto.city,
+          handlerType: 'super_agent',
+        }));
+      });
+      // Existing notifications and activity are sent below, after commit.
+    }
+
     // Build update payload
     const updates: any = { status: dto.status };
     if (dto.status === ParcelStatus.ARRIVED_AT_HUB) {
@@ -3149,7 +3208,9 @@ export class SuperAgentsService {
       });
     }
 
-    await this.parcelRepo.update(parcel.id, updates);
+    if (dto.status !== ParcelStatus.RECEIVED_AT_HUB) {
+      await this.parcelRepo.update(parcel.id, updates);
+    }
 
     // Add tracking history event
     await this.addTrackingEvent(
@@ -3163,6 +3224,7 @@ export class SuperAgentsService {
         location: handlerAgent?.address || dto.city,
         type: 'super_agent',
       },
+      dto.status === ParcelStatus.RECEIVED_AT_HUB,
     );
 
     // ── SMS to buyer/recipient on key status changes ──────────────────────
