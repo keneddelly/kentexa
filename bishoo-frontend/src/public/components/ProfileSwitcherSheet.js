@@ -80,8 +80,10 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
         zIndex:4000, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
       <div onClick={e => e.stopPropagation()}
         style={{ width:'100%', maxWidth:480, backgroundColor:WH,
-          borderRadius:'20px 20px 0 0', maxHeight:'75vh', display:'flex',
-          flexDirection:'column', fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
+          boxSizing:'border-box', borderRadius:'20px 20px 0 0',
+          maxHeight:'min(75dvh, calc(100dvh - env(safe-area-inset-top, 0px) - 12px))',
+          paddingBottom:'env(safe-area-inset-bottom, 0px)', display:'flex',
+          flexDirection:'column', overflow:'hidden', fontFamily:'Manrope,Inter,-apple-system,sans-serif' }}>
 
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between',
           padding:'16px 16px 12px', borderBottom:'1px solid #F1F5F9', flexShrink:0 }}>
@@ -93,7 +95,8 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
               fontSize:20, color:GR }}>×</button>
         </div>
 
-        <div style={{ flex:1, overflowY:'auto', padding:'8px 16px 16px' }}>
+        <div style={{ flex:1, minHeight:0, overflowY:'auto', WebkitOverflowScrolling:'touch',
+          overscrollBehavior:'contain', padding:'8px 16px 16px' }}>
           {error && <div role="alert" style={{ margin:'4px 0 10px', padding:'9px 10px', borderRadius:10,
             backgroundColor:'#FEE2E2', color:'#B91C1C', fontSize:11, fontWeight:700 }}>{error}</div>}
 
@@ -115,7 +118,8 @@ const ProfileSwitcherSheet = ({ profiles, activeAccountRoleId, onSwitch, onClose
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'6px 10px',
                   border:'none', background:'none', cursor:'pointer', textAlign:'left' }}>
                 <span style={{ fontSize:14 }}>🏢</span>
-                <span style={{ fontSize:13, fontWeight:800, color:DK }}>
+                <span style={{ fontSize:13, fontWeight:800, color:DK,
+                  minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                   {group.businessName || t('profile_switcher.unnamed_business')}
                 </span>
                 <span style={{ marginLeft:'auto', fontSize:14, color:'#CBD5E1' }}>›</span>
