@@ -866,25 +866,23 @@ export class TransportService {
     [AssignmentStatus.ARRIVED]: [AssignmentStatus.COMPLETED],
   };
 
-  // A transport leg reaching one of these states is real evidence about
-  // where the physical parcel actually is — Kentexa (not the provider
-  // directly) translates that into the Parcel's own lifecycle. COMPLETED
-  // is deliberately absent: the entity's own status comment says it means
-  // "handed to destination super agent OR buyer" — two different real
-  // events collapsed into one value — so it is never auto-translated;
-  // the existing Super Agent hub-receive / local-agent-delivered actions
-  // remain the only things allowed to advance a Parcel that far.
+  // A carrier's arrival report is progress on its assignment, not proof
+  // that a destination hub physically received the parcel. Only a receiving
+  // hub may set ARRIVED_AT_HUB and record custody. COMPLETED is also
+  // ambiguous (hub or buyer handoff) and never auto-translated.
   private static readonly PARCEL_SYNC: Partial<
     Record<AssignmentStatus, ParcelStatus>
   > = {
     [AssignmentStatus.COLLECTED]: ParcelStatus.DISPATCHED,
     [AssignmentStatus.DEPARTED]: ParcelStatus.IN_TRANSIT,
-    [AssignmentStatus.ARRIVED]: ParcelStatus.ARRIVED_AT_HUB,
   };
 
   // A Parcel already resolved one way or another shouldn't be dragged
   // backwards by a transport event arriving late/out of order.
   private static readonly PARCEL_SYNC_BLOCKED = new Set([
+    ParcelStatus.ARRIVED_AT_HUB,
+    ParcelStatus.AWAITING_BUYER,
+    ParcelStatus.OUT_FOR_DELIVERY,
     ParcelStatus.DELIVERED,
     ParcelStatus.SELF_PICKUP,
     ParcelStatus.RETURNED,
@@ -914,9 +912,14 @@ export class TransportService {
     if (!parcelId || !targetParcelStatus) return;
     try {
       const parcel = await this.parcelRepo.findOne({ where: { id: parcelId } });
-      if (!parcel || TransportService.PARCEL_SYNC_BLOCKED.has(parcel.status)) return;
+      if (!parcel || TransportService.PARCEL_SYNC_BLOCKED.has(parcel.status) ||
+          parcel.status === targetParcelStatus) return;
 
-      await this.parcelRepo.update(parcel.id, { status: targetParcelStatus });
+      // A destination hub may accept while an older transport update is
+      // waiting. Never overwrite its committed receipt with stale progress.
+      const updated = await this.parcelRepo.update(
+        { id: parcel.id, status: parcel.status }, { status: targetParcelStatus });
+      if (updated.affected === 0) return;
       await this.parcelTrackingRepo.save(
         this.parcelTrackingRepo.create({
           parcel,
