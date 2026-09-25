@@ -3034,6 +3034,9 @@ export class SuperAgentsService {
     if (dto.status === ParcelStatus.DISPATCHED) {
       throw new BadRequestException('Use the dispatch action to send this parcel');
     }
+    if (dto.status === ParcelStatus.IN_TRANSIT && PRE_DISPATCH_STATUSES.has(parcel.status)) {
+      throw new BadRequestException('Parcel must be dispatched before it can be marked in transit');
+    }
 
     // Ownership + direction check — the origin hub owns everything up
     // through dispatch; only the destination hub may declare a parcel
