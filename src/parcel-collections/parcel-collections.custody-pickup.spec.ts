@@ -83,3 +83,30 @@ describe('seller to local agent pickup custody', () => {
     expect(writes).toEqual([]);
   });
 });
+
+describe('collection request creates a pending parcel', () => {
+  const order: any = { id: 61, trackingNumber: 'KTX-ORD-61', seller: { id: 3 },
+    buyer: { id: 5 }, deliveryAddress: 'Mwanza, Tanzania', phone: '255700000001' };
+
+  it('links the pending parcel and request in the same transaction', async () => {
+    const writes: string[] = [];
+    const manager: any = {
+      query: jest.fn().mockImplementation(async (sql: string) => sql.includes('public.parcel') ? [] : [{ id: order.id }]),
+      getRepository: (entity: any) => entity === Parcel ? {
+        create: (x: any) => x,
+        save: async (value: any) => { writes.push('parcel'); return { ...value, id: 88 }; },
+      } : entity === ParcelCollection ? {
+        create: (x: any) => x,
+        save: async (value: any) => { writes.push('collection'); return { ...value, id: 25 }; },
+      } : null,
+    };
+    const service: any = Object.create(ParcelCollectionsService.prototype);
+    service.dataSource = { transaction: (fn: any) => fn(manager) };
+    service.smsService = { sendSms: jest.fn() };
+    const result = await service.createCollectionRequest(order, 'Market', 'Dar', false, 1500);
+    expect(writes).toEqual(['parcel', 'collection']);
+    expect(result.parcel.id).toBe(88);
+    expect(result.parcel.status).toBe(ParcelStatus.COLLECTION_REQUESTED);
+    expect(result.parcel.trackingNumber).toBe(order.trackingNumber);
+  });
+});
