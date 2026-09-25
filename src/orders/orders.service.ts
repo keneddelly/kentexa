@@ -30,7 +30,8 @@ import {
   ParcelStatus,
   ParcelTracking,
 } from '../super-agents/entities/parcel.entity';
-import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import {
   AgentTransaction,
@@ -1055,6 +1056,7 @@ export class OrdersService {
       actualShippingFee?: number; // for NORMAL orders: escrow fee reconciliation
       shippingFeeCollected?: number; // for MANUAL orders: cash collected from seller right now
     },
+    roleContext?: RoleContext,
   ) {
     // The "Pokea Agizo la KenteXa" button never actually sent a body at all
     // — every data.* read below threw "Cannot read properties of undefined"
@@ -1077,8 +1079,16 @@ export class OrdersService {
     await this.assertVerifiedPaymentEvidence(order, 'This order does not have verified payment evidence yet');
 
     const superAgentProfile = await this.superAgentRepo.findOne({
-      where: { user: { id: superAgent.id } },
+      where: { id: roleContext?.profileId, user: { id: superAgent.id } },
     });
+    if (
+      !roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
+      roleContext.userId !== superAgent.id || !superAgentProfile ||
+      superAgentProfile.id !== roleContext.profileId ||
+      superAgentProfile.status !== SuperAgentStatus.ACTIVE
+    ) {
+      throw new ForbiddenException('An active Super Agent hub is required to receive this order.');
+    }
 
     const guessedDestinationCity =
       (order as any).destinationCity ||
@@ -1189,42 +1199,6 @@ export class OrdersService {
       orderUpdate.shippingFeeCollectedByAgentId = superAgentProfile.id;
     }
 
-    await this.repo.update(orderId, orderUpdate);
-
-    // Parcel dispatched (in transit) — email only
-    await this.notificationsService.parcelDispatched(
-      { email: order.buyer?.email, name: order.buyer?.name },
-      trackingNumber,
-      originCity,
-      destinationCity,
-    );
-
-    // 🔔 In-app + push for the buyer — via the Communication Engine
-    // (Phase F). Email above stays untouched.
-    try {
-      if (order.buyer?.id) {
-        await this.communicationEngine.dispatch({
-          eventType: 'PARCEL_DISPATCHED',
-          sourceType: 'order',
-          sourceId: order.id,
-          recipients: [
-            {
-              userId: order.buyer.id,
-              role: 'buyer',
-              actionPage: 'MyOrders',
-              actionParam: String(order.id),
-            },
-          ],
-          context: { orderId: order.id, trackingNumber, originCity, destinationCity },
-        });
-      }
-    } catch (err: any) {
-      console.error(
-        `Communication engine dispatch failed for parcel-dispatched order #${orderId}:`,
-        err.message,
-      );
-    }
-
     // ── Earnings: record what the Super Agent earns on this parcel.
     // IMPORTANT: KenteXa does NOT pay Super Agents — they are independent businesses.
     // For offline/manual orders: the cash was collected directly from the sender.
@@ -1236,13 +1210,7 @@ export class OrdersService {
       if (isManualOrder) {
         // Whole cash amount — Super Agent already has it in hand
         superAgentEarnings = actualFee;
-        // Track on their profile for their own records (not a KenteXa payable)
-        if (actualFee > 0) {
-          await this.superAgentRepo.update(superAgentProfile.id, {
-            totalEarnings: Number(superAgentProfile.totalEarnings) + actualFee,
-            totalParcelsHandled: superAgentProfile.totalParcelsHandled + 1,
-          });
-        }
+        // The hub's cash/handled counters move with the receipt below.
       } else {
         // Online order: commission % of shipping fee — informational only
         // The seller's shipping fee covers this; KenteXa does not pay it out
@@ -1268,10 +1236,29 @@ export class OrdersService {
     // agent + mark received" step regardless of which flow created the
     // order.
     let declaredValueForSms: number | null = null;
-    try {
-      const existingParcel = await this.parcelRepo.findOne({
+    await this.repo.manager.transaction(async (manager) => {
+      const [currentOrder] = await manager.query(
+        `SELECT status FROM public."order" WHERE id = $1 FOR UPDATE`, [orderId],
+      );
+      if (!currentOrder || ![OrderStatus.PAID, OrderStatus.PREPARING].includes(currentOrder.status)) {
+        throw new BadRequestException('Order was already received or moved beyond handoff.');
+      }
+      await manager.query(`SELECT id FROM public.parcel WHERE "trackingNumber" = $1 FOR UPDATE`, [trackingNumber]);
+      const existingParcel = await manager.getRepository(Parcel).findOne({
         where: { trackingNumber },
+        relations: { superAgent: true },
       });
+      if (existingParcel && ![ParcelStatus.PENDING, ParcelStatus.RECEIVED_AT_HUB].includes(existingParcel.status)) {
+        throw new BadRequestException('Parcel was already moved beyond hub intake.');
+      }
+      if (existingParcel?.superAgent?.id && existingParcel.superAgent.id !== superAgentProfile.id) {
+        throw new ForbiddenException('Parcel belongs to another origin hub.');
+      }
+      await manager.getRepository(Order).update(orderId, orderUpdate);
+      if (isManualOrder && actualFee > 0) {
+        await manager.getRepository(SuperAgent).increment({ id: superAgentProfile.id }, 'totalEarnings', actualFee);
+        await manager.getRepository(SuperAgent).increment({ id: superAgentProfile.id }, 'totalParcelsHandled', 1);
+      }
       // Thamani ya Mzigo — a manual order (offline-intercity/seller-shipment)
       // already has its own real declared value set at creation time (see
       // super-agents.service.ts); preserve it as-is here, never overwrite.
@@ -1301,11 +1288,13 @@ export class OrdersService {
         declaredValue,
         declaredValueCurrency: existingParcel?.declaredValueCurrency || 'TZS',
       };
+      let savedParcel: Parcel;
       if (existingParcel) {
-        await this.parcelRepo.update(existingParcel.id, parcelFields);
+        await manager.getRepository(Parcel).update(existingParcel.id, parcelFields);
+        savedParcel = existingParcel;
       } else {
-        await this.parcelRepo.save(
-          this.parcelRepo.create({
+        savedParcel = (await manager.getRepository(Parcel).save(
+          manager.getRepository(Parcel).create({
             trackingNumber, // same number as the order — never a fresh one
             order: order,
             seller: order.seller,
@@ -1325,10 +1314,75 @@ export class OrdersService {
                 ),
             ...parcelFields,
           } as any),
-        );
+        )) as unknown as Parcel;
       }
-    } catch (err) {
-      console.error('Parcel record creation failed:', err.message);
+      // A parcel that already arrived via offline counter registration was
+      // received at creation; do not invent a second physical handoff here.
+      if (existingParcel?.status !== ParcelStatus.RECEIVED_AT_HUB) {
+        await manager.getRepository(ParcelCustodyEvent).insert({
+          parcelId: savedParcel.id,
+          eventKind: 'origin_hub_received',
+          operationKey: `origin-hub-received:${superAgentProfile.id}`,
+          fromCustodianType: null,
+          fromCustodianId: null,
+          toCustodianType: 'super_agent',
+          toCustodianId: superAgentProfile.id,
+          actorSource: 'account_role',
+          actorUserId: superAgent.id,
+          actorAccountRoleId: roleContext.accountRoleId,
+          actorRoleType: roleContext.roleType,
+          actorWorkspaceId: roleContext.workspaceId ?? null,
+          actorProviderId: null,
+          hubId: superAgentProfile.id,
+          assignmentId: null,
+          evidenceRef: null,
+        });
+        await manager.getRepository(ParcelTracking).insert({
+          parcel: savedParcel,
+          status: ParcelStatus.RECEIVED_AT_HUB,
+          city: originCity,
+          note: `Imepokewa na ${superAgentProfile.businessName}`,
+          updatedBy: superAgentProfile.businessName,
+          handlerType: 'super_agent',
+          handlerPhone: superAgentProfile.phone || null,
+          handlerLocation: superAgentProfile.address || originCity,
+        });
+      }
+    });
+
+
+    // Parcel dispatched (in transit) — email only
+    await this.notificationsService.parcelDispatched(
+      { email: order.buyer?.email, name: order.buyer?.name },
+      trackingNumber,
+      originCity,
+      destinationCity,
+    ).catch((err) => console.warn('Post-commit parcel email failed:', err?.message));
+
+    // 🔔 In-app + push for the buyer — via the Communication Engine
+    // (Phase F). Email above stays untouched.
+    try {
+      if (order.buyer?.id) {
+        await this.communicationEngine.dispatch({
+          eventType: 'PARCEL_DISPATCHED',
+          sourceType: 'order',
+          sourceId: order.id,
+          recipients: [
+            {
+              userId: order.buyer.id,
+              role: 'buyer',
+              actionPage: 'MyOrders',
+              actionParam: String(order.id),
+            },
+          ],
+          context: { orderId: order.id, trackingNumber, originCity, destinationCity },
+        });
+      }
+    } catch (err: any) {
+      console.error(
+        `Communication engine dispatch failed for parcel-dispatched order #${orderId}:`,
+        err.message,
+      );
     }
 
     // ── SMS: buyer + seller, declared goods value ──────────────────────────
@@ -1338,9 +1392,9 @@ export class OrdersService {
     // method runs in the same moment for those, so sending a second one
     // here would just be a duplicate at extra cost. Skipped entirely if no
     // real declared value exists yet (never sends "TZS 0"/"TZS null").
-    if (!isManualOrder && declaredValueForSms && declaredValueForSms > 0) {
+    if (!isManualOrder && declaredValueForSms && Number(declaredValueForSms) > 0) {
       const agentBrand = superAgentProfile?.businessName || 'KenteXa Network';
-      const valueLabel = `TZS ${declaredValueForSms.toLocaleString()}`;
+      const valueLabel = `TZS ${Number(declaredValueForSms).toLocaleString()}`;
       const trackUrl = `${FRONTEND_URL}/?track=${trackingNumber}`;
       const buyerPhone = order.buyer?.phone || order.phone;
       if (buyerPhone) {

@@ -1,0 +1,67 @@
+name: Stage 3A2 Intake PostgreSQL Gate
+
+on:
+  pull_request:
+    branches:
+      - worktree-service-provider-profiles
+    paths:
+      - 'src/super-agents/super-agents.service.ts'
+      - 'src/super-agents/super-agents.custody-intake.spec.ts'
+      - 'src/orders/orders.service.ts'
+      - 'src/orders/orders.controller.ts'
+      - 'src/orders/orders.module.ts'
+      - 'src/orders/orders.custody-receive.spec.ts'
+      - 'src/invoices/invoices.service.ts'
+      - 'src/invoices/invoices.counter-transaction.real-postgres.spec.ts'
+      - 'src/super-agents/super-agents.controller.ts'
+      - 'src/super-agents/super-agents.offline-custody.spec.ts'
+      - 'src/super-agents/super-agents.offline-custody.real-postgres.spec.ts'
+      - '.github/workflows/stage3a2-intake-postgres.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      B5B_TEST_DB_HOST: localhost
+      B5B_TEST_DB_PORT: 5432
+      B5B_TEST_DB_PASSWORD: stage3a2_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Create isolated PostgreSQL database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE kentexa_b5b_test_user LOGIN PASSWORD 'stage3a2_ci_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+          CREATE DATABASE kentexa_b5b_test OWNER kentexa_b5b_test_user;
+          SQL
+      - run: npm test -- --runInBand database/migrations/add-parcel-custody-event.real-postgres.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.custody-intake.spec.ts
+      - run: npm test -- --runInBand orders/orders.custody-receive.spec.ts orders/orders.service.payment-guards.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.offline-custody.spec.ts
+      - run: npm test -- --runInBand invoices/invoices.counter-transaction.real-postgres.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.offline-custody.real-postgres.spec.ts
+      - run: npx tsc --noEmit --project tsconfig.build.json

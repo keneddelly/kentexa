@@ -286,7 +286,7 @@ export class OrdersController {
   // ── Super Agent: Scan & receive order ─────────────────────────────────────
   // Super agent enters order ID → system generates tracking number
   // and auto-updates order to IN_TRANSIT
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, RolesGuard)
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Patch(':id/super-agent-receive')
   superAgentReceiveOrder(
@@ -301,11 +301,13 @@ export class OrdersController {
       notes?: string;
       actualShippingFee?: number;
     },
+    @CurrentRoleContext() roleContext: RoleContext,
   ) {
     return this.ordersService.superAgentReceiveOrder(
       parseOrderIdParam(id),
       req.user,
       body,
+      roleContext,
     );
   }
 

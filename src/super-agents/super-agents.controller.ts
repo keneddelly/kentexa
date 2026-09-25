@@ -180,11 +180,11 @@ export class SuperAgentsController {
   // ── Parcel operations ─────────────────────────────────────────────────────
 
   // ── Seller: Offline intercity order — customer paid outside KenteXa ──────
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, RolesGuard)
   @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
   @Post('offline-intercity')
-  createOfflineIntercity(@Request() req, @Body() dto: any) {
-    return this.service.createOfflineIntercityOrder(req.user, dto);
+  createOfflineIntercity(@Request() req, @Body() dto: any, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.service.createOfflineIntercityOrder(req.user, dto, roleContext);
   }
 
   // Resend the sender's payment-received SMS — never invalidates the
