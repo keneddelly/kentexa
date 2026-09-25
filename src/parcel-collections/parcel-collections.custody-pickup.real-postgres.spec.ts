@@ -26,11 +26,15 @@ const config = getB5BTestConnectionConfig();
       username: config!.user, password: config!.password, database: config!.database,
       entities: [], synchronize: false });
     await db.initialize();
-    await db.query('CREATE TABLE public.parcel (id integer PRIMARY KEY, "orderId" integer, status varchar NOT NULL)');
-    await db.query('CREATE TABLE public.parcel_collection (id integer PRIMARY KEY, "orderId" integer NOT NULL, "agentId" integer, "parcelId" integer, status varchar NOT NULL, "collectedAt" timestamp, notes text)');
+    await db.query('CREATE TABLE public."order" (id integer PRIMARY KEY)');
+    await db.query('INSERT INTO public."order" (id) VALUES (61),(62)');
+    await db.query('CREATE TABLE public.parcel (id serial PRIMARY KEY, "orderId" integer, status varchar NOT NULL, "trackingNumber" varchar, "originCity" varchar, "destinationCity" varchar)');
+    await db.query('CREATE TABLE public.parcel_collection (id serial PRIMARY KEY, "orderId" integer NOT NULL, "agentId" integer, "parcelId" integer, status varchar NOT NULL, "collectedAt" timestamp, notes text)');
     await db.query('CREATE TABLE public.parcel_tracking (id serial PRIMARY KEY, "parcelId" integer, status varchar)');
     await db.query('INSERT INTO public.parcel (id,"orderId",status) VALUES (88,61,$1)', [ParcelStatus.COLLECTION_REQUESTED]);
+    await db.query("SELECT setval('public.parcel_id_seq', 88)");
     await db.query('INSERT INTO public.parcel_collection (id,"orderId","agentId",status) VALUES (25,61,7,$1)', [CollectionStatus.CLAIMED]);
+    await db.query("SELECT setval('public.parcel_collection_id_seq', 25)");
     const runner = db.createQueryRunner();
     try { await new AddParcelCustodyEvent1788278400000().up(runner); } finally { await runner.release(); }
   });
@@ -48,6 +52,8 @@ const config = getB5BTestConnectionConfig();
       const proxy: any = Object.create(manager);
       proxy.getRepository = (entity: any): any => {
         if (entity === ParcelCollection) return {
+          create: (v: any) => v,
+          save: async (v: any) => (await manager.query('INSERT INTO public.parcel_collection ("orderId","parcelId",status) VALUES ($1,$2,$3) RETURNING id', [v.order.id,v.parcel.id,v.status]))[0],
           findOne: async () => {
             const [current] = await manager.query('SELECT status,"parcelId" FROM public.parcel_collection WHERE id=25');
             return current ? { ...job, status: current.status, parcel: current.parcelId ? { id: current.parcelId } : null } : null;
@@ -56,6 +62,8 @@ const config = getB5BTestConnectionConfig();
             [value.status,value.parcel.id,value.collectedAt]),
         };
         if (entity === Parcel) return {
+          create: (v: any) => v,
+          save: async (v: any) => (await manager.query('INSERT INTO public.parcel ("orderId",status,"trackingNumber","originCity","destinationCity") VALUES ($1,$2,$3,$4,$5) RETURNING id,status,"trackingNumber"', [v.order.id,v.status,v.trackingNumber,v.originCity,v.destinationCity]))[0],
           findOne: async () => {
             const [row] = await manager.query('SELECT id,status FROM public.parcel WHERE id=88');
             return row ?? null;
@@ -92,5 +100,16 @@ const config = getB5BTestConnectionConfig();
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_tracking'))[0].n).toBe(1);
     await expect(build().confirmCollected(25, user, undefined, context)).rejects.toThrow('already picked up');
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_custody_event'))[0].n).toBe(1);
+  });
+
+  it('creates a pending parcel with its new collection request in one commit', async () => {
+    const order: any = { id: 62, seller: { id: 3 }, buyer: { id: 5 },
+      trackingNumber: 'KTX-ORD-62', deliveryAddress: 'Mwanza, Tanzania' };
+    await build().createCollectionRequest(order, 'Market', 'Dar', false, 1500);
+    const parcels = await db.query('SELECT id,status FROM public.parcel WHERE "orderId"=62');
+    const jobs = await db.query('SELECT "parcelId" FROM public.parcel_collection WHERE "orderId"=62');
+    expect(parcels).toHaveLength(1);
+    expect(parcels[0].status).toBe(ParcelStatus.COLLECTION_REQUESTED);
+    expect(jobs[0].parcelId).toBe(parcels[0].id);
   });
 });
