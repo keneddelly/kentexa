@@ -213,8 +213,8 @@ export class SuperAgentsController {
   }
 
   // Super agent dispatches parcel
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
   @Patch('parcels/:trackingNumber/dispatch')
   dispatchParcel(
     @Request() req,
