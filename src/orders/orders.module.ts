@@ -6,6 +6,7 @@ import { OrdersController } from './orders.controller';
 import { Order } from './entities/order.entity';
 import { Payout } from '../payouts/entities/payout.entity';
 import { Parcel, ParcelTracking } from '../super-agents/entities/parcel.entity';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
@@ -38,6 +39,7 @@ import { PaymentCoreModule } from '../payments/payment-core.module';
       Payout,
       Parcel,
       ParcelTracking,
+      ParcelCustodyEvent,
       SuperAgent,
       Agent,
       AgentTransaction,
