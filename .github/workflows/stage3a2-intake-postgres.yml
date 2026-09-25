@@ -15,6 +15,7 @@ on:
       - 'src/invoices/invoices.counter-transaction.real-postgres.spec.ts'
       - 'src/super-agents/super-agents.controller.ts'
       - 'src/super-agents/super-agents.offline-custody.spec.ts'
+      - 'src/super-agents/super-agents.offline-custody.real-postgres.spec.ts'
       - '.github/workflows/stage3a2-intake-postgres.yml'
 
 permissions:
@@ -62,4 +63,5 @@ jobs:
       - run: npm test -- --runInBand orders/orders.custody-receive.spec.ts orders/orders.service.payment-guards.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.offline-custody.spec.ts
       - run: npm test -- --runInBand invoices/invoices.counter-transaction.real-postgres.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.offline-custody.real-postgres.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json
