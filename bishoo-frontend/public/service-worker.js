@@ -1,4 +1,4 @@
-const STATIC_CACHE = 'kentexa-static-v3';
+const STATIC_CACHE = 'kentexa-static-v4';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -53,5 +53,19 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow(event.notification.data || '/'));
+  event.waitUntil((async () => {
+    const target = new URL(event.notification.data || '/', self.location.origin);
+    if (target.origin !== self.location.origin) return;
+    const windows = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existing = windows.find((client) => new URL(client.url).origin === target.origin);
+    if (existing) {
+      try {
+        // openWindow may only focus an already-running standalone app without
+        // changing its route. Navigate that client explicitly first.
+        const navigated = await existing.navigate(target.href);
+        if (navigated) { await navigated.focus(); return; }
+      } catch { /* Fall back to a new window if navigation is unavailable. */ }
+    }
+    await clients.openWindow(target.href);
+  })());
 });

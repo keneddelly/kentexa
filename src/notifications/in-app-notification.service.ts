@@ -254,7 +254,7 @@ export class InAppNotificationService {
         icon: '/logo512.png',
         // The app's URL router has no ?page= handler. Open the notification
         // inbox so the user can follow the existing role-aware action link.
-        url: '/?notification=1',
+        url: `/?notificationId=${notif.id}`,
         tag: params.type,
       })
       .catch(() => {});
@@ -507,6 +507,7 @@ export class InAppNotificationService {
     postTitle: string,
     sellerId: number,
     commerceProfileId?: number | null,
+    feedPostId?: number,
   ) {
     await this.notify({
       userId: followerUserId,
@@ -514,7 +515,7 @@ export class InAppNotificationService {
       title: `📢 ${businessName}`,
       body: postTitle,
       actionPage: 'CommerceProfile',
-      actionParam: String(sellerId),
+      actionParam: feedPostId ? `${sellerId}-feed-${feedPostId}` : String(sellerId),
       actionCommerceProfileId: commerceProfileId || undefined,
       icon: '📢',
     });
@@ -539,6 +540,14 @@ export class InAppNotificationService {
       .skip((page - 1) * limit)
       .getManyAndCount();
     return { items, total, unread: items.filter((n) => !n.isRead).length };
+  }
+
+  async getNotificationById(userId: number, id: number, roleContext: RoleContext): Promise<Notification | null> {
+    const qb = this.repo.createQueryBuilder('n')
+      .where('n.id = :id AND n.userId = :userId', { id, userId });
+    // Push deep links must obey the same active audience as Activity reads.
+    if (this.flags.isEnabled('SCOPED_NOTIFICATION_READ')) this.applyAudienceScope(qb, roleContext);
+    return qb.getOne();
   }
 
   async markRead(userId: number, notifId: number, roleContext?: RoleContext) {

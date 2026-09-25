@@ -1260,6 +1260,7 @@ export class FeedService {
           item.title,
           sellerId,
           (item as any).commerceProfileId,
+          item.id,
         )
         .catch(() => {});
     }

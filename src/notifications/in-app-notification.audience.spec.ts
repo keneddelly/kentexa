@@ -35,6 +35,25 @@ describe('InAppNotificationService event-helper audience resolution (Stage 2B it
     return { service, repo };
   };
 
+  it('points a follower alert to the exact moment within its business profile', async () => {
+    const { service, repo } = build();
+    await service.businessFeedPost(8, 'BiS', 'New stock', 5, 26, 93);
+    expect(repo.create).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 8, actionPage: 'CommerceProfile', actionParam: '5-feed-93',
+      actionCommerceProfileId: 26,
+    }));
+  });
+
+  it('puts the saved notification id in its phone alert destination', async () => {
+    const push: any = { sendToUser: jest.fn().mockResolvedValue(undefined) };
+    const repo: any = { create: jest.fn((data) => data), save: jest.fn().mockResolvedValue({ id: 47 }) };
+    const service = new InAppNotificationService(repo, {} as any, push, {} as any);
+    await service.notify({ userId: 8, type: 'message', title: 'New message', body: 'Hello' });
+    expect(push.sendToUser).toHaveBeenCalledWith(8, expect.objectContaining({
+      url: '/?notificationId=47',
+    }));
+  });
+
   it('orderPlacedById (real caller: orders.service.ts) attaches ROLE audience for the seller', async () => {
     const { service, repo } = build();
     await service.orderPlacedById(5, 100, 'KTX-1', 'Widget');

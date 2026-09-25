@@ -24,6 +24,7 @@ describe('InAppNotificationService scoped reads (Stage 2B checkpoint 4/5)', () =
     });
     qb.getManyAndCount = jest.fn().mockResolvedValue(result);
     qb.getCount = jest.fn().mockResolvedValue(result);
+    qb.getOne = jest.fn().mockResolvedValue(result);
     qb.execute = jest.fn().mockResolvedValue(undefined);
     return { qb, calls };
   };
@@ -38,6 +39,17 @@ describe('InAppNotificationService scoped reads (Stage 2B checkpoint 4/5)', () =
   };
 
   describe('getMyNotifications', () => {
+    it('fetches one pushed notification only for the recipient and current audience', async () => {
+      const { service, repo } = build();
+      const { qb, calls } = mockQueryBuilder({ id: 47 });
+      repo.createQueryBuilder.mockReturnValue(qb);
+      await expect(service.getNotificationById(1, 47, sellerRoleContext as any))
+        .resolves.toEqual({ id: 47 });
+      expect(calls[0]).toEqual({ method: 'where', args: [
+        'n.id = :id AND n.userId = :userId', { id: 47, userId: 1 },
+      ] });
+      expect(calls.some((c) => c.method === 'andWhere')).toBe(true);
+    });
     it('applies the audience WHERE clause when a roleContext is passed and the flag is on', async () => {
       const { service, repo } = build();
       const { qb, calls } = mockQueryBuilder([[], 0]);

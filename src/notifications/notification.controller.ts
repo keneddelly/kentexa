@@ -14,6 +14,7 @@ import {
   Request,
   ParseIntPipe,
   Query,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { InAppNotificationService } from './in-app-notification.service';
@@ -57,6 +58,14 @@ export class NotificationController {
     return this.notifService
       .getUnreadCount(req.user.id, roleContext)
       .then((count) => ({ count }));
+  }
+
+  @Get(':id')
+  async getOne(@Request() req, @Param('id', ParseIntPipe) id: number,
+    @CurrentRoleContext() roleContext: RoleContext) {
+    const notification = await this.notifService.getNotificationById(req.user.id, id, roleContext);
+    if (!notification) throw new NotFoundException();
+    return notification;
   }
 
   // Stage 2B item 5 (mandatory): previously unconditionally user-wide --
