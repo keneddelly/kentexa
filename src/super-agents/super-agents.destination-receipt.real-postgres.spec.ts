@@ -120,8 +120,10 @@ const config = getB5BTestConnectionConfig();
     await db.query('INSERT INTO public.transport_assignment (id,"parcelRefId","providerId",status,"toCity") VALUES (21,32,43,$1,$2)',
       [AssignmentStatus.DEPARTED, 'Mwanza']);
     await db.query(`INSERT INTO public.parcel_custody_event
-      ("parcelId","eventKind","operationKey","toCustodianType","toCustodianId","actorSource","assignmentId")
-      VALUES (32,'transport_provider_collected','transport-collected:21','transport_provider',42,'account_role',21)`);
+      ("parcelId","eventKind","operationKey","toCustodianType","toCustodianId","actorSource",
+       "actorUserId","actorAccountRoleId","actorRoleType","assignmentId")
+      VALUES (32,'transport_provider_collected','transport-collected:21','transport_provider',42,
+        'account_role',44,70,'transport_provider',21)`);
     const carrierParcel = { ...parcel, id: 32 };
     await expect(build(false, 32).recordDestinationHubReceipt(carrierParcel, hub, user, context,
       ParcelStatus.ARRIVED_AT_HUB, 'Arrived')).rejects.toThrow('does not match');
