@@ -1004,7 +1004,7 @@ export class TransportService {
         toCustodianType: 'transport_provider', toCustodianId: provider.id,
         actorSource: 'account_role', actorUserId: caller.id,
         actorAccountRoleId: context.accountRoleId, actorRoleType: context.roleType,
-        actorWorkspaceId: context.workspaceId ?? null, actorProviderId: provider.id,
+        actorWorkspaceId: context.workspaceId ?? null, actorProviderId: null,
         hubId: hub.id, assignmentId: assignment.id, evidenceRef: null,
       });
       if (parcel.status !== ParcelStatus.DISPATCHED) {
