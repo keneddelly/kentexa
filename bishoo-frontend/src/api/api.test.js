@@ -1,4 +1,5 @@
 import api, { configureAuthLifecycle, StaleContextResponseError } from './api';
+import axios from 'axios';
 import { __resetTokenStoreForTests, setAccessToken } from './tokenStore';
 
 let epoch;
@@ -57,4 +58,32 @@ test('authenticated requests read the canonical current token', async () => {
     return Promise.resolve({ data: {}, status: 200, statusText: 'OK', headers: {}, config });
   } });
   expect(authorization).toBe('Bearer canonical');
+});
+
+test('a sleeping installed app renews one expired token before concurrent API requests', async () => {
+  const expired = `eyJhbGciOiJIUzI1NiJ9.${btoa(JSON.stringify({ exp: 1 }))}.signature`;
+  setAccessToken(expired);
+  const refresh = jest.spyOn(axios, 'post').mockResolvedValue({ data: { accessToken: 'renewed' } });
+  const authorizations = [];
+  const adapter = config => {
+    authorizations.push(config.headers.Authorization);
+    return Promise.resolve({ data: {}, status: 200, statusText: 'OK', headers: {}, config });
+  };
+  try {
+    await Promise.all([api.get('/a', { adapter }), api.get('/b', { adapter })]);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh.mock.calls[0][2]).toMatchObject({ withCredentials: true });
+    expect(authorizations).toEqual(['Bearer renewed', 'Bearer renewed']);
+    expect(revoked).not.toHaveBeenCalled();
+  } finally { refresh.mockRestore(); }
+});
+
+test('a temporary refresh network failure does not silently log the account out', async () => {
+  const expired = `eyJhbGciOiJIUzI1NiJ9.${btoa(JSON.stringify({ exp: 1 }))}.signature`;
+  setAccessToken(expired);
+  const refresh = jest.spyOn(axios, 'post').mockRejectedValue(new Error('offline'));
+  try {
+    await expect(api.get('/offline')).rejects.toThrow('offline');
+    expect(revoked).not.toHaveBeenCalled();
+  } finally { refresh.mockRestore(); }
 });

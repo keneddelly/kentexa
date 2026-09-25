@@ -6,7 +6,10 @@ import {
   UseGuards,
   Request,
   Req,
+  Res,
+  UnauthorizedException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from './auth.guard';
 import { AuthService } from './auth.service';
@@ -28,6 +31,20 @@ export class AuthController {
     private authService: AuthService,
     private profileService: ProfileService,
   ) {}
+
+  private writeRefreshCookie(res: Response, activeContext?: RoleContext) {
+    if (!activeContext) return;
+    res.cookie('kx_refresh', this.authService.issueRefreshCredential(activeContext), {
+      httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax',
+      path: '/auth', maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  private refreshFromRequest(req: any): string | undefined {
+    const entry = String(req.headers?.cookie || '').split(';').map((s) => s.trim())
+      .find((s) => s.startsWith('kx_refresh='));
+    return entry?.slice('kx_refresh='.length);
+  }
 
   // Register with phone
   @UseGuards(ThrottlerGuard)
@@ -57,8 +74,10 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 15, ttl: 3600000 } })
   @Post('verify-otp')
-  verifyOtp(@Body() body: VerifyOtpDto) {
-    return this.authService.verifyOtp(body.identifier, body.otp);
+  async verifyOtp(@Body() body: VerifyOtpDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.verifyOtp(body.identifier, body.otp);
+    this.writeRefreshCookie(res, result.activeContext);
+    return result;
   }
 
   // Resend OTP — throttled tighter since it costs a real SMS/email send
@@ -75,18 +94,23 @@ export class AuthController {
   @UseGuards(ThrottlerGuard)
   @Throttle({ default: { limit: 20, ttl: 3600000 } })
   @Post('login')
-  login(@Body() body: LoginDto, @Req() req: any) {
+  async login(@Body() body: LoginDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
     const id = body.identifier || body.phone || body.email || '';
-    return this.authService.login(
+    const result = await this.authService.login(
       id,
       body.password,
       this.requestMetadata(req, body.deviceId),
     );
+    this.writeRefreshCookie(res, result.activeContext);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Get('me')
-  getMe(@Request() req: any) {
+  getMe(@Request() req: any, @Res({ passthrough: true }) res: Response) {
+    // Existing signed-in clients receive the new refresh credential on
+    // their next successful context restoration, without changing identity.
+    this.writeRefreshCookie(res, req.roleContext as RoleContext);
     return this.authService.getCurrentUser(req.roleContext as RoleContext);
   }
 
@@ -98,22 +122,36 @@ export class AuthController {
 
   @UseGuards(JwtAuthGuard, RoleContextGuard)
   @Post('switch-role')
-  switchRole(
+  async switchRole(
     @Body() body: { accountRoleId: number; deviceId?: string },
     @Request() req: any,
+    @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.switchRole(
+    const result = await this.authService.switchRole(
       req.user,
       req.roleContext as RoleContext,
       Number(body.accountRoleId),
       this.requestMetadata(req, body.deviceId),
     );
+    this.writeRefreshCookie(res, result.activeContext);
+    return result;
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Post('refresh')
+  async refresh(@Req() req: any) {
+    const credential = this.refreshFromRequest(req);
+    if (!credential) throw new UnauthorizedException('Refresh credential missing');
+    return this.authService.refresh(credential);
+  }
+
   @Post('logout')
-  logout(@Request() req: any) {
-    return this.authService.logout(req.user?.authPayload);
+  async logout(@Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.logoutWithCredential(
+      this.refreshFromRequest(req), req.headers?.authorization,
+    );
+    res.clearCookie('kx_refresh', { path: '/auth', sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production' });
+    return result;
   }
 
   // Forgot password — costs a real SMS/email send

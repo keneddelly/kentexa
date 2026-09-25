@@ -109,9 +109,14 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
   const [pushState, setPushState] = useState('');
+  const [pushKey, setPushKey] = useState(null);
   useEffect(() => {
     if (section !== 'settings') return;
-    getPushNotificationState().then(setPushState).catch(() => setPushState('unavailable'));
+    api.get('/notifications/push/vapid-key').then(({ data }) => {
+      setPushKey(data?.publicKey || '');
+      if (!data?.publicKey) setPushState('unavailable');
+      else getPushNotificationState().then(setPushState).catch(() => setPushState('unavailable'));
+    }).catch(() => setPushState('unavailable'));
   }, [section]);
   const [sellerProfile, setSellerProfile] = useState(null);
   const [businesses, setBusinesses] = useState([]);
@@ -1052,15 +1057,15 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                   pushState === 'unavailable' ? 'Alerts are not available yet' :
                   pushState === 'denied' ? 'Allow alerts in your device settings' :
                   pushState === 'unsupported' ? 'Install Kentexa to check if alerts are supported' :
-                  'Get alerts for messages, moments and followers'}
-                onAction={async () => {
+                  pushKey === null ? 'Checking availability…' : 'Get alerts for messages, moments and followers'}
+                onAction={pushKey ? async () => {
                   try {
                     if (pushState === 'enabled') {
                       await disablePushNotifications();
                       setPushState('off');
-                    } else setPushState(await enablePushNotifications());
+                    } else setPushState(await enablePushNotifications(pushKey));
                   } catch { setPushState('unavailable'); }
-                }} />
+                } : undefined} />
               {isBusinessOwner && (
                 <Row icon="🏪" label={t('my_profile.store_settings_label')}
                   onAction={() => onNavigate('StoreSettings')} />
