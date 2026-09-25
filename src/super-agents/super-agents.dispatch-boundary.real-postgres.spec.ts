@@ -5,13 +5,15 @@ import { getB5BTestConnectionConfig, resetB5BTestSchema } from '../business/b5b-
 import { SuperAgentsService } from './super-agents.service';
 import { Parcel, ParcelStatus, ParcelTracking } from './entities/parcel.entity';
 import { TransportAssignment } from '../transport/entities/transport-assignment.entity';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 const config = getB5BTestConnectionConfig();
 (config ? describe : describe.skip)('single parcel dispatch: PostgreSQL commit and rollback', () => {
   jest.setTimeout(120000);
   let db: DataSource;
   const user: any = { id: 7, name: 'Hub operator' };
-  const hub: any = { id: 3, city: 'Dar', businessName: 'Dar Hub' };
+  const hub: any = { id: 3, city: 'Dar', businessName: 'Dar Hub', status: 'active' };
+  const context: any = { userId: 7, profileId: 3, roleType: AccountRoleType.SUPER_AGENT };
   const parcel: any = { id: 31, trackingNumber: 'KTX-31', superAgent: hub,
     destinationCity: 'Mwanza', buyerPhone: null, order: null,
     shipment: null, bulkShipmentId: null };
@@ -71,7 +73,7 @@ const config = getB5BTestConnectionConfig();
   }
 
   it('rolls back parcel and assignment when tracking insert fails', async () => {
-    await expect(build(true).dispatchParcel(user, 'KTX-31', { transportAssignmentId: 17 }))
+    await expect(build(true).dispatchParcel(user, 'KTX-31', { transportAssignmentId: 17 }, context))
       .rejects.toThrow('tracking insert failed');
     expect((await db.query('SELECT status FROM public.parcel WHERE id=31'))[0].status).toBe(ParcelStatus.RECEIVED_AT_HUB);
     expect((await db.query('SELECT "parcelRefId" FROM public.transport_assignment WHERE id=17'))[0].parcelRefId).toBeNull();
@@ -79,11 +81,11 @@ const config = getB5BTestConnectionConfig();
   });
 
   it('commits once and rejects a replay without another tracking record', async () => {
-    await build().dispatchParcel(user, 'KTX-31', { transportAssignmentId: 17 });
+    await build().dispatchParcel(user, 'KTX-31', { transportAssignmentId: 17 }, context);
     expect((await db.query('SELECT status FROM public.parcel WHERE id=31'))[0].status).toBe(ParcelStatus.DISPATCHED);
     expect((await db.query('SELECT "parcelRefId" FROM public.transport_assignment WHERE id=17'))[0].parcelRefId).toBe(31);
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_tracking'))[0].n).toBe(1);
-    await expect(build().dispatchParcel(user, 'KTX-31', {})).rejects.toThrow('outside a bulk shipment');
+    await expect(build().dispatchParcel(user, 'KTX-31', {}, context)).rejects.toThrow('outside a bulk shipment');
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_tracking'))[0].n).toBe(1);
   });
 });
