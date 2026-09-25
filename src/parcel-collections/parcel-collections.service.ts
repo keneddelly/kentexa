@@ -460,11 +460,13 @@ export class ParcelCollectionsService {
     if (!job) throw new NotFoundException('Collection not found');
     if (!agent) throw new NotFoundException('Agent not found');
 
-    await this.collectionRepo.update(collectionId, {
-      agent: { id: agentUserId },
-      status: CollectionStatus.CLAIMED,
-      claimedAt: new Date(),
-    });
+    const result = await this.collectionRepo.createQueryBuilder().update()
+      .set({ agent: { id: agentUserId } as any,
+        status: CollectionStatus.CLAIMED, claimedAt: new Date() })
+      .where('id = :id', { id: collectionId })
+      .andWhere('status = :status', { status: CollectionStatus.REQUESTED })
+      .andWhere('"agentId" IS NULL').execute();
+    if (!result.affected) throw new BadRequestException('Collection is no longer available for assignment');
 
     return { message: `Assigned to agent ${(agent as any).fullName}` };
   }
@@ -477,17 +479,26 @@ export class ParcelCollectionsService {
     });
     if (!job) throw new NotFoundException('Collection not found');
 
-    await this.collectionRepo.update(collectionId, {
-      status: CollectionStatus.CANCELLED,
-      cancellationReason: reason,
-    });
-
-    // Reset parcel status to pending — seller brings themselves
-    if (job.parcel) {
-      await this.parcelRepo.update(job.parcel.id, {
-        status: ParcelStatus.PENDING,
+    await this.dataSource.transaction(async manager => {
+      await manager.query('SELECT id FROM public.parcel_collection WHERE id = $1 FOR UPDATE', [collectionId]);
+      const current = await manager.getRepository(ParcelCollection).findOne({
+        where: { id: collectionId }, relations: { agent: true, parcel: true },
       });
-    }
+      if (!current || current.status !== CollectionStatus.REQUESTED || current.agent) {
+        throw new BadRequestException('Only an unclaimed collection can be cancelled');
+      }
+      if (current.parcel) {
+        await manager.query('SELECT id FROM public.parcel WHERE id = $1 FOR UPDATE', [current.parcel.id]);
+        const parcel = await manager.getRepository(Parcel).findOne({ where: { id: current.parcel.id } });
+        if (!parcel || parcel.status !== ParcelStatus.COLLECTION_REQUESTED) {
+          throw new BadRequestException('Parcel has moved beyond collection request');
+        }
+        await manager.getRepository(Parcel).update(parcel.id, { status: ParcelStatus.PENDING });
+      }
+      await manager.getRepository(ParcelCollection).update(collectionId, {
+        status: CollectionStatus.CANCELLED, cancellationReason: reason,
+      });
+    });
 
     // Notify seller
     const sellerPhone = (job.order as any)?.seller?.phone;
