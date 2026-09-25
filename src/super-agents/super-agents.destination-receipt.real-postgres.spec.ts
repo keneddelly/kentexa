@@ -6,6 +6,7 @@ import { AddParcelCustodyEvent1788278400000 } from '../database/migrations/17882
 import { SuperAgentsService } from './super-agents.service';
 import { Parcel, ParcelStatus, ParcelTracking } from './entities/parcel.entity';
 import { ParcelCustodyEvent } from './entities/parcel-custody-event.entity';
+import { TransportAssignment, AssignmentStatus } from '../transport/entities/transport-assignment.entity';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
@@ -31,6 +32,7 @@ const config = getB5BTestConnectionConfig();
     await db.query('CREATE TABLE public."order" (id integer PRIMARY KEY, status varchar NOT NULL)');
     await db.query('CREATE TABLE public.parcel (id integer PRIMARY KEY, status varchar NOT NULL, "destinationSuperAgentId" integer, "destinationCity" varchar NOT NULL, "orderId" integer, "arrivedAtHubTime" timestamp)');
     await db.query('CREATE TABLE public.parcel_tracking (id serial PRIMARY KEY, "parcelId" integer NOT NULL, status varchar NOT NULL)');
+    await db.query('CREATE TABLE public.transport_assignment (id integer PRIMARY KEY, "parcelRefId" integer, "providerId" integer, status varchar, "toCity" varchar)');
     await db.query('INSERT INTO public."order" (id,status) VALUES (12,$1)', [OrderStatus.PAID]);
     await db.query('INSERT INTO public.parcel (id,status,"destinationCity","orderId") VALUES (31,$1,$2,12)',
       [ParcelStatus.IN_TRANSIT, 'Mwanza']);
@@ -54,12 +56,19 @@ const config = getB5BTestConnectionConfig();
             [value.status,value.arrivedAtHubTime,value.destinationSuperAgent?.id || null]),
         };
         if (entity === ParcelCustodyEvent) return {
-          findOne: async () => (await db.query('SELECT "toCustodianId" FROM public.parcel_custody_event WHERE "parcelId"=31 AND "eventKind"=$1 LIMIT 1', ['destination_hub_received']))[0] || null,
+          findOne: async ({ where }: any) => (await manager.query(
+            `SELECT * FROM public.parcel_custody_event WHERE "parcelId"=31
+             ${where.eventKind ? 'AND "eventKind"=$1' : ''}
+             ORDER BY "recordedAt" DESC,id DESC LIMIT 1`,
+            where.eventKind ? [where.eventKind] : [],
+          ))[0] || null,
           insert: (v: any) => manager.query(`INSERT INTO public.parcel_custody_event
-            ("parcelId","eventKind","operationKey","fromCustodianType","fromCustodianId","toCustodianType","toCustodianId","actorSource","actorUserId","actorAccountRoleId","actorRoleType","hubId")
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-            [v.parcelId,v.eventKind,v.operationKey,v.fromCustodianType,v.fromCustodianId,v.toCustodianType,v.toCustodianId,v.actorSource,v.actorUserId,v.actorAccountRoleId,v.actorRoleType,v.hubId]),
+            ("parcelId","eventKind","operationKey","fromCustodianType","fromCustodianId","toCustodianType","toCustodianId","actorSource","actorUserId","actorAccountRoleId","actorRoleType","hubId","assignmentId")
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+            [v.parcelId,v.eventKind,v.operationKey,v.fromCustodianType,v.fromCustodianId,v.toCustodianType,v.toCustodianId,v.actorSource,v.actorUserId,v.actorAccountRoleId,v.actorRoleType,v.hubId,v.assignmentId]),
         };
+        if (entity === TransportAssignment) return { findOne: async ({ where }: any) =>
+          (await manager.query('SELECT * FROM public.transport_assignment WHERE id=$1', [where.id]))[0] || null };
         if (entity === ParcelTracking) return { insert: (v: any) => {
           trackingCount += 1;
           if (failTracking && trackingCount === 1) throw new Error('tracking unavailable');
@@ -88,6 +97,8 @@ const config = getB5BTestConnectionConfig();
     expect((await db.query('SELECT status,"destinationSuperAgentId" FROM public.parcel WHERE id=31'))[0])
       .toMatchObject({ status: ParcelStatus.ARRIVED_AT_HUB, destinationSuperAgentId: 6 });
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_custody_event'))[0].n).toBe(1);
+    expect((await db.query('SELECT "fromCustodianType","assignmentId" FROM public.parcel_custody_event'))[0])
+      .toMatchObject({ fromCustodianType: null, assignmentId: null });
     await expect(build().recordDestinationHubReceipt(parcel, hub, user, context,
       ParcelStatus.ARRIVED_AT_HUB, 'Again')).rejects.toThrow('already received');
     await expect(build(true).recordDestinationHubReceipt(parcel, hub, user, context,
@@ -100,5 +111,23 @@ const config = getB5BTestConnectionConfig();
     expect((await db.query('SELECT status FROM public."order" WHERE id=12'))[0].status).toBe(OrderStatus.READY_PICKUP);
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_custody_event'))[0].n).toBe(1);
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_tracking'))[0].n).toBe(2);
+  });
+
+  it('links only a verified carrier collection for this parcel and receiving city', async () => {
+    await db.query('DELETE FROM public.parcel_custody_event WHERE "parcelId"=31');
+    await db.query('UPDATE public.parcel SET status=$1,"destinationSuperAgentId"=NULL,"arrivedAtHubTime"=NULL WHERE id=31', [ParcelStatus.IN_TRANSIT]);
+    await db.query('INSERT INTO public.transport_assignment (id,"parcelRefId","providerId",status,"toCity") VALUES (21,31,43,$1,$2)',
+      [AssignmentStatus.DEPARTED, 'Mwanza']);
+    await db.query(`INSERT INTO public.parcel_custody_event
+      ("parcelId","eventKind","operationKey","toCustodianType","toCustodianId","actorSource","assignmentId")
+      VALUES (31,'transport_provider_collected','transport-collected:21','transport_provider',42,'account_role',21)`);
+    await expect(build().recordDestinationHubReceipt(parcel, hub, user, context,
+      ParcelStatus.ARRIVED_AT_HUB, 'Arrived')).rejects.toThrow('does not match');
+    expect((await db.query('SELECT status FROM public.parcel WHERE id=31'))[0].status).toBe(ParcelStatus.IN_TRANSIT);
+    await db.query('UPDATE public.transport_assignment SET "providerId"=42 WHERE id=21');
+    await build().recordDestinationHubReceipt(parcel, hub, user, context, ParcelStatus.ARRIVED_AT_HUB, 'Arrived');
+    const [receipt] = await db.query(`SELECT "fromCustodianType","fromCustodianId","assignmentId"
+      FROM public.parcel_custody_event WHERE "eventKind"='destination_hub_received'`);
+    expect(receipt).toMatchObject({ fromCustodianType: 'transport_provider', fromCustodianId: 42, assignmentId: 21 });
   });
 });
