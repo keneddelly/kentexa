@@ -5,12 +5,14 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAccessToken } from '../../api/tokenStore';
+import api from '../../api/api';
 
 
 // ── Push notification subscription ────────────────────────────────────────
 export const subscribeToPush = async (apiBase = '') => {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+    if (!getAccessToken() || !('Notification' in window) || Notification.permission !== 'granted' ||
+        !('serviceWorker' in navigator) || !('PushManager' in window)) return null;
     const reg = await navigator.serviceWorker.ready;
 
     // Get VAPID public key from server
@@ -37,7 +39,7 @@ export const subscribeToPush = async (apiBase = '') => {
 
     // Save to server
     const subObj = subscription.toJSON();
-    await fetch(`${apiBase}/notifications/push/subscribe`, {
+    const saved = await fetch(`${apiBase}/notifications/push/subscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -49,6 +51,7 @@ export const subscribeToPush = async (apiBase = '') => {
         userAgent: navigator.userAgent,
       }),
     });
+    if (!saved.ok) return null;
 
     console.log('✅ Push subscription saved');
     return subscription;
@@ -56,6 +59,38 @@ export const subscribeToPush = async (apiBase = '') => {
     console.warn('Push subscription failed:', err);
     return null;
   }
+};
+
+// Called only from Settings, after the user asks for alerts.
+export const enablePushNotifications = async () => {
+  if (!('Notification' in window) || !('serviceWorker' in navigator) ||
+      !('PushManager' in window)) return 'unsupported';
+  const { data } = await api.get('/notifications/push/vapid-key');
+  if (!data?.publicKey) return 'unavailable';
+  const permission = Notification.permission === 'default'
+    ? await Notification.requestPermission() : Notification.permission;
+  if (permission !== 'granted') return 'denied';
+  return await subscribeToPush(process.env.REACT_APP_API_URL || 'https://api.kentexa.com')
+    ? 'enabled' : 'unavailable';
+};
+
+export const disablePushNotifications = async () => {
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.getRegistration();
+  const subscription = await reg?.pushManager?.getSubscription();
+  if (!subscription) return;
+  // Remove this account's endpoint before destroying the browser subscription.
+  try {
+    await api.delete('/notifications/push/unsubscribe', { data: { endpoint: subscription.endpoint } });
+  } finally {
+    await subscription.unsubscribe();
+  }
+};
+
+export const getPushNotificationState = async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
+  const reg = await navigator.serviceWorker.getRegistration();
+  return await reg?.pushManager?.getSubscription() ? 'enabled' : 'off';
 };
 
 export const detectInstallEnvironment = (nav = navigator, win = window) => {

@@ -13,6 +13,7 @@ import LanguageSwitcher, { LANGUAGES } from '../components/LanguageSwitcher';
 import { homeForRole } from '../../navigation/navigationRegistry';
 import { getMyBusinesses } from '../../api/business';
 import { capabilityLabelKeyFor, groupProfilesForSwitcher } from '../../context/businessGrouping';
+import { enablePushNotifications, disablePushNotifications, getPushNotificationState } from '../hooks/usePWA';
 
 const B   = '#2563EB';
 const DK  = '#0F172A';
@@ -107,6 +108,11 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [identityStatus, setIdentityStatus] = useState(null);
   const [showVerifyIdentity, setShowVerifyIdentity] = useState(false);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const [pushState, setPushState] = useState('');
+  useEffect(() => {
+    if (section !== 'settings') return;
+    getPushNotificationState().then(setPushState).catch(() => setPushState('unavailable'));
+  }, [section]);
   const [sellerProfile, setSellerProfile] = useState(null);
   const [businesses, setBusinesses] = useState([]);
 
@@ -1041,6 +1047,20 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 <Row icon="📲" label={t('my_profile.install_kentexa_label')}
                   sub={t('my_profile.install_kentexa_sub')} onAction={onInstallKentexa} />
               )}
+              <Row icon="🔔" label="Phone notifications"
+                sub={pushState === 'enabled' ? 'Alerts are on for this device' :
+                  pushState === 'unavailable' ? 'Alerts are not available yet' :
+                  pushState === 'denied' ? 'Allow alerts in your device settings' :
+                  pushState === 'unsupported' ? 'Install Kentexa to check if alerts are supported' :
+                  'Get alerts for messages, moments and followers'}
+                onAction={async () => {
+                  try {
+                    if (pushState === 'enabled') {
+                      await disablePushNotifications();
+                      setPushState('off');
+                    } else setPushState(await enablePushNotifications());
+                  } catch { setPushState('unavailable'); }
+                }} />
               {isBusinessOwner && (
                 <Row icon="🏪" label={t('my_profile.store_settings_label')}
                   onAction={() => onNavigate('StoreSettings')} />
