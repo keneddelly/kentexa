@@ -4,6 +4,7 @@ import { SuperAgentsService } from './super-agents.service';
 import { SuperAgentsController } from './super-agents.controller';
 import { SuperAgent } from './entities/super-agent.entity';
 import { Parcel, ParcelTracking } from './entities/parcel.entity';
+import { ParcelCustodyEvent } from './entities/parcel-custody-event.entity';
 import { ShippingRate } from './entities/shipping-rate.entity';
 import { BulkShipment } from './entities/bulk-shipment.entity';
 import { IntercityRoute } from './entities/intercity-route.entity';
@@ -35,6 +36,7 @@ import { WalletModule } from '../wallet/wallet.module';
       SuperAgent,
       Parcel,
       ParcelTracking,
+      ParcelCustodyEvent,
       ShippingRate,
       BulkShipment,
       Order,
