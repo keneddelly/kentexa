@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import vm from 'vm';
 
 test('deployed service worker makes API and bearer GETs network-only', () => {
   const source = fs.readFileSync(path.join(process.cwd(), 'public', 'service-worker.js'), 'utf8');
@@ -32,4 +33,36 @@ test('manifest provides Kentexa app icons and a scoped standalone launch', () =>
   const maskable = manifest.icons.find(icon => icon.purpose === 'maskable');
   expect(fs.existsSync(path.join(publicDir, maskable.src))).toBe(true);
   expect(fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8')).toContain('apple-touch-icon');
+});
+
+test('service worker never handles transaction or navigation fetches as cached content', async () => {
+  const handlers = {};
+  const cache = { put: jest.fn() };
+  const fetch = jest.fn().mockResolvedValue({ ok: true, type: 'basic', clone: () => ({}) });
+  vm.runInNewContext(fs.readFileSync(path.join(process.cwd(), 'public', 'service-worker.js'), 'utf8'), {
+    self: { location: { origin: 'https://kentexa.com' }, addEventListener: (type, handler) => { handlers[type] = handler; } },
+    URL, fetch,
+    caches: { match: jest.fn().mockResolvedValue(null), open: jest.fn().mockResolvedValue(cache) },
+  });
+  const request = (url, destination = 'document', authorization = false) => ({
+    method: 'GET', url, destination, headers: { has: key => authorization && key === 'authorization' },
+  });
+  const dispatch = (r) => {
+    const event = { request: r, respondWith: jest.fn() };
+    handlers.fetch(event);
+    return event;
+  };
+  for (const url of ['https://kentexa.com/', 'https://kentexa.com/orders/10',
+    'https://kentexa.com/api/payments', 'https://kentexa.com/uploads/customer-photo.png']) {
+    const event = dispatch(request(url));
+    if (url.includes('/api/')) await event.respondWith.mock.calls[0][0];
+    else expect(event.respondWith).not.toHaveBeenCalled();
+  }
+  await dispatch(request('https://kentexa.com/static/js/main.hash.js', 'script', true))
+    .respondWith.mock.calls[0][0];
+  expect(cache.put).not.toHaveBeenCalled();
+  const asset = dispatch(request('https://kentexa.com/static/js/main.hash.js', 'script'));
+  await asset.respondWith.mock.calls[0][0];
+  await Promise.resolve();
+  expect(cache.put).toHaveBeenCalledTimes(1);
 });
