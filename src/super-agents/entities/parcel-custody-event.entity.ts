@@ -48,6 +48,9 @@ export class ParcelCustodyEvent {
   actorWorkspaceId: number | null;
 
   @Column({ type: 'int', nullable: true })
+  actorProviderId: number | null;
+
+  @Column({ type: 'int', nullable: true })
   hubId: number | null;
 
   @Column({ type: 'int', nullable: true })
