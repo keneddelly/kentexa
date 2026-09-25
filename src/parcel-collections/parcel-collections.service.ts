@@ -42,20 +42,44 @@ export class ParcelCollectionsService {
     isRural: boolean,
     collectionFee: number,
   ): Promise<ParcelCollection> {
-    const collection = this.collectionRepo.create({
-      order,
-      seller: order.seller,
-      agent: null,
-      pickupAddress,
-      city,
-      isRural,
-      collectionFee,
-      status: CollectionStatus.REQUESTED,
-    } as any);
-
-    const saved: ParcelCollection = (await this.collectionRepo.save(
-      collection,
-    )) as unknown as ParcelCollection;
+    const saved = await this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT id FROM public."order" WHERE id = $1 FOR UPDATE', [order.id]);
+      const linked: { id: number }[] = await manager.query(
+        'SELECT id FROM public.parcel WHERE "orderId" = $1 FOR UPDATE', [order.id],
+      );
+      if (linked.length > 1) throw new BadRequestException('Order has multiple parcels; collection cannot be assigned');
+      let parcel = linked.length
+        ? await manager.getRepository(Parcel).findOne({ where: { id: linked[0].id } })
+        : null;
+      if (!parcel) {
+        // Checkout has not reached hub intake; this is a pending physical
+        // parcel, without an invented hub custodian or route decision.
+        const destinationLabel = order.deliveryAddress?.split(',')[0]?.trim() || 'Tanzania';
+        parcel = await manager.getRepository(Parcel).save(
+          manager.getRepository(Parcel).create({
+            order, seller: order.seller, buyer: order.buyer,
+            trackingNumber: order.trackingNumber || `KTX-ORD-${order.id}`,
+            originCity: city, destinationCity: destinationLabel,
+            deliveryAddress: order.deliveryAddress,
+            buyerPhone: order.phone || order.buyer?.phone || null,
+            recipientName: order.recipientName || order.buyer?.name || null,
+            description: order.manualProductName || order.product?.name || null,
+            source: 'online_order', status: ParcelStatus.COLLECTION_REQUESTED,
+          } as any),
+        ) as unknown as Parcel;
+      } else if (parcel.status === ParcelStatus.PENDING) {
+        await manager.getRepository(Parcel).update(parcel.id, { status: ParcelStatus.COLLECTION_REQUESTED });
+      } else if (parcel.status !== ParcelStatus.COLLECTION_REQUESTED) {
+        throw new BadRequestException('Parcel has already moved beyond collection request');
+      }
+      return manager.getRepository(ParcelCollection).save(
+        manager.getRepository(ParcelCollection).create({
+          order, seller: order.seller, agent: null, parcel,
+          pickupAddress, city, isRural, collectionFee,
+          status: CollectionStatus.REQUESTED,
+        } as any),
+      ) as unknown as Promise<ParcelCollection>;
+    });
 
     // Notify seller confirmation
     if ((order.seller as any)?.phone) {
@@ -63,20 +87,8 @@ export class ParcelCollectionsService {
         (order.seller as any).phone,
         `KenteXa: Ombi lako la kukusanyiwa limepokewa kwa Agizo #${order.id}. ` +
           `Wakala atakuja kukuchukua hivi karibuni kwenye: ${pickupAddress}`,
-      );
+      ).catch(() => {});
     }
-
-    // Update parcel status to collection_requested
-    const parcel = await this.parcelRepo.findOne({
-      where: { order: { id: order.id } },
-    });
-    if (parcel) {
-      await this.parcelRepo.update(parcel.id, {
-        status: ParcelStatus.COLLECTION_REQUESTED,
-      });
-      await this.collectionRepo.update(saved.id, { parcel });
-    }
-
     return saved;
   }
 
