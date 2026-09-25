@@ -3306,6 +3306,9 @@ export class SuperAgentsService {
         parcel, handlerAgent!, user, roleContext!, ParcelStatus.ARRIVED_AT_HUB,
         dto.note || `Imepokelewa hubuni ${handlerAgent!.city}`,
       );
+      // The transaction may have bound an unassigned destination; use the
+      // verified receiver's own contact details in the post-commit SMS.
+      parcel.destinationSuperAgent = handlerAgent!;
     }
 
     // Build update payload
