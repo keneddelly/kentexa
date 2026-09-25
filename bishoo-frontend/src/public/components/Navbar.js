@@ -92,7 +92,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
         }
         .kx-search-input {
           flex: 1; background: none; border: none;
-          color: #e2e8f0; font-size: 13px; outline: none; min-width: 0;
+          color: #e2e8f0; font-size: 16px; outline: none; min-width: 0;
         }
 
         /* Language dropdown */
@@ -203,7 +203,7 @@ const Navbar = ({ currentPage, onNavigate, isLoggedIn, onLogout, userRole }) => 
               <input type="text" placeholder="Search..." value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && handleSearch()}
-                style={{ flex: 1, padding: '10px 14px', borderRadius: 10, border: 'none', backgroundColor: '#1e293b', color: '#e2e8f0', fontSize: 14, outline: 'none' }} />
+                style={{ flex: 1, minWidth: 0, padding: '10px 14px', borderRadius: 10, border: 'none', backgroundColor: '#1e293b', color: '#e2e8f0', fontSize: 16, outline: 'none' }} />
               <button onClick={handleSearch} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>Go</button>
             </div>
             {getMenuItems().map(link => (
