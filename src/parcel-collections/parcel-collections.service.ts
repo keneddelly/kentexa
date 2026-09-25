@@ -5,16 +5,19 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import {
   ParcelCollection,
   CollectionStatus,
 } from './entities/parcel-collection.entity';
 import { Order } from '../orders/entities/order.entity';
-import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
+import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/parcel.entity';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { User } from '../users/entities/user.entity';
-import { Agent } from '../agents/entities/agent.entity';
+import { Agent, AgentStatus } from '../agents/entities/agent.entity';
 import { SmsService } from '../sms/sms.service';
+import { RoleContext } from '../role-context/role-context.types';
+import { AccountRoleType } from '../role-context/entities/account-role.entity';
 
 @Injectable()
 export class ParcelCollectionsService {
@@ -25,6 +28,7 @@ export class ParcelCollectionsService {
     @InjectRepository(Parcel) private parcelRepo: Repository<Parcel>,
     @InjectRepository(Agent) private agentRepo: Repository<Agent>,
     private smsService: SmsService,
+    private dataSource: DataSource,
   ) {}
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -187,6 +191,7 @@ export class ParcelCollectionsService {
     collectionId: number,
     agent: User,
     notes?: string,
+    roleContext?: RoleContext,
   ): Promise<any> {
     const job = await this.collectionRepo.findOne({
       where: { id: collectionId },
@@ -198,19 +203,67 @@ export class ParcelCollectionsService {
     if (job.status !== CollectionStatus.CLAIMED) {
       throw new BadRequestException(`Cannot confirm — status is ${job.status}`);
     }
-
-    await this.collectionRepo.update(collectionId, {
-      status: CollectionStatus.COLLECTED,
-      collectedAt: new Date(),
-      notes: notes || null,
-    });
-
-    // Update parcel status
-    if (job.parcel) {
-      await this.parcelRepo.update(job.parcel.id, {
-        status: ParcelStatus.COLLECTED_BY_AGENT,
-      });
+    const agentProfile = roleContext?.roleType === AccountRoleType.AGENT
+      ? await this.agentRepo.findOne({ where: { id: roleContext.profileId, user: { id: agent.id } } })
+      : null;
+    if (!roleContext || roleContext.userId !== agent.id || !agentProfile ||
+        agentProfile.id !== roleContext.profileId || agentProfile.status !== AgentStatus.APPROVED) {
+      throw new ForbiddenException('An active local agent must confirm this pickup');
     }
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT id FROM public.parcel_collection WHERE id = $1 FOR UPDATE', [collectionId]);
+      const current = await manager.getRepository(ParcelCollection).findOne({
+        where: { id: collectionId }, relations: { agent: true, parcel: true, order: true },
+      });
+      if (!current || current.status !== CollectionStatus.CLAIMED || current.agent?.id !== agent.id) {
+        throw new BadRequestException('This collection job was already picked up or reassigned');
+      }
+      // Older jobs may lack the parcel relation. Resolve by the linked order
+      // only when exactly one parcel exists; never record a phantom pickup.
+      const rows: { id: number; orderId: number }[] = current.parcel
+        ? await manager.query('SELECT id,"orderId" FROM public.parcel WHERE id = $1 FOR UPDATE', [current.parcel.id])
+        : await manager.query('SELECT id,"orderId" FROM public.parcel WHERE "orderId" = $1 FOR UPDATE', [current.order.id]);
+      if (rows.length !== 1 || Number(rows[0].orderId) !== current.order.id) {
+        throw new BadRequestException('Collection needs exactly one linked parcel for its order');
+      }
+      const parcel = await manager.getRepository(Parcel).findOne({ where: { id: rows[0].id } });
+      if (!parcel || ![ParcelStatus.PENDING, ParcelStatus.COLLECTION_REQUESTED].includes(parcel.status)) {
+        throw new BadRequestException('Parcel is no longer available for seller pickup');
+      }
+      await manager.getRepository(ParcelCollection).update(collectionId, {
+        status: CollectionStatus.COLLECTED, collectedAt: new Date(), notes: notes || null,
+        parcel: { id: parcel.id } as Parcel,
+      });
+      await manager.getRepository(Parcel).update(parcel.id, { status: ParcelStatus.COLLECTED_BY_AGENT });
+      await manager.getRepository(ParcelCustodyEvent).insert({
+        parcelId: parcel.id,
+        eventKind: 'seller_collected_by_agent',
+        operationKey: `collection-collected:${collectionId}`,
+        fromCustodianType: null,
+        fromCustodianId: null,
+        toCustodianType: 'local_agent',
+        toCustodianId: agentProfile.id,
+        actorSource: 'account_role',
+        actorUserId: agent.id,
+        actorAccountRoleId: roleContext.accountRoleId,
+        actorRoleType: roleContext.roleType,
+        actorWorkspaceId: roleContext.workspaceId ?? null,
+        actorProviderId: null,
+        hubId: null,
+        assignmentId: null,
+        evidenceRef: `collection:${collectionId}`,
+      });
+      await manager.getRepository(ParcelTracking).insert({
+        parcel, status: ParcelStatus.COLLECTED_BY_AGENT,
+        city: current.city,
+        note: notes || 'Imekusanywa na wakala kutoka kwa muuzaji',
+        updatedBy: agentProfile.fullName || agent.name,
+        handlerPhone: agent.phone || null,
+        handlerLocation: current.pickupAddress,
+        handlerType: 'local_agent',
+      });
+    });
 
     // Notify buyer — their order is being collected
     if (job.order.buyer?.phone) {
@@ -218,7 +271,7 @@ export class ParcelCollectionsService {
         job.order.buyer.phone,
         `KenteXa: Bidhaa yako ya Agizo #${job.order.id} imekusanywa na wakala ` +
           `na inakwenda kwenye kituo cha usafirishaji. Utapata ujumbe wakati itakapofika.`,
-      );
+      ).catch(() => {});
     }
 
     return { message: 'Umekusanya kifurushi. Peleka kwenye Super Agent hub.' };
