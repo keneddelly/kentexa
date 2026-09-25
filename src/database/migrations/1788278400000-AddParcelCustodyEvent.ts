@@ -52,6 +52,10 @@ export class AddParcelCustodyEvent1788278400000 implements MigrationInterface {
     await queryRunner.query(`CREATE TRIGGER "TRG_parcel_custody_immutable"
       BEFORE UPDATE OR DELETE ON public.parcel_custody_event
       FOR EACH ROW EXECUTE FUNCTION public."fn_parcel_custody_immutable"()`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TRG_parcel_custody_no_truncate" ON public.parcel_custody_event`);
+    await queryRunner.query(`CREATE TRIGGER "TRG_parcel_custody_no_truncate"
+      BEFORE TRUNCATE ON public.parcel_custody_event
+      FOR EACH STATEMENT EXECUTE FUNCTION public."fn_parcel_custody_immutable"()`);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
@@ -62,6 +66,7 @@ export class AddParcelCustodyEvent1788278400000 implements MigrationInterface {
       `SELECT EXISTS(SELECT 1 FROM public.parcel_custody_event LIMIT 1) AS "exists"`,
     );
     if (rows[0]?.exists) throw new Error('Cannot revert a nonempty parcel custody ledger');
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TRG_parcel_custody_no_truncate" ON public.parcel_custody_event`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS "TRG_parcel_custody_immutable" ON public.parcel_custody_event`);
     await queryRunner.query(`DROP FUNCTION IF EXISTS public."fn_parcel_custody_immutable"()`);
     await queryRunner.query(`DROP TABLE IF EXISTS public.parcel_custody_event`);
