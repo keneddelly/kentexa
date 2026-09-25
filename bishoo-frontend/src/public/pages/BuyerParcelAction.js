@@ -3,7 +3,7 @@
  *
  * Shown when buyer receives SMS: "Bidhaa yako imefika Musoma"
  * They log in, see the parcel, and choose:
- *   A) Self-pickup — "Nitachukua mwenyewe" — closes tracking
+ *   A) Self-pickup — "Nitachukua mwenyewe" — hub still holds the parcel
  *   B) Request delivery — browses available agents in their city,
  *      sees each agent's rate, agrees with one, agent gets notified
  *
@@ -85,14 +85,13 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
     if (!selectedAgent) { setError(t('buyer_parcel_action.select_agent_first')); return; }
     try {
       setActionLoading(true); setError('');
-      await api.post(`/super-agents/shipments/${trackingNumber}/request-delivery`, {
+      const response = await api.post(`/super-agents/shipments/${trackingNumber}/request-delivery`, {
         agentId:   selectedAgent.id,
-        agreedFee: selectedAgent.deliveryFee,
         address:   customAddress.trim() || parcel.deliveryAddress,
       });
       setSuccess(t('buyer_parcel_action.request_delivery_success', {
         name: selectedAgent.fullName,
-        fee: Number(selectedAgent.deliveryFee).toLocaleString(),
+        fee: Number(response.data.agreedFee).toLocaleString(),
       }));
       setView('parcel');
       fetchParcel();
@@ -102,7 +101,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
   };
 
   const st = parcel ? (STATUS_LABELS[parcel.status] || { label: parcel.status, color: '#64748b', bg: '#f1f5f9' }) : null;
-  const isAwaiting = parcel?.status === 'awaiting_buyer';
+  const isAwaiting = parcel?.status === 'awaiting_buyer' && parcel?.buyerRequestedDelivery == null;
   const isActionable = ['awaiting_buyer', 'arrived_at_hub'].includes(parcel?.status);
 
   if (loading) return (
@@ -208,7 +207,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
             )}
 
             {/* Action buttons — only when awaiting */}
-            {isActionable && !parcel.buyerRequestedDelivery && (
+            {isActionable && parcel.buyerRequestedDelivery == null && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button
                   onClick={() => { setView('agents'); fetchAgents(); }}
@@ -223,6 +222,12 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
                 <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
                   {t('buyer_parcel_action.independent_agents_note')}
                 </div>
+              </div>
+            )}
+
+            {isActionable && parcel.buyerRequestedDelivery === false && (
+              <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '12px 16px', fontSize: 13, color: '#1d4ed8' }}>
+                {t('buyer_parcel_action.pickup_planned_notice')}
               </div>
             )}
 

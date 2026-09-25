@@ -53,4 +53,6 @@ jobs:
       - run: npm test -- --runInBand transport/transport.hub-arrival.spec.ts
       - run: npm test -- --runInBand transport/transport.carrier-collection.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.destination-receipt.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.buyer-choice.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.buyer-choice.real-postgres.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json

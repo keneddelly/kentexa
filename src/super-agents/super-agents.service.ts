@@ -20,7 +20,7 @@ import { ParcelCustodyEvent } from './entities/parcel-custody-event.entity';
 import { ShippingRate } from './entities/shipping-rate.entity';
 import { BulkShipment, BulkShipmentStatus } from './entities/bulk-shipment.entity';
 import { User, UserRole } from '../users/entities/user.entity';
-import { Agent } from '../agents/entities/agent.entity';
+import { Agent, AgentStatus } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
 import {
   Order,
@@ -1350,6 +1350,9 @@ export class SuperAgentsService {
       // Dispatch info
       dispatchTime: (parcel as any).dispatchTime || bulkShipment?.dispatchTime || null,
       arrivedAtHubTime: (parcel as any).arrivedAtHubTime || null,
+      buyerRequestedDelivery: parcel.buyerRequestedDelivery,
+      localAgentName: parcel.localAgentName,
+      agreedDeliveryFee: parcel.agreedDeliveryFee,
       history: tracking.map((t) => ({
         status: t.status,
         city: t.city,
@@ -4597,86 +4600,106 @@ export class SuperAgentsService {
 
   // ── Buyer requests last-mile delivery ────────────────────────────────────
 
+  private assertParcelRecipient(parcel: Parcel, buyer: User): void {
+    if (!buyer.phone && parcel.order?.buyer?.id !== buyer.id) {
+      throw new ForbiddenException('Only the parcel recipient can choose delivery');
+    }
+    if (parcel.buyerPhone !== buyer.phone && parcel.order?.buyer?.id !== buyer.id) {
+      throw new ForbiddenException('Only the parcel recipient can choose delivery');
+    }
+  }
+
+  // Choosing a method does not prove physical possession. Serialize both
+  // choices on the parcel and require the receiving hub's earlier receipt.
+  private async chooseDestinationMethod(
+    buyer: User, trackingNumber: string,
+    agentId?: number, address?: string,
+  ): Promise<{ agent: Agent | null; fee: number | null }> {
+    return this.dataSource.transaction(async manager => {
+      const lookup = await manager.getRepository(Parcel).findOne({ where: { trackingNumber } });
+      if (!lookup) throw new NotFoundException('Parcel not found');
+      await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [lookup.id]);
+      const parcel = await manager.getRepository(Parcel).findOne({
+        where: { id: lookup.id },
+        relations: { order: { buyer: true }, destinationSuperAgent: true },
+      });
+      if (!parcel) throw new NotFoundException('Parcel not found');
+      this.assertParcelRecipient(parcel, buyer);
+      if (![ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status) ||
+          parcel.buyerRequestedDelivery != null) {
+        throw new ConflictException('Delivery method has already been selected or parcel is unavailable');
+      }
+      const receipt = await manager.getRepository(ParcelCustodyEvent).findOne({
+        where: { parcelId: parcel.id, eventKind: 'destination_hub_received' },
+      });
+      if (!receipt || receipt.toCustodianType !== 'super_agent' ||
+          receipt.toCustodianId !== parcel.destinationSuperAgent?.id) {
+        throw new ConflictException('Receiving hub must confirm possession first');
+      }
+      let agent: Agent | null = null;
+      let fee: number | null = null;
+      if (agentId !== undefined) {
+        agent = await manager.getRepository(Agent).findOne({
+          where: { id: agentId, status: AgentStatus.APPROVED }, relations: { user: true },
+        });
+        if (!agent?.user?.id || ![agent.city, agent.district, agent.region].some(
+          city => city?.trim().toLowerCase() === parcel.destinationCity.trim().toLowerCase(),
+        )) throw new BadRequestException('Selected agent cannot deliver to this destination');
+        fee = Number(agent.deliveryCommission);
+        if (!Number.isFinite(fee) || fee < 0) throw new ConflictException('Agent delivery fee is unavailable');
+      }
+      await manager.getRepository(Parcel).update(parcel.id, {
+        buyerRequestedDelivery: !!agent,
+        ...(agent ? {
+          localAgentId: String(agent.user.id), localAgentName: agent.fullName,
+          agreedDeliveryFee: fee, deliveryAddress: address?.trim() || parcel.deliveryAddress,
+        } : {}),
+      });
+      await manager.getRepository(ParcelTracking).insert({
+        parcel, status: parcel.status, city: parcel.destinationCity,
+        note: agent ? `Recipient requested delivery by ${agent.fullName}` : 'Recipient plans to collect at the hub',
+        updatedBy: buyer.name || 'Recipient', handlerType: 'system',
+      });
+      return { agent, fee };
+    });
+  }
+
   async buyerRequestDelivery(
     buyer: User,
     trackingNumber: string,
     dto: {
       agentId: number;
-      agreedFee: number;
+      agreedFee?: number; // legacy clients; server uses the agent's current fee
       address?: string;
     },
   ) {
-    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
-    if (!parcel) throw new NotFoundException('Parcel not found');
-
-    const agent = await this.agentRepo.findOne({
-      where: { id: dto.agentId },
-      relations: { user: true },
-    });
-    if (!agent) throw new NotFoundException('Agent not found');
-
-    await this.parcelRepo.update((parcel as any).id, {
-      localAgentId: String(agent.user?.id || dto.agentId),
-      localAgentName: agent.fullName,
-      agreedDeliveryFee: dto.agreedFee,
-      buyerRequestedDelivery: true,
-      deliveryAddress: dto.address || (parcel as any).deliveryAddress,
-      status: ParcelStatus.ARRIVED_AT_HUB,
-      claimedAt: new Date(),
-    });
-
-    await this.addTrackingEvent(
-      parcel,
-      ParcelStatus.ARRIVED_AT_HUB,
-      (parcel as any).destinationCity || '',
-      `Mpokeaji ameomba delivery na ${agent.fullName} kwa TZS ${dto.agreedFee.toLocaleString()}`,
-      buyer.name || 'Mpokeaji',
-      {
-        phone: buyer.phone || undefined,
-        location: (parcel as any).destinationCity || undefined,
-        type: 'system',
-      },
-    );
+    if (!Number.isInteger(dto.agentId) || dto.agentId <= 0) {
+      throw new BadRequestException('Select a registered delivery agent');
+    }
+    const { agent, fee } = await this.chooseDestinationMethod(buyer, trackingNumber, dto.agentId, dto.address);
 
     // SMS 3: Chosen agent gets notified (essential)
-    if (agent.user?.phone) {
+    if (agent!.user?.phone) {
       await this.smsService
         .sendSms(
-          agent.user.phone,
-          `KenteXa: Habari ${agent.fullName}! Mpokeaji amekuomba ufanye delivery ya ` +
-            `kifurushi ${trackingNumber} kwa TZS ${dto.agreedFee.toLocaleString()}. ` +
+          agent!.user.phone,
+          `KenteXa: Habari ${agent!.fullName}! Mpokeaji amekuomba ufanye delivery ya ` +
+            `kifurushi ${trackingNumber} kwa TZS ${fee!.toLocaleString()}. ` +
             `Ingia dashibodini kupokea maelezo. ${FRONTEND_URL}`,
         )
         .catch(() => {});
     }
 
-    return { message: 'Ombi la delivery limetumwa kwa wakala', trackingNumber };
+    return { message: 'Ombi la delivery limetumwa kwa wakala', trackingNumber, agreedFee: fee };
   }
 
   // ── Buyer chooses self-pickup ─────────────────────────────────────────────
 
   async buyerSelfPickup(buyer: User, trackingNumber: string) {
-    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
-    if (!parcel) throw new NotFoundException('Parcel not found');
-
-    await this.parcelRepo.update((parcel as any).id, {
-      status: ParcelStatus.SELF_PICKUP,
-      buyerRequestedDelivery: false,
-      deliveredTime: new Date(),
-      buyerConfirmed: true,
-    });
-
-    await this.addTrackingEvent(
-      parcel,
-      ParcelStatus.SELF_PICKUP,
-      (parcel as any).destinationCity || '',
-      'Mpokeaji amechagua kuchukua mwenyewe',
-      buyer.name || 'Mpokeaji',
-      { type: 'system' },
-    );
+    await this.chooseDestinationMethod(buyer, trackingNumber);
 
     return {
-      message: 'Umesajili kwamba utachukua mwenyewe. Asante!',
+      message: 'Umechagua kuchukua mwenyewe; kifurushi kinasubiri kukabidhiwa kwenye hub.',
       trackingNumber,
     };
   }
