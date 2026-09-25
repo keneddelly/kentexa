@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import { isAppleMobile } from '../utils/isAppleMobile';
 
 /**
  * HubReceive — Super Agent uses this at Kariakoo hub to receive parcels
@@ -29,7 +30,7 @@ const HubReceive = ({ onNavigate }) => {
   const inputRef = useRef(null);
 
   useEffect(() => {
-    inputRef.current?.focus();
+    if (!isAppleMobile()) inputRef.current?.focus();
     fetchTodaySummary();
   }, []);
 

@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import WishlistHeart from '../components/WishlistHeart';
 import ReputationBadge from '../components/ReputationBadge';
 import { trackSearch } from '../hooks/useAnalytics';
+import { isAppleMobile } from '../utils/isAppleMobile';
 import api           from '../../api/api';
 
 const B  = '#2563EB';
@@ -497,7 +498,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       if (aiIntent) handleAiSearch(initialQuery, aiIntent);
       else handleSearch(initialQuery);
     }
-    inputRef.current?.focus();
+    if (!isAppleMobile()) inputRef.current?.focus();
   }, [initialQuery]); // eslint-disable-line
 
   // ── AI-routed search — one domain (or all, filtered) instead of three
