@@ -293,6 +293,11 @@ export class Order {
   @Column({ type: 'int', nullable: true })
   codBalanceCollectedByAgentId: number | null;
 
+  // Local Agent profile ID; the older codBalanceCollectedByAgentId is a
+  // Super Agent hub ID and must never be overloaded with another ID space.
+  @Column({ type: 'int', nullable: true })
+  codBalanceCollectedByLocalAgentId: number | null;
+
   @Column({ type: 'timestamp', nullable: true })
   codBalanceCollectedAt: Date | null;
 

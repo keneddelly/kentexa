@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { AgentsService } from './agents.service';
+import { AgentCodRemittanceService } from './agent-cod-remittance.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -23,7 +24,29 @@ import { AccountRoleType } from '../role-context/entities/account-role.entity';
 @Controller('agents')
 @UseGuards(JwtAuthGuard)
 export class AgentsController {
-  constructor(private service: AgentsService) {}
+  constructor(private service: AgentsService, private codRemittance: AgentCodRemittanceService) {}
+
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.ADMIN)
+  @Get('admin/cod-collections')
+  listCodCollections(@Query('agentId', ParseIntPipe) agentId: number) {
+    return this.codRemittance.listCollections(agentId);
+  }
+
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.ADMIN)
+  @Post('admin/cod-collections/:collectionId/remittance')
+  recordCodRemittance(
+    @Param('collectionId', ParseIntPipe) collectionId: number,
+    @Body() body: { amount: number; method: string; reference: string; operationKey: string },
+    @Request() req,
+  ) {
+    return this.codRemittance.record({
+      collectionId, amount: body?.amount, method: body?.method,
+      reference: body?.reference, operationKey: body?.operationKey,
+      adminUserId: req.user.id,
+    });
+  }
 
   // ── Agent: toggle online/offline ─────────────────────────────────────────
   // Operational action on an existing approved agent profile -- requires the

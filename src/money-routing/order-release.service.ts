@@ -13,7 +13,7 @@ const RELEASE_COMPANION_COLUMNS = new Set([
   'status', 'paymentStatus', 'buyerConfirmedAt', 'deliveredAt', 'completedAt', 'confirmationToken',
   'buyerRating', 'buyerReview', 'reviewedAt', 'superAgentRating', 'superAgentReview',
   'transportRating', 'transportReview', 'autoConfirmed', 'autoConfirmAt', 'disputeResolution',
-  'codBalanceCollected', 'codBalanceCollectedByAgentId', 'codBalanceCollectedAt',
+  'codBalanceCollected', 'codBalanceCollectedByAgentId', 'codBalanceCollectedByLocalAgentId', 'codBalanceCollectedAt',
 ]);
 
 export interface ReleaseOutcome {
@@ -80,6 +80,8 @@ export class OrderReleaseService {
      * other network side effects must run after commit.
      */
     completeInTransaction?: (manager: EntityManager) => Promise<void>;
+    /** Validate request authority under the Order lock before any seller routing. */
+    preflightInTransaction?: (manager: EntityManager) => Promise<void>;
   }): Promise<ReleaseOutcome> {
     const { orderId } = input;
     const companion = Object.entries(input.orderUpdate ?? {}).filter(([, v]) => v !== undefined);
@@ -112,6 +114,7 @@ export class OrderReleaseService {
       if (order.escrowStatus === 'refunded') {
         throw new ConflictException({ code: 'ORDER_ESCROW_NOT_RELEASABLE', message: 'ORDER_ESCROW_NOT_RELEASABLE', orderId });
       }
+      if (input.preflightInTransaction) await input.preflightInTransaction(m);
 
       // S0 backstop, preserved at the canonical choke point: a checkout order without sufficient
       // verified PaymentEvidence is refused here too — never resurrect by trusting the order's own
