@@ -223,6 +223,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [myParcels, setMyParcels]         = useState([]);
   const [handoffCodes, setHandoffCodes]   = useState({});
   const [deliveryCodes, setDeliveryCodes] = useState({});
+  const [codCollected, setCodCollected]     = useState({});
   const [workLoading, setWorkLoading]     = useState(false);
 
   // Stats
@@ -396,6 +397,25 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       fetchWork(profile);
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha makabidhiano');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleConfirmCodDelivery = async (trackingNumber) => {
+    const code = deliveryCodes[trackingNumber] || '';
+    const amount = codCollected[trackingNumber];
+    if (!/^\d{6}$/.test(code) || amount === undefined || amount === '' ||
+        !Number.isFinite(Number(amount)) || Number(amount) < 0) return;
+    try {
+      setActionLoading(true); setError('');
+      await api.post(`/super-agents/parcels/${trackingNumber}/confirm-recipient-cod-delivery`, {
+        code, codBalanceCollected: Number(amount),
+      });
+      setDeliveryCodes(prev => ({ ...prev, [trackingNumber]: '' }));
+      setCodCollected(prev => ({ ...prev, [trackingNumber]: '' }));
+      setSuccess('Mpokeaji amethibitisha kifurushi na salio la COD limeandikwa');
+      fetchWork(profile);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha COD na makabidhiano');
     } finally { setActionLoading(false); }
   };
 
@@ -930,7 +950,28 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           )}
                           {canDeliver && parcel.order?.paymentMethod === 'cod' && (
                             <div style={{ backgroundColor: '#fef3c7', padding: 10, borderRadius: 8, fontSize: 12 }}>
-                              Uthibitisho wa COD unasubiri mfumo wa malipo na makabidhiano ya fedha.
+                              <div style={{ marginBottom: 8 }}>Kusanya salio la COD na omba namba ya mpokeaji wakati wa makabidhiano.</div>
+                              <button onClick={() => handleIssueDeliveryCode(parcel.trackingNumber)} disabled={actionLoading}
+                                style={{ width: '100%', padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700 }}>
+                                Tuma namba kwa mpokeaji
+                              </button>
+                              <input value={deliveryCodes[parcel.trackingNumber] || ''}
+                                onChange={e => setDeliveryCodes(prev => ({ ...prev,
+                                  [parcel.trackingNumber]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                                inputMode="numeric" autoComplete="one-time-code" placeholder="Namba ya mpokeaji (tarakimu 6)"
+                                style={{ width: '100%', padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box' }} />
+                              <input value={codCollected[parcel.trackingNumber] || ''}
+                                onChange={e => setCodCollected(prev => ({ ...prev, [parcel.trackingNumber]: e.target.value }))}
+                                inputMode="decimal" type="number" min="0" step="0.01"
+                                placeholder={`Salio la COD: TZS ${Number(parcel.order?.codRemainingBalance || 0).toLocaleString()}`}
+                                style={{ width: '100%', padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box' }} />
+                              <button onClick={() => handleConfirmCodDelivery(parcel.trackingNumber)}
+                                disabled={actionLoading || (deliveryCodes[parcel.trackingNumber] || '').length !== 6 ||
+                                  codCollected[parcel.trackingNumber] === undefined || codCollected[parcel.trackingNumber] === ''}
+                                style={{ width: '100%', padding: 9, border: 'none', borderRadius: 8,
+                                  backgroundColor: '#166534', color: '#fff', fontWeight: 700 }}>
+                                Thibitisha COD na kupokelewa
+                              </button>
                             </div>
                           )}
                           {canDeliver && parcel.order?.paymentMethod !== 'cod' && (

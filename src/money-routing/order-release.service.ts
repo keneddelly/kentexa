@@ -13,7 +13,7 @@ const RELEASE_COMPANION_COLUMNS = new Set([
   'status', 'paymentStatus', 'buyerConfirmedAt', 'deliveredAt', 'completedAt', 'confirmationToken',
   'buyerRating', 'buyerReview', 'reviewedAt', 'superAgentRating', 'superAgentReview',
   'transportRating', 'transportReview', 'autoConfirmed', 'autoConfirmAt', 'disputeResolution',
-  'codBalanceCollected', 'codBalanceCollectedByAgentId', 'codBalanceCollectedAt',
+  'codBalanceCollected', 'codBalanceCollectedByAgentId', 'codBalanceCollectedByLocalAgentId', 'codBalanceCollectedAt',
 ]);
 
 export interface ReleaseOutcome {

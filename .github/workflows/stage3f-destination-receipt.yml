@@ -11,6 +11,7 @@ on:
       - 'src/money-routing/**'
       - 'src/orders/**'
       - 'src/invoices/**'
+      - 'src/database/migrations/1788280800000-AddAgentCodCollection.ts'
       - '.github/workflows/stage3f-destination-receipt.yml'
 
 permissions:
@@ -66,6 +67,7 @@ jobs:
       - run: npm test -- --runInBand super-agents/super-agents.cod-release-boundary.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.agent-handoff.real-postgres.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.agent-delivery.real-postgres.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.agent-cod.real-postgres.spec.ts
       - run: npm test -- --runInBand money-routing/order-release-handover.real-postgres.spec.ts
       - run: npm test -- --runInBand orders/orders.custody-sync.spec.ts
       - run: npm test -- --runInBand orders/orders.custody-completion.real-postgres.spec.ts

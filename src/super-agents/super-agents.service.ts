@@ -2505,13 +2505,16 @@ export class SuperAgentsService {
     throw new ConflictException('Use the recipient delivery confirmation flow');
   }
 
-  private async lockedAgentDeliveryParcel(manager: any, trackingNumber: string, user: User): Promise<Parcel> {
+  private async lockedAgentDeliveryParcel(
+    manager: any, trackingNumber: string, user: User,
+    allowCod = false, allowOrderCompletionInTransaction = false,
+  ): Promise<Parcel> {
     const [lookup] = await manager.query('SELECT id,"orderId" FROM public.parcel WHERE "trackingNumber"=$1', [trackingNumber]);
     if (!lookup) throw new NotFoundException('Parcel not found');
     if (lookup.orderId) await manager.query('SELECT id FROM public."order" WHERE id=$1 FOR UPDATE', [lookup.orderId]);
     await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [lookup.id]);
     const parcel: Parcel | null = await manager.getRepository(Parcel).findOne({
-      where: { id: lookup.id }, relations: { order: { buyer: true }, shipment: true },
+      where: { id: lookup.id }, relations: { order: { buyer: true, seller: true }, shipment: true },
     });
     if (!parcel || parcel.trackingNumber !== trackingNumber || parcel.localAgentId !== String(user.id) ||
         parcel.buyerRequestedDelivery !== true || parcel.status !== ParcelStatus.OUT_FOR_DELIVERY ||
@@ -2526,13 +2529,19 @@ export class SuperAgentsService {
       throw new ConflictException('Verified Agent custody is required');
     }
     // COD needs its own cash holder and seller-release transaction.
-    if (parcel.order?.paymentMethod === OrderPaymentMethod.COD) {
+    if (parcel.order?.paymentMethod === OrderPaymentMethod.COD && !allowCod) {
       throw new ConflictException('COD Agent delivery requires verified collection and settlement');
     }
-    if (parcel.order?.status === OrderStatus.DELIVERED || parcel.order?.status === OrderStatus.COMPLETED) {
+    if (!allowOrderCompletionInTransaction &&
+        (parcel.order?.status === OrderStatus.DELIVERED || parcel.order?.status === OrderStatus.COMPLETED)) {
       throw new ConflictException('Order is already terminal');
     }
-    await this.assertPickupPayment(parcel);
+    if (allowCod && (!parcel.order || parcel.order.paymentMethod !== OrderPaymentMethod.COD ||
+        (!allowOrderCompletionInTransaction &&
+          (parcel.order.codBalanceCollected || parcel.order.escrowStatus === 'released')))) {
+      throw new ConflictException('COD balance is already settled or unavailable');
+    }
+    await this.assertPickupPayment(parcel, allowCod);
     return parcel;
   }
 
@@ -2554,7 +2563,7 @@ export class SuperAgentsService {
     const salt = randomBytes(16).toString('hex');
     const now = new Date();
     const { id, hash, phone } = await this.dataSource.transaction(async manager => {
-      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user);
+      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, true);
       const phone = parcel.buyerPhone;
       if (!phone) throw new ConflictException('Recipient contact number is missing');
       const [prior] = await manager.query('SELECT "agentDeliveryCodeIssuedAt" FROM public.parcel WHERE id=$1', [parcel.id]);
@@ -2647,6 +2656,152 @@ export class SuperAgentsService {
     });
     if (result.invalid) throw new BadRequestException('Incorrect recipient delivery code');
     return { trackingNumber, message: 'Recipient delivery confirmed' };
+  }
+
+  /** Recipient proof and Agent-held COD cash are one durable delivery transaction. */
+  async confirmCodAgentDelivery(
+    user: User, trackingNumber: string, code: string, collectedAmount: number, roleContext: RoleContext,
+  ) {
+    if (!/^\d{6}$/.test(code || '')) throw new BadRequestException('Enter the six-digit recipient code');
+    if (!Number.isFinite(collectedAmount) || collectedAmount < 0) {
+      throw new BadRequestException('Enter the COD balance actually collected');
+    }
+    const agent = await this.deliveryAgent(user, roleContext);
+
+    const validate = async (manager: any, completing = false) => {
+      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, true, completing);
+      const [challenge] = await manager.query(`SELECT "agentDeliveryCodeHash", "agentDeliveryCodeExpiresAt",
+        "agentDeliveryAgentUserId", "agentDeliveryRecipientPhone", "agentDeliveryAttempts"
+        FROM public.parcel WHERE id=$1`, [parcel.id]);
+      if (!challenge?.agentDeliveryCodeHash || !challenge.agentDeliveryCodeExpiresAt ||
+          new Date(challenge.agentDeliveryCodeExpiresAt).getTime() <= Date.now() ||
+          challenge.agentDeliveryAttempts >= 5 || challenge.agentDeliveryAgentUserId !== user.id ||
+          !parcel.buyerPhone || challenge.agentDeliveryRecipientPhone !== parcel.buyerPhone) {
+        throw new ConflictException('Recipient delivery code is expired or unavailable');
+      }
+      const [salt, expected] = challenge.agentDeliveryCodeHash.split(':');
+      const valid = salt && expected?.length === 64 && timingSafeEqual(Buffer.from(expected, 'hex'),
+        scryptSync(`${code}:${parcel.id}:${user.id}:${parcel.buyerPhone}`, salt, 32));
+      if (!valid) return { invalid: true as const, parcel, challenge };
+      const expectedAmount = Number(parcel.order!.codRemainingBalance || 0);
+      if (!Number.isFinite(expectedAmount) ||
+          Math.round(expectedAmount * 100) !== Math.round(collectedAmount * 100)) {
+        throw new ConflictException(`Expected COD balance is TZS ${expectedAmount.toLocaleString()}`);
+      }
+      return { invalid: false as const, parcel, challenge, expectedAmount };
+    };
+
+    // Persist a wrong attempt independently; release failures roll back all
+    // financial and custody writes while leaving the recipient's code usable.
+    const preflight = await this.dataSource.transaction(async manager => {
+      const result = await validate(manager);
+      if (result.invalid) {
+        await manager.getRepository(Parcel).update(result.parcel.id, {
+          agentDeliveryAttempts: result.challenge.agentDeliveryAttempts + 1,
+        });
+      }
+      return result;
+    });
+    if (preflight.invalid) throw new BadRequestException('Incorrect recipient delivery code');
+    const order = preflight.parcel.order!;
+    const expectedAmount = preflight.expectedAmount!;
+    const handlingFee = Math.round(expectedAmount * COD_HANDLING_FEE_PERCENT) / 100;
+    const kentexaShare = Math.round(handlingFee * COD_HANDLING_FEE_KENTEXA_SHARE_PERCENT) / 100;
+    const agentShare = Math.round((handlingFee - kentexaShare) * 100) / 100;
+    const manual = order.source === OrderSource.SELLER_SHIPMENT;
+    const sellerNet = Math.round((Number(order.sellerAmount || 0) - handlingFee) * 100) / 100;
+    if (!manual && sellerNet < 0) throw new ConflictException('COD proceeds cannot cover the handling fee');
+    const cashLiability = manual ? kentexaShare : expectedAmount;
+    const now = new Date();
+    const companion = {
+      codBalanceCollected: true, codBalanceCollectedByLocalAgentId: agent.id,
+      codBalanceCollectedAt: now, paymentStatus: OrderPaymentStatus.PAID,
+      status: OrderStatus.DELIVERED, deliveredAt: now,
+    };
+
+    const complete = async (manager: any) => {
+      const result = await validate(manager, true);
+      const parcel = result.parcel;
+      if (result.invalid || !parcel.order || parcel.id !== preflight.parcel.id ||
+          parcel.order.id !== order.id || parcel.order.source !== order.source ||
+          parcel.order.paymentMethod !== order.paymentMethod ||
+          parcel.order.seller?.id !== order.seller?.id ||
+          parcel.order.workspaceId !== order.workspaceId ||
+          Number(parcel.order.totalAmount || 0) !== Number(order.totalAmount || 0) ||
+          Number(parcel.order.codUpfrontAmount || 0) !== Number(order.codUpfrontAmount || 0) ||
+          Number(parcel.order.codRemainingBalance || 0) !== expectedAmount ||
+          Number(parcel.order.sellerAmount || 0) !== Number(order.sellerAmount || 0)) {
+        throw new ConflictException('COD Agent handover changed; request a new code');
+      }
+      const custody = await manager.getRepository(ParcelCustodyEvent).insert({
+        parcelId: parcel.id, eventKind: 'recipient_agent_delivery',
+        operationKey: `recipient-agent-delivery:${user.id}`,
+        fromCustodianType: 'local_agent', fromCustodianId: user.id,
+        toCustodianType: 'recipient_contact', toCustodianId: null,
+        actorSource: 'account_role', actorUserId: user.id,
+        actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,
+        actorWorkspaceId: roleContext.workspaceId ?? null, actorProviderId: null,
+        hubId: null, assignmentId: null,
+        evidenceRef: `sms-challenge:${createHash('sha256').update(result.challenge.agentDeliveryCodeHash).digest('hex')}`,
+      });
+      const eventId = custody.identifiers[0]?.id;
+      if (!eventId) throw new ConflictException('Recipient custody event was not recorded');
+      await manager.query(`INSERT INTO public.agent_cod_collection
+        ("orderId","parcelId","custodyEventId","agentId","collectedAmount","cashLiability",
+         "handlingFee","kentexaShare","agentShare","orderSource")
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [order.id, parcel.id, eventId, agent.id, expectedAmount, cashLiability,
+          handlingFee, kentexaShare, agentShare, order.source]);
+      await manager.getRepository(Parcel).update(parcel.id, {
+        status: ParcelStatus.DELIVERED, deliveredTime: now, buyerConfirmed: true,
+        agentDeliveryCodeHash: null, agentDeliveryCodeExpiresAt: null,
+        agentDeliveryCodeIssuedAt: null, agentDeliveryAgentUserId: null,
+        agentDeliveryRecipientPhone: null, agentDeliveryAttempts: 0,
+      });
+      if (parcel.shipment?.id) await manager.getRepository(Shipment).update(parcel.shipment.id, {
+        status: ShipmentStatus.DELIVERED,
+      });
+      await manager.getRepository(ParcelTracking).insert({
+        parcel, status: ParcelStatus.DELIVERED, city: parcel.destinationCity,
+        note: 'Recipient code confirmed Agent COD delivery',
+        updatedBy: agent.fullName || user.name, handlerType: 'local_agent',
+      });
+      await manager.getRepository(Agent).increment({ id: agent.id }, 'totalDeliveriesCompleted', 1);
+      const deliveryCommission = Number(agent.deliveryCommission || 0);
+      if (Number.isFinite(deliveryCommission) && deliveryCommission > 0) {
+        await manager.getRepository(Agent).increment({ id: agent.id }, 'totalEarningsDeliveries', deliveryCommission);
+      }
+      if (agentShare > 0) {
+        await manager.getRepository(Agent).increment({ id: agent.id }, 'totalEarningsPayments', agentShare);
+      }
+      const totalEarned = (Number.isFinite(deliveryCommission) && deliveryCommission > 0
+        ? deliveryCommission : 0) + agentShare;
+      if (totalEarned > 0) await manager.getRepository(Agent).increment({ id: agent.id }, 'totalEarnings', totalEarned);
+      await this.invoicesService.recordCodBalanceCollected(order, Number(order.totalAmount || 0), manager);
+    };
+
+    if (manual) {
+      await this.dataSource.transaction(async manager => {
+        const [row] = await manager.query('SELECT "codBalanceCollected" FROM public."order" WHERE id=$1 FOR UPDATE', [order.id]);
+        if (!row || row.codBalanceCollected) throw new ConflictException('COD balance already collected');
+        await complete(manager);
+        await manager.getRepository(Order).update(order.id, companion);
+      });
+    } else {
+      await this.orderRelease.releaseSellerProceeds({
+        orderId: order.id, source: 'COD_DELIVERY', amount: sellerNet,
+        orderUpdate: companion,
+        preflightInTransaction: async manager => {
+          const result = await validate(manager);
+          if (result.invalid || result.parcel.id !== preflight.parcel.id ||
+              result.parcel.order?.id !== order.id) {
+            throw new ConflictException('COD Agent handover changed; request a new code');
+          }
+        },
+        completeInTransaction: complete,
+      });
+    }
+    return { trackingNumber, message: 'Agent COD recipient delivery confirmed' };
   }
 
   // ══════════════════════════════════════════════════════════════════════════
