@@ -13,12 +13,19 @@ export class SmsService {
   // so we only pass `from` when we have a real, configured value.
   private readonly shortCode: string | undefined;
   private readonly isDev: boolean;
+  private readonly outboundDisabled: boolean;
 
   constructor(private config: ConfigService) {
     const apiKey = config.get<string>('AT_API_KEY') || '';
     const username = config.get<string>('AT_USERNAME') || 'sandbox';
     this.shortCode = config.get<string>('AT_SHORTCODE') || undefined;
     this.isDev = config.get<string>('NODE_ENV') !== 'production';
+    this.outboundDisabled = config.get<string>('STAGE3KR_DISABLE_OUTBOUND_SMS') === 'true';
+
+    if (this.outboundDisabled) {
+      this.sms = null;
+      return;
+    }
 
     const at = AfricasTalking({ apiKey, username });
     this.sms = at.SMS;
@@ -40,6 +47,7 @@ export class SmsService {
 
   // ── Send SMS ──────────────────────────────────────────────────────────
   async sendSms(phone: string, message: string, sensitive = false): Promise<boolean> {
+    if (this.outboundDisabled) return false;
     const formatted = this.formatPhone(phone);
 
     // Keep credentials out of application logs in every environment.
