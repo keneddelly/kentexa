@@ -4953,6 +4953,13 @@ export class SuperAgentsService {
     const complete = async (manager: any) => {
       const parcel = await this.lockedPickupParcel(manager, snapshot, trackingNumber, hub, true);
       if (!parcel.order || parcel.order.id !== order.id ||
+          parcel.order.source !== order.source ||
+          parcel.order.paymentMethod !== order.paymentMethod ||
+          parcel.order.seller?.id !== order.seller?.id ||
+          parcel.order.workspaceId !== order.workspaceId ||
+          Number(parcel.order.totalAmount || 0) !== Number(order.totalAmount || 0) ||
+          (parcel.order.codUpfrontAmount !== order.codUpfrontAmount &&
+            Number(parcel.order.codUpfrontAmount) !== Number(order.codUpfrontAmount)) ||
           Number(parcel.order.codRemainingBalance || 0) !== expected ||
           Number(parcel.order.sellerAmount || 0) !== Number(order.sellerAmount || 0) ||
           !this.pickupCodeMatches(parcel, code)) {

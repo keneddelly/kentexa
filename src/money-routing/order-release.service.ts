@@ -76,7 +76,8 @@ export class OrderReleaseService {
      * Stage 3J: a physical COD handover may supply companion writes that must
      * commit with seller routing and release. Runs only after successful
      * routing, inside the same transaction. A throw rolls everything back.
-     * Do not use for outbound SMS, receipts, or other network side effects.
+     * Database receipt writes may join this transaction; outbound SMS and
+     * other network side effects must run after commit.
      */
     completeInTransaction?: (manager: EntityManager) => Promise<void>;
   }): Promise<ReleaseOutcome> {

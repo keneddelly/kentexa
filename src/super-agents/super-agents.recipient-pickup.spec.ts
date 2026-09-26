@@ -154,6 +154,21 @@ describe('recipient-held pickup code', () => {
     expect(writes).toEqual([]);
   });
 
+  it('rejects an order identity or amount change between preflight and release', async () => {
+    const order = { id: 12, status: OrderStatus.READY_PICKUP, paymentMethod: OrderPaymentMethod.COD,
+      source: OrderSource.ONLINE, sellerAmount: 6000, codRemainingBalance: 5000,
+      codBalanceCollected: false, escrowStatus: 'holding', totalAmount: 10000, codUpfrontAmount: 5000,
+      workspaceId: 4, seller: { id: 7 } };
+    const { service, parcel, writes, manager } = setup({ order });
+    service.orderRelease.releaseSellerProceeds.mockImplementationOnce(async (input: any) => {
+      parcel.order = { ...order, source: OrderSource.SELLER_SHIPMENT };
+      await input.completeInTransaction(manager);
+    });
+    await expect(service.confirmCodRecipientPickup(user, 'KTX-31', '123456', 5000, context))
+      .rejects.toThrow('COD handover changed');
+    expect(writes).toEqual([]);
+  });
+
   it('propagates receipt failure from the COD transaction instead of reporting a completed pickup', async () => {
     const order = { id: 12, status: OrderStatus.READY_PICKUP, paymentMethod: OrderPaymentMethod.COD,
       source: OrderSource.ONLINE, sellerAmount: 6000, codRemainingBalance: 5000,
