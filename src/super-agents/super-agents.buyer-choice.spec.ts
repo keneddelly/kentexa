@@ -32,7 +32,8 @@ describe('recipient destination choices', () => {
     const { service, update, tracking, manager } = setup();
     await service.buyerSelfPickup(buyer, 'KTX-31');
     expect(manager.query).toHaveBeenCalledWith('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [31]);
-    expect(update).toHaveBeenCalledWith(31, { buyerRequestedDelivery: false });
+    expect(update).toHaveBeenCalledWith(31, { buyerRequestedDelivery: false,
+      localAgentId: null, localAgentName: null, claimedAt: null });
     expect(tracking).toHaveBeenCalledWith(expect.objectContaining({ status: ParcelStatus.AWAITING_BUYER }));
   });
 
