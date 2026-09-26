@@ -1130,7 +1130,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             fetchDestinationHubs(parcel.destinationCity);
                           } },
                         { label: 'Sasisha', color: '#64748b',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); } },
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
                       ]} />
                     ))}
                   </>
@@ -1146,7 +1146,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {incoming.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: '✅ Pokea', color: '#7c3aed',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus('received_at_hub'); } },
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus('received_at_hub'); setPickupCode(''); setCodBalanceAmount(''); } },
                       ]} />
                     ))}
                   </>
@@ -1162,7 +1162,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {awaitingBuyer.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: 'Sasisha Hali', color: '#7c3aed',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); } },
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
                       ]} />
                     ))}
                   </>
@@ -2133,7 +2133,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {inTransit.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: 'Sasisha', color: '#64748b',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); } },
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
                          { label: confirmSending[p.orderId] ? '⏳...' : '📲 Thibitisha', // eslint-disable-line no-undef
                           color: '#16a34a',
                            fn: (parcel) => handleSendConfirmLink(parcel.orderId) }, // eslint-disable-line no-undef
@@ -2665,7 +2665,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
                 {actionLoading ? '⏳' : '💾 Hifadhi'}
               </button>
-              <button onClick={() => { setStatusParcel(null); setNewStatus(''); setStatusNote(''); setCodBalanceAmount(''); }}
+              <button onClick={() => { setStatusParcel(null); setNewStatus(''); setStatusNote(''); setPickupCode(''); setCodBalanceAmount(''); }}
                 style={{ flex: 1, background: '#fff', color: '#64748b',
                   border: '2px solid #e2e8f0', padding: 14, borderRadius: 10,
                   cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>

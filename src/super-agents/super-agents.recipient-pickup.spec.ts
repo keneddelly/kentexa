@@ -129,6 +129,20 @@ describe('recipient-held pickup code', () => {
     expect(writes).toEqual(['custody', 'parcel', 'order', 'shipment', 'agent-share', 'cash-held', 'tracking', 'release']);
   });
 
+  it('keeps seller-arranged COD pickup out of seller-proceeds routing', async () => {
+    const order = { id: 12, status: OrderStatus.READY_PICKUP, paymentMethod: OrderPaymentMethod.COD,
+      source: OrderSource.SELLER_SHIPMENT, sellerAmount: 0, codRemainingBalance: 5000,
+      codBalanceCollected: false, escrowStatus: 'holding', totalAmount: 10000 };
+    const { service, repos } = setup({ order });
+    await service.confirmCodRecipientPickup(user, 'KTX-31', '123456', 5000, context);
+    expect(service.orderRelease.releaseSellerProceeds).not.toHaveBeenCalled();
+    expect(repos.get(Order).update).toHaveBeenCalledWith(12,
+      expect.objectContaining({ codBalanceCollected: true, status: OrderStatus.DELIVERED }));
+    expect(repos.get(SuperAgent).increment).toHaveBeenCalledWith(
+      { id: 6 }, 'codCashHeld', expect.any(Number));
+    expect(service.invoicesService.recordCodBalanceCollected).toHaveBeenCalledWith(order, 10000, expect.anything());
+  });
+
   it('never writes custody or cash if the canonical COD release is blocked', async () => {
     const order = { id: 12, status: OrderStatus.READY_PICKUP, paymentMethod: OrderPaymentMethod.COD,
       source: OrderSource.ONLINE, sellerAmount: 6000, codRemainingBalance: 5000,
