@@ -1,0 +1,56 @@
+name: Stage 3K-R Schema-First PostgreSQL Gate
+
+on:
+  pull_request:
+    branches:
+      - worktree-service-provider-profiles
+    paths:
+      - 'src/database/migrations/1788279600000-AddParcelAgentHandoffChallenge.ts'
+      - 'src/database/migrations/1788280200000-AddParcelAgentDeliveryChallenge.ts'
+      - 'src/database/migrations/1788280800000-AddAgentCodCollection.ts'
+      - 'src/database/migrations/1788281400000-AddAgentCodRemittance.ts'
+      - 'src/database/migrations/stage3kr-schema-only.real-postgres.spec.ts'
+      - '.github/workflows/stage3kr-schema-first.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      B5B_TEST_DB_HOST: localhost
+      B5B_TEST_DB_PORT: 5432
+      B5B_TEST_DB_PASSWORD: stage3kr_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Create isolated PostgreSQL database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE kentexa_b5b_test_user LOGIN PASSWORD 'stage3kr_ci_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+          CREATE DATABASE kentexa_b5b_test OWNER kentexa_b5b_test_user;
+          SQL
+      - run: npm test -- --runInBand database/migrations/stage3kr-schema-only.real-postgres.spec.ts
+      - run: npx tsc --noEmit --project tsconfig.build.json
