@@ -212,6 +212,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [walkRoute, setWalkRoute]       = useState(null);
   const [walkDestLocation, setWalkDestLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [walkPriceEstimate, setWalkPriceEstimate] = useState(null);
+  const [walkHubs, setWalkHubs] = useState([]);
+  const [walkHubsLoading, setWalkHubsLoading] = useState(false);
+  const [walkDestinationHubId, setWalkDestinationHubId] = useState('');
   const [confirmSending, setConfirmSending]     = useState({});
   const [walkRouteLoading, setWalkRouteLoading] = useState(false);
   const [walkResult, setWalkResult]     = useState(null);
@@ -517,10 +520,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     if (!walkForm.declaredValue || Number(walkForm.declaredValue) <= 0) {
       setError('Weka thamani ya mzigo (lazima iwe zaidi ya sifuri)'); return;
     }
+    if (walkHubs.length > 1 && !walkDestinationHubId) {
+      setError('Chagua hub ya mpokeaji'); return;
+    }
     try {
       setActionLoading(true); setError('');
       const res = await api.post('/super-agents/offline-intercity', {
         ...walkForm,
+        destinationSuperAgentId: walkDestinationHubId ? Number(walkDestinationHubId) : undefined,
         originCity: profile?.city,
         weightKg:   walkForm.weightKg ? Number(walkForm.weightKg) : undefined,
         declaredValue: Number(walkForm.declaredValue),
@@ -541,6 +548,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       destinationCity: '', deliveryAddress: '', description: '',
       weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
     setWalkRoute(null); setWalkResult(null);
+    setWalkHubs([]); setWalkDestinationHubId('');
     setPokeaMode('list'); fetchAll();
   };
 
@@ -1239,6 +1247,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         value={walkDestLocation}
                         onChange={async loc => {
                           setWalkDestLocation(loc);
+                          setWalkDestinationHubId(''); setWalkHubs([]);
                           // Region, not district — Super Agents register
                           // `city` against the fixed TANZANIA_CITIES region
                           // list (see super-agent.entity.ts); a district
@@ -1248,6 +1257,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           // hub existed for the region.
                           const cityStr = loc.regionName || loc.districtName || '';
                           setWalkForm(p => ({ ...p, destinationCity: cityStr }));
+                          if (cityStr) {
+                            setWalkHubsLoading(true);
+                            try {
+                              const hubs = await api.get(`/super-agents/hubs/${encodeURIComponent(cityStr)}`);
+                              setWalkHubs(hubs.data || []);
+                              if (hubs.data?.length === 1) setWalkDestinationHubId(String(hubs.data[0].id));
+                            } catch { setWalkHubs([]); }
+                            finally { setWalkHubsLoading(false); }
+                          }
                           lookupWalkRoute(cityStr);
                           // Fetch price estimate
                           if (cityStr && profile?.city) {
@@ -1267,6 +1285,18 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         required
                       />
                     </div>
+                    {walkHubsLoading && <div>Inatafuta hub za mpokeaji...</div>}
+                    {walkHubs.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ display: 'block', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                          Hub ya mpokeaji {walkHubs.length > 1 ? '*' : ''}
+                        </label>
+                        <select value={walkDestinationHubId} onChange={e => setWalkDestinationHubId(e.target.value)} style={inp}>
+                          <option value="">{walkHubs.length > 1 ? 'Chagua hub' : 'Hub pekee itachaguliwa'}</option>
+                          {walkHubs.map(hub => <option key={hub.id} value={hub.id}>{hub.businessName} · {hub.city}</option>)}
+                        </select>
+                      </div>
+                    )}
 
                     {/* Route info */}
                     {/* Live price estimate */}

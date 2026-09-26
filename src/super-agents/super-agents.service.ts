@@ -514,6 +514,7 @@ export class SuperAgentsService {
       recipientName: string;
       recipientPhone: string;
       destinationCity: string;
+      destinationSuperAgentId?: number;
       deliveryAddress: string;
       // Parcel details
       description: string; // what's inside — "nguo", "vifaa vya ujenzi" etc
@@ -620,11 +621,23 @@ export class SuperAgentsService {
     // "earned," 90% short of what was actually in their hand).
     const agentEarnings = Number(dto.shippingFeeCollected) || 0;
 
-    // 3. Find destination Super Agent and look up route for transit city.
-    // Case-insensitive — same reasoning as findAllActiveByCity().
-    const destAgent = await this.superAgentRepo.findOne({
+    // A city can contain multiple hubs. Never assign a walk-in parcel to an
+    // arbitrary first match; the selected hub must still be active and in
+    // the resolved destination city at the moment this transaction writes.
+    const destinationHubs = await manager.getRepository(SuperAgent).find({
       where: { city: ILike(destinationCity), status: SuperAgentStatus.ACTIVE },
+      order: { id: 'ASC' },
     });
+    const requestedHubId = dto.destinationSuperAgentId == null ? null : Number(dto.destinationSuperAgentId);
+    if (requestedHubId !== null && (!Number.isSafeInteger(requestedHubId) || requestedHubId <= 0))
+      throw new BadRequestException('Invalid destination hub');
+    if (destinationHubs.length > 1 && requestedHubId === null)
+      throw new BadRequestException('Choose a destination hub for this city');
+    const destAgent = requestedHubId === null
+      ? destinationHubs[0] || null
+      : destinationHubs.find(hub => hub.id === requestedHubId);
+    if (requestedHubId !== null && !destAgent)
+      throw new BadRequestException('Destination hub is not active in the selected city');
 
     // Check if route has a transit city (e.g. Dar→Mbinga via Songea)
     const route = await this.routeRepo.findOne({
