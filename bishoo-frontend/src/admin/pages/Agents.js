@@ -29,6 +29,13 @@ const Agents = ({ onNavigate }) => {
   const [rejectReason, setRejectReason]   = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showEditModal, setShowEditModal]     = useState(false);
+  const [codCollections, setCodCollections]   = useState([]);
+  const [codLoading, setCodLoading]           = useState(false);
+  const [remitCollection, setRemitCollection] = useState(null);
+  const [remitAmount, setRemitAmount]         = useState('');
+  const [remitMethod, setRemitMethod]         = useState('cash');
+  const [remitReference, setRemitReference]   = useState('');
+  const [remitKey, setRemitKey]               = useState(null);
   const [editForm, setEditForm] = useState({
     commissionRate: '', deliveryCommission: '',
     collectionFeeUrban: '', collectionFeeRural: '',
@@ -36,6 +43,41 @@ const Agents = ({ onNavigate }) => {
   });
 
   useEffect(() => { fetchAgents(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setCodCollections([]); setRemitCollection(null); setRemitAmount(''); setRemitReference(''); setRemitKey(null);
+    if (!selected?.id) return;
+    let active = true;
+    setCodLoading(true);
+    api.get('/agents/admin/cod-collections', { params: { agentId: selected.id } })
+      .then(res => { if (active) setCodCollections(res.data || []); })
+      .catch(() => { if (active) setError('Imeshindwa kupakia salio la COD la wakala'); })
+      .finally(() => { if (active) setCodLoading(false); });
+    return () => { active = false; };
+  }, [selected?.id]);
+
+  const handleCodRemittance = async () => {
+    if (!remitCollection || !remitReference.trim()) return;
+    const amount = Number(remitAmount);
+    if (!Number.isFinite(amount) || amount <= 0 || amount > Number(remitCollection.remainingAmount)) {
+      setError('Kiasi cha malipo kinazidi salio au si sahihi'); return;
+    }
+    if (!window.confirm(`Thibitisha TZS ${amount.toLocaleString()} imepokelewa kutoka kwa ${selected.fullName}?`)) return;
+    const key = remitKey || window.crypto.randomUUID();
+    setRemitKey(key);
+    try {
+      setActionLoading(true); setError(''); setMessage('');
+      await api.post(`/agents/admin/cod-collections/${remitCollection.id}/remittance`, {
+        amount, method: remitMethod, reference: remitReference.trim(), operationKey: key,
+      });
+      const res = await api.get('/agents/admin/cod-collections', { params: { agentId: selected.id } });
+      setCodCollections(res.data || []);
+      setRemitCollection(null); setRemitAmount(''); setRemitReference(''); setRemitKey(null);
+      setMessage('Malipo ya COD yameandikwa kwenye kumbukumbu ya wakala.');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kuhifadhi malipo ya COD; jaribu tena bila kubadili maelezo');
+    } finally { setActionLoading(false); }
+  };
 
   const fetchAgents = async () => {
     try {
@@ -356,6 +398,45 @@ const Agents = ({ onNavigate }) => {
                       <span style={{ fontWeight: 700, color: '#1d4ed8' }}>{v}</span>
                     </div>
                   ))}
+                </div>
+
+                <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 12, marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>💵 COD iliyopo kwa wakala</div>
+                  {codLoading ? <div style={{ fontSize: 11 }}>Inapakia...</div> :
+                    codCollections.filter(c => Number(c.remainingAmount) > 0).length === 0 ?
+                      <div style={{ fontSize: 11 }}>Hakuna salio la COD.</div> :
+                      codCollections.filter(c => Number(c.remainingAmount) > 0).map(c => (
+                        <button key={c.id} onClick={() => {
+                          setRemitCollection(c); setRemitAmount(''); setRemitReference(''); setRemitKey(null);
+                        }} style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 7,
+                          padding: 8, borderRadius: 7, border: '1px solid #fcd34d', background: '#fff', cursor: 'pointer' }}>
+                          <strong>#{c.orderId}</strong> · {c.trackingNumber}<br />
+                          Deni: TZS {Number(c.remainingAmount).toLocaleString()} /
+                          {' '}{Number(c.cashLiability).toLocaleString()}
+                        </button>
+                      ))}
+                  {remitCollection && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 11, marginBottom: 6 }}>Andika malipo ambayo tayari umethibitisha kupokea.</div>
+                      <input type="number" min="0.01" step="0.01" placeholder="Kiasi kilichopokelewa (TZS)"
+                        value={remitAmount} onChange={e => { setRemitAmount(e.target.value); setRemitKey(null); }}
+                        style={{ ...inputStyle, marginBottom: 7 }} />
+                      <select value={remitMethod} onChange={e => { setRemitMethod(e.target.value); setRemitKey(null); }}
+                        style={{ ...inputStyle, marginBottom: 7 }}>
+                        <option value="cash">Fedha taslimu</option>
+                        <option value="bank_transfer">Benki</option>
+                        <option value="mobile_money">Simu</option>
+                      </select>
+                      <input value={remitReference} placeholder="Namba ya risiti au muamala"
+                        onChange={e => { setRemitReference(e.target.value); setRemitKey(null); }}
+                        style={{ ...inputStyle, marginBottom: 7 }} />
+                      <button onClick={handleCodRemittance} disabled={actionLoading || !remitReference.trim() || !remitAmount}
+                        style={{ width: '100%', background: '#92400e', color: '#fff', border: 0, borderRadius: 8,
+                          padding: 9, fontWeight: 700, cursor: 'pointer' }}>
+                        {actionLoading ? 'Inahifadhi...' : 'Thibitisha kupokea COD'}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}
