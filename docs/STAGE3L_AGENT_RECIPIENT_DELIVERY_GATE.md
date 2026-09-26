@@ -1,0 +1,11 @@
+# Stage 3L — recipient proof for local Agent delivery (draft)
+
+This is a dependent candidate on Stage 3K draft PR #38 (`a05ec5fa`). Neither branch is in production. Stage 3L does not authorize a migration or deploy.
+
+The legacy Agent delivery-status endpoint could set `DELIVERED` and `buyerConfirmed` without recipient evidence, outside a transaction. It now rejects every request. For non-COD last-mile Parcels, an approved selected Agent with an active Agent role and latest `destination_agent_received` custody can request a one-use code sent to the Parcel recipient phone. The code is never returned to the Agent. At physical handover the recipient gives the code to the Agent. Confirmation locks Order then Parcel, rechecks Agent assignment, custody, status, payment evidence, code hash, phone binding, expiry and attempts. One transaction inserts immutable `recipient_agent_delivery` custody, marks Parcel/Order/Shipment delivered, clears the challenge, writes tracking and increments Agent informational delivery earnings. Wrong attempts persist. Replays and concurrent confirmations cannot commit twice. A failed write rolls back the entire transition.
+
+The additive migration `1788280200000` does not backfill historical Parcels. It adds nullable challenge state with an all-or-none constraint and refuses DOWN while a challenge is pending. The code expires after ten minutes, has a one-minute issue throttle and five attempts. SMS failure conditionally clears the challenge if no newer challenge has replaced it.
+
+COD Agent delivery remains blocked. Its future gate must assign the Agent as cash holder and atomically settle the exact COD balance with canonical seller release, invoice receipt, custody, Order, Parcel and Shipment. The direct `agent-orders` delivery route is a separate domain path and is not changed here.
+
+Gate: backend typecheck, frontend build, focused unit tests and isolated PostgreSQL rollback/concurrency/migration proof on the exact PR head. Review active Agent role ownership, payment evidence, recipient phone access, order release semantics and the UI on an actual phone before schema-first production rollout. Never deploy behavior before Stage 3K and this migration are applied and verified. No historical custody backfill.
