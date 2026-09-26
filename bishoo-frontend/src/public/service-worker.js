@@ -4,19 +4,14 @@
  *
  * Provides:
  * - Offline fallback page
- * - Cache-first for static assets
- * - Network-first for API calls
- * - Background sync for failed requests
+ * - Cache-first for published static assets only
+ * - Network-only for APIs, documents, and authenticated requests
  */
 
 const CACHE_NAME    = 'kentexa-v1';
-const API_CACHE     = 'kentexa-api-v1';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
-  '/',
-  '/static/js/bundle.js',
-  '/static/css/main.css',
   '/offline.html',
 ];
 
@@ -36,7 +31,7 @@ self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys.filter(k => k !== CACHE_NAME && k !== API_CACHE)
+        keys.filter(k => k !== CACHE_NAME)
             .map(k => caches.delete(k))
       )
     )
@@ -53,48 +48,36 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET') return;
   if (url.protocol === 'chrome-extension:') return;
 
-  // A bearer response belongs to one server-side role session. Never place it
-  // in a shared service-worker cache where another context could replay it.
+  // The API lives on another origin in staging and production. Let the
+  // browser handle it directly; never cache a transactional response as a
+  // static asset merely because its hostname differs from api.kentexa.com.
+  if (url.origin !== self.location.origin) return;
+
+  // Authenticated and transactional responses must never enter a shared cache.
   if (request.headers.has('authorization')) {
     event.respondWith(fetch(request));
     return;
   }
 
-  // API requests: network-first, cache as fallback
+  // Same-origin API requests, if any, are network-only.
   if (url.hostname.includes('api.kentexa.com') || url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then(response => {
-          // Cache successful GET API responses briefly
-          if (response.ok && url.pathname.includes('/products')) {
-            const clone = response.clone();
-            caches.open(API_CACHE).then(cache => cache.put(request, clone));
-          }
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
+    event.respondWith(fetch(request));
     return;
   }
 
-  // Static assets: cache-first
+  const isStatic = url.pathname.startsWith('/static/') || url.pathname.startsWith('/icons/');
+  if (!isStatic) return;
+  if (!['script', 'style', 'image', 'font'].includes(request.destination)) return;
+
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;
       return fetch(request).then(response => {
-        if (response.ok) {
+        if (response.ok && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
         }
         return response;
-      }).catch(() => {
-        // Offline fallback for navigation requests
-        if (request.mode === 'navigate') {
-          return caches.match('/') || new Response(
-            '<html><body style="font-family:sans-serif;text-align:center;padding:40px"><h2>📦 KenteXa</h2><p>Hakuna mtandao sasa hivi. Tafadhali angalia muunganisho wako.</p></body></html>',
-            { headers: { 'Content-Type': 'text/html' } }
-          );
-        }
       });
     })
   );
