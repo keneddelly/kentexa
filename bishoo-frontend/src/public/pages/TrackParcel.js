@@ -98,11 +98,18 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
         return;
       }
 
-      // 2. KTX-ORD-xxx → order ID
+      // 2. KTX-ORD-xxx may be a Parcel's canonical tracking number.
+      // Prefer that exact Parcel, while preserving the older order lookup
+      // for orders which have no Parcel yet.
       const orderMatch = val.match(/^KTX-ORD-(\d+)$/);
       if (orderMatch) {
-        const res = await api.get(`/super-agents/track-order/${orderMatch[1]}`);
-        setResult({ ...res.data, _source: 'order' });
+        try {
+          const res = await api.get(`/super-agents/track/${val}`);
+          setResult({ ...res.data, _source: 'superagent' });
+        } catch {
+          const res = await api.get(`/super-agents/track-order/${orderMatch[1]}`);
+          setResult({ ...res.data, _source: 'order' });
+        }
         return;
       }
 
