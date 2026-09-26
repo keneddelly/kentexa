@@ -37,6 +37,8 @@ services:
         value: "false"
       - key: STAGE3KR_DISABLE_OUTBOUND_SMS
         value: "true"
+      - key: STAGE3KR_DISABLE_UPLOADS
+        value: "true"
       - key: STAGE3KR_FRONTEND_ORIGIN
         value: https://stage3kr.kentexa.com
       - key: FRONTEND_URL

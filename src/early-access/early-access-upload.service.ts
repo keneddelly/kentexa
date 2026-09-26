@@ -14,7 +14,11 @@ import { v2 as cloudinary } from 'cloudinary';
 // silently uploading through a fallback account.
 @Injectable()
 export class EarlyAccessUploadService {
+  private readonly disabled: boolean;
+
   constructor(private config: ConfigService) {
+    this.disabled = this.config.get<string>('STAGE3KR_DISABLE_UPLOADS') === 'true';
+    if (this.disabled) return;
     const cloud_name = this.config.get<string>('CLOUDINARY_CLOUD_NAME');
     const api_key = this.config.get<string>('CLOUDINARY_API_KEY');
     const api_secret = this.config.get<string>('CLOUDINARY_API_SECRET');
@@ -27,6 +31,9 @@ export class EarlyAccessUploadService {
   }
 
   async uploadFiles(files: Express.Multer.File[]): Promise<string[]> {
+    if (this.disabled) {
+      throw new InternalServerErrorException('Uploads are disabled in isolated staging');
+    }
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
     }
