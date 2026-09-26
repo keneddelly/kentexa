@@ -379,6 +379,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [newStatus, setNewStatus]       = useState('');
   const [statusNote, setStatusNote]     = useState('');
   const [pickupCode, setPickupCode] = useState('');
+  const [agentHandoffChallenge, setAgentHandoffChallenge] = useState(null);
   const [codBalanceAmount, setCodBalanceAmount] = useState('');
 
   // ── Apply form ────────────────────────────────────────────────────────────
@@ -788,6 +789,17 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setSuccess('Namba ya kuthibitisha imetumwa kwa simu ya mpokeaji');
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kutuma namba');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleIssueAgentHandoff = async () => {
+    if (!statusParcel) return;
+    try {
+      setActionLoading(true); setError(''); setAgentHandoffChallenge(null);
+      const { data } = await api.post(`/super-agents/parcels/${statusParcel.trackingNumber}/agent-handoff-code`);
+      setAgentHandoffChallenge({ trackingNumber: statusParcel.trackingNumber, code: data.code });
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kuandaa makabidhiano ya wakala');
     } finally { setActionLoading(false); }
   };
 
@@ -2594,6 +2606,28 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
                 </div>
               )}
+            {statusParcel.buyerRequestedDelivery === true && statusParcel.localAgentId &&
+              ['arrived_at_hub', 'awaiting_buyer'].includes(statusParcel.status) &&
+              statusParcel.myRole !== 'origin' && (
+                <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, backgroundColor: '#eff6ff' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                    Kabidhi kifurushi kwa wakala aliyechaguliwa
+                  </div>
+                  <button onClick={handleIssueAgentHandoff} disabled={actionLoading}
+                    style={{ width: '100%', padding: 12, border: 'none', borderRadius: 8,
+                      backgroundColor: '#2563eb', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
+                    Toa namba ya makabidhiano
+                  </button>
+                  {agentHandoffChallenge?.trackingNumber === statusParcel.trackingNumber && (
+                    <div style={{ marginTop: 10, fontSize: 13 }}>
+                      Mwonyeshe wakala namba hii akiwa hapa. Inaisha baada ya dakika 10.
+                      <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 6 }}>
+                        {agentHandoffChallenge.code}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             <select value={newStatus} onChange={e => {
                 setNewStatus(e.target.value);
                 if (e.target.value === 'delivered' && statusParcel.order?.paymentMethod === 'cod' && !statusParcel.order?.codBalanceCollected) {
@@ -2636,8 +2670,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   ...(statusParcel.myRole !== 'origin' && !preDispatch ? [
                     ['arrived_at_hub',   '🏢 Imefika Hubuni'],
                     ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
-                    ['out_for_delivery', '🏍️ Inafikishwa'],
-                    ['delivered',        '✅ Imefikishwa'],
+                    ...(!statusParcel.localAgentId ? [
+                      ['out_for_delivery', '🏍️ Inafikishwa'],
+                      ['delivered',        '✅ Imefikishwa'],
+                    ] : []),
                   ] : []),
                 ].map(([v, l]) => <option key={v} value={v}>{l}</option>);
               })()}
