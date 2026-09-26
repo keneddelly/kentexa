@@ -71,7 +71,7 @@ const config = getB5BTestConnectionConfig();
   function service(failure?: 'tracking' | 'receipt' | 'blocked'): any {
     const instance: any = Object.create(SuperAgentsService.prototype);
     instance.superAgentRepo = { findOne: async () => hub };
-    instance.parcelRepo = { findOne: async () => ({ id: 31, order: { id: 12 } }) };
+    instance.parcelRepo = { findOne: async () => ({ id: 31, order: { id: 12, paymentMethod: OrderPaymentMethod.COD } }) };
     instance.paymentEvidence = { check: async () => ({ applicable: false, sufficient: true }) };
     const withProxy = (manager: any) => {
       const proxy: any = Object.create(manager);
