@@ -1560,6 +1560,17 @@ export class OrdersService {
     }
   }
 
+  private async assertConfirmationTokenCurrent(orderId: number, token: string, manager: EntityManager): Promise<void> {
+    // OrderReleaseService already holds this Order row lock. Its companion
+    // update clears the token, so validation must run before seller routing.
+    const [row] = await manager.query(`SELECT "confirmationToken","confirmationTokenExpiry",status
+      FROM public."order" WHERE id=$1`, [orderId]);
+    if (!row || row.confirmationToken !== token || row.status === OrderStatus.COMPLETED ||
+        (row.confirmationTokenExpiry && new Date(row.confirmationTokenExpiry).getTime() <= Date.now())) {
+      throw new ConflictException('Order confirmation link changed or expired');
+    }
+  }
+
   async buyerConfirm(orderId: number, buyer: User) {
     const order = await this.repo.findOne({
       where: { id: orderId },
@@ -2206,6 +2217,7 @@ export class OrdersService {
         // I2G: release escrow for online orders ONLY through the canonical operation (atomic with routing).
         await this.orderRelease.releaseSellerProceeds({ orderId: order.id, source: 'ESCROW_RELEASE',
           orderUpdate: confirmationFields,
+          preflightInTransaction: manager => this.assertConfirmationTokenCurrent(order.id, token, manager),
           completeInTransaction: manager => this.assertLinkedParcelCustodyAllowsOrderCompletion(order, manager),
         });
       } else {

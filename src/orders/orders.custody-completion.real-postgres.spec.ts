@@ -13,6 +13,7 @@ import { Order } from './entities/order.entity';
 
   beforeAll(async () => {
     h = await setupReleaseHarness();
+    await h.q('ALTER TABLE public."order" ADD COLUMN "confirmationTokenExpiry" timestamp');
     await h.q(`CREATE TABLE public.parcel (id serial PRIMARY KEY, "trackingNumber" varchar UNIQUE,
       "orderId" integer REFERENCES public."order"(id), status varchar NOT NULL,
       "buyerRequestedDelivery" boolean)`);
@@ -70,5 +71,23 @@ import { Order } from './entities/order.entity';
     const legacy = await create('Legacy', 'in_transit', null);
     await release(legacy);
     expect((await h.orderRow(legacy.id)).escrowStatus).toBe('released');
+  });
+
+  it('refuses a stale public token before routing seller proceeds', async () => {
+    const o = await create('Token', 'in_transit', null);
+    await h.q(`UPDATE public."order" SET "confirmationToken"='current-token',
+      "confirmationTokenExpiry"=now()+interval '1 hour' WHERE id=$1`, [o.id]);
+    await expect(h.release.releaseSellerProceeds({ orderId: o.id, source: 'ESCROW_RELEASE',
+      preflightInTransaction: manager => service.assertConfirmationTokenCurrent(o.id, 'stale-token', manager),
+      completeInTransaction: manager => service.assertLinkedParcelCustodyAllowsOrderCompletion(
+        { id: o.id, trackingNumber: o.tracking } as Order, manager),
+    })).rejects.toThrow('changed or expired');
+    expect(await h.ledgerRows(o.id)).toHaveLength(0);
+    await h.release.releaseSellerProceeds({ orderId: o.id, source: 'ESCROW_RELEASE',
+      preflightInTransaction: manager => service.assertConfirmationTokenCurrent(o.id, 'current-token', manager),
+      completeInTransaction: manager => service.assertLinkedParcelCustodyAllowsOrderCompletion(
+        { id: o.id, trackingNumber: o.tracking } as Order, manager),
+    });
+    expect(await h.ledgerRows(o.id)).toHaveLength(1);
   });
 });
