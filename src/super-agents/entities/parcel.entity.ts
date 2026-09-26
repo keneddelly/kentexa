@@ -326,6 +326,24 @@ export class Parcel {
   @Column({ type: 'int', default: 0, select: false })
   pickupCodeAttempts: number;
 
+  @Column({ type: 'varchar', length: 128, nullable: true, select: false })
+  agentDeliveryCodeHash: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  agentDeliveryCodeExpiresAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  agentDeliveryCodeIssuedAt: Date | null;
+
+  @Column({ type: 'int', nullable: true, select: false })
+  agentDeliveryAgentUserId: number | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true, select: false })
+  agentDeliveryRecipientPhone: string | null;
+
+  @Column({ type: 'int', default: 0, select: false })
+  agentDeliveryAttempts: number;
+
   @Column({ type: 'boolean', default: false })
   buyerConfirmed: boolean;
 

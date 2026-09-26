@@ -222,6 +222,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [myOrders, setMyOrders]           = useState([]);
   const [myParcels, setMyParcels]         = useState([]);
   const [handoffCodes, setHandoffCodes]   = useState({});
+  const [deliveryCodes, setDeliveryCodes] = useState({});
   const [workLoading, setWorkLoading]     = useState(false);
 
   // Stats
@@ -374,15 +375,27 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   };
 
   // ── Hub parcel actions ────────────────────────────────────────────────────
-  const handleParcelStatus = async (trackingNumber, status) => {
+  const handleIssueDeliveryCode = async (trackingNumber) => {
     try {
       setActionLoading(true); setError('');
-      await api.patch(`/super-agents/parcels/${trackingNumber}/delivery-status`, { status });
-      setSuccess(t('agent_dashboard.status_update_success', { status }));
-      setSelectedItem(null); setNote('');
+      await api.post(`/super-agents/parcels/${trackingNumber}/recipient-delivery-code`);
+      setSuccess('Namba ya kuthibitisha imepelekwa kwa mpokeaji');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kutuma namba kwa mpokeaji');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleConfirmDelivery = async (trackingNumber) => {
+    const code = deliveryCodes[trackingNumber] || '';
+    if (!/^\d{6}$/.test(code)) return;
+    try {
+      setActionLoading(true); setError('');
+      await api.post(`/super-agents/parcels/${trackingNumber}/confirm-recipient-delivery`, { code });
+      setDeliveryCodes(prev => ({ ...prev, [trackingNumber]: '' }));
+      setSuccess('Mpokeaji amethibitisha kupokea kifurushi');
       fetchWork(profile);
     } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.status_update_error'));
+      setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha makabidhiano');
     } finally { setActionLoading(false); }
   };
 
@@ -772,7 +785,6 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       {t('agent_dashboard.section_d_title')}
                     </div>
                     {myParcels.map(parcel => {
-                      const isSelected = selectedItem?.type === 'parcel' && selectedItem?.id === parcel.trackingNumber;
                       const canMarkOut   = ['arrived_at_hub', 'awaiting_buyer'].includes(parcel.status) &&
                         parcel.buyerRequestedDelivery === true;
                       const canDeliver   = parcel.status === 'out_for_delivery';
@@ -916,14 +928,29 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               </button>
                             </div>
                           )}
-                          {canDeliver && !isSelected && (
-                            <button onClick={() => { setSelectedItem({ type: 'parcel', id: parcel.trackingNumber }); setNote(''); }}
-                              style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#22c55e)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                              {t('agent_dashboard.delivered_to_customer_button')}
-                            </button>
+                          {canDeliver && parcel.order?.paymentMethod === 'cod' && (
+                            <div style={{ backgroundColor: '#fef3c7', padding: 10, borderRadius: 8, fontSize: 12 }}>
+                              Uthibitisho wa COD unasubiri mfumo wa malipo na makabidhiano ya fedha.
+                            </div>
                           )}
-                          {canDeliver && isSelected && (
-                            <ActionNote onConfirm={() => handleParcelStatus(parcel.trackingNumber, 'delivered')} label={t('agent_dashboard.note_label_delivered')} loading={actionLoading} />
+                          {canDeliver && parcel.order?.paymentMethod !== 'cod' && (
+                            <div style={{ backgroundColor: '#f0fdf4', padding: 10, borderRadius: 8 }}>
+                              <div style={{ fontSize: 12, marginBottom: 8 }}>Mpokeaji akupe namba yake wakati unapomkabidhi kifurushi.</div>
+                              <button onClick={() => handleIssueDeliveryCode(parcel.trackingNumber)} disabled={actionLoading}
+                                style={{ width: '100%', padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700 }}>
+                                Tuma namba kwa mpokeaji
+                              </button>
+                              <input value={deliveryCodes[parcel.trackingNumber] || ''}
+                                onChange={e => setDeliveryCodes(prev => ({ ...prev,
+                                  [parcel.trackingNumber]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                                inputMode="numeric" autoComplete="one-time-code" placeholder="Namba ya mpokeaji (tarakimu 6)"
+                                style={{ width: '100%', padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box' }} />
+                              <button onClick={() => handleConfirmDelivery(parcel.trackingNumber)}
+                                disabled={actionLoading || (deliveryCodes[parcel.trackingNumber] || '').length !== 6}
+                                style={{ width: '100%', padding: 9, border: 'none', borderRadius: 8, backgroundColor: '#166534', color: '#fff', fontWeight: 700 }}>
+                                Thibitisha kupokelewa
+                              </button>
+                            </div>
                           )}
                         </div>
                       );
