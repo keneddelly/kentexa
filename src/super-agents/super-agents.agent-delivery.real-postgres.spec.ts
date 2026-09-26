@@ -30,7 +30,8 @@ const config = getB5BTestConnectionConfig();
     await db.initialize();
     await db.query(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "trackingNumber" varchar,
       status varchar NOT NULL, "orderId" integer, "buyerRequestedDelivery" boolean,
-      "localAgentId" varchar, "buyerPhone" varchar, "destinationCity" varchar, "buyerConfirmed" boolean DEFAULT false)`);
+      "localAgentId" varchar, "buyerPhone" varchar, "destinationCity" varchar,
+      "deliveredTime" timestamp, "buyerConfirmed" boolean DEFAULT false)`);
     await db.query(`CREATE TABLE public.parcel_tracking (id serial PRIMARY KEY,
       "parcelId" integer, status varchar NOT NULL)`);
     await db.query(`CREATE TABLE public.agent (id integer PRIMARY KEY,

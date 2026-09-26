@@ -2529,6 +2529,9 @@ export class SuperAgentsService {
     if (parcel.order?.paymentMethod === OrderPaymentMethod.COD) {
       throw new ConflictException('COD Agent delivery requires verified collection and settlement');
     }
+    if (parcel.order?.status === OrderStatus.DELIVERED || parcel.order?.status === OrderStatus.COMPLETED) {
+      throw new ConflictException('Order is already terminal');
+    }
     await this.assertPickupPayment(parcel);
     return parcel;
   }
