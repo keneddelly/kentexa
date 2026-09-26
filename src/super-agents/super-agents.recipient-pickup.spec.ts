@@ -186,6 +186,26 @@ describe('recipient-held pickup code', () => {
     }, context)).rejects.toThrow('Recipient choice or verified hub pickup');
   });
 
+  it('rejects a stale hub status sheet after recipient pickup wins the row lock', async () => {
+    const { service, parcel, manager, writes } = setup();
+    service.resolveActingSuperAgent = jest.fn(async () => ({ id: 6, city: 'Mwanza', businessName: 'Mwanza Hub' }));
+    service.parcelRepo.findOne = jest.fn(async () => ({ ...parcel }));
+    service.dataSource.transaction = jest.fn(async (fn: any) => {
+      parcel.status = ParcelStatus.SELF_PICKUP;
+      return fn(manager);
+    });
+    await expect(service.updateParcelStatus(user, 'KTX-31', {
+      status: ParcelStatus.AWAITING_BUYER, city: 'Mwanza',
+    }, context)).rejects.toThrow('Parcel handover changed');
+    expect(writes).toEqual([]);
+  });
+
+  it('rejects hub pickup after a local agent has claimed delivery', async () => {
+    const { service } = setup({ localAgentId: '5' });
+    await expect(service.confirmRecipientPickup(user, 'KTX-31', '123456', context))
+      .rejects.toThrow('awaiting recipient pickup');
+  });
+
   it('sends the code only to the parcel recipient phone', async () => {
     const { service } = setup({ pickupCodeIssuedAt: null });
     const result = await service.issueRecipientPickupCode(user, 'KTX-31', context);

@@ -1266,7 +1266,6 @@ export class SuperAgentsService {
     });
     if (!parcel)
       throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
-
     const tracking = await this.trackingRepo.find({
       where: { parcel: { id: parcel.id } },
       order: { createdAt: 'DESC' },
@@ -3183,6 +3182,10 @@ export class SuperAgentsService {
     if (!parcel)
       throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
 
+    if (parcel.status === ParcelStatus.SELF_PICKUP) {
+      throw new ConflictException('Recipient handover is already complete');
+    }
+
     if ([ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status) &&
         parcel.buyerRequestedDelivery !== true &&
         [ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status)) {
@@ -3509,8 +3512,36 @@ export class SuperAgentsService {
       });
     }
 
-    if (dto.status !== ParcelStatus.RECEIVED_AT_HUB && dto.status !== ParcelStatus.ARRIVED_AT_HUB) {
-      await this.parcelRepo.update(parcel.id, updates);
+    let trackingSavedInTransaction = dto.status === ParcelStatus.RECEIVED_AT_HUB ||
+      dto.status === ParcelStatus.ARRIVED_AT_HUB;
+    if (!trackingSavedInTransaction) {
+      if (parcel.buyerRequestedDelivery !== true &&
+          [ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status)) {
+        // A receiving hub's old status sheet must not overwrite a recipient
+        // handover (or append newer but stale tracking) after the code-gated
+        // transaction consumes the Parcel. Keep status and tracking together.
+        await this.dataSource.transaction(async manager => {
+          await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
+          const current = await manager.getRepository(Parcel).findOne({ where: { id: parcel.id } });
+          if (!current || current.status !== parcel.status ||
+              ([ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status) &&
+               current.buyerRequestedDelivery !== true)) {
+            throw new ConflictException('Parcel handover changed; refresh its status');
+          }
+          await manager.getRepository(Parcel).update(parcel.id, updates);
+          await manager.getRepository(ParcelTracking).insert({
+            parcel, status: dto.status, city: dto.city,
+            note: dto.note || this.statusLabel(dto.status, dto.city),
+            updatedBy: handlerAgent?.businessName || user.name || 'Super Agent',
+            handlerPhone: handlerAgent?.phone || user.phone || null,
+            handlerLocation: handlerAgent?.address || dto.city,
+            handlerType: 'super_agent',
+          });
+        });
+        trackingSavedInTransaction = true;
+      } else {
+        await this.parcelRepo.update(parcel.id, updates);
+      }
     }
 
     // Add tracking history event
@@ -3525,7 +3556,7 @@ export class SuperAgentsService {
         location: handlerAgent?.address || dto.city,
         type: 'super_agent',
       },
-      dto.status === ParcelStatus.RECEIVED_AT_HUB || dto.status === ParcelStatus.ARRIVED_AT_HUB,
+      trackingSavedInTransaction,
     );
 
     // ── SMS to buyer/recipient on key status changes ──────────────────────
@@ -4768,7 +4799,7 @@ export class SuperAgentsService {
     });
     if (!parcel || parcel.order?.id !== snapshot.order?.id || parcel.trackingNumber !== trackingNumber ||
         ![ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status) ||
-        parcel.buyerRequestedDelivery === true) {
+        parcel.buyerRequestedDelivery === true || parcel.localAgentId != null) {
       throw new ConflictException('Parcel is not awaiting recipient pickup');
     }
     if (parcel.destinationSuperAgent?.id !== hub.id) {

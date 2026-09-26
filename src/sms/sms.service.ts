@@ -70,7 +70,9 @@ export class SmsService {
       );
       return false;
     } catch (err) {
-      this.logger.error(`❌ SMS error: ${err.message}`);
+      this.logger.error(sensitive
+        ? `❌ Sensitive SMS send failed for ${formatted}`
+        : `❌ SMS error: ${err.message}`);
       // In dev mode don't fail the whole request if SMS fails
       if (this.isDev && !sensitive) return true;
       return false;
