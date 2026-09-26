@@ -4972,10 +4972,18 @@ export class SuperAgentsService {
   // ── Buyer requests last-mile delivery ────────────────────────────────────
 
   private assertParcelRecipient(parcel: Parcel, buyer: User): void {
-    if (!buyer.phone && parcel.order?.buyer?.id !== buyer.id) {
-      throw new ForbiddenException('Only the parcel recipient can choose delivery');
-    }
-    if (parcel.buyerPhone !== buyer.phone && parcel.order?.buyer?.id !== buyer.id) {
+    // Profile updates canonicalize Tanzanian numbers to +255, while older
+    // counter receipts retain the locally entered 0-prefix. Accept those
+    // two representations of the same number without a suffix-only match.
+    const normalize = (value?: string | null) => {
+      const digits = (value || '').replace(/[\s()-]/g, '');
+      if (/^0[67]\d{8}$/.test(digits)) return `+255${digits.slice(1)}`;
+      if (/^255[67]\d{8}$/.test(digits)) return `+${digits}`;
+      return digits;
+    };
+    const samePhone = !!buyer.phone && !!parcel.buyerPhone &&
+      normalize(parcel.buyerPhone) === normalize(buyer.phone);
+    if (!samePhone && parcel.order?.buyer?.id !== buyer.id) {
       throw new ForbiddenException('Only the parcel recipient can choose delivery');
     }
   }
