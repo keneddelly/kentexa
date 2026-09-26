@@ -6,6 +6,7 @@ on:
       - worktree-service-provider-profiles
     paths:
       - 'src/super-agents/**'
+      - 'src/agent-orders/**'
       - 'src/transport/**'
       - 'src/money-routing/**'
       - 'src/orders/**'
@@ -68,4 +69,5 @@ jobs:
       - run: npm test -- --runInBand money-routing/order-release-handover.real-postgres.spec.ts
       - run: npm test -- --runInBand orders/orders.custody-sync.spec.ts
       - run: npm test -- --runInBand orders/orders.custody-completion.real-postgres.spec.ts
+      - run: npm test -- --runInBand agent-orders/agent-orders.delivery-boundary.real-postgres.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json
