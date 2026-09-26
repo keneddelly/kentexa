@@ -307,6 +307,26 @@ export class SuperAgentsController {
     return this.service.claimParcel(req.user, tn);
   }
 
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Post('parcels/:trackingNumber/agent-handoff-code')
+  issueAgentHandoffCode(
+    @Request() req, @Param('trackingNumber') tn: string,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.issueAgentHandoffCode(req.user, tn, roleContext);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  @Post('parcels/:trackingNumber/confirm-agent-handoff')
+  confirmAgentHandoff(
+    @Request() req, @Param('trackingNumber') tn: string,
+    @Body() body: { code: string }, @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.confirmAgentHandoff(req.user, tn, body?.code, roleContext);
+  }
+
   // Mark out-for-delivery / delivered (only my claimed parcels)
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.AGENT)

@@ -222,6 +222,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [myOrders, setMyOrders]           = useState([]);
   const [hubParcels, setHubParcels]       = useState([]);
   const [myParcels, setMyParcels]         = useState([]);
+  const [handoffCodes, setHandoffCodes]   = useState({});
   const [workLoading, setWorkLoading]     = useState(false);
 
   // Stats
@@ -398,6 +399,20 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       fetchWork(profile);
     } catch (err) {
       setError(err?.response?.data?.message || t('agent_dashboard.status_update_error'));
+    } finally { setActionLoading(false); }
+  };
+
+  const handleConfirmHubHandoff = async (trackingNumber) => {
+    const code = handoffCodes[trackingNumber] || '';
+    if (!/^\d{6}$/.test(code)) return;
+    try {
+      setActionLoading(true); setError('');
+      await api.post(`/super-agents/parcels/${trackingNumber}/confirm-agent-handoff`, { code });
+      setHandoffCodes(prev => ({ ...prev, [trackingNumber]: '' }));
+      setSuccess('✅ Kifurushi kimepokelewa kutoka hub');
+      fetchWork(profile);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha makabidhiano');
     } finally { setActionLoading(false); }
   };
 
@@ -814,7 +829,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
                     {myParcels.map(parcel => {
                       const isSelected = selectedItem?.type === 'parcel' && selectedItem?.id === parcel.trackingNumber;
-                      const canMarkOut   = parcel.status === 'arrived_at_hub';
+                      const canMarkOut   = ['arrived_at_hub', 'awaiting_buyer'].includes(parcel.status) &&
+                        parcel.buyerRequestedDelivery === true;
                       const canDeliver   = parcel.status === 'out_for_delivery';
                       const canUpdateTransport = parcel.status === 'collected_by_agent';
                       const tForm = transportForms[parcel.trackingNumber] || {};
@@ -938,14 +954,23 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             </div>
                           )}
 
-                          {canMarkOut && !isSelected && (
-                            <button onClick={() => { setSelectedItem({ type: 'parcel', id: parcel.trackingNumber }); setNote(''); }}
-                              style={{ width: '100%', background: 'linear-gradient(135deg,#2563EB,#7C3AED)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                              {t('agent_dashboard.start_delivery_button')}
-                            </button>
-                          )}
-                          {canMarkOut && isSelected && (
-                            <ActionNote onConfirm={() => handleParcelStatus(parcel.trackingNumber, 'out_for_delivery')} label={t('agent_dashboard.note_label_started')} loading={actionLoading} />
+                          {canMarkOut && (
+                            <div style={{ backgroundColor: '#eff6ff', padding: 10, borderRadius: 8 }}>
+                              <div style={{ fontSize: 12, marginBottom: 6 }}>
+                                Pokea kifurushi hubuni; ingiza namba uliyopewa na mhudumu.
+                              </div>
+                              <input value={handoffCodes[parcel.trackingNumber] || ''}
+                                onChange={e => setHandoffCodes(prev => ({ ...prev,
+                                  [parcel.trackingNumber]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                                inputMode="numeric" autoComplete="one-time-code" placeholder="Namba ya tarakimu 6"
+                                style={{ width: '100%', padding: 10, marginBottom: 8, borderRadius: 8 }} />
+                              <button onClick={() => handleConfirmHubHandoff(parcel.trackingNumber)}
+                                disabled={actionLoading || (handoffCodes[parcel.trackingNumber] || '').length !== 6}
+                                style={{ width: '100%', padding: 10, border: 'none', borderRadius: 8,
+                                  color: '#fff', backgroundColor: '#2563eb', fontWeight: 800 }}>
+                                Thibitisha nimepokea kutoka hub
+                              </button>
+                            </div>
                           )}
                           {canDeliver && !isSelected && (
                             <button onClick={() => { setSelectedItem({ type: 'parcel', id: parcel.trackingNumber }); setNote(''); }}
