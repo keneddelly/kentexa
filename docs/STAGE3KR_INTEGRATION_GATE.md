@@ -8,4 +8,6 @@ The combined candidate provides verified destination-hub-to-Agent handoff, non-C
 
 Run the exact integration commit through backend PostgreSQL workflows, focused tests, backend build and frontend build. Review the combined diff for role authority, transaction rollback, retry, recipient SMS and cash accounting. Before enabling real Agent COD use, exercise the hub, Agent, recipient and admin flows on phones with test transactions, including wrong/expired code, repeated confirmation, offline/retry, role switch and cash remittance receipt. Check legacy no-Parcel Order behavior and existing hub pickup. Keep all eight stacked PRs in draft until this combined gate is clean.
 
+The Agent dashboard must load assigned Parcels even when its profile has no city and the separate direct-order service fails. A focused rendered frontend test covers this failure isolation. The new operational code and remittance controls use readable phone text and touch targets; an actual phone rehearsal is still required.
+
 No automatic historical custody or COD backfill is permitted. Do not merge this candidate solely because CI passes; real-device and operational cash-handling validation remain separate release gates.

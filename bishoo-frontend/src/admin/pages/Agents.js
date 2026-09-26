@@ -401,15 +401,15 @@ const Agents = ({ onNavigate }) => {
                 </div>
 
                 <div style={{ backgroundColor: '#fffbeb', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>💵 COD iliyopo kwa wakala</div>
-                  {codLoading ? <div style={{ fontSize: 11 }}>Inapakia...</div> :
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>💵 COD iliyopo kwa wakala</div>
+                  {codLoading ? <div style={{ fontSize: 16 }}>Inapakia...</div> :
                     codCollections.filter(c => Number(c.remainingAmount) > 0).length === 0 ?
-                      <div style={{ fontSize: 11 }}>Hakuna salio la COD.</div> :
+                      <div style={{ fontSize: 16 }}>Hakuna salio la COD.</div> :
                       codCollections.filter(c => Number(c.remainingAmount) > 0).map(c => (
                         <button key={c.id} onClick={() => {
                           setRemitCollection(c); setRemitAmount(''); setRemitReference(''); setRemitKey(null);
                         }} style={{ display: 'block', width: '100%', textAlign: 'left', marginBottom: 7,
-                          padding: 8, borderRadius: 7, border: '1px solid #fcd34d', background: '#fff', cursor: 'pointer' }}>
+                          padding: 12, minHeight: 44, fontSize: 16, borderRadius: 7, border: '1px solid #fcd34d', background: '#fff', cursor: 'pointer' }}>
                           <strong>#{c.orderId}</strong> · {c.trackingNumber}<br />
                           Deni: TZS {Number(c.remainingAmount).toLocaleString()} /
                           {' '}{Number(c.cashLiability).toLocaleString()}
@@ -417,22 +417,22 @@ const Agents = ({ onNavigate }) => {
                       ))}
                   {remitCollection && (
                     <div style={{ marginTop: 10 }}>
-                      <div style={{ fontSize: 11, marginBottom: 6 }}>Andika malipo ambayo tayari umethibitisha kupokea.</div>
+                      <div style={{ fontSize: 16, marginBottom: 8 }}>Andika malipo ambayo tayari umethibitisha kupokea.</div>
                       <input type="number" min="0.01" step="0.01" placeholder="Kiasi kilichopokelewa (TZS)"
                         value={remitAmount} onChange={e => { setRemitAmount(e.target.value); setRemitKey(null); }}
-                        style={{ ...inputStyle, marginBottom: 7 }} />
+                        style={{ ...inputStyle, minHeight: 44, fontSize: 16, marginBottom: 7 }} />
                       <select value={remitMethod} onChange={e => { setRemitMethod(e.target.value); setRemitKey(null); }}
-                        style={{ ...inputStyle, marginBottom: 7 }}>
+                        style={{ ...inputStyle, minHeight: 44, fontSize: 16, marginBottom: 7 }}>
                         <option value="cash">Fedha taslimu</option>
                         <option value="bank_transfer">Benki</option>
                         <option value="mobile_money">Simu</option>
                       </select>
                       <input value={remitReference} placeholder="Namba ya risiti au muamala"
                         onChange={e => { setRemitReference(e.target.value); setRemitKey(null); }}
-                        style={{ ...inputStyle, marginBottom: 7 }} />
+                        style={{ ...inputStyle, minHeight: 44, fontSize: 16, marginBottom: 7 }} />
                       <button onClick={handleCodRemittance} disabled={actionLoading || !remitReference.trim() || !remitAmount}
-                        style={{ width: '100%', background: '#92400e', color: '#fff', border: 0, borderRadius: 8,
-                          padding: 9, fontWeight: 700, cursor: 'pointer' }}>
+                        style={{ width: '100%', minHeight: 44, background: '#92400e', color: '#fff', border: 0, borderRadius: 8,
+                          padding: 9, fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
                         {actionLoading ? 'Inahifadhi...' : 'Thibitisha kupokea COD'}
                       </button>
                     </div>

@@ -300,23 +300,24 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     }
   };
 
-  const fetchWork = async (agentProfile) => {
+  const fetchWork = async () => {
     try {
       setWorkLoading(true);
-      const city = agentProfile?.city || agentProfile?.district || agentProfile?.region;
-
-      const [availRes, myRes, statsRes] = await Promise.all([
+      // Assigned Parcels are keyed to the active Agent on the server. A
+      // missing profile city or an unrelated direct-order error must not
+      // hide a physical handoff that this Agent needs to acknowledge.
+      const [availRes, myRes, statsRes, parcelRes] = await Promise.allSettled([
         api.get('/agent-orders/available'),
         api.get('/agent-orders/my-orders'),
         api.get('/agent-orders/stats'),
+        api.get('/super-agents/my-deliveries'),
       ]);
-      setDirectOrders(availRes.data || []);
-      setMyOrders(myRes.data || []);
-      setStats(statsRes.data);
-
-      if (city) {
-        const mineRes = await api.get('/super-agents/my-deliveries');
-        setMyParcels(mineRes.data || []);
+      setDirectOrders(availRes.status === 'fulfilled' ? availRes.value.data || [] : []);
+      setMyOrders(myRes.status === 'fulfilled' ? myRes.value.data || [] : []);
+      if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
+      setMyParcels(parcelRes.status === 'fulfilled' ? parcelRes.value.data || [] : []);
+      if (parcelRes.status === 'rejected') {
+        setError('Imeshindwa kupakia vifurushi ulivyokabidhiwa; jaribu tena');
       }
       // Fetch collection jobs
       try {
@@ -932,63 +933,64 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
                           {canMarkOut && (
                             <div style={{ backgroundColor: '#eff6ff', padding: 10, borderRadius: 8 }}>
-                              <div style={{ fontSize: 12, marginBottom: 6 }}>
+                              <div style={{ fontSize: 16, marginBottom: 8 }}>
                                 Pokea kifurushi hubuni; ingiza namba uliyopewa na mhudumu.
                               </div>
                               <input value={handoffCodes[parcel.trackingNumber] || ''}
                                 onChange={e => setHandoffCodes(prev => ({ ...prev,
                                   [parcel.trackingNumber]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
                                 inputMode="numeric" autoComplete="one-time-code" placeholder="Namba ya tarakimu 6"
-                                style={{ width: '100%', padding: 10, marginBottom: 8, borderRadius: 8 }} />
+                                style={{ width: '100%', minHeight: 44, padding: 10, marginBottom: 8, borderRadius: 8,
+                                  boxSizing: 'border-box', fontSize: 16 }} />
                               <button onClick={() => handleConfirmHubHandoff(parcel.trackingNumber)}
                                 disabled={actionLoading || (handoffCodes[parcel.trackingNumber] || '').length !== 6}
-                                style={{ width: '100%', padding: 10, border: 'none', borderRadius: 8,
-                                  color: '#fff', backgroundColor: '#2563eb', fontWeight: 800 }}>
+                                style={{ width: '100%', minHeight: 44, padding: 10, border: 'none', borderRadius: 8,
+                                  color: '#fff', backgroundColor: '#2563eb', fontWeight: 800, fontSize: 16 }}>
                                 Thibitisha nimepokea kutoka hub
                               </button>
                             </div>
                           )}
                           {canDeliver && parcel.order?.paymentMethod === 'cod' && (
-                            <div style={{ backgroundColor: '#fef3c7', padding: 10, borderRadius: 8, fontSize: 12 }}>
+                            <div style={{ backgroundColor: '#fef3c7', padding: 10, borderRadius: 8, fontSize: 16 }}>
                               <div style={{ marginBottom: 8 }}>Kusanya salio la COD na omba namba ya mpokeaji wakati wa makabidhiano.</div>
                               <button onClick={() => handleIssueDeliveryCode(parcel.trackingNumber)} disabled={actionLoading}
-                                style={{ width: '100%', padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700 }}>
+                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700, fontSize: 16 }}>
                                 Tuma namba kwa mpokeaji
                               </button>
                               <input value={deliveryCodes[parcel.trackingNumber] || ''}
                                 onChange={e => setDeliveryCodes(prev => ({ ...prev,
                                   [parcel.trackingNumber]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
                                 inputMode="numeric" autoComplete="one-time-code" placeholder="Namba ya mpokeaji (tarakimu 6)"
-                                style={{ width: '100%', padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box' }} />
+                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box', fontSize: 16 }} />
                               <input value={codCollected[parcel.trackingNumber] || ''}
                                 onChange={e => setCodCollected(prev => ({ ...prev, [parcel.trackingNumber]: e.target.value }))}
                                 inputMode="decimal" type="number" min="0" step="0.01"
                                 placeholder={`Salio la COD: TZS ${Number(parcel.order?.codRemainingBalance || 0).toLocaleString()}`}
-                                style={{ width: '100%', padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box' }} />
+                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box', fontSize: 16 }} />
                               <button onClick={() => handleConfirmCodDelivery(parcel.trackingNumber)}
                                 disabled={actionLoading || (deliveryCodes[parcel.trackingNumber] || '').length !== 6 ||
                                   codCollected[parcel.trackingNumber] === undefined || codCollected[parcel.trackingNumber] === ''}
-                                style={{ width: '100%', padding: 9, border: 'none', borderRadius: 8,
-                                  backgroundColor: '#166534', color: '#fff', fontWeight: 700 }}>
+                                style={{ width: '100%', minHeight: 44, padding: 9, border: 'none', borderRadius: 8,
+                                  backgroundColor: '#166534', color: '#fff', fontWeight: 700, fontSize: 16 }}>
                                 Thibitisha COD na kupokelewa
                               </button>
                             </div>
                           )}
                           {canDeliver && parcel.order?.paymentMethod !== 'cod' && (
                             <div style={{ backgroundColor: '#f0fdf4', padding: 10, borderRadius: 8 }}>
-                              <div style={{ fontSize: 12, marginBottom: 8 }}>Mpokeaji akupe namba yake wakati unapomkabidhi kifurushi.</div>
+                              <div style={{ fontSize: 16, marginBottom: 8 }}>Mpokeaji akupe namba yake wakati unapomkabidhi kifurushi.</div>
                               <button onClick={() => handleIssueDeliveryCode(parcel.trackingNumber)} disabled={actionLoading}
-                                style={{ width: '100%', padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700 }}>
+                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, border: 'none', borderRadius: 8, backgroundColor: '#15803d', color: '#fff', fontWeight: 700, fontSize: 16 }}>
                                 Tuma namba kwa mpokeaji
                               </button>
                               <input value={deliveryCodes[parcel.trackingNumber] || ''}
                                 onChange={e => setDeliveryCodes(prev => ({ ...prev,
                                   [parcel.trackingNumber]: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
                                 inputMode="numeric" autoComplete="one-time-code" placeholder="Namba ya mpokeaji (tarakimu 6)"
-                                style={{ width: '100%', padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box' }} />
+                                style={{ width: '100%', minHeight: 44, padding: 9, marginBottom: 8, borderRadius: 8, boxSizing: 'border-box', fontSize: 16 }} />
                               <button onClick={() => handleConfirmDelivery(parcel.trackingNumber)}
                                 disabled={actionLoading || (deliveryCodes[parcel.trackingNumber] || '').length !== 6}
-                                style={{ width: '100%', padding: 9, border: 'none', borderRadius: 8, backgroundColor: '#166534', color: '#fff', fontWeight: 700 }}>
+                                style={{ width: '100%', minHeight: 44, padding: 9, border: 'none', borderRadius: 8, backgroundColor: '#166534', color: '#fff', fontWeight: 700, fontSize: 16 }}>
                                 Thibitisha kupokelewa
                               </button>
                             </div>
