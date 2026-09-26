@@ -5,9 +5,10 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, EntityManager } from 'typeorm';
 import {
   Order,
   OrderStatus,
@@ -1530,6 +1531,35 @@ export class OrdersService {
   }
 
   // ── Buyer: Confirm receipt ────────────────────────────────────────────────
+  /** Order completion cannot assert recipient custody while a verified hub/Agent still holds the Parcel. */
+  private async assertLinkedParcelCustodyAllowsOrderCompletion(order: Order, manager: EntityManager): Promise<void> {
+    if (!order.trackingNumber) return;
+    // OrderReleaseService already locks Order before this callback. Manual
+    // token confirmation takes the same lock before calling here.
+    const [row] = await manager.query(`SELECT id,status,"orderId","buyerRequestedDelivery" FROM public.parcel
+      WHERE "trackingNumber"=$1 FOR UPDATE`, [order.trackingNumber]);
+    if (!row) return;
+    if (row.orderId !== order.id) {
+      throw new ConflictException('Tracking number does not belong to this Order');
+    }
+    const [latest] = await manager.query(`SELECT "eventKind","toCustodianType" FROM public.parcel_custody_event
+      WHERE "parcelId"=$1 ORDER BY "recordedAt" DESC,id DESC LIMIT 1`, [row.id]);
+    if (!latest) {
+      // A recipient-selected last-mile job cannot be completed merely by
+      // confirming the Order while the Agent has not yet recorded custody.
+      if (row.buyerRequestedDelivery === true || [ParcelStatus.ARRIVED_AT_HUB,
+          ParcelStatus.AWAITING_BUYER, ParcelStatus.OUT_FOR_DELIVERY].includes(row.status)) {
+        throw new ConflictException('Physical recipient handover is not verified');
+      }
+      return; // Other historical Parcels without custody evidence keep the legacy buyer flow.
+    }
+    if (latest.toCustodianType !== 'recipient_contact' ||
+        !['recipient_self_pickup', 'recipient_agent_delivery'].includes(latest.eventKind) ||
+        ![ParcelStatus.SELF_PICKUP, ParcelStatus.DELIVERED].includes(row.status)) {
+      throw new ConflictException('Physical recipient handover is not verified');
+    }
+  }
+
   async buyerConfirm(orderId: number, buyer: User) {
     const order = await this.repo.findOne({
       where: { id: orderId },
@@ -1554,6 +1584,7 @@ export class OrdersService {
     await this.orderRelease.releaseSellerProceeds({
       orderId,
       source: 'ESCROW_RELEASE',
+      completeInTransaction: manager => this.assertLinkedParcelCustodyAllowsOrderCompletion(order, manager),
       orderUpdate: {
         status: OrderStatus.COMPLETED,
         buyerConfirmedAt: new Date(),
@@ -1695,23 +1726,31 @@ export class OrdersService {
       const parcel = await this.parcelRepo.findOne({
         where: { trackingNumber: order.trackingNumber },
       });
-      if (!parcel || parcel.status === ParcelStatus.DELIVERED) return;
-
-      await this.parcelRepo.update(parcel.id, {
-        status: ParcelStatus.DELIVERED,
-        deliveredTime: new Date(),
-        buyerConfirmed: true,
-      });
-
-      await this.parcelTrackingRepo.save(
-        this.parcelTrackingRepo.create({
-          parcel,
-          status: ParcelStatus.DELIVERED,
-          city: parcel.destinationCity,
-          note: 'Buyer confirmed receipt on order page',
+      if (!parcel) return;
+      const transitioned = await this.repo.manager.transaction(async manager => {
+        await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
+        const current = await manager.getRepository(Parcel).findOne({ where: { id: parcel.id } });
+        if (!current || current.status === ParcelStatus.DELIVERED ||
+            current.status === ParcelStatus.SELF_PICKUP || current.order?.id !== order.id) return false;
+        const latest = await manager.getRepository(ParcelCustodyEvent).findOne({
+          where: { parcelId: current.id }, order: { recordedAt: 'DESC', id: 'DESC' },
+        });
+        // Physical custody is owned by the hub/Agent handover, never by this
+        // best-effort Order projection. Serialize with its Parcel row lock.
+        if (latest || current.buyerRequestedDelivery === true ||
+            [ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER,
+              ParcelStatus.OUT_FOR_DELIVERY].includes(current.status)) return false;
+        await manager.getRepository(Parcel).update(current.id, {
+          status: ParcelStatus.DELIVERED, deliveredTime: new Date(), buyerConfirmed: true,
+        });
+        await manager.getRepository(ParcelTracking).insert({
+          parcel: current, status: ParcelStatus.DELIVERED, city: current.destinationCity,
+          note: 'Buyer confirmed receipt on order page (legacy Parcel without custody history)',
           updatedBy: 'Buyer',
-        }),
-      );
+        });
+        return true;
+      });
+      if (!transitioned) return;
 
       // This path bypasses SuperAgentsService.addTrackingEvent() (writes
       // straight to parcelTrackingRepo above), so Phase 3's PARCEL_DELIVERED
@@ -2165,9 +2204,20 @@ export class OrdersService {
       };
       if (isOnlineOrder) {
         // I2G: release escrow for online orders ONLY through the canonical operation (atomic with routing).
-        await this.orderRelease.releaseSellerProceeds({ orderId: order.id, source: 'ESCROW_RELEASE', orderUpdate: confirmationFields });
+        await this.orderRelease.releaseSellerProceeds({ orderId: order.id, source: 'ESCROW_RELEASE',
+          orderUpdate: confirmationFields,
+          completeInTransaction: manager => this.assertLinkedParcelCustodyAllowsOrderCompletion(order, manager),
+        });
       } else {
-        await this.repo.update(order.id, confirmationFields);
+        await this.repo.manager.transaction(async manager => {
+          await manager.query('SELECT id FROM public."order" WHERE id=$1 FOR UPDATE', [order.id]);
+          const current = await manager.getRepository(Order).findOne({ where: { id: order.id } });
+          if (!current || current.confirmationToken !== token || current.status === OrderStatus.COMPLETED) {
+            throw new ConflictException('Order confirmation changed; reload the link');
+          }
+          await this.assertLinkedParcelCustodyAllowsOrderCompletion(order, manager);
+          await manager.getRepository(Order).update(order.id, confirmationFields);
+        });
       }
       await this.markClassifiedSoldIfLinked(order.id);
 
@@ -2359,6 +2409,7 @@ export class OrdersService {
           await this.orderRelease.releaseSellerProceeds({
             orderId: order.id,
             source: 'AUTO_RELEASE',
+            completeInTransaction: manager => this.assertLinkedParcelCustodyAllowsOrderCompletion(order, manager),
             orderUpdate: {
               status: OrderStatus.COMPLETED,
               buyerConfirmedAt: now,
