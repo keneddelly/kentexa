@@ -23,10 +23,12 @@ const config = getB5BTestConnectionConfig();
     await db.initialize();
     await db.query(`CREATE TABLE public.parcel (id integer PRIMARY KEY, status varchar NOT NULL,
       "buyerPhone" varchar, "buyerRequestedDelivery" boolean, "destinationCity" varchar,
-      "destinationSuperAgentId" integer)`);
+      "destinationSuperAgentId" integer, "localAgentId" varchar,
+      "localAgentName" varchar, "claimedAt" timestamptz)`);
     await db.query('CREATE TABLE public.parcel_tracking (id serial PRIMARY KEY, "parcelId" integer, status varchar)');
-    await db.query(`INSERT INTO public.parcel (id,status,"buyerPhone","destinationCity","destinationSuperAgentId")
-      VALUES (31,$1,$2,'Mwanza',6)`, [ParcelStatus.AWAITING_BUYER, buyer.phone]);
+    await db.query(`INSERT INTO public.parcel (id,status,"buyerPhone","destinationCity","destinationSuperAgentId",
+      "localAgentId","localAgentName","claimedAt")
+      VALUES (31,$1,$2,'Mwanza',6,'15','Previous claim',now())`, [ParcelStatus.AWAITING_BUYER, buyer.phone]);
     const runner = db.createQueryRunner();
     try { await new AddParcelCustodyEvent1788278400000().up(runner); } finally { await runner.release(); }
     await db.query(`INSERT INTO public.parcel_custody_event
@@ -48,7 +50,9 @@ const config = getB5BTestConnectionConfig();
             return { ...row, order: null, destinationSuperAgent: { id: row.destinationSuperAgentId } };
           },
           update: (_id: number, value: any) => manager.query(
-            'UPDATE public.parcel SET "buyerRequestedDelivery"=$1 WHERE id=31', [value.buyerRequestedDelivery]),
+            `UPDATE public.parcel SET "buyerRequestedDelivery"=$1,"localAgentId"=$2,
+             "localAgentName"=$3,"claimedAt"=$4 WHERE id=31`,
+            [value.buyerRequestedDelivery, value.localAgentId, value.localAgentName, value.claimedAt]),
         };
         if (entity === ParcelCustodyEvent) return { findOne: async () =>
           (await manager.query(`SELECT "toCustodianType","toCustodianId" FROM public.parcel_custody_event
@@ -67,6 +71,7 @@ const config = getB5BTestConnectionConfig();
   it('rolls back choice if tracking fails, then serializes duplicate pickup choices', async () => {
     await expect(service(true).buyerSelfPickup(buyer, 'KTX-31')).rejects.toThrow('tracking unavailable');
     expect((await db.query('SELECT "buyerRequestedDelivery" FROM public.parcel WHERE id=31'))[0].buyerRequestedDelivery).toBeNull();
+    expect((await db.query('SELECT "localAgentId" FROM public.parcel WHERE id=31'))[0].localAgentId).toBe('15');
     const attempts = await Promise.allSettled([
       service().buyerSelfPickup(buyer, 'KTX-31'),
       service().buyerSelfPickup(buyer, 'KTX-31'),
@@ -74,6 +79,8 @@ const config = getB5BTestConnectionConfig();
     expect(attempts.map(a => a.status).sort()).toEqual(['fulfilled', 'rejected']);
     expect((await db.query('SELECT status,"buyerRequestedDelivery" FROM public.parcel WHERE id=31'))[0])
       .toMatchObject({ status: ParcelStatus.AWAITING_BUYER, buyerRequestedDelivery: false });
+    expect((await db.query('SELECT "localAgentId","localAgentName","claimedAt" FROM public.parcel WHERE id=31'))[0])
+      .toMatchObject({ localAgentId: null, localAgentName: null, claimedAt: null });
     expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_tracking'))[0].n).toBe(1);
   });
 });

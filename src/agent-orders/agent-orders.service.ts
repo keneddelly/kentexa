@@ -3,9 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { Order, OrderStatus } from '../orders/entities/order.entity';
 import { Agent } from '../agents/entities/agent.entity';
 import { User } from '../users/entities/user.entity';
@@ -19,6 +20,7 @@ export class AgentOrdersService {
     @InjectRepository(Agent)
     private agentRepo: Repository<Agent>,
     private smsService: SmsService,
+    private dataSource: DataSource,
   ) {}
 
   async getAvailableOrders(agent: User) {
@@ -173,36 +175,34 @@ export class AgentOrdersService {
   }
 
   async confirmDelivery(orderId: number, agent: User, note?: string) {
-    const order = await this.orderRepo.findOne({
-      where: { id: orderId },
-      relations: { buyer: true, seller: true },
-    });
-    if (!order) throw new NotFoundException('Order not found');
-    if ((order as any).agentId !== String(agent.id))
-      throw new ForbiddenException('Not assigned to you');
-    if (
-      ![OrderStatus.IN_TRANSIT, OrderStatus.READY_PICKUP].includes(order.status)
-    ) {
-      throw new BadRequestException(
-        `Cannot confirm delivery. Status: ${order.status}`,
-      );
-    }
-
-    // Calculate auto-release deadline
-    // Local/Dar orders: 3 days. Intercity: 5 days.
-    // Determined by shippingMethod — 'agent' intercity = 5 days, everything else = 3 days
-    const isIntercity = ['agent', 'bus', 'courier'].includes(
-      (order as any).shippingMethod || '',
-    );
-    const releaseDays = isIntercity ? 5 : 3;
-    const autoReleaseAt = new Date();
-    autoReleaseAt.setDate(autoReleaseAt.getDate() + releaseDays);
-
-    await this.orderRepo.update(orderId, {
-      status: OrderStatus.DELIVERED,
-      deliveredAt: new Date(),
-      agentNote: note || null,
-      autoReleaseAt, // escrow released automatically after this deadline if buyer silent
+    const contacts = await this.dataSource.transaction(async (manager) => {
+      // Lock Order first, matching the verified Parcel handover and release
+      // paths. A concurrent Parcel insert referencing this Order must wait.
+      const [row] = await manager.query('SELECT id FROM public."order" WHERE id=$1 FOR UPDATE', [orderId]);
+      if (!row) throw new NotFoundException('Order not found');
+      const order = await manager.getRepository(Order).findOne({
+        where: { id: orderId }, relations: { buyer: true, seller: true },
+      });
+      if (!order) throw new NotFoundException('Order not found');
+      if (order.agentId !== String(agent.id)) throw new ForbiddenException('Not assigned to you');
+      if (![OrderStatus.IN_TRANSIT, OrderStatus.READY_PICKUP].includes(order.status)) {
+        throw new BadRequestException(`Cannot confirm delivery. Status: ${order.status}`);
+      }
+      const linked = await manager.query('SELECT id FROM public.parcel WHERE "orderId"=$1 LIMIT 1', [orderId]);
+      if (linked.length) {
+        throw new ConflictException('Linked parcel requires verified recipient handover');
+      }
+      // Preserve the legacy order-only flow for orders without a Parcel.
+      const isIntercity = ['agent', 'bus', 'courier'].includes(order.shippingMethod || '');
+      const autoReleaseAt = new Date();
+      autoReleaseAt.setDate(autoReleaseAt.getDate() + (isIntercity ? 5 : 3));
+      await manager.getRepository(Order).update(orderId, {
+        status: OrderStatus.DELIVERED,
+        deliveredAt: new Date(),
+        agentNote: note || null,
+        autoReleaseAt,
+      });
+      return { buyerPhone: order.buyer?.phone, sellerPhone: order.seller?.phone };
     });
 
     // Credit agent's delivery count — used for tier calculation.
@@ -211,15 +211,15 @@ export class AgentOrdersService {
     // entity update happens in super-agents.service.ts's
     // creditLocalAgentForDelivery(), called from the parcel flow instead.
 
-    if (order.buyer?.phone) {
+    if (contacts.buyerPhone) {
       await this.smsService.sendSms(
-        order.buyer.phone,
+        contacts.buyerPhone,
         `KenteXa: Agizo lako #${orderId} limefikishwa! Asante kwa kununua KenteXa. 🎉`,
       );
     }
-    if (order.seller?.phone) {
+    if (contacts.sellerPhone) {
       await this.smsService.sendSms(
-        order.seller.phone,
+        contacts.sellerPhone,
         `KenteXa: Agizo #${orderId} limefikishwa kwa mafanikio.`,
       );
     }
