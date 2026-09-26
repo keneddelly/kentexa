@@ -2356,18 +2356,9 @@ export class SuperAgentsService {
   // ══════════════════════════════════════════════════════════════════════════
 
   async getIncomingParcels(city: string) {
-    return this.parcelRepo.find({
-      where: {
-        destinationSuperAgent: { city },
-        status: ParcelStatus.ARRIVED_AT_HUB,
-        localAgentId: null as any,
-      },
-      relations: {
-        order: { product: true, buyer: true },
-        destinationSuperAgent: true,
-      },
-      order: { arrivedAtHubTime: 'ASC' } as any,
-    });
+    // Destination delivery work is assigned by the recipient, never by an
+    // open city-wide queue that would disclose recipient contact details.
+    throw new ConflictException('Recipient-selected delivery assignments only');
   }
 
   async getMyDeliveries(userId: string) {
@@ -2379,54 +2370,127 @@ export class SuperAgentsService {
   }
 
   async claimParcel(user: User, trackingNumber: string) {
-    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
-    if (!parcel) throw new NotFoundException('Parcel not found');
-    if ((parcel as any).localAgentId)
-      throw new BadRequestException('Already claimed');
-    if (parcel.status !== ParcelStatus.ARRIVED_AT_HUB) {
-      throw new BadRequestException(
-        `Cannot claim — status is ${parcel.status}`,
-      );
-    }
+    // Recipient selection is the authority for assigning a destination Agent.
+    // The old open claim could race with that choice and expose recipient data.
+    throw new ConflictException('Recipient must select the delivery Agent');
+  }
 
-    const agentProfile = await this.agentRepo.findOne({
-      where: { user: { id: user.id } },
+  private async lockedAgentHandoffParcel(manager: any, trackingNumber: string): Promise<Parcel> {
+    const rows = await manager.query('SELECT id FROM public.parcel WHERE "trackingNumber"=$1 FOR UPDATE', [trackingNumber]);
+    if (!rows[0]) throw new NotFoundException('Parcel not found');
+    const parcel: Parcel | null = await manager.getRepository(Parcel).findOne({
+      where: { id: rows[0].id }, relations: { destinationSuperAgent: true },
     });
-
-    // Atomic conditional update — the read above is only for the friendly
-    // error messages. This WHERE clause is what actually prevents two
-    // agents claiming the same parcel in the same race window.
-    const result = await this.parcelRepo
-      .createQueryBuilder()
-      .update()
-      .set({
-        localAgentId: String(user.id),
-        localAgentName: agentProfile?.fullName || user.name,
-        claimedAt: new Date(),
-      } as any)
-      .where('id = :id', { id: parcel.id })
-      .andWhere('"localAgentId" IS NULL')
-      .andWhere('status = :status', { status: ParcelStatus.ARRIVED_AT_HUB })
-      .execute();
-    if (!result.affected) {
-      throw new BadRequestException(
-        'Already claimed by another agent, or no longer available.',
-      );
+    if (!parcel || ![ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status) ||
+        parcel.buyerRequestedDelivery !== true || !parcel.localAgentId ||
+        !parcel.destinationSuperAgent?.id) {
+      throw new ConflictException('Parcel is not awaiting a verified local-agent handoff');
     }
+    const latest = await manager.getRepository(ParcelCustodyEvent).findOne({
+      where: { parcelId: parcel.id }, order: { recordedAt: 'DESC', id: 'DESC' },
+    });
+    if (!latest || latest.eventKind !== 'destination_hub_received' ||
+        latest.toCustodianType !== 'super_agent' || latest.toCustodianId !== parcel.destinationSuperAgent.id) {
+      throw new ConflictException('Receiving hub custody is not verified');
+    }
+    return parcel;
+  }
 
-    await this.addTrackingEvent(
-      parcel,
-      parcel.status,
-      (parcel as any).destinationCity || '',
-      'Kimechukuliwa na wakala wa mtaa',
-      agentProfile?.fullName || user.name || '',
-      {
-        phone: user.phone || undefined,
-        location: agentProfile?.city || (parcel as any).destinationCity,
-        type: 'local_agent',
-      },
-    );
-    return { message: 'Parcel claimed', trackingNumber };
+  /** Hub hands the short-lived secret to the selected Agent in person. */
+  async issueAgentHandoffCode(user: User, trackingNumber: string, roleContext: RoleContext) {
+    if (roleContext?.roleType !== AccountRoleType.SUPER_AGENT || roleContext.userId !== user.id) {
+      throw new ForbiddenException('Only the receiving hub can prepare an Agent handoff');
+    }
+    const hub = await this.superAgentRepo.findOne({ where: {
+      id: roleContext.profileId, userId: user.id, status: SuperAgentStatus.ACTIVE,
+    } });
+    if (!hub || (hub.workspaceId != null && hub.workspaceId !== roleContext.workspaceId)) {
+      throw new ForbiddenException('An active receiving hub is required');
+    }
+    const code = String(randomInt(100000, 1000000));
+    const salt = randomBytes(16).toString('hex');
+    const now = new Date();
+    await this.dataSource.transaction(async manager => {
+      const parcel = await this.lockedAgentHandoffParcel(manager, trackingNumber);
+      if (parcel.destinationSuperAgent?.id !== hub.id) {
+        throw new ForbiddenException('Only the holding hub can prepare this handoff');
+      }
+      const [challenge] = await manager.query(`SELECT "agentHandoffCodeIssuedAt" FROM public.parcel WHERE id=$1`, [parcel.id]);
+      if (challenge?.agentHandoffCodeIssuedAt &&
+          now.getTime() - new Date(challenge.agentHandoffCodeIssuedAt).getTime() < 60_000) {
+        throw new ConflictException('Wait before issuing another Agent handoff code');
+      }
+      const agentUserId = Number(parcel.localAgentId);
+      if (!Number.isSafeInteger(agentUserId) || agentUserId <= 0) {
+        throw new ConflictException('Assigned Agent identity is unavailable');
+      }
+      await manager.getRepository(Parcel).update(parcel.id, {
+        agentHandoffCodeHash: `${salt}:${scryptSync(`${code}:${parcel.id}:${agentUserId}`, salt, 32).toString('hex')}`,
+        agentHandoffCodeIssuedAt: now, agentHandoffCodeExpiresAt: new Date(now.getTime() + 10 * 60_000),
+        agentHandoffAgentUserId: agentUserId, agentHandoffHubId: hub.id, agentHandoffAttempts: 0,
+      });
+    });
+    return { trackingNumber, code, expiresInSeconds: 600 };
+  }
+
+  /** The assigned Agent acknowledges physical receipt using the hub's code. */
+  async confirmAgentHandoff(user: User, trackingNumber: string, code: string, roleContext: RoleContext) {
+    if (!/^\d{6}$/.test(code || '')) throw new BadRequestException('Enter the six-digit hub handoff code');
+    if (roleContext?.roleType !== AccountRoleType.AGENT || roleContext.userId !== user.id) {
+      throw new ForbiddenException('Only the selected Agent can confirm receipt');
+    }
+    const agent = await this.agentRepo.findOne({ where: {
+      id: roleContext.profileId, user: { id: user.id }, status: AgentStatus.APPROVED,
+    } });
+    if (!agent) throw new ForbiddenException('An approved Agent is required');
+    const outcome = await this.dataSource.transaction(async manager => {
+      const parcel = await this.lockedAgentHandoffParcel(manager, trackingNumber);
+      if (parcel.localAgentId !== String(user.id)) {
+        throw new ForbiddenException('This Parcel is assigned to another Agent');
+      }
+      const [challenge] = await manager.query(`SELECT "agentHandoffCodeHash", "agentHandoffCodeExpiresAt",
+        "agentHandoffAgentUserId", "agentHandoffHubId", "agentHandoffAttempts" FROM public.parcel WHERE id=$1`, [parcel.id]);
+      if (!challenge?.agentHandoffCodeHash || !challenge.agentHandoffCodeExpiresAt ||
+          new Date(challenge.agentHandoffCodeExpiresAt).getTime() <= Date.now() ||
+          challenge.agentHandoffAttempts >= 5 || challenge.agentHandoffAgentUserId !== user.id ||
+          challenge.agentHandoffHubId !== parcel.destinationSuperAgent?.id) {
+        throw new ConflictException('Agent handoff code is expired or unavailable');
+      }
+      const [salt, expected] = challenge.agentHandoffCodeHash.split(':');
+      const valid = salt && expected?.length === 64 && timingSafeEqual(Buffer.from(expected, 'hex'),
+        scryptSync(`${code}:${parcel.id}:${user.id}`, salt, 32));
+      if (!valid) {
+        await manager.getRepository(Parcel).update(parcel.id, {
+          agentHandoffAttempts: challenge.agentHandoffAttempts + 1,
+        });
+        return { invalid: true };
+      }
+      const hub = parcel.destinationSuperAgent!;
+      await manager.getRepository(ParcelCustodyEvent).insert({
+        parcelId: parcel.id, eventKind: 'destination_agent_received',
+        operationKey: `destination-agent-received:${user.id}`,
+        fromCustodianType: 'super_agent', fromCustodianId: hub.id,
+        toCustodianType: 'local_agent', toCustodianId: user.id,
+        actorSource: 'account_role', actorUserId: user.id,
+        actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,
+        actorWorkspaceId: roleContext.workspaceId ?? null, actorProviderId: null,
+        hubId: hub.id, assignmentId: null,
+        evidenceRef: `hub-code:${createHash('sha256').update(challenge.agentHandoffCodeHash).digest('hex')}`,
+      });
+      await manager.getRepository(Parcel).update(parcel.id, {
+        status: ParcelStatus.OUT_FOR_DELIVERY, agentHandoffCodeHash: null,
+        agentHandoffCodeExpiresAt: null, agentHandoffCodeIssuedAt: null,
+        agentHandoffAgentUserId: null, agentHandoffHubId: null, agentHandoffAttempts: 0,
+      });
+      await manager.getRepository(ParcelTracking).insert({
+        parcel, status: ParcelStatus.OUT_FOR_DELIVERY, city: hub.city,
+        note: 'Assigned Agent confirmed physical receipt from destination hub',
+        updatedBy: agent.fullName || user.name, handlerType: 'local_agent',
+      });
+      return { invalid: false };
+    });
+    if (outcome.invalid) throw new BadRequestException('Incorrect hub handoff code');
+    return { trackingNumber, message: 'Agent receipt recorded' };
   }
 
   async updateMyDeliveryStatus(
@@ -2435,80 +2499,154 @@ export class SuperAgentsService {
     status: ParcelStatus,
     note?: string,
   ) {
-    if (status === ParcelStatus.SELF_PICKUP) {
-      throw new BadRequestException('Receiving hub must confirm self-pickup handover');
-    }
-    const parcel = await this.parcelRepo.findOne({
-      where: { trackingNumber },
-      relations: { order: { buyer: true } },
+    // The legacy generic endpoint carried no recipient evidence, wrote status
+    // ahead of tracking, and allowed arbitrary status transitions. It remains
+    // as an explicit rejection for older clients.
+    throw new ConflictException('Use the recipient delivery confirmation flow');
+  }
+
+  private async lockedAgentDeliveryParcel(manager: any, trackingNumber: string, user: User): Promise<Parcel> {
+    const [lookup] = await manager.query('SELECT id,"orderId" FROM public.parcel WHERE "trackingNumber"=$1', [trackingNumber]);
+    if (!lookup) throw new NotFoundException('Parcel not found');
+    if (lookup.orderId) await manager.query('SELECT id FROM public."order" WHERE id=$1 FOR UPDATE', [lookup.orderId]);
+    await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [lookup.id]);
+    const parcel: Parcel | null = await manager.getRepository(Parcel).findOne({
+      where: { id: lookup.id }, relations: { order: { buyer: true }, shipment: true },
     });
-    if (!parcel) throw new NotFoundException('Parcel not found');
-    if ((parcel as any).localAgentId !== String(user.id))
-      throw new ForbiddenException('Not your delivery');
-
-    // A retried/duplicate PATCH to DELIVERED on an already-delivered parcel
-    // must not double-credit the agent — there was no guard here before,
-    // unlike the equivalent buyer-confirms-receipt path in orders.service.ts.
-    const alreadyDelivered =
-      status === ParcelStatus.DELIVERED &&
-      parcel.status === ParcelStatus.DELIVERED;
-
-    const updates: any = { status };
-    if (status === ParcelStatus.DELIVERED) {
-      updates.deliveredTime = new Date();
-      updates.buyerConfirmed = true;
+    if (!parcel || parcel.trackingNumber !== trackingNumber || parcel.localAgentId !== String(user.id) ||
+        parcel.buyerRequestedDelivery !== true || parcel.status !== ParcelStatus.OUT_FOR_DELIVERY ||
+        parcel.shipment?.status === ShipmentStatus.CANCELLED) {
+      throw new ConflictException('Parcel is not awaiting this Agent delivery');
     }
-    await this.parcelRepo.update(parcel.id, updates);
-
-    const agentProfile = await this.agentRepo.findOne({
-      where: { user: { id: user.id } },
+    const latest = await manager.getRepository(ParcelCustodyEvent).findOne({
+      where: { parcelId: parcel.id }, order: { recordedAt: 'DESC', id: 'DESC' },
     });
-    const city = (parcel as any).destinationCity || '';
-    await this.addTrackingEvent(
-      parcel,
-      status,
-      city,
-      note || status,
-      agentProfile?.fullName || user.name || '',
-      {
-        phone: user.phone || undefined,
-        location: agentProfile?.city || city,
-        type: 'local_agent',
-      },
-    );
+    if (!latest || latest.eventKind !== 'destination_agent_received' ||
+        latest.toCustodianType !== 'local_agent' || latest.toCustodianId !== user.id) {
+      throw new ConflictException('Verified Agent custody is required');
+    }
+    // COD needs its own cash holder and seller-release transaction.
+    if (parcel.order?.paymentMethod === OrderPaymentMethod.COD) {
+      throw new ConflictException('COD Agent delivery requires verified collection and settlement');
+    }
+    if (parcel.order?.status === OrderStatus.DELIVERED || parcel.order?.status === OrderStatus.COMPLETED) {
+      throw new ConflictException('Order is already terminal');
+    }
+    await this.assertPickupPayment(parcel);
+    return parcel;
+  }
 
-    if (status === ParcelStatus.DELIVERED && !alreadyDelivered) {
-      // Track delivery count and earnings for agent's own records.
-      // KenteXa does NOT pay local agents — they are independent and earn
-      // directly from the Super Agent or seller who hired them.
-      // totalEarningsDeliveries = informational record of what they've earned.
-      // pendingEarnings is NOT used for local agent deliveries.
-      if (agentProfile) {
-        const commission = Number(agentProfile.deliveryCommission || 500);
-        await this.agentRepo.update(agentProfile.id, {
-          totalDeliveriesCompleted: agentProfile.totalDeliveriesCompleted + 1,
-          totalEarningsDeliveries:
-            Number(agentProfile.totalEarningsDeliveries) + commission,
-          totalEarnings: Number(agentProfile.totalEarnings) + commission,
-          // Note: pendingEarnings NOT incremented — KenteXa doesn't owe this
+  private async deliveryAgent(user: User, roleContext: RoleContext): Promise<Agent> {
+    if (roleContext?.roleType !== AccountRoleType.AGENT || roleContext.userId !== user.id) {
+      throw new ForbiddenException('Active Agent context required');
+    }
+    const agent = await this.agentRepo.findOne({ where: {
+      id: roleContext.profileId, user: { id: user.id }, status: AgentStatus.APPROVED,
+    } });
+    if (!agent) throw new ForbiddenException('Approved Agent profile required');
+    return agent;
+  }
+
+  /** Send a one-use code to the recipient, never to the carrying Agent. */
+  async issueAgentDeliveryCode(user: User, trackingNumber: string, roleContext: RoleContext) {
+    await this.deliveryAgent(user, roleContext);
+    const code = String(randomInt(100000, 1000000));
+    const salt = randomBytes(16).toString('hex');
+    const now = new Date();
+    const { id, hash, phone } = await this.dataSource.transaction(async manager => {
+      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user);
+      const phone = parcel.buyerPhone;
+      if (!phone) throw new ConflictException('Recipient contact number is missing');
+      const [prior] = await manager.query('SELECT "agentDeliveryCodeIssuedAt" FROM public.parcel WHERE id=$1', [parcel.id]);
+      if (prior?.agentDeliveryCodeIssuedAt &&
+          now.getTime() - new Date(prior.agentDeliveryCodeIssuedAt).getTime() < 60_000) {
+        throw new ConflictException('Wait before sending another delivery code');
+      }
+      const hash = `${salt}:${scryptSync(`${code}:${parcel.id}:${user.id}:${phone}`, salt, 32).toString('hex')}`;
+      await manager.getRepository(Parcel).update(parcel.id, {
+        agentDeliveryCodeHash: hash, agentDeliveryCodeIssuedAt: now,
+        agentDeliveryCodeExpiresAt: new Date(now.getTime() + 10 * 60_000),
+        agentDeliveryAgentUserId: user.id, agentDeliveryRecipientPhone: phone,
+        agentDeliveryAttempts: 0,
+      });
+      return { id: parcel.id, hash, phone };
+    });
+    const sent = await this.smsService.sendSms(phone,
+      `KenteXa: Namba ya kupokea kifurushi ${trackingNumber} ni ${code}. Inaisha dakika 10. Mpe wakala wakati unapokea kifurushi.`, true).catch(() => false);
+    if (!sent) {
+      await this.parcelRepo.createQueryBuilder().update(Parcel).set({
+        agentDeliveryCodeHash: null, agentDeliveryCodeIssuedAt: null,
+        agentDeliveryCodeExpiresAt: null, agentDeliveryAgentUserId: null,
+        agentDeliveryRecipientPhone: null, agentDeliveryAttempts: 0,
+      }).where('id = :id AND "agentDeliveryCodeHash" = :hash', { id, hash }).execute();
+      throw new ConflictException('Delivery code could not be sent; retry');
+    }
+    return { trackingNumber, message: 'Delivery code sent to recipient' };
+  }
+
+  /** Complete non-COD last-mile custody with recipient-held evidence. */
+  async confirmAgentDelivery(user: User, trackingNumber: string, code: string, roleContext: RoleContext) {
+    if (!/^\d{6}$/.test(code || '')) throw new BadRequestException('Enter the six-digit recipient code');
+    const agent = await this.deliveryAgent(user, roleContext);
+    const result = await this.dataSource.transaction(async manager => {
+      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user);
+      const [challenge] = await manager.query(`SELECT "agentDeliveryCodeHash", "agentDeliveryCodeExpiresAt",
+        "agentDeliveryAgentUserId", "agentDeliveryRecipientPhone", "agentDeliveryAttempts"
+        FROM public.parcel WHERE id=$1`, [parcel.id]);
+      if (!challenge?.agentDeliveryCodeHash || !challenge.agentDeliveryCodeExpiresAt ||
+          new Date(challenge.agentDeliveryCodeExpiresAt).getTime() <= Date.now() ||
+          challenge.agentDeliveryAttempts >= 5 || challenge.agentDeliveryAgentUserId !== user.id ||
+          !parcel.buyerPhone || challenge.agentDeliveryRecipientPhone !== parcel.buyerPhone) {
+        throw new ConflictException('Recipient delivery code is expired or unavailable');
+      }
+      const [salt, expected] = challenge.agentDeliveryCodeHash.split(':');
+      const valid = salt && expected?.length === 64 && timingSafeEqual(Buffer.from(expected, 'hex'),
+        scryptSync(`${code}:${parcel.id}:${user.id}:${parcel.buyerPhone}`, salt, 32));
+      if (!valid) {
+        await manager.getRepository(Parcel).update(parcel.id, {
+          agentDeliveryAttempts: challenge.agentDeliveryAttempts + 1,
         });
+        return { invalid: true };
       }
-      // SMS buyer
-      const buyerPhone =
-        (parcel as any).buyerPhone || parcel.order?.buyer?.phone;
-      const recipientName =
-        (parcel as any).recipientName || parcel.order?.buyer?.name || 'Mteja';
-      if (buyerPhone) {
-        await this.smsService
-          .sendSms(
-            buyerPhone,
-            `KenteXa: Habari ${recipientName}! Kifurushi chako (${trackingNumber}) kimefikishwa. Asante! 🎉`,
-          )
-          .catch(() => {});
+      const now = new Date();
+      await manager.getRepository(ParcelCustodyEvent).insert({
+        parcelId: parcel.id, eventKind: 'recipient_agent_delivery',
+        operationKey: `recipient-agent-delivery:${user.id}`,
+        fromCustodianType: 'local_agent', fromCustodianId: user.id,
+        toCustodianType: 'recipient_contact', toCustodianId: null,
+        actorSource: 'account_role', actorUserId: user.id,
+        actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,
+        actorWorkspaceId: roleContext.workspaceId ?? null, actorProviderId: null,
+        hubId: null, assignmentId: null,
+        evidenceRef: `sms-challenge:${createHash('sha256').update(challenge.agentDeliveryCodeHash).digest('hex')}`,
+      });
+      await manager.getRepository(Parcel).update(parcel.id, {
+        status: ParcelStatus.DELIVERED, deliveredTime: now, buyerConfirmed: true,
+        agentDeliveryCodeHash: null, agentDeliveryCodeExpiresAt: null,
+        agentDeliveryCodeIssuedAt: null, agentDeliveryAgentUserId: null,
+        agentDeliveryRecipientPhone: null, agentDeliveryAttempts: 0,
+      });
+      if (parcel.order?.id) await manager.getRepository(Order).update(parcel.order.id, {
+        status: OrderStatus.DELIVERED, deliveredAt: now,
+      });
+      if (parcel.shipment?.id) await manager.getRepository(Shipment).update(parcel.shipment.id, {
+        status: ShipmentStatus.DELIVERED,
+      });
+      await manager.getRepository(ParcelTracking).insert({
+        parcel, status: ParcelStatus.DELIVERED, city: parcel.destinationCity,
+        note: 'Recipient code confirmed delivery from assigned Agent',
+        updatedBy: agent.fullName || user.name, handlerType: 'local_agent',
+      });
+      await manager.getRepository(Agent).increment({ id: agent.id }, 'totalDeliveriesCompleted', 1);
+      const commission = Number(agent.deliveryCommission || 0);
+      if (Number.isFinite(commission) && commission > 0) {
+        await manager.getRepository(Agent).increment({ id: agent.id }, 'totalEarningsDeliveries', commission);
+        await manager.getRepository(Agent).increment({ id: agent.id }, 'totalEarnings', commission);
       }
-    }
-
-    return { message: 'Status updated', trackingNumber, status };
+      return { invalid: false };
+    });
+    if (result.invalid) throw new BadRequestException('Incorrect recipient delivery code');
+    return { trackingNumber, message: 'Recipient delivery confirmed' };
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -3170,6 +3308,14 @@ export class SuperAgentsService {
     if (dto.status === ParcelStatus.SELF_PICKUP) {
       throw new BadRequestException('Use the receiving-hub pickup handover action');
     }
+    // The status sheet has no physical recipient proof. In particular, its
+    // legacy COD branch would release seller proceeds before verified custody.
+    // The dedicated pickup / Agent handover flows own these transitions.
+    if ([ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status)) {
+      throw new BadRequestException(
+        'Use verified recipient pickup or Agent handover and delivery actions',
+      );
+    }
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
       relations: {
@@ -3184,6 +3330,10 @@ export class SuperAgentsService {
 
     if (parcel.status === ParcelStatus.SELF_PICKUP) {
       throw new ConflictException('Recipient handover is already complete');
+    }
+    if (parcel.localAgentId != null &&
+        [ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status)) {
+      throw new ConflictException('Assigned Agent must confirm the separate physical handover');
     }
 
     if ([ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status) &&
@@ -3515,8 +3665,9 @@ export class SuperAgentsService {
     let trackingSavedInTransaction = dto.status === ParcelStatus.RECEIVED_AT_HUB ||
       dto.status === ParcelStatus.ARRIVED_AT_HUB;
     if (!trackingSavedInTransaction) {
-      if (parcel.buyerRequestedDelivery !== true &&
-          [ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status)) {
+      if ((parcel.buyerRequestedDelivery !== true &&
+          [ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status)) ||
+          [ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status)) {
         // A receiving hub's old status sheet must not overwrite a recipient
         // handover (or append newer but stale tracking) after the code-gated
         // transaction consumes the Parcel. Keep status and tracking together.
@@ -3524,6 +3675,8 @@ export class SuperAgentsService {
           await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
           const current = await manager.getRepository(Parcel).findOne({ where: { id: parcel.id } });
           if (!current || current.status !== parcel.status ||
+              (current.localAgentId != null &&
+                [ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status)) ||
               ([ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status) &&
                current.buyerRequestedDelivery !== true)) {
             throw new ConflictException('Parcel handover changed; refresh its status');
@@ -4700,7 +4853,11 @@ export class SuperAgentsService {
         ...(agent ? {
           localAgentId: String(agent.user.id), localAgentName: agent.fullName,
           agreedDeliveryFee: fee, deliveryAddress: address?.trim() || parcel.deliveryAddress,
-        } : {}),
+        } : {
+          // A historical open claim was only an assignment, never custody.
+          // It cannot survive the recipient's decision to collect at the hub.
+          localAgentId: null, localAgentName: null, claimedAt: null,
+        }),
       });
       await manager.getRepository(ParcelTracking).insert({
         parcel, status: parcel.status, city: parcel.destinationCity,
