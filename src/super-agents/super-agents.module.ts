@@ -7,6 +7,8 @@ import { Parcel, ParcelTracking } from './entities/parcel.entity';
 import { ParcelCustodyEvent } from './entities/parcel-custody-event.entity';
 import { ShippingRate } from './entities/shipping-rate.entity';
 import { BulkShipment } from './entities/bulk-shipment.entity';
+import { Shipment } from '../shipments/entities/shipment.entity';
+import { PaymentCoreModule } from '../payments/payment-core.module';
 import { IntercityRoute } from './entities/intercity-route.entity';
 import { Order } from '../orders/entities/order.entity';
 import { BatchParcel } from '../daily-batches/entities/batch-parcel.entity';
@@ -39,6 +41,7 @@ import { WalletModule } from '../wallet/wallet.module';
       ParcelCustodyEvent,
       ShippingRate,
       BulkShipment,
+      Shipment,
       Order,
       Agent,
       AgentTransaction,
@@ -65,6 +68,7 @@ import { WalletModule } from '../wallet/wallet.module';
     IdentityModule,
     ActivityModule,
     WalletModule,
+    PaymentCoreModule,
   ],
   controllers: [SuperAgentsController],
   providers: [SuperAgentsService],

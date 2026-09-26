@@ -378,6 +378,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [statusParcel, setStatusParcel] = useState(null);
   const [newStatus, setNewStatus]       = useState('');
   const [statusNote, setStatusNote]     = useState('');
+  const [pickupCode, setPickupCode] = useState('');
   const [codBalanceAmount, setCodBalanceAmount] = useState('');
 
   // ── Apply form ────────────────────────────────────────────────────────────
@@ -455,7 +456,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const incoming      = parcels.filter(p => ['dispatched','in_transit','arrived_at_hub'].includes(p.status) && p.myRole === 'destination');
   const toDispatch    = parcels.filter(p => ['received_at_hub','ready_for_dispatch'].includes(p.status) && p.myRole !== 'destination');
   const inTransit     = parcels.filter(p => ['dispatched','in_transit'].includes(p.status) && p.myRole !== 'destination');
-  const awaitingBuyer = parcels.filter(p => ['awaiting_buyer','out_for_delivery'].includes(p.status) && p.myRole === 'destination');
+  const awaitingBuyer = parcels.filter(p => ['awaiting_buyer','out_for_delivery'].includes(p.status) && p.myRole !== 'origin');
   // eslint-disable-next-line no-unused-vars
   const delivered     = parcels.filter(p => p.status === 'delivered');
 
@@ -758,6 +759,35 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       fetchAll();
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleConfirmPickup = async () => {
+    if (!statusParcel || !/^\d{6}$/.test(pickupCode.trim()) ||
+        !window.confirm('Je, mpokeaji yupo hapa na ameonyesha namba ya kuthibitisha?')) return;
+    try {
+      setActionLoading(true); setError('');
+      await api.post(`/super-agents/parcels/${statusParcel.trackingNumber}/confirm-pickup`, {
+        code: pickupCode.trim(),
+        ...(statusParcel.order?.paymentMethod === 'cod'
+          ? { codBalanceCollected: Number(codBalanceAmount) } : {}),
+      });
+      setSuccess('✅ Kifurushi kimekabidhiwa kwa mpokeaji');
+      setStatusParcel(null); setStatusNote(''); setNewStatus(''); setPickupCode(''); setCodBalanceAmount('');
+      fetchAll();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha makabidhiano');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleSendPickupCode = async () => {
+    if (!statusParcel) return;
+    try {
+      setActionLoading(true); setError('');
+      await api.post(`/super-agents/parcels/${statusParcel.trackingNumber}/pickup-code`);
+      setSuccess('Namba ya kuthibitisha imetumwa kwa simu ya mpokeaji');
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kutuma namba');
     } finally { setActionLoading(false); }
   };
 
@@ -1100,7 +1130,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                             fetchDestinationHubs(parcel.destinationCity);
                           } },
                         { label: 'Sasisha', color: '#64748b',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); } },
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
                       ]} />
                     ))}
                   </>
@@ -1116,7 +1146,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {incoming.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: '✅ Pokea', color: '#7c3aed',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus('received_at_hub'); } },
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus('received_at_hub'); setPickupCode(''); setCodBalanceAmount(''); } },
                       ]} />
                     ))}
                   </>
@@ -1132,7 +1162,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {awaitingBuyer.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: 'Sasisha Hali', color: '#7c3aed',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); } },
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
                       ]} />
                     ))}
                   </>
@@ -2103,7 +2133,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {inTransit.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: 'Sasisha', color: '#64748b',
-                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); } },
+                          fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
                          { label: confirmSending[p.orderId] ? '⏳...' : '📲 Thibitisha', // eslint-disable-line no-undef
                           color: '#16a34a',
                            fn: (parcel) => handleSendConfirmLink(parcel.orderId) }, // eslint-disable-line no-undef
@@ -2533,6 +2563,37 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               marginBottom: 14 }}>
               {statusParcel.trackingNumber}
             </div>
+            {statusParcel.buyerRequestedDelivery !== true &&
+              ['arrived_at_hub', 'awaiting_buyer'].includes(statusParcel.status) &&
+              statusParcel.myRole !== 'origin' && (
+                <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, backgroundColor: '#eff6ff' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1d4ed8', marginBottom: 8 }}>
+                    🚶 Mpokeaji anaweza kuchukua hapa kwa namba ya SMS
+                  </div>
+                    <div>
+                    <button onClick={handleSendPickupCode} disabled={actionLoading}
+                      style={{ width: '100%', padding: 12, marginBottom: 8, border: 'none', borderRadius: 8,
+                        backgroundColor: '#2563eb', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
+                      Tuma namba kwa mpokeaji
+                    </button>
+                    <input value={pickupCode} onChange={e => setPickupCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      inputMode="numeric" autoComplete="one-time-code" placeholder="Namba ya tarakimu 6"
+                      style={{ ...inp, marginBottom: 8 }} />
+                    {statusParcel.order?.paymentMethod === 'cod' && (
+                      <input value={codBalanceAmount} onChange={e => setCodBalanceAmount(e.target.value)}
+                        inputMode="decimal" type="number" min="0" step="0.01"
+                        placeholder={`Salio la COD: TZS ${Number(statusParcel.order?.codRemainingBalance || 0).toLocaleString()}`}
+                        style={{ ...inp, marginBottom: 8 }} />
+                    )}
+                    <button onClick={handleConfirmPickup} disabled={actionLoading || pickupCode.length !== 6 ||
+                      (statusParcel.order?.paymentMethod === 'cod' && codBalanceAmount.trim() === '')}
+                      style={{ width: '100%', padding: 12, border: 'none', borderRadius: 8,
+                        backgroundColor: '#16a34a', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
+                      {actionLoading ? '⏳' : '✅ Nimekabidhi kwa mpokeaji'}
+                    </button>
+                    </div>
+                </div>
+              )}
             <select value={newStatus} onChange={e => {
                 setNewStatus(e.target.value);
                 if (e.target.value === 'delivered' && statusParcel.order?.paymentMethod === 'cod' && !statusParcel.order?.codBalanceCollected) {
@@ -2604,7 +2665,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   cursor: 'pointer', fontSize: 14, fontWeight: 900 }}>
                 {actionLoading ? '⏳' : '💾 Hifadhi'}
               </button>
-              <button onClick={() => { setStatusParcel(null); setNewStatus(''); setStatusNote(''); setCodBalanceAmount(''); }}
+              <button onClick={() => { setStatusParcel(null); setNewStatus(''); setStatusNote(''); setPickupCode(''); setCodBalanceAmount(''); }}
                 style={{ flex: 1, background: '#fff', color: '#64748b',
                   border: '2px solid #e2e8f0', padding: 14, borderRadius: 10,
                   cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>

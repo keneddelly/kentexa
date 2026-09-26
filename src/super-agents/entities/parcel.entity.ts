@@ -294,6 +294,18 @@ export class Parcel {
   @Column({ type: 'varchar', nullable: true })
   deliveryCode: string | null; // SMS code buyer must confirm
 
+  @Column({ type: 'varchar', length: 128, nullable: true, select: false })
+  pickupCodeHash: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  pickupCodeExpiresAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  pickupCodeIssuedAt: Date | null;
+
+  @Column({ type: 'int', default: 0, select: false })
+  pickupCodeAttempts: number;
+
   @Column({ type: 'boolean', default: false })
   buyerConfirmed: boolean;
 

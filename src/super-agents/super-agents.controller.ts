@@ -246,6 +246,33 @@ export class SuperAgentsController {
     return this.service.updateParcelStatus(req.user, tn, dto, roleContext);
   }
 
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Post('parcels/:trackingNumber/pickup-code')
+  issueRecipientPickupCode(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.issueRecipientPickupCode(req.user, tn, roleContext);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Post('parcels/:trackingNumber/confirm-pickup')
+  confirmRecipientPickup(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @Body() body: { code: string; codBalanceCollected?: number },
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    if (body?.codBalanceCollected !== undefined) {
+      return this.service.confirmCodRecipientPickup(req.user, tn, body?.code,
+        body.codBalanceCollected, roleContext);
+    }
+    return this.service.confirmRecipientPickup(req.user, tn, body?.code, roleContext);
+  }
+
   // ── Local agent — last-mile delivery ────────────────────────────────────────
   // These four had NO role gate at all -- any authenticated user, including a
   // plain buyer, could list hub-arrived parcels (with buyer PII) for any city,

@@ -39,11 +39,11 @@ export class SmsService {
   }
 
   // ── Send SMS ──────────────────────────────────────────────────────────
-  async sendSms(phone: string, message: string): Promise<boolean> {
+  async sendSms(phone: string, message: string, sensitive = false): Promise<boolean> {
     const formatted = this.formatPhone(phone);
 
-    // DEV mode — log OTP to terminal, still try to send via sandbox
-    this.logger.log(`[SMS] To: ${formatted} | ${message}`);
+    // Keep credentials out of application logs in every environment.
+    this.logger.log(`[SMS] To: ${formatted} | ${sensitive ? '[sensitive message omitted]' : message}`);
 
     try {
       const result = await this.sms.send({
@@ -66,13 +66,15 @@ export class SmsService {
       // so a failure is actually diagnosable instead of just "undefined".
       this.logger.warn(
         `⚠️ SMS not sent to ${formatted} — recipient: ${JSON.stringify(recipient)}` +
-          (recipient ? '' : ` — full result: ${JSON.stringify(result)}`),
+          (recipient || sensitive ? '' : ` — full result: ${JSON.stringify(result)}`),
       );
       return false;
     } catch (err) {
-      this.logger.error(`❌ SMS error: ${err.message}`);
+      this.logger.error(sensitive
+        ? `❌ Sensitive SMS send failed for ${formatted}`
+        : `❌ SMS error: ${err.message}`);
       // In dev mode don't fail the whole request if SMS fails
-      if (this.isDev) return true;
+      if (this.isDev && !sensitive) return true;
       return false;
     }
   }
@@ -80,7 +82,7 @@ export class SmsService {
   // ── Send OTP ──────────────────────────────────────────────────────────
   async sendOtp(phone: string, otp: string): Promise<boolean> {
     const message = `Your KenteXa verification code is: ${otp}. Valid for 10 minutes. Do not share this code with anyone.`;
-    return this.sendSms(phone, message);
+    return this.sendSms(phone, message, true);
   }
 
   // ── Send welcome SMS ──────────────────────────────────────────────────
