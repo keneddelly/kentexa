@@ -90,13 +90,14 @@ const config = getB5BTestConnectionConfig();
       await service.recordCodBalanceCollected(order, 10000, invoiceManager(manager));
       throw Error('custody write failed');
     })).rejects.toThrow('custody write failed');
-    expect((await db.query('SELECT amount,"receiptNumber" FROM public.invoice WHERE "orderId"=12'))[0])
-      .toMatchObject({ amount: '5000.00', receiptNumber: null });
+    const [unchanged] = await db.query('SELECT amount,"receiptNumber" FROM public.invoice WHERE "orderId"=12');
+    expect(Number(unchanged.amount)).toBe(5000);
+    expect(unchanged.receiptNumber).toBeNull();
     expect((await db.query('SELECT "lastSequence" FROM public.receipt_counter'))[0].lastSequence).toBe(before);
 
     await db.transaction(manager => service.recordCodBalanceCollected(order, 10000, invoiceManager(manager)));
     const [paid] = await db.query('SELECT amount,"receiptNumber" FROM public.invoice WHERE "orderId"=12');
-    expect(paid.amount).toBe('10000.00');
+    expect(Number(paid.amount)).toBe(10000);
     expect(paid.receiptNumber).toMatch(/^KNT-RCP-/);
   });
 
@@ -104,7 +105,8 @@ const config = getB5BTestConnectionConfig();
     const order: any = { id: 13, buyer: null, recipientName: 'External recipient', phone: '255700000008' };
     await db.transaction(manager => service.recordCodBalanceCollected(order, 7500, invoiceManager(manager)));
     const [invoice] = await db.query('SELECT * FROM public.invoice WHERE "orderId"=13');
-    expect(invoice).toMatchObject({ amount: '7500.00', status: 'paid', "payerPhone": '255700000008' });
+    expect(Number(invoice.amount)).toBe(7500);
+    expect(invoice).toMatchObject({ status: 'paid', payerPhone: '255700000008' });
     expect(invoice.invoiceNumber).toMatch(/^KNT-INV-/);
     expect(invoice.receiptNumber).toMatch(/^KNT-RCP-/);
   });
