@@ -122,13 +122,18 @@ const config = getB5BTestConnectionConfig();
       .rejects.toThrow();
     const runner = db.createQueryRunner();
     try {
+      await runner.startTransaction();
       const migration = new AddParcelAgentHandoffChallenge1788279600000();
       await migration.down(runner);
-      expect((await db.query('SELECT status FROM public.parcel WHERE id=31'))[0].status)
+      expect((await runner.query('SELECT status FROM public.parcel WHERE id=31'))[0].status)
         .toBe(ParcelStatus.OUT_FOR_DELIVERY);
       await migration.up(runner);
-      const [row] = await db.query(`SELECT "agentHandoffCodeHash", "agentHandoffAttempts" FROM public.parcel WHERE id=31`);
+      const [row] = await runner.query(`SELECT "agentHandoffCodeHash", "agentHandoffAttempts" FROM public.parcel WHERE id=31`);
       expect(row).toMatchObject({ agentHandoffCodeHash: null, agentHandoffAttempts: 0 });
+      await runner.commitTransaction();
+    } catch (error) {
+      if (runner.isTransactionActive) await runner.rollbackTransaction();
+      throw error;
     } finally { await runner.release(); }
   });
 });
