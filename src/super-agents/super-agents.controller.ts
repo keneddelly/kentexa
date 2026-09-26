@@ -10,6 +10,7 @@ import {
   Request,
   Query,
   ParseIntPipe,
+  Header,
 } from '@nestjs/common';
 import { AgentsService } from '../agents/agents.service';
 import { SuperAgentsService } from './super-agents.service';
@@ -310,6 +311,7 @@ export class SuperAgentsController {
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.SUPER_AGENT)
   @Post('parcels/:trackingNumber/agent-handoff-code')
+  @Header('Cache-Control', 'no-store')
   issueAgentHandoffCode(
     @Request() req, @Param('trackingNumber') tn: string,
     @CurrentRoleContext() roleContext: RoleContext,

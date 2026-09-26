@@ -220,7 +220,6 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // Work queue — both direct orders and hub parcels combined
   const [directOrders, setDirectOrders]   = useState([]);
   const [myOrders, setMyOrders]           = useState([]);
-  const [hubParcels, setHubParcels]       = useState([]);
   const [myParcels, setMyParcels]         = useState([]);
   const [handoffCodes, setHandoffCodes]   = useState({});
   const [workLoading, setWorkLoading]     = useState(false);
@@ -314,11 +313,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setStats(statsRes.data);
 
       if (city) {
-        const [incomingRes, mineRes] = await Promise.all([
-          api.get(`/super-agents/incoming-parcels?city=${encodeURIComponent(city)}`),
-          api.get('/super-agents/my-deliveries'),
-        ]);
-        setHubParcels(incomingRes.data || []);
+        const mineRes = await api.get('/super-agents/my-deliveries');
         setMyParcels(mineRes.data || []);
       }
       // Fetch collection jobs
@@ -379,17 +374,6 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   };
 
   // ── Hub parcel actions ────────────────────────────────────────────────────
-  const handleClaimParcel = async (trackingNumber) => {
-    try {
-      setActionLoading(true); setError('');
-      await api.patch(`/super-agents/parcels/${trackingNumber}/claim`);
-      setSuccess(t('agent_dashboard.claim_parcel_success', { tn: trackingNumber }));
-      fetchWork(profile);
-    } catch (err) {
-      setError(err?.response?.data?.message || t('agent_dashboard.claim_parcel_error'));
-    } finally { setActionLoading(false); }
-  };
-
   const handleParcelStatus = async (trackingNumber, status) => {
     try {
       setActionLoading(true); setError('');
@@ -497,10 +481,9 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // ── Computed work queue counts ─────────────────────────────────────────────
   const pendingDirectOrders  = directOrders.length;
   const activeDirectOrders   = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
-  const availableHubParcels  = hubParcels.length;
   const activeHubParcels     = myParcels.length;
   const totalCollections = availableCollections.length + myCollections.length;
-  const totalWorkItems = pendingDirectOrders + activeDirectOrders + availableHubParcels + activeHubParcels + totalCollections;
+  const totalWorkItems = pendingDirectOrders + activeDirectOrders + activeHubParcels + totalCollections;
 
   // ── Render helpers ─────────────────────────────────────────────────────────
   const inputStyle = {
@@ -778,45 +761,6 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         </div>
                       );
                     })}
-                  </div>
-                )}
-
-                {/* SECTION C: Hub parcels available to claim */}
-                {hubParcels.length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#7c3aed', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#7c3aed' }} />
-                      {t('agent_dashboard.section_c_title', { count: hubParcels.length })}
-                    </div>
-                    <div style={{ backgroundColor: '#ede9fe', borderRadius: 10, padding: '10px 12px', marginBottom: 10, fontSize: 12, color: '#7c3aed' }}>
-                      {t('agent_dashboard.hub_notice')}
-                    </div>
-                    {hubParcels.map(parcel => (
-                      <div key={parcel.trackingNumber} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 14, boxShadow: '0 2px 8px rgba(0,0,0,0.06)', marginBottom: 10, borderLeft: '4px solid #7c3aed' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 800, color: '#7c3aed' }}>{parcel.trackingNumber}</div>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20, backgroundColor: '#ede9fe', color: '#7c3aed' }}>
-                            {t('agent_dashboard.hub_badge')}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: 13, color: '#475569', marginBottom: 4 }}>📦 {parcel.order?.product?.name || '—'}</div>
-                        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 4 }}>
-                          {t('agent_dashboard.from_label', { origin: parcel.originCity, dest: parcel.destinationCity })}
-                        </div>
-                        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
-                          👤 {parcel.recipientName || parcel.order?.buyer?.name || '—'} · 📞 {parcel.buyerPhone || '—'}
-                        </div>
-                        {parcel.deliveryAddress && (
-                          <div style={{ backgroundColor: '#f8fafc', borderRadius: 8, padding: '8px 10px', marginBottom: 10, fontSize: 12, color: '#64748b' }}>
-                            🏠 {parcel.deliveryAddress}
-                          </div>
-                        )}
-                        <button onClick={() => handleClaimParcel(parcel.trackingNumber)} disabled={actionLoading}
-                          style={{ width: '100%', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', padding: 10, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 800 }}>
-                          {t('agent_dashboard.claim_parcel_button')}
-                        </button>
-                      </div>
-                    ))}
                   </div>
                 )}
 

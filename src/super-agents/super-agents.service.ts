@@ -2356,18 +2356,9 @@ export class SuperAgentsService {
   // ══════════════════════════════════════════════════════════════════════════
 
   async getIncomingParcels(city: string) {
-    return this.parcelRepo.find({
-      where: {
-        destinationSuperAgent: { city },
-        status: ParcelStatus.ARRIVED_AT_HUB,
-        localAgentId: null as any,
-      },
-      relations: {
-        order: { product: true, buyer: true },
-        destinationSuperAgent: true,
-      },
-      order: { arrivedAtHubTime: 'ASC' } as any,
-    });
+    // Destination delivery work is assigned by the recipient, never by an
+    // open city-wide queue that would disclose recipient contact details.
+    throw new ConflictException('Recipient-selected delivery assignments only');
   }
 
   async getMyDeliveries(userId: string) {
@@ -2379,54 +2370,9 @@ export class SuperAgentsService {
   }
 
   async claimParcel(user: User, trackingNumber: string) {
-    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
-    if (!parcel) throw new NotFoundException('Parcel not found');
-    if ((parcel as any).localAgentId)
-      throw new BadRequestException('Already claimed');
-    if (parcel.status !== ParcelStatus.ARRIVED_AT_HUB) {
-      throw new BadRequestException(
-        `Cannot claim — status is ${parcel.status}`,
-      );
-    }
-
-    const agentProfile = await this.agentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
-
-    // Atomic conditional update — the read above is only for the friendly
-    // error messages. This WHERE clause is what actually prevents two
-    // agents claiming the same parcel in the same race window.
-    const result = await this.parcelRepo
-      .createQueryBuilder()
-      .update()
-      .set({
-        localAgentId: String(user.id),
-        localAgentName: agentProfile?.fullName || user.name,
-        claimedAt: new Date(),
-      } as any)
-      .where('id = :id', { id: parcel.id })
-      .andWhere('"localAgentId" IS NULL')
-      .andWhere('status = :status', { status: ParcelStatus.ARRIVED_AT_HUB })
-      .execute();
-    if (!result.affected) {
-      throw new BadRequestException(
-        'Already claimed by another agent, or no longer available.',
-      );
-    }
-
-    await this.addTrackingEvent(
-      parcel,
-      parcel.status,
-      (parcel as any).destinationCity || '',
-      'Kimechaguliwa na wakala wa mtaa; makabidhiano hubuni yanasubiri',
-      agentProfile?.fullName || user.name || '',
-      {
-        phone: user.phone || undefined,
-        location: agentProfile?.city || (parcel as any).destinationCity,
-        type: 'local_agent',
-      },
-    );
-    return { message: 'Parcel claimed', trackingNumber };
+    // Recipient selection is the authority for assigning a destination Agent.
+    // The old open claim could race with that choice and expose recipient data.
+    throw new ConflictException('Recipient must select the delivery Agent');
   }
 
   private async lockedAgentHandoffParcel(manager: any, trackingNumber: string): Promise<Parcel> {
@@ -4838,7 +4784,11 @@ export class SuperAgentsService {
         ...(agent ? {
           localAgentId: String(agent.user.id), localAgentName: agent.fullName,
           agreedDeliveryFee: fee, deliveryAddress: address?.trim() || parcel.deliveryAddress,
-        } : {}),
+        } : {
+          // A historical open claim was only an assignment, never custody.
+          // It cannot survive the recipient's decision to collect at the hub.
+          localAgentId: null, localAgentName: null, claimedAt: null,
+        }),
       });
       await manager.getRepository(ParcelTracking).insert({
         parcel, status: parcel.status, city: parcel.destinationCity,
