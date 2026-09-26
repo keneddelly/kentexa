@@ -207,4 +207,14 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
     expect(orderRelease.releaseSellerProceeds).not.toHaveBeenCalled();
     expect(orderRepo.update).not.toHaveBeenCalled();
   });
+
+  it('does not assign a local agent cash collection to the hub', async () => {
+    parcelRepo.findOne.mockResolvedValue({ ...baseParcel(baseOrder()), localAgentId: '99' });
+    await expect(service.updateParcelStatus(
+      { id: 1, name: 'Hub' } as any, 'KTX-DAR-MZA-000010',
+      { status: ParcelStatus.DELIVERED, city: 'Dar es Salaam', codBalanceCollected: 5000 },
+      roleContext,
+    )).rejects.toThrow('Assigned local agent');
+    expect(orderRelease.releaseSellerProceeds).not.toHaveBeenCalled();
+  });
 });

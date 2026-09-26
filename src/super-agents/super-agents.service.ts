@@ -3168,6 +3168,9 @@ export class SuperAgentsService {
     if (order.codBalanceCollected || snapshot.status === ParcelStatus.DELIVERED) {
       throw new ConflictException('COD delivery has already been recorded');
     }
+    if (snapshot.localAgentId != null) {
+      throw new ConflictException('Assigned local agent must use a separate delivery handover');
+    }
     const expected = Number(order.codRemainingBalance || 0);
     const collected = Number(dto.codBalanceCollected);
     if (!Number.isFinite(expected) || !Number.isFinite(collected) || collected < 0 ||
@@ -3198,6 +3201,7 @@ export class SuperAgentsService {
           current.trackingNumber !== snapshot.trackingNumber ||
           current.status !== snapshot.status ||
           current.buyerRequestedDelivery !== true ||
+          current.localAgentId != null ||
           (current.destinationSuperAgent?.id ?? current.superAgent?.id) !== hub.id ||
           current.order.paymentMethod !== OrderPaymentMethod.COD ||
           current.order.source !== order.source ||

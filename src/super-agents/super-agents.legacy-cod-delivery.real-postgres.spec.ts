@@ -33,7 +33,7 @@ const config = getB5BTestConnectionConfig();
       "deliveredAt" timestamp, "codBalanceCollected" boolean DEFAULT false, "escrowStatus" varchar,
       "codBalanceCollectedByAgentId" integer, "codBalanceCollectedAt" timestamp, "paymentStatus" varchar)`);
     await db.query(`CREATE TABLE public.parcel (id integer PRIMARY KEY, status varchar NOT NULL,
-      "deliveredTime" timestamp, "buyerConfirmed" boolean DEFAULT false,
+      "deliveredTime" timestamp, "buyerConfirmed" boolean DEFAULT false, "localAgentId" varchar,
       "superAgentEarnings" numeric DEFAULT 0)`);
     await db.query('CREATE TABLE public.parcel_tracking (id serial PRIMARY KEY, status varchar NOT NULL)');
     await db.query('CREATE TABLE public.hub_cash (id integer PRIMARY KEY, held numeric DEFAULT 0)');
@@ -54,7 +54,8 @@ const config = getB5BTestConnectionConfig();
           findOne: async () => {
             const [row] = await manager.query('SELECT * FROM public.parcel WHERE id=31');
             return { ...snapshot, order: manual ? { ...snapshot.order, source: OrderSource.SELLER_SHIPMENT,
-              sellerAmount: 0 } : snapshot.order, status: row.status, buyerRequestedDelivery: true,
+              sellerAmount: 0 } : snapshot.order, status: row.status,
+              localAgentId: row.localAgentId, buyerRequestedDelivery: true,
               destinationSuperAgent: hub, shipment: null };
           },
           update: (_id: number, value: any) => {
@@ -145,5 +146,14 @@ const config = getB5BTestConnectionConfig();
     expect(done).toMatchObject({ releases: 0, receipts: 1, tracking: 1,
       parcel_status: ParcelStatus.DELIVERED, collected: true });
     expect(Number(done.held)).toBe(40); // Kentexa's 40% of the TZS 100 handling fee
+  });
+
+  it('refuses to credit hub cash when a local agent was assigned after the status sheet loaded', async () => {
+    await db.query(`UPDATE public."order" SET "escrowStatus"='holding',"codBalanceCollected"=false`);
+    await db.query(`UPDATE public.parcel SET status=$1,"localAgentId"='99'`, [ParcelStatus.OUT_FOR_DELIVERY]);
+    await expect(service().completeLegacyCodDelivery(user, snapshot, hub, dto, context))
+      .rejects.toThrow('COD delivery changed');
+    expect((await state()).collected).toBe(false);
+    await db.query('UPDATE public.parcel SET "localAgentId"=NULL');
   });
 });
