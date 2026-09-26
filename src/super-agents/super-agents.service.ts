@@ -3308,6 +3308,14 @@ export class SuperAgentsService {
     if (dto.status === ParcelStatus.SELF_PICKUP) {
       throw new BadRequestException('Use the receiving-hub pickup handover action');
     }
+    // The status sheet has no physical recipient proof. In particular, its
+    // legacy COD branch would release seller proceeds before verified custody.
+    // The dedicated pickup / Agent handover flows own these transitions.
+    if ([ParcelStatus.OUT_FOR_DELIVERY, ParcelStatus.DELIVERED].includes(dto.status)) {
+      throw new BadRequestException(
+        'Use verified recipient pickup or Agent handover and delivery actions',
+      );
+    }
     const parcel = await this.parcelRepo.findOne({
       where: { trackingNumber },
       relations: {

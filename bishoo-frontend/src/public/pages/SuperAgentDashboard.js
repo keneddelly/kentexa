@@ -742,18 +742,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
   // ── Status update handler ─────────────────────────────────────────────────
 
-  const needsCodBalance = statusParcel &&
-    newStatus === 'delivered' &&
-    statusParcel.order?.paymentMethod === 'cod' &&
-    !statusParcel.order?.codBalanceCollected;
-
   const handleStatus = async () => {
     if (!statusParcel || !newStatus) return;
     try {
       setActionLoading(true); setError('');
       await api.patch(`/super-agents/parcels/${statusParcel.trackingNumber}/status`, {
         status: newStatus, city: profile?.city, note: statusNote,
-        ...(needsCodBalance ? { codBalanceCollected: Number(codBalanceAmount) || 0 } : {}),
       });
       setSuccess('✅ Hali imesasishwa');
       setStatusParcel(null); setStatusNote(''); setNewStatus(''); setCodBalanceAmount('');
@@ -2628,12 +2622,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   )}
                 </div>
               )}
-            <select value={newStatus} onChange={e => {
-                setNewStatus(e.target.value);
-                if (e.target.value === 'delivered' && statusParcel.order?.paymentMethod === 'cod' && !statusParcel.order?.codBalanceCollected) {
-                  setCodBalanceAmount(String(Number(statusParcel.order?.codRemainingBalance || 0)));
-                }
-              }}
+            <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
               style={{ ...inp, marginBottom: 12 }}>
               <option value="">— Chagua Hali Mpya —</option>
               {(() => {
@@ -2664,33 +2653,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ['in_transit',       '🚚 Njiani'],
                   ] : []),
                   // Destination-side statuses — only offered when this hub is
-                  // the receiver (or both). Marking "arrived"/"delivered" is
+                  // the receiver (or both). Marking "arrived" is
                   // the receiving hub's job, never the sender's — and never
                   // possible before the parcel has actually been dispatched.
                   ...(statusParcel.myRole !== 'origin' && !preDispatch ? [
                     ['arrived_at_hub',   '🏢 Imefika Hubuni'],
                     ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
-                    ...(!statusParcel.localAgentId ? [
-                      ['out_for_delivery', '🏍️ Inafikishwa'],
-                      ['delivered',        '✅ Imefikishwa'],
-                    ] : []),
                   ] : []),
                 ].map(([v, l]) => <option key={v} value={v}>{l}</option>);
               })()}
             </select>
-            {needsCodBalance && (
-              <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 6 }}>
-                  🚚 Malipo Baada ya Kupokea — kiasi kilichokusanywa kwa mteja
-                </div>
-                <input type="number" placeholder="0" value={codBalanceAmount}
-                  onChange={e => setCodBalanceAmount(e.target.value)}
-                  style={{ ...inp, marginBottom: 0 }} />
-                <div style={{ fontSize: 11, color: '#92400e', marginTop: 6 }}>
-                  Kinachotarajiwa: TZS {Number(statusParcel.order?.codRemainingBalance || 0).toLocaleString()}
-                </div>
-              </div>
-            )}
             <input type="text" placeholder="Maelezo (hiari)"
               value={statusNote} onChange={e => setStatusNote(e.target.value)}
               style={{ ...inp, marginBottom: 14 }} />
