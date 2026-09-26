@@ -36,6 +36,12 @@ Stage 3J's `confirmCodRecipientPickup()` is a useful bounded pattern: it recheck
 
 Native PostgreSQL tests must cover rollback after canonical release but before custody/tracking/receipt, blocked routing, two racing confirmations, replay, wrong recipient code, changed phone, wrong actor/hub/agent, refunded or cancelled Order, seller-arranged COD, and a stale generic status request racing the verified handover. Check transaction ledger and custody count together. Frontend and backend builds, exact-head CI, additive migration UP/DOWN if schema changes, and production migration-first rollout are required. Do not test on historical production Parcels or send a real recipient code without an operational test case.
 
+## First candidate slice on this branch
+
+The generic hub COD delivery branch now calls `completeLegacyCodDelivery()`. For a Kentexa-mediated order, canonical seller release owns the transaction and calls back after routing; for a seller-arranged shipment, a single Order-locked transaction writes its companion facts without seller credit. Both paths lock/recheck the Parcel and write status, cash liability, agent share, invoice receipt, and tracking together. Outbound activity/SMS remain after commit. Duplicate delivery, invalid amount, role mismatch, and stale Parcel state fail closed. A new isolated PostgreSQL test is wired into the Stage 3F CI job to exercise blocked release, tracking/receipt rollback, and concurrent completion.
+
+This slice does **not** establish recipient proof or append delivery custody. It is not a complete Stage 3K release. The local-agent, buyer-confirmation, and provider-webhook paths are unchanged. The new PostgreSQL test must run in CI; local environment has no isolated database. Review actual delivery choice/handler behavior and backward compatibility before any deployment.
+
 ## Gate decision
 
-Stage 3J is released; Stage 3K is a design/audit gate. The generic COD and local-agent terminal paths have unresolved integrity and evidence gaps. This document authorizes no production mutation and claims no complete custody coverage. Implement on this non-production branch only after the writer inventory defines an exact first replacement path.
+Stage 3J is released; Stage 3K remains a draft implementation gate. The generic COD and local-agent terminal paths have unresolved recipient evidence gaps. This document authorizes no production mutation and claims no complete custody coverage.
