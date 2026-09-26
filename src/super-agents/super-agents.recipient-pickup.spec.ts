@@ -183,7 +183,7 @@ describe('recipient-held pickup code', () => {
     const { service } = setup({ buyerRequestedDelivery: null });
     await expect(service.updateParcelStatus(user, 'KTX-31', {
       status: ParcelStatus.DELIVERED, city: 'Mwanza',
-    }, context)).rejects.toThrow('Recipient choice or verified hub pickup');
+    }, context)).rejects.toThrow('Use verified recipient pickup or Agent handover');
   });
 
   it('rejects a stale hub status sheet after recipient pickup wins the row lock', async () => {

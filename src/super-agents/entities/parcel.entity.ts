@@ -120,6 +120,26 @@ export class Parcel {
   @Column({ type: 'timestamp', nullable: true })
   claimedAt: Date | null;
 
+  // Temporary, one-use proof that the assigned local Agent received the
+  // parcel from its verified destination hub. Never return the hash to APIs.
+  @Column({ type: 'varchar', length: 128, nullable: true, select: false })
+  agentHandoffCodeHash: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  agentHandoffCodeExpiresAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  agentHandoffCodeIssuedAt: Date | null;
+
+  @Column({ type: 'int', nullable: true, select: false })
+  agentHandoffAgentUserId: number | null;
+
+  @Column({ type: 'int', nullable: true, select: false })
+  agentHandoffHubId: number | null;
+
+  @Column({ type: 'int', default: 0, select: false })
+  agentHandoffAttempts: number;
+
   // ── Dispatch cost (single-parcel dispatch only — bulk uses BulkShipment) ────
   @Column('decimal', { precision: 10, scale: 2, nullable: true })
   courierCost: number | null; // What agent actually paid the bus/courier
@@ -305,6 +325,24 @@ export class Parcel {
 
   @Column({ type: 'int', default: 0, select: false })
   pickupCodeAttempts: number;
+
+  @Column({ type: 'varchar', length: 128, nullable: true, select: false })
+  agentDeliveryCodeHash: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  agentDeliveryCodeExpiresAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true, select: false })
+  agentDeliveryCodeIssuedAt: Date | null;
+
+  @Column({ type: 'int', nullable: true, select: false })
+  agentDeliveryAgentUserId: number | null;
+
+  @Column({ type: 'varchar', length: 32, nullable: true, select: false })
+  agentDeliveryRecipientPhone: string | null;
+
+  @Column({ type: 'int', default: 0, select: false })
+  agentDeliveryAttempts: number;
 
   @Column({ type: 'boolean', default: false })
   buyerConfirmed: boolean;

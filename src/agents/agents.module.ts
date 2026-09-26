@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AgentsService } from './agents.service';
 import { AgentsController } from './agents.controller';
+import { AgentCodRemittanceService } from './agent-cod-remittance.service';
 import { Agent } from './entities/agent.entity';
 import { AgentTransaction } from './entities/agent-transaction.entity';
 import { User } from '../users/entities/user.entity';
@@ -17,7 +18,7 @@ import { ActivityModule } from '../activity/activity.module';
     ActivityModule,
   ],
   controllers: [AgentsController],
-  providers: [AgentsService],
+  providers: [AgentsService, AgentCodRemittanceService],
   exports: [AgentsService],
 })
 export class AgentsModule {}
