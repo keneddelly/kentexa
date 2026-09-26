@@ -60,5 +60,6 @@ jobs:
       - run: npm test -- --runInBand super-agents/super-agents.recipient-pickup.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.recipient-pickup.real-postgres.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.cod-pickup.real-postgres.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.legacy-cod-delivery.real-postgres.spec.ts
       - run: npm test -- --runInBand money-routing/order-release-handover.real-postgres.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json

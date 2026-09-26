@@ -3152,6 +3152,114 @@ export class SuperAgentsService {
     });
   }
 
+  // Legacy hub status action: financial and operational COD facts must share
+  // one commit even before a recipient-proof delivery action replaces it.
+  private async completeLegacyCodDelivery(
+    user: User, snapshot: Parcel, hub: SuperAgent | null,
+    dto: { status: ParcelStatus; city: string; note?: string; codBalanceCollected?: number },
+    roleContext?: RoleContext,
+  ): Promise<void> {
+    const order = snapshot.order!;
+    if (!hub || !roleContext || roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
+        roleContext.userId !== user.id || roleContext.profileId !== hub.id ||
+        (hub.workspaceId != null && roleContext.workspaceId !== hub.workspaceId)) {
+      throw new ForbiddenException('The handling hub must record COD delivery');
+    }
+    if (order.codBalanceCollected || snapshot.status === ParcelStatus.DELIVERED) {
+      throw new ConflictException('COD delivery has already been recorded');
+    }
+    if (snapshot.localAgentId != null) {
+      throw new ConflictException('Assigned local agent must use a separate delivery handover');
+    }
+    const expected = Number(order.codRemainingBalance || 0);
+    const collected = Number(dto.codBalanceCollected);
+    if (!Number.isFinite(expected) || !Number.isFinite(collected) || collected < 0 ||
+        Math.round(expected * 100) !== Math.round(collected * 100)) {
+      throw new BadRequestException(`Expected COD balance is TZS ${expected.toLocaleString()}`);
+    }
+    const fee = Math.round(collected * COD_HANDLING_FEE_PERCENT) / 100;
+    const kentexaShare = Math.round(fee * COD_HANDLING_FEE_KENTEXA_SHARE_PERCENT) / 100;
+    const agentShare = Math.round((fee - kentexaShare) * 100) / 100;
+    const manual = order.source === OrderSource.SELLER_SHIPMENT;
+    const sellerNet = Math.round((Number(order.sellerAmount || 0) - fee) * 100) / 100;
+    if (!manual && sellerNet < 0) throw new ConflictException('COD proceeds cannot cover the handling fee');
+
+    const now = new Date();
+    const companion = {
+      codBalanceCollected: true, codBalanceCollectedByAgentId: hub.id,
+      codBalanceCollectedAt: now, paymentStatus: OrderPaymentStatus.PAID,
+      status: OrderStatus.DELIVERED, deliveredAt: now,
+    };
+    const complete = async (manager: any) => {
+      await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [snapshot.id]);
+      const current: Parcel | null = await manager.getRepository(Parcel).findOne({
+        where: { id: snapshot.id },
+        relations: { order: { seller: true }, shipment: true,
+          superAgent: true, destinationSuperAgent: true },
+      });
+      if (!current || current.order?.id !== order.id ||
+          current.trackingNumber !== snapshot.trackingNumber ||
+          current.status !== snapshot.status ||
+          current.buyerRequestedDelivery !== true ||
+          current.localAgentId != null ||
+          (current.destinationSuperAgent?.id ?? current.superAgent?.id) !== hub.id ||
+          current.order.paymentMethod !== OrderPaymentMethod.COD ||
+          current.order.source !== order.source ||
+          current.order.workspaceId !== order.workspaceId ||
+          current.order.seller?.id !== order.seller?.id ||
+          Number(current.order.codRemainingBalance || 0) !== expected ||
+          Number(current.order.sellerAmount || 0) !== Number(order.sellerAmount || 0) ||
+          Number(current.order.totalAmount || 0) !== Number(order.totalAmount || 0)) {
+        throw new ConflictException('COD delivery changed; refresh the parcel');
+      }
+      await manager.getRepository(Parcel).update(current.id, {
+        status: ParcelStatus.DELIVERED, deliveredTime: now, buyerConfirmed: true,
+      });
+      if (current.shipment?.id) {
+        await manager.getRepository(Shipment).update(current.shipment.id, { status: ShipmentStatus.DELIVERED });
+      }
+      if (agentShare > 0) {
+        await manager.getRepository(Parcel).increment({ id: current.id }, 'superAgentEarnings', agentShare);
+      }
+      const liability = manual ? kentexaShare : collected;
+      if (liability > 0) {
+        await manager.getRepository(SuperAgent).increment({ id: hub.id }, 'codCashHeld', liability);
+      }
+      await this.invoicesService.recordCodBalanceCollected(order, Number(order.totalAmount || 0), manager);
+      await manager.getRepository(ParcelTracking).insert({
+        parcel: current, status: ParcelStatus.DELIVERED, city: dto.city,
+        note: dto.note || this.statusLabel(ParcelStatus.DELIVERED, dto.city),
+        updatedBy: hub.businessName, handlerPhone: hub.phone || user.phone || null,
+        handlerLocation: hub.address || dto.city, handlerType: 'super_agent',
+      });
+    };
+
+    if (manual) {
+      await this.dataSource.transaction(async manager => {
+        await manager.query('SELECT id FROM public."order" WHERE id=$1 FOR UPDATE', [order.id]);
+        const [locked] = await manager.query('SELECT "codBalanceCollected", "escrowStatus" FROM public."order" WHERE id=$1', [order.id]);
+        if (!locked || locked.codBalanceCollected || locked.escrowStatus === 'refunded') {
+          throw new ConflictException('COD balance is already collected or unavailable');
+        }
+        await complete(manager);
+        await manager.getRepository(Order).update(order.id, companion);
+      });
+    } else {
+      await this.orderRelease.releaseSellerProceeds({
+        orderId: order.id, source: 'COD_DELIVERY', amount: sellerNet,
+        orderUpdate: companion, completeInTransaction: complete,
+      });
+    }
+    this.activityEvents.record({
+      eventType: 'COD_BALANCE_COLLECTED', category: ActivityCategory.PAYMENT,
+      actorId: user.id, actorType: 'super_agent', relatedUserId: order.seller?.id ?? null,
+      targetType: 'order', targetId: order.id,
+      metadata: { trackingNumber: snapshot.trackingNumber, amountCollected: collected,
+        codHandlingFee: fee, kentexaHandlingShare: kentexaShare, agentHandlingShare: agentShare,
+        sellerNetCredited: manual ? null : sellerNet, manuallyArranged: manual },
+    });
+  }
+
   async updateParcelStatus(
     user: User,
     trackingNumber: string,
@@ -3378,142 +3486,14 @@ export class SuperAgentsService {
     const order = parcel.order;
     if (
       dto.status === ParcelStatus.DELIVERED &&
-      order?.paymentMethod === OrderPaymentMethod.COD &&
-      !order.codBalanceCollected
+      order?.paymentMethod === OrderPaymentMethod.COD
     ) {
-      const expected = Number(order.codRemainingBalance || 0);
-      const collected = Number(dto.codBalanceCollected ?? 0);
-      if (Math.abs(collected - expected) > 1) {
-        throw new BadRequestException(
-          `Salio linalotarajiwa ni TZS ${expected.toLocaleString()}, lakini TZS ${collected.toLocaleString()} imeingizwa.`,
-        );
-      }
-      const codAgentId = handlerAgent?.id ?? null;
-      const codCompanionUpdate = {
-        codBalanceCollected: true,
-        codBalanceCollectedByAgentId: codAgentId,
-        codBalanceCollectedAt: new Date(),
-        paymentStatus: OrderPaymentStatus.PAID,
-      };
-
-      // COD is not free to run — collecting cash/mobile money at the door
-      // is real extra risk and work for the delivering agent, on top of
-      // Kentexa's ordinary marketplace commission (already deducted into
-      // order.sellerAmount at order-creation time, from the FULL price —
-      // untouched here). This new fee applies only to the cash actually
-      // collected in person (`collected`), never the upfront portion
-      // already paid through Kentexa's own gateway. See cod-policy.config.
-      const codHandlingFee = parseFloat(
-        ((collected * COD_HANDLING_FEE_PERCENT) / 100).toFixed(2),
-      );
-      const kentexaHandlingShare = parseFloat(
-        ((codHandlingFee * COD_HANDLING_FEE_KENTEXA_SHARE_PERCENT) / 100).toFixed(2),
-      );
-      const agentHandlingShare = parseFloat(
-        (codHandlingFee - kentexaHandlingShare).toFixed(2),
-      );
-      // A shipment created via SellerShipment.js (Manual Sale "Ship It", or
-      // a shipment made directly on that form) follows the ZERO FEE RULE
-      // above: the buyer and seller settle the product price themselves,
-      // off-platform — Kentexa never holds or pays out order.sellerAmount
-      // (deliberately 0 for these). Crediting the Wallet here as if
-      // Kentexa held that money would be wrong (order.sellerAmount is 0,
-      // so it would credit a NEGATIVE amount). For these orders Kentexa's
-      // only real stake in the collected cash is its own handling-fee
-      // share — the rest passes from the agent straight to the seller in
-      // the real world, exactly as the base product price already does.
-      const isManuallyArrangedOrder = order.source === OrderSource.SELLER_SHIPMENT;
-
-      const sellerNetAfterCodFee = parseFloat(
-        (Number(order.sellerAmount || 0) - codHandlingFee).toFixed(2),
-      );
-
-      if (!isManuallyArrangedOrder && order.seller?.id) {
-        // S0/I2G: route through the canonical release so the wallet credit,
-        // the escrow/payout release state, and these companion facts commit
-        // atomically in ONE transaction — never a separate, uncoordinated
-        // write (as before) followed by an independent money-routing call
-        // that could succeed or fail on its own. `amount` is an explicit
-        // override, not order.sellerAmount: the real payout here is net of
-        // a COD handling fee only knowable once the agent reports what was
-        // physically collected, so it can differ from the gross
-        // order.sellerAmount OrderReleaseService would otherwise derive —
-        // order.sellerAmount itself is left untouched (still the gross
-        // entitlement for historical/display purposes).
-        //
-        // Deliberately NOT caught here. A BLOCKED/failed release (durably
-        // recorded by releaseSellerProceeds itself — never a Personal-wallet
-        // fallback) must abort this ENTIRE delivery transition, not just the
-        // financial half of it: parcel status, buyerConfirmed, and the COD
-        // companion facts all stay uncommitted together with it, so a retry
-        // of the same request is what re-attempts everything atomically,
-        // rather than the request "succeeding" with the parcel marked
-        // DELIVERED while the seller was never actually paid.
-        await this.orderRelease.releaseSellerProceeds({
-          orderId: order.id,
-          source: 'COD_DELIVERY',
-          amount: sellerNetAfterCodFee,
-          orderUpdate: codCompanionUpdate,
-        });
-      } else {
-        // SELLER_SHIPMENT (ZERO FEE RULE): no escrow was ever held for these
-        // orders and no seller-proceeds release applies — preserved exactly
-        // as before, a plain companion write with no money-routing involved.
-        await this.orderRepo.update(order.id, codCompanionUpdate as any);
-      }
-
-      // Attributed to whichever agent actually handled this delivery —
-      // reuses the same live-summed field the dashboard already trusts
-      // over SuperAgent.totalEarnings (see getDashboard()'s own comment).
-      // Applies regardless of order source — the agent earns this cut
-      // either way.
-      if (agentHandlingShare > 0) {
-        await this.parcelRepo
-          .increment({ id: parcel.id }, 'superAgentEarnings', agentHandlingShare)
-          .catch((e) => console.error('COD agent earnings credit failed (non-critical):', e.message));
-      }
-
-      // The agent is now physically holding `collected` cash that isn't
-      // theirs. For a Kentexa-mediated order (online marketplace), the
-      // Wallet credit above already "promised" the seller their share, so
-      // the agent owes the FULL amount back to Kentexa until remitted
-      // (see recordCodCashRemittance()). For a manually-arranged order,
-      // only Kentexa's own handling-fee share is actually owed to
-      // Kentexa — the rest goes straight from the agent to the seller,
-      // never touching Kentexa's books, matching the ZERO FEE RULE.
-      const codCashLiability = isManuallyArrangedOrder ? kentexaHandlingShare : collected;
-      if (handlerAgent?.id && codCashLiability > 0) {
-        await this.superAgentRepo
-          .increment({ id: handlerAgent.id }, 'codCashHeld', codCashLiability)
-          .catch((e) => console.error('COD cash-held tracking failed (non-critical):', e.message));
-      }
-
-      await this.invoicesService
-        .recordCodBalanceCollected(order, Number(order.totalAmount || 0))
-        .catch((e) => console.error('COD receipt generation failed (non-critical):', e.message));
-
-      this.activityEvents.record({
-        eventType: 'COD_BALANCE_COLLECTED',
-        category: ActivityCategory.PAYMENT,
-        actorId: user.id,
-        actorType: 'super_agent',
-        relatedUserId: order.seller?.id ?? null,
-        targetType: 'order',
-        targetId: order.id,
-        metadata: {
-          trackingNumber,
-          amountCollected: collected,
-          codHandlingFee,
-          kentexaHandlingShare,
-          agentHandlingShare,
-          sellerNetCredited: isManuallyArrangedOrder ? null : sellerNetAfterCodFee,
-          manuallyArranged: isManuallyArrangedOrder,
-        },
-      });
+      await this.completeLegacyCodDelivery(user, parcel, handlerAgent, dto, roleContext);
     }
 
     let trackingSavedInTransaction = dto.status === ParcelStatus.RECEIVED_AT_HUB ||
-      dto.status === ParcelStatus.ARRIVED_AT_HUB;
+      dto.status === ParcelStatus.ARRIVED_AT_HUB ||
+      (dto.status === ParcelStatus.DELIVERED && order?.paymentMethod === OrderPaymentMethod.COD);
     if (!trackingSavedInTransaction) {
       if (parcel.buyerRequestedDelivery !== true &&
           [ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(parcel.status)) {

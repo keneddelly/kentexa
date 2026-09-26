@@ -30,7 +30,8 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
   let invoicesService: any;
   let activityEvents: any;
 
-  const roleContext = { roleType: AccountRoleType.ADMIN } as any;
+  const roleContext = { roleType: AccountRoleType.SUPER_AGENT, userId: 1, profileId: 6, workspaceId: null } as any;
+  const hub = { id: 6, city: 'Dar es Salaam', businessName: 'Destination Hub', workspaceId: null };
 
   const baseOrder = (overrides: Record<string, any> = {}) => ({
     id: 900,
@@ -52,7 +53,8 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
     order,
     seller: order.seller,
     superAgent: null,
-    destinationSuperAgent: null,
+    destinationSuperAgent: hub,
+    buyerRequestedDelivery: true,
     buyerPhone: null,
   });
 
@@ -63,7 +65,7 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
       increment: jest.fn().mockResolvedValue(undefined),
     };
     orderRepo = { update: jest.fn().mockResolvedValue(undefined) };
-    superAgentRepo = { find: jest.fn().mockResolvedValue([]), increment: jest.fn().mockResolvedValue(undefined) };
+    superAgentRepo = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn().mockResolvedValue(hub), increment: jest.fn().mockResolvedValue(undefined) };
     trackingRepo = { create: jest.fn((x) => x), save: jest.fn().mockResolvedValue(undefined) };
     moneyRouting = { creditSellerProceeds: jest.fn() }; // must NEVER be called anymore
     orderRelease = { releaseSellerProceeds: jest.fn().mockResolvedValue({ released: true, alreadyReleased: false, routing: { entryId: 1, eventKey: 'k', state: 'ROUTED' } }) };
@@ -104,6 +106,7 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
       moneyRouting,
       orderRelease,
     );
+    jest.spyOn(service as any, 'resolveActingSuperAgent').mockResolvedValue(hub);
   });
 
   it('routes a real (ONLINE-source) COD delivery through OrderReleaseService with the net-of-fee amount, never MoneyRoutingService directly', async () => {
@@ -127,9 +130,10 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
       orderUpdate: expect.objectContaining({
         paymentStatus: OrderPaymentStatus.PAID,
         codBalanceCollected: true,
-        codBalanceCollectedByAgentId: null,
+        codBalanceCollectedByAgentId: 6,
         codBalanceCollectedAt: expect.any(Date),
       }),
+      completeInTransaction: expect.any(Function),
     });
     expect(moneyRouting.creditSellerProceeds).not.toHaveBeenCalled();
     // No separate, uncoordinated order-state write before/alongside the release --
@@ -137,23 +141,19 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
     expect(orderRepo.update).not.toHaveBeenCalled();
   });
 
-  it('preserves the SELLER_SHIPMENT zero-fee exemption exactly: no release call, plain direct order update instead', async () => {
+  it('keeps seller-arranged COD out of the canonical seller-credit path', async () => {
     const order = baseOrder({ source: OrderSource.SELLER_SHIPMENT, sellerAmount: 0 });
     parcelRepo.findOne.mockResolvedValue(baseParcel(order));
-
-    await service.updateParcelStatus(
+    await expect(service.updateParcelStatus(
       { id: 1, name: 'Agent' } as any,
       'KTX-DAR-MZA-000010',
       { status: ParcelStatus.DELIVERED, city: 'Dar es Salaam', codBalanceCollected: 5000 },
       roleContext,
-    );
+    )).rejects.toThrow(); // this unit fixture has no database; the PostgreSQL gate owns manual completion
 
     expect(orderRelease.releaseSellerProceeds).not.toHaveBeenCalled();
     expect(moneyRouting.creditSellerProceeds).not.toHaveBeenCalled();
-    expect(orderRepo.update).toHaveBeenCalledWith(
-      900,
-      expect.objectContaining({ codBalanceCollected: true, paymentStatus: OrderPaymentStatus.PAID }),
-    );
+    expect(orderRepo.update).not.toHaveBeenCalled();
   });
 
   it('a BLOCKED canonical release rejects the WHOLE delivery request -- never catch-and-continue', async () => {
@@ -193,18 +193,28 @@ describe('SuperAgentsService.updateParcelStatus() — COD release boundary', () 
     ).rejects.toThrow('connection terminated unexpectedly');
   });
 
-  it('does not re-enter the COD block once codBalanceCollected is already true (unaffected by this fix)', async () => {
+  it('rejects a second COD delivery instead of rewriting terminal tracking', async () => {
     const order = baseOrder({ codBalanceCollected: true });
     parcelRepo.findOne.mockResolvedValue(baseParcel(order));
 
-    await service.updateParcelStatus(
+    await expect(service.updateParcelStatus(
       { id: 1, name: 'Agent' } as any,
       'KTX-DAR-MZA-000010',
       { status: ParcelStatus.DELIVERED, city: 'Dar es Salaam' },
       roleContext,
-    );
+    )).rejects.toThrow('already been recorded');
 
     expect(orderRelease.releaseSellerProceeds).not.toHaveBeenCalled();
     expect(orderRepo.update).not.toHaveBeenCalled();
+  });
+
+  it('does not assign a local agent cash collection to the hub', async () => {
+    parcelRepo.findOne.mockResolvedValue({ ...baseParcel(baseOrder()), localAgentId: '99' });
+    await expect(service.updateParcelStatus(
+      { id: 1, name: 'Hub' } as any, 'KTX-DAR-MZA-000010',
+      { status: ParcelStatus.DELIVERED, city: 'Dar es Salaam', codBalanceCollected: 5000 },
+      roleContext,
+    )).rejects.toThrow('Assigned local agent');
+    expect(orderRelease.releaseSellerProceeds).not.toHaveBeenCalled();
   });
 });
