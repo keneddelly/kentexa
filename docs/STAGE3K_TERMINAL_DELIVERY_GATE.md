@@ -10,6 +10,8 @@ Read-only production counts on 2026-09-26: 82 Parcels, including 23 `delivered`;
 
 `SuperAgentsService.updateMyDeliveryStatus()` allows a claiming local agent to mark `delivered`. It updates Parcel before tracking and agent statistics in separate writes; it neither records recipient proof nor an immutable custody event. It cannot safely be folded into the hub COD path because the actor, custodian, cash handler, and authorization differ.
 
+The recipient choice code (`chooseDestinationMethod()`) sets `buyerRequestedDelivery=true` and stores the selected Agent's User ID in `Parcel.localAgentId`. `claimParcel()` is an assignment claim, not a custody transfer from the receiving hub. Therefore a hub COD status tap on such a Parcel cannot truthfully credit `SuperAgent.codCashHeld`; the Agent may be the cash holder, and the current Agent entity has no equivalent canonical cash-liability route. The draft now rejects the hub COD completion both at preflight and after the Parcel row lock if `localAgentId` is set. This intentionally holds that delivery until a separate Agent cash and recipient proof path exists.
+
 Other terminal writers found in the first inventory:
 
 | Writer | Trigger | Physical evidence and boundary |
@@ -40,7 +42,7 @@ Native PostgreSQL tests must cover rollback after canonical release but before c
 
 The generic hub COD delivery branch now calls `completeLegacyCodDelivery()`. For a Kentexa-mediated order, canonical seller release owns the transaction and calls back after routing; for a seller-arranged shipment, a single Order-locked transaction writes its companion facts without seller credit. Both paths lock/recheck the Parcel and write status, cash liability, agent share, invoice receipt, and tracking together. Outbound activity/SMS remain after commit. Duplicate delivery, invalid amount, role mismatch, and stale Parcel state fail closed. A new isolated PostgreSQL test is wired into the Stage 3F CI job to exercise blocked release, tracking/receipt rollback, and concurrent completion.
 
-This slice does **not** establish recipient proof or append delivery custody. It is not a complete Stage 3K release. The local-agent, buyer-confirmation, and provider-webhook paths are unchanged. The new PostgreSQL test must run in CI; local environment has no isolated database. Review actual delivery choice/handler behavior and backward compatibility before any deployment.
+This slice does **not** establish recipient proof or append delivery custody. It is not a complete Stage 3K release. The local-agent, buyer-confirmation, and provider-webhook paths are unchanged. The new PostgreSQL test passed in CI at candidate `5bdfa394da1d86c75911b1db42996159cfd4a893`; the subsequent Agent-assignment fence requires a fresh exact-head run. Local environment has no isolated database. An actual future COD recipient choice normally assigns an Agent; this draft cannot be merged as a complete delivery solution.
 
 ## Gate decision
 
