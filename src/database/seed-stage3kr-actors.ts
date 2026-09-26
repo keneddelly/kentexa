@@ -26,6 +26,7 @@ async function seed(): Promise<void> {
   await dataSource.initialize();
   try {
     const hash = await bcrypt.hash(process.env.STAGE3KR_TEST_PASSWORD!, 12);
+    const testAvatar = 'https://stage3kr.kentexa.com/logo192.png';
     await dataSource.transaction(async manager => {
       for (const actor of actors) {
         const email = `stage3kr-${actor.key}@example.invalid`;
@@ -33,9 +34,16 @@ async function seed(): Promise<void> {
         if (existing.length && existing[0].name !== actor.name)
           throw new Error(`Stage3KR seed refused: reserved email already belongs to another actor (${actor.key})`);
         const userId = existing.length ? existing[0].id : (await manager.query(
-          `INSERT INTO public."user" (email, name, password, role, "isVerified")
-           VALUES ($1, $2, $3, $4, true) RETURNING id`, [email, actor.name, hash, actor.role],
+          `INSERT INTO public."user" (email, name, password, role, "isVerified", "avatarUrl", "onboardingCompleted")
+           VALUES ($1, $2, $3, $4, true, $5, true) RETURNING id`,
+          [email, actor.name, hash, actor.role, testAvatar],
         ))[0].id;
+        // Only these reserved synthetic identities receive the test avatar.
+        // Preserve an existing password and role on every pre-deploy retry.
+        if (existing.length) await manager.query(
+          `UPDATE public."user" SET "avatarUrl" = $2, "onboardingCompleted" = true
+           WHERE id = $1 AND email = $3`, [userId, testAvatar, email],
+        );
         await manager.query(
           `INSERT INTO public.account_role ("userId", "roleType", status, "profileType", "profileId")
            VALUES ($1, 'buyer', 'active', 'user', $1) ON CONFLICT DO NOTHING`, [userId],
