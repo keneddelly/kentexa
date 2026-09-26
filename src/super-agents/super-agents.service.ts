@@ -2536,9 +2536,9 @@ export class SuperAgentsService {
         (parcel.order?.status === OrderStatus.DELIVERED || parcel.order?.status === OrderStatus.COMPLETED)) {
       throw new ConflictException('Order is already terminal');
     }
-    if (allowCod && (!parcel.order || parcel.order.paymentMethod !== OrderPaymentMethod.COD ||
-        (!allowOrderCompletionInTransaction &&
-          (parcel.order.codBalanceCollected || parcel.order.escrowStatus === 'released')))) {
+    if (allowCod && parcel.order?.paymentMethod === OrderPaymentMethod.COD &&
+        !allowOrderCompletionInTransaction &&
+        (parcel.order.codBalanceCollected || parcel.order.escrowStatus === 'released')) {
       throw new ConflictException('COD balance is already settled or unavailable');
     }
     await this.assertPickupPayment(parcel, allowCod);
@@ -2670,6 +2670,9 @@ export class SuperAgentsService {
 
     const validate = async (manager: any, completing = false) => {
       const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, true, completing);
+      if (!parcel.order || parcel.order.paymentMethod !== OrderPaymentMethod.COD) {
+        throw new ConflictException('This parcel does not have a COD order');
+      }
       const [challenge] = await manager.query(`SELECT "agentDeliveryCodeHash", "agentDeliveryCodeExpiresAt",
         "agentDeliveryAgentUserId", "agentDeliveryRecipientPhone", "agentDeliveryAttempts"
         FROM public.parcel WHERE id=$1`, [parcel.id]);
