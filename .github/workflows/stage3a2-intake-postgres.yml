@@ -6,6 +6,9 @@ on:
       - worktree-service-provider-profiles
     paths:
       - 'src/super-agents/super-agents.service.ts'
+      - 'src/orders/entities/order.entity.ts'
+      - 'src/database/migrations/1788282000000-AddWalkInRequestIdempotency.ts'
+      - 'bishoo-frontend/src/public/pages/SuperAgentDashboard.js'
       - 'src/super-agents/super-agents.custody-intake.spec.ts'
       - 'src/orders/orders.service.ts'
       - 'src/orders/orders.controller.ts'
