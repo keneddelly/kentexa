@@ -132,6 +132,7 @@ import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
 import BuyerParcelAction from './public/pages/BuyerParcelAction';
 import VanToday from './public/pages/VanToday';
+import { DAILY_BATCHES_AVAILABLE } from './config/dailyBatchAvailability';
 import StoreSettings from './seller/pages/StoreSettings';
 import BecomeSuperAgentInfo from './public/pages/BecomeSuperAgentInfo';
 import CategoryPage from './public/pages/CategoryPage';
@@ -691,7 +692,9 @@ function App() {
     if (page.startsWith('BuyerParcelAction-'))
       return requireLogin(<BuyerParcelAction {...publicProps} trackingNumber={page.split('BuyerParcelAction-')[1]} />);
     if (page.startsWith('BatchHandoff-'))
-      return requireLogin(<BatchHandoff {...publicProps} orderId={page.split('BatchHandoff-')[1]} />);
+      return requireLogin(DAILY_BATCHES_AVAILABLE
+        ? <BatchHandoff {...publicProps} orderId={page.split('BatchHandoff-')[1]} />
+        : <SellerOrders {...publicProps} />);
     if (page.startsWith('PayInvoice-'))
       return <PayInvoice {...publicProps} prefilledOrderId={page.split('PayInvoice-')[1]} />;
     if (page.startsWith('VerifyReceipt-'))
@@ -798,13 +801,13 @@ function App() {
       case 'AgentDashboard':    return requireLogin(<AgentDashboard {...publicProps} />);
       case 'AgentOrderDashboard': return requireLogin(<AgentDashboard {...publicProps} />); // merged into unified dashboard
       case 'SuperAgentDashboard':   return requireLogin(<SuperAgentDashboard {...publicProps} />);
-      case 'DispatcherManifest':    return requireLogin(<DispatcherManifest {...publicProps} />);
-      case 'HubReceive':           return requireLogin(<HubReceive {...publicProps} />);
-      case 'BatchHandoff':          return requireLogin(<BatchHandoff {...publicProps} />);
+      case 'DispatcherManifest':    return requireLogin(DAILY_BATCHES_AVAILABLE ? <DispatcherManifest {...publicProps} /> : <SuperAgentDashboard {...publicProps} />);
+      case 'HubReceive':           return requireLogin(DAILY_BATCHES_AVAILABLE ? <HubReceive {...publicProps} /> : <SuperAgentDashboard {...publicProps} />);
+      case 'BatchHandoff':          return requireLogin(DAILY_BATCHES_AVAILABLE ? <BatchHandoff {...publicProps} /> : <SellerOrders {...publicProps} />);
       case 'SuperAgentParcel':       return requireLogin(<SuperAgentParcel {...publicProps} />);
       case 'SuperAgentSettings':     return requireLogin(<SuperAgentSettings {...publicProps} />);
       case 'SellerShipment':         return requireVerifiedSeller(<SellerShipment {...publicProps} prefill={navParams} />);
-      case 'VanToday':             return requireLogin(<VanToday {...publicProps} />);
+      case 'VanToday':             return requireLogin(DAILY_BATCHES_AVAILABLE ? <VanToday {...publicProps} /> : <SellerDashboard {...publicProps} />);
       case 'Dashboard':   return requireAdmin(<Dashboard activePage={page} {...adminProps} />);
       case 'Products':    return requireAdmin(<Products activePage={page} {...adminProps} />);
       case 'Classifieds': return requireAdmin(<Classifieds activePage={page} {...adminProps} />);

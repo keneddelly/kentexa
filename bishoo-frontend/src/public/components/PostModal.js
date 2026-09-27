@@ -48,7 +48,7 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
   };
   const receiveAction = {
     icon: '📥', title: t('post_modal.action_receive_title'), sub: t('post_modal.action_receive_sub'),
-    page: 'HubReceive', color: '#EFF6FF', accent: '#2563EB',
+    page: 'SuperAgentDashboard', color: '#EFF6FF', accent: '#2563EB',
   };
   const hubShipmentAction = {
     icon: '📦', title: t('post_modal.action_hub_shipment_title'), sub: t('post_modal.action_hub_shipment_sub'),

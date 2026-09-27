@@ -34,6 +34,7 @@ import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import SetupProgressCard from '../../onboarding/SetupProgressCard';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
+import { DAILY_BATCHES_AVAILABLE } from '../../config/dailyBatchAvailability';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Full hub-operations dashboard (receive/dispatch/pricing/van) re-enabled —
@@ -1007,7 +1008,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               { key: 'historia',label: '🕘 HISTORIA'},
               { key: 'mapato',  label: '💰 MAPATO'  },
               { key: 'bei',     label: '📋 BEI'     },
-              ...(isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
+              ...(DAILY_BATCHES_AVAILABLE && isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
             ].map(t => (
               <button key={t.key} data-tour={`sa-tab-${t.key}`}
                 onClick={() => { setActiveTab(t.key); setPokeaMode('list'); }}
@@ -2440,7 +2441,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         {/* ════════════════════════════════════════════════════════════════
             🚐 VAN YA LEO TAB (Dar only)
             ════════════════════════════════════════════════════════════════ */}
-        {activeTab === 'van' && isDar && (
+        {DAILY_BATCHES_AVAILABLE && activeTab === 'van' && isDar && (
           <div style={{ textAlign: 'center', padding: 32 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🚐</div>
             <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
