@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import { getAccessToken } from '../../api/tokenStore';
+import { DAILY_BATCHES_AVAILABLE } from '../../config/dailyBatchAvailability';
 // eslint-disable-next-line no-unused-vars
 import { buildCreationMessage, buildTransportMessage, buildSellerToBuyerMessage } from '../utils/whatsapp-link';
 
@@ -70,7 +71,7 @@ const getShippingMethods = (t) => [
     courierLabel: null,
     proofNote: t('seller_orders.method_personal_proof'),
   },
-  {
+  ...(DAILY_BATCHES_AVAILABLE ? [{
     key:      'kentexa_delivery',
     icon:     '🚐',
     label:    t('seller_orders.method_van'),
@@ -82,7 +83,7 @@ const getShippingMethods = (t) => [
     courierLabel: null,
     proofNote: t('seller_orders.method_van_proof'),
     isBatch: true,
-  },
+  }] : []),
 ];
 
 const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
