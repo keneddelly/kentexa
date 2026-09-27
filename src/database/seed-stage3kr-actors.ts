@@ -12,9 +12,14 @@ const actors = [
 ] as const;
 
 export function assertStage3krSeedTarget(env: NodeJS.ProcessEnv): void {
+  const smsDisabled = env.STAGE3KR_DISABLE_OUTBOUND_SMS === 'true';
+  const controlledSms = env.STAGE3KR_DISABLE_OUTBOUND_SMS === 'false' &&
+    env.STAGE3KR_SMS_REHEARSAL === 'true' &&
+    /^\+255\d{9}$/.test(env.STAGE3KR_SMS_TEST_PHONE || '') &&
+    !!env.AT_API_KEY && !!env.AT_USERNAME && env.AT_USERNAME !== 'sandbox';
   if (env.STAGE3KR_SEED_CONFIRM !== 'SEED_ISOLATED_STAGE3KR' ||
       env.DB_NAME !== 'kentexa_stage3kr' || env.DB_USERNAME !== 'kentexa_stage3kr' ||
-      env.STAGE3KR_DISABLE_OUTBOUND_SMS !== 'true' ||
+      (!smsDisabled && !controlledSms) ||
       env.STAGE3KR_DISABLE_UPLOADS !== 'true' ||
       !env.STAGE3KR_TEST_PASSWORD || env.STAGE3KR_TEST_PASSWORD.length < 24) {
     throw new Error('Stage3KR seed refused: isolated target, disabled outbound integrations, and test password required');
