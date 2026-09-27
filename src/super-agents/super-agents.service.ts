@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 58323)
+Total output lines: 5288
+
 import {
   Injectable,
   NotFoundException,
@@ -527,6 +530,7 @@ export class SuperAgentsService {
       shippingFeeCollected: number;
       paymentMethod?: string; // cash | mpesa | airtel
       notes?: string;
+      requestKey: string; // stable across lost-response retries, new for each parcel
     },
     roleContext?: RoleContext,
   ) {
@@ -540,8 +544,6 @@ export class SuperAgentsService {
       roleContext.userId !== superAgentUser.id || roleContext.profileId !== superAgent.id
     ) throw new ForbiddenException('An active Super Agent hub must register this receipt');
 
-    this.assertNotBillingBlocked(superAgent);
-
     // Thamani ya Mzigo — required, numeric, greater than zero. Matches this
     // method's own existing convention (manual inline checks, no
     // class-validator DTO on this endpoint — see the controller's
@@ -553,17 +555,36 @@ export class SuperAgentsService {
         'Thamani ya mzigo inahitajika na lazima iwe zaidi ya sifuri',
       );
     }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(dto.requestKey || ''))
+      throw new BadRequestException('A unique parcel request key is required');
+    const payloadHash = createHash('sha256').update(JSON.stringify({
+      senderName: dto.senderName, senderPhone: dto.senderPhone,
+      recipientName: dto.recipientName, recipientPhone: dto.recipientPhone,
+      destinationCity: dto.destinationCity,
+      deliveryAddress: dto.deliveryAddress, description: dto.description,
+      weightKg: dto.weightKg ?? null, parcelSize: dto.parcelSize ?? null,
+      declaredValue, shippingFeeCollected: Number(dto.shippingFeeCollected),
+      paymentMethod: dto.paymentMethod ?? null, notes: dto.notes ?? null,
+    })).digest('hex');
 
     const originCity = superAgent.city;
     const destinationCity = dto.destinationCity;
     const weightKg = dto.weightKg || 0.5;
 
-    const { savedOrder, savedParcel, trackingNumber, destAgent, agentEarnings,
-      isFreeOrder, platformFeeCharged, platformFeeWaived, invoice } =
-      await this.dataSource.transaction(async (manager) => {
+    const outcome = await this.dataSource.transaction(async (manager) => {
         // Serialize free-order allowance and dashboard totals for this hub.
         await manager.query('SELECT id FROM public.super_agent WHERE id = $1 FOR UPDATE', [superAgent.id]);
         const currentAgent = await manager.getRepository(SuperAgent).findOne({ where: { id: superAgent.id } });
+        const [prior] = await manager.query(`SELECT "createdByUserId", "shippingFeeCollectedByAgentId",
+          "offlineRequestPayloadHash", "offlineReceiptSnapshot"
+          FROM public."order" WHERE "offlineRequestKey" = $1`, [dto.requestKey]);
+        if (prior) {
+          if (prior.createdByUserId !== superAgentUser.id ||
+              prior.shippingFeeCollectedByAgentId !== superAgent.id ||
+              prior.offlineRequestPayloadHash !== payloadHash || !prior.offlineReceiptSnapshot)
+            throw new ConflictException('Parcel request key was already used for different details');
+          return { replayed: true as const, receipt: prior.offlineReceiptSnapshot };
+        }
         if (!currentAgent || currentAgent.status !== SuperAgentStatus.ACTIVE) {
           throw new ForbiddenException('Receiving hub is no longer active');
         }
@@ -572,6 +593,8 @@ export class SuperAgentsService {
     //    No seller, no product, no escrow. source = 'offline_intercity'
     const order = this.orderRepo.create({
       source: 'offline_intercity' as any,
+      offlineRequestKey: dto.requestKey,
+      offlineRequestPayloadHash: payloadHash,
       manualBuyerName: dto.recipientName,
       manualBuyerPhone: dto.recipientPhone,
       manualProductName: dto.description,
@@ -751,9 +774,35 @@ export class SuperAgentsService {
       manager,
     );
 
-    return { savedOrder, savedParcel, trackingNumber, destAgent, agentEarnings,
-      isFreeOrder, platformFeeCharged, platformFeeWaived, invoice };
+    const receipt = {
+      success: true, orderId: savedOrder.id, trackingNumber, originCity, destinationCity,
+      destinationAgent: destAgent?.businessName || null, declaredValue,
+      shippingFeeCollected: dto.shippingFeeCollected, agentEarnings,
+      receiptNumber: invoice.receiptNumber,
+      receipt: {
+        receiptNumber: invoice.receiptNumber, parcelReference: trackingNumber,
+        senderName: dto.senderName, senderPhone: dto.senderPhone,
+        receiverName: dto.recipientName, receiverPhone: dto.recipientPhone,
+        declaredValue, amountPaid: dto.shippingFeeCollected,
+        paymentMethod: dto.paymentMethod || 'cash', superAgentName: superAgent.businessName,
+        superAgentCity: superAgent.city, status: 'paid', paidAt: invoice.paidAt,
+        verifiedByKentexa: true,
+      },
+      billing: { isFreeOrder, platformFeeCharged, platformFeeWaived,
+        outstandingBalance: Number(superAgent.outstandingBalance) +
+          (isFreeOrder ? 0 : platformFeeCharged) },
+    };
+    await manager.getRepository(Order).update(savedOrder.id, { offlineReceiptSnapshot: receipt });
+
+    return { replayed: false as const, savedOrder, savedParcel, trackingNumber,
+      platformFeeCharged, platformFeeWaived, invoice, receipt };
     });
+    if (outcome.replayed) return {
+      ...outcome.receipt, replayed: true, senderSmsSent: false,
+      message: 'Kifurushi hiki tayari kimesajiliwa. Tumia risiti ileile; angalia SMS kabla ya kuituma tena.',
+    };
+    const { savedParcel, trackingNumber, platformFeeCharged, platformFeeWaived, invoice,
+      receipt } = outcome;
 
     // Who declared the value and when — reuses the existing generic audit
     // log rather than building a second history mechanism. There is no
@@ -816,43 +865,11 @@ export class SuperAgentsService {
       .catch(() => {});
 
     return {
-      success: true,
-      orderId: savedOrder.id,
-      trackingNumber,
-      originCity,
-      destinationCity,
-      destinationAgent: destAgent?.businessName || null,
-      declaredValue,
-      shippingFeeCollected: dto.shippingFeeCollected,
-      agentEarnings,
-      receiptNumber: invoice.receiptNumber,
-      receipt: {
-        receiptNumber: invoice.receiptNumber,
-        parcelReference: trackingNumber,
-        senderName: dto.senderName,
-        senderPhone: dto.senderPhone,
-        receiverName: dto.recipientName,
-        receiverPhone: dto.recipientPhone,
-        declaredValue,
-        amountPaid: dto.shippingFeeCollected,
-        paymentMethod: dto.paymentMethod || 'cash',
-        superAgentName: superAgent.businessName,
-        superAgentCity: superAgent.city,
-        status: 'paid',
-        paidAt: invoice.paidAt,
-        verifiedByKentexa: true,
-      },
+      ...receipt,
       senderSmsSent,
       message: senderSmsSent
         ? `Kifurushi kimesajiliwa. SMS ya malipo imetumwa kwa ${dto.senderPhone}.`
         : `Kifurushi kimesajiliwa. Risiti: ${invoice.receiptNumber}. SMS ya malipo haikutumwa — jaribu tena.`,
-      billing: {
-        isFreeOrder,
-        platformFeeCharged,
-        platformFeeWaived,
-        outstandingBalance:
-          Number(superAgent.outstandingBalance) + (isFreeOrder ? 0 : platformFeeCharged),
-      },
     };
   }
 
@@ -2371,753 +2388,7 @@ export class SuperAgentsService {
   }
 
   async getMyDeliveries(userId: string) {
-    return this.parcelRepo.find({
-      where: { localAgentId: userId },
-      relations: { order: { product: true, buyer: true } },
-      order: { claimedAt: 'DESC' } as any,
-    });
-  }
-
-  async claimParcel(user: User, trackingNumber: string) {
-    const parcel = await this.parcelRepo.findOne({ where: { trackingNumber } });
-    if (!parcel) throw new NotFoundException('Parcel not found');
-    if ((parcel as any).localAgentId)
-      throw new BadRequestException('Already claimed');
-    if (parcel.status !== ParcelStatus.ARRIVED_AT_HUB) {
-      throw new BadRequestException(
-        `Cannot claim — status is ${parcel.status}`,
-      );
-    }
-
-    const agentProfile = await this.agentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
-
-    // Atomic conditional update — the read above is only for the friendly
-    // error messages. This WHERE clause is what actually prevents two
-    // agents claiming the same parcel in the same race window.
-    const result = await this.parcelRepo
-      .createQueryBuilder()
-      .update()
-      .set({
-        localAgentId: String(user.id),
-        localAgentName: agentProfile?.fullName || user.name,
-        claimedAt: new Date(),
-      } as any)
-      .where('id = :id', { id: parcel.id })
-      .andWhere('"localAgentId" IS NULL')
-      .andWhere('status = :status', { status: ParcelStatus.ARRIVED_AT_HUB })
-      .execute();
-    if (!result.affected) {
-      throw new BadRequestException(
-        'Already claimed by another agent, or no longer available.',
-      );
-    }
-
-    await this.addTrackingEvent(
-      parcel,
-      parcel.status,
-      (parcel as any).destinationCity || '',
-      'Kimechukuliwa na wakala wa mtaa',
-      agentProfile?.fullName || user.name || '',
-      {
-        phone: user.phone || undefined,
-        location: agentProfile?.city || (parcel as any).destinationCity,
-        type: 'local_agent',
-      },
-    );
-    return { message: 'Parcel claimed', trackingNumber };
-  }
-
-  async updateMyDeliveryStatus(
-    user: User,
-    trackingNumber: string,
-    status: ParcelStatus,
-    note?: string,
-  ) {
-    if (status === ParcelStatus.SELF_PICKUP) {
-      throw new BadRequestException('Receiving hub must confirm self-pickup handover');
-    }
-    const parcel = await this.parcelRepo.findOne({
-      where: { trackingNumber },
-      relations: { order: { buyer: true } },
-    });
-    if (!parcel) throw new NotFoundException('Parcel not found');
-    if ((parcel as any).localAgentId !== String(user.id))
-      throw new ForbiddenException('Not your delivery');
-
-    // A retried/duplicate PATCH to DELIVERED on an already-delivered parcel
-    // must not double-credit the agent — there was no guard here before,
-    // unlike the equivalent buyer-confirms-receipt path in orders.service.ts.
-    const alreadyDelivered =
-      status === ParcelStatus.DELIVERED &&
-      parcel.status === ParcelStatus.DELIVERED;
-
-    const updates: any = { status };
-    if (status === ParcelStatus.DELIVERED) {
-      updates.deliveredTime = new Date();
-      updates.buyerConfirmed = true;
-    }
-    await this.parcelRepo.update(parcel.id, updates);
-
-    const agentProfile = await this.agentRepo.findOne({
-      where: { user: { id: user.id } },
-    });
-    const city = (parcel as any).destinationCity || '';
-    await this.addTrackingEvent(
-      parcel,
-      status,
-      city,
-      note || status,
-      agentProfile?.fullName || user.name || '',
-      {
-        phone: user.phone || undefined,
-        location: agentProfile?.city || city,
-        type: 'local_agent',
-      },
-    );
-
-    if (status === ParcelStatus.DELIVERED && !alreadyDelivered) {
-      // Track delivery count and earnings for agent's own records.
-      // KenteXa does NOT pay local agents — they are independent and earn
-      // directly from the Super Agent or seller who hired them.
-      // totalEarningsDeliveries = informational record of what they've earned.
-      // pendingEarnings is NOT used for local agent deliveries.
-      if (agentProfile) {
-        const commission = Number(agentProfile.deliveryCommission || 500);
-        await this.agentRepo.update(agentProfile.id, {
-          totalDeliveriesCompleted: agentProfile.totalDeliveriesCompleted + 1,
-          totalEarningsDeliveries:
-            Number(agentProfile.totalEarningsDeliveries) + commission,
-          totalEarnings: Number(agentProfile.totalEarnings) + commission,
-          // Note: pendingEarnings NOT incremented — KenteXa doesn't owe this
-        });
-      }
-      // SMS buyer
-      const buyerPhone =
-        (parcel as any).buyerPhone || parcel.order?.buyer?.phone;
-      const recipientName =
-        (parcel as any).recipientName || parcel.order?.buyer?.name || 'Mteja';
-      if (buyerPhone) {
-        await this.smsService
-          .sendSms(
-            buyerPhone,
-            `KenteXa: Habari ${recipientName}! Kifurushi chako (${trackingNumber}) kimefikishwa. Asante! 🎉`,
-          )
-          .catch(() => {});
-      }
-    }
-
-    return { message: 'Status updated', trackingNumber, status };
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // BULK SHIPMENTS
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // Parcels this agent can fold into a NEW consolidated shipment — their
-  // own hub's parcels that have actually arrived/been verified but aren't
-  // dispatched or already part of another bulk shipment yet. Backs the
-  // "select which orders go in this box" step of the consolidated-shipment
-  // UI — without it a Super Agent would have to already know every
-  // tracking number by heart.
-  async getBulkShipmentCandidates(user: User, destinationCity?: string) {
-    const agent = await this.resolveActingSuperAgent(user.id);
-    if (!agent) throw new BadRequestException('Super Agent profile not found');
-
-    const where: any = {
-      superAgent: { id: agent.id },
-      bulkShipmentId: IsNull(),
-      status: In([
-        ParcelStatus.RECEIVED_AT_HUB,
-        ParcelStatus.VERIFIED,
-        ParcelStatus.READY_FOR_DISPATCH,
-      ]),
-    };
-    if (destinationCity) where.destinationCity = destinationCity;
-
-    return this.parcelRepo.find({
-      where,
-      order: { createdAt: 'ASC' } as any,
-    });
-  }
-
-  // ── Consolidated shipment: many orders inside one physical box/bus package,
-  // filled up over the course of a day and handed off to a partner Super
-  // Agent as one batch — this is what "Hamisha" means for more than one
-  // parcel. The receiving agent gets exactly ONE message covering the whole
-  // batch (not one per parcel), sent when the origin agent finalizes with
-  // transport info; each BUYER still gets told immediately, individually,
-  // as their own parcel is added — those are two different audiences with
-  // two different reasons to be told, confirmed directly with the user.
-  //
-  // The last-mile agent/contact is resolved and locked in HERE, at creation
-  // — not at dispatch — because that's when the first buyer SMS needs to
-  // already know who to name. dispatchBulkShipment() below only ever adds
-  // transport details on top of an already-known destination.
-  //
-  // Previously broken end-to-end — wrote to entity fields that don't exist
-  // (parcelCount vs the real totalParcels, courierName/courierCost vs the
-  // real transportCompany/totalShippingCost), never set the NOT-NULL
-  // originCity column (every call threw a DB error), and never linked the
-  // tracking numbers it was given — the consolidation itself never happened.
-  async createBulkShipment(
-    user: User,
-    dto: {
-      destinationCity: string;
-      destinationSuperAgentId?: number;
-      manualContactName?: string;
-      manualContactPhone?: string;
-      manualContactCity?: string;
-      manualContactAddress?: string;
-      trackingNumbers: string[];
-      notes?: string;
-    },
-    roleContext?: RoleContext,
-  ) {
-    const agent = await this.resolveActingSuperAgent(user.id);
-    if (!agent || !roleContext || roleContext.userId !== user.id ||
-        roleContext.roleType !== AccountRoleType.SUPER_AGENT ||
-        roleContext.profileId !== agent.id || agent.status !== SuperAgentStatus.ACTIVE) {
-      throw new ForbiddenException('An active origin hub must create the shipment');
-    }
-    if (!dto.trackingNumbers?.length) {
-      throw new BadRequestException('At least one order/parcel is required');
-    }
-
-    const { lastMileAgent, shipmentFields } = await this.resolveLastMile(dto);
-    if (lastMileAgent && lastMileAgent.city.trim().toLowerCase() !== dto.destinationCity.trim().toLowerCase()) {
-      throw new BadRequestException('Receiving hub must be in the shipment destination city');
-    }
-
-    const shipment = await this.bulkRepo.save(
-      this.bulkRepo.create({
-        superAgent: agent,
-        originCity: agent.city,
-        destinationCity: dto.destinationCity,
-        notes: dto.notes || null,
-        status: BulkShipmentStatus.OPEN,
-        ...shipmentFields,
-      }),
-    );
-
-    const result = await this.linkParcelsAndNotifyBuyers(
-      agent,
-      shipment,
-      dto.trackingNumbers,
-      lastMileAgent,
-    );
-
-    return { shipmentId: shipment.id, ...result };
-  }
-
-  // Add more parcels to an OPEN shipment later the same day — the actual
-  // feature being asked for: collect and pack all day, adding to the same
-  // batch as each parcel is ready, without re-picking the destination agent
-  // every time (already locked in at creation) and without sending the
-  // receiving agent a fresh SMS for every single addition.
-  async addParcelsToShipment(
-    user: User,
-    shipmentId: number,
-    dto: { trackingNumbers: string[] },
-    roleContext?: RoleContext,
-  ) {
-    if (!dto.trackingNumbers?.length) {
-      throw new BadRequestException('At least one order/parcel is required');
-    }
-    const shipment = await this.bulkRepo.findOne({
-      where: { id: shipmentId },
-      relations: { superAgent: true, lastMileSuperAgent: true },
-    });
-    if (!shipment) throw new NotFoundException('Bulk shipment not found');
-    const agent = await this.assertOwnsBulkShipment(user, shipment, roleContext);
-    if (!agent) throw new BadRequestException('Super Agent profile not found');
-    if (shipment.status !== BulkShipmentStatus.OPEN) {
-      throw new BadRequestException(
-        'This shipment has already been dispatched — start a new one',
-      );
-    }
-
-    const result = await this.linkParcelsAndNotifyBuyers(
-      agent,
-      shipment,
-      dto.trackingNumbers,
-      (shipment as any).lastMileSuperAgent || null,
-    );
-    return { shipmentId: shipment.id, ...result };
-  }
-
-  // This agent's own OPEN shipments — lets the UI offer "add to the batch
-  // already headed to Iringa" instead of always starting a new one.
-  async getMyOpenBulkShipments(user: User) {
-    const agent = await this.resolveActingSuperAgent(user.id);
-    if (!agent) throw new BadRequestException('Super Agent profile not found');
-    return this.bulkRepo.find({
-      where: { superAgent: { id: agent.id }, status: BulkShipmentStatus.OPEN },
-      relations: { lastMileSuperAgent: true },
-      order: { createdAt: 'DESC' } as any,
-    });
-  }
-
-  // Shared by createBulkShipment (first parcels) and addParcelsToShipment
-  // (every later addition) — same linking + per-buyer-SMS behavior either
-  // way, so a parcel added at 5pm gets exactly the same treatment as one
-  // added at 9am.
-  private async linkParcelsAndNotifyBuyers(
-    agent: SuperAgent,
-    shipment: BulkShipment,
-    trackingNumbers: string[],
-    lastMileAgent: SuperAgent | null,
-  ) {
-    const eligible = [ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH];
-    const parcels = await this.dataSource.transaction(async manager => {
-      await manager.query('SELECT id FROM public.bulk_shipment WHERE id=$1 FOR UPDATE', [shipment.id]);
-      const current = await manager.getRepository(BulkShipment).findOne({
-        where: { id: shipment.id }, relations: { superAgent: true },
-      });
-      if (!current || current.status !== BulkShipmentStatus.OPEN || current.superAgent?.id !== agent.id) {
-        throw new BadRequestException('This shipment is no longer open for parcels');
-      }
-      const candidates = await manager.getRepository(Parcel).find({
-        where: { trackingNumber: In(trackingNumbers), superAgent: { id: agent.id }, bulkShipmentId: IsNull() },
-      });
-      if (candidates.length) {
-        await manager.query('SELECT id FROM public.parcel WHERE id=ANY($1::integer[]) ORDER BY id FOR UPDATE',
-          [candidates.map(p => p.id)]);
-      }
-      const valid = candidates.length ? await manager.getRepository(Parcel).find({
-        where: { id: In(candidates.map(p => p.id)), superAgent: { id: agent.id },
-          bulkShipmentId: IsNull(), status: In(eligible) },
-      }) : [];
-      const matching = valid.filter(p => p.destinationCity.trim().toLowerCase() === current.destinationCity.trim().toLowerCase());
-      if (matching.length) {
-        const parcelUpdate: any = { bulkShipmentId: shipment.id };
-        if (lastMileAgent) parcelUpdate.destinationSuperAgent = { id: lastMileAgent.id };
-        await manager.getRepository(Parcel).update({ id: In(matching.map(p => p.id)) }, parcelUpdate);
-        const addedWeight = matching.reduce((sum, p) => sum + Number(p.weightKg || 0), 0);
-        await manager.getRepository(BulkShipment).increment({ id: shipment.id }, 'totalParcels', matching.length);
-        await manager.getRepository(BulkShipment).increment({ id: shipment.id }, 'totalWeightKg', addedWeight);
-      }
-      return matching;
-    });
-
-    const receiverName =
-      lastMileAgent?.businessName ||
-      (shipment as any).lastMileContactName ||
-      'Super Agent';
-    const receiverPhone =
-      lastMileAgent?.phone || (shipment as any).lastMileContactPhone || '';
-    const receiverCity =
-      lastMileAgent?.city || (shipment as any).lastMileContactCity || '';
-    const receiverAddress =
-      lastMileAgent?.address || (shipment as any).lastMileContactAddress || null;
-
-    let buyerSmsSentCount = 0;
-    for (const parcel of parcels) {
-      if (!(parcel as any).buyerPhone) continue;
-      try {
-        const sent = await this.smsService.sendSms(
-          (parcel as any).buyerPhone,
-          `${agent.businessName}\n\n` +
-            `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${parcel.trackingNumber}) kitapokelewa na ${receiverName}${receiverCity ? ` (${receiverCity})` : ''}.\n\n` +
-            `Simu: ${receiverPhone}\n` +
-            (receiverAddress ? `Mahali: ${receiverAddress}\n` : '') +
-            `\nFuatilia: ${FRONTEND_URL}/?track=${parcel.trackingNumber}\n\n` +
-            `Verified by Kentexa`,
-        );
-        if (sent) buyerSmsSentCount++;
-      } catch (e: any) {
-        console.warn('Shehena buyer SMS failed:', e?.message);
-      }
-    }
-
-    const notFound = trackingNumbers.filter(
-      (tn) => !parcels.some((p) => p.trackingNumber === tn),
-    );
-    return {
-      linkedCount: parcels.length,
-      requestedCount: trackingNumbers.length,
-      buyerSmsSentCount,
-      notFound, // didn't match one of this agent's own unlinked parcels — surfaced so the UI can flag them instead of silently dropping
-    };
-  }
-
-  // Resolves the registered-vs-manual last-mile target once, shared by
-  // create and (implicitly, via the stored fields) every later add.
-  private async resolveLastMile(dto: {
-    destinationSuperAgentId?: number;
-    manualContactName?: string;
-    manualContactPhone?: string;
-    manualContactCity?: string;
-    manualContactAddress?: string;
-  }): Promise<{
-    lastMileAgent: SuperAgent | null;
-    shipmentFields: Partial<BulkShipment>;
-  }> {
-    if (dto.destinationSuperAgentId) {
-      const lastMileAgent = await this.superAgentRepo.findOne({
-        where: { id: dto.destinationSuperAgentId, status: 'active' as any },
-      });
-      if (!lastMileAgent) {
-        throw new NotFoundException('Super Agent aliyechaguliwa hapatikani');
-      }
-      return {
-        lastMileAgent,
-        shipmentFields: {
-          lastMileSuperAgent: { id: lastMileAgent.id } as SuperAgent,
-        },
-      };
-    }
-    if (dto.manualContactName && dto.manualContactPhone) {
-      return {
-        lastMileAgent: null,
-        shipmentFields: {
-          lastMileContactName: dto.manualContactName,
-          lastMileContactPhone: dto.manualContactPhone,
-          lastMileContactCity: dto.manualContactCity || null,
-          lastMileContactAddress: dto.manualContactAddress || null,
-        },
-      };
-    }
-    throw new BadRequestException(
-      'Chagua Super Agent aliyesajiliwa au jaza jina na simu ya mshirika',
-    );
-  }
-
-  // Finalize — add transport details and hand the WHOLE batch off in one
-  // consolidated message to the receiving agent. No last-mile re-selection
-  // here; that was already locked in when the shipment was created.
-  async dispatchBulkShipment(
-    user: User,
-    shipmentId: number,
-    dto: {
-      transportCompany?: string;
-      transportRef?: string;
-      totalShippingCost?: number;
-      courierCostReceipt?: string;
-      notes?: string;
-    },
-    roleContext?: RoleContext,
-  ) {
-    const shipment = await this.bulkRepo.findOne({
-      where: { id: shipmentId },
-      relations: { superAgent: true, lastMileSuperAgent: true },
-    });
-    if (!shipment) throw new NotFoundException('Bulk shipment not found');
-    const agent = await this.assertOwnsBulkShipment(user, shipment, roleContext);
-    if (shipment.status !== BulkShipmentStatus.OPEN) {
-      throw new BadRequestException('This shipment has already been dispatched');
-    }
-    if (!roleContext || roleContext.userId !== user.id ||
-        ![AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN].includes(roleContext.roleType) ||
-        (roleContext.roleType === AccountRoleType.SUPER_AGENT &&
-          (roleContext.profileId !== agent?.id || agent?.status !== SuperAgentStatus.ACTIVE))) {
-      throw new ForbiddenException('An active origin hub or admin role must dispatch this shipment');
-    }
-
-    const lastMileAgent = (shipment as any).lastMileSuperAgent as SuperAgent | null;
-    const receiverName =
-      lastMileAgent?.businessName || (shipment as any).lastMileContactName;
-    const receiverPhone =
-      lastMileAgent?.phone || (shipment as any).lastMileContactPhone;
-
-    const parcels = await this.dataSource.transaction(async manager => {
-      await manager.query('SELECT id FROM public.bulk_shipment WHERE id=$1 FOR UPDATE', [shipmentId]);
-      const current = await manager.getRepository(BulkShipment).findOne({
-        where: { id: shipmentId }, relations: { superAgent: true },
-      });
-      if (!current || current.status !== BulkShipmentStatus.OPEN ||
-          current.superAgent?.id !== shipment.superAgent?.id) {
-        throw new BadRequestException('This shipment is no longer open for dispatch');
-      }
-      const candidates = await manager.getRepository(Parcel).find({
-        where: { bulkShipmentId: shipmentId }, relations: { superAgent: true }, order: { id: 'ASC' },
-      });
-      if (!candidates.length) throw new BadRequestException('Add a parcel before dispatching');
-      await manager.query('SELECT id FROM public.parcel WHERE id=ANY($1::integer[]) ORDER BY id FOR UPDATE',
-        [candidates.map(p => p.id)]);
-      const locked = await manager.getRepository(Parcel).find({
-        where: { bulkShipmentId: shipmentId }, relations: { superAgent: true }, order: { id: 'ASC' },
-      });
-      const eligible = [ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH];
-      if (locked.length !== candidates.length || locked.some(p =>
-        !eligible.includes(p.status) || p.superAgent?.id !== current.superAgent?.id ||
-        p.destinationCity.trim().toLowerCase() !== current.destinationCity.trim().toLowerCase())) {
-        throw new BadRequestException('Shipment contains a parcel that is no longer ready for dispatch');
-      }
-      const dispatchedAt = new Date();
-      await manager.getRepository(BulkShipment).update(shipmentId, {
-        status: BulkShipmentStatus.DISPATCHED,
-        dispatchTime: dispatchedAt,
-        transportCompany: dto.transportCompany || null,
-        transportRef: dto.transportRef || null,
-        totalShippingCost: dto.totalShippingCost || 0,
-        courierCostReceipt: dto.courierCostReceipt || null,
-        notes: dto.notes || shipment.notes,
-      });
-      for (const parcel of locked) {
-        await manager.getRepository(Parcel).update(parcel.id, {
-          status: ParcelStatus.DISPATCHED, dispatchTime: dispatchedAt,
-        });
-        await manager.getRepository(ParcelTracking).insert({
-          parcel, status: ParcelStatus.DISPATCHED, city: shipment.originCity,
-          note: `Imetumwa pamoja na vifurushi vingine kwenda kwa ${receiverName}${dto.transportCompany ? ` via ${dto.transportCompany}` : ''}`,
-          updatedBy: agent?.businessName || user.name || '',
-          handlerPhone: agent?.phone || user.phone || null,
-          handlerLocation: shipment.originCity || null, handlerType: 'super_agent',
-        });
-      }
-      return locked;
-    });
-
-    for (const parcel of parcels) {
-      await this.addTrackingEvent(
-        parcel,
-        ParcelStatus.DISPATCHED,
-        shipment.originCity,
-        `Imetumwa pamoja na vifurushi vingine kwenda kwa ${receiverName}${dto.transportCompany ? ` via ${dto.transportCompany}` : ''}`,
-        agent?.businessName || user.name || '',
-        {
-          phone: agent?.phone || user.phone || undefined,
-          location: shipment.originCity || undefined,
-          type: 'super_agent',
-        },
-        true,
-      );
-    }
-
-    // ONE message to the receiving agent covering the whole batch — the
-    // actual gap being closed. A long tracking-number list gets truncated
-    // so the SMS stays a normal length; the dashboard has the full list.
-    let agentNotifySent = false;
-    const trackingList = parcels.map((p) => p.trackingNumber).filter(Boolean);
-    const listLine =
-      trackingList.length <= 8
-        ? trackingList.join(', ')
-        : `${trackingList.slice(0, 8).join(', ')} na vingine ${trackingList.length - 8}`;
-    if (receiverPhone) {
-      try {
-        agentNotifySent = await this.smsService.sendSms(
-          receiverPhone,
-          `KenteXa\n\n` +
-            `Habari ${receiverName}, ${agent?.businessName} amekukabidhi vifurushi ${parcels.length} vinavyokuja kwako.\n\n` +
-            `Vifurushi: ${listLine}\n` +
-            `Mtumaji: ${agent?.businessName} (${agent?.phone || user.phone || ''})\n` +
-            (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
-            (dto.transportRef ? `Tiketi/Rejea: ${dto.transportRef}\n` : '') +
-            `\nVerified by Kentexa`,
-        );
-      } catch (e: any) {
-        console.warn('Shehena dispatch agent-notify SMS failed:', e?.message);
-      }
-    }
-    if (lastMileAgent?.user?.id) {
-      this.inAppNotif
-        .notify({
-          userId: lastMileAgent.user.id,
-          type: 'shipment_created' as any,
-          title: '📦 Shehena Inakuja',
-          body: `${agent?.businessName} amekukabidhi vifurushi ${parcels.length}${dto.transportCompany ? ` via ${dto.transportCompany}` : ''}.`,
-          icon: '📦',
-          actionPage: 'SuperAgentDashboard',
-        })
-        .catch(() => {});
-    }
-
-    return {
-      message: 'Bulk shipment dispatched',
-      shipmentId,
-      parcelsDispatched: parcels.length,
-      agentNotifySent,
-    };
-  }
-
-  // Ownership check for bulk shipments, mirroring assertOwnsParcel — a
-  // Super Agent may only act on their own hub's consolidated shipments;
-  // ADMIN may act on any.
-  private async assertOwnsBulkShipment(
-    user: User,
-    shipment: BulkShipment,
-    roleContext?: RoleContext,
-  ) {
-    if (!roleContext || roleContext.userId !== user.id ||
-        ![AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN].includes(roleContext.roleType)) {
-      throw new ForbiddenException('An active hub or admin role is required');
-    }
-    if (!shipment.superAgent) throw new BadRequestException('Shipment has no verified origin hub');
-    if (roleContext?.roleType === AccountRoleType.ADMIN) {
-      return shipment.superAgent || null;
-    }
-    const agent = await this.resolveActingSuperAgent(user.id);
-    if (!agent || shipment.superAgent?.id !== agent.id || roleContext.profileId !== agent.id ||
-        agent.status !== SuperAgentStatus.ACTIVE) {
-      throw new ForbiddenException('Not your consolidated shipment');
-    }
-    return agent;
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // COURIER COST LEDGER
-  // ══════════════════════════════════════════════════════════════════════════
-
-  async getCourierCostLedger() {
-    // Was parcelRepo-only — bulk-shipment courier costs (totalShippingCost)
-    // never appeared here at all, even though dispatchBulkShipment stores
-    // them, so admin had no visibility into unsettled bulk courier costs.
-    const [parcels, bulkShipments] = await Promise.all([
-      this.parcelRepo.find({
-        where: { agentPaidOut: false },
-        relations: { superAgent: true },
-        order: { dispatchTime: 'DESC' } as any,
-      }),
-      this.bulkRepo.find({
-        where: { agentPaidOut: false } as any,
-        relations: { superAgent: true },
-        order: { dispatchTime: 'DESC' } as any,
-      }),
-    ]);
-
-    const parcelRows = parcels
-      .filter((p) => Number((p as any).courierCost || 0) > 0)
-      .map((p) => ({
-        type: 'parcel' as const,
-        id: p.trackingNumber,
-        trackingNumber: p.trackingNumber,
-        agentName: p.superAgent?.businessName,
-        agentCity: p.superAgent?.city,
-        courierCost: Number((p as any).courierCost),
-        courierName: (p as any).courierName,
-        transportRef: (p as any).transportRef,
-        dispatchTime: (p as any).dispatchTime,
-        costFlagged: (p as any).costFlagged,
-        costNote: (p as any).costNote,
-      }));
-
-    const bulkRows = bulkShipments
-      .filter((b) => Number(b.totalShippingCost || 0) > 0)
-      .map((b) => ({
-        type: 'bulk' as const,
-        id: String(b.id),
-        trackingNumber: b.shipmentCode,
-        agentName: b.superAgent?.businessName,
-        agentCity: b.superAgent?.city,
-        courierCost: Number(b.totalShippingCost),
-        courierName: b.transportCompany,
-        transportRef: b.transportRef,
-        dispatchTime: b.dispatchTime,
-        costFlagged: b.costFlagged,
-        costNote: b.costNote,
-      }));
-
-    return [...parcelRows, ...bulkRows].sort((a, b) => {
-      const at = a.dispatchTime ? new Date(a.dispatchTime).getTime() : 0;
-      const bt = b.dispatchTime ? new Date(b.dispatchTime).getTime() : 0;
-      return bt - at;
-    });
-  }
-
-  async markCostSettled(type: 'parcel' | 'bulk', id: string) {
-    if (type === 'parcel') {
-      await this.parcelRepo.update(
-        { trackingNumber: id },
-        {
-          agentPaidOut: true,
-        },
-      );
-    } else {
-      // BulkShipment's real column is agentPaidOut — courierCostSettled
-      // isn't a column on this entity at all, so this silently did
-      // nothing (typed through `as any`) for every bulk-settle attempt.
-      await this.bulkRepo.update(Number(id), {
-        agentPaidOut: true,
-      });
-    }
-    return { message: 'Marked as settled' };
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // HELPERS
-  // ══════════════════════════════════════════════════════════════════════════
-
-  private generateTrackingNumber(city: string): string {
-    const cityCode = (city || 'KTX')
-      .slice(0, 3)
-      .toUpperCase()
-      .replace(/\s/g, '');
-    const ts = Date.now().toString(36).toUpperCase();
-    return `KTX-${cityCode}-${ts}`;
-  }
-
-  private generateAgentCode(city: string, id: number): string {
-    const code = (city || 'KTX').slice(0, 3).toUpperCase().replace(/\s/g, '');
-    return `SA-${code}-${String(id).padStart(3, '0')}`;
-  }
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // UPDATE PARCEL STATUS — used by Super Agent dashboard status modal
-  // Handles every status transition in the intercity flow including
-  // transit hubs (e.g. Songea receiving and re-dispatching to Mbinga)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // A receiving hub's own confirmation is the first verified possession
-  // after transit. A provider's arrival report is never enough for this.
-  // A provider's verified collection identifies the previous custodian only
-  // when its assignment still binds this exact parcel and destination.
-  // Older parcels with no verified carrier collection retain unknown origin.
-  private async recordDestinationHubReceipt(
-    parcel: Parcel, hub: SuperAgent, user: User, roleContext: RoleContext,
-    target: ParcelStatus.ARRIVED_AT_HUB | ParcelStatus.AWAITING_BUYER,
-    note: string,
-  ): Promise<void> {
-    await this.dataSource.transaction(async manager => {
-      if (target === ParcelStatus.AWAITING_BUYER && parcel.order?.id) {
-        await manager.query('SELECT id FROM public."order" WHERE id=$1 FOR UPDATE', [parcel.order.id]);
-      }
-      await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
-      const current = await manager.getRepository(Parcel).findOne({
-        where: { id: parcel.id },
-        relations: { superAgent: true, destinationSuperAgent: true, order: true },
-      });
-      if (!current || ![ParcelStatus.DISPATCHED, ParcelStatus.IN_TRANSIT, ParcelStatus.ARRIVED_AT_HUB].includes(current.status)) {
-        throw new ConflictException('Parcel is not awaiting destination hub receipt');
-      }
-      if (current.destinationSuperAgent?.id != null
-        ? current.destinationSuperAgent.id !== hub.id
-        : current.destinationCity.trim().toLowerCase() !== hub.city.trim().toLowerCase()) {
-        throw new ForbiddenException('Only the assigned destination hub can receive this parcel');
-      }
-      const receipt = await manager.getRepository(ParcelCustodyEvent).findOne({
-        where: { parcelId: parcel.id, eventKind: 'destination_hub_received' },
-      });
-      if (receipt && (current.status !== ParcelStatus.ARRIVED_AT_HUB ||
-          target !== ParcelStatus.AWAITING_BUYER || receipt.toCustodianId !== hub.id)) {
-        throw new ConflictException('Destination hub already received this parcel');
-      }
-      if (!receipt) {
-        const previous = await manager.getRepository(ParcelCustodyEvent).findOne({
-          where: { parcelId: parcel.id }, order: { recordedAt: 'DESC', id: 'DESC' },
-        });
-        let carrierAssignment: TransportAssignment | null = null;
-        if (previous?.eventKind === 'transport_provider_collected') {
-          if (previous.toCustodianType !== 'transport_provider' ||
-              previous.toCustodianId == null || previous.assignmentId == null) {
-            throw new ConflictException('Carrier custody evidence is incomplete');
-          }
-          await manager.query('SELECT id FROM public.transport_assignment WHERE id=$1 FOR UPDATE', [previous.assignmentId]);
-          carrierAssignment = await manager.getRepository(TransportAssignment).findOne({
-            where: { id: previous.assignmentId },
-          });
-          if (!carrierAssignment || carrierAssignment.parcelRefId !== current.id ||
-              carrierAssignment.providerId !== previous.toCustodianId ||
-              ![AssignmentStatus.COLLECTED, AssignmentStatus.DEPARTED,
-                AssignmentStatus.ARRIVED, AssignmentStatus.COMPLETED].includes(carrierAssignment.status) ||
-              carrierAssignment.toCity?.trim().toLowerCase() !== hub.city.trim().toLowerCase()) {
-            throw new ConflictException('Carrier assignment does not match destination receipt');
-          }
-        }
-        await manager.getRepository(ParcelCustodyEvent).insert({
-          parcelId: parcel.id, eventKind: 'destination_hub_received',
-          operationKey: `destination-hub-received:${hub.id}`,
+    return this.parcelRepo.fi…8323 tokens truncated…rationKey: `destination-hub-received:${hub.id}`,
           fromCustodianType: carrierAssignment ? 'transport_provider' : null,
           fromCustodianId: carrierAssignment?.providerId ?? null,
           toCustodianType: 'super_agent', toCustodianId: hub.id,
