@@ -528,6 +528,7 @@ export class SuperAgentsService {
       shippingFeeCollected: number;
       paymentMethod?: string; // cash | mpesa | airtel
       notes?: string;
+      requestKey: string; // stable across lost-response retries, new for each parcel
     },
     roleContext?: RoleContext,
   ) {
@@ -541,8 +542,6 @@ export class SuperAgentsService {
       roleContext.userId !== superAgentUser.id || roleContext.profileId !== superAgent.id
     ) throw new ForbiddenException('An active Super Agent hub must register this receipt');
 
-    this.assertNotBillingBlocked(superAgent);
-
     // Thamani ya Mzigo — required, numeric, greater than zero. Matches this
     // method's own existing convention (manual inline checks, no
     // class-validator DTO on this endpoint — see the controller's
@@ -554,17 +553,38 @@ export class SuperAgentsService {
         'Thamani ya mzigo inahitajika na lazima iwe zaidi ya sifuri',
       );
     }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(dto.requestKey || ''))
+      throw new BadRequestException('A unique parcel request key is required');
+    const payloadHash = createHash('sha256').update(JSON.stringify({
+      senderName: dto.senderName, senderPhone: dto.senderPhone,
+      recipientName: dto.recipientName, recipientPhone: dto.recipientPhone,
+      destinationCity: dto.destinationCity,
+      destinationSuperAgentId: dto.destinationSuperAgentId == null
+        ? null : Number(dto.destinationSuperAgentId),
+      deliveryAddress: dto.deliveryAddress, description: dto.description,
+      weightKg: dto.weightKg ?? null, parcelSize: dto.parcelSize ?? null,
+      declaredValue, shippingFeeCollected: Number(dto.shippingFeeCollected),
+      paymentMethod: dto.paymentMethod ?? null, notes: dto.notes ?? null,
+    })).digest('hex');
 
     const originCity = superAgent.city;
     const destinationCity = dto.destinationCity;
     const weightKg = dto.weightKg || 0.5;
 
-    const { savedOrder, savedParcel, trackingNumber, destAgent, agentEarnings,
-      isFreeOrder, platformFeeCharged, platformFeeWaived, invoice } =
-      await this.dataSource.transaction(async (manager) => {
+    const outcome = await this.dataSource.transaction(async (manager) => {
         // Serialize free-order allowance and dashboard totals for this hub.
         await manager.query('SELECT id FROM public.super_agent WHERE id = $1 FOR UPDATE', [superAgent.id]);
         const currentAgent = await manager.getRepository(SuperAgent).findOne({ where: { id: superAgent.id } });
+        const [prior] = await manager.query(`SELECT "createdByUserId", "shippingFeeCollectedByAgentId",
+          "offlineRequestPayloadHash", "offlineReceiptSnapshot"
+          FROM public."order" WHERE "offlineRequestKey" = $1`, [dto.requestKey]);
+        if (prior) {
+          if (prior.createdByUserId !== superAgentUser.id ||
+              prior.shippingFeeCollectedByAgentId !== superAgent.id ||
+              prior.offlineRequestPayloadHash !== payloadHash || !prior.offlineReceiptSnapshot)
+            throw new ConflictException('Parcel request key was already used for different details');
+          return { replayed: true as const, receipt: prior.offlineReceiptSnapshot };
+        }
         if (!currentAgent || currentAgent.status !== SuperAgentStatus.ACTIVE) {
           throw new ForbiddenException('Receiving hub is no longer active');
         }
@@ -573,6 +593,8 @@ export class SuperAgentsService {
     //    No seller, no product, no escrow. source = 'offline_intercity'
     const order = this.orderRepo.create({
       source: 'offline_intercity' as any,
+      offlineRequestKey: dto.requestKey,
+      offlineRequestPayloadHash: payloadHash,
       manualBuyerName: dto.recipientName,
       manualBuyerPhone: dto.recipientPhone,
       manualProductName: dto.description,
@@ -764,9 +786,35 @@ export class SuperAgentsService {
       manager,
     );
 
-    return { savedOrder, savedParcel, trackingNumber, destAgent, agentEarnings,
-      isFreeOrder, platformFeeCharged, platformFeeWaived, invoice };
+    const receipt = {
+      success: true, orderId: savedOrder.id, trackingNumber, originCity, destinationCity,
+      destinationAgent: destAgent?.businessName || null, declaredValue,
+      shippingFeeCollected: dto.shippingFeeCollected, agentEarnings,
+      receiptNumber: invoice.receiptNumber,
+      receipt: {
+        receiptNumber: invoice.receiptNumber, parcelReference: trackingNumber,
+        senderName: dto.senderName, senderPhone: dto.senderPhone,
+        receiverName: dto.recipientName, receiverPhone: dto.recipientPhone,
+        declaredValue, amountPaid: dto.shippingFeeCollected,
+        paymentMethod: dto.paymentMethod || 'cash', superAgentName: superAgent.businessName,
+        superAgentCity: superAgent.city, status: 'paid', paidAt: invoice.paidAt,
+        verifiedByKentexa: true,
+      },
+      billing: { isFreeOrder, platformFeeCharged, platformFeeWaived,
+        outstandingBalance: Number(superAgent.outstandingBalance) +
+          (isFreeOrder ? 0 : platformFeeCharged) },
+    };
+    await manager.getRepository(Order).update(savedOrder.id, { offlineReceiptSnapshot: receipt });
+
+    return { replayed: false as const, savedOrder, savedParcel, trackingNumber,
+      platformFeeCharged, platformFeeWaived, invoice, receipt };
     });
+    if (outcome.replayed) return {
+      ...outcome.receipt, replayed: true, senderSmsSent: false,
+      message: 'Kifurushi hiki tayari kimesajiliwa. Tumia risiti ileile; angalia SMS kabla ya kuituma tena.',
+    };
+    const { savedParcel, trackingNumber, platformFeeCharged, platformFeeWaived, invoice,
+      receipt } = outcome;
 
     // Who declared the value and when — reuses the existing generic audit
     // log rather than building a second history mechanism. There is no
@@ -829,43 +877,11 @@ export class SuperAgentsService {
       .catch(() => {});
 
     return {
-      success: true,
-      orderId: savedOrder.id,
-      trackingNumber,
-      originCity,
-      destinationCity,
-      destinationAgent: destAgent?.businessName || null,
-      declaredValue,
-      shippingFeeCollected: dto.shippingFeeCollected,
-      agentEarnings,
-      receiptNumber: invoice.receiptNumber,
-      receipt: {
-        receiptNumber: invoice.receiptNumber,
-        parcelReference: trackingNumber,
-        senderName: dto.senderName,
-        senderPhone: dto.senderPhone,
-        receiverName: dto.recipientName,
-        receiverPhone: dto.recipientPhone,
-        declaredValue,
-        amountPaid: dto.shippingFeeCollected,
-        paymentMethod: dto.paymentMethod || 'cash',
-        superAgentName: superAgent.businessName,
-        superAgentCity: superAgent.city,
-        status: 'paid',
-        paidAt: invoice.paidAt,
-        verifiedByKentexa: true,
-      },
+      ...receipt,
       senderSmsSent,
       message: senderSmsSent
         ? `Kifurushi kimesajiliwa. SMS ya malipo imetumwa kwa ${dto.senderPhone}.`
         : `Kifurushi kimesajiliwa. Risiti: ${invoice.receiptNumber}. SMS ya malipo haikutumwa — jaribu tena.`,
-      billing: {
-        isFreeOrder,
-        platformFeeCharged,
-        platformFeeWaived,
-        outstandingBalance:
-          Number(superAgent.outstandingBalance) + (isFreeOrder ? 0 : platformFeeCharged),
-      },
     };
   }
 
