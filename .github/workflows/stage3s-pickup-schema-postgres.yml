@@ -7,6 +7,10 @@ on:
     paths:
       - 'src/database/migrations/1788282600000-AddParcelPickupTask.ts'
       - 'src/database/migrations/add-parcel-pickup-task.real-postgres.spec.ts'
+      - 'src/shipments/pickup-tasks.service.ts'
+      - 'src/shipments/pickup-tasks.controller.ts'
+      - 'src/shipments/pickup-tasks.real-postgres.spec.ts'
+      - 'src/shipments/shipments.module.ts'
       - '.github/workflows/stage3s-pickup-schema-postgres.yml'
 
 permissions:
@@ -50,4 +54,5 @@ jobs:
           CREATE DATABASE kentexa_b5b_test OWNER kentexa_b5b_test_user;
           SQL
       - run: npm test -- --runInBand database/migrations/add-parcel-pickup-task.real-postgres.spec.ts
+      - run: npm test -- --runInBand shipments/pickup-tasks.real-postgres.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json
