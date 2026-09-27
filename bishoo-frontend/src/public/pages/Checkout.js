@@ -72,23 +72,13 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
   // ── Delivery method detection ─────────────────────────────────
   const [deliveryMethods, setDeliveryMethods]     = useState([]);
-  const [selectedMethod, setSelectedMethod]       = useState(null); // 'boda'|'kentexa_delivery'|'agent'
+  const [selectedMethod, setSelectedMethod]       = useState(null);
+  const [methodQuotes, setMethodQuotes]           = useState({});
   const [detectingMethods, setDetectingMethods]   = useState(false);
   const [isSameCity, setIsSameCity]               = useState(false);
   const DETECT_DELAY = 500; // ms after user stops typing
 
-  // The backend's own intercity/same-city split for COD purposes is based
-  // on the SHIPPING METHOD actually sent with the order ('agent'/'bus'/
-  // 'courier' = intercity; see OrdersService.create()'s own comment) —
-  // not the separate isSameCity flag above (that only describes whether
-  // same-city delivery METHODS exist to offer at all). Mirrors the exact
-  // `shippingMethod` fallback handleCheckout() sends below
-  // (selectedMethod || (isSameCity ? 'boda' : 'agent')), so this is
-  // accurate even before delivery-method detection has resolved —
-  // relying on selectedMethod alone left it permanently "same-city" (and
-  // showing 0% upfront) until that detection succeeded.
-  const chosenShippingMethod = selectedMethod || (isSameCity ? 'boda' : 'agent');
-  const isIntercityForCod = ['agent', 'bus', 'courier'].includes(chosenShippingMethod);
+  const isIntercityForCod = ['agent', 'bus', 'courier'].includes(selectedMethod);
 
   const inputStyle = {
     width: '100%', padding: '12px 14px', borderRadius: 10,
@@ -101,27 +91,51 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // re-run detection on every change WITHOUT clobbering a manually-typed
   // street address — see its onChange for why this split matters.
   const detectDeliveryRef = React.useRef(null);
+  const quoteRequestRef = React.useRef(0);
+  const physicalProductIds = [...new Set(cart.filter(item => item.productType !== 'digital').map(item => item.id))];
+  const physicalCartKey = physicalProductIds.join(',');
   const detectDeliveryMethodsFor = (address) => {
+    const requestId = ++quoteRequestRef.current;
     setSelectedMethod(null);
     setDeliveryMethods([]);
+    setMethodQuotes({});
+    setIsSameCity(false);
     if (detectDeliveryRef.current) clearTimeout(detectDeliveryRef.current);
-    if (!address.trim() || address.trim().length < 3 || cart.length === 0) return;
+    if (!address.trim() || address.trim().length < 3 || physicalProductIds.length === 0) {
+      setDetectingMethods(false);
+      return;
+    }
+    setDetectingMethods(true);
     detectDeliveryRef.current = setTimeout(async () => {
       try {
-        setDetectingMethods(true);
-        const productId = cart[0]?.id;
-        if (!productId) return;
-        const res = await api.get(`/daily-batches/delivery-methods?address=${encodeURIComponent(address)}&productId=${productId}`);
-        setDeliveryMethods(res.data.methods || []);
-        setIsSameCity(res.data.isSameCity || false);
-        // Auto-select first method
-        if (res.data.methods?.length > 0) {
-          setSelectedMethod(res.data.methods[0].key);
-        }
-      } catch { setDeliveryMethods([]); }
-      finally { setDetectingMethods(false); }
+        const responses = await Promise.all(physicalProductIds.map(productId =>
+          api.get('/orders/delivery-methods', { params: { address, productId } })
+        ));
+        if (requestId !== quoteRequestRef.current) return;
+        const quotes = Object.fromEntries(physicalProductIds.map((id, i) => [id, responses[i].data.methods || []]));
+        const commonMethods = (responses[0].data.methods || []).filter(method =>
+          physicalProductIds.every(id => quotes[id].some(quote => quote.key === method.key))
+        );
+        setMethodQuotes(quotes);
+        setDeliveryMethods(commonMethods);
+        setIsSameCity(Boolean(responses[0].data.isSameCity));
+        if (commonMethods.length) setSelectedMethod(commonMethods[0].key);
+      } catch {
+        if (requestId === quoteRequestRef.current) setDeliveryMethods([]);
+      } finally {
+        if (requestId === quoteRequestRef.current) setDetectingMethods(false);
+      }
     }, DETECT_DELAY);
   };
+  React.useEffect(() => {
+    const quoteRequest = quoteRequestRef;
+    const detectTimer = detectDeliveryRef;
+    detectDeliveryMethodsFor(form.deliveryAddress);
+    return () => {
+      ++quoteRequest.current;
+      if (detectTimer.current) clearTimeout(detectTimer.current);
+    };
+  }, [physicalCartKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleAddressChange = (address) => {
     setForm(f => ({ ...f, deliveryAddress: address }));
     detectDeliveryMethodsFor(address);
@@ -130,15 +144,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const getSelectedMethodData = () => deliveryMethods.find(m => m.key === selectedMethod) || null;
 
   const getCartTotal = () => {
-    const method = getSelectedMethodData();
-    if (!method || deliveryMethods.length === 0) return cartTotal;
-    // Price changes based on delivery method:
-    // - Dar buyer with boda: basePrice + bodaFee
-    // - Dar buyer with van: basePrice + 3000 (flat van fee)
-    // - Intercity: basePrice + deliveryFee (product default — unchanged)
-    if (method.key === 'agent') return cartTotal; // intercity — use product price as-is
-    const baseOnly = cart.reduce((sum, item) => sum + Number(item.basePrice || item.price || 0) * item.quantity, 0);
-    return baseOnly + (method.fee || 0);
+    if (!selectedMethod) return cartTotal;
+    return cart.reduce((sum, item) => {
+      const fee = item.productType === 'digital' ? 0 : Number(methodQuotes[item.id]?.find(m => m.key === selectedMethod)?.fee || 0);
+      return sum + (Number(item.basePrice || item.price || 0) + fee) * item.quantity;
+    }, 0) + (needsCollection && isIntercityForCod ? (isRuralCollection ? 3000 : 1500) * physicalProductIds.length : 0);
   };
 
   // If the cart changes so that COD is no longer offered (e.g. a non-COD
@@ -152,7 +162,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // real upfront/remaining split for the current cart total so it can be
   // shown before the order is placed, not only after.
   React.useEffect(() => {
-    if (paymentChoice !== 'cod' || isDigitalOnlyCart || cart.length === 0) { setCodQuote(null); return; }
+    if (paymentChoice !== 'cod' || isDigitalOnlyCart || cart.length === 0 || !selectedMethod) { setCodQuote(null); return; }
     const total = getCartTotal();
     if (!total) { setCodQuote(null); return; }
     let cancelled = false;
@@ -162,7 +172,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       .catch(() => { if (!cancelled) setCodQuote(null); })
       .finally(() => { if (!cancelled) setCodQuoteLoading(false); });
     return () => { cancelled = true; };
-  }, [paymentChoice, cart, deliveryMethods, selectedMethod, isSameCity]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [paymentChoice, cart, deliveryMethods, selectedMethod, isSameCity, needsCollection, isRuralCollection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckout = async () => {
     if ((!isDigitalOnlyCart && !form.deliveryAddress.trim()) || !form.phone.trim()) {
@@ -174,12 +184,15 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       return;
     }
     if (cart.length === 0) { setError(t('checkout.err_cart_empty')); return; }
+    if (!isDigitalOnlyCart && (detectingMethods || !selectedMethod || !physicalProductIds.every(id => methodQuotes[id]?.some(m => m.key === selectedMethod)))) {
+      setError(t('checkout.err_delivery_unavailable'));
+      return;
+    }
     try {
       setLoading(true);
       setError('');
       const orders = [];
       for (const item of cart) {
-        const methodData = getSelectedMethodData();
         const res = await api.post('/orders', {
           productId:        item.id,
           quantity:         item.quantity,
@@ -190,18 +203,15 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           destinationCity:  deliveryLocation.districtName || deliveryLocation.regionName || null,
           phone:            form.phone.trim(),
           recipientName:    forSomeoneElse ? form.recipientName.trim() : null,
-          shippingMethod:   selectedMethod || (isSameCity ? 'boda' : 'agent'),
-          needsCollection:  needsCollection && !isSameCity, // only for intercity agent orders
+          ...(item.productType === 'digital' ? {} : { shippingMethod: selectedMethod }),
+          needsCollection:  item.productType !== 'digital' && needsCollection && isIntercityForCod,
           isRuralCollection: isRuralCollection,
-          collectionFee:    needsCollection && !isSameCity ? collectionFee : 0,
-          // Send the actual delivery fee for this method
-          // agent = use product default, others = method fee
-          ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
+          collectionFee:    item.productType !== 'digital' && needsCollection && isIntercityForCod ? collectionFee : 0,
           paymentMethod: paymentChoice,
         });
         orders.push(res.data);
       }
-      setOrderTotal(getCartTotal());
+      setOrderTotal(orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0));
       setPlacedOrders(orders);
       clearCart();
 
@@ -596,7 +606,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         </div>
 
         {/* Delivery Method Selector — shown when address is filled */}
-        {!isDigitalOnlyCart && (detectingMethods || deliveryMethods.length > 0) && (
+        {!isDigitalOnlyCart && (detectingMethods || deliveryMethods.length > 0 || form.deliveryAddress.trim().length >= 3) && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>3</span> {t('checkout.delivery_method_title')}</h2>
 
@@ -617,6 +627,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                   </div>
                 )}
 
+                {deliveryMethods.length === 0 && <div style={{ color: '#b91c1c', fontSize: 13 }}>{t('checkout.err_delivery_unavailable')}</div>}
                 {deliveryMethods.map(method => (
                   <button key={method.key}
                     onClick={() => setSelectedMethod(method.key)}
@@ -809,9 +820,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 14 }}>
             <span style={{ color: '#64748b' }}>{t('checkout.delivery')}</span>
-            {getSelectedMethodData() && getSelectedMethodData().key !== 'agent' ? (
+            {getSelectedMethodData() ? (
               <span style={{ fontWeight: 700, color: '#1d4ed8' }}>
-                {getSelectedMethodData().icon} TZS {Number(getSelectedMethodData().fee || 0).toLocaleString()}
+                {getSelectedMethodData().icon} TZS {cart.reduce((sum, item) => sum + (item.productType === 'digital' ? 0 : Number(methodQuotes[item.id]?.find(m => m.key === selectedMethod)?.fee || 0) * item.quantity), 0).toLocaleString()}
                 <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>({getSelectedMethodData().label})</span>
               </span>
             ) : (
@@ -901,7 +912,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             </div>
           )}
           <button onClick={handleCheckout}
-            disabled={loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)}
+            disabled={loading || cart.length === 0 || (!isDigitalOnlyCart && (detectingMethods || !selectedMethod)) || (paymentChoice === 'cod' && codQuote?.eligible === false)}
             style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
             {loading ? `⏳ ${t('checkout.placing')}` : `✅ ${t('checkout.place_order')}`}
           </button>
