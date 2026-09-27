@@ -2987,7 +2987,6 @@ export class OrdersService {
     const bodaFee = Number((product as any).bodaFee || 0);
     const deliveryFee = Number(product.deliveryFee || 0);
     const basePrice = Number(product.basePrice || 0);
-    const BATCH_FEE = 3000;
 
     if (!isSameCity) {
       return {
@@ -3017,21 +3016,9 @@ export class OrdersService {
       },
     ];
 
-    if (batchZone) {
-      methods.push({
-        key: 'kentexa_delivery',
-        label: 'KenteXa Delivery',
-        icon: '🚐',
-        fee: BATCH_FEE,
-        totalPrice: basePrice + BATCH_FEE,
-        desc: `Van ya KenteXa inakuja ${batchZone} kila siku — TZS ${BATCH_FEE.toLocaleString()} tu`,
-        batchZone,
-        cutoffTime: '7:00 AM',
-        estimatedArrival: '10:00 AM',
-      });
-    }
-
-    return { isSameCity: true, batchZone, methods };
+    // The daily-batches operational module is dormant. Do not offer its
+    // delivery method until a real run can accept and fulfil the parcel.
+    return { isSameCity: true, batchZone: null, methods };
   }
 
   // ── Seller creates order on behalf of customer ──────────────────────────

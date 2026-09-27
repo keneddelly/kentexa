@@ -168,6 +168,7 @@
     "err_recipient_name": "Please enter the recipient's name",
     "err_cart_empty": "Your cart is empty",
     "err_place_orders": "Failed to place orders. Please try again.",
+    "err_delivery_unavailable": "Delivery options are unavailable for this address. Please check the address and try again.",
     "err_enter_phone": "Enter your phone number",
     "err_payment_confirm": "Payment confirmation failed. Try again.",
     "err_payment_failed": "Payment failed. Try again.",

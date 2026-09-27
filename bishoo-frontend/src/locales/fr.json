@@ -168,6 +168,7 @@
     "err_recipient_name": "Veuillez saisir le nom du destinataire",
     "err_cart_empty": "Votre panier est vide",
     "err_place_orders": "Échec de la commande. Veuillez réessayer.",
+    "err_delivery_unavailable": "Les options de livraison ne sont pas disponibles pour cette adresse. Vérifiez l’adresse et réessayez.",
     "err_enter_phone": "Entrez votre numéro de téléphone",
     "err_payment_confirm": "Échec de la confirmation du paiement. Réessayez.",
     "err_payment_failed": "Échec du paiement. Réessayez.",
