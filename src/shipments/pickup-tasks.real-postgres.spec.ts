@@ -94,4 +94,12 @@ suite('Stage 3S pickup request and claim: real PostgreSQL', () => {
       .toMatchObject({ replay: true });
     expect((await db.query('SELECT status FROM public.parcel WHERE id=4'))[0].status).toBe('pending');
   });
+
+  it('replays the original request after physical progress but refuses a new task', async () => {
+    await db.query("UPDATE public.shipment SET status='collected' WHERE id=4");
+    await db.query("UPDATE public.parcel SET status='collected_by_agent' WHERE id=4");
+    expect(await service.requestForShipment(5, 4, body(8)))
+      .toMatchObject({ parcelId: 4, status: 'claimed', replay: true });
+    await expect(service.requestForShipment(5, 4, body(9))).rejects.toThrow('not ready');
+  });
 });
