@@ -15,6 +15,8 @@ Date: 2026-09-27. Read-only repository and production database review. This is a
 
 Read-only production counts: 83 Parcels, 2 BulkShipments (one open, one dispatched), 2 Parcels in a bulk group, 1 TransportAssignment with a Parcel reference, 0 assignments with a Shipment reference, 0 DailyBatches and 0 BatchParcels. These are counts at audit time, not migration targets.
 
+Read-only inspection of the two historical groups: BulkShipment #1 (Dar es Salaam → Arusha City) has one dispatched Parcel #18, a transport company/reference and a dispatch timestamp; #2 (Dar es Salaam → Mwanza) has one received-at-hub Parcel #21 and remains open. Neither Parcel has a TransportAssignment or custody event in the current ledger. These pre-ledger records do not establish who physically held them. They must not be inferred as completed Runs or backfilled with carrier custody.
+
 ## Decision for the next gate
 
 Use the existing Parcel, custody event and TransportAssignment authorities. Do not activate DailyBatchesModule or use BatchParcel's `DELIVERED` state as a second proof of delivery. Preserve existing BulkShipment records and operational behavior; do not rename or backfill them merely to introduce a Run.
@@ -22,6 +24,12 @@ Use the existing Parcel, custody event and TransportAssignment authorities. Do n
 A future **Movement/Run** is one physical departure with a provider/operator, time, capacity and origin/destination logistics points. Many Parcel-specific assignments may refer to one Run. Kentexa Van is an operator/vehicle supplying that capacity; external vans, buses and trucks use the same movement concept. A Run does not create a second Shipment, Parcel or delivery status. Actual handover still requires the Parcel custody writer and its authorized receiving actor.
 
 The first implementation slice should be deliberately small: one origin, one destination, one departure, one provider/vehicle reference where known, and membership of multiple existing Parcels through their assignment. No payroll, fleet maintenance, route optimization, automatic dispatch or multi-stop solver. Keep place identifiers/snapshots and capacity validation under their existing authoritative domains. A named operator can be Kentexa or a verified transport provider; never infer ownership from a logo or free text.
+
+`BulkShipment` is an origin-hub packing/grouping object in the current code. Its open state accepts compatible Parcels; dispatch marks the group and Parcels dispatched, but stores no shared verified carrier acceptance, vehicle, capacity reservation or per-Parcel custody transfer. Do not promote its status into a Run state. A Run may carry Parcels from one or more compatible groups, while the existing bulk grouping remains a separate operational object.
+
+The single-Parcel path can bind an accepted TransportAssignment at dispatch. The provider's authenticated `COLLECTED` action then writes `transport_provider_collected` custody evidence under Parcel and assignment locks. The destination hub receipt validates that evidence when it exists; legacy parcels without it retain unknown previous custodian. The bulk dispatch path instead updates statuses and tracking in a transaction but does not bind an assignment or write carrier custody. The pilot must make each Van Parcel's assigned provider collect it explicitly; a bulk dispatch label cannot stand in for that handoff.
+
+`createAssignment()` currently reserves an availability slot separately from saving an assignment and resolves the acting Super Agent from the caller's user ID. Before a Van Run accepts live parcels, move capacity/membership and active hub-role validation into one transaction with row locks, an idempotency key and a unique active assignment rule. Define cancellation release and concurrent additions. A planned seat or kilogram count never implies possession.
 
 ## Kentexa Van pilot entry: Super Agent desk
 
