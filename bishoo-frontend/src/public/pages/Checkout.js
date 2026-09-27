@@ -4,11 +4,12 @@ import { useTranslation } from 'react-i18next';
 import Celebration from '../components/Celebration';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
+import { waitForPayment } from '../../api/waitForPayment';
 import LocationPicker from '../components/LocationPicker';
 
 const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
   const { t } = useTranslation();
-  const { cart, clearCart } = useCart();
+  const { cart, removeFromCart } = useCart();
 
   const getItemPrice = (item) => Number(item.displayPrice || item.basePrice || item.price || 0);
   const cartTotal    = cart.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
@@ -34,6 +35,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const [error, setError]                   = useState('');
   const [paymentStep, setPaymentStep]       = useState(false);
   const [placedOrders, setPlacedOrders]     = useState([]);
+  const [orderUncertain, setOrderUncertain] = useState(false);
+  const checkoutInFlightRef = React.useRef(false);
   const [orderTotal, setOrderTotal]         = useState(0);
 
   const [showOnlinePayment, setShowOnlinePayment] = useState(false);
@@ -176,6 +179,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   }, [paymentChoice, cart, deliveryMethods, selectedMethod, isSameCity, needsCollection, isRuralCollection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckout = async () => {
+    if (checkoutInFlightRef.current) return;
     if ((!isDigitalOnlyCart && !form.deliveryAddress.trim()) || !form.phone.trim()) {
       setError(t('checkout.err_fill_address'));
       return;
@@ -189,11 +193,15 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       setError(t('checkout.err_delivery_unavailable'));
       return;
     }
+    const orders = [];
+    let attemptedItemId = null;
     try {
+      checkoutInFlightRef.current = true;
       setLoading(true);
       setError('');
-      const orders = [];
+      setOrderUncertain(false);
       for (const item of cart) {
+        attemptedItemId = item.id;
         const res = await api.post('/orders', {
           productId:        item.id,
           quantity:         item.quantity,
@@ -211,15 +219,18 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           paymentMethod: paymentChoice,
         });
         orders.push(res.data);
+        // Each POST creates its own Order/Invoice. Remove only confirmed
+        // creations so a later failure leaves the remaining cart retryable.
+        removeFromCart(item.id);
+        attemptedItemId = null;
       }
       setOrderTotal(orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0));
       setPlacedOrders(orders);
-      clearCart();
 
       const first = orders[0];
       if (first?.paymentMethod === 'cod') {
-        const upfront   = Number(first.codUpfrontAmount || 0);
-        const remaining = Number(first.codRemainingBalance || 0);
+        const upfront = orders.reduce((sum, order) => sum + Number(order.codUpfrontAmount || 0), 0);
+        const remaining = orders.reduce((sum, order) => sum + Number(order.codRemainingBalance || 0), 0);
         setCodInfo({ upfront, remaining });
         if (upfront <= 0) {
           // Same-city COD — nothing to pay now, order is already confirmed.
@@ -231,8 +242,18 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         setPaymentStep(true);
       }
     } catch (err) {
-      setError(err?.response?.data?.message || t('checkout.err_place_orders'));
+      if (orders.length) setPlacedOrders(orders);
+      // A lost response or server error can occur after an Order committed.
+      // Do not leave that attempted item in the retryable cart: the buyer
+      // must check My Orders before deciding whether to order it again.
+      const uncertain = attemptedItemId != null && (!err?.response || err.response.status >= 500);
+      if (uncertain) removeFromCart(attemptedItemId);
+      setOrderUncertain(uncertain);
+      setError(uncertain ? t('checkout.err_order_uncertain')
+        : orders.length ? t('checkout.err_partial_orders', { count: orders.length })
+          : (err?.response?.data?.message || t('checkout.err_place_orders')));
     } finally {
+      checkoutInFlightRef.current = false;
       setLoading(false);
     }
   };
@@ -249,25 +270,19 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         provider:      'selcom',
       });
       setPaymentPending(true);
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setPaymentSuccess(true);
-          setPaymentPending(false);
-          // 🎉 Check if this is the user's first order — only celebrate first time
-          const isFirstOrder = !localStorage.getItem('kentexa_has_ordered');
-          if (isFirstOrder) {
-            localStorage.setItem('kentexa_has_ordered', 'true');
-            setCelebrate(true);
-          }
-        } catch {
-          setError(t('checkout.err_payment_confirm'));
-          setPaymentPending(false);
-        }
-      }, 4000);
+      await waitForPayment(res.data.providerRequestId);
+      setPaymentSuccess(true);
+      const isFirstOrder = !localStorage.getItem('kentexa_has_ordered');
+      if (isFirstOrder) {
+        localStorage.setItem('kentexa_has_ordered', 'true');
+        setCelebrate(true);
+      }
     } catch (err) {
-      setError(err?.response?.data?.message || t('checkout.err_payment_failed'));
+      setError(err?.code === 'PAYMENT_PENDING' ? t('checkout.payment_pending_notice')
+        : err?.code === 'PAYMENT_FAILED' ? t('checkout.payment_failed_notice')
+          : (err?.response?.data?.message || t('checkout.err_payment_failed')));
     } finally {
+      setPaymentPending(false);
       setPaying(false);
     }
   };
@@ -380,6 +395,36 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <button onClick={() => onNavigate('MyOrders')} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>🛒 {t('checkout.my_orders_button')}</button>
             <button onClick={() => onNavigate('Home')} style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t('checkout.home_button')}</button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Every cart item has its own Order and Invoice. Show each payable invoice
+  // independently; never initiate one invoice while claiming the cart total
+  // was paid. My Orders remains the durable return point after navigation.
+  if (paymentStep && placedOrders.length > 1) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: '24px 16px' }}>
+        <div style={{ maxWidth: 540, margin: '0 auto', background: '#fff', padding: 20, borderRadius: 16 }}>
+          <h2 style={{ fontSize: 20, marginTop: 0 }}>{t('checkout.orders_created_title')}</h2>
+          <p style={{ fontSize: 16 }}>{t('checkout.pay_invoice_separately')}</p>
+          {placedOrders.map((order) => {
+            const dueNow = codInfo ? Number(order.codUpfrontAmount || 0) : Number(order.totalAmount || 0);
+            return (
+              <div key={order.id} style={{ padding: 14, marginBottom: 12, border: '1px solid #cbd5e1', borderRadius: 10 }}>
+                <div style={{ fontWeight: 800, fontSize: 16 }}>{order.trackingNumber || `#${order.id}`}</div>
+                <div style={{ fontSize: 15, margin: '6px 0' }}>{t('checkout.due_now')}: TZS {dueNow.toLocaleString()}</div>
+                {dueNow > 0 && <button onClick={() => onNavigate(`PayInvoice-${order.id}`)}
+                  style={{ minHeight: 44, width: '100%', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 16 }}>
+                  {t('checkout.pay_this_invoice')}
+                </button>}
+              </div>
+            );
+          })}
+          <button onClick={() => onNavigate('MyOrders')} style={{ minHeight: 44, width: '100%', border: 0, borderRadius: 8, fontSize: 16, fontWeight: 800 }}>
+            {t('checkout.view_orders')}
+          </button>
         </div>
       </div>
     );
@@ -507,6 +552,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <span>❌ {error}</span>
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
+        )}
+        {(placedOrders.length > 0 || orderUncertain) && !paymentStep && (
+          <button onClick={() => onNavigate('MyOrders')} style={{ width: '100%', padding: 12, marginBottom: 14, border: 'none', borderRadius: 10, background: '#2563eb', color: '#fff', fontWeight: 800 }}>
+            {placedOrders.length ? t('checkout.view_created_orders', { count: placedOrders.length }) : t('checkout.view_orders')}
+          </button>
         )}
 
         {/* Cart Items */}

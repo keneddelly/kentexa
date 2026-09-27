@@ -841,6 +841,15 @@ export class PaymentsService {
     };
   }
 
+  async getMyPaymentStatus(providerRequestId: string, userId: number): Promise<{ status: PaymentStatus }> {
+    if (!providerRequestId?.trim()) throw new BadRequestException('Payment reference is required');
+    const payment = await this.paymentRepo.findOne({
+      where: { providerRequestId, user: { id: userId } },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+    return { status: payment.status };
+  }
+
   async agentLookupInvoice(invoiceNumber: string, agentUser: User): Promise<InvoiceLookupResult> {
     if (!invoiceNumber?.trim()) throw new BadRequestException('Invoice number is required');
     const agent = await this.agentRepo.findOne({ where: { user: { id: agentUser.id } } });
