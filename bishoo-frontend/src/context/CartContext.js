@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getAccessToken } from '../api/tokenStore';
+import { clearCheckoutRequestKey } from '../api/checkoutRequestKey';
 
 const CartContext = createContext(null);
 
@@ -74,6 +75,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const removeFromCart = (productId) => {
+    clearCheckoutRequestKey(productId);
     setCart(prev => prev.filter(item => item.id !== productId));
   };
 
@@ -91,7 +93,10 @@ export const CartProvider = ({ children }) => {
     );
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    cart.forEach(item => clearCheckoutRequestKey(item.id));
+    setCart([]);
+  };
   const isInCart = (productId) => cart.some(item => item.id === productId);
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 

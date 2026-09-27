@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 import api from '../../api/api';
+import { waitForPayment } from '../../api/waitForPayment';
 import { useTranslation } from 'react-i18next';
 
 const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrderId }) => {
@@ -54,19 +55,14 @@ const PayInvoice = ({ onNavigate, isLoggedIn, onLogout, userRole, prefilledOrder
       setError('');
       const res = await api.post('/payments/invoice/pay', { invoiceNumber: invoice.invoiceNumber, phone: payerPhone.trim(), provider: paymentMethod });
       setPaymentPending(true);
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setPaymentSuccess({ invoiceNumber: invoice.invoiceNumber, amount: invoice.amount });
-          setPaymentPending(false);
-        } catch {
-          setError(t('common.error'));
-          setPaymentPending(false);
-        }
-      }, 4000);
+      await waitForPayment(res.data.providerRequestId);
+      setPaymentSuccess({ invoiceNumber: invoice.invoiceNumber, amount: res.data.amount });
     } catch (err) {
-      setError(err?.response?.data?.message || t('common.error'));
+      setError(err?.code === 'PAYMENT_PENDING' ? t('checkout.payment_pending_notice')
+        : err?.code === 'PAYMENT_FAILED' ? t('checkout.payment_failed_notice')
+          : (err?.response?.data?.message || t('common.error')));
     } finally {
+      setPaymentPending(false);
       setPaying(false);
     }
   };

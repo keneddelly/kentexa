@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import Celebration from '../components/Celebration';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
+import { waitForPayment } from '../../api/waitForPayment';
+import { getCheckoutRequestKey, clearCheckoutRequestKey } from '../../api/checkoutRequestKey';
 import LocationPicker from '../components/LocationPicker';
 
 const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
   const { t } = useTranslation();
-  const { cart, clearCart } = useCart();
+  const { cart, removeFromCart } = useCart();
 
   const getItemPrice = (item) => Number(item.displayPrice || item.basePrice || item.price || 0);
   const cartTotal    = cart.reduce((sum, item) => sum + getItemPrice(item) * item.quantity, 0);
@@ -34,6 +36,8 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const [error, setError]                   = useState('');
   const [paymentStep, setPaymentStep]       = useState(false);
   const [placedOrders, setPlacedOrders]     = useState([]);
+  const [orderUncertain, setOrderUncertain] = useState(false);
+  const checkoutInFlightRef = React.useRef(false);
   const [orderTotal, setOrderTotal]         = useState(0);
 
   const [showOnlinePayment, setShowOnlinePayment] = useState(false);
@@ -72,23 +76,13 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
 
   // ── Delivery method detection ─────────────────────────────────
   const [deliveryMethods, setDeliveryMethods]     = useState([]);
-  const [selectedMethod, setSelectedMethod]       = useState(null); // 'boda'|'kentexa_delivery'|'agent'
+  const [selectedMethod, setSelectedMethod]       = useState(null);
+  const [methodQuotes, setMethodQuotes]           = useState({});
   const [detectingMethods, setDetectingMethods]   = useState(false);
   const [isSameCity, setIsSameCity]               = useState(false);
   const DETECT_DELAY = 500; // ms after user stops typing
 
-  // The backend's own intercity/same-city split for COD purposes is based
-  // on the SHIPPING METHOD actually sent with the order ('agent'/'bus'/
-  // 'courier' = intercity; see OrdersService.create()'s own comment) —
-  // not the separate isSameCity flag above (that only describes whether
-  // same-city delivery METHODS exist to offer at all). Mirrors the exact
-  // `shippingMethod` fallback handleCheckout() sends below
-  // (selectedMethod || (isSameCity ? 'boda' : 'agent')), so this is
-  // accurate even before delivery-method detection has resolved —
-  // relying on selectedMethod alone left it permanently "same-city" (and
-  // showing 0% upfront) until that detection succeeded.
-  const chosenShippingMethod = selectedMethod || (isSameCity ? 'boda' : 'agent');
-  const isIntercityForCod = ['agent', 'bus', 'courier'].includes(chosenShippingMethod);
+  const isIntercityForCod = ['agent', 'bus', 'courier'].includes(selectedMethod);
 
   const inputStyle = {
     width: '100%', padding: '12px 14px', borderRadius: 10,
@@ -101,27 +95,52 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // re-run detection on every change WITHOUT clobbering a manually-typed
   // street address — see its onChange for why this split matters.
   const detectDeliveryRef = React.useRef(null);
+  const quoteRequestRef = React.useRef(0);
+  const physicalProductIds = [...new Set(cart.filter(item => item.productType !== 'digital').map(item => item.id))];
+  const physicalItemCount = cart.filter(item => item.productType !== 'digital').length;
+  const physicalCartKey = physicalProductIds.join(',');
   const detectDeliveryMethodsFor = (address) => {
+    const requestId = ++quoteRequestRef.current;
     setSelectedMethod(null);
     setDeliveryMethods([]);
+    setMethodQuotes({});
+    setIsSameCity(false);
     if (detectDeliveryRef.current) clearTimeout(detectDeliveryRef.current);
-    if (!address.trim() || address.trim().length < 3 || cart.length === 0) return;
+    if (!address.trim() || address.trim().length < 3 || physicalProductIds.length === 0) {
+      setDetectingMethods(false);
+      return;
+    }
+    setDetectingMethods(true);
     detectDeliveryRef.current = setTimeout(async () => {
       try {
-        setDetectingMethods(true);
-        const productId = cart[0]?.id;
-        if (!productId) return;
-        const res = await api.get(`/daily-batches/delivery-methods?address=${encodeURIComponent(address)}&productId=${productId}`);
-        setDeliveryMethods(res.data.methods || []);
-        setIsSameCity(res.data.isSameCity || false);
-        // Auto-select first method
-        if (res.data.methods?.length > 0) {
-          setSelectedMethod(res.data.methods[0].key);
-        }
-      } catch { setDeliveryMethods([]); }
-      finally { setDetectingMethods(false); }
+        const responses = await Promise.all(physicalProductIds.map(productId =>
+          api.get('/orders/delivery-methods', { params: { address, productId } })
+        ));
+        if (requestId !== quoteRequestRef.current) return;
+        const quotes = Object.fromEntries(physicalProductIds.map((id, i) => [id, responses[i].data.methods || []]));
+        const commonMethods = (responses[0].data.methods || []).filter(method =>
+          physicalProductIds.every(id => quotes[id].some(quote => quote.key === method.key))
+        );
+        setMethodQuotes(quotes);
+        setDeliveryMethods(commonMethods);
+        setIsSameCity(Boolean(responses[0].data.isSameCity));
+        if (commonMethods.length) setSelectedMethod(commonMethods[0].key);
+      } catch {
+        if (requestId === quoteRequestRef.current) setDeliveryMethods([]);
+      } finally {
+        if (requestId === quoteRequestRef.current) setDetectingMethods(false);
+      }
     }, DETECT_DELAY);
   };
+  React.useEffect(() => {
+    const quoteRequest = quoteRequestRef;
+    const detectTimer = detectDeliveryRef;
+    detectDeliveryMethodsFor(form.deliveryAddress);
+    return () => {
+      ++quoteRequest.current;
+      if (detectTimer.current) clearTimeout(detectTimer.current);
+    };
+  }, [physicalCartKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const handleAddressChange = (address) => {
     setForm(f => ({ ...f, deliveryAddress: address }));
     detectDeliveryMethodsFor(address);
@@ -130,15 +149,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const getSelectedMethodData = () => deliveryMethods.find(m => m.key === selectedMethod) || null;
 
   const getCartTotal = () => {
-    const method = getSelectedMethodData();
-    if (!method || deliveryMethods.length === 0) return cartTotal;
-    // Price changes based on delivery method:
-    // - Dar buyer with boda: basePrice + bodaFee
-    // - Dar buyer with van: basePrice + 3000 (flat van fee)
-    // - Intercity: basePrice + deliveryFee (product default — unchanged)
-    if (method.key === 'agent') return cartTotal; // intercity — use product price as-is
-    const baseOnly = cart.reduce((sum, item) => sum + Number(item.basePrice || item.price || 0) * item.quantity, 0);
-    return baseOnly + (method.fee || 0);
+    if (!selectedMethod) return cartTotal;
+    return cart.reduce((sum, item) => {
+      const fee = item.productType === 'digital' ? 0 : Number(methodQuotes[item.id]?.find(m => m.key === selectedMethod)?.fee || 0);
+      return sum + (Number(item.basePrice || item.price || 0) + fee) * item.quantity;
+    }, 0) + (needsCollection && isIntercityForCod ? (isRuralCollection ? 3000 : 1500) * physicalItemCount : 0);
   };
 
   // If the cart changes so that COD is no longer offered (e.g. a non-COD
@@ -152,7 +167,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   // real upfront/remaining split for the current cart total so it can be
   // shown before the order is placed, not only after.
   React.useEffect(() => {
-    if (paymentChoice !== 'cod' || isDigitalOnlyCart || cart.length === 0) { setCodQuote(null); return; }
+    if (paymentChoice !== 'cod' || isDigitalOnlyCart || cart.length === 0 || !selectedMethod) { setCodQuote(null); return; }
     const total = getCartTotal();
     if (!total) { setCodQuote(null); return; }
     let cancelled = false;
@@ -162,9 +177,10 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       .catch(() => { if (!cancelled) setCodQuote(null); })
       .finally(() => { if (!cancelled) setCodQuoteLoading(false); });
     return () => { cancelled = true; };
-  }, [paymentChoice, cart, deliveryMethods, selectedMethod, isSameCity]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [paymentChoice, cart, deliveryMethods, selectedMethod, isSameCity, needsCollection, isRuralCollection]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCheckout = async () => {
+    if (checkoutInFlightRef.current) return;
     if ((!isDigitalOnlyCart && !form.deliveryAddress.trim()) || !form.phone.trim()) {
       setError(t('checkout.err_fill_address'));
       return;
@@ -174,13 +190,20 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       return;
     }
     if (cart.length === 0) { setError(t('checkout.err_cart_empty')); return; }
+    if (!isDigitalOnlyCart && (detectingMethods || !selectedMethod || !physicalProductIds.every(id => methodQuotes[id]?.some(m => m.key === selectedMethod)))) {
+      setError(t('checkout.err_delivery_unavailable'));
+      return;
+    }
+    const orders = [];
+    let attemptedItemId = null;
     try {
+      checkoutInFlightRef.current = true;
       setLoading(true);
       setError('');
-      const orders = [];
+      setOrderUncertain(false);
       for (const item of cart) {
-        const methodData = getSelectedMethodData();
-        const res = await api.post('/orders', {
+        attemptedItemId = item.id;
+        const request = {
           productId:        item.id,
           quantity:         item.quantity,
           deliveryAddress:  form.deliveryAddress.trim(),
@@ -190,25 +213,30 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           destinationCity:  deliveryLocation.districtName || deliveryLocation.regionName || null,
           phone:            form.phone.trim(),
           recipientName:    forSomeoneElse ? form.recipientName.trim() : null,
-          shippingMethod:   selectedMethod || (isSameCity ? 'boda' : 'agent'),
-          needsCollection:  needsCollection && !isSameCity, // only for intercity agent orders
+          ...(item.productType === 'digital' ? {} : { shippingMethod: selectedMethod }),
+          needsCollection:  item.productType !== 'digital' && needsCollection && isIntercityForCod,
           isRuralCollection: isRuralCollection,
-          collectionFee:    needsCollection && !isSameCity ? collectionFee : 0,
-          // Send the actual delivery fee for this method
-          // agent = use product default, others = method fee
-          ...(methodData && methodData.key !== 'agent' ? { deliveryFee: methodData.fee } : {}),
+          collectionFee:    item.productType !== 'digital' && needsCollection && isIntercityForCod ? collectionFee : 0,
           paymentMethod: paymentChoice,
+        };
+        const res = await api.post('/orders', {
+          ...request,
+          checkoutRequestKey: getCheckoutRequestKey(item.id),
         });
         orders.push(res.data);
+        clearCheckoutRequestKey(item.id);
+        // Each POST creates its own Order/Invoice. Remove only confirmed
+        // creations so a later failure leaves the remaining cart retryable.
+        removeFromCart(item.id);
+        attemptedItemId = null;
       }
-      setOrderTotal(getCartTotal());
+      setOrderTotal(orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0));
       setPlacedOrders(orders);
-      clearCart();
 
       const first = orders[0];
       if (first?.paymentMethod === 'cod') {
-        const upfront   = Number(first.codUpfrontAmount || 0);
-        const remaining = Number(first.codRemainingBalance || 0);
+        const upfront = orders.reduce((sum, order) => sum + Number(order.codUpfrontAmount || 0), 0);
+        const remaining = orders.reduce((sum, order) => sum + Number(order.codRemainingBalance || 0), 0);
         setCodInfo({ upfront, remaining });
         if (upfront <= 0) {
           // Same-city COD — nothing to pay now, order is already confirmed.
@@ -220,8 +248,16 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         setPaymentStep(true);
       }
     } catch (err) {
-      setError(err?.response?.data?.message || t('checkout.err_place_orders'));
+      if (orders.length) setPlacedOrders(orders);
+      // The same request key survives a lost response so a retry cannot
+      // create another order. My Orders gives the buyer a durable cross-check.
+      const uncertain = attemptedItemId != null && (!err?.response || err.response.status >= 500);
+      setOrderUncertain(uncertain);
+      setError(uncertain ? t('checkout.err_order_uncertain')
+        : orders.length ? t('checkout.err_partial_orders', { count: orders.length })
+          : (err?.response?.data?.message || t('checkout.err_place_orders')));
     } finally {
+      checkoutInFlightRef.current = false;
       setLoading(false);
     }
   };
@@ -238,25 +274,19 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         provider:      'selcom',
       });
       setPaymentPending(true);
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setPaymentSuccess(true);
-          setPaymentPending(false);
-          // 🎉 Check if this is the user's first order — only celebrate first time
-          const isFirstOrder = !localStorage.getItem('kentexa_has_ordered');
-          if (isFirstOrder) {
-            localStorage.setItem('kentexa_has_ordered', 'true');
-            setCelebrate(true);
-          }
-        } catch {
-          setError(t('checkout.err_payment_confirm'));
-          setPaymentPending(false);
-        }
-      }, 4000);
+      await waitForPayment(res.data.providerRequestId);
+      setPaymentSuccess(true);
+      const isFirstOrder = !localStorage.getItem('kentexa_has_ordered');
+      if (isFirstOrder) {
+        localStorage.setItem('kentexa_has_ordered', 'true');
+        setCelebrate(true);
+      }
     } catch (err) {
-      setError(err?.response?.data?.message || t('checkout.err_payment_failed'));
+      setError(err?.code === 'PAYMENT_PENDING' ? t('checkout.payment_pending_notice')
+        : err?.code === 'PAYMENT_FAILED' ? t('checkout.payment_failed_notice')
+          : (err?.response?.data?.message || t('checkout.err_payment_failed')));
     } finally {
+      setPaymentPending(false);
       setPaying(false);
     }
   };
@@ -369,6 +399,36 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <button onClick={() => onNavigate('MyOrders')} style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>🛒 {t('checkout.my_orders_button')}</button>
             <button onClick={() => onNavigate('Home')} style={{ flex: 1, background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 13, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>{t('checkout.home_button')}</button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Every cart item has its own Order and Invoice. Show each payable invoice
+  // independently; never initiate one invoice while claiming the cart total
+  // was paid. My Orders remains the durable return point after navigation.
+  if (paymentStep && placedOrders.length > 1) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: '24px 16px' }}>
+        <div style={{ maxWidth: 540, margin: '0 auto', background: '#fff', padding: 20, borderRadius: 16 }}>
+          <h2 style={{ fontSize: 20, marginTop: 0 }}>{t('checkout.orders_created_title')}</h2>
+          <p style={{ fontSize: 16 }}>{t('checkout.pay_invoice_separately')}</p>
+          {placedOrders.map((order) => {
+            const dueNow = codInfo ? Number(order.codUpfrontAmount || 0) : Number(order.totalAmount || 0);
+            return (
+              <div key={order.id} style={{ padding: 14, marginBottom: 12, border: '1px solid #cbd5e1', borderRadius: 10 }}>
+                <div style={{ fontWeight: 800, fontSize: 16 }}>{order.trackingNumber || `#${order.id}`}</div>
+                <div style={{ fontSize: 15, margin: '6px 0' }}>{t('checkout.due_now')}: TZS {dueNow.toLocaleString()}</div>
+                {dueNow > 0 && <button onClick={() => onNavigate(`PayInvoice-${order.id}`)}
+                  style={{ minHeight: 44, width: '100%', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 16 }}>
+                  {t('checkout.pay_this_invoice')}
+                </button>}
+              </div>
+            );
+          })}
+          <button onClick={() => onNavigate('MyOrders')} style={{ minHeight: 44, width: '100%', border: 0, borderRadius: 8, fontSize: 16, fontWeight: 800 }}>
+            {t('checkout.view_orders')}
+          </button>
         </div>
       </div>
     );
@@ -497,6 +557,11 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 'bold' }}>×</button>
           </div>
         )}
+        {(placedOrders.length > 0 || orderUncertain) && !paymentStep && (
+          <button onClick={() => onNavigate('MyOrders')} style={{ width: '100%', padding: 12, marginBottom: 14, border: 'none', borderRadius: 10, background: '#2563eb', color: '#fff', fontWeight: 800 }}>
+            {placedOrders.length ? t('checkout.view_created_orders', { count: placedOrders.length }) : t('checkout.view_orders')}
+          </button>
+        )}
 
         {/* Cart Items */}
         <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
@@ -596,7 +661,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
         </div>
 
         {/* Delivery Method Selector — shown when address is filled */}
-        {!isDigitalOnlyCart && (detectingMethods || deliveryMethods.length > 0) && (
+        {!isDigitalOnlyCart && (detectingMethods || deliveryMethods.length > 0 || form.deliveryAddress.trim().length >= 3) && (
           <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 18, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 14 }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', fontSize: 11, fontWeight: 900, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>3</span> {t('checkout.delivery_method_title')}</h2>
 
@@ -617,6 +682,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
                   </div>
                 )}
 
+                {deliveryMethods.length === 0 && <div style={{ color: '#b91c1c', fontSize: 13 }}>{t('checkout.err_delivery_unavailable')}</div>}
                 {deliveryMethods.map(method => (
                   <button key={method.key}
                     onClick={() => setSelectedMethod(method.key)}
@@ -809,9 +875,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 14 }}>
             <span style={{ color: '#64748b' }}>{t('checkout.delivery')}</span>
-            {getSelectedMethodData() && getSelectedMethodData().key !== 'agent' ? (
+            {getSelectedMethodData() ? (
               <span style={{ fontWeight: 700, color: '#1d4ed8' }}>
-                {getSelectedMethodData().icon} TZS {Number(getSelectedMethodData().fee || 0).toLocaleString()}
+                {getSelectedMethodData().icon} TZS {cart.reduce((sum, item) => sum + (item.productType === 'digital' ? 0 : Number(methodQuotes[item.id]?.find(m => m.key === selectedMethod)?.fee || 0) * item.quantity), 0).toLocaleString()}
                 <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 4 }}>({getSelectedMethodData().label})</span>
               </span>
             ) : (
@@ -850,7 +916,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           {needsCollection && !isSameCity && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
               <span style={{ color: '#64748b' }}>{t('checkout.collection_fee_line', { type: isRuralCollection ? t('checkout.rural_paren') : t('checkout.urban_paren') })}</span>
-              <span style={{ fontWeight: 700, color: '#f59e0b' }}>TZS {(isRuralCollection ? 3000 : 1500).toLocaleString()}</span>
+              <span style={{ fontWeight: 700, color: '#f59e0b' }}>TZS {((isRuralCollection ? 3000 : 1500) * physicalItemCount).toLocaleString()}</span>
             </div>
           )}
           {/* Online (or COD not yet resolved): the big number is what gets
@@ -901,7 +967,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
             </div>
           )}
           <button onClick={handleCheckout}
-            disabled={loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)}
+            disabled={loading || cart.length === 0 || (!isDigitalOnlyCart && (detectingMethods || !selectedMethod)) || (paymentChoice === 'cod' && codQuote?.eligible === false)}
             style={{ width: '100%', background: (loading || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? '#93c5fd' : 'linear-gradient(135deg,#1d4ed8,#2563eb)', color: '#fff', border: 'none', padding: 14, borderRadius: 12, cursor: (loading || cart.length === 0 || (paymentChoice === 'cod' && codQuote?.eligible === false)) ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800, marginBottom: 10, fontFamily: 'Manrope,sans-serif', boxShadow: '0 4px 14px rgba(29,78,216,0.3)' }}>
             {loading ? `⏳ ${t('checkout.placing')}` : `✅ ${t('checkout.place_order')}`}
           </button>

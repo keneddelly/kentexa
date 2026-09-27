@@ -410,6 +410,16 @@ describe('PaymentsService', () => {
     });
   });
 
+  it('exposes only the initiating payer’s verified payment status', async () => {
+    paymentRepo.findOne.mockResolvedValueOnce({ status: PaymentStatus.PENDING })
+      .mockResolvedValueOnce(null);
+    await expect(service.getMyPaymentStatus('request-1', 7)).resolves.toEqual({ status: PaymentStatus.PENDING });
+    expect(paymentRepo.findOne).toHaveBeenCalledWith({
+      where: { providerRequestId: 'request-1', user: { id: 7 } },
+    });
+    await expect(service.getMyPaymentStatus('request-1', 8)).rejects.toThrow(NotFoundException);
+  });
+
   describe('adminVerifyPayment() — the explicit re-verify, rate-limited', () => {
     it('rejects a second attempt for the same payment within the cooldown window', async () => {
       paymentRepo.findOne.mockResolvedValue({ id: 3, status: PaymentStatus.PENDING, provider: 'selcom', providerRequestId: 'req-1', metadata: null });

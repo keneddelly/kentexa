@@ -22,7 +22,10 @@ const anyStub: any = new Proxy(function () {}, {
   apply: () => Promise.resolve(undefined),
 });
 const build = <T>(props: Record<string, unknown>): T =>
-  new Proxy(Object.assign(Object.create(OrdersService.prototype), props), {
+  new Proxy(Object.assign(Object.create(OrdersService.prototype), {
+    dataSource: { transaction: async (run: any) => run({ getRepository: () => props.repo, query: jest.fn() }) },
+    invoicesService: { createForOrder: jest.fn().mockResolvedValue({ invoiceNumber: 'KNT-INV-TEST' }) },
+  }, props), {
     get: (t, p, r) => (p in t ? Reflect.get(t, p, r) : typeof p === 'symbol' ? undefined : anyStub),
   }) as T;
 
@@ -43,6 +46,17 @@ const baseProduct = (overrides: Record<string, any> = {}) => ({
 });
 
 describe('OrdersService.create() — Checkout DTO Integrity', () => {
+  it('quotes only operational delivery methods and rejects dormant Van delivery', async () => {
+    const productsService = { findOne: jest.fn().mockResolvedValue(baseProduct()) };
+    const svc = build<OrdersService>({ productsService });
+    const sameCity = await svc.getDeliveryMethods('Mbezi, Dar es Salaam', 10);
+    expect(sameCity.methods.map(method => method.key)).toEqual(['boda']);
+    expect(sameCity.methods[0].fee).toBe(2500);
+    const intercity = await svc.getDeliveryMethods('Mwanza', 10);
+    expect(intercity.methods.map(method => method.key)).toEqual(['agent']);
+    expect(intercity.methods[0].fee).toBe(4000);
+  });
+
   it('honors an eligible, buyer-selected shippingMethod and derives its fee server-side (never from the request)', async () => {
     const product = baseProduct();
     const productsService = {

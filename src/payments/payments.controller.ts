@@ -94,6 +94,14 @@ export class PaymentsController {
     );
   }
 
+  // The payer may check the outcome of their own initiated payment. Only
+  // verified provider callbacks can move it to success; polling is read-only.
+  @UseGuards(JwtAuthGuard)
+  @Get('status/:providerRequestId')
+  getMyPaymentStatus(@Param('providerRequestId') providerRequestId: string, @Request() req) {
+    return this.paymentsService.getMyPaymentStatus(providerRequestId, req.user.id);
+  }
+
   // ─── Agent Payment ──────────────────────────────────────────────────────
 
   @UseGuards(JwtAuthGuard)
