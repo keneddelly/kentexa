@@ -14,6 +14,8 @@ import { TzLocationModule } from '../tz-location/tz-location.module';
 import { LocationIntelligenceModule } from '../location-intelligence/location-intelligence.module';
 import { Parcel } from '../super-agents/entities/parcel.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { PickupTasksService } from './pickup-tasks.service';
+import { PickupTasksController } from './pickup-tasks.controller';
 
 @Module({
   imports: [
@@ -27,8 +29,8 @@ import { SuperAgent } from '../super-agents/entities/super-agent.entity';
     // Stage 2D: server-side, exact re-resolution of selected place references.
     LocationIntelligenceModule,
   ],
-  controllers: [ShipmentsController],
-  providers: [ShipmentsService],
+  controllers: [ShipmentsController, PickupTasksController],
+  providers: [ShipmentsService, PickupTasksService],
   exports: [ShipmentsService],
 })
 export class ShipmentsModule {}
