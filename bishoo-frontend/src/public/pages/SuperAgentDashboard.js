@@ -35,6 +35,8 @@ import TourTrigger from '../../onboarding/TourTrigger';
 import SetupProgressCard from '../../onboarding/SetupProgressCard';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
+const pendingWalkInRequests = new Map();
+
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Full hub-operations dashboard (receive/dispatch/pricing/van) re-enabled —
 // the backend endpoints it calls have been live all along.
@@ -518,14 +520,30 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     }
     try {
       setActionLoading(true); setError('');
-      const res = await api.post('/super-agents/offline-intercity', {
+      const payload = {
         ...walkForm,
         originCity: profile?.city,
         weightKg:   walkForm.weightKg ? Number(walkForm.weightKg) : undefined,
         declaredValue: Number(walkForm.declaredValue),
         shippingFeeCollected: Number(walkForm.shippingFeeCollected || 0),
-      });
+      };
+      // Reuse the request identity after a lost response or page reload.
+      // A changed form starts a different request; the backend also compares
+      // every material field before returning an existing receipt.
+      const storageKey = `kentexa-walkin-request:${profile?.id}`;
+      const fingerprint = JSON.stringify(payload);
+      let pending = pendingWalkInRequests.get(storageKey);
+      if (!pending) {
+        try { pending = JSON.parse(sessionStorage.getItem(storageKey) || 'null'); } catch { pending = null; }
+      }
+      const requestKey = pending?.fingerprint === fingerprint
+        ? pending.requestKey : crypto.randomUUID();
+      pendingWalkInRequests.set(storageKey, { fingerprint, requestKey });
+      try { sessionStorage.setItem(storageKey, JSON.stringify({ fingerprint, requestKey })); } catch { /* storage unavailable */ }
+      const res = await api.post('/super-agents/offline-intercity', { ...payload, requestKey });
       setWalkResult(res.data);
+      pendingWalkInRequests.delete(storageKey);
+      try { sessionStorage.removeItem(storageKey); } catch { /* storage unavailable */ }
       // Refresh dashboard data in the background so the new parcel shows up
       // on the Tuma tab immediately — previously required a manual page
       // reload since dashData was only refetched on resetWalk().
