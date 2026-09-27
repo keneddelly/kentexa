@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsNumber, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 
 export enum CheckoutPaymentMethod {
   ONLINE = 'online',
@@ -6,6 +6,9 @@ export enum CheckoutPaymentMethod {
 }
 
 export class CreateOrderDto {
+  @IsOptional()
+  @IsUUID()
+  checkoutRequestKey?: string;
   @IsNumber()
   productId: number;
 

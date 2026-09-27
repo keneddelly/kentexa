@@ -18,7 +18,7 @@ services:
     buildCommand: npm ci --include=dev && npm run build
     # This database is new and empty. The bounded baseline and later schema
     # migrations run here only, using fromDatabase values below.
-    preDeployCommand: MIGRATION_RUN_CONFIRM=RUN_REAL_MIGRATIONS MIGRATION_RUN_UPTO=1788281400000 npm run migration:run:direct && STAGE3KR_SEED_CONFIRM=SEED_ISOLATED_STAGE3KR npm run staging:seed:actors && STAGE3KR_SEED_CONFIRM=SEED_ISOLATED_STAGE3KR npm run staging:seed:locations
+    preDeployCommand: MIGRATION_RUN_CONFIRM=RUN_REAL_MIGRATIONS MIGRATION_RUN_UPTO=1788282600000 npm run migration:run:direct && STAGE3KR_SEED_CONFIRM=SEED_ISOLATED_STAGE3KR npm run staging:seed:actors && STAGE3KR_SEED_CONFIRM=SEED_ISOLATED_STAGE3KR npm run staging:seed:locations
     startCommand: npm run start:prod
     domains:
       - api-stage3kr.kentexa.com

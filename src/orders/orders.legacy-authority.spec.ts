@@ -49,6 +49,9 @@ describe('OrdersService legacy authority closure', () => {
       { record: jest.fn() }, // activityEvents
       noop, // codCalculation
       noop, // communicationEngine
+      noop, // paymentEvidence
+      noop, // orderRelease
+      noop, // dataSource
     );
     return { service, repo };
   };

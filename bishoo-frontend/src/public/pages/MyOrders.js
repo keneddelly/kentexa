@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
+import { waitForPayment } from '../../api/waitForPayment';
 
 const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
 
@@ -144,20 +145,16 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         provider:      'selcom',
       });
       setPaymentPending(true);
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setMessage(t('my_orders.payment_confirmed_msg'));
-          closePayModal();
-          fetchData();
-        } catch {
-          setError(t('my_orders.payment_confirm_failed'));
-          setPaymentPending(false);
-        }
-      }, 4000);
+      await waitForPayment(res.data.providerRequestId);
+      setMessage(t('my_orders.payment_confirmed_msg'));
+      closePayModal();
+      fetchData();
     } catch (err) {
-      setError(err?.response?.data?.message || t('my_orders.payment_failed'));
+      setError(err?.code === 'PAYMENT_PENDING' ? t('checkout.payment_pending_notice')
+        : err?.code === 'PAYMENT_FAILED' ? t('checkout.payment_failed_notice')
+          : (err?.response?.data?.message || t('my_orders.payment_failed')));
     } finally {
+      setPaymentPending(false);
       setPaying(false);
     }
   };
@@ -215,18 +212,15 @@ const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId
         phone:         onlinePayPhone.trim(),
         provider:      'selcom',
       });
-      // Mock confirm in dev
-      setTimeout(async () => {
-        try {
-          await api.post(`/payments/agent/mock-confirm/${res.data.providerRequestId}`);
-          setMessage(t('my_orders.payment_confirmed_classified_msg'));
-          setPayingInvoice(null); setOnlinePayPhone('');
-          fetchData();
-        } catch { setError(t('my_orders.payment_confirm_failed_retry')); }
-      }, 4000);
       setMessage(t('my_orders.check_phone_pin_msg'));
+      await waitForPayment(res.data.providerRequestId);
+      setMessage(t('my_orders.payment_confirmed_classified_msg'));
+      setPayingInvoice(null); setOnlinePayPhone('');
+      fetchData();
     } catch (err) {
-      setError(err?.response?.data?.message || t('my_orders.payment_failed_retry'));
+      setError(err?.code === 'PAYMENT_PENDING' ? t('checkout.payment_pending_notice')
+        : err?.code === 'PAYMENT_FAILED' ? t('checkout.payment_failed_notice')
+          : (err?.response?.data?.message || t('my_orders.payment_failed_retry')));
     } finally {
       setPayingOnline(false);
     }

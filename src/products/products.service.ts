@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, EntityManager } from 'typeorm';
 import { v2 as cloudinary } from 'cloudinary';
 import { Product } from './entities/products.entity';
 import { ProductReview } from './entities/product-review.entity';
@@ -884,6 +884,7 @@ export class ProductsService {
       referenceType?: 'order' | 'sale' | null;
       referenceId?: number | null;
       userId?: number | null;
+      manager?: EntityManager;
     } = {},
   ) {
     return this.inventory.adjustStock(id, -quantity, reason, opts);

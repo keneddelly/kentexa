@@ -34,6 +34,9 @@ import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import SetupProgressCard from '../../onboarding/SetupProgressCard';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
+import { DAILY_BATCHES_AVAILABLE } from '../../config/dailyBatchAvailability';
+
+const pendingWalkInRequests = new Map();
 
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Full hub-operations dashboard (receive/dispatch/pricing/van) re-enabled —
@@ -525,15 +528,31 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     }
     try {
       setActionLoading(true); setError('');
-      const res = await api.post('/super-agents/offline-intercity', {
+      const payload = {
         ...walkForm,
         destinationSuperAgentId: walkDestinationHubId ? Number(walkDestinationHubId) : undefined,
         originCity: profile?.city,
         weightKg:   walkForm.weightKg ? Number(walkForm.weightKg) : undefined,
         declaredValue: Number(walkForm.declaredValue),
         shippingFeeCollected: Number(walkForm.shippingFeeCollected || 0),
-      });
+      };
+      // Reuse the request identity after a lost response or page reload.
+      // A changed form starts a different request; the backend also compares
+      // every material field before returning an existing receipt.
+      const storageKey = `kentexa-walkin-request:${profile?.id}`;
+      const fingerprint = JSON.stringify(payload);
+      let pending = pendingWalkInRequests.get(storageKey);
+      if (!pending) {
+        try { pending = JSON.parse(sessionStorage.getItem(storageKey) || 'null'); } catch { pending = null; }
+      }
+      const requestKey = pending?.fingerprint === fingerprint
+        ? pending.requestKey : crypto.randomUUID();
+      pendingWalkInRequests.set(storageKey, { fingerprint, requestKey });
+      try { sessionStorage.setItem(storageKey, JSON.stringify({ fingerprint, requestKey })); } catch { /* storage unavailable */ }
+      const res = await api.post('/super-agents/offline-intercity', { ...payload, requestKey });
       setWalkResult(res.data);
+      pendingWalkInRequests.delete(storageKey);
+      try { sessionStorage.removeItem(storageKey); } catch { /* storage unavailable */ }
       // Refresh dashboard data in the background so the new parcel shows up
       // on the Tuma tab immediately — previously required a manual page
       // reload since dashData was only refetched on resetWalk().
@@ -1021,7 +1040,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               { key: 'historia',label: '🕘 HISTORIA'},
               { key: 'mapato',  label: '💰 MAPATO'  },
               { key: 'bei',     label: '📋 BEI'     },
-              ...(isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
+              ...(DAILY_BATCHES_AVAILABLE && isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
             ].map(t => (
               <button key={t.key} data-tour={`sa-tab-${t.key}`}
                 onClick={() => { setActiveTab(t.key); setPokeaMode('list'); }}
@@ -2476,7 +2495,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         {/* ════════════════════════════════════════════════════════════════
             🚐 VAN YA LEO TAB (Dar only)
             ════════════════════════════════════════════════════════════════ */}
-        {activeTab === 'van' && isDar && (
+        {DAILY_BATCHES_AVAILABLE && activeTab === 'van' && isDar && (
           <div style={{ textAlign: 'center', padding: 32 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🚐</div>
             <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>

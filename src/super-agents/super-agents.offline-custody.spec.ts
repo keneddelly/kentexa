@@ -15,25 +15,29 @@ describe('offline counter receipt boundary', () => {
     roleType: AccountRoleType.SUPER_AGENT, workspaceId: 5 };
   const dto = { senderName: 'Sender', senderPhone: '255700000001', recipientName: 'Receiver',
     recipientPhone: '255700000002', destinationCity: 'Mwanza', deliveryAddress: 'Market',
-    description: 'Goods', declaredValue: 50000, shippingFeeCollected: 5000 };
+    description: 'Goods', declaredValue: 50000, shippingFeeCollected: 5000,
+    requestKey: 'ab0e42a3-9bf9-48b0-9a7c-7845c958e5fa' };
 
-  function setup(failAt?: 'parcel' | 'custody' | 'invoice') {
+  function setup(failAt?: 'parcel' | 'custody' | 'invoice', prior?: any) {
     const writes: string[] = [];
     const sms = { sendSms: jest.fn().mockResolvedValue(true) };
     const invoice = { receiptNumber: 'KNT-RCP-2026-00001', paidAt: new Date() };
     const manager: any = {
-      query: jest.fn().mockResolvedValue([{ id: hub.id }]),
+      query: jest.fn(async (sql: string) => sql.includes('"offlineRequestKey"') ? (prior ? [prior] : []) : [{ id: hub.id }]),
       getRepository: (entity: any) => {
         if (entity === Order) return {
           save: async () => { writes.push('order'); return { id: 44 }; },
-          update: async () => { writes.push('tracking-number'); },
+          update: async (_id: number, value: any) => {
+            writes.push(value.offlineReceiptSnapshot ? 'receipt-snapshot' : 'tracking-number');
+          },
         };
         if (entity === Parcel) return { save: async () => {
           if (failAt === 'parcel') throw new Error('parcel failed');
           writes.push('parcel'); return { id: 99, trackingNumber: 'KTX-ORD-44' };
         } };
         if (entity === SuperAgent) return {
-          findOne: async () => hub, update: async () => { writes.push('hub'); },
+          findOne: async () => hub, find: async () => [],
+          update: async () => { writes.push('hub'); },
         };
         if (entity === ParcelCustodyEvent) return { insert: async () => {
           if (failAt === 'custody') throw new Error('custody failed'); writes.push('custody');
@@ -64,7 +68,7 @@ describe('offline counter receipt boundary', () => {
     const { service, manager, writes, sms } = setup();
     const result = await service.createOfflineIntercityOrder(user, dto, context);
     expect(result.trackingNumber).toBe('KTX-ORD-44');
-    expect(writes).toEqual(['order', 'tracking-number', 'parcel', 'hub', 'custody', 'tracking', 'invoice']);
+    expect(writes).toEqual(['order', 'tracking-number', 'parcel', 'hub', 'custody', 'tracking', 'invoice', 'receipt-snapshot']);
     expect(manager.query).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE'), [hub.id]);
     expect(sms.sendSms).toHaveBeenCalledTimes(1);
   });
@@ -79,5 +83,14 @@ describe('offline counter receipt boundary', () => {
     const { service, writes } = setup();
     await expect(service.createOfflineIntercityOrder(user, dto, { ...context, profileId: 99 })).rejects.toThrow();
     expect(writes).toEqual([]);
+  });
+
+  it('rejects a key reused with different details without creating another receipt', async () => {
+    const { service, writes, sms } = setup(undefined, { createdByUserId: user.id,
+      shippingFeeCollectedByAgentId: hub.id, offlineRequestPayloadHash: 'other',
+      offlineReceiptSnapshot: { trackingNumber: 'KTX-ORD-44' } });
+    await expect(service.createOfflineIntercityOrder(user, dto, context)).rejects.toThrow('different details');
+    expect(writes).toEqual([]);
+    expect(sms.sendSms).not.toHaveBeenCalled();
   });
 });
