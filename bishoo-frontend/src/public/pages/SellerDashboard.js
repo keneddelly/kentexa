@@ -7,6 +7,7 @@ import ProfileCompletionBanner from '../components/ProfileCompletionBanner';
 import api from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
+import { DAILY_BATCHES_AVAILABLE } from '../../config/dailyBatchAvailability';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -288,10 +289,12 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
         const invoiceRes = await api.get('/classifieds/invoices/seller-requests');
         setInvoiceRequests(invoiceRes.data);
       } catch { setInvoiceRequests([]); }
-      try {
-        const vanRes = await api.get('/daily-batches/manifest/today');
-        setVanStatus(vanRes.data);
-      } catch { setVanStatus(null); }
+      if (DAILY_BATCHES_AVAILABLE) {
+        try {
+          const vanRes = await api.get('/daily-batches/manifest/today');
+          setVanStatus(vanRes.data);
+        } catch { setVanStatus(null); }
+      }
       try {
         const posRes = await api.get('/sales/dashboard');
         setPosDashboard(posRes.data);
@@ -434,7 +437,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
             <ProfileCompletionBanner profile={profile} onNavigate={onNavigate} />
 
             {/* ── Van Today banner ── */}
-            {vanBatch && (
+            {DAILY_BATCHES_AVAILABLE && vanBatch && (
               <div onClick={() => onNavigate('VanToday')}
                 style={{ background: `linear-gradient(135deg,#1E1B4B,${B})`, borderRadius: 14,
                   padding: '14px 16px', marginBottom: 16, cursor: 'pointer', display: 'flex',
@@ -496,8 +499,9 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
               <MenuRow t={t} icon="🏷️" label={t('seller_dashboard.my_brands')} onClick={() => onNavigate('MyBrands')}
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
-              <MenuRow t={t} icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')}
+              {DAILY_BATCHES_AVAILABLE && <MenuRow t={t} icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')}
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              }
               <MenuRow t={t} icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')}
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
               <MenuRow t={t} icon="👛" label={t('seller_dashboard.wallet')} onClick={() => onNavigate('SellerWallet')}

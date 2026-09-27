@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
+import { DAILY_BATCHES_AVAILABLE } from '../../config/dailyBatchAvailability';
 
 const Dashboard = ({ activePage, onNavigate, onLogout }) => {
   const [stats, setStats] = useState({
@@ -13,7 +14,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
   const [loading, setLoading]           = useState(true);
   const [batchStatus, setBatchStatus]   = useState(null);
 
-  useEffect(() => { fetchStats(); fetchPlatformIntelligence(); fetchBatchStatus(); }, []);
+  useEffect(() => { fetchStats(); fetchPlatformIntelligence(); if (DAILY_BATCHES_AVAILABLE) fetchBatchStatus(); }, []);
 
   // All-time totals for the classic stat cards — still one real count
   // query each, not a full-list fetch (see fetchPlatformIntelligence()
@@ -102,7 +103,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
         </div>
 
         {/* Batch Delivery Banner */}
-        {batchStatus?.batch && (
+        {DAILY_BATCHES_AVAILABLE && batchStatus?.batch && (
           <div onClick={() => onNavigate('DispatcherManifest')}
             style={{ backgroundColor: '#1e1b4b', borderRadius: 14, padding: '16px 20px', marginBottom: 24, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -267,9 +268,11 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
                 { label: '💸 Malipo Wauzaji',    page: 'Payouts',           color: '#dcfce7', text: '#16a34a' },
                 { label: '👤 My Profile',        page: 'Profile',           color: '#f1f5f9', text: '#64748b' },
                 { label: '📊 Analytics',         page: 'Analytics',         color: '#e0f2fe', text: '#0284c7' },
-                { label: '🗺️ Maeneo ya Van',     page: 'ZoneManagement',    color: '#ede9fe', text: '#7c3aed' },
-                { label: '🛵 Bei za Boda',        page: 'BodaRates',         color: '#fef9c3', text: '#92400e' },
-                { label: '🚐 Manifest ya Leo',   page: 'DispatcherManifest', color: '#dbeafe', text: '#1d4ed8' },
+                ...(DAILY_BATCHES_AVAILABLE ? [
+                  { label: '🗺️ Maeneo ya Van', page: 'ZoneManagement', color: '#ede9fe', text: '#7c3aed' },
+                  { label: '🛵 Bei za Boda', page: 'BodaRates', color: '#fef9c3', text: '#92400e' },
+                  { label: '🚐 Manifest ya Leo', page: 'DispatcherManifest', color: '#dbeafe', text: '#1d4ed8' },
+                ] : []),
               ].map(action => (
                 <button key={action.page} onClick={() => onNavigate(action.page)}
                   style={{ backgroundColor: action.color, color: action.text, border: 'none', padding: '14px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', textAlign: 'left' }}>
@@ -287,7 +290,7 @@ const Dashboard = ({ activePage, onNavigate, onLogout }) => {
                 { label: 'Backend API',        status: 'Online',    color: '#16a34a' },
                 { label: 'Database',           status: 'Connected', color: '#16a34a' },
                 { label: 'Payments',           status: 'Sandbox',   color: '#ca8a04' },
-                { label: 'Dar Batch Delivery', status: batchStatus?.batch ? `${batchStatus.totalParcels} vifurushi leo` : 'Hakuna batch', color: batchStatus?.batch ? '#7c3aed' : '#94a3b8' },
+                ...(DAILY_BATCHES_AVAILABLE ? [{ label: 'Dar Batch Delivery', status: batchStatus?.batch ? `${batchStatus.totalParcels} vifurushi leo` : 'Hakuna batch', color: batchStatus?.batch ? '#7c3aed' : '#94a3b8' }] : []),
               ].map(item => (
                 <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                   <span style={{ fontSize: '13px', color: '#64748b' }}>{item.label}</span>

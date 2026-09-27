@@ -189,6 +189,7 @@
     "err_recipient_name": "Tafadhali weka jina la mpokeaji",
     "err_cart_empty": "Kikapu chako kiko tupu",
     "err_place_orders": "Imeshindwa kuweka maagizo. Tafadhali jaribu tena.",
+    "err_delivery_unavailable": "Chaguo za usafirishaji hazipatikani kwa anwani hii. Angalia anwani na ujaribu tena.",
     "err_enter_phone": "Weka nambari yako ya simu",
     "err_payment_confirm": "Uthibitisho wa malipo umeshindwa. Jaribu tena.",
     "err_payment_failed": "Malipo yameshindwa. Jaribu tena.",

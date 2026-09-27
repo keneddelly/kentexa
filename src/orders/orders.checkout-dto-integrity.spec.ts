@@ -43,6 +43,17 @@ const baseProduct = (overrides: Record<string, any> = {}) => ({
 });
 
 describe('OrdersService.create() — Checkout DTO Integrity', () => {
+  it('quotes only operational delivery methods and rejects dormant Van delivery', async () => {
+    const productsService = { findOne: jest.fn().mockResolvedValue(baseProduct()) };
+    const svc = build<OrdersService>({ productsService });
+    const sameCity = await svc.getDeliveryMethods('Mbezi, Dar es Salaam', 10);
+    expect(sameCity.methods.map(method => method.key)).toEqual(['boda']);
+    expect(sameCity.methods[0].fee).toBe(2500);
+    const intercity = await svc.getDeliveryMethods('Mwanza', 10);
+    expect(intercity.methods.map(method => method.key)).toEqual(['agent']);
+    expect(intercity.methods[0].fee).toBe(4000);
+  });
+
   it('honors an eligible, buyer-selected shippingMethod and derives its fee server-side (never from the request)', async () => {
     const product = baseProduct();
     const productsService = {
