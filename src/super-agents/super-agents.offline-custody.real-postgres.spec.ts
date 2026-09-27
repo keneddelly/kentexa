@@ -3,6 +3,7 @@ import { Client } from 'pg';
 import { DataSource } from 'typeorm';
 import { getB5BTestConnectionConfig, resetB5BTestSchema } from '../business/b5b-closure-test-db';
 import { AddParcelCustodyEvent1788278400000 } from '../database/migrations/1788278400000-AddParcelCustodyEvent';
+import { AddWalkInRequestIdempotency1788282000000 } from '../database/migrations/1788282000000-AddWalkInRequestIdempotency';
 import { InvoiceCounter } from '../invoices/entities/invoice-counter.entity';
 import { ReceiptCounter } from '../invoices/entities/receipt-counter.entity';
 import { Invoice } from '../invoices/entities/invoice.entity';
@@ -27,7 +28,8 @@ const config = getB5BTestConnectionConfig();
     roleType: AccountRoleType.SUPER_AGENT, workspaceId: 5 };
   const dto = { senderName: 'Sender', senderPhone: '255700000001', recipientName: 'Receiver',
     recipientPhone: '255700000002', destinationCity: 'Mwanza', deliveryAddress: 'Market',
-    description: 'Goods', declaredValue: 50000, shippingFeeCollected: 5000 };
+    description: 'Goods', declaredValue: 50000, shippingFeeCollected: 5000,
+    requestKey: 'ab0e42a3-9bf9-48b0-9a7c-7845c958e5fa' };
 
   beforeAll(async () => {
     const client = new Client(config!);
@@ -39,14 +41,17 @@ const config = getB5BTestConnectionConfig();
     await db.initialize();
     await db.query('CREATE TABLE public.super_agent (id integer PRIMARY KEY, "freeOrdersUsed" integer NOT NULL DEFAULT 0, "totalParcelsHandled" integer NOT NULL DEFAULT 0)');
     await db.query('INSERT INTO public.super_agent (id) VALUES (12)');
-    await db.query('CREATE TABLE public."order" (id serial PRIMARY KEY, "trackingNumber" varchar)');
+    await db.query('CREATE TABLE public."order" (id serial PRIMARY KEY, "trackingNumber" varchar, "createdByUserId" integer, "shippingFeeCollectedByAgentId" integer)');
     await db.query('CREATE TABLE public.parcel (id serial PRIMARY KEY, "orderId" integer, "trackingNumber" varchar)');
     await db.query('CREATE TABLE public.parcel_tracking (id serial PRIMARY KEY, "parcelId" integer, status varchar)');
     await db.query('CREATE TABLE public.invoice_counter (id serial PRIMARY KEY, year integer NOT NULL, "lastSequence" integer NOT NULL DEFAULT 0)');
     await db.query('CREATE TABLE public.receipt_counter (id serial PRIMARY KEY, year integer NOT NULL, "lastSequence" integer NOT NULL DEFAULT 0)');
     await db.query('CREATE TABLE public.invoice (id serial PRIMARY KEY, "orderId" integer, "invoiceNumber" varchar, "receiptNumber" varchar)');
     const runner = db.createQueryRunner();
-    try { await new AddParcelCustodyEvent1788278400000().up(runner); } finally { await runner.release(); }
+    try {
+      await new AddParcelCustodyEvent1788278400000().up(runner);
+      await new AddWalkInRequestIdempotency1788282000000().up(runner);
+    } finally { await runner.release(); }
   });
   afterAll(async () => { if (db) await db.destroy(); });
 
@@ -57,8 +62,13 @@ const config = getB5BTestConnectionConfig();
     // minimal schema; the actual service and DataSource transaction execute.
     const adapter = (entity: any, manager: any): any => {
       if (entity === Order) return {
-        save: async () => (await manager.query('INSERT INTO public."order" DEFAULT VALUES RETURNING id'))[0],
-        update: async (id: number, value: any) => manager.query('UPDATE public."order" SET "trackingNumber"=$1 WHERE id=$2', [value.trackingNumber, id]),
+        save: async (value: any) => (await manager.query(`INSERT INTO public."order"
+          ("createdByUserId","shippingFeeCollectedByAgentId","offlineRequestKey","offlineRequestPayloadHash")
+          VALUES ($1,$2,$3,$4) RETURNING id`,
+          [value.createdByUserId,value.shippingFeeCollectedByAgentId,value.offlineRequestKey,value.offlineRequestPayloadHash]))[0],
+        update: async (id: number, value: any) => value.offlineReceiptSnapshot
+          ? manager.query('UPDATE public."order" SET "offlineReceiptSnapshot"=$1 WHERE id=$2', [value.offlineReceiptSnapshot, id])
+          : manager.query('UPDATE public."order" SET "trackingNumber"=$1 WHERE id=$2', [value.trackingNumber, id]),
       };
       if (entity === Parcel) return { save: async (value: any) =>
         (await manager.query('INSERT INTO public.parcel ("orderId","trackingNumber") VALUES ($1,$2) RETURNING id,"trackingNumber"', [value.order.id, value.trackingNumber]))[0] };
@@ -107,12 +117,37 @@ const config = getB5BTestConnectionConfig();
     }
   });
 
+  it('returns the original receipt on retry without another cash, custody or SMS event', async () => {
+    const replay = await build().createOfflineIntercityOrder(user, dto, context);
+    expect(replay.replayed).toBe(true);
+    expect(replay.receiptNumber).toMatch(/^KNT-RCP-/);
+    for (const table of ['order', 'parcel', 'parcel_custody_event', 'parcel_tracking', 'invoice'])
+      expect((await db.query(`SELECT count(*)::int AS n FROM public."${table}"`))[0].n).toBe(1);
+    expect((await db.query('SELECT "lastSequence" AS n FROM public.receipt_counter'))[0].n).toBe(1);
+    await expect(build().createOfflineIntercityOrder(user, { ...dto, declaredValue: 60000 }, context))
+      .rejects.toThrow('different details');
+  });
+
   it('rolls every write back if the paid invoice cannot be inserted', async () => {
-    await expect(build(true).createOfflineIntercityOrder(user, dto, context)).rejects.toThrow('invoice insert failed');
+    await expect(build(true).createOfflineIntercityOrder(user, { ...dto,
+      requestKey: 'ab0e42a3-9bf9-48b0-9a7c-7845c958e5fb' }, context)).rejects.toThrow('invoice insert failed');
     for (const table of ['order', 'parcel', 'parcel_custody_event', 'parcel_tracking', 'invoice']) {
       expect((await db.query(`SELECT count(*)::int AS n FROM public."${table}"`))[0].n).toBe(1);
     }
     expect((await db.query('SELECT "lastSequence" AS n FROM public.receipt_counter'))[0].n).toBe(1);
     expect((await db.query('SELECT "totalParcelsHandled" AS n FROM public.super_agent WHERE id=12'))[0].n).toBe(1);
+  });
+
+  it('serializes concurrent retries and creates one receipt for a new request key', async () => {
+    const concurrentDto = { ...dto, requestKey: 'ab0e42a3-9bf9-48b0-9a7c-7845c958e5fc' };
+    const [first, second] = await Promise.all([
+      build().createOfflineIntercityOrder(user, concurrentDto, context),
+      build().createOfflineIntercityOrder(user, concurrentDto, context),
+    ]);
+    expect(first.trackingNumber).toBe(second.trackingNumber);
+    expect([first.replayed, second.replayed].filter(Boolean)).toHaveLength(1);
+    for (const table of ['order', 'parcel', 'parcel_custody_event', 'parcel_tracking', 'invoice'])
+      expect((await db.query(`SELECT count(*)::int AS n FROM public."${table}"`))[0].n).toBe(2);
+    expect((await db.query('SELECT "lastSequence" AS n FROM public.receipt_counter'))[0].n).toBe(2);
   });
 });
