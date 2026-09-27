@@ -23,6 +23,14 @@ A future **Movement/Run** is one physical departure with a provider/operator, ti
 
 The first implementation slice should be deliberately small: one origin, one destination, one departure, one provider/vehicle reference where known, and membership of multiple existing Parcels through their assignment. No payroll, fleet maintenance, route optimization, automatic dispatch or multi-stop solver. Keep place identifiers/snapshots and capacity validation under their existing authoritative domains. A named operator can be Kentexa or a verified transport provider; never infer ownership from a logo or free text.
 
+## Kentexa Van pilot entry: Super Agent desk
+
+The first Van service must work **without a marketplace order or a seller account**. Any customer may bring goods to an active Super Agent desk. The hub operator records sender, recipient, goods, declared value, destination, agreed charge and collection; the existing `POST /super-agents/offline-intercity` path already creates a counter Order, Parcel, tracking number, receipt and origin-hub custody event for this case. That Order is a receipt/tracking record, not a marketplace purchase. Keep the hub's active role and cash authority intact.
+
+After registration, the Parcel can be offered a compatible scheduled Kentexa Van Run from that hub. Confirmed Run membership records planned capacity, while the existing custody handoff records physical transfer to the authorized Van operator. At the destination, a receiving hub confirms custody before pickup or last-mile delivery. The public can track verified parcel events. Marketplace-origin Parcels may later join the same Run; neither source gets a parallel Van shipment or tracking system.
+
+For an initial local-market pilot, define a real origin hub, destination hub/handoff, departure window, available capacity, operator and fare before the desk quotes a Van option. If no eligible Run exists, the desk must not promise Van delivery. Counter intake can continue using other available transport. Do not equate `offline_intercity`'s current `shippingMethod: 'agent'` with proof of Van assignment; a separate validated Run choice and subsequent custody handoff are required. The Van pilot therefore depends on the counter/custody and movement gates, **not on completion of marketplace checkout**.
+
 ## Required review before coding
 
 1. Close the Stage 3K–3R phone, recipient proof and Agent COD/remittance gate. The currently isolated staging test must not be redirected to this candidate.
@@ -30,5 +38,6 @@ The first implementation slice should be deliberately small: one origin, one des
 3. Trace single-Parcel and bulk dispatch, provider acceptance, origin-hub handoff and destination receipt to their canonical custody events. Assignment and planned Run membership must never alone imply physical custody.
 4. Define one transaction for adding/removing compatible Parcel assignments under capacity and role/business authority; prove two concurrent additions cannot overbook or double-assign. Reuse existing availability validation where it truly applies.
 5. Design an additive nullable Run reference and migration for new assignments only. Preserve historical nullable assignment references; no inferred backfill. Prove rollback, retry and public tracking projection on PostgreSQL before any production migration.
+6. Prove a walk-in customer can register at the Super Agent desk, obtain a receipt/tracking number, then have that Parcel assigned to an available Van Run and handed off with custody proof. Exercise an unavailable/full Run, retry, and destination receipt without involving marketplace checkout.
 
 The human flow remains “Tuma Mzigo” and “Fuatilia.” Movement grouping and provider details are operational infrastructure, while public tracking reports only verified parcel events and the next meaningful step.
