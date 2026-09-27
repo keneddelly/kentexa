@@ -45,18 +45,14 @@ export class PickupTasksService {
       const s = shipments[0];
       if (!s) throw new NotFoundException('Shipment not found');
       if (s.requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
-      if (s.status !== 'confirmed') throw new ConflictException('Shipment is not ready for pickup');
       const parcels: any[] = await em.query(
         'SELECT id,status,"orderId","shipmentId" FROM public.parcel WHERE "shipmentId"=$1 FOR UPDATE',
         [shipmentId],
       );
-      if (parcels.length !== 1 || parcels[0].orderId !== null || parcels[0].status !== 'pending') {
-        throw new ConflictException('Shipment needs one pending independent Parcel');
+      if (parcels.length !== 1 || parcels[0].orderId !== null) {
+        throw new ConflictException('Shipment needs one independent Parcel');
       }
       const parcelId = parcels[0].id;
-      const legacyCollection: any[] = await em.query(`SELECT id FROM public.parcel_collection
-        WHERE "parcelId"=$1 AND status IN ('requested','claimed','collected') LIMIT 1`, [parcelId]);
-      if (legacyCollection.length) throw new ConflictException('Parcel already has a collection job');
       const existing: any[] = await em.query(
         'SELECT id,"requestPayloadHash",status,"parcelId" FROM public.parcel_pickup_task WHERE "requestKey"=$1',
         [key],
@@ -67,6 +63,12 @@ export class PickupTasksService {
         }
         return { id: existing[0].id, parcelId, status: existing[0].status, replay: true };
       }
+      if (s.status !== 'confirmed' || parcels[0].status !== 'pending') {
+        throw new ConflictException('Shipment is not ready for a new pickup task');
+      }
+      const legacyCollection: any[] = await em.query(`SELECT id FROM public.parcel_collection
+        WHERE "parcelId"=$1 AND status IN ('requested','claimed','collected') LIMIT 1`, [parcelId]);
+      if (legacyCollection.length) throw new ConflictException('Parcel already has a collection job');
 
       // A Shipment's location snapshot has server-authored provenance. Free
       // text is historical display data, not verified Agent coverage.
