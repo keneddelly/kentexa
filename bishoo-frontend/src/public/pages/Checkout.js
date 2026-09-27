@@ -93,6 +93,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
   const detectDeliveryRef = React.useRef(null);
   const quoteRequestRef = React.useRef(0);
   const physicalProductIds = [...new Set(cart.filter(item => item.productType !== 'digital').map(item => item.id))];
+  const physicalItemCount = cart.filter(item => item.productType !== 'digital').length;
   const physicalCartKey = physicalProductIds.join(',');
   const detectDeliveryMethodsFor = (address) => {
     const requestId = ++quoteRequestRef.current;
@@ -148,7 +149,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
     return cart.reduce((sum, item) => {
       const fee = item.productType === 'digital' ? 0 : Number(methodQuotes[item.id]?.find(m => m.key === selectedMethod)?.fee || 0);
       return sum + (Number(item.basePrice || item.price || 0) + fee) * item.quantity;
-    }, 0) + (needsCollection && isIntercityForCod ? (isRuralCollection ? 3000 : 1500) * physicalProductIds.length : 0);
+    }, 0) + (needsCollection && isIntercityForCod ? (isRuralCollection ? 3000 : 1500) * physicalItemCount : 0);
   };
 
   // If the cart changes so that COD is no longer offered (e.g. a non-COD
@@ -861,7 +862,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           {needsCollection && !isSameCity && (
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: 13 }}>
               <span style={{ color: '#64748b' }}>{t('checkout.collection_fee_line', { type: isRuralCollection ? t('checkout.rural_paren') : t('checkout.urban_paren') })}</span>
-              <span style={{ fontWeight: 700, color: '#f59e0b' }}>TZS {(isRuralCollection ? 3000 : 1500).toLocaleString()}</span>
+              <span style={{ fontWeight: 700, color: '#f59e0b' }}>TZS {((isRuralCollection ? 3000 : 1500) * physicalItemCount).toLocaleString()}</span>
             </div>
           )}
           {/* Online (or COD not yet resolved): the big number is what gets
