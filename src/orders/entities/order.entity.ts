@@ -76,6 +76,12 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Column({ type: 'uuid', nullable: true })
+  checkoutRequestKey: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  checkoutRequestPayloadHash: string | null;
+
   // Walk-in registration retry identity. Nullable for every other Order and
   // historical row; the partial unique index is installed by migration.
   @Column({ type: 'uuid', nullable: true })

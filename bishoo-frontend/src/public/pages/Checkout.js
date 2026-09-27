@@ -5,6 +5,7 @@ import Celebration from '../components/Celebration';
 import { useCart } from '../../context/CartContext';
 import api from '../../api/api';
 import { waitForPayment } from '../../api/waitForPayment';
+import { getCheckoutRequestKey, clearCheckoutRequestKey } from '../../api/checkoutRequestKey';
 import LocationPicker from '../components/LocationPicker';
 
 const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) => {
@@ -202,7 +203,7 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       setOrderUncertain(false);
       for (const item of cart) {
         attemptedItemId = item.id;
-        const res = await api.post('/orders', {
+        const request = {
           productId:        item.id,
           quantity:         item.quantity,
           deliveryAddress:  form.deliveryAddress.trim(),
@@ -217,8 +218,13 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
           isRuralCollection: isRuralCollection,
           collectionFee:    item.productType !== 'digital' && needsCollection && isIntercityForCod ? collectionFee : 0,
           paymentMethod: paymentChoice,
+        };
+        const res = await api.post('/orders', {
+          ...request,
+          checkoutRequestKey: getCheckoutRequestKey(item.id),
         });
         orders.push(res.data);
+        clearCheckoutRequestKey(item.id);
         // Each POST creates its own Order/Invoice. Remove only confirmed
         // creations so a later failure leaves the remaining cart retryable.
         removeFromCart(item.id);
@@ -243,11 +249,9 @@ const Checkout = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser }) =
       }
     } catch (err) {
       if (orders.length) setPlacedOrders(orders);
-      // A lost response or server error can occur after an Order committed.
-      // Do not leave that attempted item in the retryable cart: the buyer
-      // must check My Orders before deciding whether to order it again.
+      // The same request key survives a lost response so a retry cannot
+      // create another order. My Orders gives the buyer a durable cross-check.
       const uncertain = attemptedItemId != null && (!err?.response || err.response.status >= 500);
-      if (uncertain) removeFromCart(attemptedItemId);
       setOrderUncertain(uncertain);
       setError(uncertain ? t('checkout.err_order_uncertain')
         : orders.length ? t('checkout.err_partial_orders', { count: orders.length })

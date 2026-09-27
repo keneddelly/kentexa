@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { Cron } from '@nestjs/schedule';
 import {
   Injectable,
@@ -8,7 +8,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, EntityManager } from 'typeorm';
+import { Repository, In, EntityManager, DataSource } from 'typeorm';
 import {
   Order,
   OrderStatus,
@@ -24,6 +24,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { RoleContext } from '../role-context/role-context.types';
 import { InvoicesService } from '../invoices/invoices.service';
+import { Invoice } from '../invoices/entities/invoice.entity';
 import { Payout } from '../payouts/entities/payout.entity';
 import { Review } from '../store/review.entity';
 import {
@@ -168,6 +169,7 @@ export class OrdersService {
     private communicationEngine: CommunicationEngineService,
     private paymentEvidence: PaymentEvidenceService,
     private orderRelease: OrderReleaseService,
+    private dataSource: DataSource,
   ) {}
 
   /** S0 shared guard — every checkout->fulfilment/COD-collection transition on Order goes through this. */
@@ -210,6 +212,44 @@ export class OrdersService {
 
   // ── Create Order ──────────────────────────────────────────────────────────
   async create(dto: CreateOrderDto, user: User) {
+    const key = dto.checkoutRequestKey || null;
+    const payloadHash = key ? createHash('sha256').update(JSON.stringify({
+      buyerId: user.id,
+      productId: dto.productId,
+      quantity: dto.quantity,
+      deliveryAddress: dto.deliveryAddress ?? null,
+      phone: dto.phone ?? null,
+      recipientName: dto.recipientName ?? null,
+      shippingMethod: dto.shippingMethod ?? null,
+      needsCollection: dto.needsCollection ?? false,
+      isRuralCollection: dto.isRuralCollection ?? false,
+      paymentMethod: dto.paymentMethod ?? CheckoutPaymentMethod.ONLINE,
+    })).digest('hex') : null;
+
+    if (!this.dataSource) throw new Error('Checkout transaction manager is unavailable');
+    const result = await this.dataSource.transaction(async manager => {
+      if (key) {
+        await manager.query('SELECT pg_advisory_xact_lock($1::integer, hashtext($2::text))', [user.id, key]);
+        const existing = await manager.getRepository(Order).findOne({
+          where: { checkoutRequestKey: key },
+        });
+        if (existing) {
+          if (existing.buyer?.id !== user.id || existing.checkoutRequestPayloadHash !== payloadHash)
+            throw new ConflictException('Checkout request key was already used for a different order');
+          const invoice = await manager.getRepository(Invoice).findOne({
+            where: { order: { id: existing.id } },
+          });
+          if (!invoice) throw new ConflictException('Checkout is still being finalized');
+          return { replay: { ...existing, invoiceNumber: invoice.invoiceNumber, batchInfo: null } };
+        }
+      }
+      return { created: await this.createNew(dto, user, manager, payloadHash) };
+    });
+    if ('replay' in result) return result.replay;
+    return this.finishCreate(result.created);
+  }
+
+  private async createNew(dto: CreateOrderDto, user: User, manager: EntityManager, payloadHash: string | null) {
     const product = await this.productsService.findOne(dto.productId);
     if (!product.isAvailable)
       throw new BadRequestException('Product not available');
@@ -345,6 +385,8 @@ export class OrdersService {
     const codSkipsPayment = isCod && codUpfrontAmount === 0;
 
     const order = this.repo.create({
+      checkoutRequestKey: dto.checkoutRequestKey ?? null,
+      checkoutRequestPayloadHash: payloadHash ?? null,
       buyer: user,
       product,
       seller: product.seller ?? null,
@@ -392,14 +434,58 @@ export class OrdersService {
         : null,
     } as any);
 
-    const saved = (await this.repo.save(order)) as unknown as Order;
+    const orderRepo = manager.getRepository(Order);
+    const saved = (await orderRepo.save(order)) as unknown as Order;
     // Set permanent tracking number immediately — KTX-ORD-{id} is the single source of truth
-    await this.repo.update(saved.id, {
+    await orderRepo.update(saved.id, {
       trackingNumber: `KTX-ORD-${saved.id}`,
     });
-    // Resolve the seller's CommerceProfile so this event is aggregatable by
-    // business identity (Phase 2 of the intelligence architecture) — Order
-    // has no direct CommerceProfile link, only a seller User relation.
+    await this.productsService.decreaseStock(
+      product.id,
+      dto.quantity,
+      InventoryMovementReason.KENTEXA_ONLINE,
+      { referenceType: 'order', referenceId: saved.id, userId: user.id, manager },
+    );
+
+    const invoice = await this.invoicesService.createForOrder(saved, manager);
+    const invoiceNumber = invoice.invoiceNumber;
+    const invoiceId = invoice.id;
+
+    if (product.seller) {
+      const payoutRepo = manager.getRepository(Payout);
+      await payoutRepo.save(payoutRepo.create({
+        seller: product.seller,
+        order: saved,
+        orderTotal: totalAmount,
+        platformFeeAmount: commission.platformFee,
+        agentCommission: 0,
+        sellerAmount: commission.sellerAmount,
+        status: 'pending',
+      } as any));
+    }
+
+    if (needsCollection) {
+      const sellerCity =
+        (product.seller as any)?.businessLocation?.split(',')[0]?.trim() ||
+        (product as any).sellerCity || 'Unknown';
+      await this.collectionsService.createCollectionRequest(
+        saved,
+        (dto as any).sellerPickupAddress ||
+          (product.seller as any)?.sellerPickupAddress ||
+          (product.seller as any)?.businessLocation || '',
+        sellerCity,
+        isRuralCollection,
+        collectionFee,
+        manager,
+      );
+    }
+
+    return { saved, product, invoiceNumber, invoiceId, chosenMethod, totalAmount, codSkipsPayment, needsCollection, isRuralCollection, collectionFee, dto, user };
+  }
+
+  private async finishCreate(created: Awaited<ReturnType<OrdersService['createNew']>>) {
+    const { saved, product, invoiceNumber, invoiceId, chosenMethod, totalAmount, codSkipsPayment, needsCollection, isRuralCollection, collectionFee, dto, user } = created;
+    // Dispatch non-authoritative effects only after the financial core commits.
     const sellerProfile = product.seller
       ? await this.commerceProfiles
           .findForUserByType(product.seller.id, CommerceProfileType.BUSINESS)
@@ -416,49 +502,17 @@ export class OrdersService {
       targetId: saved.id,
       metadata: { productId: product.id, quantity: dto.quantity, totalAmount },
     });
-    await this.productsService.decreaseStock(
-      product.id,
-      dto.quantity,
-      InventoryMovementReason.KENTEXA_ONLINE,
-      { referenceType: 'order', referenceId: saved.id, userId: user.id },
-    );
-
-    let invoiceNumber: string | null = null;
-    try {
-      const invoice = await this.invoicesService.createForOrder(saved);
-      invoiceNumber = invoice.invoiceNumber;
-    } catch (err) {
-      // Previously this was silently swallowed, which left the order in a
-      // state where checkout's "Pay Online" button had no invoice number to
-      // send — the buyer would see "Invoice number is required" with no way
-      // to recover. We now log the full error so this is diagnosable, and
-      // the payment endpoint has a self-healing fallback (by orderId) so a
-      // transient invoice-creation failure here doesn't permanently strand
-      // the order — see customerPayInvoice() in payments.service.ts.
-      console.error(
-        `Invoice creation failed for order #${saved.id}:`,
-        err.message,
-        err.stack,
-      );
-    }
-
-    if (product.seller) {
-      try {
-        await this.payoutRepo.save(
-          this.payoutRepo.create({
-            seller: product.seller,
-            order: saved,
-            orderTotal: totalAmount,
-            platformFeeAmount: commission.platformFee,
-            agentCommission: 0,
-            sellerAmount: commission.sellerAmount,
-            status: 'pending',
-          } as any),
-        );
-      } catch (err) {
-        console.error('Payout creation failed:', err.message);
-      }
-    }
+    if (invoiceId) this.activityEvents.record({
+      eventType: 'INVOICE_CREATED',
+      category: ActivityCategory.INVOICE,
+      actorId: user.id,
+      actorType: 'buyer',
+      businessId: sellerProfile?.id ?? null,
+      relatedUserId: product.seller?.id ?? null,
+      targetType: 'invoice',
+      targetId: invoiceId,
+      metadata: { orderId: saved.id, amount: totalAmount },
+    });
 
     // Order placed — email only
     await this.notificationsService.orderPlaced(
@@ -504,29 +558,12 @@ export class OrdersService {
       }
     }
 
-    // ── Create collection request if seller needs agent pickup ───────────────
+    // ── Collection SMS after the durable collection/parcel commit ───────────
     if (needsCollection) {
-      try {
-        const sellerCity =
-          (product.seller as any)?.businessLocation?.split(',')[0]?.trim() ||
-          (product as any).sellerCity ||
-          'Unknown';
-        await this.collectionsService.createCollectionRequest(
-          saved,
-          (dto as any).sellerPickupAddress ||
-            (product.seller as any)?.sellerPickupAddress ||
-            (product.seller as any)?.businessLocation ||
-            '',
-          sellerCity,
-          isRuralCollection,
-          collectionFee,
-        );
-      } catch (err) {
-        console.error(
-          `Collection request failed for order #${saved.id}:`,
-          err.message,
-        );
-      }
+      if ((product.seller as any)?.phone) this.smsService.sendSms(
+        (product.seller as any).phone,
+        `KenteXa: Ombi lako la kukusanyiwa limepokewa kwa Agizo #${saved.id}. Wakala atakuja kukuchukua hivi karibuni.`,
+      ).catch((err) => console.error('Collection SMS failed:', err.message));
     }
 
     // Auto-assign origin Super Agent for intercity orders

@@ -170,7 +170,7 @@
     "err_place_orders": "Failed to place orders. Please try again.",
     "err_delivery_unavailable": "Delivery options are unavailable for this address. Please check the address and try again.",
     "err_partial_orders": "{{count}} order(s) were created. The remaining items are still in your cart. Check My Orders before retrying.",
-    "err_order_uncertain": "We could not verify whether the last order was created. Check My Orders before trying again; the attempted item was removed from your cart to prevent a duplicate.",
+    "err_order_uncertain": "We could not verify whether the last order was created. Check My Orders first. The item remains in your cart, and retrying will use the same order request.",
     "view_created_orders": "View {{count}} created order(s)",
     "orders_created_title": "Your orders were created",
     "pay_invoice_separately": "Each order has its own invoice. Pay them individually and check My Orders for their status.",

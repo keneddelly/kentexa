@@ -22,7 +22,10 @@ const anyStub: any = new Proxy(function () {}, {
   apply: () => Promise.resolve(undefined),
 });
 const build = <T>(props: Record<string, unknown>): T =>
-  new Proxy(Object.assign(Object.create(OrdersService.prototype), props), {
+  new Proxy(Object.assign(Object.create(OrdersService.prototype), {
+    dataSource: { transaction: async (run: any) => run({ getRepository: () => props.repo, query: jest.fn() }) },
+    invoicesService: { createForOrder: jest.fn().mockResolvedValue({ invoiceNumber: 'KNT-INV-TEST' }) },
+  }, props), {
     get: (t, p, r) => (p in t ? Reflect.get(t, p, r) : typeof p === 'symbol' ? undefined : anyStub),
   }) as T;
 

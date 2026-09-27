@@ -78,8 +78,8 @@ export class InvoicesService {
     return existingManager ? generate(existingManager) : this.dataSource.transaction(generate);
   }
 
-  async createForOrder(order: Order): Promise<Invoice> {
-    const invoiceNumber = await this.generateInvoiceNumber();
+  async createForOrder(order: Order, manager?: EntityManager): Promise<Invoice> {
+    const invoiceNumber = await this.generateInvoiceNumber(manager);
     const dueDate = new Date();
     dueDate.setHours(dueDate.getHours() + 24);
 
@@ -94,7 +94,8 @@ export class InvoicesService {
     const amount = isCod ? Number((order as any).codUpfrontAmount) : order.totalAmount;
     const status = isCod && amount === 0 ? InvoiceStatus.PAID : InvoiceStatus.AWAITING_PAYMENT;
 
-    const invoice = this.invoiceRepo.create({
+    const invoiceRepo = manager ? manager.getRepository(Invoice) : this.invoiceRepo;
+    const invoice = invoiceRepo.create({
       invoiceNumber,
       order,
       buyer: order.buyer || null,
@@ -103,9 +104,12 @@ export class InvoicesService {
       dueDate,
       ...(status === InvoiceStatus.PAID ? { paidAt: new Date(), paymentMethod: 'cod' } : {}),
     } as any);
-    const saved = (await this.invoiceRepo.save(
+    const saved = (await invoiceRepo.save(
       invoice,
     )) as unknown as Invoice;
+    // A caller-owned transaction can still roll back. It records the
+    // non-authoritative activity event after commit instead.
+    if (manager) return saved;
     const createSellerProfile = order.seller
       ? await this.commerceProfiles
           .findForUserByType(order.seller.id, CommerceProfileType.BUSINESS)

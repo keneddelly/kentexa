@@ -5,7 +5,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import {
   ParcelCollection,
   CollectionStatus,
@@ -42,8 +42,9 @@ export class ParcelCollectionsService {
     city: string,
     isRural: boolean,
     collectionFee: number,
+    existingManager?: EntityManager,
   ): Promise<ParcelCollection> {
-    const saved = await this.dataSource.transaction(async (manager) => {
+    const run = async (manager: EntityManager) => {
       await manager.query('SELECT id FROM public."order" WHERE id = $1 FOR UPDATE', [order.id]);
       const linked: { id: number }[] = await manager.query(
         'SELECT id FROM public.parcel WHERE "orderId" = $1 FOR UPDATE', [order.id],
@@ -80,10 +81,11 @@ export class ParcelCollectionsService {
           status: CollectionStatus.REQUESTED,
         } as any),
       ) as unknown as Promise<ParcelCollection>;
-    });
+    };
+    const saved = existingManager ? await run(existingManager) : await this.dataSource.transaction(run);
 
     // Notify seller confirmation
-    if ((order.seller as any)?.phone) {
+    if (!existingManager && (order.seller as any)?.phone) {
       await this.smsService.sendSms(
         (order.seller as any).phone,
         `KenteXa: Ombi lako la kukusanyiwa limepokewa kwa Agizo #${order.id}. ` +

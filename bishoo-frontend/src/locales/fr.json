@@ -170,7 +170,7 @@
     "err_place_orders": "Échec de la commande. Veuillez réessayer.",
     "err_delivery_unavailable": "Les options de livraison ne sont pas disponibles pour cette adresse. Vérifiez l’adresse et réessayez.",
     "err_partial_orders": "{{count}} commande(s) ont été créées. Les autres articles restent dans le panier. Consultez Mes commandes avant de réessayer.",
-    "err_order_uncertain": "Nous ne pouvons pas confirmer si la dernière commande a été créée. Consultez Mes commandes avant de réessayer ; l’article tenté a été retiré du panier pour éviter un doublon.",
+    "err_order_uncertain": "Nous ne pouvons pas confirmer si la dernière commande a été créée. Consultez Mes commandes d’abord. L’article reste dans le panier et un nouvel essai utilisera la même demande.",
     "view_created_orders": "Voir les {{count}} commandes créées",
     "orders_created_title": "Vos commandes ont été créées",
     "pay_invoice_separately": "Chaque commande a sa facture. Payez-les séparément et consultez leur statut dans Mes commandes.",
