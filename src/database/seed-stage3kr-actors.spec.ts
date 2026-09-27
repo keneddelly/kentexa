@@ -13,3 +13,12 @@ test('actor seed refuses any production target or enabled outbound integration',
     STAGE3KR_DISABLE_UPLOADS: 'false', STAGE3KR_TEST_PASSWORD: 'short',
   })) expect(() => assertStage3krSeedTarget({ ...allowed, [key]: value })).toThrow('refused');
 });
+
+test('actor seed permits only an isolated SMS rehearsal with one test number', () => {
+  const rehearsal = { ...allowed, STAGE3KR_DISABLE_OUTBOUND_SMS: 'false',
+    STAGE3KR_SMS_REHEARSAL: 'true', STAGE3KR_SMS_TEST_PHONE: '+255712000000',
+    AT_API_KEY: 'test-key', AT_USERNAME: 'test-account' };
+  expect(() => assertStage3krSeedTarget(rehearsal)).not.toThrow();
+  expect(() => assertStage3krSeedTarget({ ...rehearsal, STAGE3KR_SMS_TEST_PHONE: '+255712000001, +255713000002' })).toThrow();
+  expect(() => assertStage3krSeedTarget({ ...rehearsal, DB_NAME: 'kentexa' })).toThrow();
+});
