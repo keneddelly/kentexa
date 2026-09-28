@@ -356,7 +356,7 @@ export class ClassifiedsController {
     await this.verification.requireFeature(req.user.id, Feature.POST_CLASSIFIED);
     const sellerId = await this.resolveClassifiedActorId(req.user);
     const scope = await this.sellerScope.resolveScope(sellerId, req.user, roleContext);
-    return this.service.create(dto, { id: sellerId } as User, scope);
+    return this.service.create(dto, { id: sellerId } as User, scope, roleContext);
   }
 
   // ─── :id routes LAST ─────────────────────────────────────────────────────
