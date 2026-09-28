@@ -111,10 +111,14 @@ const config = getB5BTestConnectionConfig();
     const [row] = await db.query(`SELECT status,"agentHandoffCodeHash" FROM public.parcel WHERE id=31`);
     expect(row).toMatchObject({ status: ParcelStatus.OUT_FOR_DELIVERY, agentHandoffCodeHash: null });
     const [event] = await db.query(`SELECT "fromCustodianType","fromCustodianId",
-      "toCustodianType","toCustodianId" FROM public.parcel_custody_event
+      "toCustodianType","toCustodianId","actorUserId","operationKey" FROM public.parcel_custody_event
       WHERE "eventKind"='destination_agent_received'`);
+    // Canonical identity: the local_agent custodian is the Agent PROFILE id (4);
+    // actorUserId is the authenticated User (7). They are deliberately different here.
+    expect(agentContext.profileId).not.toBe(agentContext.userId);
     expect(event).toMatchObject({ fromCustodianType: 'super_agent', fromCustodianId: 6,
-      toCustodianType: 'local_agent', toCustodianId: 7 });
+      toCustodianType: 'local_agent', toCustodianId: 4, actorUserId: 7,
+      operationKey: 'destination-agent-received:4' });
   });
 
   it('rejects incomplete challenge rows and preserves historical Parcel on DOWN/re-UP', async () => {

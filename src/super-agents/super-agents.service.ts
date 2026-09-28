@@ -2497,9 +2497,9 @@ export class SuperAgentsService {
       const hub = parcel.destinationSuperAgent!;
       await manager.getRepository(ParcelCustodyEvent).insert({
         parcelId: parcel.id, eventKind: 'destination_agent_received',
-        operationKey: `destination-agent-received:${user.id}`,
+        operationKey: `destination-agent-received:${agent.id}`,
         fromCustodianType: 'super_agent', fromCustodianId: hub.id,
-        toCustodianType: 'local_agent', toCustodianId: user.id,
+        toCustodianType: 'local_agent', toCustodianId: agent.id,
         actorSource: 'account_role', actorUserId: user.id,
         actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,
         actorWorkspaceId: roleContext.workspaceId ?? null, actorProviderId: null,
@@ -2534,8 +2534,14 @@ export class SuperAgentsService {
     throw new ConflictException('Use the recipient delivery confirmation flow');
   }
 
+  /**
+   * `agentProfileId` is the acting Agent's PROFILE id: it is the canonical
+   * local_agent custodian identity in the ledger (toCustodianId/fromCustodianId).
+   * `user` remains the authenticated account that performs the action
+   * (actorUserId, Parcel.localAgentId assignment, challenge binding).
+   */
   private async lockedAgentDeliveryParcel(
-    manager: any, trackingNumber: string, user: User,
+    manager: any, trackingNumber: string, user: User, agentProfileId: number,
     allowCod = false, allowOrderCompletionInTransaction = false,
   ): Promise<Parcel> {
     const [lookup] = await manager.query('SELECT id,"orderId" FROM public.parcel WHERE "trackingNumber"=$1', [trackingNumber]);
@@ -2554,7 +2560,7 @@ export class SuperAgentsService {
       where: { parcelId: parcel.id }, order: { recordedAt: 'DESC', id: 'DESC' },
     });
     if (!latest || latest.eventKind !== 'destination_agent_received' ||
-        latest.toCustodianType !== 'local_agent' || latest.toCustodianId !== user.id) {
+        latest.toCustodianType !== 'local_agent' || latest.toCustodianId !== agentProfileId) {
       throw new ConflictException('Verified Agent custody is required');
     }
     // COD needs its own cash holder and seller-release transaction.
@@ -2587,12 +2593,12 @@ export class SuperAgentsService {
 
   /** Send a one-use code to the recipient, never to the carrying Agent. */
   async issueAgentDeliveryCode(user: User, trackingNumber: string, roleContext: RoleContext) {
-    await this.deliveryAgent(user, roleContext);
+    const agent = await this.deliveryAgent(user, roleContext);
     const code = String(randomInt(100000, 1000000));
     const salt = randomBytes(16).toString('hex');
     const now = new Date();
     const { id, hash, phone } = await this.dataSource.transaction(async manager => {
-      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, true);
+      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, agent.id, true);
       const phone = parcel.buyerPhone;
       if (!phone) throw new ConflictException('Recipient contact number is missing');
       const [prior] = await manager.query('SELECT "agentDeliveryCodeIssuedAt" FROM public.parcel WHERE id=$1', [parcel.id]);
@@ -2627,7 +2633,7 @@ export class SuperAgentsService {
     if (!/^\d{6}$/.test(code || '')) throw new BadRequestException('Enter the six-digit recipient code');
     const agent = await this.deliveryAgent(user, roleContext);
     const result = await this.dataSource.transaction(async manager => {
-      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user);
+      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, agent.id);
       const [challenge] = await manager.query(`SELECT "agentDeliveryCodeHash", "agentDeliveryCodeExpiresAt",
         "agentDeliveryAgentUserId", "agentDeliveryRecipientPhone", "agentDeliveryAttempts"
         FROM public.parcel WHERE id=$1`, [parcel.id]);
@@ -2649,8 +2655,8 @@ export class SuperAgentsService {
       const now = new Date();
       await manager.getRepository(ParcelCustodyEvent).insert({
         parcelId: parcel.id, eventKind: 'recipient_agent_delivery',
-        operationKey: `recipient-agent-delivery:${user.id}`,
-        fromCustodianType: 'local_agent', fromCustodianId: user.id,
+        operationKey: `recipient-agent-delivery:${agent.id}`,
+        fromCustodianType: 'local_agent', fromCustodianId: agent.id,
         toCustodianType: 'recipient_contact', toCustodianId: null,
         actorSource: 'account_role', actorUserId: user.id,
         actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,
@@ -2698,7 +2704,7 @@ export class SuperAgentsService {
     const agent = await this.deliveryAgent(user, roleContext);
 
     const validate = async (manager: any, completing = false) => {
-      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, true, completing);
+      const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, agent.id, true, completing);
       if (!parcel.order || parcel.order.paymentMethod !== OrderPaymentMethod.COD) {
         throw new ConflictException('This parcel does not have a COD order');
       }
@@ -2767,8 +2773,8 @@ export class SuperAgentsService {
       }
       const custody = await manager.getRepository(ParcelCustodyEvent).insert({
         parcelId: parcel.id, eventKind: 'recipient_agent_delivery',
-        operationKey: `recipient-agent-delivery:${user.id}`,
-        fromCustodianType: 'local_agent', fromCustodianId: user.id,
+        operationKey: `recipient-agent-delivery:${agent.id}`,
+        fromCustodianType: 'local_agent', fromCustodianId: agent.id,
         toCustodianType: 'recipient_contact', toCustodianId: null,
         actorSource: 'account_role', actorUserId: user.id,
         actorAccountRoleId: roleContext.accountRoleId, actorRoleType: roleContext.roleType,

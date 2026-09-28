@@ -65,16 +65,16 @@ const config = getB5BTestConnectionConfig();
     await db.query(`INSERT INTO public.parcel_custody_event
       ("parcelId","eventKind","operationKey","toCustodianType","toCustodianId",
        "actorSource","actorUserId","actorAccountRoleId","actorRoleType")
-      VALUES (31,'destination_agent_received','destination-agent-received:7','local_agent',7,
+      VALUES (31,'destination_agent_received','destination-agent-received:4','local_agent',4,
         'account_role',7,18,'agent'),
-             (32,'destination_agent_received','destination-agent-received:7','local_agent',7,
-        'account_role',7,18,'agent')`);
+             (32,'destination_agent_received','destination-agent-received:4','local_agent',4,
+        'account_role',7,18,'agent')`); // custodian = Agent PROFILE id 4; actor = User 7
   });
   afterAll(async () => { if (db) await db.destroy(); });
 
-  function service(failure?: 'tracking' | 'receipt' | 'blocked'): any {
+  function service(failure?: 'tracking' | 'receipt' | 'blocked', profileId = 4): any {
     const instance: any = Object.create(SuperAgentsService.prototype);
-    instance.agentRepo = { findOne: async () => ({ id: 4, fullName: 'Agent Seven',
+    instance.agentRepo = { findOne: async () => ({ id: profileId, fullName: 'Agent Seven',
       status: AgentStatus.APPROVED, deliveryCommission: 500 }) };
     instance.smsService = { sendSms: async (_phone: string, message: string) => {
       sentCode = message.match(/\b\d{6}\b/)?.[0] || '';
@@ -158,6 +158,16 @@ const config = getB5BTestConnectionConfig();
     return { parcel, order, counts };
   }
 
+  it('a stale/different Agent profile (same User) cannot request a code or collect COD: custody belongs to profile 4', async () => {
+    expect(context.profileId).not.toBe(context.userId);
+    const other = { ...context, profileId: 5 };
+    await expect(service(undefined, 5).issueAgentDeliveryCode(user, 'KTX-AGENT-COD-31', other))
+      .rejects.toThrow('Verified Agent custody is required');
+    await expect(service(undefined, 5).confirmCodAgentDelivery(user, 'KTX-AGENT-COD-31', '123456', 5000, other))
+      .rejects.toThrow('Verified Agent custody is required');
+    expect((await state(31)).counts).toEqual({ cash: 0, custody: 0, tracking: 0, receipt: 0, releases: 0 });
+  });
+
   it('rolls back on release, tracking and receipt failure; concurrent COD handover settles once', async () => {
     await service().issueAgentDeliveryCode(user, 'KTX-AGENT-COD-31', context);
     expect(sentCode).toMatch(/^\d{6}$/);
@@ -193,6 +203,16 @@ const config = getB5BTestConnectionConfig();
     expect(done.parcel.status).toBe(ParcelStatus.DELIVERED);
     expect(done.order).toMatchObject({ status: OrderStatus.DELIVERED, codBalanceCollected: true,
       codBalanceCollectedByAgentId: null, codBalanceCollectedByLocalAgentId: 4 });
+    // Custody, cash liability and the order's collector resolve to the SAME Agent PROFILE (4);
+    // the acting account is User 7. (Previously the event said 7 while the cash rows said 4.)
+    const [same] = await db.query(`SELECT e."fromCustodianId", e."actorUserId", e."operationKey",
+        c."agentId", o."codBalanceCollectedByLocalAgentId" AS "collector"
+      FROM public.parcel_custody_event e
+      JOIN public.agent_cod_collection c ON c."custodyEventId" = e.id
+      JOIN public."order" o ON o.id = c."orderId"
+      WHERE e."parcelId"=31 AND e."eventKind"='recipient_agent_delivery'`);
+    expect(same).toEqual({ fromCustodianId: 4, actorUserId: 7, operationKey: 'recipient-agent-delivery:4',
+      agentId: 4, collector: 4 });
     const [cash] = await db.query('SELECT * FROM public.agent_cod_collection WHERE "orderId"=12');
     expect(Number(cash.collectedAmount)).toBe(5000);
     expect(Number(cash.cashLiability)).toBe(5000);

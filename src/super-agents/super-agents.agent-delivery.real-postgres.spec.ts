@@ -51,14 +51,14 @@ const config = getB5BTestConnectionConfig();
     await db.query(`INSERT INTO public.parcel_custody_event
       ("parcelId","eventKind","operationKey","fromCustodianType","fromCustodianId",
        "toCustodianType","toCustodianId","actorSource","actorUserId","actorAccountRoleId","actorRoleType")
-      VALUES (31,'destination_agent_received','destination-agent-received:7','super_agent',6,
-        'local_agent',7,'account_role',7,18,'agent')`);
+      VALUES (31,'destination_agent_received','destination-agent-received:4','super_agent',6,
+        'local_agent',4,'account_role',7,18,'agent')`); // custodian = Agent PROFILE id 4; actor = User 7
   });
   afterAll(async () => { if (db) await db.destroy(); });
 
-  function service(failTracking = false): any {
+  function service(failTracking = false, profileId = 4): any {
     const instance: any = Object.create(SuperAgentsService.prototype);
-    instance.agentRepo = { findOne: async () => ({ id: 4, fullName: 'Agent Seven', deliveryCommission: 1500 }) };
+    instance.agentRepo = { findOne: async () => ({ id: profileId, fullName: 'Agent Seven', deliveryCommission: 1500 }) };
     instance.smsService = { sendSms: async (_phone: string, message: string) => {
       sentCode = message.match(/\b\d{6}\b/)?.[0] || '';
       return true;
@@ -101,6 +101,17 @@ const config = getB5BTestConnectionConfig();
     return instance;
   }
 
+  it('a DIFFERENT Agent profile of the same User cannot ride another profile\'s custody (fails closed, nothing written)', async () => {
+    expect(context.profileId).not.toBe(context.userId);
+    // Custody belongs to Agent profile 4; the acting role is profile 5 of the same User 7.
+    await expect(service(false, 5).issueAgentDeliveryCode(user, 'KTX-DELIVERY-31', { ...context, profileId: 5 }))
+      .rejects.toThrow('Verified Agent custody is required');
+    await expect(service(false, 5).confirmAgentDelivery(user, 'KTX-DELIVERY-31', '123456', { ...context, profileId: 5 }))
+      .rejects.toThrow('Verified Agent custody is required');
+    expect((await db.query('SELECT "agentDeliveryCodeHash" FROM public.parcel WHERE id=31'))[0].agentDeliveryCodeHash).toBeNull();
+    expect((await db.query('SELECT count(*)::int AS n FROM public.parcel_custody_event'))[0].n).toBe(1);
+  });
+
   it('requires recipient code and commits custody, status, tracking, earnings once', async () => {
     await service().issueAgentDeliveryCode(user, 'KTX-DELIVERY-31', context);
     expect(sentCode).toMatch(/^\d{6}$/);
@@ -133,10 +144,11 @@ const config = getB5BTestConnectionConfig();
     expect(results.map(r => r.status).sort()).toEqual(['fulfilled', 'rejected']);
     const [row] = await db.query(`SELECT status,"agentDeliveryCodeHash","buyerConfirmed" FROM public.parcel WHERE id=31`);
     expect(row).toMatchObject({ status: ParcelStatus.DELIVERED, agentDeliveryCodeHash: null, buyerConfirmed: true });
-    const [event] = await db.query(`SELECT "fromCustodianType","fromCustodianId","toCustodianType"
+    const [event] = await db.query(`SELECT "fromCustodianType","fromCustodianId","toCustodianType","actorUserId","operationKey"
       FROM public.parcel_custody_event WHERE "eventKind"='recipient_agent_delivery'`);
-    expect(event).toMatchObject({ fromCustodianType: 'local_agent', fromCustodianId: 7,
-      toCustodianType: 'recipient_contact' });
+    // Same Agent PROFILE id (4) as the handoff that gave this Agent custody; actor is User 7.
+    expect(event).toMatchObject({ fromCustodianType: 'local_agent', fromCustodianId: 4,
+      toCustodianType: 'recipient_contact', actorUserId: 7, operationKey: 'recipient-agent-delivery:4' });
     expect((await db.query('SELECT "totalDeliveriesCompleted" FROM public.agent WHERE id=4'))[0].totalDeliveriesCompleted).toBe(1);
   });
 
