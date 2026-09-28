@@ -699,6 +699,14 @@ export class SuperAgentsController {
     return this.service.confirmShipmentArrived(req.user, tn, body, roleContext);
   }
 
+  // Recipient-only journey projection for the tracking page (read-only; the
+  // existing request-delivery / self-pickup routes remain the only writers).
+  @UseGuards(JwtAuthGuard)
+  @Get('track/:trackingNumber/recipient-journey')
+  getRecipientJourney(@Param('trackingNumber') tn: string, @Request() req) {
+    return this.service.getRecipientJourney(req.user, tn);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('shipments/:trackingNumber/request-delivery')
   requestDelivery(

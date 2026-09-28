@@ -4993,7 +4993,7 @@ export class SuperAgentsService {
 
   // ── Buyer requests last-mile delivery ────────────────────────────────────
 
-  private assertParcelRecipient(parcel: Parcel, buyer: User): void {
+  private isParcelRecipient(parcel: Parcel, buyer: User): boolean {
     // Profile updates canonicalize Tanzanian numbers to +255, while older
     // counter receipts retain the locally entered 0-prefix. Accept those
     // two representations of the same number without a suffix-only match.
@@ -5005,9 +5005,105 @@ export class SuperAgentsService {
     };
     const samePhone = !!buyer.phone && !!parcel.buyerPhone &&
       normalize(parcel.buyerPhone) === normalize(buyer.phone);
-    if (!samePhone && parcel.order?.buyer?.id !== buyer.id) {
+    return samePhone || parcel.order?.buyer?.id === buyer.id;
+  }
+
+  private assertParcelRecipient(parcel: Parcel, buyer: User): void {
+    if (!this.isParcelRecipient(parcel, buyer)) {
       throw new ForbiddenException('Only the parcel recipient can choose delivery');
     }
+  }
+
+  /**
+   * Recipient-facing projection of where the parcel is and what (if anything) the
+   * recipient can do next. Read-only: every rule mirrors the existing write paths
+   * (chooseDestinationMethod, the Agent delivery/pickup challenges) so the tracking
+   * page never offers an action the backend would refuse, and never reveals a
+   * challenge hash, code, or another party's data. A non-recipient gets no detail.
+   */
+  async getRecipientJourney(viewer: User, trackingNumber: string) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: { buyer: true }, destinationSuperAgent: true },
+    });
+    if (!parcel) throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
+    if (!this.isParcelRecipient(parcel, viewer)) {
+      return { trackingNumber: parcel.trackingNumber, isRecipient: false };
+    }
+
+    const custodyRepo = this.dataSource.getRepository(ParcelCustodyEvent);
+    const latest = await custodyRepo.findOne({
+      where: { parcelId: parcel.id },
+      order: { recordedAt: 'DESC', id: 'DESC' } as any,
+    });
+    let holderName: string | null = null;
+    if (latest) {
+      if (latest.toCustodianType === 'super_agent' && latest.toCustodianId != null) {
+        holderName = (await this.superAgentRepo.findOne({ where: { id: Number(latest.toCustodianId) } }))?.businessName ?? null;
+      } else if (latest.toCustodianType === 'local_agent' && latest.toCustodianId != null) {
+        holderName = (await this.agentRepo.findOne({ where: { id: Number(latest.toCustodianId) } }))?.fullName ?? null;
+      }
+    }
+
+    const status = parcel.status;
+    const atDestination = [ParcelStatus.ARRIVED_AT_HUB, ParcelStatus.AWAITING_BUYER].includes(status);
+    const receipt = atDestination && parcel.destinationSuperAgent
+      ? await custodyRepo.findOne({ where: { parcelId: parcel.id, eventKind: 'destination_hub_received' } })
+      : null;
+    const hubReceiptConfirmed = !!receipt && receipt.toCustodianType === 'super_agent' &&
+      receipt.toCustodianId === parcel.destinationSuperAgent?.id;
+
+    let stage: string;
+    if ([ParcelStatus.PENDING, ParcelStatus.COLLECTION_REQUESTED, ParcelStatus.COLLECTED_BY_AGENT].includes(status)) stage = 'preparing';
+    else if ([ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH].includes(status)) stage = 'at_origin_hub';
+    else if ([ParcelStatus.DISPATCHED, ParcelStatus.IN_TRANSIT, ParcelStatus.TRANSFERRED_HUB].includes(status)) stage = 'in_transit';
+    else if (atDestination) {
+      stage = parcel.buyerRequestedDelivery === true ? 'delivery_requested'
+        : parcel.buyerRequestedDelivery === false ? 'pickup_planned'
+        : hubReceiptConfirmed ? 'choose_method' : 'arriving';
+    }
+    else if (status === ParcelStatus.OUT_FOR_DELIVERY) stage = 'out_for_delivery';
+    else if (status === ParcelStatus.DELIVERED) stage = 'delivered';
+    else if (status === ParcelStatus.SELF_PICKUP) stage = 'collected';
+    else stage = 'attention';
+
+    const now = Date.now();
+    const pending = (hash: string | null, expires: Date | null) =>
+      !!hash && !!expires && new Date(expires).getTime() > now;
+    const order = parcel.order;
+    const codDue = !!order && order.paymentMethod === OrderPaymentMethod.COD && !order.codBalanceCollected
+      ? Number(order.codRemainingBalance || 0) : 0;
+    const finished = ['delivered', 'collected'].includes(stage);
+
+    return {
+      trackingNumber: parcel.trackingNumber,
+      isRecipient: true,
+      stage,
+      status,
+      custody: latest ? {
+        kind: latest.eventKind,
+        holderType: latest.toCustodianType,
+        holderName,
+        at: (latest as any).recordedAt ?? null,
+      } : null,
+      destinationHub: parcel.destinationSuperAgent
+        ? { name: parcel.destinationSuperAgent.businessName, address: parcel.destinationSuperAgent.address ?? null }
+        : null,
+      delivery: stage === 'delivery_requested' || stage === 'out_for_delivery' || stage === 'delivered'
+        ? { agentName: parcel.localAgentName ?? null,
+            fee: parcel.agreedDeliveryFee != null ? Number(parcel.agreedDeliveryFee) : null,
+            address: parcel.deliveryAddress ?? null }
+        : null,
+      cod: codDue > 0 && !finished ? { amountDue: codDue } : null,
+      recipientCode: {
+        // The code itself is only ever sent by SMS to the recipient's phone.
+        agentDeliveryPending: stage === 'out_for_delivery' &&
+          pending(parcel.agentDeliveryCodeHash, parcel.agentDeliveryCodeExpiresAt),
+        pickupPending: stage === 'pickup_planned' &&
+          pending(parcel.pickupCodeHash, parcel.pickupCodeExpiresAt),
+      },
+      actions: { chooseMethod: stage === 'choose_method' },
+    };
   }
 
   // Choosing a method does not prove physical possession. Serialize both
@@ -5391,8 +5487,14 @@ export class SuperAgentsService {
   // ── Get buyer's incoming parcels by phone ─────────────────────────────────
 
   async getBuyerParcels(phone: string) {
+    // Same equivalence the recipient check uses (isParcelRecipient): a parcel typed at a
+    // counter as 0788… must be findable by a profile phone stored as +255788….
+    const digits = (phone || '').replace(/[\s()-]/g, '');
+    const local = digits.match(/^(?:\+?255|0)([67]\d{8})$/)?.[1];
+    if (!digits) return [];
+    const phones = local ? [`+255${local}`, `0${local}`, `255${local}`] : [digits];
     const parcels = await this.parcelRepo.find({
-      where: { buyerPhone: phone },
+      where: { buyerPhone: In(phones) },
       order: { createdAt: 'DESC' } as any,
       take: 20,
     });
