@@ -112,3 +112,14 @@ describe('I2B — Moment publish derives the actor from the server-resolved cont
     expect(saved).toHaveLength(0);
   });
 });
+
+describe('profile Moment timeline', () => {
+  it('queries only Moments stamped with that profile, excluding untagged legacy rows', async () => {
+    const svc: any = Object.create(FeedService.prototype);
+    svc.feedRepo = { find: jest.fn().mockResolvedValue([]) };
+    await svc.getBusinessFeed(200, 70);
+    expect(svc.feedRepo.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: { businessId: 200, isActive: true, commerceProfileId: 70 },
+    }));
+  });
+});

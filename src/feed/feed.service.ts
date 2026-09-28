@@ -1067,20 +1067,16 @@ export class FeedService {
   }
 
   // ── Business feed (for profile page) ─────────────────────────────────────
-  // When commerceProfileId is given, scopes to posts published as THAT
-  // profile, plus any pre-existing untagged posts (commerceProfileId
-  // null) — old posts never disappear, they just aren't scoped to one
-  // profile the way anything published after this feature is.
+  // A profile's timeline contains only posts stamped with that profile.
+  // Untagged legacy posts have no provable actor and must not appear on
+  // every personal/business profile belonging to the same account.
   async getBusinessFeed(
     sellerId: number,
     commerceProfileId?: number,
   ): Promise<BusinessFeedItem[]> {
     const items = await this.feedRepo.find({
       where: commerceProfileId
-        ? [
-            { businessId: sellerId, isActive: true, commerceProfileId },
-            { businessId: sellerId, isActive: true, commerceProfileId: IsNull() },
-          ]
+        ? { businessId: sellerId, isActive: true, commerceProfileId }
         : { businessId: sellerId, isActive: true },
       // A profile's own Posts tab is a chronological timeline of what THIS
       // identity has shared — like any social app's own-profile grid — not
@@ -1150,16 +1146,7 @@ export class FeedService {
       const business = rawBiz
         ? {
             ...rawBiz,
-            ...(profile
-              ? {
-                  commerceProfileId: profile.id,
-                  name: profile.displayName,
-                  storeName: profile.displayName,
-                  logo: profile.photoUrl || rawBiz.logo,
-                  followersCount: profile.followersCount,
-                  isVerified: profile.isVerified,
-                }
-              : {}),
+            ...momentActorFields(profile, rawBiz.logo),
           }
         : rawBiz;
       return {

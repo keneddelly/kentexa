@@ -30,10 +30,36 @@ describe('ClassifiedsService — Business-First Stage 2A workspace ownership', (
       repo, invoiceRequestRepo, invoiceRepo, noop, noop, noop, feedService,
       commerceProfiles, profileScope, searchIndex, noop, noop, ownershipFlags,
     );
-    return { service, repo, savedListings, ownershipFlags, profileScope };
+    return { service, repo, savedListings, ownershipFlags, profileScope, feedService };
   };
 
   describe('create() — new-write stamping', () => {
+    it.each([
+      ['BUSINESS', 70, 7],
+      ['PERSONAL', 10, null],
+    ])('auto-shares a %s classified as its exact active profile', async (identityType, profileId, workspaceId) => {
+      const { service, savedListings, profileScope, feedService } = buildService();
+      profileScope.resolveForListingScope.mockResolvedValue(profileId);
+      const scope = { legacySellerId: 200, workspaceId, businessId: workspaceId ? 4 : null,
+        mode: workspaceId ? 'workspace' : 'legacy', identityType, commerceProfileId: profileId } as any;
+      const context = { identityType, commerceProfileId: profileId, userId: 200 } as any;
+      await service.create({ title: 'Sofa', price: 50000 } as any, { id: 200 } as any, scope, context);
+      expect(savedListings[0].commerceProfileId).toBe(profileId);
+      expect(feedService.publish).toHaveBeenCalledWith(200, expect.objectContaining({
+        linkedEntityType: 'classified', commerceProfileId: profileId,
+      }), context);
+    });
+
+    it('rejects an actor mismatch before saving the classified or publishing its Moment', async () => {
+      const { service, repo, feedService } = buildService();
+      const scope = { legacySellerId: 200, workspaceId: 7, businessId: 4,
+        mode: 'workspace', identityType: 'BUSINESS', commerceProfileId: 71 } as any;
+      await expect(service.create({ title: 'Sofa', price: 50000 } as any,
+        { id: 200 } as any, scope, { identityType: 'BUSINESS', commerceProfileId: 71 } as any))
+        .rejects.toMatchObject({ response: { code: 'CLASSIFIED_ACTOR_IDENTITY_MISMATCH' } });
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(feedService.publish).not.toHaveBeenCalled();
+    });
     it('stamps workspaceId from the resolved scope, not from any sellerId lookup, when dual-write is on', async () => {
       const { service, savedListings } = buildService();
       const scope = { legacySellerId: 200, workspaceId: 7, businessId: 4, mode: 'workspace' as const };

@@ -39,6 +39,7 @@ import { CodCalculationService } from '../cod/cod-calculation.service';
 import { OwnershipFeatureFlagsService } from '../ownership/ownership-feature-flags.service';
 import { SellerScope, assertResourceInBusinessScope } from '../business/seller-scope.service';
 import { ownershipFlag } from '../ownership/ownership-feature-flags.service';
+import type { RoleContext } from '../role-context/role-context.types';
 
 @Injectable()
 export class ClassifiedsService {
@@ -86,7 +87,7 @@ export class ClassifiedsService {
   }
 
   // ─── Create listing ───────────────────────────────────────────────────────
-  async create(dto: CreateClassifiedDto, user: User, scope?: SellerScope) {
+  async create(dto: CreateClassifiedDto, user: User, scope?: SellerScope, roleContext?: RoleContext) {
     this.validateFlashSale(dto);
     const attributeErrors = validateAttributes(
       dto.category,
@@ -102,6 +103,16 @@ export class ClassifiedsService {
     const commerceProfileId = scope
       ? await this.profileScope.resolveForListingScope(scope)
       : null;
+    // The listing and its automatic Moment must have the same canonical
+    // actor. Never publish through the legacy internal path when a modern
+    // RoleContext exists, or allow a listing resolution to disagree with it.
+    if (roleContext?.identityType &&
+        (!roleContext.commerceProfileId || commerceProfileId !== roleContext.commerceProfileId)) {
+      throw new ConflictException({
+        code: 'CLASSIFIED_ACTOR_IDENTITY_MISMATCH',
+        message: 'Classified identity does not match the active profile.',
+      });
+    }
 
     // Business-First Stage 2A: stamped ONLY from the acting request's own
     // authoritative RoleContext.workspaceId (via `scope`) -- never derived
@@ -128,7 +139,7 @@ export class ClassifiedsService {
           commerceProfileId: commerceProfileId || undefined,
           category: saved.category || undefined,
           price: Number(saved.flashSalePrice || saved.price) || undefined,
-        })
+        }, roleContext)
         .catch(() => {});
     }
 
