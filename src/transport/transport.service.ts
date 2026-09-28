@@ -51,7 +51,7 @@ import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { assertFirstMileComplete } from '../shipments/first-mile-guard';
-import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
 import { RoleContextService } from '../role-context/role-context.service';
 import type { RoleContext } from '../role-context/role-context.types';
@@ -125,6 +125,41 @@ export class TransportService {
   private async findCallerSuperAgent(userId: number): Promise<SuperAgent | null> {
     const matches = await this.superAgentRepo.find({ where: { user: { id: userId } }, order: { id: 'ASC' } });
     return matches.length === 1 ? matches[0] : null;
+  }
+
+  // 3S-B1: canonical Super-Agent authority for creating a transport
+  // assignment — the caller's CURRENT active role must name the SPECIFIC
+  // hub profile (id + owning user + a workspace consistent with the acting
+  // context), never merely "this user happens to own a SuperAgent row
+  // somewhere," matching the standard collectAssignedParcel() already holds
+  // the provider side to. A Business that legitimately also owns a
+  // TransportProvider profile is unaffected — this only ever reads the
+  // SuperAgent table, scoped to the profile the caller is actively acting
+  // as; switching into the Transport Provider role for the same Business
+  // does not carry over authority here, and vice versa.
+  private async resolveAssigningHub(caller: User, roleContext?: RoleContext): Promise<SuperAgent> {
+    if (roleContext?.roleType === AccountRoleType.SUPER_AGENT) {
+      if (roleContext.userId !== caller.id) {
+        throw new ForbiddenException('Only a Super Agent can create a transport assignment');
+      }
+      const hub = await this.superAgentRepo.findOne({
+        where: { id: roleContext.profileId, userId: caller.id, status: SuperAgentStatus.ACTIVE },
+      });
+      if (!hub || (hub.workspaceId != null && hub.workspaceId !== roleContext.workspaceId)) {
+        throw new ForbiddenException('An active Super Agent hub is required to create a transport assignment');
+      }
+      return hub;
+    }
+    // Administrative fallback — unchanged from the prior behaviour: an
+    // admin/manager may act without switching into the SUPER_AGENT role,
+    // but only when they themselves unambiguously own exactly one
+    // SuperAgent row (the same fail-closed-on-ambiguity lookup this method
+    // always used; not re-scoped here to keep this slice minimal).
+    if (roleContext?.roleType === AccountRoleType.ADMIN || roleContext?.roleType === AccountRoleType.MANAGER) {
+      const hub = await this.findCallerSuperAgent(caller.id);
+      if (hub) return hub;
+    }
+    throw new ForbiddenException('Only a Super Agent can create a transport assignment');
   }
 
   // Multi-Business Authority Stage 1B. Same fail-closed-on-ambiguity
@@ -1034,16 +1069,13 @@ export class TransportService {
       scheduledDeparture?: string;
       superAgentNotes?: string;
     },
+    roleContext?: RoleContext,
   ): Promise<TransportAssignment> {
-    // Only an active Super Agent may create an assignment, and only for a
-    // parcel their own hub actually holds — never trust a bare "I am a
-    // super agent, trust my ids" claim from the client.
-    const superAgent = await this.findCallerSuperAgent(caller.id);
-    if (!superAgent) {
-      throw new ForbiddenException(
-        'Only a Super Agent can create a transport assignment',
-      );
-    }
+    // 3S-B1: canonical RoleContext/capability authority — see
+    // resolveAssigningHub()'s own doc comment. Only for a parcel their own
+    // hub actually holds — never trust a bare "I am a super agent, trust my
+    // ids" claim from the client.
+    const superAgent = await this.resolveAssigningHub(caller, roleContext);
 
     if (!dto.parcelId && !dto.trackingNumber) {
       throw new BadRequestException('parcelId or trackingNumber is required');
@@ -1062,22 +1094,19 @@ export class TransportService {
       );
     }
 
-    const provider = await this.providerRepo.findOne({
-      where: { id: dto.providerId },
-    });
-    if (!provider) throw new NotFoundException('Msafirishaji hajapatikana');
-    if (
-      ![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(
-        provider.status,
-      )
-    ) {
-      throw new BadRequestException('Msafirishaji huyu hajakaguliwa bado');
-    }
+    // Canonical, shared provider-eligibility policy (3S-B1) — the exact
+    // check the Shipment confirmation path already uses, no longer a
+    // second, independently-maintained copy of the same rule.
+    const provider = await this.assertEligibleProvider(dto.providerId);
 
     // If a specific slot was chosen, it must actually belong to the
-    // selected provider and still have room — pairing an unrelated
-    // availabilityId with any providerId used to silently deplete a
-    // stranger's capacity with no relationship check at all.
+    // selected provider — pairing an unrelated availabilityId with any
+    // providerId used to silently deplete a stranger's capacity with no
+    // relationship check at all. This is only an ADVISORY fast-fail for a
+    // friendly error message: the real, final capacity decision is the
+    // atomic conditional UPDATE inside the transaction below, which
+    // re-checks OPEN status/a free slot/kg headroom itself and cannot be
+    // raced past this earlier read (see slot-capacity.ts).
     if (dto.availabilityId) {
       const availability = await this.availabilityRepo.findOne({
         where: { id: dto.availabilityId },
@@ -1090,59 +1119,108 @@ export class TransportService {
           "That availability slot doesn't belong to the selected provider",
         );
       }
-      if (
-        availability.status !== AvailabilityStatus.OPEN ||
-        availability.usedSlots >= availability.totalSlots
-      ) {
-        throw new BadRequestException('That slot is no longer available');
-      }
     }
 
     // Auto-confirm large providers, manual for small
     const isAutoConfirm = provider.confirmMode === ConfirmMode.AUTO;
-
-    if (dto.availabilityId) {
-      await this.reserveCapacity(dto.availabilityId, dto.weightKg || 1);
-    }
-
-    // orderId/shipmentId are never taken from the client — always derived
-    // from the parcel that was just validated above, so they can't be
-    // spoofed independently of a legitimate parcelId.
-    const assignment = await this.assignmentRepo.save(
-      this.assignmentRepo.create({
-        trackingNumber: parcel.trackingNumber || null,
-        orderId: parcel.order?.id || null,
-        parcelId: parcel.id,
-        shipmentId: (parcel as any).shipment?.id || null,
-        parcelRefId: parcel.id,
-        orderRefId: parcel.order?.id || null,
-        shipmentRefId: (parcel as any).shipment?.id || null,
-        assignedById: caller.id,
-        providerId: dto.providerId,
-        availabilityId: dto.availabilityId || null,
-        fromCity: parcel.originCity,
-        toCity: parcel.destinationCity,
-        parcelCount: dto.parcelCount || 1,
-        weightKg: dto.weightKg || Number(parcel.weightKg) || 0,
-        agreedPrice: dto.agreedPrice || null,
-        scheduledDeparture: dto.scheduledDeparture || null,
-        superAgentNotes: dto.superAgentNotes || null,
-        status: isAutoConfirm
-          ? AssignmentStatus.ACCEPTED
-          : AssignmentStatus.PENDING,
-        acceptedAt: isAutoConfirm ? new Date() : null,
-      }),
+    // 3S-B1: ONE weight figure, used for BOTH the capacity reservation and
+    // the value recorded on the assignment — previously these were two
+    // independently-defaulted numbers (the reservation used
+    // `dto.weightKg || 1`, ignoring the parcel's own declared weight
+    // entirely, while the stored record used `dto.weightKg || parcel.weightKg
+    // || 0`), so a caller that omitted weightKg on a heavier parcel reserved
+    // far less capacity than the parcel actually needed — a real KG
+    // oversubscription channel with no concurrency required at all.
+    const weight = capacityWeightKg(
+      dto.weightKg != null ? dto.weightKg : parcel.weightKg,
     );
 
-    // Update provider stats
-    await this.providerRepo.update(provider.id, {
-      totalAssignments: () => 'totalAssignments + 1',
-    });
+    // 3S-B1: capacity reservation and the TransportAssignment insert are now
+    // ONE transaction — a failed reservation creates no assignment, and a
+    // failed insert after a successful reservation rolls the reservation
+    // back with it. The parcel is locked FIRST, the same order every other
+    // parcel-authority write in this codebase already uses (see
+    // collectAssignedParcel/dispatchParcel), which also serialises two
+    // concurrent createAssignment calls for the SAME parcel against each
+    // other and against the idempotent-reuse check below.
+    return this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
 
-    return assignment;
+      // Idempotent reuse: a parcel already carrying a LIVE (non-terminal)
+      // assignment to this SAME provider/slot is a retry of the same
+      // request (client timeout, double submit), not a second, independent
+      // demand for capacity — return the existing row rather than reserving
+      // a second slot for one physical parcel. A live assignment to a
+      // DIFFERENT provider/slot is a genuine conflict: a parcel cannot be
+      // simultaneously promised to two carriers.
+      const live = await manager.getRepository(TransportAssignment).findOne({
+        where: { parcelRefId: parcel.id },
+        order: { id: 'DESC' },
+      });
+      if (live && ![AssignmentStatus.DECLINED, AssignmentStatus.CANCELLED].includes(live.status)) {
+        if (live.providerId === dto.providerId && live.availabilityId === (dto.availabilityId ?? null)) {
+          return live;
+        }
+        throw new ConflictException('This parcel already has an active transport assignment');
+      }
+
+      if (dto.availabilityId) {
+        const reserved = await reserveSlotAtomic(manager, dto.availabilityId, weight, {
+          today: new Date().toISOString().slice(0, 10),
+          providerId: dto.providerId,
+        });
+        if (!reserved) {
+          throw new ConflictException('That slot is full or no longer available');
+        }
+      }
+
+      // orderId/shipmentId are never taken from the client — always derived
+      // from the parcel that was just validated above, so they can't be
+      // spoofed independently of a legitimate parcelId.
+      const assignment = await manager.getRepository(TransportAssignment).save(
+        manager.getRepository(TransportAssignment).create({
+          trackingNumber: parcel.trackingNumber || null,
+          orderId: parcel.order?.id || null,
+          parcelId: parcel.id,
+          shipmentId: (parcel as any).shipment?.id || null,
+          parcelRefId: parcel.id,
+          orderRefId: parcel.order?.id || null,
+          shipmentRefId: (parcel as any).shipment?.id || null,
+          assignedById: caller.id,
+          providerId: dto.providerId,
+          availabilityId: dto.availabilityId || null,
+          fromCity: parcel.originCity,
+          toCity: parcel.destinationCity,
+          parcelCount: dto.parcelCount || 1,
+          weightKg: weight,
+          agreedPrice: dto.agreedPrice || null,
+          scheduledDeparture: dto.scheduledDeparture || null,
+          superAgentNotes: dto.superAgentNotes || null,
+          status: isAutoConfirm
+            ? AssignmentStatus.ACCEPTED
+            : AssignmentStatus.PENDING,
+          acceptedAt: isAutoConfirm ? new Date() : null,
+        }),
+      );
+
+      // Update provider stats. 3S-B1: quoted — an unquoted raw expression here
+      // folds to the lowercase "totalassignments" in real PostgreSQL, which
+      // does not exist (the real column is the mixed-case "totalAssignments");
+      // this was silently broken against a real database before this slice's
+      // first real-PG exercise of this exact line, unrelated to the
+      // transaction/idempotency changes around it. See the same fix on
+      // completedAssignments in updateAssignmentStatus below.
+      await manager.getRepository(TransportProvider).update(provider.id, {
+        totalAssignments: () => '"totalAssignments" + 1',
+      });
+
+      return assignment;
+    });
   }
 
-  // Provider responds to assignment
+  // Provider responds to assignment. 3S-B1: locked + idempotent — two
+  // concurrent/retried responses for the same assignment (a double-tap, a
+  // client timeout-retry) must release its slot at most once, never twice.
   async respondToAssignment(
     userId: number,
     assignmentId: number,
@@ -1150,26 +1228,34 @@ export class TransportService {
     declineReason?: string,
   ) {
     const provider = await this.getMyProfile(userId);
-    const assignment = await this.assignmentRepo.findOne({
-      where: {
-        id: assignmentId,
-        providerId: provider.id,
-        status: AssignmentStatus.PENDING,
-      },
+    const targetStatus = accept ? AssignmentStatus.ACCEPTED : AssignmentStatus.DECLINED;
+
+    return this.dataSource.transaction(async (manager) => {
+      const assignments = manager.getRepository(TransportAssignment);
+      const assignment = await assignments.findOne({
+        where: { id: assignmentId, providerId: provider.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!assignment) throw new NotFoundException('Mgawo haukupatikana');
+      if (assignment.status === targetStatus) {
+        // Idempotent retry: this response already committed under an
+        // earlier request — return the settled row, never release twice.
+        return assignment;
+      }
+      if (assignment.status !== AssignmentStatus.PENDING) {
+        throw new NotFoundException('Mgawo haukupatikana');
+      }
+
+      assignment.status = targetStatus;
+      assignment.acceptedAt = accept ? new Date() : null;
+      assignment.declineReason = declineReason || null;
+      const saved = await assignments.save(assignment);
+
+      if (!accept && assignment.availabilityId) {
+        await releaseSlotAtomic(manager, assignment.availabilityId, capacityWeightKg(assignment.weightKg));
+      }
+      return saved;
     });
-    if (!assignment) throw new NotFoundException('Mgawo haukupatikana');
-
-    assignment.status = accept
-      ? AssignmentStatus.ACCEPTED
-      : AssignmentStatus.DECLINED;
-    assignment.acceptedAt = accept ? new Date() : null;
-    assignment.declineReason = declineReason || null;
-    const saved = await this.assignmentRepo.save(assignment);
-
-    if (!accept && assignment.availabilityId) {
-      await this.releaseCapacity(assignment.availabilityId, Number(assignment.weightKg) || 1);
-    }
-    return saved;
   }
 
   // Update assignment status (collected/departed/arrived/completed/cancelled)
@@ -1192,13 +1278,13 @@ export class TransportService {
       }
       return this.collectAssignedParcel(caller, assignmentId, dto, roleContext);
     }
-    const a = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
-    if (!a) throw new NotFoundException('Mgawo haukupatikana');
+    const existing = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    if (!existing) throw new NotFoundException('Mgawo haukupatikana');
 
     const providerProfile = await this.resolveActingTransportProvider(caller.id);
-    const isOwningProvider = !!providerProfile && providerProfile.id === a.providerId;
+    const isOwningProvider = !!providerProfile && providerProfile.id === existing.providerId;
     const isCreatingSuperAgent =
-      a.assignedById === caller.id && !!(await this.findCallerSuperAgent(caller.id));
+      existing.assignedById === caller.id && !!(await this.findCallerSuperAgent(caller.id));
     // Active-role authority, never the legacy caller.role field — an admin
     // operating as another role loses the state-machine-skip privilege below
     // until they switch back.
@@ -1209,53 +1295,78 @@ export class TransportService {
       throw new ForbiddenException('Not authorized to update this transport assignment');
     }
 
-    const allowedNext = TransportService.NEXT_STATUS[a.status] || [];
-    if (!isAdmin && !allowedNext.includes(dto.status)) {
-      throw new BadRequestException(
-        `Cannot move assignment from "${a.status}" to "${dto.status}"`,
-      );
-    }
+    // 3S-B1: locked + idempotent. The unlocked read above is only for the
+    // fast auth/404 checks; the transition itself re-reads the row UNDER a
+    // row lock, so two concurrent/retried calls for the SAME assignment
+    // (double-tap, client timeout-retry, or a genuine race) serialise on it.
+    // The loser re-reads the ALREADY-APPLIED result and either finds itself
+    // already at the target status (a pure no-op — no second capacity
+    // release, no second reputation award, no second parcel-sync side
+    // effect) or a real conflict against the now-current status — never a
+    // duplicate transition.
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const assignments = manager.getRepository(TransportAssignment);
+      const a = await assignments.findOne({ where: { id: assignmentId }, lock: { mode: 'pessimistic_write' } });
+      if (!a) throw new NotFoundException('Mgawo haukupatikana');
+      if (a.status === dto.status) return a;
 
-    const now = new Date();
-    const previousStatus = a.status;
-    a.status = dto.status;
-    if (dto.notes) a.providerNotes = dto.notes;
+      const allowedNext = TransportService.NEXT_STATUS[a.status] || [];
+      if (!isAdmin && !allowedNext.includes(dto.status)) {
+        throw new BadRequestException(
+          `Cannot move assignment from "${a.status}" to "${dto.status}"`,
+        );
+      }
 
-    switch (dto.status) {
-      case AssignmentStatus.DEPARTED:
-        a.departedAt = now;
-        a.departureProofUrl = dto.proofUrl || null;
-        break;
-      case AssignmentStatus.ARRIVED:
-        a.arrivedAt = now;
-        a.arrivalProofUrl = dto.proofUrl || null;
-        break;
-      case AssignmentStatus.CANCELLED:
-        if (a.availabilityId && previousStatus !== AssignmentStatus.DEPARTED) {
-          await this.releaseCapacity(a.availabilityId, Number(a.weightKg) || 1);
-        }
-        break;
-      case AssignmentStatus.COMPLETED:
-        a.completedAt = now;
-        await this.providerRepo.update(a.providerId, {
-          completedAssignments: () => 'completedAssignments + 1',
-        });
-        // Award reputation for completed transport assignment
-        if (providerProfile?.userId) {
-          this.reputationService
-            .award(providerProfile.userId, ReputationEventType.TRANSPORT_COMPLETED, {
-              sourceEntityType: 'transport_assignment',
-              sourceEntityId: a.id,
-            })
-            .catch(() => {});
-        }
-        break;
-    }
-    const saved = await this.assignmentRepo.save(a);
+      const now = new Date();
+      const previousStatus = a.status;
+      a.status = dto.status;
+      if (dto.notes) a.providerNotes = dto.notes;
+
+      switch (dto.status) {
+        case AssignmentStatus.DEPARTED:
+          a.departedAt = now;
+          a.departureProofUrl = dto.proofUrl || null;
+          break;
+        case AssignmentStatus.ARRIVED:
+          a.arrivedAt = now;
+          a.arrivalProofUrl = dto.proofUrl || null;
+          break;
+        case AssignmentStatus.CANCELLED:
+          if (a.availabilityId && previousStatus !== AssignmentStatus.DEPARTED) {
+            await releaseSlotAtomic(manager, a.availabilityId, capacityWeightKg(a.weightKg));
+          }
+          break;
+        case AssignmentStatus.COMPLETED:
+          a.completedAt = now;
+          // 3S-B1: quoted — see the identical fix on totalAssignments above.
+          await manager.getRepository(TransportProvider).update(a.providerId, {
+            completedAssignments: () => '"completedAssignments" + 1',
+          });
+          break;
+      }
+      const row = await assignments.save(a);
+
+      // Reputation award stays inside the lock so a retry can never award it
+      // twice — this only ever runs on the winning transition (the idempotent
+      // no-op above returns before reaching here on any later call).
+      if (dto.status === AssignmentStatus.COMPLETED && providerProfile?.userId) {
+        this.reputationService
+          .award(providerProfile.userId, ReputationEventType.TRANSPORT_COMPLETED, {
+            sourceEntityType: 'transport_assignment',
+            sourceEntityId: row.id,
+          })
+          .catch(() => {});
+      }
+
+      return row;
+    });
 
     // Kentexa (not the transport provider directly) turns a real transport
     // event into the Parcel's own lifecycle — see PARCEL_SYNC's comment for
     // exactly which transitions apply and why COMPLETED is excluded.
+    // syncParcelFromAssignment is itself idempotent (it re-checks the
+    // parcel's CURRENT status before writing), so re-running it for the
+    // no-op retry branch above is harmless.
     await this.syncParcelFromAssignment(saved, dto.status);
 
     return saved;

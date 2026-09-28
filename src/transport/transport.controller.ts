@@ -159,11 +159,17 @@ export class TransportController {
   // ids; the role guard here plus the ownership/legitimacy checks inside
   // createAssignment() (parcel must belong to the caller's own hub,
   // availability must belong to the selected provider) close that.
+  //
+  // 3S-B1: gated on the CURRENT active role (RoleContextGuard/ActiveRoleGuard),
+  // matching every other hub-authority route in this file, instead of the
+  // legacy account-wide `UserRole` field — createAssignment() itself now
+  // validates the specific acting hub profile from roleContext, not merely
+  // "this user owns a SuperAgent row somewhere."
   @Post('assignments')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN, UserRole.MANAGER)
-  createAssignment(@Request() req, @Body() dto: any) {
-    return this.svc.createAssignment(req.user, dto);
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN, AccountRoleType.MANAGER)
+  createAssignment(@Request() req, @Body() dto: any, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.svc.createAssignment(req.user, dto, roleContext);
   }
 
   @Get('assignments')
