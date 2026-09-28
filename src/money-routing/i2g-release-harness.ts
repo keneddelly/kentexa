@@ -83,7 +83,7 @@ export async function setupReleaseHarness(): Promise<ReleaseHarness> {
     id serial PRIMARY KEY, "sellerId" int, "productId" int REFERENCES product(id), "buyerId" int, source varchar, "trackingNumber" varchar,
     status varchar, "paymentStatus" varchar, "escrowStatus" varchar, "payoutStatus" varchar, "paymentMethod" varchar,
     "sellerAmount" numeric(12,2) NOT NULL DEFAULT 0, "totalAmount" numeric(12,2) NOT NULL DEFAULT 0, "codUpfrontAmount" numeric(12,2),
-    "buyerConfirmedAt" timestamp, "deliveredAt" timestamp, "completedAt" timestamp, "confirmationToken" varchar,
+    "buyerConfirmedAt" timestamp, "deliveredAt" timestamp, "completedAt" timestamp, "confirmationToken" varchar, "confirmationTokenExpiry" timestamp,
     "buyerRating" int, "buyerReview" text, "reviewedAt" timestamp, "superAgentRating" int, "superAgentReview" text,
     "transportRating" int, "transportReview" text, "autoConfirmed" boolean, "autoConfirmAt" timestamp,
     "disputeResolution" text, "fundsReleasedAt" timestamp, "autoReleaseAt" timestamp)`);

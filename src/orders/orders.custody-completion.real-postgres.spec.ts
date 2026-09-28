@@ -13,7 +13,7 @@ import { Order } from './entities/order.entity';
 
   beforeAll(async () => {
     h = await setupReleaseHarness();
-    await h.q('ALTER TABLE public."order" ADD COLUMN "confirmationTokenExpiry" timestamp');
+    // "confirmationTokenExpiry" now comes from the shared release harness's order table.
     await h.q(`CREATE TABLE public.parcel (id serial PRIMARY KEY, "trackingNumber" varchar UNIQUE,
       "orderId" integer REFERENCES public."order"(id), status varchar NOT NULL,
       "buyerRequestedDelivery" boolean)`);
