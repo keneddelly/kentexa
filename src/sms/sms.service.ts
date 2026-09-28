@@ -74,7 +74,22 @@ export class SmsService {
       const status = recipient?.status;
 
       if (status === 'Success') {
-        this.logger.log(`✅ SMS sent to ${formatted}`);
+        // "Success" here is Africa's Talking's ACCEPTANCE status — the
+        // message was queued for delivery to the carrier, not proof the
+        // handset received it. AT's own final delivery outcome (delivered/
+        // failed, with a carrier-level reason) only ever arrives later, via
+        // an asynchronous delivery-report webhook this integration does not
+        // yet receive (no callback URL is registered, and the installed
+        // `africastalking` SDK exposes no polling endpoint for outbound
+        // status either — fetchMessages() is inbound-only). Logging AT's own
+        // statusCode/messageId/cost here (never the message body) is the
+        // only forensic trail available today for a "provider said yes, but
+        // did the phone get it?" question — deliberately named "accepted",
+        // never "delivered", so this line is never read as delivery proof.
+        this.logger.log(
+          `✅ SMS accepted by provider for ${formatted} ` +
+            `(messageId=${recipient?.messageId ?? 'n/a'}, statusCode=${recipient?.statusCode ?? 'n/a'}, cost=${recipient?.cost ?? 'n/a'})`,
+        );
         return true;
       }
 
