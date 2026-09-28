@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import { RecipientJourneyCard, useRecipientJourney } from '../components/RecipientJourney';
 
 const getStatusLabels = (t) => ({
   pending:         { label: t('buyer_parcel_action.status_pending'),        color: '#64748b', bg: '#f1f5f9' },
@@ -41,6 +42,8 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
   const [actionLoading, setActionLoading] = useState(false);
   const [view, setView]             = useState('parcel'); // 'parcel' | 'agents'
   const [customAddress, setCustomAddress] = useState('');
+  // Backend-derived: what the recipient may do now (never re-derived from status here).
+  const [journey, reloadJourney] = useRecipientJourney(trackingNumber, !!isLoggedIn);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -56,6 +59,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
       setLoading(true);
       const res = await api.get(`/super-agents/track/${trackingNumber}`);
       setParcel(res.data);
+      reloadJourney();
     } catch { setError(t('buyer_parcel_action.parcel_not_found')); }
     finally { setLoading(false); }
   };
@@ -101,8 +105,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
   };
 
   const st = parcel ? (STATUS_LABELS[parcel.status] || { label: parcel.status, color: '#64748b', bg: '#f1f5f9' }) : null;
-  const isAwaiting = parcel?.status === 'awaiting_buyer' && parcel?.buyerRequestedDelivery == null;
-  const isActionable = ['awaiting_buyer', 'arrived_at_hub'].includes(parcel?.status);
+  const canChoose = journey?.actions?.chooseMethod === true;
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f1f5f9' }}>
@@ -146,7 +149,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
             </div>
 
             {/* Alert if awaiting action */}
-            {isAwaiting && (
+            {canChoose && (
               <div style={{ backgroundColor: '#fff7ed', border: '2px solid #fed7aa', borderRadius: 14, padding: '14px 16px', marginBottom: 16 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: '#c2410c', marginBottom: 6 }}>
                   {t('buyer_parcel_action.alert_title', { city: parcel.destinationCity })}
@@ -154,6 +157,13 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
                 <div style={{ fontSize: 12, color: '#92400e' }}>
                   {t('buyer_parcel_action.alert_desc')}
                 </div>
+              </div>
+            )}
+
+            <RecipientJourneyCard journey={journey} />
+            {journey && journey.isRecipient === false && (
+              <div style={{ backgroundColor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '12px 14px', marginBottom: 16, fontSize: 13, color: '#9a3412' }}>
+                {t('recipient_journey.not_recipient')}
               </div>
             )}
 
@@ -207,7 +217,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
             )}
 
             {/* Action buttons — only when awaiting */}
-            {isActionable && parcel.buyerRequestedDelivery == null && (
+            {canChoose && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <button
                   onClick={() => { setView('agents'); fetchAgents(); }}
@@ -225,7 +235,7 @@ const BuyerParcelAction = ({ onNavigate, isLoggedIn, trackingNumber }) => {
               </div>
             )}
 
-            {isActionable && parcel.buyerRequestedDelivery === false && (
+            {journey?.stage === 'pickup_planned' && (
               <div style={{ backgroundColor: '#eff6ff', borderRadius: 12, padding: '12px 16px', fontSize: 13, color: '#1d4ed8' }}>
                 {t('buyer_parcel_action.pickup_planned_notice')}
               </div>

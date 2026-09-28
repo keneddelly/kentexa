@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import RecipientJourney from '../components/RecipientJourney';
 import { buildBuyerInquiryMessage, KENTEXA_SUPPORT as KENTEXA_SUPPORT_WHATSAPP } from '../utils/whatsapp-link';
 import { hasAnyRole } from '../utils/roles';
 
@@ -318,26 +319,10 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
         {/* Result */}
         {result && (
           <>
-            {result._source === 'superagent' &&
-              ['arrived_at_hub', 'awaiting_buyer'].includes(result.status) &&
-              result.buyerRequestedDelivery == null && (
-                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 14,
-                  padding: 16, marginBottom: 12 }}>
-                  <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>
-                    Your parcel has arrived. Choose how to receive it.
-                  </div>
-                  <button onClick={() => onNavigate(isLoggedIn
-                    ? `BuyerParcelAction-${result.trackingNumber}` : 'PublicLogin')}
-                    style={{ width: '100%', minHeight: 48, border: 0, borderRadius: 10,
-                      background: '#1d4ed8', color: '#fff', fontSize: 16, fontWeight: 800,
-                      cursor: 'pointer' }}>
-                    Choose delivery or pickup
-                  </button>
-                  <div style={{ fontSize: 13, color: '#475569', marginTop: 8 }}>
-                    Sign in with the recipient account to confirm your choice.
-                  </div>
-                </div>
-              )}
+            {result._source === 'superagent' && (
+              <RecipientJourney trackingNumber={result.trackingNumber} status={result.status}
+                isLoggedIn={isLoggedIn} onNavigate={onNavigate} />
+            )}
             {/* Status banner */}
             <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
