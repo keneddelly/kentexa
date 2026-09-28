@@ -10,6 +10,11 @@ on:
       - 'src/shipments/pickup-tasks.service.ts'
       - 'src/shipments/pickup-tasks.controller.ts'
       - 'src/shipments/pickup-tasks.real-postgres.spec.ts'
+      - 'src/shipments/pickup-tasks.handoff.real-postgres.spec.ts'
+      - 'src/shipments/first-mile-guard.ts'
+      - 'src/database/migrations/migration-timestamps.spec.ts'
+      - 'src/super-agents/super-agents.service.ts'
+      - 'src/transport/transport.service.ts'
       - 'src/shipments/shipments.module.ts'
       - '.github/workflows/stage3s-pickup-schema-postgres.yml'
 
@@ -55,4 +60,6 @@ jobs:
           SQL
       - run: npm test -- --runInBand database/migrations/add-parcel-pickup-task.real-postgres.spec.ts
       - run: npm test -- --runInBand shipments/pickup-tasks.real-postgres.spec.ts
+      - run: npm test -- --runInBand shipments/pickup-tasks.handoff.real-postgres.spec.ts
+      - run: npm test -- --runInBand database/migrations/migration-timestamps.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json
