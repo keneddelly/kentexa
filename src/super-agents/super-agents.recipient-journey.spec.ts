@@ -13,14 +13,19 @@ function parcel(over: any = {}): any {
     id: 31, trackingNumber: 'KTX-ORD-3', status: ParcelStatus.RECEIVED_AT_HUB,
     buyerPhone: '+255700000031', buyerRequestedDelivery: null,
     destinationSuperAgent: HUB_DEST, localAgentName: null, agreedDeliveryFee: null,
-    deliveryAddress: 'Mbagala', agentDeliveryCodeHash: null, agentDeliveryCodeExpiresAt: null,
-    pickupCodeHash: null, pickupCodeExpiresAt: null,
+    deliveryAddress: 'Mbagala',
     order: { paymentMethod: 'cod', codBalanceCollected: false, codRemainingBalance: '50000.00', buyer: null },
     ...over,
   };
 }
 
-function service(p: any, events: { latest?: any; receipt?: any } = {}) {
+// agentDeliveryCodeHash/pickupCodeHash (+ their expiry columns) are `select:
+// false` on the Parcel entity -- the plain findOne() below never returns
+// them, matching production. getRecipientJourney reads their liveness via a
+// dedicated raw SQL boolean projection instead; this fixture models exactly
+// that query's result shape, never a hash value.
+function service(p: any, events: { latest?: any; receipt?: any } = {},
+  challenge: { hasAgentCode?: boolean; agentCodeExpires?: Date | null; hasPickupCode?: boolean; pickupCodeExpires?: Date | null } = {}) {
   const instance: any = Object.create(SuperAgentsService.prototype);
   instance.parcelRepo = { findOne: async () => p };
   instance.superAgentRepo = { findOne: async ({ where }: any) => [HUB_ORIGIN, HUB_DEST].find(h => h.id === where.id) ?? null };
@@ -29,6 +34,10 @@ function service(p: any, events: { latest?: any; receipt?: any } = {}) {
     getRepository: (entity: any) => {
       if (entity !== ParcelCustodyEvent) throw new Error('unexpected repository');
       return { findOne: async ({ where }: any) => (where.eventKind ? events.receipt ?? null : events.latest ?? null) };
+    },
+    query: async (sql: string) => {
+      if (!/^\s*SELECT/i.test(sql)) throw new Error('unexpected write query in a read-only projection');
+      return [{ hasAgentCode: false, agentCodeExpires: null, hasPickupCode: false, pickupCodeExpires: null, ...challenge }];
     },
   };
   return instance as SuperAgentsService;
@@ -101,8 +110,8 @@ describe('recipient journey projection (read-only, mirrors the existing write pa
       { latest: destReceipt, receipt: destReceipt }).getRecipientJourney(viewer, 'KTX-ORD-3');
     expect(requested).toMatchObject({ stage: 'delivery_requested', actions: { chooseMethod: false },
       delivery: { agentName: 'Stage3KR Delivery Agent', fee: 2000, address: 'Mbagala Rangi Tatu' } });
-    const pickup: any = await service(parcel({ status: ParcelStatus.ARRIVED_AT_HUB, buyerRequestedDelivery: false,
-      pickupCodeHash: 'h', pickupCodeExpiresAt: FUTURE }), { latest: destReceipt, receipt: destReceipt })
+    const pickup: any = await service(parcel({ status: ParcelStatus.ARRIVED_AT_HUB, buyerRequestedDelivery: false }),
+      { latest: destReceipt, receipt: destReceipt }, { hasPickupCode: true, pickupCodeExpires: FUTURE })
       .getRecipientJourney(viewer, 'KTX-ORD-3');
     expect(pickup).toMatchObject({ stage: 'pickup_planned', actions: { chooseMethod: false },
       recipientCode: { pickupPending: true, agentDeliveryPending: false } });
@@ -111,16 +120,20 @@ describe('recipient journey projection (read-only, mirrors the existing write pa
   it('out for delivery: current custodian is the Agent PROFILE; the SMS-code notice needs a live challenge; no hash leaks', async () => {
     const agentCustody = { eventKind: 'destination_agent_received', toCustodianType: 'local_agent', toCustodianId: 1, recordedAt: new Date() };
     const live: any = await service(parcel({ status: ParcelStatus.OUT_FOR_DELIVERY, buyerRequestedDelivery: true,
-      localAgentName: 'Stage3KR Delivery Agent', agentDeliveryCodeHash: 'SECRET-HASH', agentDeliveryCodeExpiresAt: FUTURE }),
-      { latest: agentCustody }).getRecipientJourney(viewer, 'KTX-ORD-3');
+      localAgentName: 'Stage3KR Delivery Agent' }),
+      { latest: agentCustody }, { hasAgentCode: true, agentCodeExpires: FUTURE }).getRecipientJourney(viewer, 'KTX-ORD-3');
     expect(live).toMatchObject({ stage: 'out_for_delivery', actions: { chooseMethod: false },
       custody: { holderType: 'local_agent', holderName: 'Stage3KR Delivery Agent' },
       recipientCode: { agentDeliveryPending: true }, cod: { amountDue: 50000 } });
-    expect(JSON.stringify(live)).not.toContain('SECRET-HASH');
-    const expired: any = await service(parcel({ status: ParcelStatus.OUT_FOR_DELIVERY, buyerRequestedDelivery: true,
-      agentDeliveryCodeHash: 'SECRET-HASH', agentDeliveryCodeExpiresAt: PAST }), { latest: agentCustody })
+    expect(JSON.stringify(live)).not.toMatch(/[0-9a-f]{2}:[0-9a-f]{64}/); // no hash-shaped value anywhere in the payload
+    const expired: any = await service(parcel({ status: ParcelStatus.OUT_FOR_DELIVERY, buyerRequestedDelivery: true }),
+      { latest: agentCustody }, { hasAgentCode: true, agentCodeExpires: PAST })
       .getRecipientJourney(viewer, 'KTX-ORD-3');
     expect(expired.recipientCode.agentDeliveryPending).toBe(false);
+    // a parcel that never had a code issued at all (the common case right after arrival) is also "not pending"
+    const none: any = await service(parcel({ status: ParcelStatus.OUT_FOR_DELIVERY, buyerRequestedDelivery: true }),
+      { latest: agentCustody }).getRecipientJourney(viewer, 'KTX-ORD-3');
+    expect(none.recipientCode.agentDeliveryPending).toBe(false);
   });
 
   it('delivered / collected are final: no actions, no outstanding COD amount', async () => {
@@ -166,11 +179,14 @@ describe('recipient journey projection (read-only, mirrors the existing write pa
     expect([...seen[0].value]).toEqual(['+254712345678']);
   });
 
-  it('is read-only: the service exposes no write for this projection', () => {
+  it('is read-only: the service exposes no write for this projection, and its one raw query is a SELECT', () => {
     const src = require('fs').readFileSync(require('path').join(__dirname, 'super-agents.service.ts'), 'utf8');
     const start = src.indexOf('async getRecipientJourney');
     const body = src.slice(start, src.indexOf('private async chooseDestinationMethod', start) > start
       ? src.indexOf('private async chooseDestinationMethod', start) : start + 4000);
-    expect(body).not.toMatch(/\.(save|insert|update|delete|increment)\(|\.query\(/);
+    expect(body).not.toMatch(/\.(save|insert|update|delete|increment)\(/);
+    const queryCalls = body.match(/\.query\(\s*`[^`]*`/g) || [];
+    expect(queryCalls.length).toBeGreaterThan(0); // the challenge-liveness read must exist
+    for (const call of queryCalls) expect(call).toMatch(/`\s*SELECT/i);
   });
 });

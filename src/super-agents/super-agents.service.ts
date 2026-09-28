@@ -5067,9 +5067,22 @@ export class SuperAgentsService {
     else if (status === ParcelStatus.SELF_PICKUP) stage = 'collected';
     else stage = 'attention';
 
+    // agentDeliveryCodeHash/pickupCodeHash (and their expiry columns) are
+    // `select: false` on the entity, so the plain findOne() above never
+    // brought them back — recipientCode below would silently always read
+    // as "no code" even right after one was actually sent. Reading the
+    // liveness of each challenge straight at the SQL level (a boolean, via
+    // IS NOT NULL) keeps the same guarantee as before — the hash itself
+    // never enters this process, not even transiently.
+    const [challenge] = await this.dataSource.query(
+      `SELECT "agentDeliveryCodeHash" IS NOT NULL AS "hasAgentCode", "agentDeliveryCodeExpiresAt" AS "agentCodeExpires",
+              "pickupCodeHash" IS NOT NULL AS "hasPickupCode", "pickupCodeExpiresAt" AS "pickupCodeExpires"
+         FROM public.parcel WHERE id = $1`,
+      [parcel.id],
+    );
     const now = Date.now();
-    const pending = (hash: string | null, expires: Date | null) =>
-      !!hash && !!expires && new Date(expires).getTime() > now;
+    const pending = (hasCode: boolean, expires: Date | string | null) =>
+      hasCode && !!expires && new Date(expires).getTime() > now;
     const order = parcel.order;
     const codDue = !!order && order.paymentMethod === OrderPaymentMethod.COD && !order.codBalanceCollected
       ? Number(order.codRemainingBalance || 0) : 0;
@@ -5098,9 +5111,9 @@ export class SuperAgentsService {
       recipientCode: {
         // The code itself is only ever sent by SMS to the recipient's phone.
         agentDeliveryPending: stage === 'out_for_delivery' &&
-          pending(parcel.agentDeliveryCodeHash, parcel.agentDeliveryCodeExpiresAt),
+          pending(challenge?.hasAgentCode, challenge?.agentCodeExpires),
         pickupPending: stage === 'pickup_planned' &&
-          pending(parcel.pickupCodeHash, parcel.pickupCodeExpiresAt),
+          pending(challenge?.hasPickupCode, challenge?.pickupCodeExpires),
       },
       actions: { chooseMethod: stage === 'choose_method' },
     };
