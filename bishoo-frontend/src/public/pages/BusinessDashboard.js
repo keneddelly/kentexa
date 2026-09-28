@@ -4,20 +4,23 @@
  * The real "Business only" dashboard (spec section 19): Profile, Brand,
  * Followers, Analytics, Messages. Deliberately does NOT show Products,
  * Inventory, Orders, Payments, or Ship Item — those are Seller
- * capabilities, and a Business has none of them until it explicitly
- * activates Seller (the card at the bottom). This is the fix for
- * "Ship Product must never appear merely because someone is a Business."
+ * capabilities, and a Business has none of them until COMMERCE is active for
+ * it. This is the fix for "Ship Product must never appear merely because
+ * someone is a Business."
  *
- * Leads and Team are shown as locked tiles, not hidden and not faked --
- * Leads has no real backing data anywhere in the app yet, and Team
- * management is confirmed hard-gated behind an active SellerProfile
- * today (BusinessController's canManageTeam check has no fallback).
- * Both route to Activate Seller when tapped.
+ * I2C: the selling door is the canonical, state-aware BusinessCommerceEntry
+ * card, bound to the exact Business shown here and driven by the server's
+ * COMMERCE state for it. It replaces the old "Activate Seller" card, which
+ * sent the user to the legacy personal /seller/apply flow and trusted
+ * dashboard.hasSeller -- a flag that could be true merely because the owner
+ * has an unrelated personal Seller. Leads and Team are locked tiles until
+ * COMMERCE is active; they no longer navigate anywhere (the card is the door).
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
+import BusinessCommerceEntry from '../components/BusinessCommerceEntry';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -48,7 +51,7 @@ const Row = ({ icon, label, value, onAction, color = DK, sub, locked }) => (
   </div>
 );
 
-const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
+const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, roleOptions, onSwitchAccountRole }) => {
   const { t, i18n } = useTranslation();
   const [business, setBusiness] = useState(null);
   const [dash, setDash] = useState(null);
@@ -61,6 +64,11 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
   const [editForm, setEditForm] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  // I2C: the server's canonical COMMERCE state for THIS Business (reported by
+  // the entry card). Selling-only rows unlock only on 'active' -- never on the
+  // legacy dashboard.hasSeller.
+  const [commerceEntry, setCommerceEntry] = useState(null);
+  const commerceActive = commerceEntry?.state === 'active';
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -263,39 +271,28 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn }) => {
           <Row icon="💬" label={t('business_dashboard.messages_label')}
             onAction={() => onNavigate('SellerInbox')} />
           {/* Leads has no real backing feature anywhere in the app yet --
-              stays locked regardless of Seller status, and never routes an
-              already-approved seller to BecomeSeller for a feature that
-              doesn't exist either way. */}
+              locked regardless of selling status, and it goes nowhere. */}
           <Row icon="📥" label={t('business_dashboard.leads_label')}
-            sub={t('business_dashboard.leads_sub')} locked
-            onAction={dash?.hasSeller ? undefined : () => onNavigate('BecomeSeller')} />
-          {/* Team management genuinely works once Seller is active
-              (SellerScopeService.resolve() already recognizes it) -- this
-              was hardcoded locked regardless of hasSeller, which kept
-              sending already-approved sellers back into BecomeSeller. */}
+            sub={t('business_dashboard.leads_sub')} locked />
+          {/* Team management works once COMMERCE is active for THIS Business
+              (SellerScopeService.resolve() recognizes it). Until then it is
+              locked and inert -- the selling door below is the way in. */}
           <Row icon="👔" label={t('business_dashboard.team_label')}
-            sub={t('business_dashboard.team_sub')} locked={!dash?.hasSeller}
-            onAction={dash?.hasSeller ? () => onNavigate('SellerTeam') : () => onNavigate('BecomeSeller')} />
+            sub={t('business_dashboard.team_sub')} locked={!commerceActive}
+            onAction={commerceActive ? () => onNavigate('SellerTeam') : undefined} />
         </SCard>
 
-        {/* Activate Seller — the sanctioned way a Business gains selling
-            capability, never an accident of navigation */}
-        {!dash?.hasSeller && (
-          <div style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', borderRadius: 16,
-            padding: 20, color: '#fff', marginBottom: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>
-              🛍️ {t('business_dashboard.activate_seller_title')}
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.9, marginBottom: 14, lineHeight: 1.5 }}>
-              {t('business_dashboard.activate_seller_desc')}
-            </div>
-            <button onClick={() => onNavigate('BecomeSeller')}
-              style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', border: '2px solid rgba(255,255,255,0.4)',
-                padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
-              {t('business_dashboard.activate_seller_button')}
-            </button>
-          </div>
-        )}
+        {/* I2C: "Anza kuuza / Start selling" for THIS exact Business, through
+            the canonical capability engine -- never the personal Seller flow. */}
+        <BusinessCommerceEntry
+          businessId={business.id}
+          businessName={business.tradingName || business.legalName || ''}
+          onEntryLoaded={setCommerceEntry}
+          onNavigate={onNavigate}
+          activeContext={activeContext}
+          roleOptions={roleOptions}
+          onSwitchAccountRole={onSwitchAccountRole}
+        />
       </div>
 
       {/* Edit modal */}

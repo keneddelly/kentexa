@@ -28,3 +28,9 @@ export const createBusiness = (dto) => api.post('/business/create', dto).then((r
 // capability-specific extra input (SERVICE needs none).
 export const applyForBusinessCapability = (businessId, code, applicationData) =>
   api.post(`/business/${businessId}/capabilities/${code}/apply`, { applicationData }).then((res) => res.data);
+
+// I2C — the canonical, server-derived state of THIS exact Business's
+// "start selling" (COMMERCE) entry. Read-only; the server resolves the
+// workspace/role/profile itself, so no such id is ever sent or trusted here.
+export const getCommerceEntryState = (businessId) =>
+  api.get(`/business/${businessId}/commerce-entry`).then((res) => res.data);

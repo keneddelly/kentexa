@@ -14,10 +14,17 @@
  * with no server-issued switchable AccountRole is rendered inert with an
  * explicit state label (Requires activation / Coming soon) and never
  * calls switchRole at all.
+ *
+ * I2C: while COMMERCE is not active for THIS Business, the page shows one
+ * simple, state-aware "Start selling" door (BusinessCommerceEntry) bound to
+ * this exact businessId -- the canonical capability engine, never the legacy
+ * personal Seller application. Once active, the Commerce tile above is the
+ * door and the entry card steps aside.
  */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
+import BusinessCommerceEntry from '../components/BusinessCommerceEntry';
 import { getMyBusinesses, getBusinessWorkspaces } from '../../api/business';
 import { tilesForWorkspace, TILE_STATE } from '../../context/capabilityTiles';
 
@@ -144,6 +151,18 @@ const BusinessHome = ({ businessId, onNavigate, isLoggedIn, activeContext, roleO
             </div>
           );
         })}
+
+        {workspaces && workspaces.length > 0 && (business?.id || businessId) && (
+          <BusinessCommerceEntry
+            businessId={Number(business?.id || businessId)}
+            businessName={business?.tradingName || business?.legalName || ''}
+            hideWhenActive
+            onNavigate={onNavigate}
+            activeContext={activeContext}
+            roleOptions={roleOptions}
+            onSwitchAccountRole={onSwitchAccountRole}
+          />
+        )}
 
         {/* B6C — no 'service' capability tile exists anywhere for this
             Business yet (none applied for, or still pending admin review,

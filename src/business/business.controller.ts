@@ -126,6 +126,14 @@ export class BusinessController {
     return this.capabilityApplications.listForBusiness(businessId, req.user);
   }
 
+  // I2C: the canonical, server-derived state of this exact Business's
+  // "start selling" (COMMERCE) entry -- read-only; no workspace/role/profile id
+  // is accepted from or trusted from the client.
+  @Get(':businessId/commerce-entry')
+  getCommerceEntry(@Param('businessId', ParseIntPipe) businessId: number, @Request() req) {
+    return this.capabilityApplications.getCommerceEntryState(businessId, req.user);
+  }
+
   @Get(':id/dashboard')
   getDashboard(@Param('id', ParseIntPipe) id: number, @Request() req) {
     return this.businessService.getDashboard(id, req.user);

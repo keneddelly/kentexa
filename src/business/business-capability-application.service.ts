@@ -101,6 +101,32 @@ const VERIFICATION_FEATURE_BY_CAPABILITY: Partial<Record<BusinessCapabilityCode,
   [BusinessCapabilityCode.SUPER_AGENT]: Feature.BECOME_SUPER_AGENT,
 };
 
+/**
+ * I2C: the canonical, server-derived state of a Business's COMMERCE ("start
+ * selling") entry -- what the simple "Anza kuuza" door needs and nothing
+ * more. Computed from the SAME engine tables the apply/approve flows use
+ * (BusinessCapability, BusinessCapabilityApplication, SellerProfile bound to
+ * this exact Business, the owner's workspace-bound SELLER AccountRole), never
+ * from the caller's personal/unbound Seller profile. 'active' is only ever
+ * reported when the WHOLE chain is consistent; anything else fails closed as
+ * 'blocked'. `blockedReason` is a coarse machine label for the UI to map to
+ * friendly copy -- it is never shown as text.
+ */
+export type CommerceEntryState =
+  | 'available' | 'pending' | 'rejected' | 'active' | 'suspended' | 'revoked' | 'blocked';
+export type CommerceEntryVerification = 'ok' | 'required' | 'rejected';
+export type CommerceEntryBlockedReason =
+  | 'owner_required' | 'business_inactive' | 'workspace_unresolved' | 'authority_inconsistent';
+export interface CommerceEntryStateResponse {
+  businessId: number;
+  state: CommerceEntryState;
+  /** True only when POST .../capabilities/commerce/apply would be accepted right now. */
+  canApply: boolean;
+  verification: CommerceEntryVerification;
+  rejectionReason: string | null;
+  blockedReason: CommerceEntryBlockedReason | null;
+}
+
 interface OwnerWorkspaceContext {
   businessId: number;
   workspaceId: number;
@@ -1434,6 +1460,104 @@ export class BusinessCapabilityApplicationService {
     );
     if (!rows.length) throw new ConflictException({ code: 'BUSINESS_WORKSPACE_UNRESOLVED', message: 'BUSINESS_WORKSPACE_UNRESOLVED' });
     return rows[0].id;
+  }
+
+  /**
+   * I2C: GET /business/:businessId/commerce-entry. Read-only. Any ACTIVE member
+   * of this exact Business may read it (same boundary as listForBusiness);
+   * everything else is derived server-side from `businessId` + the caller.
+   * Only an OWNER can actually apply, so a non-owner member sees 'blocked'.
+   * Mirrors -- and never relaxes -- applyForCapability's own rules, so the
+   * frontend can never offer a door the engine would refuse for a reason it
+   * could have known, and can never invent an 'active' the chain doesn't back.
+   */
+  async getCommerceEntryState(businessId: number, user: User): Promise<CommerceEntryStateResponse> {
+    const membership = await this.dataSource.query(
+      `SELECT 1 FROM business_membership WHERE "businessId" = $1 AND "userId" = $2 AND status = 'active'`,
+      [businessId, user.id],
+    );
+    if (!membership.length) {
+      throw new ForbiddenException({ code: 'BUSINESS_MEMBERSHIP_REQUIRED', message: 'BUSINESS_MEMBERSHIP_REQUIRED' });
+    }
+
+    const res = (
+      state: CommerceEntryState,
+      extra: Partial<CommerceEntryStateResponse> = {},
+    ): CommerceEntryStateResponse => ({
+      businessId, state, canApply: false, verification: 'ok', rejectionReason: null, blockedReason: null, ...extra,
+    });
+    const blocked = (blockedReason: CommerceEntryBlockedReason) => res('blocked', { blockedReason });
+
+    let context: OwnerWorkspaceContext;
+    try {
+      context = await this.resolveOwnerWorkspaceContext(businessId, user.id);
+    } catch (e: any) {
+      const code = e?.getResponse?.()?.code;
+      if (code === 'BUSINESS_OWNER_REQUIRED') return blocked('owner_required');
+      if (code === 'BUSINESS_NOT_ACTIVE') return blocked('business_inactive');
+      if (code === 'WORKSPACE_NOT_ACTIVE' || code === 'BUSINESS_WORKSPACE_UNRESOLVED') return blocked('workspace_unresolved');
+      throw e; // e.g. BUSINESS_NOT_FOUND
+    }
+
+    const code = BusinessCapabilityCode.COMMERCE;
+    const sellerRepo = this.dataSource.getRepository(SellerProfile);
+    const roleRepo = this.dataSource.getRepository(AccountRole);
+    // EXACT keys, never "any seller profile / any seller role of this user":
+    // the profile bound to THIS Business and the role bound to THIS owner's
+    // assignment in THIS workspace. A personal/unbound Seller is invisible here.
+    const profile = await sellerRepo.findOne({ where: { businessId } });
+    const role = await roleRepo.findOne({
+      where: { userId: user.id, roleType: AccountRoleType.SELLER, workspaceAssignmentId: context.workspaceAssignmentId },
+    });
+
+    const capability = await this.capabilityRepo.findOne({ where: { workspaceId: context.workspaceId, capabilityCode: code } });
+    if (capability) {
+      if (capability.status === BusinessCapabilityStatus.SUSPENDED) return res('suspended');
+      if (capability.status !== BusinessCapabilityStatus.ACTIVE) return res('revoked');
+      const chainConsistent =
+        !!profile && !!role &&
+        profile.status === SellerStatus.APPROVED &&
+        role.status === AccountRoleStatus.ACTIVE &&
+        role.profileType === RoleProfileType.SELLER_PROFILE &&
+        role.profileId === profile.id;
+      return chainConsistent ? res('active') : blocked('authority_inconsistent');
+    }
+
+    if (await this.findPending(context.workspaceId, code)) return res('pending');
+
+    let state: 'available' | 'rejected';
+    let rejectionReason: string | null = null;
+    if (!profile) {
+      // Clean slate. (An application row with no profile at all cannot come from this engine.)
+      if (await this.findLatest(context.workspaceId, code)) return blocked('authority_inconsistent');
+      state = 'available';
+    } else if (profile.status === SellerStatus.REJECTED && role?.status === AccountRoleStatus.REJECTED) {
+      // The one shape resolveSellerProfile/resolveSellerAccountRole accept as a reapply.
+      const latest = await this.findLatest(context.workspaceId, code);
+      state = 'rejected';
+      rejectionReason = latest?.rejectionReason ?? profile.rejectionReason ?? null;
+    } else {
+      // PENDING profile with no live application (legacy), APPROVED without an entitlement,
+      // SUSPENDED, or a half-rejected chain: the engine refuses all of these -- so do we.
+      return blocked('authority_inconsistent');
+    }
+
+    // Reuse the engine's OWN identity gate rather than restating its policy.
+    let verification: CommerceEntryVerification = 'ok';
+    const requiredFeature = VERIFICATION_FEATURE_BY_CAPABILITY[code];
+    if (requiredFeature) {
+      try {
+        await this.verification.requireFeature(user.id, requiredFeature);
+      } catch (e: any) {
+        const c = e?.getResponse?.()?.code;
+        if (e instanceof ForbiddenException && (c === 'VERIFICATION_REQUIRED' || c === 'VERIFICATION_REJECTED' || c === 'SELLER_APPLICATION_REQUIRED')) {
+          verification = c === 'VERIFICATION_REJECTED' ? 'rejected' : 'required';
+        } else {
+          throw e;
+        }
+      }
+    }
+    return res(state, { canApply: verification === 'ok', verification, rejectionReason });
   }
 
   private parseCapabilityCode(code: string): BusinessCapabilityCode {
