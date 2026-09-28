@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, In, IsNull, ILike } from 'typeorm';
 import { randomBytes, randomInt, scryptSync, timingSafeEqual, createHash } from 'crypto';
+import { assertFirstMileComplete } from '../shipments/first-mile-guard';
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 import {
   SuperAgent,
@@ -1856,6 +1857,7 @@ export class SuperAgentsService {
           (roleContext?.roleType !== AccountRoleType.ADMIN && current.superAgent?.id !== agent?.id)) {
         throw new BadRequestException('Parcel has already moved beyond origin dispatch');
       }
+      await assertFirstMileComplete(manager, parcel.id); // no dispatch before physical origin-hub receipt
       if (dto.transportAssignmentId) {
         await manager.query('SELECT id FROM public.transport_assignment WHERE id = $1 FOR UPDATE', [dto.transportAssignmentId]);
         const assignment = await manager.getRepository(TransportAssignment).findOne({ where: { id: dto.transportAssignmentId } });
@@ -3009,6 +3011,7 @@ export class SuperAgentsService {
       if (candidates.length) {
         await manager.query('SELECT id FROM public.parcel WHERE id=ANY($1::integer[]) ORDER BY id FOR UPDATE',
           [candidates.map(p => p.id)]);
+        await assertFirstMileComplete(manager, candidates.map(p => p.id));
       }
       const valid = candidates.length ? await manager.getRepository(Parcel).find({
         where: { id: In(candidates.map(p => p.id)), superAgent: { id: agent.id },
@@ -3164,6 +3167,7 @@ export class SuperAgentsService {
       const locked = await manager.getRepository(Parcel).find({
         where: { bulkShipmentId: shipmentId }, relations: { superAgent: true }, order: { id: 'ASC' },
       });
+      await assertFirstMileComplete(manager, locked.map(p => p.id));
       const eligible = [ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH];
       if (locked.length !== candidates.length || locked.some(p =>
         !eligible.includes(p.status) || p.superAgent?.id !== current.superAgent?.id ||
@@ -3514,6 +3518,9 @@ export class SuperAgentsService {
     });
     if (!parcel)
       throw new NotFoundException(`Kifurushi ${trackingNumber} hakipatikani`);
+    // The pickup task owns every first-mile status change; a free-form status
+    // edit must not fake hub receipt (or anything after it) for such a Parcel.
+    await assertFirstMileComplete(this.dataSource, parcel.id);
 
     if (parcel.status === ParcelStatus.SELF_PICKUP) {
       throw new ConflictException('Recipient handover is already complete');

@@ -50,6 +50,7 @@ import {
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
+import { assertFirstMileComplete } from '../shipments/first-mile-guard';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
 import { RoleContextService } from '../role-context/role-context.service';
@@ -992,6 +993,7 @@ export class TransportService {
           lastCustody.toCustodianId !== hub.id) {
         throw new ConflictException('Origin hub custody must be confirmed before collection');
       }
+      await assertFirstMileComplete(manager, parcel.id); // never board before physical origin-hub receipt
       const now = new Date();
       assignment.status = AssignmentStatus.COLLECTED;
       assignment.collectedAt = now;

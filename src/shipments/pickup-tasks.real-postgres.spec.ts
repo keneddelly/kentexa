@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
 import { getB5BTestConnectionConfig, resetB5BTestSchema } from '../business/b5b-closure-test-db';
-import { AddParcelPickupTask1788282600000 } from '../database/migrations/1788282600000-AddParcelPickupTask';
+import { AddParcelPickupTask1788283200000 } from '../database/migrations/1788283200000-AddParcelPickupTask';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { PickupTasksService } from './pickup-tasks.service';
 
@@ -47,7 +47,7 @@ suite('Stage 3S pickup request and claim: real PostgreSQL', () => {
     await db.query("INSERT INTO public.super_agent VALUES (7,'active')");
     await db.query("INSERT INTO public.agent VALUES (9,9,'approved','Dar es Salaam'),(10,10,'approved','Dar es Salaam'),(11,11,'suspended','Dar es Salaam')");
     const runner = db.createQueryRunner();
-    try { await new AddParcelPickupTask1788282600000().up(runner); } finally { await runner.release(); }
+    try { await new AddParcelPickupTask1788283200000().up(runner); } finally { await runner.release(); }
     service = new PickupTasksService(db);
   });
   afterAll(async () => { if (db) await db.destroy(); });

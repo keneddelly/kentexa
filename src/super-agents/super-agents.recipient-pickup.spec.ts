@@ -36,7 +36,7 @@ describe('recipient-held pickup code', () => {
         if (failTracking) throw Error('tracking unavailable'); writes.push('tracking');
       }) }],
     ]);
-    const manager: any = { query: jest.fn(async (sql: string) => sql.includes('pickupCodeHash')
+    const manager: any = { query: jest.fn(async (sql: string) => sql.includes('parcel_pickup_task') ? [] : sql.includes('pickupCodeHash')
       ? [{ pickupCodeHash: parcel.pickupCodeHash, pickupCodeExpiresAt: parcel.pickupCodeExpiresAt,
         pickupCodeIssuedAt: parcel.pickupCodeIssuedAt, pickupCodeAttempts: parcel.pickupCodeAttempts }]
       : sql.includes('"codBalanceCollected"') ? [{ codBalanceCollected: false }] : []),
@@ -51,7 +51,7 @@ describe('recipient-held pickup code', () => {
       await input.completeInTransaction(manager);
       writes.push('release');
     }) };
-    service.dataSource = { transaction: jest.fn(async (fn: any) => fn(manager)) };
+    service.dataSource = { transaction: jest.fn(async (fn: any) => fn(manager)), query: jest.fn(async () => []) }; // Stage 3S-A: the first-mile boarding guard reads parcel_pickup_task; here no Parcel has a pickup task.
     return { service, writes, repos, manager, parcel };
   }
 

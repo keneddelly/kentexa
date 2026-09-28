@@ -28,7 +28,7 @@ describe('single parcel dispatch boundary', () => {
     const assignmentRepo = { findOne: jest.fn(async () => assignment),
       update: jest.fn(async () => { writes.push('assignment'); }) };
     const trackingRepo = { insert: jest.fn(async () => { writes.push('tracking'); }) };
-    const manager: any = { query: jest.fn(async () => [{ id: 31 }]),
+    const manager: any = { query: jest.fn(async (sql: string) => (/parcel_pickup_task/.test(sql) ? [] : [{ id: 31 }])),
       getRepository: (entity: any) => {
         if (entity === Parcel) return parcelRepo;
         if (entity === TransportAssignment) return assignmentRepo;
@@ -38,7 +38,7 @@ describe('single parcel dispatch boundary', () => {
     service = Object.create(SuperAgentsService.prototype);
     service.parcelRepo = parcelRepo;
     service.transportAssignmentRepo = assignmentRepo;
-    service.dataSource = { transaction: async (fn: any) => fn(manager) };
+    service.dataSource = { transaction: async (fn: any) => fn(manager), query: async () => [] }; // Stage 3S-A: the first-mile boarding guard reads parcel_pickup_task; here no Parcel has a pickup task.
     service.assertOwnsParcel = jest.fn(async () => hub);
     service.addTrackingEvent = jest.fn(async () => {});
     service.auditLog = { record: jest.fn(async () => {}) };

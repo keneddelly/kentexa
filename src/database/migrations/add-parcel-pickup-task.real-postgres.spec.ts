@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Client } from 'pg';
 import { DataSource } from 'typeorm';
 import { getB5BTestConnectionConfig, resetB5BTestSchema } from '../../business/b5b-closure-test-db';
-import { AddParcelPickupTask1788282600000 } from './1788282600000-AddParcelPickupTask';
+import { AddParcelPickupTask1788283200000 } from './1788283200000-AddParcelPickupTask';
 
 const config = getB5BTestConnectionConfig();
 const suite = config ? describe : describe.skip;
@@ -10,7 +10,7 @@ const suite = config ? describe : describe.skip;
 suite('Stage 3S pickup task schema: real PostgreSQL', () => {
   jest.setTimeout(120000);
   let ds: DataSource;
-  const migration = new AddParcelPickupTask1788282600000();
+  const migration = new AddParcelPickupTask1788283200000();
   const apply = async (direction: 'up' | 'down') => {
     const runner = ds.createQueryRunner();
     await runner.startTransaction();

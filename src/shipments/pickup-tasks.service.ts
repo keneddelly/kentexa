@@ -2,7 +2,7 @@ import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { createHash } from 'crypto';
+import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from 'crypto';
 import { DataSource } from 'typeorm';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
@@ -18,7 +18,23 @@ export interface RequestPickupDto {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const normalizeCity = (value: string | null) => value?.trim().toLocaleLowerCase('en') ?? '';
 
-/** Request and claim only. Neither action writes custody, tracking or money. */
+// Same shape as the existing hub-to-Agent challenge: six digits, salted scrypt
+// bound to the parcel and the exact actor, ten-minute life, five attempts,
+// one issue per minute.
+const CODE_TTL_MS = 10 * 60_000;
+const CODE_COOLDOWN_MS = 60_000;
+const CODE_MAX_ATTEMPTS = 5;
+const SIX_DIGITS = /^\d{6}$/;
+const collectedKey = (taskId: number) => `pickup-task-collected:${taskId}`;
+const hubReceivedKey = (taskId: number) => `pickup-task-hub-received:${taskId}`;
+
+/**
+ * Request and claim (Stage 3S) plus the physical first mile (Stage 3S-A):
+ * sender -> Agent (origin_agent_collected) and Agent -> exact origin hub
+ * (origin_hub_received). A claim, a "handed over" tap, a location or a photo
+ * never proves custody; only a locked, idempotent custody event does, written
+ * in the same transaction as the task, Parcel and tracking changes.
+ */
 @Injectable()
 export class PickupTasksService {
   constructor(private readonly db: DataSource) {}
@@ -146,4 +162,257 @@ export class PickupTasksService {
       return { id: taskId, parcelId: p[0].id, status: 'claimed', replay: false };
     });
   }
+
+  // ══ Stage 3S-A: the physical first mile ═══════════════════════════════════
+
+  private assertAgentRole(role: RoleContext, userId: number) {
+    if (!role || role.userId !== userId || role.roleType !== AccountRoleType.AGENT) {
+      throw new ForbiddenException('Active Agent context required');
+    }
+  }
+
+  /** Lock order is always shipment -> parcel -> task, exactly like claim(). */
+  private async lockChain(em: any, taskId: number) {
+    const pre: any[] = await em.query(`SELECT t."parcelId",p."shipmentId"
+      FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id=t."parcelId" WHERE t.id=$1`, [taskId]);
+    if (pre.length !== 1 || !pre[0].shipmentId) throw new NotFoundException('Pickup task not found');
+    const s: any[] = await em.query('SELECT * FROM public.shipment WHERE id=$1 FOR UPDATE', [pre[0].shipmentId]);
+    const p: any[] = await em.query('SELECT * FROM public.parcel WHERE id=$1 FOR UPDATE', [pre[0].parcelId]);
+    const t: any[] = await em.query('SELECT * FROM public.parcel_pickup_task WHERE id=$1 FOR UPDATE', [taskId]);
+    if (s.length !== 1 || p.length !== 1 || t.length !== 1 || p[0].shipmentId !== s[0].id || t[0].parcelId !== p[0].id) {
+      throw new ConflictException('Pickup task is no longer consistent');
+    }
+    return { s: s[0], p: p[0], t: t[0] };
+  }
+
+  private async approvedAgent(em: any, role: RoleContext, userId: number) {
+    const rows: any[] = await em.query(`SELECT id,city,status,"userId","fullName" FROM public.agent
+      WHERE id=$1 FOR UPDATE`, [role.profileId]);
+    if (rows.length !== 1 || rows[0].userId !== userId || rows[0].status !== 'approved') {
+      throw new ForbiddenException('Approved active Agent profile required');
+    }
+    return rows[0];
+  }
+
+  private async lastCustody(em: any, parcelId: number) {
+    const rows: any[] = await em.query(`SELECT * FROM public.parcel_custody_event WHERE "parcelId"=$1
+      ORDER BY "recordedAt" DESC, id DESC LIMIT 1`, [parcelId]);
+    return rows[0] ?? null;
+  }
+
+  private async custodyByKey(em: any, parcelId: number, key: string) {
+    const rows: any[] = await em.query(
+      'SELECT * FROM public.parcel_custody_event WHERE "parcelId"=$1 AND "operationKey"=$2', [parcelId, key]);
+    return rows[0] ?? null;
+  }
+
+  private async recordCustody(em: any, e: {
+    parcelId: number; eventKind: string; operationKey: string;
+    fromType: string | null; fromId: number | null; toType: string; toId: number;
+    role: RoleContext; hubId: number | null; evidenceRef: string;
+  }) {
+    await em.query(`INSERT INTO public.parcel_custody_event
+      ("parcelId","eventKind","operationKey","fromCustodianType","fromCustodianId","toCustodianType","toCustodianId",
+       "actorSource","actorUserId","actorAccountRoleId","actorRoleType","actorWorkspaceId","actorProviderId",
+       "hubId","assignmentId","evidenceRef")
+      VALUES ($1,$2,$3,$4,$5,$6,$7,'account_role',$8,$9,$10,$11,NULL,$12,NULL,$13)`,
+    [e.parcelId, e.eventKind, e.operationKey, e.fromType, e.fromId, e.toType, e.toId,
+      e.role.userId, e.role.accountRoleId, e.role.roleType, e.role.workspaceId ?? null, e.hubId, e.evidenceRef]);
+  }
+
+  private async recordTracking(em: any, parcelId: number, status: string, city: string | null, note: string,
+    by: string | null, phone: string | null, location: string | null, type: 'local_agent' | 'super_agent') {
+    await em.query(`INSERT INTO public.parcel_tracking
+      ("parcelId",status,city,note,"updatedBy","handlerPhone","handlerLocation","handlerType")
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [parcelId, status, city, note, by, phone, location, type]);
+  }
+
+  /**
+   * The requester obtains a short-lived code for the claimed Agent and passes
+   * it to them in person: sender handoff evidence that only the requester side
+   * can produce. Issuing proves nothing by itself.
+   */
+  async issueHandoffCode(userId: number, shipmentId: number) {
+    const code = String(randomInt(100000, 1000000));
+    const salt = randomBytes(16).toString('hex');
+    const now = new Date();
+    return this.db.transaction(async (em) => {
+      const s: any[] = await em.query('SELECT * FROM public.shipment WHERE id=$1 FOR UPDATE', [shipmentId]);
+      if (!s[0]) throw new NotFoundException('Shipment not found');
+      if (s[0].requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
+      const p: any[] = await em.query('SELECT id,status FROM public.parcel WHERE "shipmentId"=$1 FOR UPDATE', [shipmentId]);
+      if (p.length !== 1) throw new ConflictException('Shipment needs one independent Parcel');
+      const t: any[] = await em.query(`SELECT * FROM public.parcel_pickup_task WHERE "parcelId"=$1
+        AND status IN ('requested','claimed','collected','awaiting_hub') FOR UPDATE`, [p[0].id]);
+      if (t.length !== 1 || t[0].status !== 'claimed' || t[0].agentProfileId == null || p[0].status !== 'pending') {
+        throw new ConflictException('A claimed Agent pickup is required before a handoff code can be issued');
+      }
+      if (t[0].handoffCodeIssuedAt && now.getTime() - new Date(t[0].handoffCodeIssuedAt).getTime() < CODE_COOLDOWN_MS) {
+        throw new ConflictException('Wait before issuing another handoff code');
+      }
+      const agent: any[] = await em.query('SELECT "userId",status FROM public.agent WHERE id=$1', [t[0].agentProfileId]);
+      if (agent.length !== 1 || agent[0].status !== 'approved') throw new ConflictException('Assigned Agent is unavailable');
+      const hash = `${salt}:${scryptSync(`${code}:${p[0].id}:${agent[0].userId}:${t[0].id}`, salt, 32).toString('hex')}`;
+      await em.query(`UPDATE public.parcel_pickup_task SET "handoffCodeHash"=$1,"handoffCodeIssuedAt"=$2,
+        "handoffCodeExpiresAt"=$3,"handoffAttempts"=0,"updatedAt"=now() WHERE id=$4`,
+      [hash, now, new Date(now.getTime() + CODE_TTL_MS), t[0].id]);
+      return { taskId: t[0].id, code, expiresInSeconds: CODE_TTL_MS / 1000 };
+    });
+  }
+
+  /** Sender -> Agent. The assigned Agent enters the sender's code; one idempotent custody event. */
+  async collect(taskId: number, userId: number, role: RoleContext, code: string) {
+    this.assertAgentRole(role, userId);
+    const outcome = await this.db.transaction(async (em) => {
+      const { s, p, t } = await this.lockChain(em, taskId);
+      // A committed collection followed by a lost response replays without a second event.
+      if (['collected', 'awaiting_hub', 'hub_received'].includes(t.status)) {
+        const done = await this.custodyByKey(em, p.id, collectedKey(taskId));
+        if (t.agentProfileId === role.profileId && done) {
+          return { id: taskId, parcelId: p.id, status: t.status, replay: true };
+        }
+        throw new ForbiddenException('This pickup was collected by another Agent');
+      }
+      if (t.status !== 'claimed' || t.agentProfileId !== role.profileId) {
+        throw new ForbiddenException('This pickup is not assigned to you');
+      }
+      const agent = await this.approvedAgent(em, role, userId);
+      if (!normalizeCity(agent.city) || normalizeCity(agent.city) !== normalizeCity(s.originCity)) {
+        throw new ForbiddenException('Agent does not cover this pickup city');
+      }
+      if (s.status !== 'confirmed' || p.status !== 'pending' || p.orderId !== null) {
+        throw new ConflictException('Parcel is not awaiting sender handoff');
+      }
+      const legacy: any[] = await em.query(`SELECT id FROM public.parcel_collection
+        WHERE "parcelId"=$1 AND status IN ('requested','claimed','collected') LIMIT 1`, [p.id]);
+      if (legacy.length) throw new ConflictException('Parcel already has a collection job');
+      if (await this.lastCustody(em, p.id)) throw new ConflictException('Parcel already has custody evidence');
+      if (!SIX_DIGITS.test(code ?? '')) throw new BadRequestException('Enter the six-digit sender handoff code');
+      if (!t.handoffCodeHash || !t.handoffCodeExpiresAt || new Date(t.handoffCodeExpiresAt).getTime() <= Date.now() ||
+          t.handoffAttempts >= CODE_MAX_ATTEMPTS) {
+        throw new ConflictException('Sender handoff code is expired or unavailable');
+      }
+      const [salt, expected] = String(t.handoffCodeHash).split(':');
+      const valid = !!salt && expected?.length === 64 && timingSafeEqual(Buffer.from(expected, 'hex'),
+        scryptSync(`${code}:${p.id}:${userId}:${t.id}`, salt, 32));
+      if (!valid) {
+        await em.query('UPDATE public.parcel_pickup_task SET "handoffAttempts"="handoffAttempts"+1,"updatedAt"=now() WHERE id=$1', [taskId]);
+        return { invalid: true as const };
+      }
+      await this.recordCustody(em, {
+        parcelId: p.id, eventKind: 'origin_agent_collected', operationKey: collectedKey(taskId),
+        fromType: null, fromId: null, toType: 'local_agent', toId: agent.id, role, hubId: null,
+        evidenceRef: `sender-code:${createHash('sha256').update(t.handoffCodeHash).digest('hex')}`,
+      });
+      await em.query("UPDATE public.parcel SET status='collected_by_agent' WHERE id=$1", [p.id]);
+      await em.query(`UPDATE public.parcel_pickup_task SET status='collected',"collectedAt"=now(),
+        "handoffCodeHash"=NULL,"handoffCodeIssuedAt"=NULL,"handoffCodeExpiresAt"=NULL,"handoffAttempts"=0,
+        "updatedAt"=now() WHERE id=$1`, [taskId]);
+      // Projection of the proven Parcel event onto the Shipment (CONFIRMED -> COLLECTED only).
+      await em.query(`UPDATE public.shipment SET status='collected',"collectedAt"=now() WHERE id=$1 AND status='confirmed'`, [s.id]);
+      await this.recordTracking(em, p.id, 'collected_by_agent', s.originCity,
+        'Collected from the sender by the assigned Agent', agent.fullName ?? null, null, null, 'local_agent');
+      return { id: taskId, parcelId: p.id, status: 'collected', replay: false };
+    });
+    if ('invalid' in outcome) throw new BadRequestException('Incorrect sender handoff code');
+    return outcome;
+  }
+
+  /**
+   * Agent -> hub, step 1: the Agent says they are at the selected hub. This is
+   * ONLY a request for acknowledgment: no custody event, no Parcel change.
+   */
+  async requestHubHandover(taskId: number, userId: number, role: RoleContext) {
+    this.assertAgentRole(role, userId);
+    return this.db.transaction(async (em) => {
+      const { p, t } = await this.lockChain(em, taskId);
+      if (t.agentProfileId !== role.profileId) throw new ForbiddenException('This pickup is not assigned to you');
+      if (t.servicePath !== 'hub_routed') throw new ConflictException('Direct pickups do not end at a hub');
+      if (['awaiting_hub', 'hub_received'].includes(t.status)) {
+        return { id: taskId, parcelId: p.id, status: t.status, replay: true };
+      }
+      if (t.status !== 'collected') throw new ConflictException('The Agent must collect the Parcel first');
+      await this.approvedAgent(em, role, userId);
+      const last = await this.lastCustody(em, p.id);
+      if (!last || last.operationKey !== collectedKey(taskId) || last.toCustodianType !== 'local_agent' ||
+          last.toCustodianId !== t.agentProfileId) {
+        throw new ConflictException('The assigned Agent does not currently hold this Parcel');
+      }
+      await em.query(`UPDATE public.parcel_pickup_task SET status='awaiting_hub',"handoverRequestedAt"=now(),
+        "updatedAt"=now() WHERE id=$1`, [taskId]);
+      return { id: taskId, parcelId: p.id, status: 'awaiting_hub', replay: false };
+    });
+  }
+
+  /** Agent -> hub, step 2: only the exact selected, active origin hub can confirm physical receipt. */
+  async hubReceive(taskId: number, userId: number, role: RoleContext) {
+    if (!role || role.userId !== userId || role.roleType !== AccountRoleType.SUPER_AGENT) {
+      throw new ForbiddenException('Active Super Agent context required');
+    }
+    return this.db.transaction(async (em) => {
+      const { p, s, t } = await this.lockChain(em, taskId);
+      const hubs: any[] = await em.query(`SELECT id,city,status,"userId","workspaceId","businessName",phone,address
+        FROM public.super_agent WHERE id=$1 FOR UPDATE`, [role.profileId]);
+      const hub = hubs[0];
+      if (!hub || hub.userId !== userId || hub.status !== 'active' ||
+          (hub.workspaceId != null && hub.workspaceId !== role.workspaceId)) {
+        throw new ForbiddenException('An active receiving hub is required');
+      }
+      if (t.servicePath !== 'hub_routed' || t.originHubId !== hub.id) {
+        throw new ForbiddenException('This is not the selected origin hub for this pickup');
+      }
+      if (t.status === 'hub_received') {
+        const done = await this.custodyByKey(em, p.id, hubReceivedKey(taskId));
+        if (done && done.hubId === hub.id) return { id: taskId, parcelId: p.id, status: 'hub_received', replay: true };
+        throw new ConflictException('Hub receipt is not consistent');
+      }
+      if (t.status !== 'awaiting_hub') throw new ConflictException('The Agent has not asked this hub to receive the Parcel');
+      if (p.superAgentId !== hub.id || p.status !== 'collected_by_agent') {
+        throw new ConflictException('Parcel cannot be received by this hub');
+      }
+      const last = await this.lastCustody(em, p.id);
+      if (!last || last.operationKey !== collectedKey(taskId) || last.toCustodianType !== 'local_agent' ||
+          last.toCustodianId !== t.agentProfileId) {
+        throw new ConflictException('The assigned Agent does not currently hold this Parcel');
+      }
+      await this.recordCustody(em, {
+        parcelId: p.id, eventKind: 'origin_hub_received', operationKey: hubReceivedKey(taskId),
+        fromType: 'local_agent', fromId: t.agentProfileId, toType: 'super_agent', toId: hub.id,
+        role, hubId: hub.id, evidenceRef: `pickup-task:${taskId}`,
+      });
+      await em.query("UPDATE public.parcel SET status='received_at_hub' WHERE id=$1", [p.id]);
+      await em.query(`UPDATE public.parcel_pickup_task SET status='hub_received',"completedAt"=now(),
+        "updatedAt"=now() WHERE id=$1`, [taskId]);
+      await this.recordTracking(em, p.id, 'received_at_hub', hub.city ?? s.originCity,
+        'Received at the origin hub from the collecting Agent', hub.businessName ?? null,
+        hub.phone ?? null, hub.address ?? hub.city ?? null, 'super_agent');
+      return { id: taskId, parcelId: p.id, status: 'hub_received', replay: false };
+    });
+  }
+
+  /**
+   * The requester cancels BEFORE physical collection. Once custody exists it
+   * cannot be erased: the task, event and Parcel keep their history.
+   */
+  async cancel(userId: number, shipmentId: number) {
+    return this.db.transaction(async (em) => {
+      const s: any[] = await em.query('SELECT * FROM public.shipment WHERE id=$1 FOR UPDATE', [shipmentId]);
+      if (!s[0]) throw new NotFoundException('Shipment not found');
+      if (s[0].requestedByUserId !== userId) throw new ForbiddenException('Not your shipment');
+      const p: any[] = await em.query('SELECT id FROM public.parcel WHERE "shipmentId"=$1 FOR UPDATE', [shipmentId]);
+      if (p.length !== 1) throw new ConflictException('Shipment needs one independent Parcel');
+      const t: any[] = await em.query(`SELECT * FROM public.parcel_pickup_task WHERE "parcelId"=$1
+        ORDER BY id DESC LIMIT 1 FOR UPDATE`, [p[0].id]);
+      if (!t[0]) throw new NotFoundException('No pickup task for this Shipment');
+      if (t[0].status === 'cancelled') return { id: t[0].id, parcelId: p[0].id, status: 'cancelled', replay: true };
+      if (t[0].status !== 'requested' && t[0].status !== 'claimed') {
+        throw new ConflictException('Custody has already started; the pickup can no longer be cancelled');
+      }
+      await em.query(`UPDATE public.parcel_pickup_task SET status='cancelled',"cancelledAt"=now(),
+        "handoffCodeHash"=NULL,"handoffCodeIssuedAt"=NULL,"handoffCodeExpiresAt"=NULL,"handoffAttempts"=0,
+        "updatedAt"=now() WHERE id=$1`, [t[0].id]);
+      return { id: t[0].id, parcelId: p[0].id, status: 'cancelled', replay: false };
+    });
+  }
+
 }

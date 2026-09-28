@@ -3,9 +3,19 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 /**
  * Stage 3S schema only. No pickup writer, custody transition, historical
  * reconciliation, or production deployment is enabled by this migration.
+ *
+ * Renumbered from 1788282600000: that timestamp already belongs to the older
+ * AddCheckoutRequestIdempotency migration (PRs #53/#54). This newer, still
+ * empty, unreleased table sorts after it instead of disturbing that lineage.
+ *
+ * Stage 3S-A (physical first mile) extends THIS not-yet-shipped table with
+ * additive columns only: the short-lived sender-to-Agent handoff proof
+ * (same shape as the existing hub-to-Agent challenge on Parcel), the time the
+ * Agent asked the hub to acknowledge, and the cancellation time. Nothing
+ * here is backfilled and no existing table is altered.
  */
-export class AddParcelPickupTask1788282600000 implements MigrationInterface {
-  name = 'AddParcelPickupTask1788282600000';
+export class AddParcelPickupTask1788283200000 implements MigrationInterface {
+  name = 'AddParcelPickupTask1788283200000';
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE TABLE IF NOT EXISTS public.parcel_pickup_task (
@@ -24,7 +34,13 @@ export class AddParcelPickupTask1788282600000 implements MigrationInterface {
       status character varying(24) NOT NULL DEFAULT 'requested',
       "claimedAt" timestamp without time zone,
       "collectedAt" timestamp without time zone,
+      "handoverRequestedAt" timestamp without time zone,
       "completedAt" timestamp without time zone,
+      "cancelledAt" timestamp without time zone,
+      "handoffCodeHash" character varying(128),
+      "handoffCodeIssuedAt" timestamp without time zone,
+      "handoffCodeExpiresAt" timestamp without time zone,
+      "handoffAttempts" integer NOT NULL DEFAULT 0,
       "createdAt" timestamp without time zone NOT NULL DEFAULT now(),
       "updatedAt" timestamp without time zone NOT NULL DEFAULT now(),
       CONSTRAINT "FK_pickup_task_parcel" FOREIGN KEY ("parcelId")
@@ -43,6 +59,12 @@ export class AddParcelPickupTask1788282600000 implements MigrationInterface {
         AND length(btrim("pickupContactPhone")) > 0
         AND length("requestPayloadHash") = 64
       ),
+      CONSTRAINT "CHK_pickup_task_handoff_code" CHECK (
+        ("handoffCodeHash" IS NULL AND "handoffCodeIssuedAt" IS NULL AND "handoffCodeExpiresAt" IS NULL)
+        OR ("handoffCodeHash" IS NOT NULL AND "handoffCodeIssuedAt" IS NOT NULL
+            AND "handoffCodeExpiresAt" IS NOT NULL AND status = 'claimed')
+      ),
+      CONSTRAINT "CHK_pickup_task_attempts" CHECK ("handoffAttempts" >= 0),
       CONSTRAINT "CHK_pickup_task_fee" CHECK (
         "quotedPickupFee" IS NULL OR "quotedPickupFee" >= 0
       ),

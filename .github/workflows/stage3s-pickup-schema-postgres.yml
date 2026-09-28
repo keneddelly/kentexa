@@ -5,7 +5,7 @@ on:
     branches:
       - feature/stage3kr-walkin-integration
     paths:
-      - 'src/database/migrations/1788282600000-AddParcelPickupTask.ts'
+      - 'src/database/migrations/1788283200000-AddParcelPickupTask.ts'
       - 'src/database/migrations/add-parcel-pickup-task.real-postgres.spec.ts'
       - 'src/shipments/pickup-tasks.service.ts'
       - 'src/shipments/pickup-tasks.controller.ts'
