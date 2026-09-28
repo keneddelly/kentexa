@@ -52,11 +52,18 @@ const Button = ({ onClick, disabled, children, testId }) => (
  *  - hideWhenActive: BusinessHome already renders the Commerce tile once
  *    selling is active, so it asks this door to step aside; the dashboard
  *    keeps it (as "Open selling").
+ *  - onEntryLoaded(entry|null): the server state just read (null = unknown or
+ *    the Business changed -- callers must then treat selling as NOT active).
+ *  - onOpenTileResolved(businessId, tile|null): the exact Business's Commerce
+ *    tile (server-issued role, switchable-now, ACTIVE when the CURRENT
+ *    server-validated context already IS that role). Lets a caller open a
+ *    selling-only page under the exact-Business boundary instead of inferring
+ *    authority from the state alone.
  *  - onNavigate / activeContext / roleOptions / onSwitchAccountRole: only to
  *    OPEN selling for an already-active Business via the existing switch flow.
  */
 const BusinessCommerceEntry = ({
-  businessId, businessName, hideWhenActive = false, onEntryLoaded, onNavigate, activeContext, roleOptions, onSwitchAccountRole,
+  businessId, businessName, hideWhenActive = false, onEntryLoaded, onOpenTileResolved, onNavigate, activeContext, roleOptions, onSwitchAccountRole,
 }) => {
   const { t } = useTranslation();
   const [entry, setEntry] = useState(null); // null = loading
@@ -81,25 +88,38 @@ const BusinessCommerceEntry = ({
     }
   }, [businessId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { setEntry(null); setApplyError(false); setOpenTile(undefined); load(); }, [load]);
+  useEffect(() => {
+    setEntry(null); setApplyError(false); setOpenTile(undefined);
+    onEntryLoaded?.(null); // a previous Business's state must never survive a Business change
+    onOpenTileResolved?.(businessId, null);
+    load();
+  }, [load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const view = entry ? commerceEntryView(entry) : null;
 
   // Active + this door is visible: find the Commerce tile of this Business's
   // default workspace (server-issued role, switchable-now cross-check).
   useEffect(() => {
-    if (!view || view.view !== ENTRY_VIEW.ACTIVE || hideWhenActive) return undefined;
+    if (!view || view.view !== ENTRY_VIEW.ACTIVE || hideWhenActive) {
+      onOpenTileResolved?.(businessId, null); // not active (or not resolving here): no way in
+      return undefined;
+    }
     let cancelled = false;
+    const resolved = (tile) => {
+      if (cancelled) return;
+      const usable = tile && isTileActionable(tile) ? tile : null;
+      setOpenTile(usable);
+      onOpenTileResolved?.(businessId, usable);
+    };
     getBusinessWorkspaces(businessId)
       .then((workspaces) => {
-        if (cancelled) return;
         const ws = workspaces.find((w) => w.isDefault) || workspaces[0];
-        const tile = ws ? tilesForWorkspace(ws, activeContext?.accountRoleId, roleOptions || []).find((x) => x.key === 'commerce') : null;
-        setOpenTile(tile && isTileActionable(tile) ? tile : null);
+        resolved(ws ? tilesForWorkspace(ws, activeContext?.accountRoleId, roleOptions || []).find((x) => x.key === 'commerce') : null);
       })
-      .catch(() => { if (!cancelled) setOpenTile(null); });
+      .catch(() => resolved(null));
     return () => { cancelled = true; };
-  }, [view?.view, hideWhenActive, businessId]); // eslint-disable-line react-hooks/exhaustive-deps
+    // activeContext is a dependency on purpose: after a role switch the tile's ACTIVE/AVAILABLE state must be re-derived.
+  }, [view?.view, hideWhenActive, businessId, activeContext?.accountRoleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleApply = async () => {
     setSubmitting(true);

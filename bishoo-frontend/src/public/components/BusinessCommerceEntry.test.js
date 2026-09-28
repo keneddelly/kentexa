@@ -192,3 +192,29 @@ test('I. exact Business isolation: switching the Business prop re-reads THAT Bus
   await waitFor(() => expect(api.post).toHaveBeenCalledWith('/business/8/capabilities/commerce/apply', { applicationData: undefined }));
   expect(postedPaths()).not.toContain('/business/7/capabilities/commerce/apply');
 });
+
+test('the exact Business\'s Commerce tile is reported to the caller: ACTIVE when the current context already IS that role, AVAILABLE otherwise', async () => {
+  mockApi({ entries: [entry({ state: 'active', canApply: false })] });
+  const onOpenTileResolved = jest.fn();
+  mountDoor({ onOpenTileResolved, activeContext: { accountRoleId: 501 } });
+  await waitFor(() => expect(onOpenTileResolved).toHaveBeenCalledWith(7, expect.objectContaining({ key: 'commerce', state: 'active', accountRoleId: 501 })));
+});
+
+test('a Business change resets the caller first (entry null, no tile) and never leaves the previous Business\'s tile behind', async () => {
+  api.get.mockImplementation((path) => {
+    if (path === '/business/7/commerce-entry') return Promise.resolve({ data: entry({ businessId: 7, state: 'active', canApply: false }) });
+    if (path === '/business/8/commerce-entry') return Promise.resolve({ data: entry({ businessId: 8 }) });
+    if (path === '/business/7/workspaces') return Promise.resolve({ data: [workspace] });
+    return Promise.reject(new Error('unexpected ' + path));
+  });
+  const onEntryLoaded = jest.fn(); const onOpenTileResolved = jest.fn();
+  const { rerender } = mountDoor({ onEntryLoaded, onOpenTileResolved });
+  await waitFor(() => expect(onOpenTileResolved).toHaveBeenCalledWith(7, expect.objectContaining({ key: 'commerce' })));
+  onEntryLoaded.mockClear(); onOpenTileResolved.mockClear();
+  rerender(<BusinessCommerceEntry businessId={8} businessName="Bob Electronics" onEntryLoaded={onEntryLoaded} onOpenTileResolved={onOpenTileResolved}
+    onNavigate={jest.fn()} activeContext={{}} roleOptions={roles} onSwitchAccountRole={jest.fn()} />);
+  await waitFor(() => expect(onEntryLoaded).toHaveBeenLastCalledWith(expect.objectContaining({ businessId: 8, state: 'available' })));
+  expect(onEntryLoaded.mock.calls[0][0]).toBeNull(); // reset before the new state arrives
+  expect(onOpenTileResolved).toHaveBeenCalledWith(8, null);
+  expect(onOpenTileResolved.mock.calls.some(([id, tile]) => id === 7 && tile)).toBe(false);
+});

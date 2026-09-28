@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import BusinessCommerceEntry from '../components/BusinessCommerceEntry';
+import { TILE_STATE } from '../../context/capabilityTiles';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -65,10 +66,26 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, roleOptions,
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   // I2C: the server's canonical COMMERCE state for THIS Business (reported by
-  // the entry card). Selling-only rows unlock only on 'active' -- never on the
-  // legacy dashboard.hasSeller.
+  // the entry card), and the exact Business's Commerce tile. Both are keyed by
+  // the businessId they were read for and ignored unless they match the
+  // Business shown -- a stale answer for another Business is never used.
   const [commerceEntry, setCommerceEntry] = useState(null);
-  const commerceActive = commerceEntry?.state === 'active';
+  const [commerceTile, setCommerceTile] = useState(null); // { businessId, tile }
+  const shownBusinessId = business ? Number(business.id) : null;
+  const commerceActive = commerceEntry?.state === 'active' && Number(commerceEntry.businessId) === shownBusinessId;
+  const exactCommerceTile = commerceTile && Number(commerceTile.businessId) === shownBusinessId ? commerceTile.tile : null;
+
+  // Team is a selling-only page. "COMMERCE is active for this Business" is
+  // NOT authority to open it: the caller may be acting as Personal or as a
+  // different Business. So it opens only when the CURRENT server-validated
+  // context already is this Business's Seller role, and otherwise goes through
+  // the SAME atomic exact-Business switch the Open-selling button uses
+  // (never onNavigate straight into a seller page).
+  const handleOpenTeam = () => {
+    if (!commerceActive || !exactCommerceTile) return;
+    if (exactCommerceTile.state === TILE_STATE.ACTIVE) onNavigate('SellerTeam');
+    else if (exactCommerceTile.accountRoleId) onSwitchAccountRole?.(exactCommerceTile.accountRoleId, 'SellerTeam');
+  };
 
   useEffect(() => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
@@ -275,11 +292,13 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, roleOptions,
           <Row icon="📥" label={t('business_dashboard.leads_label')}
             sub={t('business_dashboard.leads_sub')} locked />
           {/* Team management works once COMMERCE is active for THIS Business
-              (SellerScopeService.resolve() recognizes it). Until then it is
-              locked and inert -- the selling door below is the way in. */}
+              (SellerScopeService.resolve() recognizes it) AND the exact
+              Business seller context is active or switched to (see
+              handleOpenTeam). Until then it is locked and inert -- the selling
+              door below is the way in. */}
           <Row icon="👔" label={t('business_dashboard.team_label')}
-            sub={t('business_dashboard.team_sub')} locked={!commerceActive}
-            onAction={commerceActive ? () => onNavigate('SellerTeam') : undefined} />
+            sub={t('business_dashboard.team_sub')} locked={!(commerceActive && exactCommerceTile)}
+            onAction={commerceActive && exactCommerceTile ? handleOpenTeam : undefined} />
         </SCard>
 
         {/* I2C: "Anza kuuza / Start selling" for THIS exact Business, through
@@ -288,6 +307,7 @@ const BusinessDashboard = ({ onNavigate, isLoggedIn, activeContext, roleOptions,
           businessId={business.id}
           businessName={business.tradingName || business.legalName || ''}
           onEntryLoaded={setCommerceEntry}
+          onOpenTileResolved={(id, tile) => setCommerceTile({ businessId: id, tile })}
           onNavigate={onNavigate}
           activeContext={activeContext}
           roleOptions={roleOptions}
