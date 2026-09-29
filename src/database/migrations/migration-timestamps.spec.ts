@@ -32,10 +32,16 @@ describe('migration timestamps', () => {
     expect(stamp(quote)).toBeGreaterThan(1788283200000);
   });
 
-  it('Stage 3S-B4\'s route-price-history migration sorts AFTER the quote migration and is currently the latest', () => {
+  it('Stage 3S-B4\'s route-price-history migration sorts AFTER the quote migration', () => {
     const priceHistory = files.find((f) => f.includes('AddTransportRoutePriceHistory'))!;
     expect(priceHistory).toBe('1788284400000-AddTransportRoutePriceHistory.ts');
     expect(stamp(priceHistory)).toBeGreaterThan(1788283800000);
-    expect(files.every((f) => stamp(f) <= stamp(priceHistory))).toBe(true);
+  });
+
+  it('Stage 3S-C1\'s route/run foundation migration sorts AFTER price-history and is currently the latest', () => {
+    const runFoundation = files.find((f) => f.includes('AddTransportRunFoundation'))!;
+    expect(runFoundation).toBe('1788285000000-AddTransportRunFoundation.ts');
+    expect(stamp(runFoundation)).toBeGreaterThan(1788284400000);
+    expect(files.every((f) => stamp(f) <= stamp(runFoundation))).toBe(true);
   });
 });
