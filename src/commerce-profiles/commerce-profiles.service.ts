@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import {
@@ -851,10 +851,29 @@ export class CommerceProfilesService {
     dto: Partial<
       Pick<
         CommerceProfile,
-        'displayName' | 'photoUrl' | 'coverImage' | 'bio' | 'location'
+        'displayName' | 'username' | 'photoUrl' | 'coverImage' | 'bio' | 'location'
       >
     >,
   ): Promise<CommerceProfile> {
+    if (dto.username !== undefined) {
+      const username = dto.username
+        .toLowerCase()
+        .trim()
+        .replace(/^@+/, '')
+        .replace(/[^a-z0-9_]/g, '')
+        .slice(0, 24);
+      if (username.length < 3) {
+        throw new BadRequestException('Username must be at least 3 characters');
+      }
+      if (RESERVED_USERNAMES.has(username)) {
+        throw new BadRequestException('This username is reserved');
+      }
+      const existing = await this.repo.findOne({ where: { username } });
+      if (existing && existing.id !== id) {
+        throw new ConflictException('This username is already taken');
+      }
+      dto.username = username;
+    }
     await this.repo.update(id, dto);
     const updated = await this.findById(id);
     this.enrichAndIndex(updated).catch(() => {});
