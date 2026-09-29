@@ -456,11 +456,23 @@ export class TransportService {
         lock: { mode: 'pessimistic_write' },
       });
       if (versions.length === 0) {
+        // Guards against a real (if narrow) clock-precision edge case: the
+        // route was just read back with a DB-generated createdAt, and
+        // `effectiveFrom` defaults to a separately-captured JS `new Date()`
+        // a moment later in the SAME request -- normally later, but two
+        // independent clocks (even on the same host) are never guaranteed
+        // strictly monotonic against each other down to the millisecond.
+        // Seeding at whichever instant is earlier guarantees this seed's own
+        // window always covers the effectiveFrom this exact call is about to
+        // use, without ever manufacturing a version that starts in the future.
+        const seedEffectiveFrom = route.createdAt.getTime() <= effectiveFrom.getTime()
+          ? route.createdAt
+          : effectiveFrom;
         const seed = await historyRepo.save(historyRepo.create({
           routeId: route.id,
           pricePerKg: route.pricePerKg,
           fixedFee: route.fixedFee,
-          effectiveFrom: route.createdAt,
+          effectiveFrom: seedEffectiveFrom,
           effectiveTo: null,
           changedByUserId: null,
         }));

@@ -28,6 +28,7 @@ import { TransportQuote, TransportQuoteStatus } from './entities/transport-quote
 import { TransportRoute } from './entities/transport-route.entity';
 import { ProviderAvailability } from './entities/provider-availability.entity';
 import { TransportService } from './transport.service';
+import { TransportQuoteComponents, sumQuoteComponents } from './transport-quote-components';
 
 // A quote is a short-lived commercial offer, not a long-hold reservation
 // (nothing is reserved while it's merely OFFERED) — 15 minutes is enough for
@@ -61,8 +62,11 @@ export class TransportQuoteService {
   // canonical resolver (TransportService.getEffectiveRoutePrice) rather than
   // reading route.pricePerKg/fixedFee directly, so a quote is priced off
   // whatever is actually in effect right now -- the quote row itself still
-  // freezes the resulting baseAmount/totalAmount forever once created.
-  private async computeBaseAmount(route: TransportRoute, weightKg: number): Promise<number> {
+  // freezes the resulting baseAmount/totalAmount forever once created. Stage
+  // 3S-B5: this is now explicitly the `transportBase` component among
+  // several possible ones (see transport-quote-components.ts) rather than
+  // the whole price by implication.
+  private async computeTransportBase(route: TransportRoute, weightKg: number): Promise<number> {
     const { pricePerKg, fixedFee } = await this.transportService.getEffectiveRoutePrice(route.id);
     const byWeight = pricePerKg * weightKg;
     return Math.max(byWeight, fixedFee || 0);
@@ -115,7 +119,14 @@ export class TransportQuoteService {
       await this.transportService.assertAvailabilityIsDiscoverable(availability.id, weightKg);
     }
 
-    const baseAmount = await this.computeBaseAmount(route, weightKg);
+    const transportBase = await this.computeTransportBase(route, weightKg);
+    // Stage 3S-B5: agentPickup/hubHandling/lastMileDelivery/platformService
+    // stay absent -- no canonical, quote-domain-reachable authority exists
+    // for any of them yet (full assessment in transport-quote-components.ts).
+    // Never fabricated; a future gate that adds a real selection mechanism
+    // (e.g. an agentId) populates them here without any schema change.
+    const components: TransportQuoteComponents = { transportBase };
+    const totalAmount = sumQuoteComponents(components);
     const now = new Date();
     const quote = this.quoteRepo.create({
       requestedByUserId: user.id,
@@ -125,11 +136,9 @@ export class TransportQuoteService {
       originCity,
       destinationCity,
       weightKg,
-      baseAmount,
-      // Stage 3S-B3 only ever populates `base` -- no platform/Agent/hub/
-      // last-mile component exists yet (explicitly excluded from this gate).
-      components: { base: baseAmount },
-      totalAmount: baseAmount,
+      baseAmount: transportBase,
+      components,
+      totalAmount,
       currency: 'TZS',
       priceEffectiveAt: now,
       status: TransportQuoteStatus.OFFERED,

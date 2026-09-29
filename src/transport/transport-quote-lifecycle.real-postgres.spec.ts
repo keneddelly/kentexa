@@ -12,6 +12,7 @@ import { ProviderAvailability, AvailabilityStatus } from './entities/provider-av
 import { TransportProvider, ProviderStatus, ProviderType } from './entities/transport-provider.entity';
 import { TransportRoute, RouteType } from './entities/transport-route.entity';
 import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
+import { sumQuoteComponents } from './transport-quote-components';
 
 /**
  * Stage 3S-B3 — Canonical Quote Foundation, proved against REAL PostgreSQL:
@@ -123,7 +124,7 @@ suite('Stage 3S-B3 — canonical transport quote lifecycle, real PostgreSQL', ()
     // 5kg * 300 = 1500 > fixedFee 900 -> base = 1500, exactly estimateShipmentPrice's own formula.
     expect(Number(quote.baseAmount)).toBe(1500);
     expect(Number(quote.totalAmount)).toBe(1500);
-    expect(quote.components).toEqual({ base: 1500 });
+    expect(quote.components).toEqual({ transportBase: 1500 });
     expect(quote.currency).toBe('TZS');
     expect(quote.expiresAt.getTime() - quote.priceEffectiveAt.getTime()).toBeCloseTo(QUOTE_VALIDITY_MS, -2);
   });
@@ -412,5 +413,45 @@ suite('Stage 3S-B3 — canonical transport quote lifecycle, real PostgreSQL', ()
 
     await expect(shipmentService.createShipment(11, baseDto({ quoteId: quote.id }))).rejects.toThrow();
     expect(await shipmentCount()).toBe(0);
+  });
+
+  // ── Stage 3S-B5: Final Quote Composition + Transparent Charges ───────────
+  // The repository-first assessment (transport-quote-components.ts) found no
+  // canonical, quote-domain-reachable authority for agentPickup/hubHandling/
+  // lastMileDelivery/platformService yet -- these tests prove that absence
+  // is genuine (never silently fabricated) and that the total is a real,
+  // reusable sum rather than a value that merely happens to equal the base.
+  describe('final quote composition is transparent and never invents a charge', () => {
+    it('a created quote exposes ONLY the transportBase component -- no other key is ever fabricated', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id, { pricePerKg: 250, fixedFee: 700 });
+      const quote = await quoteService.createQuote({ id: 60 } as any, { providerId: p.id, routeId: r.id, weightKg: 4 });
+
+      expect(Object.keys(quote.components)).toEqual(['transportBase']);
+      expect(quote.components.agentPickup).toBeUndefined();
+      expect(quote.components.hubHandling).toBeUndefined();
+      expect(quote.components.lastMileDelivery).toBeUndefined();
+      expect(quote.components.platformService).toBeUndefined();
+    });
+
+    it('totalAmount is the genuine sum of persisted components, not a hardcoded alias for transportBase', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id, { pricePerKg: 300, fixedFee: 200 });
+      const quote = await quoteService.createQuote({ id: 61 } as any, { providerId: p.id, routeId: r.id, weightKg: 6 });
+
+      expect(Number(quote.totalAmount)).toBe(sumQuoteComponents(quote.components));
+      expect(Number(quote.totalAmount)).toBe(Number(quote.baseAmount)); // true today only because no other component resolves
+    });
+
+    it('transportBase in the composed quote is byte-identical to B4\'s own effective-pricing resolver -- composition never re-derives it differently', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id, { pricePerKg: 175, fixedFee: 450 });
+      const expected = await transport.getEffectiveRoutePrice(r.id);
+      const byWeight = expected.pricePerKg * 8;
+      const expectedBase = Math.max(byWeight, expected.fixedFee);
+
+      const quote = await quoteService.createQuote({ id: 62 } as any, { providerId: p.id, routeId: r.id, weightKg: 8 });
+      expect(Number(quote.components.transportBase)).toBe(expectedBase);
+    });
   });
 });

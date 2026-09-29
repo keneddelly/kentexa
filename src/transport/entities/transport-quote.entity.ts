@@ -11,10 +11,13 @@
  *
  * Component amounts are a jsonb map rather than fixed columns so future
  * gates (first-mile/hub/last-mile/platform fees) can be added without a
- * schema change to this table — Stage 3S-B3 itself only ever populates
- * `{ base: <amount> }`, and totalAmount is always the sum of every value in
- * components at the moment the quote was created; it is never
- * recomputed afterward.
+ * schema change to this table. Stage 3S-B5 formalized the component keys
+ * (transport-quote-components.ts's TransportQuoteComponents) and made
+ * totalAmount an explicit, reusable sum of whichever components are
+ * present at creation time — as of this gate only `transportBase` ever
+ * resolves to a real canonical value (see that file's own repository-first
+ * assessment for why every other key stays absent rather than invented).
+ * totalAmount is never recomputed afterward, whatever gets added later.
  */
 import {
   Entity,
@@ -26,6 +29,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { TransportProvider } from './transport-provider.entity';
+import type { TransportQuoteComponents } from '../transport-quote-components';
 import { TransportRoute } from './transport-route.entity';
 import { ProviderAvailability } from './provider-availability.entity';
 
@@ -84,10 +88,10 @@ export class TransportQuote {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   baseAmount: number;
 
-  // { base: number, ...future components }. Stage 3S-B3 only ever writes
-  // { base }; no platform/Agent/hub/last-mile key exists yet.
+  // See TransportQuoteComponents (transport-quote-components.ts) for the
+  // canonical key contract and which ones currently ever resolve.
   @Column({ type: 'jsonb', default: () => "'{}'" })
-  components: Record<string, number>;
+  components: TransportQuoteComponents;
 
   // Sum of `components` at creation time. Frozen forever after that —
   // nothing in this codebase ever recomputes or rewrites it.

@@ -31,7 +31,7 @@ suite('Stage 3S-B3 transport quote schema: real PostgreSQL', () => {
     INSERT INTO public.transport_quote
       ("requestedByUserId","providerId","routeId","availabilityId","originCity","destinationCity",
        "weightKg","baseAmount",components,"totalAmount",currency,"priceEffectiveAt",status,"expiresAt","acceptedAt")
-    VALUES (5,$1,$2,$3,'Dar es Salaam','Mwanza',3,$4,'{"base":1000}'::jsonb,$5,'TZS',now(),$6,now() + interval '15 minutes',$7)
+    VALUES (5,$1,$2,$3,'Dar es Salaam','Mwanza',3,$4,'{"transportBase":1000}'::jsonb,$5,'TZS',now(),$6,now() + interval '15 minutes',$7)
     RETURNING id`,
     [o.providerId ?? 1, o.routeId ?? 1, o.availabilityId ?? null, o.baseAmount ?? 1000,
       o.totalAmount ?? 1000, o.status ?? 'offered', o.acceptedAt ?? null]);
