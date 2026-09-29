@@ -21,6 +21,8 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { TransportService, DiscoverySortBy, DISCOVERY_SORT_VALUES } from './transport.service';
+import { TransportQuoteService } from './transport-quote.service';
+import type { CreateQuoteDto } from './transport-quote.service';
 import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
 import { VerificationService } from '../identity/verification.service';
@@ -37,7 +39,31 @@ export class TransportController {
   constructor(
     private readonly svc: TransportService,
     private readonly verification: VerificationService,
+    private readonly quotes: TransportQuoteService,
   ) {}
+
+  // ── QUOTES (Stage 3S-B3) ────────────────────────────────────────────────
+  // Any authenticated user — same "ordinary sender or seller/business acting
+  // user, no marketplace Order required" convention Shipment itself already
+  // uses. Creation/acceptance never reserves capacity or writes a Parcel;
+  // see TransportQuoteService's own doc comment.
+  @UseGuards(JwtAuthGuard)
+  @Post('quotes')
+  createQuote(@Request() req, @Body() dto: CreateQuoteDto) {
+    return this.quotes.createQuote(req.user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('quotes/:id')
+  getQuote(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.quotes.getQuote(req.user, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('quotes/:id/accept')
+  acceptQuote(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.quotes.acceptQuote(req.user, id);
+  }
 
   // ── PROVIDER REGISTRATION ─────────────────────────────────────────────────
   // 2026-08-28 identity-verification architecture audit: registering as an

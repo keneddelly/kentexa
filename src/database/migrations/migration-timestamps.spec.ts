@@ -22,8 +22,14 @@ describe('migration timestamps', () => {
     const pickup = files.find((f) => f.includes('AddParcelPickupTask'))!;
     expect(pickup).toBe('1788283200000-AddParcelPickupTask.ts');
     expect(stamp(pickup)).toBeGreaterThan(1788282600000);
-    expect(files.every((f) => stamp(f) <= stamp(pickup))).toBe(true);
     // the old, colliding number is not used by ANY migration on this branch
     expect(files.some((f) => stamp(f) === 1788282600000)).toBe(false);
+  });
+
+  it('Stage 3S-B3\'s transport-quote migration sorts AFTER pickup-task and is currently the latest', () => {
+    const quote = files.find((f) => f.includes('AddTransportQuote'))!;
+    expect(quote).toBe('1788283800000-AddTransportQuote.ts');
+    expect(stamp(quote)).toBeGreaterThan(1788283200000);
+    expect(files.every((f) => stamp(f) <= stamp(quote))).toBe(true);
   });
 });

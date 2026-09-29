@@ -10,9 +10,11 @@ import { TransportProvider } from './entities/transport-provider.entity';
 import { TransportRoute } from './entities/transport-route.entity';
 import { ProviderAvailability } from './entities/provider-availability.entity';
 import { TransportAssignment } from './entities/transport-assignment.entity';
+import { TransportQuote } from './entities/transport-quote.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { User } from '../users/entities/user.entity';
 import { TransportService } from './transport.service';
+import { TransportQuoteService } from './transport-quote.service';
 import { TransportController } from './transport.controller';
 import { ReputationModule } from '../reputation/reputation.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
@@ -35,6 +37,7 @@ import { IdentityModule } from '../identity/identity.module';
       TransportRoute,
       ProviderAvailability,
       TransportAssignment,
+      TransportQuote,
       ServiceAd, // for auto-linking transport providers to service marketplace
       User,
       // Repo-only access into the super-agents/shipments entities — NOT a
@@ -54,7 +57,11 @@ import { IdentityModule } from '../identity/identity.module';
     ]),
   ],
   controllers: [TransportController],
-  providers: [TransportService],
-  exports: [TransportService],
+  providers: [TransportService, TransportQuoteService],
+  // TransportQuoteService is exported now (unused by any other module yet)
+  // per Issue #61's own design requirement: a future Super Agent counter or
+  // Intent caller should be able to inject this same canonical authority
+  // without a module change here — neither is wired in during this gate.
+  exports: [TransportService, TransportQuoteService],
 })
 export class TransportModule {}
