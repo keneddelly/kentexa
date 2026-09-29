@@ -343,10 +343,39 @@ export class CommerceProfilesService {
     commerceProfileId: number,
   ): Promise<boolean> {
     if (!followerId) return false;
+    const profile = await this.findById(commerceProfileId);
     const row = await this.followRepo.findOne({
       where: { followerId, commerceProfileId },
     });
-    return !!row;
+    if (row) return true;
+
+    // Transitional compatibility: legacy store follows represent following
+    // the owner's BUSINESS profile. Read them here too so a profile page can
+    // never render "Follow" while the next click actually unfollows.
+    if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
+      const legacy = await this.legacyFollowRepo.findOne({
+        where: {
+          follower: { id: followerId },
+          seller: { id: profile.ownerId },
+        },
+      });
+      return !!legacy;
+    }
+    return false;
+  }
+
+  async getCanonicalFollowersCount(commerceProfileId: number): Promise<number> {
+    const profile = await this.findById(commerceProfileId);
+    const rows = await this.followRepo.find({ where: { commerceProfileId } });
+    const ids = new Set(rows.map((r) => r.followerId));
+    if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
+      const legacy = await this.legacyFollowRepo.find({
+        where: { seller: { id: profile.ownerId } },
+        relations: { follower: true },
+      });
+      legacy.forEach((r) => r.follower?.id && ids.add(r.follower.id));
+    }
+    return ids.size;
   }
 
   async toggleFollow(
@@ -366,9 +395,28 @@ export class CommerceProfilesService {
     const existing = await this.followRepo.findOne({
       where: { followerId, commerceProfileId },
     });
-    if (existing) {
-      await this.followRepo.remove(existing);
-      await this.repo.decrement({ id: commerceProfileId }, 'followersCount', 1);
+    const legacyExisting =
+      profileBefore.type === CommerceProfileType.BUSINESS && profileBefore.ownerId
+        ? await this.legacyFollowRepo.findOne({
+            where: {
+              follower: { id: followerId },
+              seller: { id: profileBefore.ownerId },
+            },
+          })
+        : null;
+    const wasFollowing = !!existing || !!legacyExisting;
+
+    if (wasFollowing) {
+      // Remove both representations if historical data contains both. One
+      // user is one follower; duplicate storage must never require two taps.
+      if (existing) {
+        await this.followRepo.remove(existing);
+        await this.repo.decrement({ id: commerceProfileId }, 'followersCount', 1);
+      }
+      if (legacyExisting && profileBefore.ownerId) {
+        await this.legacyFollowRepo.remove(legacyExisting);
+        await this.userRepo.decrement({ id: profileBefore.ownerId }, 'followersCount', 1);
+      }
     } else {
       await this.followRepo.save(
         this.followRepo.create({ followerId, commerceProfileId }),
@@ -376,13 +424,14 @@ export class CommerceProfilesService {
       await this.repo.increment({ id: commerceProfileId }, 'followersCount', 1);
     }
     const profile = await this.findById(commerceProfileId);
+    const canonicalFollowersCount = await this.getCanonicalFollowersCount(commerceProfileId);
 
     // Notify on a genuine new follow only, never on unfollow. Distinguish a
     // reciprocal follow-back (the profile owner already followed this
     // person first) from a cold new follow — same event, different
     // message, since "followed you back" is the thing that actually closes
     // the engagement loop for the ORIGINAL follower.
-    if (!existing && profile.ownerId) {
+    if (!wasFollowing && profile.ownerId) {
       const follower = await this.userRepo.findOne({ where: { id: followerId } });
       const followerName = follower?.name || follower?.storeName || 'Mtumiaji';
       const alreadyFollowedBack = await this.isFollowingSeller(profile.ownerId, followerId);
@@ -393,7 +442,7 @@ export class CommerceProfilesService {
     }
 
     this.activityEvents.record({
-      eventType: existing ? 'PROFILE_UNFOLLOWED' : 'PROFILE_FOLLOWED',
+      eventType: wasFollowing ? 'PROFILE_UNFOLLOWED' : 'PROFILE_FOLLOWED',
       category: ActivityCategory.SOCIAL,
       actorId: followerId,
       actorType: 'user',
@@ -403,7 +452,7 @@ export class CommerceProfilesService {
       targetId: commerceProfileId,
     });
 
-    return { following: !existing, followersCount: profile.followersCount };
+    return { following: !wasFollowing, followersCount: canonicalFollowersCount };
   }
 
   // Does this profile's owner already follow `viewerId` back (through
