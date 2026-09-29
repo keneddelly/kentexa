@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { ensureRouteStopDeferrableSequenceConstraint } from '../../transport/route-stop-schema';
 
 /**
  * Stage 3S-C1 — Ordered Route Stops + Immutable Run Itinerary Foundation.
@@ -27,6 +28,19 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * declares `type: 'enum'` for synchronize:true environments; this keeps the
  * SAME already-accepted, already-reviewed pattern rather than introducing
  * CREATE TYPE handling nothing else in this lineage uses.
+ *
+ * Second correction (post-re-review, still unreleased/review-only so this
+ * migration is corrected in place rather than layering a follow-up):
+ * route_stop's (routeId, sequence) uniqueness is now a DEFERRABLE UNIQUE
+ * CONSTRAINT (see route-stop-schema.ts) instead of a plain unique index.
+ * TransportRunService.reorderRouteStop() needs to swap two rows' sequence
+ * values within one transaction, and the first correction's temporary
+ * "reserved" positive sentinel (1_000_000_000 + id) was not actually
+ * guaranteed collision-free by this schema -- sequence's only constraint is
+ * >= 0, so any positive integer could already be a legitimately persisted
+ * value. Deferring the uniqueness check to commit time makes the swap
+ * correct by database contract rather than by an assumed-unused numeric
+ * range.
  */
 export class AddTransportRunFoundation1788285000000 implements MigrationInterface {
   name = 'AddTransportRunFoundation1788285000000';
@@ -54,8 +68,7 @@ export class AddTransportRunFoundation1788285000000 implements MigrationInterfac
         REFERENCES public.transport_route(id) ON DELETE CASCADE,
       CONSTRAINT "CHK_route_stop_sequence" CHECK (sequence >= 0)
     )`);
-    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_route_stop_sequence"
-      ON public.route_stop ("routeId", sequence)`);
+    await ensureRouteStopDeferrableSequenceConstraint((sql) => queryRunner.query(sql));
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_route_stop_route_active"
       ON public.route_stop ("routeId", "isActive")`);
 

@@ -14,6 +14,7 @@ import { TransportRoute, RouteType } from './entities/transport-route.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { TransportQuote } from './entities/transport-quote.entity';
 import { User } from '../users/entities/user.entity';
+import { ensureRouteStopDeferrableSequenceConstraint } from './route-stop-schema';
 
 /**
  * Stage 3S-C1 — Ordered Route Stops + Immutable Run Itinerary Foundation,
@@ -64,6 +65,12 @@ suite('Stage 3S-C1 — route stop / transport run foundation, real PostgreSQL', 
       entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, RouteStop, TransportRun, TransportRunStop, Shipment, TransportQuote],
     });
     await ds.initialize();
+    // synchronize:true only builds from entity decorators, which cannot
+    // express a DEFERRABLE unique constraint -- apply the exact same one
+    // the real migration applies (route-stop-schema.ts), so this spec's
+    // schema enforces (routeId, sequence) uniqueness identically to a real
+    // deployment, including its deferrability.
+    await ensureRouteStopDeferrableSequenceConstraint((sql) => ds.query(sql));
 
     providers = ds.getRepository(TransportProvider);
     routes = ds.getRepository(TransportRoute);

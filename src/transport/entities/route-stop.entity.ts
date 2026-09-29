@@ -31,20 +31,28 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
-  Index,
   Check,
 } from 'typeorm';
 import { TransportRoute } from './transport-route.entity';
 
-// Post-C1-review correction: declared here too (not just in the migration's
-// raw SQL), the same fix Stage 3S-B3 needed for shipment.quoteId's unique
-// index -- synchronize:true test databases build schema purely from entity
-// decorators, so the migration's CHK_route_stop_sequence constraint was
-// otherwise invisible to every real-PostgreSQL test in this lineage,
-// letting TransportRunService.reorderRouteStop's original negative-sentinel
-// swap pass tests it would have failed against a genuinely migrated table.
+// Post-C1-review correction: the CHECK is declared here too (not just in
+// the migration's raw SQL), the same fix Stage 3S-B3 needed for
+// shipment.quoteId's unique index -- synchronize:true test databases build
+// schema purely from entity decorators, so the migration's
+// CHK_route_stop_sequence constraint was otherwise invisible to every
+// real-PostgreSQL test in this lineage.
+//
+// (routeId, sequence) uniqueness is deliberately NOT declared via @Index/
+// @Unique here: it must be a DEFERRABLE constraint (see
+// route-stop-schema.ts's ensureRouteStopDeferrableSequenceConstraint, called
+// from the real migration and from any test needing it) so
+// TransportRunService.reorderRouteStop() can swap two rows' sequence values
+// within one transaction without a collision-prone temporary value.
+// TypeORM's decorators have no way to express deferrability -- the same
+// class of gap Stage 3S-B4's GiST exclusion constraint hit -- so declaring
+// a plain @Index here would create a SECOND, non-deferrable constraint that
+// defeats the whole point.
 @Entity('route_stop')
-@Index('UQ_route_stop_sequence', ['routeId', 'sequence'], { unique: true })
 @Check('CHK_route_stop_sequence', '"sequence" >= 0')
 export class RouteStop {
   @PrimaryGeneratedColumn()

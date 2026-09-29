@@ -153,33 +153,26 @@ export class TransportRunService {
   // Swaps this stop's sequence with whichever stop (if any) currently holds
   // `newSequence`.
   //
-  // Post-C1-review correction: the original approach staged the swap through
-  // a temporary NEGATIVE sentinel value. That violates the real,
-  // migration-enforced CHK_route_stop_sequence (sequence >= 0) constraint
-  // the moment that UPDATE executes -- a genuinely migrated database rejects
-  // it outright. The bug was invisible to this file's own real-PostgreSQL
-  // tests because they ran against a synchronize:true schema built only
-  // from entity decorators, which had no way to know about the migration's
-  // raw-SQL CHECK constraint (fixed alongside this correction by adding an
-  // equivalent @Check decorator directly on the RouteStop/TransportRunStop
-  // entities -- see those files).
+  // Post-C1-review correction (second round): the first correction replaced
+  // a negative sentinel with a "reserved-looking" positive one
+  // (1_000_000_000 + target.id), on the mistaken assumption that value was
+  // guaranteed collision-free. It was not: sequence's only constraint is
+  // >= 0, so nothing in this schema rules out a legitimately persisted stop
+  // already holding that exact number, and there is also no numeric value
+  // any schema-level proof could rule out short of restricting the column's
+  // usable range -- which would be inventing a second, undocumented
+  // invariant on top of the real one.
   //
-  // A single UPDATE...FROM(VALUES) swapping both rows' final values in one
-  // statement was tried and rejected during this correction: Postgres
-  // enforces a plain (non-deferrable) unique b-tree index incrementally as
-  // each target row is processed within a multi-row UPDATE, not only
-  // against the statement's final state -- so it can still raise a
-  // duplicate-key error mid-statement depending on row processing order.
-  // Making the unique index DEFERRABLE would fix that, but is a schema
-  // change beyond this bounded correction's scope.
-  //
-  // The fix that needs no schema change and never weakens the >= 0
-  // invariant: stage the swap through a temporary POSITIVE sentinel that is
-  // guaranteed to be both non-negative (never trips the CHECK) and
-  // collision-free (derived from the row's own id, so no two concurrent
-  // reorders of DIFFERENT rows can ever pick the same sentinel; the
-  // pessimistic_write locks below also fully serialize concurrent reorders
-  // of the SAME route regardless).
+  // The fix that is correct BY DATABASE CONTRACT rather than by an assumed
+  // numeric range: (routeId, sequence) is a DEFERRABLE unique constraint
+  // (route-stop-schema.ts's ensureRouteStopDeferrableSequenceConstraint,
+  // applied by the migration). Deferring it for the remainder of this
+  // transaction lets both rows move directly to their final, correct,
+  // non-negative, mutually distinct values -- uniqueness is then validated
+  // by Postgres at commit time against the ACTUAL final state, not assumed
+  // safe mid-transaction. CHK_route_stop_sequence (sequence >= 0) is
+  // untouched and unweakened -- neither row is ever assigned a negative
+  // value at any point.
   async reorderRouteStop(userId: number, routeId: number, stopId: number, newSequence: number): Promise<void> {
     await this.assertOwnsRoute(userId, routeId);
     if (!Number.isInteger(newSequence) || newSequence < 0) {
@@ -192,16 +185,13 @@ export class TransportRunService {
       if (target.sequence === newSequence) return;
 
       const occupant = await repo.findOne({ where: { routeId, sequence: newSequence }, lock: { mode: 'pessimistic_write' } });
-      // Comfortably below Postgres's int4 max (~2.147 billion) and, being
-      // derived from this row's own primary key, unique across every other
-      // row in the table -- never collides with a real sequence value or
-      // with another row's own sentinel.
-      const sentinel = 1_000_000_000 + target.id;
-      await repo.update({ id: target.id }, { sequence: sentinel });
+      // Transaction-scoped only (resets automatically at commit/rollback) --
+      // never affects any other transaction's view of this constraint.
+      await manager.query(`SET CONSTRAINTS "UQ_route_stop_sequence" DEFERRED`);
+      await repo.update({ id: target.id }, { sequence: newSequence });
       if (occupant) {
         await repo.update({ id: occupant.id }, { sequence: target.sequence });
       }
-      await repo.update({ id: target.id }, { sequence: newSequence });
     });
   }
 

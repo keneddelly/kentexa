@@ -122,28 +122,41 @@ suite('Stage 3S-C1 route stop / transport run foundation schema: real PostgreSQL
     await apply('up'); // leave the schema present for any later spec run in this file
   });
 
-  // Post-C1-review correction: proves TransportRunService.reorderRouteStop's
-  // ACTUAL swap technique (a temporary positive sentinel derived from the
-  // row's own id) against a schema created by running this migration's own
-  // up(), not a synchronize:true entity-driven one -- the exact gap the
-  // review flagged. The original implementation (a temporary NEGATIVE
-  // sentinel) would fail this test with "violates check constraint
-  // CHK_route_stop_sequence" the moment the first UPDATE executed.
-  it('reorderRouteStop\'s positive-sentinel swap technique succeeds against the real migrated schema, never touching CHK_route_stop_sequence or UQ_route_stop_sequence', async () => {
+  // Second post-C1-review correction: proves the (routeId, sequence)
+  // constraint on the REAL migrated schema is genuinely DEFERRABLE, and that
+  // deferring it lets both rows in a swap move DIRECTLY to their final
+  // values with no temporary value of any kind -- no sentinel, positive or
+  // negative. This directly disproves the collision the review flagged:
+  // without deferral, this exact sequence of statements would fail with
+  // "duplicate key value violates unique constraint UQ_route_stop_sequence"
+  // on the second UPDATE (stopB claiming stopA's old value 0 while stopA
+  // still held it, since Postgres checks a plain unique index per-statement,
+  // not only at transaction end).
+  it('(routeId, sequence) is a genuinely DEFERRABLE constraint on the real migrated schema -- a swap needs no temporary value at all once deferred', async () => {
     const [{ id: stopA }] = await insertRouteStop({ routeId: 1, sequence: 0, locationLabel: 'Kariakoo' });
     const [{ id: stopB }] = await insertRouteStop({ routeId: 1, sequence: 1, locationLabel: 'Bunju' });
 
-    // Reproduces exactly what reorderRouteStop() does: swap stopA (seq 0)
-    // and stopB (seq 1) via a positive, collision-free sentinel.
-    const sentinel = 1_000_000_000 + stopA;
-    await ds.query('UPDATE public.route_stop SET sequence = $1 WHERE id = $2', [sentinel, stopA]);
-    await ds.query('UPDATE public.route_stop SET sequence = $1 WHERE id = $2', [0, stopB]);
-    await ds.query('UPDATE public.route_stop SET sequence = $1 WHERE id = $2', [1, stopA]);
+    await ds.transaction(async (manager) => {
+      await manager.query(`SET CONSTRAINTS "UQ_route_stop_sequence" DEFERRED`);
+      // stopA -> 1 (stopB's current value) and stopB -> 0 (stopA's current
+      // value): a direct final-value swap, no intermediate sentinel.
+      await manager.query('UPDATE public.route_stop SET sequence = 1 WHERE id = $1', [stopA]);
+      await manager.query('UPDATE public.route_stop SET sequence = 0 WHERE id = $1', [stopB]);
+    });
 
     const rows = await ds.query(
       `SELECT id, sequence FROM public.route_stop WHERE "routeId" = 1 ORDER BY sequence`,
     );
     expect(rows).toEqual([{ id: stopB, sequence: 0 }, { id: stopA, sequence: 1 }]); // fully swapped
+
+    // Without SET CONSTRAINTS ... DEFERRED, the identical statement sequence
+    // fails outright -- proving deferral is what makes this legal, not an
+    // accident of statement ordering.
+    await expect(ds.transaction(async (manager) => {
+      await manager.query('UPDATE public.route_stop SET sequence = 0 WHERE id = $1', [stopA]);
+      await manager.query('UPDATE public.route_stop SET sequence = 1 WHERE id = $1', [stopB]);
+    })).rejects.toThrow();
+
     await ds.query('DELETE FROM public.route_stop WHERE "routeId" = 1');
   });
 });
