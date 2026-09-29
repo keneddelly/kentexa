@@ -12,6 +12,7 @@ import { ProviderAvailability, AvailabilityStatus } from './entities/provider-av
 import { TransportProvider, ProviderStatus, ProviderType } from './entities/transport-provider.entity';
 import { TransportRoute, RouteType } from './entities/transport-route.entity';
 import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
+import { ensureRoutePriceHistoryNoOverlapConstraint } from './route-price-history-schema';
 import { User } from '../users/entities/user.entity';
 
 /**
@@ -76,6 +77,11 @@ suite('Stage 3S-B4 — route price history and effective pricing, real PostgreSQ
       entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, TransportRoutePriceHistory, Shipment, TransportQuote],
     });
     await ds.initialize();
+    // synchronize:true only builds from entity decorators, which cannot
+    // express a range-EXCLUDE constraint -- apply the exact same one the
+    // real migration applies (route-price-history-schema.ts), so this
+    // spec's schema enforces non-overlap identically to a real deployment.
+    await ensureRoutePriceHistoryNoOverlapConstraint((sql) => ds.query(sql));
 
     providers = ds.getRepository(TransportProvider);
     routes = ds.getRepository(TransportRoute);
@@ -211,19 +217,126 @@ suite('Stage 3S-B4 — route price history and effective pricing, real PostgreSQ
     expect(await transport.getEffectiveRoutePrice(r.id, new Date(future.getTime() + 1000))).toEqual({ pricePerKg: 999, fixedFee: 999 });
   });
 
-  // ── overlapping/ambiguous windows fail closed ─────────────────────────────
-  it('rejects a new price version whose effectiveFrom is not strictly after the currently open version', async () => {
+  // ── a price for the past is always rejected -- no rewriting history ──────
+  it('rejects an effectiveFrom in the past', async () => {
     const { userId, provider } = await mkProviderWithUser();
     const r = await mkRoute(provider.id, { pricePerKg: 100, fixedFee: 100 });
-    const openBefore = await routes.findOneOrFail({ where: { id: r.id } }); // route.createdAt anchors the backfilled version
+    const past = new Date(Date.now() - 3600_000);
+    await expect(
+      transport.setRoutePrice(userId, r.id, { pricePerKg: 200, effectiveFrom: past }),
+    ).rejects.toThrow(BadRequestException);
+    expect(await transport.getEffectiveRoutePrice(r.id)).toEqual({ pricePerKg: 100, fixedFee: 100 }); // nothing mutated
+  });
 
+  // ── the model's central fix: current + multiple future schedules + an
+  // immediate correction that does NOT disturb an already-scheduled future
+  // price, all on one timeline ──────────────────────────────────────────────
+  it('supports current price + multiple future scheduled versions, resolving each in its own window', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id, { pricePerKg: 100, fixedFee: 100 });
+    const inOneHour = new Date(Date.now() + 3600_000);
+    const inTwoHours = new Date(Date.now() + 7200_000);
+
+    await transport.setRoutePrice(userId, r.id, { pricePerKg: 200, fixedFee: 200, effectiveFrom: inOneHour });
+    await transport.setRoutePrice(userId, r.id, { pricePerKg: 300, fixedFee: 300, effectiveFrom: inTwoHours });
+
+    expect(await transport.getEffectiveRoutePrice(r.id, new Date())).toEqual({ pricePerKg: 100, fixedFee: 100 });
+    expect(await transport.getEffectiveRoutePrice(r.id, new Date(inOneHour.getTime() + 1000))).toEqual({ pricePerKg: 200, fixedFee: 200 });
+    expect(await transport.getEffectiveRoutePrice(r.id, new Date(inTwoHours.getTime() + 1000))).toEqual({ pricePerKg: 300, fixedFee: 300 });
+
+    const all = await ds.query(
+      `SELECT "pricePerKg"::text pk, "effectiveFrom" ef, "effectiveTo" et FROM public.transport_route_price_history WHERE "routeId"=$1 ORDER BY "effectiveFrom"`,
+      [r.id],
+    );
+    expect(all).toHaveLength(3); // current (now closed at +1h) + the two scheduled versions
+    expect(Number(all[0].pk)).toBe(100);
+    expect(all[0].et.getTime()).toBe(inOneHour.getTime());
+    expect(Number(all[1].pk)).toBe(200);
+    expect(all[1].et.getTime()).toBe(inTwoHours.getTime());
+    expect(Number(all[2].pk)).toBe(300);
+    expect(all[2].et).toBeNull(); // the last one is open-ended
+  });
+
+  it('an immediate correction to today\'s price does not disturb an already-scheduled future price', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id, { pricePerKg: 100, fixedFee: 100 });
+    const future = new Date(Date.now() + 3600_000);
+    await transport.setRoutePrice(userId, r.id, { pricePerKg: 999, fixedFee: 999, effectiveFrom: future });
+
+    // Correct TODAY's price -- the future schedule must survive untouched.
+    const corrected = await transport.setRoutePrice(userId, r.id, { pricePerKg: 150, fixedFee: 150 });
+    expect(Number(corrected.pricePerKg)).toBe(150); // takes effect immediately
+
+    expect(await transport.getEffectiveRoutePrice(r.id, new Date())).toEqual({ pricePerKg: 150, fixedFee: 150 });
+    expect(await transport.getEffectiveRoutePrice(r.id, new Date(future.getTime() + 1000))).toEqual({ pricePerKg: 999, fixedFee: 999 }); // untouched
+  });
+
+  it('rescheduling (setRoutePrice at the SAME future effectiveFrom) updates that version in place, not a new split', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id, { pricePerKg: 100, fixedFee: 100 });
+    const future = new Date(Date.now() + 3600_000);
+    await transport.setRoutePrice(userId, r.id, { pricePerKg: 500, fixedFee: 500, effectiveFrom: future });
+    await transport.setRoutePrice(userId, r.id, { pricePerKg: 777, fixedFee: 777, effectiveFrom: future }); // same instant -- reschedule
+
+    const rows = await ds.query(`SELECT count(*)::int n FROM public.transport_route_price_history WHERE "routeId"=$1 AND "effectiveFrom"=$2`, [r.id, future]);
+    expect(rows[0].n).toBe(1); // still exactly one version at that instant, not two
+    expect(await transport.getEffectiveRoutePrice(r.id, new Date(future.getTime() + 1000))).toEqual({ pricePerKg: 777, fixedFee: 777 });
+    expect(await transport.getEffectiveRoutePrice(r.id, new Date())).toEqual({ pricePerKg: 100, fixedFee: 100 }); // today's price still untouched
+  });
+
+  it('cancelScheduledRoutePrice merges a future version back into its predecessor', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id, { pricePerKg: 100, fixedFee: 100 });
+    const future = new Date(Date.now() + 3600_000);
+    await transport.setRoutePrice(userId, r.id, { pricePerKg: 999, fixedFee: 999, effectiveFrom: future });
+
+    await transport.cancelScheduledRoutePrice(userId, r.id, future);
+
+    expect(await transport.getEffectiveRoutePrice(r.id, new Date(future.getTime() + 1000))).toEqual({ pricePerKg: 100, fixedFee: 100 }); // reverted
+    const open = await openVersion(r.id);
+    expect(Number(open.pk)).toBe(100); // the surviving (predecessor) row is open-ended again
+    const all = await ds.query(`SELECT count(*)::int n FROM public.transport_route_price_history WHERE "routeId"=$1`, [r.id]);
+    expect(all[0].n).toBe(1); // the future row is gone, merged back -- not left as orphaned dead data
+  });
+
+  it('cancelScheduledRoutePrice refuses to cancel an already-effective (current or past) version', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id, { pricePerKg: 100, fixedFee: 100 });
+    await transport.setRoutePrice(userId, r.id, { pricePerKg: 200, fixedFee: 200 }); // immediate -- already effective
+    const current = await routes.findOneOrFail({ where: { id: r.id } });
+    const currentVersionRow = (await ds.query(
+      `SELECT "effectiveFrom" ef FROM public.transport_route_price_history WHERE "routeId"=$1 AND "effectiveTo" IS NULL`, [r.id],
+    ))[0];
     await expect(
-      transport.setRoutePrice(userId, r.id, { pricePerKg: 200, effectiveFrom: new Date(openBefore.createdAt.getTime() - 1000) }),
+      transport.cancelScheduledRoutePrice(userId, r.id, currentVersionRow.ef),
     ).rejects.toThrow(ConflictException);
-    await expect(
-      transport.setRoutePrice(userId, r.id, { pricePerKg: 200, effectiveFrom: openBefore.createdAt }),
-    ).rejects.toThrow(ConflictException); // exactly equal is also rejected -- must be STRICTLY after
-    expect(await transport.getEffectiveRoutePrice(r.id)).toEqual({ pricePerKg: 100, fixedFee: 100 }); // nothing was mutated by the rejected attempts
+    expect(await transport.getEffectiveRoutePrice(r.id)).toEqual({ pricePerKg: 200, fixedFee: 200 }); // unaffected
+  });
+
+  // ── overlap fails closed under genuine concurrency, through the SERVICE ──
+  it('two concurrent setRoutePrice calls for the SAME route never both succeed with overlapping windows', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id, { pricePerKg: 100, fixedFee: 100 });
+    const future = new Date(Date.now() + 3600_000); // the SAME target instant from two callers at once
+
+    const results = await Promise.allSettled([
+      transport.setRoutePrice(userId, r.id, { pricePerKg: 111, effectiveFrom: future }),
+      transport.setRoutePrice(userId, r.id, { pricePerKg: 222, effectiveFrom: future }),
+    ]);
+    // The route-row pessimistic lock serializes these -- the second call
+    // observes the first's committed row and reschedules it in place (same
+    // effectiveFrom = update, not a conflicting insert), so both may
+    // legitimately succeed; what must NEVER happen is two overlapping rows.
+    const rejected = results.filter((r2) => r2.status === 'rejected');
+    expect(rejected.length).toBeLessThanOrEqual(1);
+    const rows = await ds.query(
+      `SELECT "effectiveFrom" ef, "effectiveTo" et FROM public.transport_route_price_history WHERE "routeId"=$1 ORDER BY "effectiveFrom"`,
+      [r.id],
+    );
+    for (let i = 1; i < rows.length; i++) {
+      const prevEnd = rows[i - 1].et ? new Date(rows[i - 1].et).getTime() : Infinity;
+      expect(prevEnd).toBeLessThanOrEqual(new Date(rows[i].ef).getTime()); // never overlapping
+    }
   });
 
   it('rejects a negative price and an invalid effectiveFrom', async () => {

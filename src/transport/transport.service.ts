@@ -12,7 +12,7 @@ import {
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import {
   capacityWeightKg,
   releaseSlotAtomic,
@@ -384,20 +384,34 @@ export class TransportService {
     return { pricePerKg: Number(route.pricePerKg), fixedFee: Number(route.fixedFee) };
   }
 
-  // Stage 3S-B4: the ONLY write path for a route's price. Called from
-  // updateRoute() (the existing, sole route-management endpoint/authority --
-  // ownership is already enforced there via getMyProfile()+providerId, not
-  // duplicated here); never overwrites a prior price in place. Closes the
-  // currently-open history version and opens a new one in the SAME
-  // transaction, so there is never a gap or an overlap. `effectiveFrom`
-  // defaults to now (an immediate change) but may be given a future instant
-  // to schedule one -- in that case the route's own denormalized
-  // pricePerKg/fixedFee columns (read directly by admin/route-listing code,
-  // never by discovery/quote/shipment pricing) deliberately keep showing the
-  // still-current price until that instant actually arrives, since nothing
-  // here runs a background job to flip them early or exactly on time;
-  // getEffectiveRoutePrice() is the one authority that is always correct
-  // regardless of whether that denormalized cache has caught up yet.
+  // Stage 3S-B4 (post-review correction): the ONLY write path for a route's
+  // price. Called from updateRoute() (the existing, sole route-management
+  // endpoint/authority -- ownership is already enforced there via
+  // getMyProfile()+providerId, not duplicated here); never overwrites a
+  // prior price in place.
+  //
+  // The version model supports one currently-effective version, zero or more
+  // future-scheduled versions, and an immediate correction that does not
+  // disturb an already-scheduled future version: the new version SPLITS
+  // whichever existing window currently covers the requested `effectiveFrom`
+  // instant, inheriting that window's own `effectiveTo` (so anything
+  // scheduled beyond it is untouched), and truncates that window to end
+  // exactly where the new one begins. Calling this again with the SAME
+  // `effectiveFrom` as an existing not-yet-superseded version (most commonly
+  // re-editing a future schedule before it takes effect) updates that
+  // version's price IN PLACE instead of splitting -- an explicit reschedule,
+  // not a new window. `effectiveFrom` must never be in the past (no
+  // rewriting history); the two genuinely mutating cases are therefore
+  // "now" (an immediate correction) and "a future instant" (a schedule).
+  //
+  // The DB-level range-EXCLUDE constraint (route-price-history-schema.ts) is
+  // the actual, concurrency-proof backstop against overlap; the
+  // pessimistic_write lock on the route row below serializes concurrent
+  // callers for the SAME route so the in-memory "find the covering version"
+  // step is never racing another write to that same route, but the
+  // constraint is what fails a write closed even if that serialization were
+  // ever bypassed (a second writer, a bug) -- see
+  // transport-route-price-history.real-postgres.spec.ts's concurrency proof.
   async setRoutePrice(
     userId: number,
     routeId: number,
@@ -422,18 +436,27 @@ export class TransportService {
       ) {
         throw new BadRequestException('pricePerKg and fixedFee must be non-negative numbers');
       }
-      const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date();
+      const now = new Date();
+      const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : now;
       if (Number.isNaN(effectiveFrom.getTime())) {
         throw new BadRequestException('Invalid effectiveFrom');
       }
+      if (effectiveFrom.getTime() < now.getTime()) {
+        throw new BadRequestException('effectiveFrom cannot be in the past');
+      }
 
       // Backfill: this route predates Stage 3S-B4 versioning (no history row
-      // exists for it yet) -- open its first version now, at the route's own
-      // createdAt, using its current (pre-B4) plain columns, so history
-      // becomes gapless from this point on without a separate data migration.
-      let open = await historyRepo.findOne({ where: { routeId: route.id, effectiveTo: IsNull() } });
-      if (!open) {
-        open = await historyRepo.save(historyRepo.create({
+      // exists for it yet) -- seed its first version at the route's own
+      // createdAt, open-ended, using its current (pre-B4) plain columns, so
+      // history becomes gapless from this point on without a separate data
+      // migration.
+      let versions = await historyRepo.find({
+        where: { routeId: route.id },
+        order: { effectiveFrom: 'ASC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (versions.length === 0) {
+        const seed = await historyRepo.save(historyRepo.create({
           routeId: route.id,
           pricePerKg: route.pricePerKg,
           fixedFee: route.fixedFee,
@@ -441,29 +464,117 @@ export class TransportService {
           effectiveTo: null,
           changedByUserId: null,
         }));
-      }
-      if (effectiveFrom.getTime() <= new Date(open.effectiveFrom).getTime()) {
-        throw new ConflictException(
-          'A new price must take effect after the currently active price version',
-        );
+        versions = [seed];
       }
 
-      open.effectiveTo = effectiveFrom;
-      await historyRepo.save(open);
-      await historyRepo.save(historyRepo.create({
-        routeId: route.id,
-        pricePerKg: nextPricePerKg,
-        fixedFee: nextFixedFee,
-        effectiveFrom,
-        effectiveTo: null,
-        changedByUserId: userId,
-      }));
+      const covering = versions.find(
+        (v) =>
+          v.effectiveFrom.getTime() <= effectiveFrom.getTime() &&
+          (v.effectiveTo === null || new Date(v.effectiveTo).getTime() > effectiveFrom.getTime()),
+      );
+      if (!covering) {
+        // effectiveFrom >= now is enforced above, and the earliest version
+        // always starts at route.createdAt <= now, so every valid
+        // effectiveFrom falls inside exactly one existing window -- this
+        // should be structurally unreachable, but fail closed rather than
+        // silently doing something undefined if it ever is.
+        throw new ConflictException('No price version covers the requested effective time');
+      }
 
-      // The common case (no future scheduling): the new version is already
-      // effective, so keep the route's own denormalized columns in sync too.
-      if (effectiveFrom.getTime() <= Date.now()) {
+      if (covering.effectiveFrom.getTime() === effectiveFrom.getTime()) {
+        // Reschedule in place: same version identity (its own start time is
+        // unchanged), only its price changes. No other row's window is
+        // touched, so this can never create an overlap or a gap.
+        covering.pricePerKg = nextPricePerKg;
+        covering.fixedFee = nextFixedFee;
+        await historyRepo.save(covering);
+      } else {
+        // Genuine split: the new version starts partway through `covering`'s
+        // window and inherits whatever `covering` used to end at --
+        // preserving any later scheduled version beyond it untouched.
+        const inheritedEffectiveTo = covering.effectiveTo;
+        covering.effectiveTo = effectiveFrom;
+        await historyRepo.save(covering);
+        await historyRepo.save(historyRepo.create({
+          routeId: route.id,
+          pricePerKg: nextPricePerKg,
+          fixedFee: nextFixedFee,
+          effectiveFrom,
+          effectiveTo: inheritedEffectiveTo,
+          changedByUserId: userId,
+        }));
+      }
+
+      // Keep the route's own denormalized columns in sync exactly when this
+      // write actually changes what's effective RIGHT NOW -- true whenever
+      // effectiveFrom <= now (an immediate correction, or a reschedule of
+      // the version that already covers now); false for a genuine future
+      // schedule, which must not leak into these columns early.
+      if (effectiveFrom.getTime() <= now.getTime()) {
         route.pricePerKg = nextPricePerKg;
         route.fixedFee = nextFixedFee;
+        await routeRepo.save(route);
+      }
+      return route;
+    });
+  }
+
+  // Stage 3S-B4 (post-review correction): cancels a genuinely future,
+  // not-yet-effective scheduled price version, merging its window back into
+  // the version immediately preceding it (which now simply extends to cover
+  // what the cancelled version used to). Refuses to touch a version that has
+  // already become (or already was) effective -- only a still-future
+  // schedule can be retracted this way; an already-active version can only
+  // be superseded going forward via setRoutePrice, never deleted, since it
+  // is real audit history the moment any part of its window has passed.
+  async cancelScheduledRoutePrice(
+    userId: number,
+    routeId: number,
+    effectiveFrom: string | Date,
+  ): Promise<TransportRoute> {
+    const p = await this.getMyProfile(userId);
+    const target = new Date(effectiveFrom);
+    if (Number.isNaN(target.getTime())) {
+      throw new BadRequestException('Invalid effectiveFrom');
+    }
+    return this.dataSource.transaction(async (manager) => {
+      const routeRepo = manager.getRepository(TransportRoute);
+      const historyRepo = manager.getRepository(TransportRoutePriceHistory);
+
+      const route = await routeRepo.findOne({
+        where: { id: routeId, providerId: p.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!route) throw new NotFoundException('Njia haijapatikana');
+
+      const version = await historyRepo.findOne({
+        where: { routeId: route.id, effectiveFrom: target },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!version) throw new NotFoundException('Scheduled price version not found');
+      if (version.effectiveFrom.getTime() <= Date.now()) {
+        throw new ConflictException('Only a future, not-yet-effective price version can be cancelled');
+      }
+
+      const predecessor = await historyRepo.findOne({
+        where: { routeId: route.id, effectiveTo: version.effectiveFrom },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!predecessor) {
+        throw new ConflictException('No predecessor version found to merge the cancelled schedule into');
+      }
+      // Delete the cancelled version BEFORE extending its predecessor to
+      // cover the gap -- doing it in the other order would momentarily leave
+      // both rows overlapping (the extended predecessor's new window would
+      // fully contain the still-present version's own window), which the
+      // range-EXCLUDE constraint correctly refuses even mid-transaction.
+      await historyRepo.remove(version);
+      predecessor.effectiveTo = version.effectiveTo;
+      await historyRepo.save(predecessor);
+
+      if (predecessor.effectiveFrom.getTime() <= Date.now()) {
+        route.pricePerKg = predecessor.pricePerKg;
+        route.fixedFee = predecessor.fixedFee;
         await routeRepo.save(route);
       }
       return route;

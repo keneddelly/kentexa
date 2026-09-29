@@ -65,11 +65,70 @@ suite('Stage 3S-B4 transport route price history schema: real PostgreSQL', () =>
 
   it('enforces at most one OPEN (effectiveTo IS NULL) version per route', async () => {
     await insertVersion({ routeId: 1, effectiveTo: null });
-    await expect(insertVersion({ routeId: 1, effectiveTo: null })).rejects.toThrow(); // partial unique index
+    await expect(insertVersion({ routeId: 1, effectiveTo: null })).rejects.toThrow(); // range-exclude: two [x,infinity) windows always overlap
     await insertVersion({ routeId: 2, effectiveTo: null }); // a different route's own open row is fine
-    // a route MAY have any number of CLOSED versions alongside its one open one
+    // a route MAY have any number of CLOSED versions alongside its one open one, as long as none overlap
     await insertVersion({ routeId: 1, effectiveFrom: '2020-01-01', effectiveTo: '2020-06-01' });
     await ds.query('DELETE FROM public.transport_route_price_history');
+  });
+
+  // Post-review correction: the ORIGINAL migration only ever protected the
+  // single open-ended row -- it never stopped two CLOSED windows for the
+  // same route from overlapping. Proves the replacement range-EXCLUDE
+  // constraint (route-price-history-schema.ts) rejects that case directly,
+  // at the DB level, independent of any service-layer discipline.
+  it('rejects overlapping CLOSED windows for the same route -- the gap the original migration left open', async () => {
+    await insertVersion({ routeId: 1, effectiveFrom: '2020-01-01', effectiveTo: '2020-06-01' });
+    // Fully contained inside the first window.
+    await expect(insertVersion({ routeId: 1, effectiveFrom: '2020-02-01', effectiveTo: '2020-03-01' })).rejects.toThrow();
+    // Partial overlap on each side.
+    await expect(insertVersion({ routeId: 1, effectiveFrom: '2019-12-01', effectiveTo: '2020-02-01' })).rejects.toThrow();
+    await expect(insertVersion({ routeId: 1, effectiveFrom: '2020-05-01', effectiveTo: '2020-08-01' })).rejects.toThrow();
+    // Exactly adjacent (touching, not overlapping) is fine -- windows are half-open [from, to).
+    await expect(insertVersion({ routeId: 1, effectiveFrom: '2020-06-01', effectiveTo: '2020-09-01' })).resolves.toHaveLength(1);
+    // The identical overlap on a DIFFERENT route is unaffected.
+    await expect(insertVersion({ routeId: 2, effectiveFrom: '2020-02-01', effectiveTo: '2020-03-01' })).resolves.toHaveLength(1);
+    await ds.query('DELETE FROM public.transport_route_price_history');
+  });
+
+  // Concurrency proof, not just sequential: two transactions each attempt to
+  // insert an overlapping window for the SAME route at (as close to) the
+  // same instant as this test can force. The range-EXCLUDE constraint must
+  // let exactly one through and fail the other, never both, regardless of
+  // interleaving -- the whole point being this holds even if some future
+  // caller bypasses TransportService.setRoutePrice's own serializing lock.
+  it('rejects a genuinely concurrent overlapping insert -- the DB itself serializes it, not just the service', async () => {
+    const runnerA = ds.createQueryRunner();
+    const runnerB = ds.createQueryRunner();
+    await runnerA.connect();
+    await runnerB.connect();
+    await runnerA.startTransaction();
+    await runnerB.startTransaction();
+    try {
+      const insertA = runnerA.query(
+        `INSERT INTO public.transport_route_price_history ("routeId","pricePerKg","fixedFee","effectiveFrom","effectiveTo")
+         VALUES (1,100,50,'2021-01-01','2021-06-01') RETURNING id`,
+      );
+      const insertB = runnerB.query(
+        `INSERT INTO public.transport_route_price_history ("routeId","pricePerKg","fixedFee","effectiveFrom","effectiveTo")
+         VALUES (1,200,60,'2021-03-01','2021-09-01') RETURNING id`,
+      );
+      const results = await Promise.allSettled([
+        insertA.then(async (r) => { await runnerA.commitTransaction(); return r; }),
+        insertB.then(async (r) => { await runnerB.commitTransaction(); return r; }),
+      ]);
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1); // exactly one of the two genuinely overlapping writes wins
+      expect(rejected).toHaveLength(1);
+      expect((await ds.query(`SELECT count(*)::int n FROM public.transport_route_price_history WHERE "routeId"=1`))[0].n).toBe(1);
+    } finally {
+      await runnerA.rollbackTransaction().catch(() => {});
+      await runnerB.rollbackTransaction().catch(() => {});
+      await runnerA.release();
+      await runnerB.release();
+      await ds.query('DELETE FROM public.transport_route_price_history');
+    }
   });
 
   it('refuses populated rollback; empty down and up round-trip', async () => {

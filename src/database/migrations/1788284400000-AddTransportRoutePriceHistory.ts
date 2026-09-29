@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { ensureRoutePriceHistoryNoOverlapConstraint } from '../../transport/route-price-history-schema';
 
 /**
  * Stage 3S-B4 — Route Price History + Effective Pricing. Schema only: no
@@ -11,6 +12,17 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Stage 3S-B3's own AddTransportQuote migration). A future "ship Stage 3S"
  * migration must create transport_route (and every table depending on it,
  * including this one) together, in dependency order.
+ *
+ * Post-review correction: the original version of this migration relied on
+ * "at most one effectiveTo IS NULL row per route" as its only overlap guard.
+ * That only ever protected the single open-ended row -- it never stopped two
+ * CLOSED windows (e.g. a historical version and a future-scheduled one) from
+ * overlapping, which would leave discovery/quote's `ORDER BY effectiveFrom
+ * DESC LIMIT 1` resolver picking one of them ambiguously instead of failing
+ * closed. Replaced with a proper range-EXCLUDE constraint (see
+ * route-price-history-schema.ts) that forbids ANY two rows for the same
+ * route from overlapping at all, enforced by Postgres itself under
+ * concurrent writers exactly like a unique constraint would be.
  */
 export class AddTransportRoutePriceHistory1788284400000 implements MigrationInterface {
   name = 'AddTransportRoutePriceHistory1788284400000';
@@ -36,15 +48,7 @@ export class AddTransportRoutePriceHistory1788284400000 implements MigrationInte
     )`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_route_price_history_route_effective"
       ON public.transport_route_price_history ("routeId", "effectiveFrom")`);
-    // At most one OPEN (currently/future effective, not yet superseded)
-    // version per route -- the DB-level guarantee against ambiguous/
-    // overlapping active windows a concurrent price edit could otherwise
-    // create. TransportService.setRoutePrice() always closes the existing
-    // open row (effectiveTo = the new row's effectiveFrom) in the SAME
-    // transaction that opens the next one, so this index should never be
-    // hit in the normal path; it exists as the fail-closed backstop.
-    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_route_price_history_open"
-      ON public.transport_route_price_history ("routeId") WHERE "effectiveTo" IS NULL`);
+    await ensureRoutePriceHistoryNoOverlapConstraint((sql) => queryRunner.query(sql));
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {

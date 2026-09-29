@@ -3,14 +3,26 @@
  * versioning for TransportRoute.pricePerKg/fixedFee.
  * Place at: src/transport/entities/transport-route-price-history.entity.ts
  *
- * A provider price edit never overwrites a prior price in place -- it closes
- * the currently-open version (effectiveTo = the new version's effectiveFrom)
- * and opens a new one. At most one OPEN (effectiveTo IS NULL) row exists per
- * route at any time (DB-enforced partial unique index in the migration),
- * which is what makes "the currently effective price" a single deterministic
- * row: WHERE routeId = X AND effectiveFrom <= now() AND (effectiveTo IS NULL
- * OR effectiveTo > now()). Rows are read/audit data once superseded --
- * TransportService never deletes or rewrites a closed version.
+ * A provider price edit never overwrites a prior price in place. Rows form a
+ * timeline of non-overlapping [effectiveFrom, effectiveTo) windows for a
+ * route -- the currently effective price is always the single deterministic
+ * row matching WHERE routeId = X AND effectiveFrom <= now() AND (effectiveTo
+ * IS NULL OR effectiveTo > now()). "effectiveTo IS NULL" means open-ended
+ * into the future (no later version scheduled yet), NOT "the currently
+ * active one" -- a route may have a currently-active CLOSED version (it ends
+ * where an already-scheduled future version begins) plus that future OPEN
+ * version beyond it. TransportService.setRoutePrice() supports inserting a
+ * new version that SPLITS whichever existing window currently covers the
+ * requested effective instant (an immediate correction splits the active
+ * window without disturbing a later scheduled one; a reschedule at the same
+ * instant as an existing version updates it in place). Non-overlap itself is
+ * a cross-row invariant no @Check/@Unique/@Index decorator can express, so
+ * it is enforced by a range-EXCLUDE constraint applied out-of-band by
+ * route-price-history-schema.ts's ensureRoutePriceHistoryNoOverlapConstraint
+ * (called from both the real migration and every real-Postgres test's
+ * synchronize:true schema). Rows are read/audit data once superseded --
+ * TransportService never deletes or rewrites an already-past window; only a
+ * genuinely future, not-yet-effective version may be cancelled/merged back.
  */
 import {
   Entity,
