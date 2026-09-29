@@ -110,6 +110,7 @@ export class CommerceProfilesController {
     @Body()
     dto: {
       displayName?: string;
+      username?: string;
       photoUrl?: string;
       coverImage?: string;
       bio?: string;
