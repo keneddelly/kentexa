@@ -61,6 +61,12 @@ import {
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
 
+// Stage 3S-B2: the only three comparison orders discovery supports. An
+// unrecognised/absent value is never an error here — every caller treats it
+// as "use the default", which findAvailableForRoute defines as 'earliest'.
+export type DiscoverySortBy = 'cheapest' | 'fastest' | 'earliest';
+export const DISCOVERY_SORT_VALUES: readonly DiscoverySortBy[] = ['cheapest', 'fastest', 'earliest'];
+
 @Injectable()
 export class TransportService {
   constructor(
@@ -596,7 +602,7 @@ export class TransportService {
     fromCity: string,
     toCity: string,
     weightKg = 0,
-    opts: { allowUnconstrainedSide?: boolean } = {},
+    opts: { allowUnconstrainedSide?: boolean; sortBy?: DiscoverySortBy } = {},
   ): Promise<{
     published: ProviderAvailability[];
     providers: TransportProvider[];
@@ -662,9 +668,36 @@ export class TransportService {
         { weightKg },
       );
     }
+    // Stage 3S-B2: comparison sort — read-side only, no capacity/Shipment/
+    // custody write anywhere in this method. Unspecified/unrecognised sortBy
+    // preserves the EXACT prior default (earliest departure), so every
+    // existing caller (Shipment discovery, the coverage map, the specs
+    // above) keeps its current behaviour unchanged. A trip with no linked
+    // TransportRoute has no price/duration to compare by (a route-less
+    // manually-published slot only ever carried fromCity/toCity/date/time)
+    // — such trips sort to the END of a price/duration ordering (NULLS
+    // LAST) rather than falsely tying at zero, and still appear normally
+    // under 'earliest'. `a.id` is the final, deterministic tiebreaker for
+    // every mode: it is the one value guaranteed stable and unique across
+    // repeated identical searches.
+    const cheapestExpr = 'CASE WHEN r.id IS NULL THEN NULL ELSE GREATEST(COALESCE(r."pricePerKg", 0) * :cmpWeight, COALESCE(r."fixedFee", 0)) END';
+    switch (opts.sortBy) {
+      case 'cheapest':
+        publishedQuery
+          .addSelect(cheapestExpr, 'cheapest_price')
+          .setParameter('cmpWeight', weightKg > 0 ? weightKg : 0)
+          .orderBy('cheapest_price', 'ASC', 'NULLS LAST');
+        break;
+      case 'fastest':
+        publishedQuery.orderBy('r.estimatedHours', 'ASC', 'NULLS LAST');
+        break;
+      case 'earliest':
+      default:
+        publishedQuery.orderBy('a.date', 'ASC').addOrderBy('a.departureTime', 'ASC');
+        break;
+    }
     const published = await publishedQuery
-      .orderBy('a.date', 'ASC')
-      .addOrderBy('a.departureTime', 'ASC')
+      .addOrderBy('a.id', 'ASC')
       .getMany();
 
     // All verified providers covering this route (even without published availability)
@@ -712,15 +745,23 @@ export class TransportService {
   // TransportProvider entity (apiKey, contract fields, contactEmail, admin
   // notes) embedded in every result the way findAvailableForRoute's
   // internal shape does. Same underlying query, safe projection on top.
-  async findPublicAvailabilityForRoute(fromCity: string, toCity: string) {
+  // weightKg/sortBy are additive (Stage 3S-B2): both optional, both default
+  // to the exact prior behaviour (unspecified weight, earliest-departure
+  // order) — an existing caller passing neither sees no change at all.
+  async findPublicAvailabilityForRoute(
+    fromCity: string,
+    toCity: string,
+    weightKg = 0,
+    sortBy?: DiscoverySortBy,
+  ) {
     // The public coverage page sends `to=` (empty) meaning "from X, anywhere":
     // an absent/exactly-empty side is an explicit, literal "unconstrained"
     // here only -- never a wildcard pattern, and never whitespace-only text.
     const { published, providers } = await this.findAvailableForRoute(
       fromCity,
       toCity,
-      0,
-      { allowUnconstrainedSide: true },
+      weightKg,
+      { allowUnconstrainedSide: true, sortBy },
     );
     return {
       trips: published.map((a) => ({
@@ -738,6 +779,10 @@ export class TransportService {
         ),
         pricePerKg: (a as any).route?.pricePerKg ?? null,
         fixedFee: (a as any).route?.fixedFee ?? null,
+        // Canonical journey duration (Stage 3S-B2) — the same TransportRoute
+        // field 'fastest' sorts by; null when no route is linked (a
+        // manually-published slot has no journey-time data to report).
+        estimatedHours: (a as any).route?.estimatedHours ?? null,
       })),
       providers: providers.map((p) => this.toSafeProvider(p)),
     };

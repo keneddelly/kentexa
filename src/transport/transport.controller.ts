@@ -20,7 +20,7 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
-import { TransportService } from './transport.service';
+import { TransportService, DiscoverySortBy, DISCOVERY_SORT_VALUES } from './transport.service';
 import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
 import { VerificationService } from '../identity/verification.service';
@@ -133,9 +133,24 @@ export class TransportController {
   // including apiKey/contract fields, embedded in every result) to anyone.
   // Same underlying query now goes through a safe, credential-free
   // projection instead.
+  //
+  // Stage 3S-B2: `sortBy`/`weightKg` are additive query params. Neither is
+  // required — a caller supplying neither (every existing caller today) sees
+  // byte-for-byte the same trips in the same order as before this stage.
   @Get('available')
-  findAvailable(@Query('from') from: string, @Query('to') to: string) {
-    return this.svc.findPublicAvailabilityForRoute(from, to);
+  findAvailable(
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('weightKg') weightKgRaw?: string,
+  ) {
+    const parsedSort = DISCOVERY_SORT_VALUES.includes(sortBy as DiscoverySortBy)
+      ? (sortBy as DiscoverySortBy)
+      : undefined; // unrecognised/absent -> findAvailableForRoute's own default ('earliest')
+    const weightKg = Number(weightKgRaw);
+    return this.svc.findPublicAvailabilityForRoute(
+      from, to, Number.isFinite(weightKg) && weightKg > 0 ? weightKg : 0, parsedSort,
+    );
   }
 
   // ── PUBLIC: CONSUMER SEARCH (AI front door) ───────────────────────────────
