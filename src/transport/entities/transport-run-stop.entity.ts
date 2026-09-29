@@ -30,12 +30,16 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  Check,
 } from 'typeorm';
 import { TransportRun } from './transport-run.entity';
 import { RouteStop } from './route-stop.entity';
 
+// Declared here too, not just in the migration's raw SQL -- see
+// RouteStop's own identical comment for why (post-C1-review correction).
 @Entity('transport_run_stop')
 @Index('UQ_transport_run_stop_sequence', ['runId', 'sequence'], { unique: true })
+@Check('CHK_transport_run_stop_sequence', '"sequence" >= 0')
 export class TransportRunStop {
   @PrimaryGeneratedColumn()
   id: number;

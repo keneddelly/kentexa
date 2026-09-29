@@ -151,8 +151,35 @@ export class TransportRunService {
   }
 
   // Swaps this stop's sequence with whichever stop (if any) currently holds
-  // `newSequence` -- staged through a temporary negative sentinel so the
-  // (routeId, sequence) unique index is never violated mid-operation.
+  // `newSequence`.
+  //
+  // Post-C1-review correction: the original approach staged the swap through
+  // a temporary NEGATIVE sentinel value. That violates the real,
+  // migration-enforced CHK_route_stop_sequence (sequence >= 0) constraint
+  // the moment that UPDATE executes -- a genuinely migrated database rejects
+  // it outright. The bug was invisible to this file's own real-PostgreSQL
+  // tests because they ran against a synchronize:true schema built only
+  // from entity decorators, which had no way to know about the migration's
+  // raw-SQL CHECK constraint (fixed alongside this correction by adding an
+  // equivalent @Check decorator directly on the RouteStop/TransportRunStop
+  // entities -- see those files).
+  //
+  // A single UPDATE...FROM(VALUES) swapping both rows' final values in one
+  // statement was tried and rejected during this correction: Postgres
+  // enforces a plain (non-deferrable) unique b-tree index incrementally as
+  // each target row is processed within a multi-row UPDATE, not only
+  // against the statement's final state -- so it can still raise a
+  // duplicate-key error mid-statement depending on row processing order.
+  // Making the unique index DEFERRABLE would fix that, but is a schema
+  // change beyond this bounded correction's scope.
+  //
+  // The fix that needs no schema change and never weakens the >= 0
+  // invariant: stage the swap through a temporary POSITIVE sentinel that is
+  // guaranteed to be both non-negative (never trips the CHECK) and
+  // collision-free (derived from the row's own id, so no two concurrent
+  // reorders of DIFFERENT rows can ever pick the same sentinel; the
+  // pessimistic_write locks below also fully serialize concurrent reorders
+  // of the SAME route regardless).
   async reorderRouteStop(userId: number, routeId: number, stopId: number, newSequence: number): Promise<void> {
     await this.assertOwnsRoute(userId, routeId);
     if (!Number.isInteger(newSequence) || newSequence < 0) {
@@ -165,7 +192,11 @@ export class TransportRunService {
       if (target.sequence === newSequence) return;
 
       const occupant = await repo.findOne({ where: { routeId, sequence: newSequence }, lock: { mode: 'pessimistic_write' } });
-      const sentinel = -Math.abs(target.id) - 1_000_000;
+      // Comfortably below Postgres's int4 max (~2.147 billion) and, being
+      // derived from this row's own primary key, unique across every other
+      // row in the table -- never collides with a real sequence value or
+      // with another row's own sentinel.
+      const sentinel = 1_000_000_000 + target.id;
       await repo.update({ id: target.id }, { sequence: sentinel });
       if (occupant) {
         await repo.update({ id: occupant.id }, { sequence: target.sequence });

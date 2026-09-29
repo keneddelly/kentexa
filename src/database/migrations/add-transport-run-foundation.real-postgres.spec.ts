@@ -121,4 +121,29 @@ suite('Stage 3S-C1 route stop / transport run foundation schema: real PostgreSQL
     expect((await ds.query(`SELECT to_regclass('public.route_stop') AS t`))[0].t).toBeNull();
     await apply('up'); // leave the schema present for any later spec run in this file
   });
+
+  // Post-C1-review correction: proves TransportRunService.reorderRouteStop's
+  // ACTUAL swap technique (a temporary positive sentinel derived from the
+  // row's own id) against a schema created by running this migration's own
+  // up(), not a synchronize:true entity-driven one -- the exact gap the
+  // review flagged. The original implementation (a temporary NEGATIVE
+  // sentinel) would fail this test with "violates check constraint
+  // CHK_route_stop_sequence" the moment the first UPDATE executed.
+  it('reorderRouteStop\'s positive-sentinel swap technique succeeds against the real migrated schema, never touching CHK_route_stop_sequence or UQ_route_stop_sequence', async () => {
+    const [{ id: stopA }] = await insertRouteStop({ routeId: 1, sequence: 0, locationLabel: 'Kariakoo' });
+    const [{ id: stopB }] = await insertRouteStop({ routeId: 1, sequence: 1, locationLabel: 'Bunju' });
+
+    // Reproduces exactly what reorderRouteStop() does: swap stopA (seq 0)
+    // and stopB (seq 1) via a positive, collision-free sentinel.
+    const sentinel = 1_000_000_000 + stopA;
+    await ds.query('UPDATE public.route_stop SET sequence = $1 WHERE id = $2', [sentinel, stopA]);
+    await ds.query('UPDATE public.route_stop SET sequence = $1 WHERE id = $2', [0, stopB]);
+    await ds.query('UPDATE public.route_stop SET sequence = $1 WHERE id = $2', [1, stopA]);
+
+    const rows = await ds.query(
+      `SELECT id, sequence FROM public.route_stop WHERE "routeId" = 1 ORDER BY sequence`,
+    );
+    expect(rows).toEqual([{ id: stopB, sequence: 0 }, { id: stopA, sequence: 1 }]); // fully swapped
+    await ds.query('DELETE FROM public.route_stop WHERE "routeId" = 1');
+  });
 });

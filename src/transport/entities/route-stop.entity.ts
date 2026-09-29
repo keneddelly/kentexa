@@ -32,11 +32,20 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  Check,
 } from 'typeorm';
 import { TransportRoute } from './transport-route.entity';
 
+// Post-C1-review correction: declared here too (not just in the migration's
+// raw SQL), the same fix Stage 3S-B3 needed for shipment.quoteId's unique
+// index -- synchronize:true test databases build schema purely from entity
+// decorators, so the migration's CHK_route_stop_sequence constraint was
+// otherwise invisible to every real-PostgreSQL test in this lineage,
+// letting TransportRunService.reorderRouteStop's original negative-sentinel
+// swap pass tests it would have failed against a genuinely migrated table.
 @Entity('route_stop')
 @Index('UQ_route_stop_sequence', ['routeId', 'sequence'], { unique: true })
+@Check('CHK_route_stop_sequence', '"sequence" >= 0')
 export class RouteStop {
   @PrimaryGeneratedColumn()
   id: number;
