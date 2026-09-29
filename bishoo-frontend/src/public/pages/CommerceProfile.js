@@ -238,6 +238,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [profile,    setProfile]    = useState(null);
   const [rep,        setRep]        = useState(null);
   const [feed,       setFeed]       = useState([]);
+  const [savedPostIds, setSavedPostIds] = useState([]);
   // Instagram-style profile grid: tapping a thumbnail opens the full post
   // (image/caption/comments/CTA — everything FeedPost already rendered
   // inline) in an overlay instead of losing that content to a thumbnail.
@@ -343,7 +344,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       // profile would bleed that same person's store products into a
       // profile that has nothing to do with selling products.
       activeProfile.type === 'business' ? api.get(`/products/seller/${uid}`) : Promise.resolve({data:[]}),
-    ]).then(([p,r,f,o,s,a,cl,pr]) => {
+      isLoggedIn ? api.get('/feed/saved/ids').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+    ]).then(([p,r,f,o,s,a,cl,pr,saved]) => {
       if (p.status==='fulfilled') setProfile(p.value.data);
       if (r.status==='fulfilled') setRep(r.value.data);
       if (f.status==='fulfilled') setFeed(f.value.data || []);
@@ -352,6 +354,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       if (a.status==='fulfilled') setAgentData(a.value.data);
       if (cl.status==='fulfilled') setClassifieds(cl.value.data || []);
       if (pr.status==='fulfilled') setProducts(pr.value.data || []);
+      if (saved.status==='fulfilled') setSavedPostIds(saved.value.data || []);
     }).finally(() => setLoading(false));
 
     setPublicAgentData(null); setPublicHubData(null); setPublicTransportData(null);
@@ -993,6 +996,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 <FeedPost f={openPost} onNavigate={onNavigate}
                   isLoggedIn={isLoggedIn} currentUser={currentUser}
                   activeProfileId={viewerActiveProfileId}
+                  initiallyLiked={savedPostIds.includes(openPost.id)}
                   onDeleted={(postId) => {
                     setFeed(prev => prev.filter(item => item.id !== postId));
                     setOpenPostId(null);
@@ -1622,10 +1626,10 @@ const PostThread = ({ postId, isLoggedIn, onNavigate, activeProfileId }) => {
   );
 };
 
-const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId, onDeleted }) => {
+const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId, initiallyLiked = false, onDeleted }) => {
   const { t } = useTranslation();
   const [showComments, setShowComments] = useState(false);
-  const [liked, setLiked] = useState(false);
+  const [liked, setLiked] = useState(initiallyLiked);
   const [likeCount, setLikeCount] = useState(Number(f.saveCount || 0));
   const [sharing, setSharing] = useState(false);
   const [deleting, setDeleting] = useState(false);
