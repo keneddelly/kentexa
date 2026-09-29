@@ -26,7 +26,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
   const [changingPassword, setChangingPassword] = useState(false);
   const [message, setMessage]   = useState('');
   const [error, setError]       = useState('');
-  const [form, setForm]         = useState({ name: '', phone: '', email: '', city: '', bio: '' });
+  const [form, setForm]         = useState({ name: '', username: '', phone: '', email: '', city: '', bio: '' });
   const [saving, setSaving]     = useState(false);
   const [avatarUrl, setAvatarUrl]   = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -53,14 +53,17 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [profileRes, ordersRes] = await Promise.all([
+      const [profileRes, ordersRes, commerceProfilesRes] = await Promise.all([
         api.get('/auth/profile'),
         api.get('/orders/my-orders'),
+        api.get('/profiles/mine').catch(() => ({ data: [] })),
       ]);
+      const personalProfile = (commerceProfilesRes.data || []).find(p => p.type === 'personal');
       setProfile(profileRes.data);
       setOrders(ordersRes.data);
       setForm({
-        email: profileRes.data.email || '', name: profileRes.data.name || '', phone: profileRes.data.phone || '',
+        email: profileRes.data.email || '', name: profileRes.data.name || '',
+        username: personalProfile?.username || '', phone: profileRes.data.phone || '',
         city: profileRes.data.city || '', bio: profileRes.data.bio || '',
       });
       setAvatarUrl(profileRes.data.avatarUrl || '');
@@ -81,6 +84,11 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
     }
     setError('');
     try {
+      const personalProfiles = await api.get('/profiles/mine').catch(() => ({ data: [] }));
+      const personalProfile = (personalProfiles.data || []).find(p => p.type === 'personal');
+      if (personalProfile && form.username.trim()) {
+        await api.patch(`/profiles/${personalProfile.id}`, { username: form.username.trim() });
+      }
       await api.patch(`/users/${profile.id}`, {
         name:  form.name.trim(),
         phone: form.phone.trim() || undefined,
@@ -100,6 +108,8 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         // Handle specific errors
         if (msg.includes('phone') || msg.includes('simu')) {
           setError('Namba hii ya simu tayari inatumika na akaunti nyingine.');
+        } else if (msg.toLowerCase().includes('username') || msg.toLowerCase().includes('reserved')) {
+          setError(msg);
         } else if (msg.includes('email')) {
           setError('Barua pepe hii tayari inatumika na akaunti nyingine.');
         } else {
@@ -357,7 +367,11 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.phone')}</label>
+                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>Username</label>
+                <input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })}
+                  placeholder="@username" autoCapitalize="none" autoCorrect="off"
+                  style={{ width:'100%', boxSizing:'border-box', padding:10, border:'1px solid #CBD5E1', borderRadius:10, marginBottom:12, fontSize:16 }} />
+                                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.phone')}</label>
                 <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
                   placeholder={t('profile.phone_placeholder')}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
