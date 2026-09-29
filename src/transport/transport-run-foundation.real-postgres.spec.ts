@@ -8,6 +8,7 @@ import { TransportRunService } from './transport-run.service';
 import { RouteStop } from './entities/route-stop.entity';
 import { TransportRun, TransportRunStatus } from './entities/transport-run.entity';
 import { TransportRunStop } from './entities/transport-run-stop.entity';
+import { Vehicle } from './entities/vehicle.entity';
 import { ProviderAvailability } from './entities/provider-availability.entity';
 import { TransportProvider, ProviderStatus, ProviderType } from './entities/transport-provider.entity';
 import { TransportRoute, RouteType } from './entities/transport-route.entity';
@@ -62,7 +63,7 @@ suite('Stage 3S-C1 — route stop / transport run foundation, real PostgreSQL', 
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
-      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, RouteStop, TransportRun, TransportRunStop, Shipment, TransportQuote],
+      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, RouteStop, TransportRun, TransportRunStop, Vehicle, Shipment, TransportQuote],
     });
     await ds.initialize();
     // synchronize:true only builds from entity decorators, which cannot

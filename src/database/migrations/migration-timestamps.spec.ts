@@ -38,10 +38,16 @@ describe('migration timestamps', () => {
     expect(stamp(priceHistory)).toBeGreaterThan(1788283800000);
   });
 
-  it('Stage 3S-C1\'s route/run foundation migration sorts AFTER price-history and is currently the latest', () => {
+  it('Stage 3S-C1\'s route/run foundation migration sorts AFTER price-history', () => {
     const runFoundation = files.find((f) => f.includes('AddTransportRunFoundation'))!;
     expect(runFoundation).toBe('1788285000000-AddTransportRunFoundation.ts');
     expect(stamp(runFoundation)).toBeGreaterThan(1788284400000);
-    expect(files.every((f) => stamp(f) <= stamp(runFoundation))).toBe(true);
+  });
+
+  it('Stage 3S-C2\'s vehicle foundation migration sorts AFTER route/run foundation and is currently the latest', () => {
+    const vehicle = files.find((f) => f.includes('AddVehicleFoundation'))!;
+    expect(vehicle).toBe('1788285600000-AddVehicleFoundation.ts');
+    expect(stamp(vehicle)).toBeGreaterThan(1788285000000);
+    expect(files.every((f) => stamp(f) <= stamp(vehicle))).toBe(true);
   });
 });

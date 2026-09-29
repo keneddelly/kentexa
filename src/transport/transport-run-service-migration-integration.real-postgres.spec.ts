@@ -3,11 +3,13 @@ import { Client } from 'pg';
 import { DataSource, Repository } from 'typeorm';
 import { getB5BTestConnectionConfig, resetB5BTestSchema, B5B_BASE_ENTITIES } from '../business/b5b-closure-test-db';
 import { AddTransportRunFoundation1788285000000 } from '../database/migrations/1788285000000-AddTransportRunFoundation';
+import { AddVehicleFoundation1788285600000 } from '../database/migrations/1788285600000-AddVehicleFoundation';
 import { TransportService } from './transport.service';
 import { TransportRunService } from './transport-run.service';
 import { RouteStop } from './entities/route-stop.entity';
 import { TransportRun } from './entities/transport-run.entity';
 import { TransportRunStop } from './entities/transport-run-stop.entity';
+import { Vehicle } from './entities/vehicle.entity';
 import { TransportProvider, ProviderStatus, ProviderType } from './entities/transport-provider.entity';
 import { TransportRoute, RouteType } from './entities/transport-route.entity';
 import { User } from '../users/entities/user.entity';
@@ -79,7 +81,14 @@ suite('Stage 3S-C1 — TransportRunService against a migration-created schema, r
     await bootstrap.initialize();
     await bootstrap.destroy();
 
-    // Step 2: this gate's OWN tables, created by literally running the migration.
+    // Step 2: this gate's OWN tables, created by literally running the
+    // migration. Stage 3S-C2's own migration is also applied here -- since
+    // TransportRun.vehicleId is now a real column on the SAME entity this
+    // file exercises, the ORM issues it on every insert regardless of
+    // whether a given test assigns a vehicle, so the physical column must
+    // exist. This is a genuine, expected cross-migration dependency C2
+    // introduced (an additive column on an existing table), not a
+    // divergence from C1's own migration content.
     const migrationDs = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: false, entities: [],
@@ -87,6 +96,7 @@ suite('Stage 3S-C1 — TransportRunService against a migration-created schema, r
     await migrationDs.initialize();
     const runner = migrationDs.createQueryRunner();
     await new AddTransportRunFoundation1788285000000().up(runner);
+    await new AddVehicleFoundation1788285600000().up(runner);
     await runner.release();
     await migrationDs.destroy();
 
@@ -94,7 +104,7 @@ suite('Stage 3S-C1 — TransportRunService against a migration-created schema, r
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: false, extra: { max: 20 },
-      entities: [...B5B_BASE_ENTITIES, TransportRoute, RouteStop, TransportRun, TransportRunStop],
+      entities: [...B5B_BASE_ENTITIES, TransportRoute, RouteStop, TransportRun, TransportRunStop, Vehicle],
     });
     await ds.initialize();
 

@@ -15,6 +15,7 @@ import { TransportRoutePriceHistory } from './entities/transport-route-price-his
 import { RouteStop } from './entities/route-stop.entity';
 import { TransportRun } from './entities/transport-run.entity';
 import { TransportRunStop } from './entities/transport-run-stop.entity';
+import { Vehicle } from './entities/vehicle.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { User } from '../users/entities/user.entity';
 import { TransportService } from './transport.service';
@@ -47,6 +48,7 @@ import { IdentityModule } from '../identity/identity.module';
       RouteStop,
       TransportRun,
       TransportRunStop,
+      Vehicle,
       ServiceAd, // for auto-linking transport providers to service marketplace
       User,
       // Repo-only access into the super-agents/shipments entities — NOT a

@@ -18,6 +18,13 @@
  * TransportRunStop (snapshotted once at creation) is the sole execution
  * authority for that. Editing the source TransportRoute after this Run
  * exists must never change this Run's own itinerary.
+ *
+ * Stage 3S-C2: `vehicleId` is an additive, optional assignment (nullable --
+ * a Run may be scheduled before a vehicle is decided, exactly like
+ * TransportAssignment already allows manual work without a published
+ * availability slot). This does not touch the RouteStop/TransportRunStop
+ * snapshot contract or the reorder/creation invariants C1 established --
+ * it only records WHICH vehicle executes an already-immutable itinerary.
  */
 import {
   Entity,
@@ -30,6 +37,7 @@ import {
 } from 'typeorm';
 import { TransportProvider } from './transport-provider.entity';
 import { TransportRoute } from './transport-route.entity';
+import { Vehicle } from './vehicle.entity';
 
 export enum TransportRunStatus {
   SCHEDULED = 'scheduled', // created, not yet open for anything downstream
@@ -74,6 +82,13 @@ export class TransportRun {
 
   @Column({ type: 'int' })
   createdByUserId: number;
+
+  @ManyToOne(() => Vehicle, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'vehicleId' })
+  vehicle: Vehicle | null;
+
+  @Column({ type: 'int', nullable: true })
+  vehicleId: number | null;
 
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;

@@ -26,6 +26,8 @@ import { RouteStop } from './entities/route-stop.entity';
 import { TransportRoute } from './entities/transport-route.entity';
 import { TransportRun, TransportRunStatus } from './entities/transport-run.entity';
 import { TransportRunStop } from './entities/transport-run-stop.entity';
+import { Vehicle, VehicleOperationalStatus } from './entities/vehicle.entity';
+import { ProviderType } from './entities/transport-provider.entity';
 import { TransportService } from './transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 
@@ -57,6 +59,25 @@ export interface CreateRunDto {
   scheduledDeparture: string | Date;
 }
 
+export interface AddVehicleDto {
+  identifier: string;
+  registrationPlate?: string | null;
+  type: ProviderType;
+  parcelCapacity?: number | null;
+  weightCapacityKg?: number | null;
+  volumeCapacityM3?: number | null;
+}
+
+export interface UpdateVehicleDto {
+  identifier?: string;
+  registrationPlate?: string | null;
+  type?: ProviderType;
+  parcelCapacity?: number | null;
+  weightCapacityKg?: number | null;
+  volumeCapacityM3?: number | null;
+  operationalStatus?: VehicleOperationalStatus;
+}
+
 @Injectable()
 export class TransportRunService {
   constructor(
@@ -67,6 +88,11 @@ export class TransportRunService {
     private readonly transportService: TransportService,
     private readonly tzLocation: TzLocationService,
     private readonly dataSource: DataSource,
+    // Appended last and optional, per this lineage's own established
+    // convention (e.g. ShipmentsService.quoteRepo in Stage 3S-B3), so every
+    // existing hand-constructed positional test double from C1 keeps
+    // compiling and passing unchanged.
+    @InjectRepository(Vehicle) private vehicleRepo?: Repository<Vehicle>,
   ) {}
 
   // Best-effort, never-blocking ward/region resolution -- the SAME pattern
@@ -280,5 +306,102 @@ export class TransportRunService {
 
   async getRunStops(runId: number): Promise<TransportRunStop[]> {
     return this.runStopRepo.find({ where: { runId }, order: { sequence: 'ASC' } });
+  }
+
+  // ── Vehicle administration (Stage 3S-C2) ──────────────────────────────────
+  // Provider-scoped, without assuming Kentexa ownership (Issue #62 section
+  // E). Deliberately minimal: no admin UI, no driver/operator, no capacity
+  // RESERVATION algorithm -- a Vehicle here is a reusable resource record
+  // that can be assigned to a TransportRun (assignVehicleToRun below), not
+  // yet consulted by any pricing/capacity/manifest logic.
+
+  private requireVehicleRepo(): Repository<Vehicle> {
+    if (!this.vehicleRepo) throw new Error('Vehicle support is not configured on this TransportRunService instance');
+    return this.vehicleRepo;
+  }
+
+  async addVehicle(userId: number, dto: AddVehicleDto): Promise<Vehicle> {
+    const provider = await this.transportService.getMyProfile(userId);
+    const identifier = dto.identifier?.trim();
+    if (!identifier) throw new BadRequestException('identifier is required');
+    for (const [key, value] of Object.entries({
+      parcelCapacity: dto.parcelCapacity, weightCapacityKg: dto.weightCapacityKg, volumeCapacityM3: dto.volumeCapacityM3,
+    })) {
+      if (value != null && (!Number.isFinite(value) || value < 0)) {
+        throw new BadRequestException(`${key} must be a non-negative number`);
+      }
+    }
+    const vehicle = this.requireVehicleRepo().create({
+      providerId: provider.id,
+      identifier,
+      registrationPlate: dto.registrationPlate?.trim() || null,
+      type: dto.type,
+      parcelCapacity: dto.parcelCapacity ?? null,
+      weightCapacityKg: dto.weightCapacityKg ?? null,
+      volumeCapacityM3: dto.volumeCapacityM3 ?? null,
+      isActive: true,
+      operationalStatus: VehicleOperationalStatus.AVAILABLE,
+    });
+    return this.requireVehicleRepo().save(vehicle);
+  }
+
+  async listVehicles(userId: number): Promise<Vehicle[]> {
+    const provider = await this.transportService.getMyProfile(userId);
+    return this.requireVehicleRepo().find({ where: { providerId: provider.id }, order: { id: 'ASC' } });
+  }
+
+  async updateVehicle(userId: number, vehicleId: number, dto: UpdateVehicleDto): Promise<Vehicle> {
+    const provider = await this.transportService.getMyProfile(userId);
+    const vehicle = await this.requireVehicleRepo().findOne({ where: { id: vehicleId, providerId: provider.id } });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+    if (dto.identifier !== undefined) {
+      const identifier = dto.identifier.trim();
+      if (!identifier) throw new BadRequestException('identifier cannot be empty');
+      vehicle.identifier = identifier;
+    }
+    if (dto.registrationPlate !== undefined) vehicle.registrationPlate = dto.registrationPlate?.trim() || null;
+    if (dto.type !== undefined) vehicle.type = dto.type;
+    for (const key of ['parcelCapacity', 'weightCapacityKg', 'volumeCapacityM3'] as const) {
+      const value = dto[key];
+      if (value !== undefined) {
+        if (value != null && (!Number.isFinite(value) || value < 0)) {
+          throw new BadRequestException(`${key} must be a non-negative number`);
+        }
+        vehicle[key] = value;
+      }
+    }
+    if (dto.operationalStatus !== undefined) vehicle.operationalStatus = dto.operationalStatus;
+    return this.requireVehicleRepo().save(vehicle);
+  }
+
+  async deactivateVehicle(userId: number, vehicleId: number): Promise<Vehicle> {
+    const provider = await this.transportService.getMyProfile(userId);
+    const vehicle = await this.requireVehicleRepo().findOne({ where: { id: vehicleId, providerId: provider.id } });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+    vehicle.isActive = false;
+    vehicle.operationalStatus = VehicleOperationalStatus.RETIRED;
+    return this.requireVehicleRepo().save(vehicle);
+  }
+
+  // Assigns (or reassigns) a vehicle to a Run. Both the Run and the Vehicle
+  // must belong to the SAME caller-owned provider -- this never lets a
+  // provider borrow another provider's vehicle. Refuses on a
+  // cancelled/completed Run (assigning a vehicle to a Run that's already
+  // over is never meaningful) and on an inactive Vehicle. Does not touch
+  // RouteStop/TransportRunStop or any capacity/manifest state -- purely
+  // records which vehicle executes an already-immutable itinerary.
+  async assignVehicleToRun(userId: number, runId: number, vehicleId: number): Promise<TransportRun> {
+    const provider = await this.transportService.getMyProfile(userId);
+    const run = await this.runRepo.findOne({ where: { id: runId, providerId: provider.id } });
+    if (!run) throw new NotFoundException('Run not found');
+    if (run.status === TransportRunStatus.CANCELLED || run.status === TransportRunStatus.COMPLETED) {
+      throw new ConflictException('Cannot assign a vehicle to a cancelled or completed Run');
+    }
+    const vehicle = await this.requireVehicleRepo().findOne({ where: { id: vehicleId, providerId: provider.id } });
+    if (!vehicle) throw new NotFoundException('Vehicle not found');
+    if (!vehicle.isActive) throw new BadRequestException('That vehicle is not active');
+
+    run.vehicleId = vehicle.id;
+    return this.runRepo.save(run);
   }
 }
