@@ -70,11 +70,12 @@ export class CommerceProfilesController {
   @UseGuards(OptionalJwtAuthGuard)
   async getById(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const profile = await this.service.findById(id);
-    const [isFollowing, isFollowedBy] = await Promise.all([
+    const [isFollowing, isFollowedBy, followersCount] = await Promise.all([
       this.service.isFollowing(req.user?.id, id),
       this.service.isFollowedBy(id, req.user?.id),
+      this.service.getCanonicalFollowersCount(id),
     ]);
-    return { ...profile, isFollowing, isFollowedBy };
+    return { ...profile, followersCount, isFollowing, isFollowedBy };
   }
 
   // Reviews scoped to THIS profile — never account-wide. Public: reviews
