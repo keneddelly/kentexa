@@ -992,7 +992,11 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                 </div>
                 <FeedPost f={openPost} onNavigate={onNavigate}
                   isLoggedIn={isLoggedIn} currentUser={currentUser}
-                  activeProfileId={viewerActiveProfileId} />
+                  activeProfileId={viewerActiveProfileId}
+                  onDeleted={(postId) => {
+                    setFeed(prev => prev.filter(item => item.id !== postId));
+                    setOpenPostId(null);
+                  }} />
               </div>
             </div>
           );
@@ -1618,10 +1622,56 @@ const PostThread = ({ postId, isLoggedIn, onNavigate, activeProfileId }) => {
   );
 };
 
-const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId }) => {
+const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId, onDeleted }) => {
   const { t } = useTranslation();
   const [showComments, setShowComments] = useState(false);
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(Number(f.saveCount || 0));
+  const [sharing, setSharing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const isTagged = !!(f.linkedEntityType && f.linkedEntityId);
+  const isOwner = !!currentUser?.id && Number(currentUser.id) === Number(f.businessId);
+
+  const requireLogin = () => {
+    if (isLoggedIn) return true;
+    onNavigate('PublicLogin');
+    return false;
+  };
+
+  const handleLike = async () => {
+    if (!requireLogin()) return;
+    try {
+      const res = await api.post(`/feed/${f.id}/engage`, { type: 'save' });
+      const next = res.data?.toggled ?? !liked;
+      setLiked(next);
+      setLikeCount(n => Math.max(0, n + (next ? 1 : -1)));
+    } catch {}
+  };
+
+  const handleShare = async () => {
+    if (!requireLogin() || sharing) return;
+    try {
+      setSharing(true);
+      await api.post(`/feed/${f.id}/engage`, { type: 'share' }).catch(() => {});
+      const url = window.location.href;
+      if (navigator.share) await navigator.share({ title: f.title, url }).catch(() => {});
+      else await navigator.clipboard?.writeText(url);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!isOwner || deleting) return;
+    if (!window.confirm('Delete this post?')) return;
+    try {
+      setDeleting(true);
+      await api.delete(`/feed/${f.id}`);
+      onDeleted?.(f.id);
+    } catch {
+      setDeleting(false);
+    }
+  };
 
   // Was completely unclickable — tapping the photo/title did nothing except
   // the explicit comment/CTA buttons. Tagged posts (product/service/
@@ -1664,18 +1714,38 @@ const FeedPost = ({ f, onNavigate, isLoggedIn, currentUser, activeProfileId }) =
           marginTop:10, maxHeight:420, objectFit:'cover',
           cursor: isTagged ? 'pointer' : 'default' }} />
       )}
-      {((f.saveCount||0) > 0 || (f.commentCount||0) > 0) && (
+      {(likeCount > 0 || (f.commentCount||0) > 0) && (
         <div style={{ fontSize:12, fontWeight:700, color:DK, marginTop:10 }}>
-          {(f.saveCount||0) > 0 && t('commerce_profile.liked_count', { count: Number(f.saveCount).toLocaleString() })}
-          {(f.saveCount||0) > 0 && (f.commentCount||0) > 0 && '  ·  '}
+          {likeCount > 0 && t('commerce_profile.liked_count', { count: likeCount.toLocaleString() })}
+          {likeCount > 0 && (f.commentCount||0) > 0 && '  ·  '}
           {(f.commentCount||0) > 0 && t('commerce_profile.comment_count', { count: Number(f.commentCount) })}
         </div>
       )}
-      <button onClick={() => setShowComments(s => !s)}
-        style={{ background:'none', border:'none', cursor:'pointer', padding:0,
-          marginTop:6, color:GR, fontSize:12, fontWeight:700 }}>
-        {showComments ? t('commerce_profile.hide_comments') : (f.commentCount||0) > 0 ? t('commerce_profile.view_comments') : t('commerce_profile.comment_button')}
-      </button>
+      <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:8,
+        borderTop:'1px solid #F1F5F9', borderBottom:'1px solid #F1F5F9', padding:'6px 0' }}>
+        <button onClick={handleLike}
+          style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
+            color: liked ? '#DC2626' : GR, fontSize:13, fontWeight:800 }}>
+          {liked ? '♥' : '♡'} Like
+        </button>
+        <button onClick={() => setShowComments(s => !s)}
+          style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
+            color: showComments ? B : GR, fontSize:13, fontWeight:800 }}>
+          💬 Comment
+        </button>
+        <button onClick={handleShare} disabled={sharing}
+          style={{ flex:1, background:'none', border:'none', cursor:'pointer', padding:'8px 4px',
+            color:GR, fontSize:13, fontWeight:800, opacity:sharing ? 0.6 : 1 }}>
+          ↗ Share
+        </button>
+        {isOwner && (
+          <button onClick={handleDelete} disabled={deleting}
+            style={{ background:'none', border:'none', cursor:'pointer', padding:'8px 8px',
+              color:'#DC2626', fontSize:13, fontWeight:800, opacity:deleting ? 0.6 : 1 }}>
+            🗑 Delete
+          </button>
+        )}
+      </div>
       {f.ctaLabel && f.linkedEntityId && (
         <button onClick={() => onNavigate(`ClassifiedDetail-${f.linkedEntityId}`)}
           style={{ marginTop:10, backgroundColor:B, color:WH,
