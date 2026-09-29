@@ -6,6 +6,7 @@ import { TransportService } from './transport.service';
 import { ProviderAvailability, AvailabilityStatus } from './entities/provider-availability.entity';
 import { TransportProvider, ProviderStatus, ProviderType } from './entities/transport-provider.entity';
 import { TransportRoute, RouteType } from './entities/transport-route.entity';
+import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
 
 /**
  * Stage 3S-B2 — Discovery Comparison, proved against REAL PostgreSQL: the
@@ -61,7 +62,7 @@ suite('Stage 3S-B2 — transport discovery sorting, real PostgreSQL', () => {
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
-      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute],
+      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, TransportRoutePriceHistory],
     });
     await ds.initialize();
     // Shipment isn't in this DataSource's entity set (kept minimal, matching

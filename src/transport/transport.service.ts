@@ -12,7 +12,7 @@ import {
 import { ReputationService } from '../reputation/reputation.service';
 import { ReputationEventType } from '../reputation/entities/reputation-event.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import {
   capacityWeightKg,
   releaseSlotAtomic,
@@ -53,6 +53,7 @@ import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-even
 import { assertFirstMileComplete } from '../shipments/first-mile-guard';
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
+import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
 import { RoleContextService } from '../role-context/role-context.service';
 import type { RoleContext } from '../role-context/role-context.types';
 import {
@@ -349,6 +350,126 @@ export class TransportService {
     return availability;
   }
 
+  // Stage 3S-B4: the ONE deterministic resolver for "what does this route
+  // actually cost right now" -- discovery's cheapest sort, quote creation,
+  // and Shipment's own inline pricing all resolve through this rather than
+  // reading TransportRoute.pricePerKg/fixedFee directly, so a scheduled
+  // future price change can never leak early and an already-frozen
+  // TransportQuote/Shipment (which never call this again after creation)
+  // can never be affected by a later edit. Falls back to the route's own
+  // plain columns only for a route that predates this table and has never
+  // been price-edited since (no history row exists yet for it at all) --
+  // existence of the route itself is therefore always validated, whether by
+  // that fallback or implicitly (a real history row's FK guarantees its
+  // route exists).
+  async getEffectiveRoutePrice(
+    routeId: number,
+    at: Date = new Date(),
+  ): Promise<{ pricePerKg: number; fixedFee: number }> {
+    // Uses the routeRepo's own manager (matching this file's established
+    // "repo.manager as the default connection" convention, e.g. reserveSlot's
+    // `em ?? this.availabilityRepo.manager`) rather than this.dataSource
+    // directly -- a plain read needs no transaction.
+    const rows = await this.routeRepo.manager.query(
+      `SELECT "pricePerKg", "fixedFee" FROM public.transport_route_price_history
+       WHERE "routeId" = $1 AND "effectiveFrom" <= $2 AND ("effectiveTo" IS NULL OR "effectiveTo" > $2)
+       ORDER BY "effectiveFrom" DESC LIMIT 1`,
+      [routeId, at],
+    );
+    if (rows.length) {
+      return { pricePerKg: Number(rows[0].pricePerKg), fixedFee: Number(rows[0].fixedFee) };
+    }
+    const route = await this.routeRepo.findOne({ where: { id: routeId } });
+    if (!route) throw new NotFoundException('Route not found');
+    return { pricePerKg: Number(route.pricePerKg), fixedFee: Number(route.fixedFee) };
+  }
+
+  // Stage 3S-B4: the ONLY write path for a route's price. Called from
+  // updateRoute() (the existing, sole route-management endpoint/authority --
+  // ownership is already enforced there via getMyProfile()+providerId, not
+  // duplicated here); never overwrites a prior price in place. Closes the
+  // currently-open history version and opens a new one in the SAME
+  // transaction, so there is never a gap or an overlap. `effectiveFrom`
+  // defaults to now (an immediate change) but may be given a future instant
+  // to schedule one -- in that case the route's own denormalized
+  // pricePerKg/fixedFee columns (read directly by admin/route-listing code,
+  // never by discovery/quote/shipment pricing) deliberately keep showing the
+  // still-current price until that instant actually arrives, since nothing
+  // here runs a background job to flip them early or exactly on time;
+  // getEffectiveRoutePrice() is the one authority that is always correct
+  // regardless of whether that denormalized cache has caught up yet.
+  async setRoutePrice(
+    userId: number,
+    routeId: number,
+    dto: { pricePerKg?: number; fixedFee?: number; effectiveFrom?: string | Date },
+  ): Promise<TransportRoute> {
+    const p = await this.getMyProfile(userId);
+    return this.dataSource.transaction(async (manager) => {
+      const routeRepo = manager.getRepository(TransportRoute);
+      const historyRepo = manager.getRepository(TransportRoutePriceHistory);
+
+      const route = await routeRepo.findOne({
+        where: { id: routeId, providerId: p.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!route) throw new NotFoundException('Njia haijapatikana');
+
+      const nextPricePerKg = dto.pricePerKg != null ? Number(dto.pricePerKg) : Number(route.pricePerKg);
+      const nextFixedFee = dto.fixedFee != null ? Number(dto.fixedFee) : Number(route.fixedFee);
+      if (
+        !Number.isFinite(nextPricePerKg) || nextPricePerKg < 0 ||
+        !Number.isFinite(nextFixedFee) || nextFixedFee < 0
+      ) {
+        throw new BadRequestException('pricePerKg and fixedFee must be non-negative numbers');
+      }
+      const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : new Date();
+      if (Number.isNaN(effectiveFrom.getTime())) {
+        throw new BadRequestException('Invalid effectiveFrom');
+      }
+
+      // Backfill: this route predates Stage 3S-B4 versioning (no history row
+      // exists for it yet) -- open its first version now, at the route's own
+      // createdAt, using its current (pre-B4) plain columns, so history
+      // becomes gapless from this point on without a separate data migration.
+      let open = await historyRepo.findOne({ where: { routeId: route.id, effectiveTo: IsNull() } });
+      if (!open) {
+        open = await historyRepo.save(historyRepo.create({
+          routeId: route.id,
+          pricePerKg: route.pricePerKg,
+          fixedFee: route.fixedFee,
+          effectiveFrom: route.createdAt,
+          effectiveTo: null,
+          changedByUserId: null,
+        }));
+      }
+      if (effectiveFrom.getTime() <= new Date(open.effectiveFrom).getTime()) {
+        throw new ConflictException(
+          'A new price must take effect after the currently active price version',
+        );
+      }
+
+      open.effectiveTo = effectiveFrom;
+      await historyRepo.save(open);
+      await historyRepo.save(historyRepo.create({
+        routeId: route.id,
+        pricePerKg: nextPricePerKg,
+        fixedFee: nextFixedFee,
+        effectiveFrom,
+        effectiveTo: null,
+        changedByUserId: userId,
+      }));
+
+      // The common case (no future scheduling): the new version is already
+      // effective, so keep the route's own denormalized columns in sync too.
+      if (effectiveFrom.getTime() <= Date.now()) {
+        route.pricePerKg = nextPricePerKg;
+        route.fixedFee = nextFixedFee;
+        await routeRepo.save(route);
+      }
+      return route;
+    });
+  }
+
   // ── Public: provider info + active routes for CommerceProfile.js ─────────
   // Never exposes apiKey, webhookEnabled, contract/fee details.
   async findPublicByUserId(userId: number) {
@@ -559,6 +680,11 @@ export class TransportService {
     // request that was only supposed to let them edit their own route,
     // silently reassigning/vandalizing it. `providerId`/`id` are never
     // editable here regardless of what the caller sends.
+    // Stage 3S-B4: pricePerKg/fixedFee no longer go through this generic
+    // whitelist-assign -- they route through setRoutePrice(), the canonical
+    // price-history authority, so a price edit is versioned/auditable
+    // instead of silently overwriting what the price used to be. Every
+    // other field on this same endpoint keeps its existing simple path.
     const editable = [
       'routeType',
       'originCity',
@@ -567,8 +693,6 @@ export class TransportService {
       'loopStops',
       'coverageWards',
       'coverageCity',
-      'pricePerKg',
-      'fixedFee',
       'estimatedHours',
       'isActive',
       'notes',
@@ -576,7 +700,16 @@ export class TransportService {
     for (const key of editable) {
       if (dto[key] !== undefined) (route as any)[key] = dto[key];
     }
-    return this.routeRepo.save(route);
+    const saved = await this.routeRepo.save(route);
+
+    if (dto.pricePerKg !== undefined || dto.fixedFee !== undefined) {
+      return this.setRoutePrice(userId, routeId, {
+        pricePerKg: dto.pricePerKg,
+        fixedFee: dto.fixedFee,
+        effectiveFrom: dto.priceEffectiveFrom,
+      });
+    }
+    return saved;
   }
 
   // ── AVAILABILITY ─────────────────────────────────────────────────────────
@@ -756,7 +889,22 @@ export class TransportService {
     // under 'earliest'. `a.id` is the final, deterministic tiebreaker for
     // every mode: it is the one value guaranteed stable and unique across
     // repeated identical searches.
-    const cheapestExpr = 'CASE WHEN r.id IS NULL THEN NULL ELSE GREATEST(COALESCE(r."pricePerKg", 0) * :cmpWeight, COALESCE(r."fixedFee", 0)) END';
+    // Stage 3S-B4: sorts by the route's CURRENTLY EFFECTIVE price (a
+    // correlated subquery into transport_route_price_history, resolved at
+    // query time), not the possibly-stale denormalized route columns -- a
+    // scheduled future price change must not affect today's ordering, and an
+    // already-active edit must be reflected immediately. Falls back to the
+    // plain route columns only for a route with no history row at all yet
+    // (never price-edited since Stage 3S-B4 shipped).
+    const effectivePriceSubquery = (column: 'pricePerKg' | 'fixedFee') =>
+      `(SELECT h."${column}" FROM public.transport_route_price_history h
+        WHERE h."routeId" = r.id AND h."effectiveFrom" <= now()
+          AND (h."effectiveTo" IS NULL OR h."effectiveTo" > now())
+        ORDER BY h."effectiveFrom" DESC LIMIT 1)`;
+    const cheapestExpr = `CASE WHEN r.id IS NULL THEN NULL ELSE GREATEST(
+      COALESCE(${effectivePriceSubquery('pricePerKg')}, r."pricePerKg", 0) * :cmpWeight,
+      COALESCE(${effectivePriceSubquery('fixedFee')}, r."fixedFee", 0)
+    ) END`;
     switch (opts.sortBy) {
       case 'cheapest':
         publishedQuery

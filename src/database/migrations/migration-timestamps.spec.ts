@@ -26,10 +26,16 @@ describe('migration timestamps', () => {
     expect(files.some((f) => stamp(f) === 1788282600000)).toBe(false);
   });
 
-  it('Stage 3S-B3\'s transport-quote migration sorts AFTER pickup-task and is currently the latest', () => {
+  it('Stage 3S-B3\'s transport-quote migration sorts AFTER pickup-task', () => {
     const quote = files.find((f) => f.includes('AddTransportQuote'))!;
     expect(quote).toBe('1788283800000-AddTransportQuote.ts');
     expect(stamp(quote)).toBeGreaterThan(1788283200000);
-    expect(files.every((f) => stamp(f) <= stamp(quote))).toBe(true);
+  });
+
+  it('Stage 3S-B4\'s route-price-history migration sorts AFTER the quote migration and is currently the latest', () => {
+    const priceHistory = files.find((f) => f.includes('AddTransportRoutePriceHistory'))!;
+    expect(priceHistory).toBe('1788284400000-AddTransportRoutePriceHistory.ts');
+    expect(stamp(priceHistory)).toBeGreaterThan(1788283800000);
+    expect(files.every((f) => stamp(f) <= stamp(priceHistory))).toBe(true);
   });
 });

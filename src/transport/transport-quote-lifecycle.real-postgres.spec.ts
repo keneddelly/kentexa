@@ -11,6 +11,7 @@ import { TransportQuote, TransportQuoteStatus } from './entities/transport-quote
 import { ProviderAvailability, AvailabilityStatus } from './entities/provider-availability.entity';
 import { TransportProvider, ProviderStatus, ProviderType } from './entities/transport-provider.entity';
 import { TransportRoute, RouteType } from './entities/transport-route.entity';
+import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
 
 /**
  * Stage 3S-B3 — Canonical Quote Foundation, proved against REAL PostgreSQL:
@@ -71,7 +72,7 @@ suite('Stage 3S-B3 — canonical transport quote lifecycle, real PostgreSQL', ()
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
-      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, Shipment, TransportQuote],
+      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, TransportRoutePriceHistory, Shipment, TransportQuote],
     });
     await ds.initialize();
     // parcel_custody_event isn't part of this DataSource's entity set (kept

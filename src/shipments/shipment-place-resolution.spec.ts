@@ -150,6 +150,10 @@ describe('ShipmentsService.createShipment — server-resolved places', () => {
     const transport: any = {
       assertEligibleProvider: jest.fn(),
       reserveSlot: jest.fn(async () => { reserveCalls++; }),
+      // Stage 3S-B4: estimateShipmentPrice() now resolves price through this
+      // resolver instead of reading the routes mock's pricePerKg/fixedFee
+      // directly -- same values, so existing pricing behaviour is unchanged.
+      getEffectiveRoutePrice: jest.fn(async () => ({ pricePerKg: 1, fixedFee: 0 })),
     };
     service = new ShipmentsService(shipmentRepo, { findOne: async () => ({ pricePerKg: 1, fixedFee: 0 }) } as any, {} as any, {} as any, transport, tz, li);
   });

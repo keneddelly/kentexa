@@ -56,10 +56,16 @@ export class TransportQuoteService {
   // The SAME formula TransportService.estimateShipmentPrice() already uses
   // (shipments.service.ts) -- kept identical, not re-derived, so this
   // gate's own parity requirement (#3: today's ordinary pricing must be
-  // unchanged) holds by construction rather than by coincidence.
-  private computeBaseAmount(route: TransportRoute, weightKg: number): number {
-    const byWeight = Number(route.pricePerKg) * weightKg;
-    return Math.max(byWeight, Number(route.fixedFee) || 0);
+  // unchanged) holds by construction rather than by coincidence. Stage
+  // 3S-B4: resolves the route's CURRENTLY EFFECTIVE price through the one
+  // canonical resolver (TransportService.getEffectiveRoutePrice) rather than
+  // reading route.pricePerKg/fixedFee directly, so a quote is priced off
+  // whatever is actually in effect right now -- the quote row itself still
+  // freezes the resulting baseAmount/totalAmount forever once created.
+  private async computeBaseAmount(route: TransportRoute, weightKg: number): Promise<number> {
+    const { pricePerKg, fixedFee } = await this.transportService.getEffectiveRoutePrice(route.id);
+    const byWeight = pricePerKg * weightKg;
+    return Math.max(byWeight, fixedFee || 0);
   }
 
   async createQuote(user: User, dto: CreateQuoteDto): Promise<TransportQuote> {
@@ -109,7 +115,7 @@ export class TransportQuoteService {
       await this.transportService.assertAvailabilityIsDiscoverable(availability.id, weightKg);
     }
 
-    const baseAmount = this.computeBaseAmount(route, weightKg);
+    const baseAmount = await this.computeBaseAmount(route, weightKg);
     const now = new Date();
     const quote = this.quoteRepo.create({
       requestedByUserId: user.id,

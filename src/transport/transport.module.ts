@@ -11,6 +11,7 @@ import { TransportRoute } from './entities/transport-route.entity';
 import { ProviderAvailability } from './entities/provider-availability.entity';
 import { TransportAssignment } from './entities/transport-assignment.entity';
 import { TransportQuote } from './entities/transport-quote.entity';
+import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { User } from '../users/entities/user.entity';
 import { TransportService } from './transport.service';
@@ -38,6 +39,7 @@ import { IdentityModule } from '../identity/identity.module';
       ProviderAvailability,
       TransportAssignment,
       TransportQuote,
+      TransportRoutePriceHistory,
       ServiceAd, // for auto-linking transport providers to service marketplace
       User,
       // Repo-only access into the super-agents/shipments entities — NOT a

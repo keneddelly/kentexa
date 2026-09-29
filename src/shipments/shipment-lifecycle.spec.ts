@@ -175,6 +175,11 @@ describe('Shipment lifecycle — create/confirm/cancel boundary (Stage 2B + 2C)'
         if (!eligibleProviders.has(id)) throw new BadRequestException('provider not eligible');
         return { id };
       },
+      // Stage 3S-B4: estimateShipmentPrice() now resolves price through
+      // this resolver instead of reading route.pricePerKg/fixedFee itself --
+      // matches the same values the routes repo mock below already returned,
+      // so existing pricing assertions in this file are unaffected.
+      getEffectiveRoutePrice: async () => ({ pricePerKg: 1000, fixedFee: 0 }),
       reserveSlot: async (id: number, kg: number, ctx: any, em: any) => {
         const tx = needTx(em, 'reserveSlot');
         calls.reserve.push([id, kg]);

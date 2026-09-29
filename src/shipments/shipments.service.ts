@@ -391,12 +391,17 @@ export class ShipmentsService {
 
   // Price comes from the route's own configured rate — never estimated by
   // guesswork. fixedFee acts as a floor (matches how a provider would
-  // actually charge a very light parcel).
+  // actually charge a very light parcel). Stage 3S-B4: resolves the route's
+  // CURRENTLY EFFECTIVE price through the one canonical resolver
+  // (TransportService.getEffectiveRoutePrice) instead of reading
+  // route.pricePerKg/fixedFee directly -- that resolver itself throws
+  // NotFoundException('Route not found') for a nonexistent routeId (no
+  // history row can ever reference one), preserving this method's existing
+  // not-found behaviour exactly.
   async estimateShipmentPrice(routeId: number, weightKg: number): Promise<number> {
-    const route = await this.routeRepo.findOne({ where: { id: routeId } });
-    if (!route) throw new NotFoundException('Route not found');
-    const byWeight = Number(route.pricePerKg) * (weightKg || 0);
-    return Math.max(byWeight, Number(route.fixedFee) || 0);
+    const { pricePerKg, fixedFee } = await this.transportService.getEffectiveRoutePrice(routeId);
+    const byWeight = pricePerKg * (weightKg || 0);
+    return Math.max(byWeight, fixedFee || 0);
   }
 
   async createShipment(userId: number, dto: CreateShipmentDto): Promise<Shipment> {

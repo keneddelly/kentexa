@@ -13,6 +13,7 @@ import { TransportService } from '../transport/transport.service';
 import { ProviderAvailability, AvailabilityStatus } from '../transport/entities/provider-availability.entity';
 import { TransportProvider, ProviderStatus, ProviderType } from '../transport/entities/transport-provider.entity';
 import { TransportRoute, RouteType } from '../transport/entities/transport-route.entity';
+import { TransportRoutePriceHistory } from '../transport/entities/transport-route-price-history.entity';
 import { reserveSlotAtomic } from '../transport/slot-capacity';
 
 /**
@@ -81,7 +82,7 @@ suite('Shipment capacity attachment — real PostgreSQL', () => {
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 30 },
-      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, Shipment],
+      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, TransportRoutePriceHistory, Shipment],
     });
     await ds.initialize();
     providers = ds.getRepository(TransportProvider);
