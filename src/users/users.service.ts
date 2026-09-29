@@ -98,19 +98,21 @@ export class UsersService {
     Object.assign(user, dto);
     const updated = await this.userRepo.save(user);
 
-    // Keep the personal CommerceProfile's own photoUrl in sync — it's only
-    // ever set once, at OTP-verification signup time, from whatever
-    // avatarUrl existed then (usually null). Without this, any avatar
-    // uploaded/changed afterward stays permanently stale on the personal
-    // profile, showing an initials placeholder in comments/profile views
-    // even though the account clearly has a real photo.
-    if (dto.avatarUrl !== undefined) {
+    // User.name/avatarUrl are the editable account fields, while comments,
+    // Moments and the public identity surface intentionally render the
+    // PERSONAL CommerceProfile. Keep both representations synchronized at
+    // the write boundary so an edit cannot leave a stale actor name/photo.
+    // Business/Hub/Agent/etc. profiles remain independent identities.
+    if (dto.name !== undefined || dto.avatarUrl !== undefined) {
       const personalProfile = await this.commerceProfiles
         .findForUserByType(id, CommerceProfileType.PERSONAL)
         .catch(() => null);
       if (personalProfile) {
+        const publicFields: { displayName?: string; photoUrl?: string } = {};
+        if (dto.name !== undefined) publicFields.displayName = dto.name.trim();
+        if (dto.avatarUrl !== undefined) publicFields.photoUrl = dto.avatarUrl;
         await this.commerceProfiles
-          .updatePublicFields(personalProfile.id, { photoUrl: dto.avatarUrl })
+          .updatePublicFields(personalProfile.id, publicFields)
           .catch(() => {});
       }
     }
