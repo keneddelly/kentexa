@@ -44,10 +44,16 @@ describe('migration timestamps', () => {
     expect(stamp(runFoundation)).toBeGreaterThan(1788284400000);
   });
 
-  it('Stage 3S-C2\'s vehicle foundation migration sorts AFTER route/run foundation and is currently the latest', () => {
+  it('Stage 3S-C2\'s vehicle foundation migration sorts AFTER route/run foundation', () => {
     const vehicle = files.find((f) => f.includes('AddVehicleFoundation'))!;
     expect(vehicle).toBe('1788285600000-AddVehicleFoundation.ts');
     expect(stamp(vehicle)).toBeGreaterThan(1788285000000);
-    expect(files.every((f) => stamp(f) <= stamp(vehicle))).toBe(true);
+  });
+
+  it('Stage 3S-C3\'s parcel-run-assignment migration sorts AFTER vehicle foundation and is currently the latest', () => {
+    const assignment = files.find((f) => f.includes('AddParcelRunAssignment'))!;
+    expect(assignment).toBe('1788286200000-AddParcelRunAssignment.ts');
+    expect(stamp(assignment)).toBeGreaterThan(1788285600000);
+    expect(files.every((f) => stamp(f) <= stamp(assignment))).toBe(true);
   });
 });
