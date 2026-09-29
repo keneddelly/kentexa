@@ -576,7 +576,13 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
   const handleFollow = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     try {
-      const res = await api.post(`/stores/${bizId}/follow`);
+      // Follow the exact public actor shown on the post. A Moment may be
+      // Personal, Business, Hub, Agent, etc.; routing every button through
+      // /stores/:userId silently toggled the owner's BUSINESS relationship.
+      const endpoint = biz.commerceProfileId
+        ? `/profiles/${biz.commerceProfileId}/follow`
+        : `/stores/${bizId}/follow`;
+      const res = await api.post(endpoint);
       setFollowed(res.data.following ?? !followed);
     } catch {}
   };
