@@ -273,6 +273,82 @@ export class TransportService {
     return provider;
   }
 
+  // Stage 3S-B3 correction: server-authoritative proof that an already-
+  // SELECTED route actually serves a requested journey, using the EXACT
+  // same directional city-matching predicate findAvailableForRoute's
+  // publishedQuery uses for a real bookable leg (r.originCity for "from",
+  // r.destinationCity for "to", with the same coverageWards/loopStops/
+  // coverageCity fallbacks that already carry LOCAL_LOOP/transit/last-mile
+  // semantics) — reused here against ONE route row instead of duplicated
+  // into a second matcher. Without this, a quote's or Shipment's own
+  // client-supplied city labels could silently redefine which route/
+  // journey a frozen price actually applies to.
+  async assertRouteServesJourney(
+    routeId: number,
+    fromCity: string,
+    toCity: string,
+  ): Promise<void> {
+    const from = normalizeDiscoveryCity(fromCity);
+    const to = normalizeDiscoveryCity(toCity);
+    if (from === null || to === null) {
+      throw new BadRequestException('Both cities are required to validate the selected route');
+    }
+    const cityMatch = cityMatchSql;
+    const match = await this.routeRepo
+      .createQueryBuilder('r')
+      .where('r.id = :routeId', { routeId })
+      .andWhere(
+        `(${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')})`,
+        cityMatchParams('from', from),
+      )
+      .andWhere(
+        `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
+        cityMatchParams('to', to),
+      )
+      .getOne();
+    if (!match) {
+      throw new BadRequestException(
+        'The selected route does not serve the requested origin/destination',
+      );
+    }
+  }
+
+  // Stage 3S-B3 correction: proves a specific availability slot is CURRENTLY
+  // eligible/discoverable — reusing the identical conditions
+  // findAvailableForRoute's publishedQuery already applies (open status,
+  // verified/active provider, today/tomorrow window, slot + weight
+  // capacity) via a query scoped to this one row, rather than a second,
+  // possibly-divergent eligibility policy. A caller cannot use the direct
+  // quote API to obtain an OFFERED quote against a FULL/CANCELLED/stale/
+  // unverified-provider slot that discovery itself would never have shown.
+  async assertAvailabilityIsDiscoverable(
+    availabilityId: number,
+    weightKg: number,
+  ): Promise<ProviderAvailability> {
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const qb = this.availabilityRepo
+      .createQueryBuilder('a')
+      .leftJoin('a.provider', 'p')
+      .where('a.id = :id', { id: availabilityId })
+      .andWhere('a.status = :open', { open: AvailabilityStatus.OPEN })
+      .andWhere('p.status IN (:...publishedProviderStatuses)', {
+        publishedProviderStatuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
+      })
+      .andWhere('a.date IN (:...dates)', { dates: [today, tomorrow] })
+      .andWhere('a.usedSlots < a.totalSlots');
+    if (weightKg > 0) {
+      qb.andWhere('(a.totalCapacityKg - a.usedCapacityKg) >= :weightKg', { weightKg });
+    }
+    const availability = await qb.getOne();
+    if (!availability) {
+      throw new BadRequestException(
+        'That availability slot is no longer eligible for a new quote',
+      );
+    }
+    return availability;
+  }
+
   // ── Public: provider info + active routes for CommerceProfile.js ─────────
   // Never exposes apiKey, webhookEnabled, contract/fee details.
   async findPublicByUserId(userId: number) {

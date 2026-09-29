@@ -263,4 +263,153 @@ suite('Stage 3S-B3 — canonical transport quote lifecycle, real PostgreSQL', ()
     expect(Number(shipment.priceQuoted)).toBe(500); // 10*50 = 500 > 200
     expect(shipment.quoteId).toBeNull();
   });
+
+  // ── POST-B3-REVIEW CORRECTION: route/location compatibility ──────────────
+  // A canonical quote must snapshot the actual selected transport SERVICE,
+  // not merely price IDs -- a quote tied to the Dar->Mwanza route (the
+  // default mkRoute() fixture) must never be issuable, or consumable by a
+  // Shipment, as though it were Dar->Arusha.
+  describe('quote/Shipment origin-destination must be compatible with the selected route', () => {
+    it('rejects quote creation when the client-supplied origin/destination contradicts the selected route', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id); // Dar es Salaam -> Mwanza
+      await expect(
+        quoteService.createQuote({ id: 1 } as any, {
+          providerId: p.id, routeId: r.id, originCity: 'Dar es Salaam', destinationCity: 'Arusha',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect((await quotes.find()).length).toBe(0);
+    });
+
+    it('accepts quote creation when the client-supplied origin/destination genuinely matches the route (fuzzy containment, same rule discovery already uses)', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id); // Dar es Salaam -> Mwanza
+      const quote = await quoteService.createQuote({ id: 1 } as any, {
+        providerId: p.id, routeId: r.id, originCity: 'Dar', destinationCity: 'Mwanza City',
+      });
+      expect(quote.originCity).toBe('Dar');
+      expect(quote.destinationCity).toBe('Mwanza City');
+    });
+
+    it('rejects Shipment creation when its requested origin/destination is incompatible with the accepted quote\'s route, even though the quote itself is valid', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id); // Dar es Salaam -> Mwanza
+      const slot = await mkSlot(p.id, r.id);
+      const quote = await quoteService.createQuote({ id: 11 } as any, {
+        providerId: p.id, routeId: r.id, availabilityId: slot.id, weightKg: 5,
+      });
+      await quoteService.acceptQuote({ id: 11 } as any, quote.id);
+
+      await expect(
+        shipmentService.createShipment(
+          11,
+          baseDto({ quoteId: quote.id, originCity: 'Dar es Salaam', destinationCity: 'Arusha' }),
+        ),
+      ).rejects.toThrow(BadRequestException);
+
+      expect(await shipmentCount()).toBe(0);
+      expect(await slotRow(slot.id)).toMatchObject({ u: 0 }); // nothing reserved on the rejected attempt
+    });
+
+    it('a Shipment whose requested origin/destination correctly matches the accepted quote\'s route still succeeds', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id);
+      const quote = await quoteService.createQuote({ id: 11 } as any, { providerId: p.id, routeId: r.id });
+      await quoteService.acceptQuote({ id: 11 } as any, quote.id);
+
+      const shipment = await shipmentService.createShipment(
+        11,
+        baseDto({ quoteId: quote.id, originCity: 'Dar es Salaam', destinationCity: 'Mwanza' }),
+      );
+      expect(shipment.quoteId).toBe(quote.id);
+      expect(await shipmentCount()).toBe(1);
+    });
+  });
+
+  // ── POST-B3-REVIEW CORRECTION: direct quote API cannot bypass discovery ──
+  // The canonical quote API must never issue an OFFERED quote against an
+  // availability that Stage 3S-B2 discovery itself would exclude.
+  describe('quote creation requires the selected availability to be currently discoverable/eligible', () => {
+    it('rejects a FULL slot', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id);
+      const slot = await mkSlot(p.id, r.id, { totalSlots: 3, usedSlots: 3 });
+      await expect(
+        quoteService.createQuote({ id: 1 } as any, { providerId: p.id, routeId: r.id, availabilityId: slot.id }),
+      ).rejects.toThrow(BadRequestException);
+      expect((await quotes.find()).length).toBe(0);
+    });
+
+    it('rejects a CANCELLED slot', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id);
+      const slot = await mkSlot(p.id, r.id, { status: AvailabilityStatus.CANCELLED });
+      await expect(
+        quoteService.createQuote({ id: 1 } as any, { providerId: p.id, routeId: r.id, availabilityId: slot.id }),
+      ).rejects.toThrow(BadRequestException);
+      expect((await quotes.find()).length).toBe(0);
+    });
+
+    it('rejects a DEPARTED slot', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id);
+      const slot = await mkSlot(p.id, r.id, { status: AvailabilityStatus.DEPARTED });
+      await expect(
+        quoteService.createQuote({ id: 1 } as any, { providerId: p.id, routeId: r.id, availabilityId: slot.id }),
+      ).rejects.toThrow(BadRequestException);
+      expect((await quotes.find()).length).toBe(0);
+    });
+
+    it('rejects a stale slot (date outside the today/tomorrow discovery window)', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id);
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      const slot = await mkSlot(p.id, r.id, { date: yesterday });
+      await expect(
+        quoteService.createQuote({ id: 1 } as any, { providerId: p.id, routeId: r.id, availabilityId: slot.id }),
+      ).rejects.toThrow(BadRequestException);
+      expect((await quotes.find()).length).toBe(0);
+    });
+
+    it('rejects when the requested weight exceeds the slot\'s remaining capacity', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id);
+      const slot = await mkSlot(p.id, r.id, { totalCapacityKg: 10, usedCapacityKg: 8 });
+      await expect(
+        quoteService.createQuote({ id: 1 } as any, { providerId: p.id, routeId: r.id, availabilityId: slot.id, weightKg: 5 }),
+      ).rejects.toThrow(BadRequestException);
+      expect((await quotes.find()).length).toBe(0);
+    });
+
+    it('performs no capacity mutation on any of the rejected eligibility attempts above', async () => {
+      const p = await mkProvider();
+      const r = await mkRoute(p.id);
+      const slot = await mkSlot(p.id, r.id, { totalSlots: 3, usedSlots: 3 });
+      const before = await slotRow(slot.id);
+      await expect(
+        quoteService.createQuote({ id: 1 } as any, { providerId: p.id, routeId: r.id, availabilityId: slot.id }),
+      ).rejects.toThrow(BadRequestException);
+      expect(await slotRow(slot.id)).toEqual(before);
+    });
+  });
+
+  // ── POST-B3-REVIEW CORRECTION: eligibility can still change after a quote
+  // is issued -- Shipment execution must fail safely, not silently succeed
+  // against a slot that is no longer real.
+  it('an availability that becomes ineligible AFTER quote acceptance still fails safely at Shipment creation, not silently', async () => {
+    const p = await mkProvider();
+    const r = await mkRoute(p.id);
+    const slot = await mkSlot(p.id, r.id, { totalSlots: 1, usedSlots: 0 });
+    const quote = await quoteService.createQuote({ id: 11 } as any, {
+      providerId: p.id, routeId: r.id, availabilityId: slot.id,
+    });
+    await quoteService.acceptQuote({ id: 11 } as any, quote.id);
+
+    // Eligibility changes for an unrelated reason between acceptance and
+    // Shipment creation -- e.g. the same slot got filled by another booking.
+    await ds.query(`UPDATE public.provider_availability SET "usedSlots" = "totalSlots" WHERE id = $1`, [slot.id]);
+
+    await expect(shipmentService.createShipment(11, baseDto({ quoteId: quote.id }))).rejects.toThrow();
+    expect(await shipmentCount()).toBe(0);
+  });
 });

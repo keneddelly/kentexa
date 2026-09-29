@@ -475,6 +475,16 @@ export class ShipmentsService {
       if (quote.status !== TransportQuoteStatus.ACCEPTED) {
         throw new ConflictException('Quote must be accepted before creating a shipment');
       }
+      // Correction (post-B3 review): the SAME canonical route-journey check
+      // createQuote() uses, applied here against the Shipment's own resolved
+      // origin/destination (o.city/d.city -- whichever the requester actually
+      // selected, place or free text). Without this, a Shipment could bind a
+      // quote's frozen provider/route/price while declaring an unrelated
+      // journey, e.g. consuming a Dar->Mwanza quote for a Dar->Arusha
+      // Shipment. The richer Shipment place/snapshot system itself is
+      // untouched -- this only proves the two are compatible before capacity
+      // is reserved.
+      await this.transportService.assertRouteServesJourney(quote.routeId, o.city, d.city);
     }
     const effectiveProviderId = quote ? quote.providerId : dto.providerId;
     const effectiveRouteId = quote ? quote.routeId : dto.routeId;

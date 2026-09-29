@@ -72,6 +72,23 @@ export class TransportQuoteService {
     }
     if (!route.isActive) throw new BadRequestException('That route is not currently active');
 
+    if (dto.weightKg != null && (!Number.isFinite(dto.weightKg) || dto.weightKg < 0)) {
+      throw new BadRequestException('weightKg must be a non-negative number');
+    }
+    const weightKg = dto.weightKg ?? 0;
+
+    // Correction (post-B3 review): the client-supplied origin/destination
+    // must actually correspond to the selected route -- reusing the
+    // canonical discovery city-matching rule (assertRouteServesJourney),
+    // not a second matcher, so a Dar->Mwanza route can never be frozen into
+    // a quote labelled as if it were Dar->Arusha.
+    const originCity = dto.originCity?.trim() || route.originCity || '';
+    const destinationCity = dto.destinationCity?.trim() || route.destinationCity || '';
+    if (!originCity || !destinationCity) {
+      throw new BadRequestException('Origin and destination are required to quote this route');
+    }
+    await this.transportService.assertRouteServesJourney(route.id, originCity, destinationCity);
+
     let availability: ProviderAvailability | null = null;
     if (dto.availabilityId != null) {
       availability = await this.availabilityRepo.findOne({ where: { id: dto.availabilityId } });
@@ -82,12 +99,15 @@ export class TransportQuoteService {
       if (availability.routeId != null && availability.routeId !== route.id) {
         throw new BadRequestException("That availability slot isn't for the selected route");
       }
+      // Correction (post-B3 review): the direct quote API must not be able
+      // to issue an OFFERED quote against an availability that discovery
+      // itself would never have shown (FULL/CANCELLED/stale/unverified-
+      // provider) -- reuses the exact same eligibility rule
+      // findAvailableForRoute's publishedQuery applies, not a duplicate
+      // policy. Shipment reservation still re-validates at execution time,
+      // since eligibility can change again after the quote is issued.
+      await this.transportService.assertAvailabilityIsDiscoverable(availability.id, weightKg);
     }
-
-    if (dto.weightKg != null && (!Number.isFinite(dto.weightKg) || dto.weightKg < 0)) {
-      throw new BadRequestException('weightKg must be a non-negative number');
-    }
-    const weightKg = dto.weightKg ?? 0;
 
     const baseAmount = this.computeBaseAmount(route, weightKg);
     const now = new Date();
@@ -96,8 +116,8 @@ export class TransportQuoteService {
       providerId: provider.id,
       routeId: route.id,
       availabilityId: availability?.id ?? null,
-      originCity: dto.originCity?.trim() || route.originCity || '',
-      destinationCity: dto.destinationCity?.trim() || route.destinationCity || '',
+      originCity,
+      destinationCity,
       weightKg,
       baseAmount,
       // Stage 3S-B3 only ever populates `base` -- no platform/Agent/hub/
