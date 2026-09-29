@@ -149,6 +149,27 @@ export class FeedService {
     // identity or saving an ambiguous Moment. Without a RoleContext (legacy
     // internal callers only) the previous client-supplied behavior remains.
     let requestedProfileId: number | null = dto.commerceProfileId ?? null;
+
+    // Internal product auto-Moments do not carry the HTTP RoleContext because
+    // ProductsService publishes them after the canonical Product write. For
+    // that path the Product itself is the strongest actor authority: it was
+    // already stamped from SellerScope/RoleContext at creation time. Re-read
+    // that exact product profile here instead of trusting/falling back to the
+    // owning User identity. Manual /feed/publish calls still use RoleContext
+    // below and are unaffected.
+    if (!roleContext?.identityType && dto.linkedEntityType === 'product' && dto.linkedEntityId) {
+      const linkedProduct = await this.productRepo.findOne({
+        where: { id: dto.linkedEntityId },
+        relations: { seller: true },
+      });
+      if (
+        linkedProduct?.seller?.id === sellerId &&
+        linkedProduct.commerceProfileId
+      ) {
+        requestedProfileId = linkedProduct.commerceProfileId;
+      }
+    }
+
     if (roleContext?.identityType) {
       if (!roleContext.commerceProfileId) {
         throw new ConflictException({
