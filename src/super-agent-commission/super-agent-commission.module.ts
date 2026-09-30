@@ -20,22 +20,42 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SuperAgentHandlingRate } from './entities/super-agent-handling-rate.entity';
 import { SuperAgentHandlingEarning } from './entities/super-agent-handling-earning.entity';
+import { SuperAgentHandlingEarningObligation } from './entities/super-agent-handling-earning-obligation.entity';
 import { SuperAgentCashCollection } from './entities/super-agent-cash-collection.entity';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { SuperAgentHandlingRateService } from './super-agent-handling-rate.service';
 import { SuperAgentHandlingEarningService } from './super-agent-handling-earning.service';
+import { SuperAgentHandlingEarningObligationService } from './super-agent-handling-earning-obligation.service';
 import { SuperAgentCashCollectionService } from './super-agent-cash-collection.service';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
+    // Stage 3S-C6 second correction: SuperAgentHandlingEarningService (the
+    // ambiguous-duplicate flag) and SuperAgentHandlingEarningObligationService
+    // (best-effort/failure telemetry) both use ActivityEventService as
+    // supplemental telemetry -- never the financial source of truth.
+    // One-directional (ActivityModule imports nothing from here).
+    ActivityModule,
     TypeOrmModule.forFeature([
       SuperAgentHandlingRate,
       SuperAgentHandlingEarning,
+      SuperAgentHandlingEarningObligation,
       SuperAgentCashCollection,
       ParcelCustodyEvent,
     ]),
   ],
-  providers: [SuperAgentHandlingRateService, SuperAgentHandlingEarningService, SuperAgentCashCollectionService],
-  exports: [SuperAgentHandlingRateService, SuperAgentHandlingEarningService, SuperAgentCashCollectionService],
+  providers: [
+    SuperAgentHandlingRateService,
+    SuperAgentHandlingEarningService,
+    SuperAgentHandlingEarningObligationService,
+    SuperAgentCashCollectionService,
+  ],
+  exports: [
+    SuperAgentHandlingRateService,
+    SuperAgentHandlingEarningService,
+    SuperAgentHandlingEarningObligationService,
+    SuperAgentCashCollectionService,
+  ],
 })
 export class SuperAgentCommissionModule {}

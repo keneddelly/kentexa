@@ -21,33 +21,22 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *    exactly like `unloaded` already was, freeing the parcel for a new
  *    assignment.
  *
- * 2. `super_agent_handling_earning` gains a new `sourceCustodianType` column
- *    and a UNIQUE (parcelId, superAgentId, sourceCustodianType) index -- the
- *    cross-pathway deduplication safety net Stage 3S-C5's own report
- *    documented as a plan rather than built: two DIFFERENT custody events
- *    (e.g. one from a legacy pathway, one from the new Run-based pathway)
- *    that both happen to describe what is really the SAME Super Agent
- *    physically handling the SAME parcel FROM THE SAME PRIOR CUSTODIAN TYPE
- *    can now never each independently generate a second earning -- two
- *    recordings of one real physical handoff always share the same
- *    fromCustodianType. The existing UNIQUE custodyEventId index is
- *    unrelated and untouched -- that one protects against reprocessing the
- *    SAME event twice; this one protects against two DIFFERENT events
- *    describing the same physical fact.
+ * 2. `super_agent_handling_earning` gains a `physicalHandoffRef` column and a
+ *    PARTIAL unique index on it (WHERE NOT NULL) -- the cross-pathway
+ *    deduplication safety net, keyed on a PROVEN concrete-operation identity
+ *    (the qualifying custody event's own `evidenceRef`) rather than a
+ *    custodian-type category. See SuperAgentHandlingEarning's own header
+ *    comment for the full reasoning; this migration went through two
+ *    corrections on this point (parcelId+superAgentId alone, then adding a
+ *    sourceCustodianType category column, both since abandoned in favour of
+ *    this), all still within this same gate's own review cycle, so edited
+ *    in place rather than via follow-up migrations each time.
  *
- *    Correction (still within this same gate's own review cycle, so edited
- *    in place rather than via a follow-up migration): the first version of
- *    this constraint was (parcelId, superAgentId) alone, which wrongly
- *    blocked a Super Agent's second, genuinely separate handling operation
- *    on the same parcel (e.g. a local-loop origin receipt followed later by
- *    a real destination receipt at the same hub). `sourceCustodianType`,
- *    frozen from the qualifying event's own `fromCustodianType` ('unknown'
- *    when null), is the smallest addition that tells those two cases apart.
- *    Deliberately still conservative: one Super Agent can only ever earn
- *    ONCE per (parcel, prior-custodian-type) triple -- failing toward
- *    under-payment rather than over-payment is the safe direction for a
- *    financial constraint, and can be revisited with an explicit adjustment
- *    mechanism if real pilot operation shows it matters.
+ * 3. A new `super_agent_handling_earning_obligation` table -- the
+ *    transactional-outbox record for "this custody receipt owes an
+ *    earning." Deliberately a MUTABLE processing-state table (no
+ *    immutability trigger, unlike the earning/cash-collection ledgers) --
+ *    see SuperAgentHandlingEarningObligation's own header comment.
  */
 export class AddReceiptConfirmationAndCommissionDedup1788288000000 implements MigrationInterface {
   name = 'AddReceiptConfirmationAndCommissionDedup1788288000000';
@@ -62,33 +51,56 @@ export class AddReceiptConfirmationAndCommissionDedup1788288000000 implements Mi
       ADD COLUMN IF NOT EXISTS "receivedAt" timestamp without time zone`);
 
     await queryRunner.query(`ALTER TABLE public.super_agent_handling_earning
-      ADD COLUMN IF NOT EXISTS "sourceCustodianType" varchar(32)`);
-    // Backfill from the linked custody event's own fromCustodianType so any
-    // row inserted before this column existed still gets a real, correct
-    // value rather than a placeholder.
+      ADD COLUMN IF NOT EXISTS "physicalHandoffRef" varchar(128)`);
+    // Best-effort backfill from the linked custody event's own evidenceRef
+    // -- stays NULL when the custody event itself never had one, which is
+    // an accepted, correctly-un-deduplicated state (see the header comment).
     await queryRunner.query(`UPDATE public.super_agent_handling_earning e
-      SET "sourceCustodianType" = COALESCE(pce."fromCustodianType", 'unknown')
+      SET "physicalHandoffRef" = pce."evidenceRef"
       FROM public.parcel_custody_event pce
-      WHERE pce.id = e."custodyEventId" AND e."sourceCustodianType" IS NULL`);
-    await queryRunner.query(`ALTER TABLE public.super_agent_handling_earning
-      ALTER COLUMN "sourceCustodianType" SET NOT NULL`);
+      WHERE pce.id = e."custodyEventId" AND e."physicalHandoffRef" IS NULL AND pce."evidenceRef" IS NOT NULL`);
 
-    await queryRunner.query(`DO $$ BEGIN
-      IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'UQ_super_agent_handling_earning_parcel_agent_source'
-      ) THEN
-        ALTER TABLE public.super_agent_handling_earning
-          ADD CONSTRAINT "UQ_super_agent_handling_earning_parcel_agent_source"
-          UNIQUE ("parcelId", "superAgentId", "sourceCustodianType");
-      END IF;
-    END $$`);
+    // A PARTIAL unique index, not a table-wide UNIQUE constraint -- Postgres
+    // has no "ADD CONSTRAINT ... UNIQUE ... WHERE" form, so a partial
+    // uniqueness rule is always expressed as an index (same technique this
+    // lineage's own shipment.entity.ts UQ_shipment_quote already uses).
+    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_super_agent_handling_earning_physical_handoff"
+      ON public.super_agent_handling_earning ("physicalHandoffRef")
+      WHERE "physicalHandoffRef" IS NOT NULL`);
+
+    // Stage 3S-C6 second correction: the transactional-outbox obligation
+    // table. Deliberately mutable (no immutability trigger) -- this tracks
+    // in-flight processing state, never a final financial fact.
+    await queryRunner.query(`CREATE TABLE IF NOT EXISTS public.super_agent_handling_earning_obligation (
+      id SERIAL PRIMARY KEY,
+      "custodyEventId" integer NOT NULL,
+      "parcelId" integer NOT NULL,
+      "superAgentId" integer NOT NULL,
+      status varchar(24) NOT NULL DEFAULT 'pending',
+      attempts integer NOT NULL DEFAULT 0,
+      "lastError" varchar(500),
+      "lastAttemptedAt" timestamp without time zone,
+      "resultingEarningId" integer,
+      "createdAt" timestamp without time zone NOT NULL DEFAULT now(),
+      "updatedAt" timestamp without time zone NOT NULL DEFAULT now(),
+      CONSTRAINT "UQ_super_agent_handling_earning_obligation_custody_event" UNIQUE ("custodyEventId"),
+      CONSTRAINT "CHK_super_agent_handling_earning_obligation_status_vocab"
+        CHECK (status IN ('pending','processing','completed','failed_no_rate','failed_error','failed_permanent')),
+      CONSTRAINT "FK_super_agent_handling_earning_obligation_custody_event"
+        FOREIGN KEY ("custodyEventId") REFERENCES public.parcel_custody_event(id) ON DELETE RESTRICT,
+      CONSTRAINT "FK_super_agent_handling_earning_obligation_resulting_earning"
+        FOREIGN KEY ("resultingEarningId") REFERENCES public.super_agent_handling_earning(id) ON DELETE SET NULL
+    )`);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_super_agent_handling_earning_obligation_status"
+      ON public.super_agent_handling_earning_obligation (status)`);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE IF EXISTS public.super_agent_handling_earning_obligation`);
+
+    await queryRunner.query(`DROP INDEX IF EXISTS "UQ_super_agent_handling_earning_physical_handoff"`);
     await queryRunner.query(`ALTER TABLE public.super_agent_handling_earning
-      DROP CONSTRAINT IF EXISTS "UQ_super_agent_handling_earning_parcel_agent_source"`);
-    await queryRunner.query(`ALTER TABLE public.super_agent_handling_earning
-      DROP COLUMN IF EXISTS "sourceCustodianType"`);
+      DROP COLUMN IF EXISTS "physicalHandoffRef"`);
 
     await queryRunner.query(`LOCK TABLE public.parcel_run_assignment IN ACCESS EXCLUSIVE MODE`);
     const [{ exists: hasReceived }] = await queryRunner.query(

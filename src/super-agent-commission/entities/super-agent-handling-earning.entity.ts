@@ -25,33 +25,41 @@
  * ParcelCustodyEvent already established; a future correction must be a new,
  * separate adjustment record layered on top, never an edit here.
  *
- * Stage 3S-C6: UQ_super_agent_handling_earning_parcel_agent_source, a SECOND
- * unique index on (parcelId, superAgentId, sourceCustodianType) -- the
- * cross-pathway deduplication safety net Stage 3S-C5's own report documented
- * as a plan, not yet built. The existing custodyEventId index protects
- * against reprocessing the SAME event twice; this one protects against two
- * DIFFERENT custody events (one from a legacy pathway, one from the new
- * Run-based pathway, say) that both happen to describe the SAME Super Agent
- * physically handling the SAME parcel FROM THE SAME PRIOR CUSTODIAN TYPE --
- * two recordings of one real physical handoff always share the same
- * `fromCustodianType`, since they're describing the same physical fact, so
- * this still catches every true cross-pathway duplicate.
+ * Stage 3S-C6 second correction: cross-pathway deduplication now keys on
+ * `physicalHandoffRef`, not a custodian-type heuristic. An earlier version
+ * of this constraint used (parcelId, superAgentId, sourceCustodianType) --
+ * the re-review correctly rejected this as still a heuristic, not a proven
+ * physical-handoff identity: it wrongly collapsed two REAL, distinct
+ * receipts at the same hub from the SAME prior-custodian type (e.g. the
+ * same carrier delivering a returned/re-shipped parcel in a later Run) into
+ * one earning, while a conflict on it silently returned an EARLIER,
+ * unrelated event's earning as though it belonged to the new one --
+ * financially wrong either way.
  *
- * Stage 3S-C6 correction: an earlier version of this constraint was
- * (parcelId, superAgentId) alone, which wrongly blocked a Super Agent's
- * SECOND, genuinely separate handling operation on the same parcel -- e.g.
- * a local-loop origin hub receipt (fromCustodianType='local_agent') followed
- * later by a real destination receipt (fromCustodianType='transport_provider')
- * at the SAME hub. `sourceCustodianType` (frozen from the qualifying custody
- * event's own `fromCustodianType`, or 'unknown' when null) is the smallest
- * addition that distinguishes those two real operations from one physical
- * handoff recorded twice, without enumerating eventKind strings -- bound to
- * the same stable custodian-type vocabulary the eligibility rules already
- * use. Deliberately still conservative: one Super Agent can only ever earn
- * ONCE per (parcel, prior-custodian-type) triple -- a genuine repeat within
- * the SAME prior-custodian-type (e.g. two separate legacy-pathway "receive"
- * events, both from a transport provider, for a returned parcel) would still
- * only earn once, failing toward under- rather than over-payment.
+ * `physicalHandoffRef` is frozen from the qualifying custody event's own
+ * `evidenceRef` -- the field this codebase already uses, across more than
+ * one pathway, to name the concrete real-world operation a custody event
+ * traces back to (parcel-collections.service.ts already writes
+ * `collection:<collectionId>`; ParcelRunAssignmentService's own
+ * confirmReceipt now writes `parcel_run_assignment:<assignmentId>` the same
+ * way). Two custody events describing the SAME real physical handoff --
+ * whichever pathway wrote them -- always carry the SAME concrete operation
+ * reference, because it names the one real-world event both are reporting
+ * on; two events describing genuinely DIFFERENT physical operations always
+ * carry DIFFERENT references, because each concrete operation (a specific
+ * Run assignment, a specific collection) has its own identity. This is
+ * provable identity, not a category guess.
+ *
+ * `UQ_super_agent_handling_earning_physical_handoff` is a PARTIAL unique
+ * index (`WHERE "physicalHandoffRef" IS NOT NULL`) on that column ALONE --
+ * no parcelId/superAgentId scoping needed, since a single concrete
+ * operation can only ever belong to one parcel and one Super Agent in the
+ * first place. A qualifying event with no evidenceRef at all (still
+ * possible for older/plainer pathways) is NOT constrained by this index --
+ * cross-writer equivalence can't be proven for it, so it earns
+ * independently rather than being silently guessed at (SuperAgentHandling-
+ * EarningService flags that specific, genuinely ambiguous case for review
+ * instead, via an ActivityEvent -- see its own header comment).
  */
 import {
   Entity,
@@ -67,7 +75,10 @@ import { SuperAgentHandlingRate } from './super-agent-handling-rate.entity';
 
 @Entity('super_agent_handling_earning')
 @Index('UQ_super_agent_handling_earning_custody_event', ['custodyEventId'], { unique: true })
-@Index('UQ_super_agent_handling_earning_parcel_agent_source', ['parcelId', 'superAgentId', 'sourceCustodianType'], { unique: true })
+@Index('UQ_super_agent_handling_earning_physical_handoff', ['physicalHandoffRef'], {
+  unique: true,
+  where: '"physicalHandoffRef" IS NOT NULL',
+})
 export class SuperAgentHandlingEarning {
   @PrimaryGeneratedColumn()
   id: number;
@@ -85,11 +96,12 @@ export class SuperAgentHandlingEarning {
   @Column({ type: 'int' })
   superAgentId: number;
 
-  // Frozen from the qualifying custody event's own `fromCustodianType`
-  // ('unknown' when null) -- see this entity's own header comment. Audit
-  // AND dedup-key, never re-derived from custodyEvent at read time.
-  @Column({ type: 'varchar', length: 32 })
-  sourceCustodianType: string;
+  // Frozen from the qualifying custody event's own `evidenceRef` -- the
+  // proven physical-handoff identity, see this entity's own header comment.
+  // Null when the qualifying event carries no concrete operation reference
+  // at all (cross-writer dedup is then simply not attempted for that row).
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  physicalHandoffRef: string | null;
 
   @ManyToOne(() => SuperAgentHandlingRate, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'rateConfigId' })

@@ -21,9 +21,11 @@ import { AccountRoleType, RoleProfileType } from '../role-context/entities/accou
 import { RoleContext } from '../role-context/role-context.types';
 import { SuperAgentHandlingRate } from '../super-agent-commission/entities/super-agent-handling-rate.entity';
 import { SuperAgentHandlingEarning } from '../super-agent-commission/entities/super-agent-handling-earning.entity';
+import { SuperAgentHandlingEarningObligation, EarningObligationStatus } from '../super-agent-commission/entities/super-agent-handling-earning-obligation.entity';
 import { SuperAgentCashCollection } from '../super-agent-commission/entities/super-agent-cash-collection.entity';
 import { SuperAgentHandlingRateService } from '../super-agent-commission/super-agent-handling-rate.service';
 import { SuperAgentHandlingEarningService } from '../super-agent-commission/super-agent-handling-earning.service';
+import { SuperAgentHandlingEarningObligationService } from '../super-agent-commission/super-agent-handling-earning-obligation.service';
 import {
   ensureSuperAgentHandlingRateNoOverlapConstraint,
   ensureSuperAgentEconomicLedgersImmutable,
@@ -54,6 +56,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
   let rateService: SuperAgentHandlingRateService;
   let earningService: SuperAgentHandlingEarningService;
   let earningRepo: Repository<SuperAgentHandlingEarning>;
+  let obligationService: SuperAgentHandlingEarningObligationService;
+  let obligationRepo: Repository<SuperAgentHandlingEarningObligation>;
   let activityEventService: ActivityEventService;
   let activityEventRepo: Repository<ActivityEvent>;
   let userSeq = 0;
@@ -133,8 +137,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
       entities: [...B5B_BASE_ENTITIES, TransportRoute, RouteStop, TransportRun, TransportRunStop, Vehicle,
-        ParcelRunAssignment, ParcelCustodyEvent, SuperAgentHandlingRate, SuperAgentHandlingEarning, SuperAgentCashCollection,
-        ActivityEvent],
+        ParcelRunAssignment, ParcelCustodyEvent, SuperAgentHandlingRate, SuperAgentHandlingEarning,
+        SuperAgentHandlingEarningObligation, SuperAgentCashCollection, ActivityEvent],
     });
     await ds.initialize();
     await ensureRouteStopDeferrableSequenceConstraint((sql) => ds.query(sql));
@@ -159,11 +163,13 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     runService = new TransportRunService(routeStops, routes, runs, runStops, transport, { search: async () => [] } as any, ds);
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);
     rateService = new SuperAgentHandlingRateService(ds.getRepository(SuperAgentHandlingRate), earningRepo);
-    earningService = new SuperAgentHandlingEarningService(ds.getRepository(ParcelCustodyEvent), earningRepo, rateService, ds);
     activityEventRepo = ds.getRepository(ActivityEvent);
     activityEventService = new ActivityEventService(activityEventRepo);
+    earningService = new SuperAgentHandlingEarningService(ds.getRepository(ParcelCustodyEvent), earningRepo, rateService, ds, activityEventService);
+    obligationRepo = ds.getRepository(SuperAgentHandlingEarningObligation);
+    obligationService = new SuperAgentHandlingEarningObligationService(obligationRepo, earningService, activityEventService, ds);
     assignmentService = new ParcelRunAssignmentService(
-      ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, earningService, activityEventService,
+      ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, obligationService,
     );
   });
 
@@ -686,18 +692,19 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       expect(received.status).toBe(ParcelRunAssignmentStatus.RECEIVED); // succeeded regardless
       expect(await earningRepo.count()).toBe(0); // no earning, but no exception either
 
-      // Stage 3S-C6 correction: the failure must leave a durable, queryable
-      // trail rather than vanishing into a bare catch{}.
+      // Stage 3S-C6 second correction: telemetry is supplemental (never the
+      // recovery mechanism itself -- see the durable obligation-row tests
+      // below for that), but it should still exist here.
       const failures = await activityEventService.findByEventType('SUPER_AGENT_HANDLING_EARNING_GENERATION_FAILED');
       expect(failures).toHaveLength(1);
       expect(failures[0].category).toBe(ActivityCategory.LOGISTICS);
       expect(failures[0].severity).toBe('error');
       expect(failures[0].visibility).toBe('admin');
-      expect(failures[0].metadata).toMatchObject({ assignmentId: assignment.id, parcelId: parcel.id });
+      expect(failures[0].metadata).toMatchObject({ parcelId: parcel.id, superAgentId: destHub.id });
     });
 
-    // ── cross-pathway deduplication (Stage 3S-C6) ──────────────────────────
-    it('cross-pathway dedup: a DIFFERENT custody event for the SAME (parcel, Super Agent) pair never generates a second earning', async () => {
+    // ── cross-pathway deduplication on a PROVEN physical-handoff identity (Stage 3S-C6 second correction) ──
+    it('cross-pathway dedup: a DIFFERENT custody event naming the SAME concrete Run assignment (evidenceRef) never generates a second earning', async () => {
       await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
       const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
 
@@ -706,15 +713,15 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
 
       // A SEPARATE, independently-recorded custody event -- as if a
       // different (e.g. legacy) pathway also recorded a receipt for this
-      // exact same Super Agent and parcel FROM THE SAME PRIOR CUSTODIAN TYPE
-      // (fromCustodianType='transport_provider', matching what confirmReceipt
-      // itself just wrote) -- i.e. genuinely the SAME physical handoff,
-      // described twice.
+      // exact same Super Agent and parcel, naming the SAME concrete
+      // assignment confirmReceipt itself just wrote (evidenceRef) -- i.e.
+      // genuinely the SAME physical handoff, described twice.
       const custodyRepo = ds.getRepository(ParcelCustodyEvent);
       const duplicateEvent = await custodyRepo.save(custodyRepo.create({
         parcelId: parcel.id, eventKind: 'origin_hub_received', operationKey: `dedup-test:${assignment.id}`,
         fromCustodianType: 'transport_provider', toCustodianType: 'super_agent', toCustodianId: destHub.id,
         actorSource: 'account_role', assignmentType: null,
+        evidenceRef: `parcel_run_assignment:${assignment.id}`,
       } as any));
 
       const secondEarning = await earningService.recordEarningForCustodyEvent(duplicateEvent.id, { userId: null });
@@ -725,18 +732,19 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       // Independent DB-level backstop.
       await expect(ds.query(
         `INSERT INTO public.super_agent_handling_earning
-           ("custodyEventId","parcelId","superAgentId","sourceCustodianType","rateConfigId",amount,currency,source)
+           ("custodyEventId","parcelId","superAgentId","physicalHandoffRef","rateConfigId",amount,currency,source)
          VALUES ($1,$2,$3,$4,$5,500,'TZS','origin_hub_received')`,
-        [duplicateEvent.id, parcel.id, destHub.id, onlyEarning.sourceCustodianType, onlyEarning.rateConfigId],
+        [duplicateEvent.id, parcel.id, destHub.id, onlyEarning.physicalHandoffRef, onlyEarning.rateConfigId],
       )).rejects.toThrow();
     });
 
-    it('a genuinely SEPARATE handling operation by the same Super Agent on the same parcel (different prior custodian type) earns independently, not deduplicated away', async () => {
-      // The local-loop scenario the coarser (parcelId, superAgentId)-only
-      // constraint used to wrongly block: the SAME hub first receives a
-      // parcel from a local Agent at origin, then later genuinely receives
-      // the SAME parcel again as its Run destination -- two real, distinct
-      // physical handling operations, not one event recorded twice.
+    it('a genuinely SEPARATE handling operation by the same Super Agent on the same parcel (a different concrete origin operation) earns independently, not deduplicated away', async () => {
+      // The local-loop scenario the coarser (parcelId, superAgentId)-only,
+      // and later custodian-type-category, constraints both used to wrongly
+      // block: the SAME hub first receives a parcel from a local Agent at
+      // origin (a real Collection), then later genuinely receives the SAME
+      // parcel again as its Run destination (a real, DIFFERENT, Run
+      // assignment) -- two real, distinct physical handling operations.
       await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
       const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
 
@@ -746,15 +754,255 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
         fromCustodianType: 'local_agent', fromCustodianId: 77,
         toCustodianType: 'super_agent', toCustodianId: destHub.id,
         actorSource: 'account_role', assignmentType: null,
+        evidenceRef: `collection:${assignment.id}`,
       } as any));
       const originEarning = await earningService.recordEarningForCustodyEvent(originReceiptEvent.id, { userId: null });
 
       const destReceived = await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
       expect(destReceived.status).toBe(ParcelRunAssignmentStatus.RECEIVED);
-      const destEarning = await earningRepo.findOneOrFail({ where: { parcelId: parcel.id, superAgentId: destHub.id, sourceCustodianType: 'transport_provider' } });
+      const destEarning = await earningRepo.findOneOrFail({ where: { parcelId: parcel.id, superAgentId: destHub.id, physicalHandoffRef: `parcel_run_assignment:${assignment.id}` } });
 
       expect(destEarning.id).not.toBe(originEarning.id); // two independent earnings, not one deduplicated
       expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(2);
+    });
+
+    // ── authorization applies to the idempotent retry too (Stage 3S-C6 second correction) ──
+    it('rejects confirming an ALREADY-RECEIVED assignment from anyone other than the receiving Super Agent\'s own operator', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+      const first = await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      expect(first.status).toBe(ParcelRunAssignmentStatus.RECEIVED);
+
+      // The assignment is now RECEIVED -- an unrelated Super Agent must
+      // still be rejected, not get a successful no-op "confirmation" merely
+      // because the receipt already happened.
+      const stranger = await mkSuperAgent();
+      await expect(assignmentService.confirmReceipt(mkSuperAgentRoleContext(stranger.userId, destHub.id), assignment.id))
+        .rejects.toThrow(ForbiddenException);
+    });
+
+    // ── transactional-outbox obligation mechanism (Stage 3S-C6 second correction) ──
+    it('writes a COMPLETED obligation transactionally alongside a successful automatic earning', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+
+      const earning = await earningRepo.findOneOrFail({ where: { parcelId: parcel.id, superAgentId: destHub.id } });
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: earning.custodyEventId } });
+      expect(obligation.status).toBe(EarningObligationStatus.COMPLETED);
+      expect(obligation.resultingEarningId).toBe(earning.id);
+      expect(obligation.parcelId).toBe(parcel.id);
+      expect(obligation.superAgentId).toBe(destHub.id);
+    });
+
+    it('a missing rate leaves a FAILED_NO_RATE obligation that stays durably replayable, and replaying it after a rate is configured completes the earning', async () => {
+      // Deliberately NO rate configured yet.
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+      const received = await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      expect(received.status).toBe(ParcelRunAssignmentStatus.RECEIVED); // the physical confirmation itself always succeeds
+
+      const custody = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: custody[0].id } });
+      expect(obligation.status).toBe(EarningObligationStatus.FAILED_NO_RATE);
+      expect(obligation.attempts).toBe(1);
+      expect(obligation.resultingEarningId).toBeNull();
+
+      // Sweeping now still finds nothing to do -- still no rate.
+      const sweep1 = await obligationService.processPending();
+      expect(sweep1.completed).toBe(0);
+      expect(await earningRepo.count()).toBe(0);
+
+      // A rate is configured after the fact -- the durable obligation is
+      // what makes recovery possible at all, with zero new custody writes.
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const sweep2 = await obligationService.processPending();
+      expect(sweep2.completed).toBe(1);
+
+      const resolved = await obligationRepo.findOneOrFail({ where: { id: obligation.id } });
+      expect(resolved.status).toBe(EarningObligationStatus.COMPLETED);
+      expect(resolved.resultingEarningId).not.toBeNull();
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
+    });
+
+    it('a genuinely unexpected earning-generation error leaves a FAILED_ERROR obligation, durably recoverable by a later replay, independent of whether the telemetry write itself succeeds', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      // Simulate a transient/unexpected failure (not "no rate configured")
+      // in the earning-generation step itself -- the ONE call confirmReceipt
+      // makes right after commit.
+      const spy = jest.spyOn(earningService, 'recordEarningForCustodyEvent').mockRejectedValueOnce(new Error('simulated transient failure'));
+      // Also simulate the recovery-telemetry storage itself being broken --
+      // proving obligation durability does NOT depend on ActivityEvent
+      // succeeding at anything. A poisoned repo whose save() always throws,
+      // wrapped by the SAME ActivityEventService (which already swallows
+      // its own errors) -- confirmReceipt still gets a working obligation
+      // service instance for this one call by temporarily substituting it.
+      const brokenActivityEventService = new ActivityEventService({
+        create: (x: any) => x,
+        save: () => { throw new Error('activity store unavailable'); },
+      } as any);
+      const brokenObligationService = new SuperAgentHandlingEarningObligationService(obligationRepo, earningService, brokenActivityEventService, ds);
+      const brokenAssignmentService = new ParcelRunAssignmentService(
+        ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, brokenObligationService,
+      );
+
+      const received = await brokenAssignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      expect(received.status).toBe(ParcelRunAssignmentStatus.RECEIVED); // never blocked by any of this
+      spy.mockRestore();
+
+      const custody = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: custody[0].id } });
+      expect(obligation.status).toBe(EarningObligationStatus.FAILED_ERROR);
+      expect(obligation.attempts).toBe(1);
+      expect(obligation.lastError).toContain('simulated transient failure');
+
+      // Replay via the REAL (working) obligation service -- fully recovers.
+      const sweep = await obligationService.processPending();
+      expect(sweep.completed).toBe(1);
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
+    });
+
+    it('concurrent processPending() sweeps never double-claim or double-resolve the same obligation', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      // Force the obligation to stay PENDING/FAILED so processPending() has
+      // something real to claim, by simulating a failure on the immediate
+      // opportunistic attempt.
+      const spy = jest.spyOn(earningService, 'recordEarningForCustodyEvent').mockRejectedValueOnce(new Error('simulated failure'));
+      await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      spy.mockRestore();
+
+      const [a, b] = await Promise.all([obligationService.processPending(), obligationService.processPending()]);
+      // Exactly one earning is ever created, regardless of how the two
+      // sweeps split the single claimable obligation between them.
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
+      expect(a.claimed + b.claimed).toBe(1); // SKIP LOCKED means only ONE sweep ever claims the single obligation
+      expect(a.completed + b.completed).toBe(1);
+    });
+
+    it('a permanent no-rate condition stays FAILED_NO_RATE and retryable indefinitely across repeated sweeps, never fabricating an earning', async () => {
+      // Still deliberately NO rate configured.
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+      await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+
+      await obligationService.processPending();
+      await obligationService.processPending();
+      const after = await obligationService.processPending();
+      expect(after.completed).toBe(0);
+      expect(await earningRepo.count()).toBe(0);
+
+      const custody = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: custody[0].id } });
+      expect(obligation.status).toBe(EarningObligationStatus.FAILED_NO_RATE); // never escalated to FAILED_PERMANENT
+      expect(obligation.attempts).toBeGreaterThanOrEqual(3);
+    });
+
+    it('a persistently failing (non-rate) obligation escalates to FAILED_PERMANENT after repeated attempts and stops being auto-reclaimed', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      const spy = jest.spyOn(earningService, 'recordEarningForCustodyEvent').mockRejectedValue(new Error('persistent simulated failure'));
+      await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      // 4 more sweeps -- 5 total attempts, crossing MAX_ERROR_ATTEMPTS.
+      for (let i = 0; i < 4; i++) await obligationService.processPending();
+      spy.mockRestore();
+
+      const custody = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: custody[0].id } });
+      expect(obligation.status).toBe(EarningObligationStatus.FAILED_PERMANENT);
+      expect(obligation.attempts).toBeGreaterThanOrEqual(5);
+
+      // No longer auto-reclaimed even though a real rate now exists.
+      const sweep = await obligationService.processPending();
+      expect(sweep.claimed).toBe(0);
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(0);
+    });
+  });
+
+  // ── shared lock ordering / full-history blocking scan (Stage 3S-C6 second correction) ──
+  describe('concurrency and legacy-data safety for the parcel assignment guard', () => {
+    it('an OLDER still-unconfirmed hub UNLOADED row is never hidden by a NEWER, terminal row (legacy/inconsistent data)', async () => {
+      const { userId, provider } = await mkProviderWithUser();
+      const destHub = await mkSuperAgent();
+      const r = await mkRoute(provider.id);
+      await addStop(userId, r.id, 0, 'Kariakoo');
+      await addStop(userId, r.id, 1, 'Bunju', { superAgentId: destHub.id });
+      const run = await runService.createRun(userId, { routeId: r.id, scheduledDeparture: new Date(Date.now() + 86400000) });
+      const stops = await runService.getRunStops(run.id);
+      const loadStop = stops.find((s) => s.locationLabel === 'Kariakoo')!;
+      const unloadStop = stops.find((s) => s.locationLabel === 'Bunju')!;
+      const parcel = await mkParcel();
+
+      // The OLDER row: genuinely unloaded at the hub, never confirmed --
+      // created through the real service so it's a real blocking row.
+      const older = await assignmentService.createAssignment(userId, {
+        runId: run.id, parcelId: parcel.id, loadRunStopId: loadStop.id, unloadRunStopId: unloadStop.id,
+      });
+      const context = mkRoleContext(userId, provider.id);
+      await assignmentService.markLoaded(context, older.id);
+      await assignmentService.markUnloaded(context, older.id);
+
+      // A NEWER row for the SAME parcel, inserted directly (bypassing the
+      // service's own guard entirely) with a higher id and a TERMINAL
+      // status -- simulating data whose shape predates this guard, or a
+      // direct/administrative correction. If the blocking scan only ever
+      // looked at the latest row, this would wrongly hide `older`.
+      const assignmentRepo = ds.getRepository(ParcelRunAssignment);
+      const newer = await assignmentRepo.save(assignmentRepo.create({
+        runId: run.id, parcelId: parcel.id, loadRunStopId: loadStop.id, unloadRunStopId: unloadStop.id,
+        status: ParcelRunAssignmentStatus.CANCELLED, createdByUserId: userId,
+      } as any));
+      expect(newer.id).toBeGreaterThan(older.id);
+
+      const active = await assignmentService.getActiveAssignmentForParcel(parcel.id);
+      expect(active?.id).toBe(older.id); // the OLDER, still-blocking row -- not hidden
+
+      const r2 = await mkRoute(provider.id);
+      await addStop(userId, r2.id, 0, 'Bunju');
+      await addStop(userId, r2.id, 1, 'Ubungo');
+      const run2 = await runService.createRun(userId, { routeId: r2.id, scheduledDeparture: new Date(Date.now() + 172800000) });
+      const stops2 = await runService.getRunStops(run2.id);
+      await expect(assignmentService.createAssignment(userId, {
+        runId: run2.id, parcelId: parcel.id,
+        loadRunStopId: stops2.find((s) => s.locationLabel === 'Bunju')!.id,
+        unloadRunStopId: stops2.find((s) => s.locationLabel === 'Ubungo')!.id,
+      })).rejects.toThrow(ConflictException);
+    });
+
+    it('two concurrent createAssignment calls for the SAME parcel never both succeed -- the Parcel-row lock fully serializes them', async () => {
+      const { userId, provider } = await mkProviderWithUser();
+      const { run: runA, stops: stopsA } = await mkPilotRun(userId, provider.id);
+      const r2 = await mkRoute(provider.id);
+      await addStop(userId, r2.id, 0, 'Kariakoo');
+      await addStop(userId, r2.id, 1, 'Bunju');
+      const runB = await runService.createRun(userId, { routeId: r2.id, scheduledDeparture: new Date(Date.now() + 172800000) });
+      const stopsB = await runService.getRunStops(runB.id);
+      const parcel = await mkParcel();
+
+      const results = await Promise.allSettled([
+        assignmentService.createAssignment(userId, {
+          runId: runA.id, parcelId: parcel.id, loadRunStopId: stopsA.mbagala.id, unloadRunStopId: stopsA.bunju.id,
+        }),
+        assignmentService.createAssignment(userId, {
+          runId: runB.id, parcelId: parcel.id,
+          loadRunStopId: stopsB.find((s) => s.locationLabel === 'Kariakoo')!.id,
+          unloadRunStopId: stopsB.find((s) => s.locationLabel === 'Bunju')!.id,
+        }),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1); // exactly one wins
+      expect(rejected).toHaveLength(1); // the other is a real conflict, not a silent double-booking
+      const rows = await ds.query(`SELECT count(*)::int AS n FROM public.parcel_run_assignment WHERE "parcelId" = $1`, [parcel.id]);
+      expect(rows[0].n).toBe(1); // only ONE assignment row ever exists for this parcel
     });
   });
 

@@ -49,11 +49,17 @@
  * remain correctly excluded by the existing toCustodianType check, unaffected
  * by this addition.
  *
- * This still says nothing about whether the SAME physical handoff was ALSO
- * recorded a second time by a different pathway (legacy vs. Run-based) --
- * see this gate's own report for the documented, deliberately NOT-yet-built
- * cross-pathway deduplication plan; solving that here would mean building a
- * second custody ledger/index, explicitly out of this gate's scope.
+ * Stage 3S-C6 second correction: cross-pathway deduplication is now keyed
+ * on the qualifying event's own `evidenceRef` (frozen onto the earning row
+ * as `physicalHandoffRef`) -- a proven, concrete-operation identity, not a
+ * custodian-type category guess. See SuperAgentHandlingEarning's own header
+ * comment for the full reasoning. When a qualifying event carries no
+ * evidenceRef at all, cross-writer equivalence can't be proven, so this
+ * service does NOT silently guess: it records an independent earning and,
+ * if another earning already exists for the same (parcel, Super Agent)
+ * pair, flags the pairing as ambiguous via a non-blocking ActivityEvent for
+ * admin review -- "mark/review ambiguity rather than silently returning an
+ * unrelated earning."
  *
  * Deliberately NOT wired as an automatic side effect of any existing
  * custody-writing call site in this gate (see this gate's own report for
@@ -67,6 +73,8 @@ import { DataSource, Repository } from 'typeorm';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { SuperAgentHandlingEarning } from './entities/super-agent-handling-earning.entity';
 import { SuperAgentHandlingRateService } from './super-agent-handling-rate.service';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 export interface RecordHandlingEarningActor {
   userId: number | null;
@@ -109,6 +117,7 @@ export class SuperAgentHandlingEarningService {
     @InjectRepository(SuperAgentHandlingEarning) private earningRepo: Repository<SuperAgentHandlingEarning>,
     private readonly rateService: SuperAgentHandlingRateService,
     private readonly dataSource: DataSource,
+    private readonly activityEventService: ActivityEventService,
   ) {}
 
   private isQualifyingReceipt(event: ParcelCustodyEvent): boolean {
@@ -154,42 +163,35 @@ export class SuperAgentHandlingEarningService {
       throw new ConflictException('No effective handling-rate configuration covers this custody event\'s time');
     }
 
-    // Frozen from the qualifying event's own fromCustodianType -- see the
-    // entity's header comment for why this, not eventKind, is the right
-    // extra dedup dimension.
-    const sourceCustodianType = event.fromCustodianType ?? 'unknown';
+    // Frozen from the qualifying event's own evidenceRef -- the proven
+    // physical-handoff identity, see the entity's header comment.
+    const physicalHandoffRef = event.evidenceRef ?? null;
 
     const row = this.earningRepo.create({
       custodyEventId: event.id,
       parcelId: event.parcelId,
       superAgentId: event.toCustodianId!,
-      sourceCustodianType,
+      physicalHandoffRef,
       rateConfigId: rate.id,
       amount: rate.amount,
       currency: rate.currency,
       source: event.eventKind,
       actorUserId: actor.userId,
     });
+    let created: SuperAgentHandlingEarning;
     try {
-      return await this.earningRepo.save(row);
+      created = await this.earningRepo.save(row);
     } catch (error: any) {
       if (error?.code === UNIQUE_VIOLATION) {
-        if (error?.constraint === 'UQ_super_agent_handling_earning_parcel_agent_source') {
-          // Stage 3S-C6: a DIFFERENT custody event (from this pathway or a
-          // different one entirely) already earned for this exact
-          // (parcelId, superAgentId, sourceCustodianType) triple -- the
-          // cross-pathway deduplication safety net firing, not a retry of
-          // THIS event. Returning the already-recorded earning keeps this
-          // call idempotent from the caller's point of view ("this
-          // parcel/agent/prior-custodian combination is already
-          // compensated") without ever risking a second payment for what
-          // may be the same physical handoff recorded twice -- while still
-          // allowing a genuinely separate handling operation (a different
-          // sourceCustodianType) for the same parcel/agent pair to earn its
-          // own, independent row.
-          return this.earningRepo.findOneOrFail({
-            where: { parcelId: event.parcelId, superAgentId: event.toCustodianId!, sourceCustodianType },
-          });
+        if (error?.constraint === 'UQ_super_agent_handling_earning_physical_handoff') {
+          // A DIFFERENT custody event -- from this pathway or a different
+          // one entirely -- already recorded an earning for this exact,
+          // PROVEN physical operation (physicalHandoffRef can only collide
+          // when two rows genuinely describe the same real-world handoff).
+          // Returning the already-recorded earning keeps this call
+          // idempotent from the caller's point of view without ever risking
+          // a second payment for what is provably the same handoff.
+          return this.earningRepo.findOneOrFail({ where: { physicalHandoffRef: physicalHandoffRef! } });
         }
         // Idempotent retry / genuinely concurrent attempt for the SAME
         // custody event -- the DB's own unique constraint on custodyEventId
@@ -200,5 +202,37 @@ export class SuperAgentHandlingEarningService {
       }
       throw error;
     }
+
+    // The event carried no provable physical-handoff identity, so this row
+    // was NOT deduplicated against anything -- if another earning already
+    // exists for the same (parcel, Super Agent) pair, we genuinely can't
+    // tell whether this is a second real handling operation or an
+    // accidental duplicate recording. Never guess either way: flag it for a
+    // human via the same non-blocking Activity/Event mechanism Stage 3S-C6's
+    // confirmReceipt correction already established, and still return the
+    // real, newly-created earning either way.
+    if (physicalHandoffRef == null) {
+      const priorCount = await this.earningRepo.count({
+        where: { parcelId: event.parcelId, superAgentId: event.toCustodianId! },
+      });
+      if (priorCount > 1) {
+        await this.activityEventService.record({
+          eventType: 'SUPER_AGENT_HANDLING_EARNING_UNPROVABLE_DUPLICATE_RISK',
+          category: ActivityCategory.LOGISTICS,
+          actorId: actor.userId,
+          targetType: 'super_agent_handling_earning',
+          targetId: created.id,
+          severity: 'warning',
+          visibility: 'admin',
+          metadata: {
+            custodyEventId: event.id,
+            parcelId: event.parcelId,
+            superAgentId: event.toCustodianId,
+            reason: 'no evidenceRef on the qualifying custody event -- cannot prove this is (or is not) the same physical handoff as an existing earning for this parcel/Super Agent pair',
+          },
+        });
+      }
+    }
+    return created;
   }
 }

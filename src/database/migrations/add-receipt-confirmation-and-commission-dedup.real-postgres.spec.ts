@@ -36,11 +36,11 @@ suite('Stage 3S-C6 receipt confirmation + commission dedup schema: real PostgreS
     INSERT INTO public.parcel_run_assignment ("runId","parcelId","loadRunStopId","unloadRunStopId",status,"createdByUserId")
     VALUES (1,1,1,2,$1,1) RETURNING id`, [status]);
 
-  const insertEarning = (o: Partial<{ custodyEventId: number; parcelId: number; superAgentId: number; sourceCustodianType: string }> = {}) => ds.query(`
+  const insertEarning = (o: Partial<{ custodyEventId: number; parcelId: number; superAgentId: number; physicalHandoffRef: string | null }> = {}) => ds.query(`
     INSERT INTO public.super_agent_handling_earning
-      ("custodyEventId","parcelId","superAgentId","sourceCustodianType","rateConfigId",amount,currency,source)
+      ("custodyEventId","parcelId","superAgentId","physicalHandoffRef","rateConfigId",amount,currency,source)
     VALUES ($1,$2,$3,$4,1,500,'TZS','origin_hub_received') RETURNING id`,
-    [o.custodyEventId ?? 1, o.parcelId ?? 1, o.superAgentId ?? 1, o.sourceCustodianType ?? 'transport_provider']);
+    [o.custodyEventId ?? 1, o.parcelId ?? 1, o.superAgentId ?? 1, o.physicalHandoffRef === undefined ? null : o.physicalHandoffRef]);
 
   beforeAll(async () => {
     const client = new Client(config!);
@@ -56,8 +56,10 @@ suite('Stage 3S-C6 receipt confirmation + commission dedup schema: real PostgreS
     await ds.query('INSERT INTO public.transport_run VALUES (1)');
     await ds.query('INSERT INTO public.transport_run_stop VALUES (1),(2)');
     await ds.query('INSERT INTO public.parcel VALUES (1),(2)');
-    await ds.query('CREATE TABLE public.parcel_custody_event (id SERIAL PRIMARY KEY, "fromCustodianType" varchar)');
-    await ds.query(`INSERT INTO public.parcel_custody_event (id, "fromCustodianType") VALUES (1,'transport_provider'),(2,'local_agent'),(3,'local_agent')`);
+    await ds.query('CREATE TABLE public.parcel_custody_event (id SERIAL PRIMARY KEY, "fromCustodianType" varchar, "evidenceRef" varchar)');
+    await ds.query(`INSERT INTO public.parcel_custody_event (id, "fromCustodianType", "evidenceRef") VALUES
+      (1,'transport_provider','parcel_run_assignment:1'),(2,'local_agent','collection:2'),
+      (3,'local_agent',NULL),(4,'local_agent',NULL)`);
 
     await apply(assignmentMigration, 'up');
     await apply(commissionMigration, 'up');
@@ -77,33 +79,65 @@ suite('Stage 3S-C6 receipt confirmation + commission dedup schema: real PostgreS
     expect(cols).toHaveLength(1);
   });
 
-  it('adds the sourceCustodianType column as NOT NULL', async () => {
+  it('adds physicalHandoffRef as a nullable column (backfilled from evidenceRef where present)', async () => {
     const cols = await ds.query(`SELECT column_name, is_nullable FROM information_schema.columns
-      WHERE table_schema='public' AND table_name='super_agent_handling_earning' AND column_name='sourceCustodianType'`);
+      WHERE table_schema='public' AND table_name='super_agent_handling_earning' AND column_name='physicalHandoffRef'`);
     expect(cols).toHaveLength(1);
-    expect(cols[0].is_nullable).toBe('NO');
-    await expect(ds.query(`INSERT INTO public.super_agent_handling_earning
-      ("custodyEventId","parcelId","superAgentId","sourceCustodianType","rateConfigId",amount,currency,source)
-      VALUES (1,1,1,NULL,1,500,'TZS','origin_hub_received')`)).rejects.toThrow();
+    expect(cols[0].is_nullable).toBe('YES'); // NOT enforced NOT NULL -- an un-provable handoff is an accepted state
   });
 
-  it('enforces the new (parcelId, superAgentId, sourceCustodianType) uniqueness on the earning table without disturbing the existing custodyEventId uniqueness', async () => {
-    await insertEarning({ custodyEventId: 1, parcelId: 1, superAgentId: 1, sourceCustodianType: 'transport_provider' });
-    // Same (parcelId, superAgentId, sourceCustodianType), a DIFFERENT custody event -- rejected by the NEW constraint.
-    await expect(insertEarning({ custodyEventId: 2, parcelId: 1, superAgentId: 1, sourceCustodianType: 'transport_provider' })).rejects.toThrow();
+  it('enforces uniqueness on physicalHandoffRef ALONE (a proven concrete-operation identity), while leaving NULL rows unconstrained and custodyEventId uniqueness untouched', async () => {
+    await insertEarning({ custodyEventId: 1, parcelId: 1, superAgentId: 1, physicalHandoffRef: 'parcel_run_assignment:1' });
+    // The SAME physicalHandoffRef, a DIFFERENT custody event -- rejected:
+    // this is a PROVEN duplicate recording of one real physical handoff.
+    await expect(insertEarning({ custodyEventId: 2, parcelId: 1, superAgentId: 1, physicalHandoffRef: 'parcel_run_assignment:1' })).rejects.toThrow();
     // The SAME custodyEventId again -- still rejected by the EXISTING (untouched) constraint.
-    await expect(insertEarning({ custodyEventId: 1, parcelId: 2, superAgentId: 9, sourceCustodianType: 'local_agent' })).rejects.toThrow();
-    // A genuinely different parcel/agent pair with a different event is fine.
-    await expect(insertEarning({ custodyEventId: 2, parcelId: 2, superAgentId: 1, sourceCustodianType: 'transport_provider' })).resolves.toHaveLength(1);
-    // Stage 3S-C6 correction: the SAME parcel/agent pair, but a genuinely
-    // DIFFERENT prior-custodian type (a separate real handling operation --
-    // e.g. an earlier local-loop origin receipt followed by a later
-    // destination receipt at the same hub) must now be allowed.
-    await expect(insertEarning({ custodyEventId: 3, parcelId: 1, superAgentId: 1, sourceCustodianType: 'local_agent' })).resolves.toHaveLength(1);
+    await expect(insertEarning({ custodyEventId: 1, parcelId: 2, superAgentId: 9, physicalHandoffRef: 'collection:9' })).rejects.toThrow();
+    // A genuinely different concrete operation -- always allowed, even for
+    // the exact same parcel/Super Agent pair (Stage 3S-C6's own
+    // local-loop-origin-then-destination scenario).
+    await expect(insertEarning({ custodyEventId: 2, parcelId: 1, superAgentId: 1, physicalHandoffRef: 'collection:2' })).resolves.toHaveLength(1);
+    // No provable physical-handoff identity at all (NULL) -- the partial
+    // index does not constrain these rows AT ALL, so two of them can share
+    // the same parcel/Super Agent pair without any DB-level conflict; the
+    // application layer (SuperAgentHandlingEarningService) is what flags
+    // this specific case for review, not a DB constraint.
+    await expect(insertEarning({ custodyEventId: 3, parcelId: 1, superAgentId: 1, physicalHandoffRef: null })).resolves.toHaveLength(1);
+    await expect(insertEarning({ custodyEventId: 4, parcelId: 1, superAgentId: 1, physicalHandoffRef: null })).resolves.toHaveLength(1);
     // TRUNCATE, not DELETE -- the earning table's own immutability trigger
     // (applied for real by commissionMigration.up() above) makes a plain
     // DELETE impossible once any row exists; test-harness-only technique.
-    await ds.query(`TRUNCATE TABLE public.super_agent_handling_earning RESTART IDENTITY`);
+    // CASCADE clears the obligation table's own FK dependents (resultingEarningId).
+    await ds.query(`TRUNCATE TABLE public.super_agent_handling_earning RESTART IDENTITY CASCADE`);
+  });
+
+  it('creates the super_agent_handling_earning_obligation transactional-outbox table with its own constraints', async () => {
+    const cols = await ds.query(`SELECT column_name FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='super_agent_handling_earning_obligation'
+      ORDER BY column_name`);
+    expect(cols.map((c: any) => c.column_name).sort()).toEqual(
+      ['attempts', 'createdAt', 'custodyEventId', 'id', 'lastAttemptedAt', 'lastError',
+       'parcelId', 'resultingEarningId', 'status', 'superAgentId', 'updatedAt'].sort(),
+    );
+
+    const insertObligation = (o: Partial<{ custodyEventId: number; status: string }> = {}) => ds.query(
+      `INSERT INTO public.super_agent_handling_earning_obligation ("custodyEventId","parcelId","superAgentId",status)
+       VALUES ($1,1,1,$2) RETURNING id`,
+      [o.custodyEventId ?? 1, o.status ?? 'pending'],
+    );
+
+    const [{ id }] = await insertObligation({ custodyEventId: 1 });
+    // Unique per custodyEventId.
+    await expect(insertObligation({ custodyEventId: 1 })).rejects.toThrow();
+    // Status vocabulary is enforced by a real CHECK constraint.
+    await expect(insertObligation({ custodyEventId: 2, status: 'bogus' })).rejects.toThrow();
+    // FK to a real custody event -- a nonexistent one is refused.
+    await expect(insertObligation({ custodyEventId: 999999 })).rejects.toThrow();
+
+    // Mutable: unlike the earning/cash-collection ledgers, ordinary UPDATE
+    // and DELETE both work here -- no immutability trigger applies.
+    await expect(ds.query(`UPDATE public.super_agent_handling_earning_obligation SET status = 'completed' WHERE id = $1`, [id])).resolves.toBeDefined();
+    await expect(ds.query(`DELETE FROM public.super_agent_handling_earning_obligation WHERE id = $1`, [id])).resolves.toBeDefined();
   });
 
   it('refuses populated rollback while received assignments or the dedup constraint\'s own history exist; empty down and up round-trip', async () => {
@@ -118,9 +152,12 @@ suite('Stage 3S-C6 receipt confirmation + commission dedup schema: real PostgreS
     await expect(insertAssignment('received')).rejects.toThrow(); // vocab reverted too
 
     const earningCols = await ds.query(`SELECT column_name FROM information_schema.columns
-      WHERE table_schema='public' AND table_name='super_agent_handling_earning' AND column_name='sourceCustodianType'`);
+      WHERE table_schema='public' AND table_name='super_agent_handling_earning' AND column_name='physicalHandoffRef'`);
     expect(earningCols).toHaveLength(0);
     await expect(insertEarning({ custodyEventId: 99, parcelId: 1, superAgentId: 1 })).rejects.toThrow(); // column reverted too
+
+    const obligationTable = await ds.query(`SELECT to_regclass('public.super_agent_handling_earning_obligation') AS t`);
+    expect(obligationTable[0].t).toBeNull(); // obligation table dropped too
 
     await apply(migration, 'up'); // leave the schema present for any later run of this file
   });
