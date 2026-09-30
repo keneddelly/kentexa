@@ -22,6 +22,7 @@ import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
+import { TransportRoute } from '../transport/entities/transport-route.entity';
 
 // The AI "front door" — one endpoint the frontend's unified search bar hits
 // before it knows which domain (product/classified/service/transport) to
@@ -38,6 +39,7 @@ export class SearchController {
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
     @InjectRepository(CommerceProfile) private profileRepo: Repository<CommerceProfile>,
     @InjectRepository(BusinessFeedItem) private momentRepo: Repository<BusinessFeedItem>,
+    @InjectRepository(TransportRoute) private routeRepo: Repository<TransportRoute>,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -119,7 +121,7 @@ export class SearchController {
         matches.map((m) => [`${m.entityType}:${m.entityId}`, m.score]),
       );
 
-      const [products, classifieds, services, profiles, moments] = await Promise.all([
+      const [products, classifieds, services, profiles, moments, transportRoutes] = await Promise.all([
         idsByType.product?.length
           ? this.productRepo.find({ where: { id: In(idsByType.product) } })
           : [],
@@ -135,6 +137,9 @@ export class SearchController {
         idsByType.moment?.length
           ? this.momentRepo.find({ where: { id: In(idsByType.moment), isActive: true } })
           : [],
+        idsByType.transport_route?.length
+          ? this.routeRepo.find({ where: { id: In(idsByType.transport_route), isActive: true } })
+          : [],
       ]);
 
       return [
@@ -143,6 +148,7 @@ export class SearchController {
         ...services.map((s) => ({ ...s, _type: 'service', _score: scoreOf.get(`service:${s.id}`) })),
         ...profiles.map((pr) => ({ ...pr, _type: 'profile', _score: scoreOf.get(`profile:${pr.id}`) })),
         ...moments.map((m) => ({ ...m, _type: 'moment', _score: scoreOf.get(`moment:${m.id}`) })),
+        ...transportRoutes.map((r) => ({ ...r, _type: 'transport_route', _score: scoreOf.get(`transport_route:${r.id}`) })),
       ].sort((a, b) => (b._score || 0) - (a._score || 0));
     } catch {
       return [];
