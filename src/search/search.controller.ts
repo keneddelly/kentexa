@@ -98,6 +98,27 @@ export class SearchController {
     }
   }
 
+  private intentResult(entityType: string, row: any, score?: number) {
+    const id = Number(row.id);
+    const base: any = { ...row, _type: entityType, _score: score, intentRef: { entityType, entityId: id } };
+    switch (entityType) {
+      case 'product':
+        return { ...base, intentRef: { ...base.intentRef, destination: `ProductDetail-${id}`, actions: ['view', 'message', 'buy'] } };
+      case 'classified':
+        return { ...base, intentRef: { ...base.intentRef, destination: `ClassifiedDetail-${id}`, actions: ['view', 'message'] } };
+      case 'service':
+        return { ...base, intentRef: { ...base.intentRef, destination: `ServiceDetail-${id}`, actions: ['view', 'message', 'request_service'] } };
+      case 'profile':
+        return { ...base, intentRef: { ...base.intentRef, destination: `CommerceProfile-${row.ownerId}`, commerceProfileId: id, actions: ['view', 'follow', 'message'] } };
+      case 'moment':
+        return { ...base, intentRef: { ...base.intentRef, destination: 'Home', actions: ['view', 'save', 'comment', 'share'] } };
+      case 'transport_route':
+        return { ...base, intentRef: { ...base.intentRef, destination: 'Search', actions: ['view', 'send_shipment'] } };
+      default:
+        return base;
+    }
+  }
+
   // Meaning-based search — catches matches keyword search structurally
   // cannot (a query in one language/wording against content in another,
   // or content whose relevant text lives in a profile's bio rather than a
@@ -143,12 +164,12 @@ export class SearchController {
       ]);
 
       return [
-        ...products.map((p) => ({ ...p, _type: 'product', _score: scoreOf.get(`product:${p.id}`) })),
-        ...classifieds.map((c) => ({ ...c, _type: 'classified', _score: scoreOf.get(`classified:${c.id}`) })),
-        ...services.map((s) => ({ ...s, _type: 'service', _score: scoreOf.get(`service:${s.id}`) })),
-        ...profiles.map((pr) => ({ ...pr, _type: 'profile', _score: scoreOf.get(`profile:${pr.id}`) })),
-        ...moments.map((m) => ({ ...m, _type: 'moment', _score: scoreOf.get(`moment:${m.id}`) })),
-        ...transportRoutes.map((r) => ({ ...r, _type: 'transport_route', _score: scoreOf.get(`transport_route:${r.id}`) })),
+        ...products.map((p) => this.intentResult('product', p, scoreOf.get(`product:${p.id}`))),
+        ...classifieds.map((c) => this.intentResult('classified', c, scoreOf.get(`classified:${c.id}`))),
+        ...services.map((svc) => this.intentResult('service', svc, scoreOf.get(`service:${svc.id}`))),
+        ...profiles.map((pr) => this.intentResult('profile', pr, scoreOf.get(`profile:${pr.id}`))),
+        ...moments.map((m) => this.intentResult('moment', m, scoreOf.get(`moment:${m.id}`))),
+        ...transportRoutes.map((route) => this.intentResult('transport_route', route, scoreOf.get(`transport_route:${route.id}`))),
       ].sort((a, b) => (b._score || 0) - (a._score || 0));
     } catch {
       return [];
