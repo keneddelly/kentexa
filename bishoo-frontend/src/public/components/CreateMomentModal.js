@@ -42,7 +42,7 @@ const routeTitle = (r, t) => {
 const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, activeProfileId, activeProfile }) => {
   const { t } = useTranslation();
   const LOOKING_FOR_CATEGORIES = getLookingForCategories(t);
-  const [mode,      setMode]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'selling');
+  const [mode,      setMode]      = useState(initialMode === 'looking_for' ? 'looking_for' : 'moment');
   const [file,      setFile]      = useState(null);
   const [preview,   setPreview]   = useState(null);
   const [caption,   setCaption]   = useState('');
@@ -137,9 +137,8 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
 
   const handlePost = async () => {
     if (actorUnresolved) { setError(t('actor_label.unresolved')); return; }
-    if (mode === 'selling') {
-      if (!file)   { setError(t('create_moment_modal.validate_add_photo')); return; }
-      if (!tagged) { setError(t('create_moment_modal.validate_tag_item')); return; }
+    if (mode === 'moment') {
+      if (!file && !caption.trim()) { setError('Add a photo or write something to share.'); return; }
     } else {
       if (!caption.trim()) { setError(t('create_moment_modal.validate_describe')); return; }
       if (!category)        { setError(t('create_moment_modal.validate_pick_category')); return; }
@@ -156,17 +155,18 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         imageUrl = up.data?.urls?.[0] || null;
-        if (mode === 'selling' && !imageUrl) throw new Error(t('create_moment_modal.upload_failed'));
+        if (mode === 'moment' && file && !imageUrl) throw new Error(t('create_moment_modal.upload_failed'));
       }
 
-      if (mode === 'selling') {
+      if (mode === 'moment') {
         await api.post('/feed/publish', {
           type: 'moment',
-          title: caption.trim() || tagged.title,
+          intent: 'update',
+          title: caption.trim() || tagged?.title || 'Moment',
           body: caption.trim() || null,
           imageUrl,
-          linkedEntityType: tagged.type,
-          linkedEntityId: tagged.id,
+          linkedEntityType: tagged?.type || null,
+          linkedEntityId: tagged?.id || null,
           commerceProfileId: activeProfileId || undefined,
         });
       } else {
@@ -201,7 +201,7 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           <button onClick={onClose} style={{ background:'none', border:'none',
             cursor:'pointer', fontSize:20, color:GR, padding:4 }}>×</button>
           <div style={{ fontSize:15, fontWeight:900, color:DK }}>
-            {mode === 'selling' ? t('create_moment_modal.title_selling') : t('create_moment_modal.title_looking_for')}
+            {mode === 'moment' ? 'Create Moment' : t('create_moment_modal.title_looking_for')}
           </div>
           <div style={{ width:28 }} />
         </div>
@@ -220,12 +220,12 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
 
         {/* Mode toggle */}
         <div style={{ display:'flex', gap:8, padding:'12px 16px 0', flexShrink:0 }}>
-          <button onClick={() => { setMode('selling'); setError(''); }}
+          <button onClick={() => { setMode('moment'); setError(''); }}
             style={{ flex:1, padding:'10px 0', borderRadius:10, cursor:'pointer',
-              border: mode==='selling' ? `2px solid ${B}` : '1.5px solid #E2E8F0',
-              backgroundColor: mode==='selling' ? '#EFF6FF' : WH,
-              color: mode==='selling' ? B : GR, fontSize:13, fontWeight:800 }}>
-            {t('create_moment_modal.toggle_selling')}
+              border: mode==='moment' ? `2px solid ${B}` : '1.5px solid #E2E8F0',
+              backgroundColor: mode==='moment' ? '#EFF6FF' : WH,
+              color: mode==='moment' ? B : GR, fontSize:13, fontWeight:800 }}>
+            Moment
           </button>
           <button onClick={() => { setMode('looking_for'); setError(''); }}
             style={{ flex:1, padding:'10px 0', borderRadius:10, cursor:'pointer',
@@ -237,13 +237,13 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
         </div>
 
         <div style={{ flex:1, overflowY:'auto', padding:16, minHeight:0 }}>
-          {/* Photo picker — required for Selling, optional for Looking For */}
+          {/* Instagram-style Moment canvas: media stays inside a fixed viewport; browser gestures never resize the composer. */}
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePickFile} />
           {preview ? (
             <div onClick={() => fileRef.current?.click()}
               style={{ width:'100%', aspectRatio:'1/1', borderRadius:14, overflow:'hidden',
-                cursor:'pointer', marginBottom:16, position:'relative' }}>
-              <img src={preview} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                cursor:'pointer', marginBottom:16, position:'relative', touchAction:'manipulation', background:'#0F172A' }}>
+              <img src={preview} alt="" draggable={false} style={{ width:'100%', height:'100%', objectFit:'contain', userSelect:'none', WebkitUserSelect:'none', touchAction:'none' }} />
               <div style={{ position:'absolute', bottom:8, right:8, backgroundColor:'rgba(0,0,0,0.6)',
                 color:WH, fontSize:11, fontWeight:700, padding:'4px 10px', borderRadius:100 }}>
                 {t('create_moment_modal.change_photo')}
@@ -251,22 +251,22 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
             </div>
           ) : (
             <button onClick={() => fileRef.current?.click()}
-              style={{ width:'100%', aspectRatio: mode==='selling' ? '1/1' : undefined,
+              style={{ width:'100%', aspectRatio: mode==='moment' ? '1/1' : undefined,
                 minHeight: mode==='looking_for' ? 90 : undefined,
                 borderRadius:14, border:'2px dashed #CBD5E1', backgroundColor:'#F8FAFC',
                 display:'flex', flexDirection:'column', alignItems:'center',
                 justifyContent:'center', gap:8, cursor:'pointer', marginBottom:16,
                 padding: mode==='looking_for' ? '16px 0' : 0 }}>
-              <span style={{ fontSize: mode==='selling' ? 36 : 24 }}>📷</span>
+              <span style={{ fontSize: mode==='moment' ? 36 : 24 }}>📷</span>
               <span style={{ fontSize:13, fontWeight:700, color:GR }}>
-                {mode==='selling' ? t('create_moment_modal.tap_add_photo') : t('create_moment_modal.add_photo_optional')}
+                {mode==='moment' ? t('create_moment_modal.tap_add_photo') : t('create_moment_modal.add_photo_optional')}
               </span>
             </button>
           )}
 
           {/* Caption / description */}
           <textarea value={caption} onChange={e => setCaption(e.target.value)}
-            placeholder={mode==='selling'
+            placeholder={mode==='moment'
               ? t('create_moment_modal.placeholder_selling')
               : t('create_moment_modal.placeholder_looking_for')}
             maxLength={140}
@@ -274,12 +274,11 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
               border:'1px solid #E2E8F0', fontSize:13, resize:'vertical',
               boxSizing:'border-box', fontFamily:'inherit', marginBottom:16, outline:'none' }} />
 
-          {mode === 'selling' ? (
+          {mode === 'moment' ? (
             <>
-              {/* Tag picker */}
-              <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:8 }}>
-                {t('create_moment_modal.tag_moment_label')}
-              </div>
+              {/* Optional context link: a Moment is still a Moment, never a listing. */}
+              <div style={{ fontSize:12, fontWeight:800, color:DK, marginBottom:4 }}>Link something (optional)</div>
+              <div style={{ fontSize:11, color:GR, marginBottom:8, lineHeight:1.45 }}>Connect this Moment to a product, classified, service, route or profile so viewers can continue — it does not create a listing.</div>
               {loadingItems ? (
                 <div style={{ fontSize:12, color:GR, padding:'12px 0' }}>{t('create_moment_modal.loading_items')}</div>
               ) : myItems.length === 0 ? (
@@ -371,12 +370,12 @@ const CreateMomentModal = ({ onClose, onPosted, currentUser, initialMode, active
           borderTop:'1px solid #F1F5F9' }}>
           <button onClick={handlePost} disabled={posting || actorUnresolved}
             style={{ width:'100%', background: posting
-              ? '#93C5FD' : mode==='selling'
+              ? '#93C5FD' : mode==='moment'
                 ? `linear-gradient(135deg,${B},#7C3AED)`
                 : 'linear-gradient(135deg,#7C3AED,#EC4899)',
               color:WH, border:'none', borderRadius:12, padding:'13px 0',
               cursor: posting ? 'not-allowed' : 'pointer', fontSize:14, fontWeight:800 }}>
-            {posting ? t('create_moment_modal.posting') : mode==='selling' ? t('create_moment_modal.share_moment_button') : t('create_moment_modal.post_request_button')}
+            {posting ? t('create_moment_modal.posting') : mode==='moment' ? t('create_moment_modal.share_moment_button') : t('create_moment_modal.post_request_button')}
           </button>
         </div>
       </div>
