@@ -18,8 +18,8 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
   const [showListChoice, setShowListChoice] = useState(false);
 
   const momentAction = {
-    icon: '📸', title: t('post_modal.action_moment_title'), sub: t('post_modal.action_moment_sub'),
-    mode: 'selling', color: '#EFF6FF', accent: '#2563EB',
+    icon: '📸', title: 'Create Moment', sub: 'Share a photo or update for discovery — this is not a product or classified listing.',
+    mode: 'moment', color: '#EFF6FF', accent: '#2563EB',
   };
   const listAction = {
     icon: '🏷️', title: t('post_modal.action_listing_title'),
@@ -115,10 +115,10 @@ const PostModal = ({ onNavigate, onClose, onOpenMoment, activeProfile }) => {
         }} />
 
         <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 4 }}>
-          {showListChoice ? t('post_modal.header_add_listing') : t('post_modal.header_post')}
+          {showListChoice ? t('post_modal.header_add_listing') : 'What do you want to create?'}
         </div>
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-          {showListChoice ? t('post_modal.sub_what_listing') : t('post_modal.sub_choose_action')}
+          {showListChoice ? t('post_modal.sub_what_listing') : 'Moment is for discovery and updates. Use Listing when you want something searchable as an ad.'}
         </div>
 
         {showListChoice ? (
