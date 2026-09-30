@@ -99,7 +99,7 @@ const SERVICE_MEDIA: MediaRules = {
 // dozens of categories (Color, Brand, Condition, Gender, ...); anything
 // that doesn't match a known rule safely falls back to a plain filterable
 // text field — never mislabeled, never blocks listing creation.
-const CONDITION_VALUES = ['New', 'Used', 'Refurbished'];
+const CONDITION_VALUES = ['New', 'Used', 'Refurbished', 'Like New', 'Good', 'Fair', 'Parts Only'];
 const GENDER_VALUES = ['Male', 'Female', 'Unisex'];
 const NUMERIC_UNITS = /^(kg|g|l|ml|cc|w|kva|va|ah|mah|km|m|cm|mm|sqm|btu|acres\/sqm)$/i;
 
@@ -630,6 +630,37 @@ export const CATEGORIES: Record<string, CategoryDef> = {
     },
   },
 };
+
+// Condition applies to reusable goods, never to food, living things,
+// consumables, jobs, property or services. Mixed categories are explicit.
+const CONDITION_SUBCATEGORIES: Record<string, true | string[]> = {
+  electronics: true, fashion: true, appliances: true, vehicles: true,
+  home_garden: ['furniture', 'bedding', 'kitchen', 'garden'],
+  health_beauty: ['medical'], baby_kids: ['toys', 'school'],
+  sports: true, books: ['textbooks', 'fiction'], arts: ['paintings'],
+  musical_instruments: true, pets: ['pet_supplies'],
+  construction: ['tools'], industrial: true, energy: true,
+  tools_hardware: ['hand_tools', 'power_tools', 'measuring_tools', 'ladders_access'],
+  weddings_events: ['bridal_wear'],
+  water_sanitation: ['water_tanks', 'water_pumps', 'water_filters', 'sanitation_equipment'],
+  office_supplies: ['office_furniture', 'filing_storage', 'office_electronics'],
+  collectibles: true, free_giveaway: true, general: true,
+};
+
+// Apply the policy once so both listing forms and API validation agree.
+for (const [categoryKey, category] of Object.entries(CATEGORIES)) {
+  for (const [subKey, sub] of Object.entries(category.subcategories)) {
+    const policy = CONDITION_SUBCATEGORIES[categoryKey];
+    const hasCondition = policy === true || (Array.isArray(policy) && policy.includes(subKey));
+    // Location is already captured by the shared location picker.
+    const attrs = (sub.attributes || []).filter(a => a.key !== 'location' && a.key !== 'condition');
+    if (hasCondition) attrs.push({
+      key: 'condition', label: 'Condition', type: 'select', filterable: true,
+      allowedValues: CONDITION_VALUES, displayOrder: -1,
+    });
+    sub.attributes = attrs;
+  }
+}
 
 // ── Hand-crafted attribute builders used above ─────────────────────────────
 function clothingAttrs(isKids = false): AttributeDef[] {

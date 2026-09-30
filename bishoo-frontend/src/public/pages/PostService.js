@@ -65,8 +65,8 @@ const PostService = ({ onNavigate, activeProfileId, activeContext, activeBusines
     title: '', description: '', category: '', subcategory: '',
     priceType: 'per_job', price: '', priceMax: '',
     coverageCity: '', coverageWards: '', images: [],
-    workingDays: ['Mon','Tue','Wed','Thu','Fri'],
-    workingHours: '08:00 - 18:00',
+    workingDays: [],
+    workingHours: '',
     isAvailableNow: true,
     whatsappPhone: '',
   });
@@ -139,8 +139,8 @@ const PostService = ({ onNavigate, activeProfileId, activeContext, activeBusines
       setSaving(true); setError('');
       const payload = {
         ...form,
-        price:         form.price    ? Number(form.price)    : 0,
-        priceMax:      form.priceMax ? Number(form.priceMax) : null,
+        price: ['negotiate', 'free_quote'].includes(form.priceType) ? 0 : (form.price ? Number(form.price) : 0),
+        priceMax: ['negotiate', 'free_quote'].includes(form.priceType) ? null : (form.priceMax ? Number(form.priceMax) : null),
         coverageWards: form.coverageWards
           ? form.coverageWards.split(',').map(w => w.trim()).filter(Boolean)
           : [],
@@ -297,6 +297,10 @@ const PostService = ({ onNavigate, activeProfileId, activeContext, activeBusines
                 placeholder={t('post_service.field_description_placeholder')}
                 onChange={e => set('description', e.target.value)} />
             </div>
+            <details style={{ marginBottom: 20 }}>
+              <summary style={{ fontSize: 16, padding: '12px 0', cursor: 'pointer', color: '#1d4ed8' }}>
+                {t('listing_form.service_details')}
+              </summary>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 700,
                 color: '#64748b', marginBottom: 6 }}>
@@ -340,6 +344,7 @@ const PostService = ({ onNavigate, activeProfileId, activeContext, activeBusines
                 placeholder="08:00 - 18:00"
                 onChange={e => set('workingHours', e.target.value)} />
             </div>
+            </details>
             <button onClick={() => {
                 if (!form.title.trim() || !form.description.trim()) return setError(t('post_service.fill_required_fields'));
                 if (!form.images.length) return setError(t('post_service.image_required'));
@@ -458,7 +463,7 @@ const PostService = ({ onNavigate, activeProfileId, activeContext, activeBusines
                 </div>
               ))}
             </div>
-            <button onClick={handleSubmit} disabled={saving}
+            <button onClick={handleSubmit} disabled={saving || uploading}
               style={{ width: '100%', background: 'linear-gradient(135deg,#1d4ed8,#7c3aed)',
                 color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0',
                 cursor: saving ? 'not-allowed' : 'pointer',
