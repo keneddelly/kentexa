@@ -1,0 +1,309 @@
+import 'reflect-metadata';
+import { Client } from 'pg';
+import { DataSource, Repository } from 'typeorm';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import { getB5BTestConnectionConfig, resetB5BTestSchema, B5B_BASE_ENTITIES } from '../business/b5b-closure-test-db';
+import { SuperAgentHandlingRate } from './entities/super-agent-handling-rate.entity';
+import { SuperAgentHandlingEarning } from './entities/super-agent-handling-earning.entity';
+import { SuperAgentCashCollection } from './entities/super-agent-cash-collection.entity';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import { User } from '../users/entities/user.entity';
+import { SuperAgentHandlingRateService } from './super-agent-handling-rate.service';
+import { SuperAgentHandlingEarningService } from './super-agent-handling-earning.service';
+import {
+  ensureSuperAgentHandlingRateNoOverlapConstraint,
+  ensureSuperAgentEconomicLedgersImmutable,
+} from './super-agent-commission-schema';
+
+/**
+ * Stage 3S-C5 — Super Agent handling commission: rate configuration +
+ * eligibility + earning creation, proved against REAL PostgreSQL. The
+ * central invariant: "No qualifying canonical ParcelCustodyEvent -> no
+ * Super Agent handling earning."
+ */
+const config = getB5BTestConnectionConfig();
+const suite = config ? describe : describe.skip;
+
+suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => {
+  jest.setTimeout(120000);
+  let ds: DataSource;
+  let rateRepo: Repository<SuperAgentHandlingRate>;
+  let earningRepo: Repository<SuperAgentHandlingEarning>;
+  let custodyRepo: Repository<ParcelCustodyEvent>;
+  let rateService: SuperAgentHandlingRateService;
+  let earningService: SuperAgentHandlingEarningService;
+  let userSeq = 0;
+  let opKeySeq = 0;
+
+  const mkSuperAgent = async () => {
+    const u = await ds.getRepository(User).save(ds.getRepository(User).create({
+      email: `c5-sa-${++userSeq}@s3sc5.local`, phone: `+2559${String(userSeq).padStart(8, '0')}`, password: 'x', name: 'SA',
+    } as any));
+    return ds.getRepository(SuperAgent).save(ds.getRepository(SuperAgent).create({
+      userId: (u as any).id, businessName: 'Hub', city: 'Dar es Salaam', status: SuperAgentStatus.ACTIVE,
+    } as any) as unknown as SuperAgent);
+  };
+
+  const mkCustodyEvent = (o: Partial<{
+    parcelId: number; eventKind: string; fromCustodianType: string | null; fromCustodianId: number | null;
+    toCustodianType: string | null; toCustodianId: number | null; recordedAt: Date;
+  }> = {}) => custodyRepo.save(custodyRepo.create({
+    parcelId: o.parcelId ?? 1,
+    eventKind: o.eventKind ?? 'origin_hub_received',
+    operationKey: `c5-op-${++opKeySeq}`,
+    fromCustodianType: o.fromCustodianType ?? null,
+    fromCustodianId: o.fromCustodianId ?? null,
+    toCustodianType: o.toCustodianType ?? null,
+    toCustodianId: o.toCustodianId ?? null,
+    actorSource: 'system',
+    assignmentType: null,
+    ...(o.recordedAt ? { recordedAt: o.recordedAt } : {}),
+  } as any) as unknown as ParcelCustodyEvent);
+
+  beforeAll(async () => {
+    const client = new Client(config!);
+    await client.connect();
+    await resetB5BTestSchema(client);
+    await client.end();
+
+    ds = new DataSource({
+      type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
+      database: config!.database, synchronize: true, extra: { max: 20 },
+      entities: [...B5B_BASE_ENTITIES, ParcelCustodyEvent, SuperAgentHandlingRate, SuperAgentHandlingEarning, SuperAgentCashCollection],
+    });
+    await ds.initialize();
+    await ensureSuperAgentHandlingRateNoOverlapConstraint((sql) => ds.query(sql));
+    await ensureSuperAgentEconomicLedgersImmutable((sql) => ds.query(sql));
+
+    rateRepo = ds.getRepository(SuperAgentHandlingRate);
+    earningRepo = ds.getRepository(SuperAgentHandlingEarning);
+    custodyRepo = ds.getRepository(ParcelCustodyEvent);
+
+    rateService = new SuperAgentHandlingRateService(rateRepo);
+    earningService = new SuperAgentHandlingEarningService(custodyRepo, earningRepo, rateService, ds);
+  });
+
+  afterAll(async () => { if (ds) await ds.destroy().catch(() => {}); });
+
+  beforeEach(async () => {
+    // TRUNCATE, not DELETE -- the earning ledger's own immutability trigger
+    // (BEFORE UPDATE OR DELETE) makes a plain DELETE impossible once any row
+    // exists; TRUNCATE is a test-harness-only technique, never used by any
+    // production code path. CASCADE clears its FK dependents so the
+    // subsequent DELETEs on its parent tables are never blocked.
+    await ds.query(`TRUNCATE TABLE public.super_agent_handling_earning RESTART IDENTITY CASCADE`);
+    await ds.query(`DELETE FROM public.super_agent_handling_rate`);
+    await ds.query(`DELETE FROM public.parcel_custody_event`);
+    await ds.query(`DELETE FROM public.super_agent`);
+  });
+
+  // ── rate configuration ──────────────────────────────────────────────────
+  it('the initial pilot configuration is data-driven -- reading it never touches a hard-coded constant', async () => {
+    await rateService.configureRate({
+      commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null,
+    });
+    const rate = await rateService.getEffectiveRate('handling', 'global', new Date());
+    expect(rate).not.toBeNull();
+    expect(Number(rate!.amount)).toBe(500);
+    expect(rate!.currency).toBe('TZS');
+  });
+
+  it('effective-dated rate selection resolves the correct version at different points in time', async () => {
+    await rateService.configureRate({
+      commissionType: 'handling', amount: 500,
+      effectiveFrom: new Date('2026-01-01T00:00:00Z'), effectiveTo: new Date('2026-06-01T00:00:00Z'),
+      createdByUserId: 1,
+    });
+    await rateService.configureRate({
+      commissionType: 'handling', amount: 700,
+      effectiveFrom: new Date('2026-06-01T00:00:00Z'), createdByUserId: 1,
+    });
+    expect(Number((await rateService.getEffectiveRate('handling', 'global', new Date('2026-03-01T00:00:00Z')))!.amount)).toBe(500);
+    expect(Number((await rateService.getEffectiveRate('handling', 'global', new Date('2026-08-01T00:00:00Z')))!.amount)).toBe(700);
+    expect(await rateService.getEffectiveRate('handling', 'global', new Date('2025-01-01T00:00:00Z'))).toBeNull();
+  });
+
+  it('rejects an overlapping active configuration for the same commission type/scope', async () => {
+    await rateService.configureRate({
+      commissionType: 'handling', amount: 500, effectiveFrom: new Date('2026-01-01T00:00:00Z'), createdByUserId: 1,
+    });
+    await expect(rateService.configureRate({
+      commissionType: 'handling', amount: 600, effectiveFrom: new Date('2026-03-01T00:00:00Z'), createdByUserId: 1,
+    })).rejects.toThrow(ConflictException);
+    // A DIFFERENT scope is unaffected.
+    await expect(rateService.configureRate({
+      commissionType: 'handling', scope: 'regionA', amount: 600, effectiveFrom: new Date('2026-03-01T00:00:00Z'), createdByUserId: 1,
+    })).resolves.toBeDefined();
+  });
+
+  it('deactivating a still-future draft frees its own window for a corrected replacement', async () => {
+    const draft = await rateService.configureRate({
+      commissionType: 'handling', amount: 999, effectiveFrom: new Date('2030-01-01T00:00:00Z'), createdByUserId: 1,
+    });
+    await rateService.deactivateRate(draft.id);
+    await expect(rateService.configureRate({
+      commissionType: 'handling', amount: 700, effectiveFrom: new Date('2030-01-01T00:00:00Z'), createdByUserId: 1,
+    })).resolves.toBeDefined();
+    expect(await rateService.getEffectiveRate('handling', 'global', new Date('2030-06-01T00:00:00Z'))).toMatchObject({ amount: '700.00' });
+  });
+
+  // ── qualifying eligibility ──────────────────────────────────────────────
+  it('an origin desk receipt (Super Agent receiving) generates a correct earning', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({ eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id });
+
+    const earning = await earningService.recordEarningForCustodyEvent(event.id, { userId: null });
+    expect(Number(earning.amount)).toBe(500);
+    expect(earning.currency).toBe('TZS');
+    expect(earning.superAgentId).toBe(hub.id);
+    expect(earning.parcelId).toBe(event.parcelId);
+    expect(earning.custodyEventId).toBe(event.id);
+    expect(earning.source).toBe('origin_hub_received');
+  });
+
+  it('a destination desk receipt following unloading (Provider -> Super Agent) generates an INDEPENDENT earning from the origin receipt', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const originHub = await mkSuperAgent();
+    const destHub = await mkSuperAgent();
+    const originEvent = await mkCustodyEvent({ parcelId: 42, eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: originHub.id });
+    const destEvent = await mkCustodyEvent({ parcelId: 42, eventKind: 'parcel_run_unloaded', fromCustodianType: 'transport_provider', toCustodianType: 'super_agent', toCustodianId: destHub.id });
+
+    const originEarning = await earningService.recordEarningForCustodyEvent(originEvent.id, { userId: null });
+    const destEarning = await earningService.recordEarningForCustodyEvent(destEvent.id, { userId: null });
+    expect(originEarning.id).not.toBe(destEarning.id);
+    expect(originEarning.superAgentId).toBe(originHub.id);
+    expect(destEarning.superAgentId).toBe(destHub.id);
+    expect(await earningRepo.count({ where: { parcelId: 42 } })).toBe(2);
+  });
+
+  it('a Super Agent RELEASING custody (the C4 load event, Super Agent -> provider) never generates an earning on its own', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    // toCustodianId deliberately set to a REAL, existing Super Agent id (a
+    // different one, standing in for "the provider" here) -- so this test
+    // discriminates on the eligibility DIRECTION check specifically. If it
+    // used a nonexistent id instead, a buggy eligibility check that wrongly
+    // let this event through would still incidentally throw the same
+    // BadRequestException from the Super-Agent-existence check afterward,
+    // masking the real bug (caught exactly this way during mutation testing).
+    const notTheActor = await mkSuperAgent();
+    const event = await mkCustodyEvent({ eventKind: 'parcel_run_loaded', fromCustodianType: 'super_agent', fromCustodianId: hub.id, toCustodianType: 'transport_provider', toCustodianId: notTheActor.id });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('a Run merely passing an ordinary (non-Super-Agent) stop generates zero earnings', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    // Same reasoning as above -- a real Super Agent id in toCustodianId so
+    // this genuinely discriminates on the eligibility check, not on a
+    // coincidental existence-check failure.
+    const notTheActor = await mkSuperAgent();
+    const event = await mkCustodyEvent({ eventKind: 'parcel_run_loaded', fromCustodianType: null, fromCustodianId: null, toCustodianType: 'transport_provider', toCustodianId: notTheActor.id });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('Agent-only movement (never Super Agent custody) generates zero Super Agent commission', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const event = await mkCustodyEvent({ eventKind: 'recipient_agent_delivery', fromCustodianType: 'local_agent', fromCustodianId: 3, toCustodianType: 'recipient_contact', toCustodianId: null });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('rejects a missing/invalid Super Agent identity even when custodian direction looks qualifying', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const event = await mkCustodyEvent({ eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: 999999 });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('rejects an unknown custody event id', async () => {
+    await expect(earningService.recordEarningForCustodyEvent(999999, { userId: null })).rejects.toThrow(NotFoundException);
+  });
+
+  it('rejects recording an earning when no rate configuration is effective at that time', async () => {
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({ eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id });
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(ConflictException);
+  });
+
+  // ── idempotency / concurrency ───────────────────────────────────────────
+  it('repeated earning requests for the SAME custody event never duplicate -- returns the same row', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({ eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id });
+
+    const first = await earningService.recordEarningForCustodyEvent(event.id, { userId: null });
+    const second = await earningService.recordEarningForCustodyEvent(event.id, { userId: null });
+    expect(second.id).toBe(first.id);
+    expect(await earningRepo.count()).toBe(1);
+
+    // Independent DB-level backstop: a raw attempt to insert a second row
+    // under the SAME custodyEventId is rejected by the unique index itself.
+    await expect(ds.query(
+      `INSERT INTO public.super_agent_handling_earning ("custodyEventId","parcelId","superAgentId","rateConfigId",amount,currency,source)
+       VALUES ($1,$2,$3,$4,500,'TZS','origin_hub_received')`,
+      [event.id, event.parcelId, hub.id, first.rateConfigId],
+    )).rejects.toThrow();
+  });
+
+  it('concurrent earning requests for the SAME custody event cannot duplicate', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({ eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id });
+
+    const [a, b] = await Promise.all([
+      earningService.recordEarningForCustodyEvent(event.id, { userId: null }),
+      earningService.recordEarningForCustodyEvent(event.id, { userId: null }),
+    ]);
+    expect(a.id).toBe(b.id);
+    expect(await earningRepo.count()).toBe(1);
+  });
+
+  // ── historical rate protection ──────────────────────────────────────────
+  it('changing the rate configuration cannot reprice an already-recorded historical earning', async () => {
+    await rateService.configureRate({
+      commissionType: 'handling', amount: 500,
+      effectiveFrom: new Date('2026-01-01T00:00:00Z'), effectiveTo: new Date('2026-06-01T00:00:00Z'),
+      createdByUserId: null,
+    });
+    const hub = await mkSuperAgent();
+    const oldEvent = await mkCustodyEvent({
+      eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
+      recordedAt: new Date('2026-03-01T00:00:00Z'),
+    });
+    const oldEarning = await earningService.recordEarningForCustodyEvent(oldEvent.id, { userId: null });
+    expect(Number(oldEarning.amount)).toBe(500);
+
+    // A new, higher rate takes effect afterward.
+    await rateService.configureRate({
+      commissionType: 'handling', amount: 700, effectiveFrom: new Date('2026-06-01T00:00:00Z'), createdByUserId: null,
+    });
+
+    const reread = await earningRepo.findOneOrFail({ where: { id: oldEarning.id } });
+    expect(Number(reread.amount)).toBe(500); // completely unchanged by the later rate change
+
+    const newEvent = await mkCustodyEvent({
+      eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
+      recordedAt: new Date('2026-08-01T00:00:00Z'),
+    });
+    const newEarning = await earningService.recordEarningForCustodyEvent(newEvent.id, { userId: null });
+    expect(Number(newEarning.amount)).toBe(700); // the new event correctly gets the new rate
+  });
+
+  it('the earning ledger is immutable', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({ eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id });
+    const earning = await earningService.recordEarningForCustodyEvent(event.id, { userId: null });
+
+    await expect(ds.query(`UPDATE public.super_agent_handling_earning SET amount = 1 WHERE id = $1`, [earning.id])).rejects.toThrow();
+    await expect(ds.query(`DELETE FROM public.super_agent_handling_earning WHERE id = $1`, [earning.id])).rejects.toThrow();
+  });
+});

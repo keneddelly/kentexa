@@ -56,10 +56,16 @@ describe('migration timestamps', () => {
     expect(stamp(assignment)).toBeGreaterThan(1788285600000);
   });
 
-  it('Stage 3S-C4\'s custody assignment-discriminator migration sorts AFTER parcel-run-assignment and is currently the latest', () => {
+  it('Stage 3S-C4\'s custody assignment-discriminator migration sorts AFTER parcel-run-assignment', () => {
     const discriminator = files.find((f) => f.includes('AddParcelCustodyAssignmentDiscriminator'))!;
     expect(discriminator).toBe('1788286800000-AddParcelCustodyAssignmentDiscriminator.ts');
     expect(stamp(discriminator)).toBeGreaterThan(1788286200000);
-    expect(files.every((f) => stamp(f) <= stamp(discriminator))).toBe(true);
+  });
+
+  it('Stage 3S-C5\'s commission foundation migration sorts AFTER the custody assignment-discriminator and is currently the latest', () => {
+    const commission = files.find((f) => f.includes('AddSuperAgentCommissionFoundation'))!;
+    expect(commission).toBe('1788287400000-AddSuperAgentCommissionFoundation.ts');
+    expect(stamp(commission)).toBeGreaterThan(1788286800000);
+    expect(files.every((f) => stamp(f) <= stamp(commission))).toBe(true);
   });
 });

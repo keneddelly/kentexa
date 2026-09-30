@@ -1,0 +1,41 @@
+/**
+ * SuperAgentCommissionModule — Stage 3S-C5.
+ *
+ * Deliberately its own new, small, top-level module rather than folded into
+ * SuperAgentsModule or TransportModule: this is a genuinely new economic
+ * authority (Super Agent handling commission + cash-desk collection), not an
+ * extension of either existing module's own responsibilities, and keeping it
+ * separate means this gate touches zero lines in any already-approved
+ * C1-C4 file. ParcelCustodyEvent is registered here too (TypeORM allows an
+ * entity to be registered in more than one module's forFeature array) purely
+ * for read access -- this module never writes to it.
+ *
+ * No controller yet -- matches this whole Stage 3S-C lineage's own
+ * established precedent (TransportRunService/ParcelRunAssignmentService also
+ * have none as of C4): the service layer itself, directly exercised by real-
+ * PostgreSQL tests, is "the minimal interface necessary to exercise the new
+ * foundation securely" for this gate.
+ */
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { SuperAgentHandlingRate } from './entities/super-agent-handling-rate.entity';
+import { SuperAgentHandlingEarning } from './entities/super-agent-handling-earning.entity';
+import { SuperAgentCashCollection } from './entities/super-agent-cash-collection.entity';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
+import { SuperAgentHandlingRateService } from './super-agent-handling-rate.service';
+import { SuperAgentHandlingEarningService } from './super-agent-handling-earning.service';
+import { SuperAgentCashCollectionService } from './super-agent-cash-collection.service';
+
+@Module({
+  imports: [
+    TypeOrmModule.forFeature([
+      SuperAgentHandlingRate,
+      SuperAgentHandlingEarning,
+      SuperAgentCashCollection,
+      ParcelCustodyEvent,
+    ]),
+  ],
+  providers: [SuperAgentHandlingRateService, SuperAgentHandlingEarningService, SuperAgentCashCollectionService],
+  exports: [SuperAgentHandlingRateService, SuperAgentHandlingEarningService, SuperAgentCashCollectionService],
+})
+export class SuperAgentCommissionModule {}
