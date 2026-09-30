@@ -55,6 +55,7 @@ import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity'
 import { RoleContextService } from '../role-context/role-context.service';
 import type { RoleContext } from '../role-context/role-context.types';
 import {
+import { SearchIndexService } from '../search/search-index.service';
   AccountRoleStatus,
   AccountRoleType,
   RoleProfileType,
@@ -83,6 +84,7 @@ export class TransportService {
     private readonly tzLocation: TzLocationService,
     private readonly roleContextService: RoleContextService,
     private readonly dataSource: DataSource,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   // ── Safe, credential-free provider projection ────────────────────────────
@@ -399,6 +401,8 @@ export class TransportService {
       }),
     );
 
+    this.indexRoute(route).catch(() => {});
+
     // Update service ad coverage city from route
     try {
       const city = dto.originCity || dto.coverageCity || null;
@@ -458,7 +462,15 @@ export class TransportService {
     for (const key of editable) {
       if (dto[key] !== undefined) (route as any)[key] = dto[key];
     }
-    return this.routeRepo.save(route);
+    const saved = await this.routeRepo.save(route);
+    if (saved.isActive) this.indexRoute(saved).catch(() => {});
+    else this.searchIndex.remove('transport_route', saved.id).catch(() => {});
+    return saved;
+  }
+
+  private async indexRoute(route: TransportRoute): Promise<void> {
+    const text = [route.routeType, route.originCity, route.destinationCity, ...(route.transitCities || []), ...(route.loopStops || []), ...(route.coverageWards || []), route.coverageCity, route.notes].filter(Boolean).join(' \n ');
+    await this.searchIndex.upsert('transport_route', route.id, text);
   }
 
   // ── AVAILABILITY ─────────────────────────────────────────────────────────
