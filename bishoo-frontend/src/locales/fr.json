@@ -1,4 +1,21 @@
 {
+  "profile_connections": {
+      "followers": "Abonnés",
+      "following": "Abonnements",
+      "account_following": "Abonnements du compte",
+      "account_hint": "Cette liste correspond au compte du propriétaire. Les audiences des entreprises restent distinctes.",
+      "empty": "Aucune relation pour le moment.",
+      "error": "Impossible de charger ou modifier. Réessayez.",
+      "more": "Voir plus",
+      "close": "Fermer",
+      "follows_you": "Vous suit",
+      "type_personal": "Personne",
+      "type_business": "Entreprise",
+      "type_agent": "Agent",
+      "type_hub": "Centre",
+      "type_transport_provider": "Transporteur",
+      "type_service_provider": "Prestataire"
+  },
   "home_quick_actions": {
       "label": "Actions rapides",
       "listing": "Publier une annonce",
