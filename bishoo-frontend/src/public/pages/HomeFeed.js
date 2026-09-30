@@ -1763,10 +1763,6 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           </div>
         </div>
 
-        <div style={{ padding: '10px 14px 0' }}>
-          <HomeQuickActions onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
-        </div>
-
         {/* AI front door — the primary way to find anything on Kentexa */}
         <div data-tour="hf-ai-search" style={{ padding:'8px 14px 0' }}>
           <AiSearchBar onNavigate={onNavigate} />
@@ -1788,6 +1784,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
             </button>
           ))}
         </div>
+      </div>
+
+      <div style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}>
+        <HomeQuickActions onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
       </div>
 
       {currentUser?.role === 'super_agent' && (
