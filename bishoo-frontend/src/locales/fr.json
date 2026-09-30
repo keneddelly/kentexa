@@ -1,4 +1,10 @@
 {
+  "home_quick_actions": {
+      "label": "Actions rapides",
+      "listing": "Publier une annonce",
+      "service": "Proposer un service",
+      "business": "Créer une entreprise"
+  },
   "listing_form": {
       "optional_details": "Ajouter des détails facultatifs",
       "hide_details": "Masquer les détails facultatifs",
