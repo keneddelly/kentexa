@@ -130,6 +130,32 @@ export class CommerceProfilesController {
     return this.service.updatePublicFields(id, dto);
   }
 
+  // Platform identity: @kentexa stays reserved from ordinary username edits.
+  // Only an active Admin may assign it to the one official profile.
+  @Post(':id/assign-official-kentexa')
+  @UseGuards(JwtAuthGuard, RoleContextGuard)
+  async assignOfficialKentexa(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    if (roleContext?.roleType !== AccountRoleType.ADMIN) {
+      throw new ForbiddenException('Admin role required');
+    }
+    return this.service.assignOfficialKentexaHandle(id);
+  }
+
+  @Get('official/kentexa')
+  @UseGuards(OptionalJwtAuthGuard)
+  async getOfficialKentexa(@Request() req) {
+    const profile = await this.service.getOfficialKentexaProfile();
+    if (!profile) return null;
+    const [isFollowing, followersCount] = await Promise.all([
+      this.service.isFollowing(req.user?.id, profile.id),
+      this.service.getCanonicalFollowersCount(profile.id),
+    ]);
+    return { ...profile, isOfficialPlatformProfile: true, isFollowing, followersCount };
+  }
+
   // ── Team management ────────────────────────────────────────────────────
   // Direct generalization of /seller/team/* (src/seller/seller.controller.ts)
   // — same shape, scoped to any profile id instead of always resolving the
