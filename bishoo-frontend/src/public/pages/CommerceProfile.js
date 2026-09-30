@@ -436,7 +436,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     api.get(`/profiles/for-user/${uid}`)
       .then(r => setSiblingProfiles((r.data || []).filter(p => p.id !== activeProfile.id)))
       .catch(() => setSiblingProfiles([]));
-  }, [activeProfile]); // eslint-disable-line
+  }, [activeProfile?.id, currentUser?.id]); // eslint-disable-line
 
   // Deep-linked from a "New save"/"New comment" notification — the Feed
   // tab is now a thumbnail grid, so "scroll to it" doesn't show much;
