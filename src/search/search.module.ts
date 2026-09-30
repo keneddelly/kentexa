@@ -11,11 +11,12 @@ import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
 import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
+import { TransportRoute } from '../transport/entities/transport-route.entity';
 
 @Module({
   imports: [
     AiModule,
-    TypeOrmModule.forFeature([Product, Classified, ServiceAd, CommerceProfile, BusinessFeedItem]),
+    TypeOrmModule.forFeature([Product, Classified, ServiceAd, CommerceProfile, BusinessFeedItem, TransportRoute]),
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
   ],
   controllers: [SearchController],
