@@ -25,18 +25,33 @@
  * ParcelCustodyEvent already established; a future correction must be a new,
  * separate adjustment record layered on top, never an edit here.
  *
- * Stage 3S-C6: UQ_super_agent_handling_earning_parcel_agent, a SECOND unique
- * index on (parcelId, superAgentId) -- the cross-pathway deduplication
- * safety net Stage 3S-C5's own report documented as a plan, not yet built.
- * The existing custodyEventId index protects against reprocessing the SAME
- * event twice; this one protects against two DIFFERENT custody events (one
- * from a legacy pathway, one from the new Run-based pathway, say) that both
- * happen to describe the SAME Super Agent physically handling the SAME
- * parcel. Deliberately conservative: one Super Agent can only ever earn
- * ONCE per parcel under this schema -- a genuine repeat-handling scenario
- * (e.g. a returned parcel) would earn only the first time, which fails
- * toward under- rather than over-payment, the safe direction for a
- * financial constraint.
+ * Stage 3S-C6: UQ_super_agent_handling_earning_parcel_agent_source, a SECOND
+ * unique index on (parcelId, superAgentId, sourceCustodianType) -- the
+ * cross-pathway deduplication safety net Stage 3S-C5's own report documented
+ * as a plan, not yet built. The existing custodyEventId index protects
+ * against reprocessing the SAME event twice; this one protects against two
+ * DIFFERENT custody events (one from a legacy pathway, one from the new
+ * Run-based pathway, say) that both happen to describe the SAME Super Agent
+ * physically handling the SAME parcel FROM THE SAME PRIOR CUSTODIAN TYPE --
+ * two recordings of one real physical handoff always share the same
+ * `fromCustodianType`, since they're describing the same physical fact, so
+ * this still catches every true cross-pathway duplicate.
+ *
+ * Stage 3S-C6 correction: an earlier version of this constraint was
+ * (parcelId, superAgentId) alone, which wrongly blocked a Super Agent's
+ * SECOND, genuinely separate handling operation on the same parcel -- e.g.
+ * a local-loop origin hub receipt (fromCustodianType='local_agent') followed
+ * later by a real destination receipt (fromCustodianType='transport_provider')
+ * at the SAME hub. `sourceCustodianType` (frozen from the qualifying custody
+ * event's own `fromCustodianType`, or 'unknown' when null) is the smallest
+ * addition that distinguishes those two real operations from one physical
+ * handoff recorded twice, without enumerating eventKind strings -- bound to
+ * the same stable custodian-type vocabulary the eligibility rules already
+ * use. Deliberately still conservative: one Super Agent can only ever earn
+ * ONCE per (parcel, prior-custodian-type) triple -- a genuine repeat within
+ * the SAME prior-custodian-type (e.g. two separate legacy-pathway "receive"
+ * events, both from a transport provider, for a returned parcel) would still
+ * only earn once, failing toward under- rather than over-payment.
  */
 import {
   Entity,
@@ -52,7 +67,7 @@ import { SuperAgentHandlingRate } from './super-agent-handling-rate.entity';
 
 @Entity('super_agent_handling_earning')
 @Index('UQ_super_agent_handling_earning_custody_event', ['custodyEventId'], { unique: true })
-@Index('UQ_super_agent_handling_earning_parcel_agent', ['parcelId', 'superAgentId'], { unique: true })
+@Index('UQ_super_agent_handling_earning_parcel_agent_source', ['parcelId', 'superAgentId', 'sourceCustodianType'], { unique: true })
 export class SuperAgentHandlingEarning {
   @PrimaryGeneratedColumn()
   id: number;
@@ -69,6 +84,12 @@ export class SuperAgentHandlingEarning {
 
   @Column({ type: 'int' })
   superAgentId: number;
+
+  // Frozen from the qualifying custody event's own `fromCustodianType`
+  // ('unknown' when null) -- see this entity's own header comment. Audit
+  // AND dedup-key, never re-derived from custodyEvent at read time.
+  @Column({ type: 'varchar', length: 32 })
+  sourceCustodianType: string;
 
   @ManyToOne(() => SuperAgentHandlingRate, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'rateConfigId' })

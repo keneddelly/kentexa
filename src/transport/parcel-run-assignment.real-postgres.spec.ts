@@ -28,6 +28,8 @@ import {
   ensureSuperAgentHandlingRateNoOverlapConstraint,
   ensureSuperAgentEconomicLedgersImmutable,
 } from '../super-agent-commission/super-agent-commission-schema';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityEvent, ActivityCategory } from '../activity/entities/activity-event.entity';
 
 /**
  * Stage 3S-C3 — ParcelRunAssignment + multi-stop parcel movement, proved
@@ -52,6 +54,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
   let rateService: SuperAgentHandlingRateService;
   let earningService: SuperAgentHandlingEarningService;
   let earningRepo: Repository<SuperAgentHandlingEarning>;
+  let activityEventService: ActivityEventService;
+  let activityEventRepo: Repository<ActivityEvent>;
   let userSeq = 0;
   let parcelSeq = 0;
 
@@ -129,7 +133,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
       entities: [...B5B_BASE_ENTITIES, TransportRoute, RouteStop, TransportRun, TransportRunStop, Vehicle,
-        ParcelRunAssignment, ParcelCustodyEvent, SuperAgentHandlingRate, SuperAgentHandlingEarning, SuperAgentCashCollection],
+        ParcelRunAssignment, ParcelCustodyEvent, SuperAgentHandlingRate, SuperAgentHandlingEarning, SuperAgentCashCollection,
+        ActivityEvent],
     });
     await ds.initialize();
     await ensureRouteStopDeferrableSequenceConstraint((sql) => ds.query(sql));
@@ -155,8 +160,10 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);
     rateService = new SuperAgentHandlingRateService(ds.getRepository(SuperAgentHandlingRate), earningRepo);
     earningService = new SuperAgentHandlingEarningService(ds.getRepository(ParcelCustodyEvent), earningRepo, rateService, ds);
+    activityEventRepo = ds.getRepository(ActivityEvent);
+    activityEventService = new ActivityEventService(activityEventRepo);
     assignmentService = new ParcelRunAssignmentService(
-      ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, earningService,
+      ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, earningService, activityEventService,
     );
   });
 
@@ -173,6 +180,7 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     await ds.query(`TRUNCATE TABLE public.transport_run RESTART IDENTITY CASCADE`);
     await ds.query(`DELETE FROM public.route_stop`);
     await ds.query(`DELETE FROM public.transport_route`);
+    await ds.query(`DELETE FROM public.activity_events`);
     await ds.query(`DELETE FROM public.transport_provider`);
     await ds.query(`DELETE FROM public.parcel`);
     await ds.query(`DELETE FROM public.super_agent`);
@@ -461,6 +469,106 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     expect(await earningRepo.count()).toBe(0); // no earning yet -- nothing has qualified
   });
 
+  // ── Stage 3S-C6 correction: a parcel must not be reassignable while its
+  // prior Super Agent receipt is still unconfirmed ──────────────────────────
+  it('createAssignment rejects reassigning a parcel while its prior Super Agent receipt at an unloaded stop remains unconfirmed', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const destHub = await mkSuperAgent();
+    const r = await mkRoute(provider.id);
+    await addStop(userId, r.id, 0, 'Kariakoo');
+    await addStop(userId, r.id, 1, 'Bunju', { superAgentId: destHub.id });
+    const run = await runService.createRun(userId, { routeId: r.id, scheduledDeparture: new Date(Date.now() + 86400000) });
+    const createdStops = await runService.getRunStops(run.id);
+    const loadStop = createdStops.find((s) => s.locationLabel === 'Kariakoo')!;
+    const unloadStop = createdStops.find((s) => s.locationLabel === 'Bunju')!;
+    const parcel = await mkParcel();
+    const a = await assignmentService.createAssignment(userId, {
+      runId: run.id, parcelId: parcel.id, loadRunStopId: loadStop.id, unloadRunStopId: unloadStop.id,
+    });
+    const context = mkRoleContext(userId, provider.id);
+    await assignmentService.markLoaded(context, a.id);
+    await assignmentService.markUnloaded(context, a.id); // UNLOADED, but destHub never confirmed receipt
+
+    // A brand-new Run for the SAME parcel -- as if it were being (wrongly)
+    // dispatched onward before the receiving Super Agent ever confirmed it
+    // actually arrived.
+    const r2 = await mkRoute(provider.id);
+    await addStop(userId, r2.id, 0, 'Bunju');
+    await addStop(userId, r2.id, 1, 'Ubungo');
+    const run2 = await runService.createRun(userId, { routeId: r2.id, scheduledDeparture: new Date(Date.now() + 172800000) });
+    const stops2 = await runService.getRunStops(run2.id);
+
+    await expect(assignmentService.createAssignment(userId, {
+      runId: run2.id, parcelId: parcel.id,
+      loadRunStopId: stops2.find((s) => s.locationLabel === 'Bunju')!.id,
+      unloadRunStopId: stops2.find((s) => s.locationLabel === 'Ubungo')!.id,
+    })).rejects.toThrow(ConflictException);
+
+    expect(await assignmentService.getActiveAssignmentForParcel(parcel.id)).toMatchObject({ id: a.id });
+  });
+
+  it('createAssignment still allows reassigning a parcel unloaded at an ORDINARY (non-Super-Agent) stop -- nothing pending confirmation there', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const { run, stops } = await mkPilotRun(userId, provider.id); // no stop here has a superAgentId
+    const parcel = await mkParcel();
+    const a = await assignmentService.createAssignment(userId, {
+      runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id,
+    });
+    const context = mkRoleContext(userId, provider.id);
+    await assignmentService.markLoaded(context, a.id);
+    await assignmentService.markUnloaded(context, a.id);
+
+    expect(await assignmentService.getActiveAssignmentForParcel(parcel.id)).toBeNull();
+
+    const r2 = await mkRoute(provider.id);
+    await addStop(userId, r2.id, 0, 'Bunju');
+    await addStop(userId, r2.id, 1, 'Ubungo');
+    const run2 = await runService.createRun(userId, { routeId: r2.id, scheduledDeparture: new Date(Date.now() + 172800000) });
+    const stops2 = await runService.getRunStops(run2.id);
+
+    const a2 = await assignmentService.createAssignment(userId, {
+      runId: run2.id, parcelId: parcel.id,
+      loadRunStopId: stops2.find((s) => s.locationLabel === 'Bunju')!.id,
+      unloadRunStopId: stops2.find((s) => s.locationLabel === 'Ubungo')!.id,
+    });
+    expect(a2.id).not.toBe(a.id);
+  });
+
+  it('createAssignment allows reassigning a parcel once its Super Agent receipt has been CONFIRMED -- RECEIVED frees it for a new leg', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const destHub = await mkSuperAgent();
+    const r = await mkRoute(provider.id);
+    await addStop(userId, r.id, 0, 'Kariakoo');
+    await addStop(userId, r.id, 1, 'Bunju', { superAgentId: destHub.id });
+    const run = await runService.createRun(userId, { routeId: r.id, scheduledDeparture: new Date(Date.now() + 86400000) });
+    const createdStops = await runService.getRunStops(run.id);
+    const parcel = await mkParcel();
+    const a = await assignmentService.createAssignment(userId, {
+      runId: run.id, parcelId: parcel.id,
+      loadRunStopId: createdStops.find((s) => s.locationLabel === 'Kariakoo')!.id,
+      unloadRunStopId: createdStops.find((s) => s.locationLabel === 'Bunju')!.id,
+    });
+    const context = mkRoleContext(userId, provider.id);
+    await assignmentService.markLoaded(context, a.id);
+    await assignmentService.markUnloaded(context, a.id);
+    await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), a.id);
+
+    expect(await assignmentService.getActiveAssignmentForParcel(parcel.id)).toBeNull();
+
+    const r2 = await mkRoute(provider.id);
+    await addStop(userId, r2.id, 0, 'Bunju');
+    await addStop(userId, r2.id, 1, 'Ubungo');
+    const run2 = await runService.createRun(userId, { routeId: r2.id, scheduledDeparture: new Date(Date.now() + 172800000) });
+    const stops2 = await runService.getRunStops(run2.id);
+
+    const a2 = await assignmentService.createAssignment(userId, {
+      runId: run2.id, parcelId: parcel.id,
+      loadRunStopId: stops2.find((s) => s.locationLabel === 'Bunju')!.id,
+      unloadRunStopId: stops2.find((s) => s.locationLabel === 'Ubungo')!.id,
+    });
+    expect(a2.id).not.toBe(a.id);
+  });
+
   // ── Stage 3S-C6: receiver-confirmed handoffs + automatic commission ────────
   describe('confirmReceipt (Stage 3S-C6)', () => {
     const mkUnloadedAssignmentAtSuperAgentStop = async () => {
@@ -570,13 +678,22 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       expect(await earningRepo.count()).toBe(0);
     });
 
-    it('a missing rate configuration never blocks the physical receipt confirmation itself -- best-effort commission generation', async () => {
+    it('a missing rate configuration never blocks the physical receipt confirmation itself -- best-effort commission generation, but the failure is durably recorded, not silently discarded', async () => {
       // Deliberately NO rate configured.
-      const { destHub, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
 
       const received = await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
       expect(received.status).toBe(ParcelRunAssignmentStatus.RECEIVED); // succeeded regardless
       expect(await earningRepo.count()).toBe(0); // no earning, but no exception either
+
+      // Stage 3S-C6 correction: the failure must leave a durable, queryable
+      // trail rather than vanishing into a bare catch{}.
+      const failures = await activityEventService.findByEventType('SUPER_AGENT_HANDLING_EARNING_GENERATION_FAILED');
+      expect(failures).toHaveLength(1);
+      expect(failures[0].category).toBe(ActivityCategory.LOGISTICS);
+      expect(failures[0].severity).toBe('error');
+      expect(failures[0].visibility).toBe('admin');
+      expect(failures[0].metadata).toMatchObject({ assignmentId: assignment.id, parcelId: parcel.id });
     });
 
     // ── cross-pathway deduplication (Stage 3S-C6) ──────────────────────────
@@ -589,11 +706,14 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
 
       // A SEPARATE, independently-recorded custody event -- as if a
       // different (e.g. legacy) pathway also recorded a receipt for this
-      // exact same Super Agent and parcel.
+      // exact same Super Agent and parcel FROM THE SAME PRIOR CUSTODIAN TYPE
+      // (fromCustodianType='transport_provider', matching what confirmReceipt
+      // itself just wrote) -- i.e. genuinely the SAME physical handoff,
+      // described twice.
       const custodyRepo = ds.getRepository(ParcelCustodyEvent);
       const duplicateEvent = await custodyRepo.save(custodyRepo.create({
         parcelId: parcel.id, eventKind: 'origin_hub_received', operationKey: `dedup-test:${assignment.id}`,
-        toCustodianType: 'super_agent', toCustodianId: destHub.id,
+        fromCustodianType: 'transport_provider', toCustodianType: 'super_agent', toCustodianId: destHub.id,
         actorSource: 'account_role', assignmentType: null,
       } as any));
 
@@ -604,10 +724,37 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
 
       // Independent DB-level backstop.
       await expect(ds.query(
-        `INSERT INTO public.super_agent_handling_earning ("custodyEventId","parcelId","superAgentId","rateConfigId",amount,currency,source)
-         VALUES ($1,$2,$3,$4,500,'TZS','origin_hub_received')`,
-        [duplicateEvent.id, parcel.id, destHub.id, onlyEarning.rateConfigId],
+        `INSERT INTO public.super_agent_handling_earning
+           ("custodyEventId","parcelId","superAgentId","sourceCustodianType","rateConfigId",amount,currency,source)
+         VALUES ($1,$2,$3,$4,$5,500,'TZS','origin_hub_received')`,
+        [duplicateEvent.id, parcel.id, destHub.id, onlyEarning.sourceCustodianType, onlyEarning.rateConfigId],
       )).rejects.toThrow();
+    });
+
+    it('a genuinely SEPARATE handling operation by the same Super Agent on the same parcel (different prior custodian type) earns independently, not deduplicated away', async () => {
+      // The local-loop scenario the coarser (parcelId, superAgentId)-only
+      // constraint used to wrongly block: the SAME hub first receives a
+      // parcel from a local Agent at origin, then later genuinely receives
+      // the SAME parcel again as its Run destination -- two real, distinct
+      // physical handling operations, not one event recorded twice.
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      const custodyRepo = ds.getRepository(ParcelCustodyEvent);
+      const originReceiptEvent = await custodyRepo.save(custodyRepo.create({
+        parcelId: parcel.id, eventKind: 'collection_received_at_origin_hub', operationKey: `origin-loop-test:${assignment.id}`,
+        fromCustodianType: 'local_agent', fromCustodianId: 77,
+        toCustodianType: 'super_agent', toCustodianId: destHub.id,
+        actorSource: 'account_role', assignmentType: null,
+      } as any));
+      const originEarning = await earningService.recordEarningForCustodyEvent(originReceiptEvent.id, { userId: null });
+
+      const destReceived = await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      expect(destReceived.status).toBe(ParcelRunAssignmentStatus.RECEIVED);
+      const destEarning = await earningRepo.findOneOrFail({ where: { parcelId: parcel.id, superAgentId: destHub.id, sourceCustodianType: 'transport_provider' } });
+
+      expect(destEarning.id).not.toBe(originEarning.id); // two independent earnings, not one deduplicated
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(2);
     });
   });
 

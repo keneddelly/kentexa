@@ -33,6 +33,7 @@ import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { IdentityModule } from '../identity/identity.module';
 import { SuperAgentCommissionModule } from '../super-agent-commission/super-agent-commission.module';
+import { ActivityModule } from '../activity/activity.module';
 
 @Module({
   imports: [
@@ -45,6 +46,11 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
     // directional (SuperAgentCommissionModule imports nothing from
     // TransportModule) -- no circularity.
     SuperAgentCommissionModule,
+    // Stage 3S-C6 correction: confirmReceipt() durably records an automatic
+    // commission FAILURE via ActivityEventService rather than swallowing it
+    // silently. One-directional (ActivityModule imports nothing from
+    // TransportModule) -- no circularity.
+    ActivityModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
     TypeOrmModule.forFeature([
       TransportProvider,

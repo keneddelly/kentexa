@@ -154,10 +154,16 @@ export class SuperAgentHandlingEarningService {
       throw new ConflictException('No effective handling-rate configuration covers this custody event\'s time');
     }
 
+    // Frozen from the qualifying event's own fromCustodianType -- see the
+    // entity's header comment for why this, not eventKind, is the right
+    // extra dedup dimension.
+    const sourceCustodianType = event.fromCustodianType ?? 'unknown';
+
     const row = this.earningRepo.create({
       custodyEventId: event.id,
       parcelId: event.parcelId,
       superAgentId: event.toCustodianId!,
+      sourceCustodianType,
       rateConfigId: rate.id,
       amount: rate.amount,
       currency: rate.currency,
@@ -168,17 +174,21 @@ export class SuperAgentHandlingEarningService {
       return await this.earningRepo.save(row);
     } catch (error: any) {
       if (error?.code === UNIQUE_VIOLATION) {
-        if (error?.constraint === 'UQ_super_agent_handling_earning_parcel_agent') {
+        if (error?.constraint === 'UQ_super_agent_handling_earning_parcel_agent_source') {
           // Stage 3S-C6: a DIFFERENT custody event (from this pathway or a
           // different one entirely) already earned for this exact
-          // (parcelId, superAgentId) pair -- the cross-pathway deduplication
-          // safety net firing, not a retry of THIS event. Returning the
-          // already-recorded earning keeps this call idempotent from the
-          // caller's point of view ("this parcel/agent pair is already
+          // (parcelId, superAgentId, sourceCustodianType) triple -- the
+          // cross-pathway deduplication safety net firing, not a retry of
+          // THIS event. Returning the already-recorded earning keeps this
+          // call idempotent from the caller's point of view ("this
+          // parcel/agent/prior-custodian combination is already
           // compensated") without ever risking a second payment for what
-          // may be the same physical handoff recorded twice.
+          // may be the same physical handoff recorded twice -- while still
+          // allowing a genuinely separate handling operation (a different
+          // sourceCustodianType) for the same parcel/agent pair to earn its
+          // own, independent row.
           return this.earningRepo.findOneOrFail({
-            where: { parcelId: event.parcelId, superAgentId: event.toCustodianId! },
+            where: { parcelId: event.parcelId, superAgentId: event.toCustodianId!, sourceCustodianType },
           });
         }
         // Idempotent retry / genuinely concurrent attempt for the SAME

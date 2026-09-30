@@ -201,7 +201,8 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     const hub = await mkSuperAgent();
     const event = await mkCustodyEvent({ toCustodianType: 'super_agent', toCustodianId: hub.id });
     await earningRepo.save(earningRepo.create({
-      custodyEventId: event.id, parcelId: event.parcelId, superAgentId: hub.id, rateConfigId: future.id,
+      custodyEventId: event.id, parcelId: event.parcelId, superAgentId: hub.id,
+      sourceCustodianType: event.fromCustodianType ?? 'unknown', rateConfigId: future.id,
       amount: 500, currency: 'TZS', source: event.eventKind, actorUserId: null,
     }));
     await expect(rateService.deactivateRate(future.id)).rejects.toThrow(ConflictException);
@@ -243,6 +244,33 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     expect(originEarning.superAgentId).toBe(originHub.id);
     expect(destEarning.superAgentId).toBe(destHub.id);
     expect(await earningRepo.count({ where: { parcelId: 42 } })).toBe(2);
+  });
+
+  // ── cross-pathway dedup granularity (Stage 3S-C6 correction) ────────────
+  it('two DIFFERENT custody events for the SAME (parcel, Super Agent) pair but a DIFFERENT prior-custodian type earn independently -- a genuinely separate handling operation, not a duplicate', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    // Same hub receives the SAME parcel twice, from two genuinely different
+    // prior custodians -- e.g. an origin hand-off from a local Agent, then
+    // later a real destination receipt off a transport Run. The earlier
+    // (parcelId, superAgentId)-only constraint would have wrongly collapsed
+    // this into a single earning.
+    const originEvent = await mkCustodyEvent({
+      parcelId: 1, eventKind: 'collection_received_at_origin_hub',
+      fromCustodianType: 'local_agent', fromCustodianId: 77,
+      toCustodianType: 'super_agent', toCustodianId: hub.id,
+    });
+    const destEvent = await mkCustodyEvent({
+      parcelId: 1, eventKind: 'parcel_run_unloaded',
+      fromCustodianType: 'transport_provider', toCustodianType: 'super_agent', toCustodianId: hub.id,
+    });
+
+    const originEarning = await earningService.recordEarningForCustodyEvent(originEvent.id, { userId: null });
+    const destEarning = await earningService.recordEarningForCustodyEvent(destEvent.id, { userId: null });
+    expect(originEarning.id).not.toBe(destEarning.id);
+    expect(originEarning.sourceCustodianType).toBe('local_agent');
+    expect(destEarning.sourceCustodianType).toBe('transport_provider');
+    expect(await earningRepo.count({ where: { parcelId: 1, superAgentId: hub.id } })).toBe(2);
   });
 
   it('a Super Agent RELEASING custody (the C4 load event, Super Agent -> provider) never generates an earning on its own', async () => {
@@ -418,9 +446,10 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     // Independent DB-level backstop: a raw attempt to insert a second row
     // under the SAME custodyEventId is rejected by the unique index itself.
     await expect(ds.query(
-      `INSERT INTO public.super_agent_handling_earning ("custodyEventId","parcelId","superAgentId","rateConfigId",amount,currency,source)
-       VALUES ($1,$2,$3,$4,500,'TZS','origin_hub_received')`,
-      [event.id, event.parcelId, hub.id, first.rateConfigId],
+      `INSERT INTO public.super_agent_handling_earning
+         ("custodyEventId","parcelId","superAgentId","sourceCustodianType","rateConfigId",amount,currency,source)
+       VALUES ($1,$2,$3,$4,$5,500,'TZS','origin_hub_received')`,
+      [event.id, event.parcelId, hub.id, first.sourceCustodianType, first.rateConfigId],
     )).rejects.toThrow();
   });
 

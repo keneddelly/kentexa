@@ -49,6 +49,8 @@ import { TransportService } from './transport.service';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { RoleContext } from '../role-context/role-context.types';
 import { SuperAgentHandlingEarningService } from '../super-agent-commission/super-agent-handling-earning.service';
+import { ActivityEventService } from '../activity/activity-event.service';
+import { ActivityCategory } from '../activity/entities/activity-event.entity';
 
 export interface CreateParcelRunAssignmentDto {
   runId: number;
@@ -68,6 +70,7 @@ export class ParcelRunAssignmentService {
     private readonly transportService: TransportService,
     private readonly dataSource: DataSource,
     private readonly earningService: SuperAgentHandlingEarningService,
+    private readonly activityEventService: ActivityEventService,
   ) {}
 
   // A raw existence check rather than @InjectRepository(Parcel) -- Parcel's
@@ -80,6 +83,27 @@ export class ParcelRunAssignmentService {
   private async assertParcelExists(parcelId: number): Promise<void> {
     const rows = await this.dataSource.query('SELECT id FROM public.parcel WHERE id = $1', [parcelId]);
     if (!rows.length) throw new NotFoundException('Parcel not found');
+  }
+
+  // Stage 3S-C6 correction: UNLOADED is only a truly FREE state when the
+  // unload stop named no Super Agent at all -- an ordinary waypoint, where
+  // there is no one left to confirm anything and the next leg genuinely is a
+  // brand-new movement. When the unload stop DOES name a real Super Agent,
+  // UNLOADED means "the provider says they released it here, but the
+  // receiving Super Agent has not yet confirmed physical receipt" -- the
+  // parcel's whereabouts are still an open question, so it must stay pinned
+  // to this assignment until confirmReceipt() (or a future exception-
+  // handling path, out of scope here) resolves it. Without this, a parcel
+  // could be reassigned to a brand-new Run while the FIRST Run's own
+  // Super Agent receipt is still outstanding -- two conflicting custody
+  // stories for the same parcel at once.
+  private async hasUnconfirmedSuperAgentReceipt(
+    assignment: Pick<ParcelRunAssignment, 'status' | 'unloadRunStopId'>,
+    runStopRepo: Repository<TransportRunStop> = this.runStopRepo,
+  ): Promise<boolean> {
+    if (assignment.status !== ParcelRunAssignmentStatus.UNLOADED) return false;
+    const unloadRunStop = await runStopRepo.findOne({ where: { id: assignment.unloadRunStopId } });
+    return (unloadRunStop?.superAgentId ?? null) != null;
   }
 
   async createAssignment(userId: number, dto: CreateParcelRunAssignmentDto): Promise<ParcelRunAssignment> {
@@ -122,6 +146,11 @@ export class ParcelRunAssignmentService {
           return live; // idempotent retry -- the same request, not a new demand
         }
         throw new ConflictException('This parcel already has an active movement assignment');
+      }
+      if (live && (await this.hasUnconfirmedSuperAgentReceipt(live, manager.getRepository(TransportRunStop)))) {
+        throw new ConflictException(
+          "This parcel's prior Super Agent receipt has not yet been confirmed",
+        );
       }
 
       const assignment = manager.getRepository(ParcelRunAssignment).create({
@@ -351,8 +380,36 @@ export class ParcelRunAssignmentService {
     if (result.custodyEventId != null) {
       try {
         await this.earningService.recordEarningForCustodyEvent(result.custodyEventId, { userId: context.userId });
-      } catch {
-        /* best-effort -- the physical receipt confirmation itself already succeeded and committed */
+      } catch (error: any) {
+        // Stage 3S-C6 correction: the physical receipt confirmation itself
+        // already succeeded and committed, so this failure must never
+        // surface to the caller -- but it must not vanish either. Recording
+        // it through Kentexa's own Activity/Event intelligence layer
+        // (ActivityEventService.record() -- CLAUDE.md's "Internal AI
+        // Intelligence & Activity Monitoring System", itself designed to
+        // never throw) gives a durable, queryable trail keyed by
+        // custodyEventId: a reconciliation job or admin tool can find these
+        // via activityEventService.findByEventType(...) and simply replay
+        // recordEarningForCustodyEvent(custodyEventId, ...) -- already
+        // idempotent -- to complete the missed earning. No new retry/queue
+        // infrastructure invented; this reuses the layer that already exists
+        // for exactly this purpose.
+        await this.activityEventService.record({
+          eventType: 'SUPER_AGENT_HANDLING_EARNING_GENERATION_FAILED',
+          category: ActivityCategory.LOGISTICS,
+          actorId: context.userId,
+          actorType: context.roleType ?? null,
+          targetType: 'parcel_custody_event',
+          targetId: result.custodyEventId,
+          severity: 'error',
+          visibility: 'admin',
+          metadata: {
+            assignmentId: result.assignment.id,
+            parcelId: result.assignment.parcelId,
+            custodyEventId: result.custodyEventId,
+            reason: error?.message ?? 'unknown error',
+          },
+        });
       }
     }
     return result.assignment;
@@ -387,6 +444,13 @@ export class ParcelRunAssignmentService {
 
   async getActiveAssignmentForParcel(parcelId: number): Promise<ParcelRunAssignment | null> {
     const rows = await this.assignmentRepo.find({ where: { parcelId }, order: { id: 'DESC' } });
-    return rows.find((a) => ACTIVE_STATUSES.includes(a.status)) ?? null;
+    for (const a of rows) {
+      if (ACTIVE_STATUSES.includes(a.status)) return a;
+      // Stage 3S-C6 correction: an UNLOADED assignment still pending its
+      // Super Agent's own receipt confirmation is "active" for this purpose
+      // too -- see hasUnconfirmedSuperAgentReceipt's own comment.
+      if (await this.hasUnconfirmedSuperAgentReceipt(a)) return a;
+    }
+    return null;
   }
 }

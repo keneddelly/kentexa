@@ -21,23 +21,33 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *    exactly like `unloaded` already was, freeing the parcel for a new
  *    assignment.
  *
- * 2. `super_agent_handling_earning` gains a UNIQUE (parcelId, superAgentId)
- *    index -- the cross-pathway deduplication safety net Stage 3S-C5's own
- *    report documented as a plan rather than built: two DIFFERENT custody
- *    events (e.g. one from a legacy pathway, one from the new Run-based
- *    pathway) that both happen to describe what is really the SAME Super
- *    Agent physically handling the SAME parcel can now never each
- *    independently generate a second earning. The existing UNIQUE
- *    custodyEventId index is unrelated and untouched -- that one protects
- *    against reprocessing the SAME event twice; this one protects against
- *    two DIFFERENT events describing the same physical fact. Deliberately
- *    conservative: this also means one Super Agent can only ever earn ONCE
- *    per parcel in this schema (e.g. a genuine return/reship scenario where
- *    the same hub legitimately handles the same parcel twice would earn
- *    only the first time) -- failing toward under-payment rather than
- *    over-payment is the safe direction for a financial constraint, and can
- *    be revisited with an explicit adjustment mechanism if real pilot
- *    operation shows it matters.
+ * 2. `super_agent_handling_earning` gains a new `sourceCustodianType` column
+ *    and a UNIQUE (parcelId, superAgentId, sourceCustodianType) index -- the
+ *    cross-pathway deduplication safety net Stage 3S-C5's own report
+ *    documented as a plan rather than built: two DIFFERENT custody events
+ *    (e.g. one from a legacy pathway, one from the new Run-based pathway)
+ *    that both happen to describe what is really the SAME Super Agent
+ *    physically handling the SAME parcel FROM THE SAME PRIOR CUSTODIAN TYPE
+ *    can now never each independently generate a second earning -- two
+ *    recordings of one real physical handoff always share the same
+ *    fromCustodianType. The existing UNIQUE custodyEventId index is
+ *    unrelated and untouched -- that one protects against reprocessing the
+ *    SAME event twice; this one protects against two DIFFERENT events
+ *    describing the same physical fact.
+ *
+ *    Correction (still within this same gate's own review cycle, so edited
+ *    in place rather than via a follow-up migration): the first version of
+ *    this constraint was (parcelId, superAgentId) alone, which wrongly
+ *    blocked a Super Agent's second, genuinely separate handling operation
+ *    on the same parcel (e.g. a local-loop origin receipt followed later by
+ *    a real destination receipt at the same hub). `sourceCustodianType`,
+ *    frozen from the qualifying event's own `fromCustodianType` ('unknown'
+ *    when null), is the smallest addition that tells those two cases apart.
+ *    Deliberately still conservative: one Super Agent can only ever earn
+ *    ONCE per (parcel, prior-custodian-type) triple -- failing toward
+ *    under-payment rather than over-payment is the safe direction for a
+ *    financial constraint, and can be revisited with an explicit adjustment
+ *    mechanism if real pilot operation shows it matters.
  */
 export class AddReceiptConfirmationAndCommissionDedup1788288000000 implements MigrationInterface {
   name = 'AddReceiptConfirmationAndCommissionDedup1788288000000';
@@ -51,19 +61,34 @@ export class AddReceiptConfirmationAndCommissionDedup1788288000000 implements Mi
     await queryRunner.query(`ALTER TABLE public.parcel_run_assignment
       ADD COLUMN IF NOT EXISTS "receivedAt" timestamp without time zone`);
 
+    await queryRunner.query(`ALTER TABLE public.super_agent_handling_earning
+      ADD COLUMN IF NOT EXISTS "sourceCustodianType" varchar(32)`);
+    // Backfill from the linked custody event's own fromCustodianType so any
+    // row inserted before this column existed still gets a real, correct
+    // value rather than a placeholder.
+    await queryRunner.query(`UPDATE public.super_agent_handling_earning e
+      SET "sourceCustodianType" = COALESCE(pce."fromCustodianType", 'unknown')
+      FROM public.parcel_custody_event pce
+      WHERE pce.id = e."custodyEventId" AND e."sourceCustodianType" IS NULL`);
+    await queryRunner.query(`ALTER TABLE public.super_agent_handling_earning
+      ALTER COLUMN "sourceCustodianType" SET NOT NULL`);
+
     await queryRunner.query(`DO $$ BEGIN
       IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'UQ_super_agent_handling_earning_parcel_agent'
+        SELECT 1 FROM pg_constraint WHERE conname = 'UQ_super_agent_handling_earning_parcel_agent_source'
       ) THEN
         ALTER TABLE public.super_agent_handling_earning
-          ADD CONSTRAINT "UQ_super_agent_handling_earning_parcel_agent" UNIQUE ("parcelId", "superAgentId");
+          ADD CONSTRAINT "UQ_super_agent_handling_earning_parcel_agent_source"
+          UNIQUE ("parcelId", "superAgentId", "sourceCustodianType");
       END IF;
     END $$`);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE public.super_agent_handling_earning
-      DROP CONSTRAINT IF EXISTS "UQ_super_agent_handling_earning_parcel_agent"`);
+      DROP CONSTRAINT IF EXISTS "UQ_super_agent_handling_earning_parcel_agent_source"`);
+    await queryRunner.query(`ALTER TABLE public.super_agent_handling_earning
+      DROP COLUMN IF EXISTS "sourceCustodianType"`);
 
     await queryRunner.query(`LOCK TABLE public.parcel_run_assignment IN ACCESS EXCLUSIVE MODE`);
     const [{ exists: hasReceived }] = await queryRunner.query(
