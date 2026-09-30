@@ -19,6 +19,25 @@ const DK = '#0F172A';
 const GR = '#64748B';
 const WH = '#FFFFFF';
 
+// Kentexa verification mark: familiar social-platform verification semantics,
+// but a Kentexa-owned visual rather than another platform's trademarked asset.
+const VerifiedBadge = ({ official = false }) => (
+  <span
+    aria-label={official ? 'Official Kentexa' : 'Verified on Kentexa'}
+    title={official ? 'Official Kentexa' : 'Verified on Kentexa'}
+    style={{
+      width: 20, height: 20, display: 'inline-flex', alignItems: 'center',
+      justifyContent: 'center', flexShrink: 0, position: 'relative',
+      filter: 'drop-shadow(0 1px 2px rgba(37,99,235,.32))'
+    }}
+  >
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#1687F8" d="M12 1.7l2.05 1.62 2.58-.35 1.13 2.35 2.4 1.02-.13 2.6 1.82 1.87-1.36 2.22.64 2.53-2.18 1.43-.88 2.46-2.6.12L12 22.3l-2.05-1.62-2.58.35-1.13-2.35-2.4-1.02.13-2.6-1.82-1.87 1.36-2.22-.64-2.53 2.18-1.43.88-2.46 2.6-.12L12 1.7z"/>
+      <path fill="#fff" d="M10.25 16.45L6.7 12.9l1.55-1.55 2 2 5.5-5.5 1.55 1.55-7.05 7.05z"/>
+    </svg>
+  </span>
+);
+
 const fmt  = n => Number(n||0).toLocaleString();
 const fmtM = n => { const v=Number(n||0); return v>=1e6?`${(v/1e6).toFixed(1)}M`:v>=1000?`${(v/1e3).toFixed(0)}K`:String(v); };
 
@@ -661,19 +680,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             {displayName || t('commerce_profile.default_name')}
           </h1>
           {isOfficialKentexa ? (
-            <span
-              aria-label="Official Kentexa"
-              title="Official Kentexa"
-              style={{
-                width:18, height:18, borderRadius:'50%', backgroundColor:'#2563eb',
-                color:'#fff', display:'inline-flex', alignItems:'center', justifyContent:'center',
-                fontSize:12, fontWeight:900, lineHeight:1, flexShrink:0,
-                boxShadow:'0 1px 3px rgba(37,99,235,0.35)'
-              }}>
-              ✓
-            </span>
+            <VerifiedBadge official />
           ) : (activeProfile.isVerified || (isBusinessProfile && profile?.isOfficialStore)) && (
-            <span style={{ fontSize:16 }} title={t('commerce_profile.verified_title')}>✅</span>
+            <VerifiedBadge />
           )}
           {isBusinessProfile && profile?.verificationTier === 'verified_business' && (
             <span style={{ fontSize:10, fontWeight:800, padding:'2px 9px', borderRadius:100,
