@@ -118,6 +118,19 @@ export class TransportRunService {
     return route;
   }
 
+  // Stage 3S-C4: RouteStop.superAgentId/TransportRunStop.superAgentId were
+  // always accepted and persisted (Stage 3S-C1/C2) with no existence check
+  // at all -- a plain int, by original design, not a DB-level FK (the same
+  // "no real CREATE TABLE migration for super_agent" precedent every Stage
+  // 3S migration already documents). A raw existence check closes that gap
+  // the same way ParcelRunAssignmentService.assertParcelExists already does
+  // for the identical cross-module situation, without pulling SuperAgent's
+  // own entity/module into this one.
+  private async assertSuperAgentExists(superAgentId: number): Promise<void> {
+    const rows = await this.dataSource.query('SELECT id FROM public.super_agent WHERE id = $1', [superAgentId]);
+    if (!rows.length) throw new BadRequestException('superAgentId does not reference an existing Super Agent');
+  }
+
   // ── RouteStop CRUD (reusable, editable plan) ──────────────────────────────
 
   async addRouteStop(userId: number, routeId: number, dto: AddRouteStopDto): Promise<RouteStop> {
@@ -127,6 +140,7 @@ export class TransportRunService {
     }
     const label = dto.locationLabel?.trim();
     if (!label) throw new BadRequestException('locationLabel is required');
+    if (dto.superAgentId != null) await this.assertSuperAgentExists(dto.superAgentId);
 
     const { wardId, regionId } = await this.resolveWardAndRegion(label);
     const stop = this.routeStopRepo.create({
@@ -156,6 +170,7 @@ export class TransportRunService {
     await this.assertOwnsRoute(userId, routeId);
     const stop = await this.routeStopRepo.findOne({ where: { id: stopId, routeId } });
     if (!stop) throw new NotFoundException('Route stop not found');
+    if (dto.superAgentId != null) await this.assertSuperAgentExists(dto.superAgentId);
 
     if (dto.locationLabel !== undefined) {
       const label = dto.locationLabel.trim();

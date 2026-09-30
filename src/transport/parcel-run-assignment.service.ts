@@ -14,6 +14,11 @@
  * (`SELECT ... FOR UPDATE`), then check for a live (non-terminal)
  * assignment for that same parcel -- a matching retry is idempotent, a
  * genuinely different request is a real conflict. Not re-invented here.
+ *
+ * Stage 3S-C4: markLoaded/markUnloaded now also write the canonical
+ * ParcelCustodyEvent ledger (see buildCustodyTransition below) -- closing
+ * the gap where this row's own `status` column was the only trace a load/
+ * unload ever happened at all.
  */
 import {
   Injectable,
@@ -28,6 +33,8 @@ import { TransportRun } from './entities/transport-run.entity';
 import { TransportRunStop } from './entities/transport-run-stop.entity';
 import { ParcelRunAssignment, ParcelRunAssignmentStatus } from './entities/parcel-run-assignment.entity';
 import { TransportService } from './transport.service';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
+import { RoleContext } from '../role-context/role-context.types';
 
 export interface CreateParcelRunAssignmentDto {
   runId: number;
@@ -127,17 +134,57 @@ export class ParcelRunAssignmentService {
     return assignment;
   }
 
+  // Stage 3S-C4: the one place a load/unload transition writes to the
+  // canonical ParcelCustodyEvent ledger. Before this gate, markLoaded/
+  // markUnloaded only flipped this row's own `status` column -- pure
+  // self-reported state, exactly the kind of claim
+  // TransportService.syncParcelFromAssignment already treats as
+  // untrustworthy on its own for the OLD TransportAssignment model (it
+  // refuses to sync a Parcel to IN_TRANSIT without a real
+  // 'transport_provider_collected' custody event backing it up). This
+  // closes the same gap here: `assignment.status` alone must never become
+  // financial evidence (Issue #62's own invariant #7).
+  //
+  // Custodian identity is read from the RELEVANT stop's own `superAgentId`
+  // (TransportRunStop -- the immutable per-Run snapshot, itself copied from
+  // RouteStop at Run-creation time, Stage 3S-C1) -- never inferred from
+  // location text. A stop with no Super Agent still gets a real, immutable
+  // custody event (the Run's own provider genuinely does take/release
+  // physical custody at that leg) -- it simply never claims a Super Agent
+  // side of the handoff, so an ordinary geographic stop can never manufacture
+  // a fake Super Agent handling event (Issue #62's own invariant #3).
+  private buildCustodyTransition(direction: 'load' | 'unload', run: TransportRun, runStop: TransportRunStop | null) {
+    const superAgentId = runStop?.superAgentId ?? null;
+    return direction === 'load'
+      ? {
+          fromCustodianType: superAgentId != null ? 'super_agent' : null,
+          fromCustodianId: superAgentId,
+          toCustodianType: 'transport_provider' as const,
+          toCustodianId: run.providerId,
+        }
+      : {
+          fromCustodianType: 'transport_provider' as const,
+          fromCustodianId: run.providerId,
+          toCustodianType: superAgentId != null ? 'super_agent' : null,
+          toCustodianId: superAgentId,
+        };
+  }
+
   // Idempotent, the same pattern this lineage already uses for every other
   // physical-state transition (Stage 3S-B1's updateAssignmentStatus, Stage
   // 3S-B3's acceptQuote): a retry of an already-LOADED assignment returns
-  // the same row untouched; a terminal (unloaded/cancelled) one fails closed.
-  async markLoaded(userId: number, assignmentId: number): Promise<ParcelRunAssignment> {
+  // the same row untouched -- and, since it returns BEFORE reaching the
+  // custody insert below, never attempts a second one either; a terminal
+  // (unloaded/cancelled) one fails closed. The deterministic operationKey
+  // (scoped to this assignment's own id, which is already globally unique)
+  // is a belt-and-suspenders DB-level backstop on top of that.
+  async markLoaded(context: RoleContext, assignmentId: number): Promise<ParcelRunAssignment> {
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(ParcelRunAssignment);
       const assignment = await repo.findOne({ where: { id: assignmentId }, lock: { mode: 'pessimistic_write' } });
       if (!assignment) throw new NotFoundException('Assignment not found');
       const run = await manager.getRepository(TransportRun).findOne({ where: { id: assignment.runId } });
-      const provider = await this.transportService.getMyProfile(userId);
+      const provider = await this.transportService.getMyProfile(context.userId);
       if (!run || run.providerId !== provider.id) {
         throw new ForbiddenException("You don't have authority over this assignment");
       }
@@ -145,19 +192,37 @@ export class ParcelRunAssignmentService {
       if (assignment.status !== ParcelRunAssignmentStatus.SCHEDULED) {
         throw new ConflictException('Only a scheduled assignment can be marked loaded');
       }
+      const loadRunStop = await manager.getRepository(TransportRunStop).findOne({ where: { id: assignment.loadRunStopId } });
+      const transition = this.buildCustodyTransition('load', run, loadRunStop);
+      await manager.getRepository(ParcelCustodyEvent).insert({
+        parcelId: assignment.parcelId,
+        eventKind: 'parcel_run_loaded',
+        operationKey: `parcel-run-loaded:${assignment.id}`,
+        ...transition,
+        actorSource: 'account_role',
+        actorUserId: context.userId,
+        actorAccountRoleId: context.accountRoleId,
+        actorRoleType: context.roleType,
+        actorWorkspaceId: context.workspaceId ?? null,
+        actorProviderId: null,
+        hubId: transition.fromCustodianId,
+        assignmentId: assignment.id,
+        assignmentType: 'parcel_run_assignment',
+        evidenceRef: null,
+      });
       assignment.status = ParcelRunAssignmentStatus.LOADED;
       assignment.loadedAt = new Date();
       return repo.save(assignment);
     });
   }
 
-  async markUnloaded(userId: number, assignmentId: number): Promise<ParcelRunAssignment> {
+  async markUnloaded(context: RoleContext, assignmentId: number): Promise<ParcelRunAssignment> {
     return this.dataSource.transaction(async (manager) => {
       const repo = manager.getRepository(ParcelRunAssignment);
       const assignment = await repo.findOne({ where: { id: assignmentId }, lock: { mode: 'pessimistic_write' } });
       if (!assignment) throw new NotFoundException('Assignment not found');
       const run = await manager.getRepository(TransportRun).findOne({ where: { id: assignment.runId } });
-      const provider = await this.transportService.getMyProfile(userId);
+      const provider = await this.transportService.getMyProfile(context.userId);
       if (!run || run.providerId !== provider.id) {
         throw new ForbiddenException("You don't have authority over this assignment");
       }
@@ -165,6 +230,24 @@ export class ParcelRunAssignmentService {
       if (assignment.status !== ParcelRunAssignmentStatus.LOADED) {
         throw new ConflictException('Only a loaded assignment can be marked unloaded');
       }
+      const unloadRunStop = await manager.getRepository(TransportRunStop).findOne({ where: { id: assignment.unloadRunStopId } });
+      const transition = this.buildCustodyTransition('unload', run, unloadRunStop);
+      await manager.getRepository(ParcelCustodyEvent).insert({
+        parcelId: assignment.parcelId,
+        eventKind: 'parcel_run_unloaded',
+        operationKey: `parcel-run-unloaded:${assignment.id}`,
+        ...transition,
+        actorSource: 'account_role',
+        actorUserId: context.userId,
+        actorAccountRoleId: context.accountRoleId,
+        actorRoleType: context.roleType,
+        actorWorkspaceId: context.workspaceId ?? null,
+        actorProviderId: null,
+        hubId: transition.toCustodianId,
+        assignmentId: assignment.id,
+        assignmentType: 'parcel_run_assignment',
+        evidenceRef: null,
+      });
       assignment.status = ParcelRunAssignmentStatus.UNLOADED;
       assignment.unloadedAt = new Date();
       return repo.save(assignment);

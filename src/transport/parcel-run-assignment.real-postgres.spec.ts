@@ -15,6 +15,10 @@ import { TransportProvider, ProviderStatus, ProviderType } from './entities/tran
 import { TransportRoute, RouteType } from './entities/transport-route.entity';
 import { User } from '../users/entities/user.entity';
 import { ensureRouteStopDeferrableSequenceConstraint } from './route-stop-schema';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
+import { AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
+import { RoleContext } from '../role-context/role-context.types';
 
 /**
  * Stage 3S-C3 — ParcelRunAssignment + multi-stop parcel movement, proved
@@ -51,6 +55,22 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       providerId, routeType: RouteType.LOCAL_LOOP, originCity: 'Dar es Salaam', destinationCity: 'Dar es Salaam',
       pricePerKg: 100, fixedFee: 500, isActive: true, ...o,
     } as any) as unknown as TransportRoute);
+  // A real SuperAgent -- already safely registerable in this same
+  // synchronize:true DataSource (B5B_BASE_ENTITIES already includes it
+  // elsewhere in this lineage), unlike Parcel.
+  const mkSuperAgent = async () => {
+    const u = await ds.getRepository(User).save(ds.getRepository(User).create({
+      email: `c4-sa-${++userSeq}@s3sc4.local`, phone: `+2556${String(userSeq).padStart(8, '0')}`, password: 'x', name: 'SA',
+    } as any));
+    return ds.getRepository(SuperAgent).save(ds.getRepository(SuperAgent).create({
+      userId: (u as any).id, businessName: 'Hub', city: 'Dar es Salaam', status: SuperAgentStatus.ACTIVE,
+    } as any) as unknown as SuperAgent);
+  };
+  const mkRoleContext = (userId: number, profileId: number): RoleContext => ({
+    userId, accountRoleId: userId, roleType: AccountRoleType.TRANSPORT_PROVIDER,
+    profileType: RoleProfileType.TRANSPORT_PROVIDER, profileId,
+    capabilities: [], sessionId: `s-${userId}`, contextVersion: 1,
+  });
   // Parcel is a bare stub table here -- the service only ever needs to know
   // "does this parcelId exist" (assertParcelExists), never the real
   // Parcel entity's own relation graph (Order/Shipment/User/SuperAgent).
@@ -61,8 +81,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     );
     return { id: id as number };
   };
-  const addStop = (userId: number, routeId: number, sequence: number, locationLabel: string) =>
-    runService.addRouteStop(userId, routeId, { sequence, locationLabel });
+  const addStop = (userId: number, routeId: number, sequence: number, locationLabel: string, extra: Record<string, unknown> = {}) =>
+    runService.addRouteStop(userId, routeId, { sequence, locationLabel, ...extra });
 
   // Builds the canonical pilot proof-case Run: Kariakoo -> Mbagala -> Ubungo -> Mbezi -> Bunju.
   const mkPilotRun = async (userId: number, providerId: number) => {
@@ -87,7 +107,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
-      entities: [...B5B_BASE_ENTITIES, TransportRoute, RouteStop, TransportRun, TransportRunStop, Vehicle, ParcelRunAssignment],
+      entities: [...B5B_BASE_ENTITIES, TransportRoute, RouteStop, TransportRun, TransportRunStop, Vehicle,
+        ParcelRunAssignment, ParcelCustodyEvent],
     });
     await ds.initialize();
     await ensureRouteStopDeferrableSequenceConstraint((sql) => ds.query(sql));
@@ -116,6 +137,7 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
   afterAll(async () => { if (ds) await ds.destroy().catch(() => {}); });
 
   beforeEach(async () => {
+    await ds.query(`DELETE FROM public.parcel_custody_event`);
     await ds.query(`DELETE FROM public.parcel_run_assignment`);
     await ds.query(`TRUNCATE TABLE public.transport_run_stop RESTART IDENTITY CASCADE`);
     await ds.query(`TRUNCATE TABLE public.transport_run RESTART IDENTITY CASCADE`);
@@ -123,6 +145,7 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     await ds.query(`DELETE FROM public.transport_route`);
     await ds.query(`DELETE FROM public.transport_provider`);
     await ds.query(`DELETE FROM public.parcel`);
+    await ds.query(`DELETE FROM public.super_agent`);
   });
 
   // ── the central invariant ──────────────────────────────────────────────────
@@ -250,16 +273,16 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     const parcel = await mkParcel();
     const a = await assignmentService.createAssignment(userId, { runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id });
 
-    const loaded = await assignmentService.markLoaded(userId, a.id);
+    const loaded = await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id);
     expect(loaded.status).toBe(ParcelRunAssignmentStatus.LOADED);
     expect(loaded.loadedAt).not.toBeNull();
-    const loadedAgain = await assignmentService.markLoaded(userId, a.id); // idempotent
+    const loadedAgain = await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id); // idempotent
     expect(loadedAgain.loadedAt!.getTime()).toBe(loaded.loadedAt!.getTime());
 
-    const unloaded = await assignmentService.markUnloaded(userId, a.id);
+    const unloaded = await assignmentService.markUnloaded(mkRoleContext(userId, provider.id), a.id);
     expect(unloaded.status).toBe(ParcelRunAssignmentStatus.UNLOADED);
     expect(unloaded.unloadedAt).not.toBeNull();
-    const unloadedAgain = await assignmentService.markUnloaded(userId, a.id); // idempotent
+    const unloadedAgain = await assignmentService.markUnloaded(mkRoleContext(userId, provider.id), a.id); // idempotent
     expect(unloadedAgain.unloadedAt!.getTime()).toBe(unloaded.unloadedAt!.getTime());
   });
 
@@ -268,12 +291,12 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     const { run, stops } = await mkPilotRun(userId, provider.id);
     const parcel1 = await mkParcel();
     const a1 = await assignmentService.createAssignment(userId, { runId: run.id, parcelId: parcel1.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id });
-    await expect(assignmentService.markUnloaded(userId, a1.id)).rejects.toThrow(ConflictException);
+    await expect(assignmentService.markUnloaded(mkRoleContext(userId, provider.id), a1.id)).rejects.toThrow(ConflictException);
 
     const parcel2 = await mkParcel();
     const a2 = await assignmentService.createAssignment(userId, { runId: run.id, parcelId: parcel2.id, loadRunStopId: stops.kariakoo.id, unloadRunStopId: stops.mbezi.id });
     await assignmentService.cancelAssignment(userId, a2.id);
-    await expect(assignmentService.markLoaded(userId, a2.id)).rejects.toThrow(ConflictException);
+    await expect(assignmentService.markLoaded(mkRoleContext(userId, provider.id), a2.id)).rejects.toThrow(ConflictException);
   });
 
   it('cancelAssignment refuses a LOADED assignment (only scheduled can be retracted this way)', async () => {
@@ -281,7 +304,7 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     const { run, stops } = await mkPilotRun(userId, provider.id);
     const parcel = await mkParcel();
     const a = await assignmentService.createAssignment(userId, { runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id });
-    await assignmentService.markLoaded(userId, a.id);
+    await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id);
 
     await expect(assignmentService.cancelAssignment(userId, a.id)).rejects.toThrow(ConflictException);
   });
@@ -293,7 +316,10 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     const parcel = await mkParcel();
     const a = await assignmentService.createAssignment(owner.userId, { runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id });
 
-    await expect(assignmentService.markLoaded(stranger.userId, a.id)).rejects.toThrow(ForbiddenException);
+    await expect(assignmentService.markLoaded(mkRoleContext(stranger.userId, stranger.provider.id), a.id)).rejects.toThrow(ForbiddenException);
+    // Stage 3S-C4: a rejected, unauthorized transition attempt must leave
+    // ZERO trace in the canonical custody ledger -- it never happened.
+    expect((await ds.query(`SELECT count(*)::int AS n FROM public.parcel_custody_event`))[0].n).toBe(0);
   });
 
   // ── immutable snapshot reference, and zero unrelated side effects ─────────
@@ -319,10 +345,117 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     const before = (await runService.getRunStops(run.id)).map((s) => ({ id: s.id, seq: s.sequence }));
 
     const a = await assignmentService.createAssignment(userId, { runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id });
-    await assignmentService.markLoaded(userId, a.id);
-    await assignmentService.markUnloaded(userId, a.id);
+    await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id);
+    await assignmentService.markUnloaded(mkRoleContext(userId, provider.id), a.id);
 
     const after = (await runService.getRunStops(run.id)).map((s) => ({ id: s.id, seq: s.sequence }));
     expect(after).toEqual(before);
+  });
+
+  // ── Stage 3S-C4: custody evidence integration ──────────────────────────────
+  it('markLoaded at a Super Agent stop records a real Super Agent -> Provider custody handoff, correctly identifying that Super Agent', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const hub = await mkSuperAgent();
+    const r = await mkRoute(provider.id);
+    await addStop(userId, r.id, 0, 'Kariakoo', { superAgentId: hub.id });
+    await addStop(userId, r.id, 1, 'Bunju');
+    const run = await runService.createRun(userId, { routeId: r.id, scheduledDeparture: new Date(Date.now() + 86400000) });
+    const createdStops = await runService.getRunStops(run.id);
+    const loadStop = createdStops.find((s) => s.locationLabel === 'Kariakoo')!;
+    const unloadStop = createdStops.find((s) => s.locationLabel === 'Bunju')!;
+    const parcel = await mkParcel();
+    const a = await assignmentService.createAssignment(userId, {
+      runId: run.id, parcelId: parcel.id, loadRunStopId: loadStop.id, unloadRunStopId: unloadStop.id,
+    });
+
+    await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id);
+
+    const events = await ds.query(`SELECT * FROM public.parcel_custody_event WHERE "parcelId" = $1`, [parcel.id]);
+    expect(events).toHaveLength(1);
+    expect(events[0].eventKind).toBe('parcel_run_loaded');
+    expect(events[0].operationKey).toBe(`parcel-run-loaded:${a.id}`);
+    expect(events[0].fromCustodianType).toBe('super_agent');
+    expect(events[0].fromCustodianId).toBe(hub.id); // the CORRECT Super Agent, not any other
+    expect(events[0].toCustodianType).toBe('transport_provider');
+    expect(events[0].toCustodianId).toBe(provider.id);
+    expect(events[0].assignmentType).toBe('parcel_run_assignment');
+    expect(events[0].assignmentId).toBe(a.id);
+  });
+
+  it('markLoaded at an ordinary (non-Super-Agent) stop never manufactures a fake Super Agent handling event', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const { run, stops } = await mkPilotRun(userId, provider.id); // no stop here has a superAgentId
+    const parcel = await mkParcel();
+    const a = await assignmentService.createAssignment(userId, {
+      runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id,
+    });
+
+    await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id);
+
+    const events = await ds.query(`SELECT * FROM public.parcel_custody_event WHERE "parcelId" = $1`, [parcel.id]);
+    expect(events).toHaveLength(1); // a real custody event is still written -- the provider genuinely takes custody
+    expect(events[0].fromCustodianType).toBeNull(); // but no Super Agent is fabricated
+    expect(events[0].fromCustodianId).toBeNull();
+    expect(events[0].toCustodianType).toBe('transport_provider');
+  });
+
+  it('markUnloaded at a destination Super Agent stop records a real Provider -> Super Agent receipt, correctly identifying that Super Agent', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const originHub = await mkSuperAgent();
+    const destHub = await mkSuperAgent();
+    const r = await mkRoute(provider.id);
+    await addStop(userId, r.id, 0, 'Kariakoo', { superAgentId: originHub.id });
+    await addStop(userId, r.id, 1, 'Bunju', { superAgentId: destHub.id });
+    const run = await runService.createRun(userId, { routeId: r.id, scheduledDeparture: new Date(Date.now() + 86400000) });
+    const createdStops = await runService.getRunStops(run.id);
+    const loadStop = createdStops.find((s) => s.locationLabel === 'Kariakoo')!;
+    const unloadStop = createdStops.find((s) => s.locationLabel === 'Bunju')!;
+    const parcel = await mkParcel();
+    const a = await assignmentService.createAssignment(userId, {
+      runId: run.id, parcelId: parcel.id, loadRunStopId: loadStop.id, unloadRunStopId: unloadStop.id,
+    });
+    await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id);
+
+    await assignmentService.markUnloaded(mkRoleContext(userId, provider.id), a.id);
+
+    const events = await ds.query(
+      `SELECT * FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_unloaded'`, [parcel.id]);
+    expect(events).toHaveLength(1);
+    expect(events[0].operationKey).toBe(`parcel-run-unloaded:${a.id}`);
+    expect(events[0].fromCustodianType).toBe('transport_provider');
+    expect(events[0].fromCustodianId).toBe(provider.id);
+    expect(events[0].toCustodianType).toBe('super_agent');
+    expect(events[0].toCustodianId).toBe(destHub.id); // the destination hub, never the origin hub
+    expect(events[0].assignmentType).toBe('parcel_run_assignment');
+  });
+
+  it('repeated markLoaded/markUnloaded calls never create a second custody event for the same operation', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const { run, stops } = await mkPilotRun(userId, provider.id);
+    const parcel = await mkParcel();
+    const a = await assignmentService.createAssignment(userId, {
+      runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id,
+    });
+    const context = mkRoleContext(userId, provider.id);
+
+    await assignmentService.markLoaded(context, a.id);
+    await assignmentService.markLoaded(context, a.id); // idempotent retry
+    await assignmentService.markUnloaded(context, a.id);
+    await assignmentService.markUnloaded(context, a.id); // idempotent retry
+
+    const loaded = await ds.query(`SELECT count(*)::int AS n FROM public.parcel_custody_event WHERE "eventKind" = 'parcel_run_loaded'`);
+    const unloaded = await ds.query(`SELECT count(*)::int AS n FROM public.parcel_custody_event WHERE "eventKind" = 'parcel_run_unloaded'`);
+    expect(loaded[0].n).toBe(1);
+    expect(unloaded[0].n).toBe(1);
+
+    // Independent DB-level backstop: even a direct attempt to insert a
+    // second row under the SAME (parcelId, operationKey) is rejected by
+    // UQ_parcel_custody_operation itself, not merely by the service's own
+    // short-circuit.
+    await expect(ds.query(
+      `INSERT INTO public.parcel_custody_event ("parcelId","eventKind","operationKey","actorSource")
+       VALUES ($1,'parcel_run_loaded',$2,'system')`,
+      [parcel.id, `parcel-run-loaded:${a.id}`],
+    )).rejects.toThrow();
   });
 });

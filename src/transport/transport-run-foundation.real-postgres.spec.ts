@@ -16,6 +16,7 @@ import { Shipment } from '../shipments/entities/shipment.entity';
 import { TransportQuote } from './entities/transport-quote.entity';
 import { User } from '../users/entities/user.entity';
 import { ensureRouteStopDeferrableSequenceConstraint } from './route-stop-schema';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 
 /**
  * Stage 3S-C1 — Ordered Route Stops + Immutable Run Itinerary Foundation,
@@ -53,6 +54,14 @@ suite('Stage 3S-C1 — route stop / transport run foundation, real PostgreSQL', 
       providerId, routeType: RouteType.LOCAL_LOOP, originCity: 'Dar es Salaam', destinationCity: 'Dar es Salaam',
       pricePerKg: 100, fixedFee: 500, isActive: true, ...o,
     } as any) as unknown as TransportRoute);
+  const mkSuperAgent = async () => {
+    const u = await ds.getRepository(User).save(ds.getRepository(User).create({
+      email: `c4-sa-${++userSeq}@s3sc1.local`, phone: `+2557${String(userSeq).padStart(8, '0')}`, password: 'x', name: 'SA',
+    } as any));
+    return ds.getRepository(SuperAgent).save(ds.getRepository(SuperAgent).create({
+      userId: (u as any).id, businessName: 'Hub', city: 'Dar es Salaam', status: SuperAgentStatus.ACTIVE,
+    } as any) as unknown as SuperAgent);
+  };
 
   beforeAll(async () => {
     const client = new Client(config!);
@@ -97,6 +106,7 @@ suite('Stage 3S-C1 — route stop / transport run foundation, real PostgreSQL', 
     await ds.query(`DELETE FROM public.route_stop`);
     await ds.query(`DELETE FROM public.transport_route`);
     await ds.query(`DELETE FROM public.transport_provider`);
+    await ds.query(`DELETE FROM public.super_agent`);
   });
 
   const addStop = (userId: number, routeId: number, sequence: number, locationLabel: string, extra: Record<string, unknown> = {}) =>
@@ -137,6 +147,49 @@ suite('Stage 3S-C1 — route stop / transport run foundation, real PostgreSQL', 
     const stranger = await mkProviderWithUser();
     const r = await mkRoute(owner.provider.id);
     await expect(addStop(stranger.userId, r.id, 0, 'Kariakoo')).rejects.toThrow(NotFoundException);
+  });
+
+  // ── Stage 3S-C4: explicit RunStop -> Super Agent identity ──────────────────
+  it('a RouteStop may explicitly reference a real Super Agent, and an ordinary stop may have none', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id);
+    const hub = await mkSuperAgent();
+
+    const withHub = await addStop(userId, r.id, 0, 'Kariakoo', { superAgentId: hub.id });
+    expect(withHub.superAgentId).toBe(hub.id);
+    const ordinary = await addStop(userId, r.id, 1, 'Ubungo');
+    expect(ordinary.superAgentId).toBeNull();
+  });
+
+  it('rejects a superAgentId that does not reference a real Super Agent, on both add and update', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id);
+    await expect(addStop(userId, r.id, 0, 'Kariakoo', { superAgentId: 999999 })).rejects.toThrow(BadRequestException);
+
+    const hub = await mkSuperAgent();
+    const stop = await addStop(userId, r.id, 0, 'Kariakoo', { superAgentId: hub.id });
+    await expect(
+      runService.updateRouteStop(userId, r.id, stop.id, { superAgentId: 999999 }),
+    ).rejects.toThrow(BadRequestException);
+    // The valid value is untouched by the rejected attempt.
+    const reread = await routeStops.findOneOrFail({ where: { id: stop.id } });
+    expect(reread.superAgentId).toBe(hub.id);
+  });
+
+  it('a Super Agent identity snapshots onto TransportRunStop at Run creation, for origin and destination independently', async () => {
+    const { userId, provider } = await mkProviderWithUser();
+    const r = await mkRoute(provider.id);
+    const originHub = await mkSuperAgent();
+    const destHub = await mkSuperAgent();
+    await addStop(userId, r.id, 0, 'Kariakoo', { superAgentId: originHub.id });
+    await addStop(userId, r.id, 1, 'Ubungo'); // ordinary waypoint, no hub
+    await addStop(userId, r.id, 2, 'Bunju', { superAgentId: destHub.id });
+
+    const run = await runService.createRun(userId, { routeId: r.id, scheduledDeparture: new Date(Date.now() + 86400000) });
+    const stops = await runService.getRunStops(run.id);
+    expect(stops.find((s) => s.locationLabel === 'Kariakoo')!.superAgentId).toBe(originHub.id);
+    expect(stops.find((s) => s.locationLabel === 'Ubungo')!.superAgentId).toBeNull();
+    expect(stops.find((s) => s.locationLabel === 'Bunju')!.superAgentId).toBe(destHub.id);
   });
 
   // ── Run creation ------------------------------------------------------────
