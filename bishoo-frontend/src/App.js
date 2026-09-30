@@ -382,10 +382,12 @@ function App() {
           localStorage.setItem('kentexa_user', JSON.stringify(profile));
         } catch {}
         setNavParams(null);
+        if (profile && !profile.avatarUrl) {
+          setPage('AddProfilePhoto');
+          return;
+        }
         {
-          // Fast-entry principle: authentication/OTP is sufficient to enter
-          // Kentexa. Photo and onboarding enrichment are optional progressive
-          // actions surfaced after Home, never post-auth navigation gates.
+          // Personal photo setup finishes before consuming the user's destination.
           // Check if there's a stored intended destination (e.g. from + menu)
           const intended = localStorage.getItem('kentexa_after_login');
           if (intended) {
@@ -419,7 +421,7 @@ function App() {
       api.get('/auth/profile').then(res => {
         setCurrentUser(res.data);
         localStorage.setItem('kentexa_user', JSON.stringify(res.data));
-        // Missing profile photo is optional; never redirect away from Home.
+        if (!res.data.avatarUrl) setPage('AddProfilePhoto');
       }).catch(() => {});
     }
   }, [isLoggedIn, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -596,7 +598,10 @@ function App() {
     return component;
   };
 
+  const needsProfilePhoto = isLoggedIn && !!currentUser && !currentUser.avatarUrl;
+
   const renderPage = () => {
+    if (needsProfilePhoto) return <AddProfilePhoto {...publicProps} />;
     const pageStr = typeof page === 'string' ? page : 'Home';
     const policyDecision = evaluateDestination({
       page: pageStr, isAuthenticated: isLoggedIn, roleType: activeContext?.roleType,
@@ -879,7 +884,7 @@ function App() {
           position:fixed, zIndex:1000 bar was rendering directly on top of
           it, covering the send button (and on the conversation list, the
           bottom rows) since nothing in SellerInbox reserved space for it. */}
-      {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
+      {isLoggedIn && !needsProfilePhoto && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
         && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational'))) && (
         <BottomNav
           // Remount protection (profile-switch architecture spec): a stable

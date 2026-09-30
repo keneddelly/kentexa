@@ -77,14 +77,8 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
       setOtpLoading(true);
       setError('');
       const res = await api.post('/auth/verify-otp', { identifier: identifier.trim(), otp });
-      // OTP is the end of mandatory registration. Profile photo, location,
-      // interests and follows are progressive enrichment after Home, never
-      // blockers between a new user and Kentexa's core experience.
-      try {
-        const userId = res.data.user?.id;
-        if (userId) await api.patch(`/users/${userId}`, { onboardingCompleted: true });
-      } catch { /* entry must not fail because optional enrichment state failed */ }
-      if (onLoginSuccess) await onLoginSuccess(res.data, { targetPage: 'Home' });
+      // A verified account must add its personal photo before entering Kentexa.
+      if (onLoginSuccess) await onLoginSuccess(res.data, { targetPage: 'AddProfilePhoto' });
     } catch (err) {
       setError(err?.response?.data?.message || t('register.invalid_otp'));
     } finally {
