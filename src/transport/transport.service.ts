@@ -55,11 +55,11 @@ import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity'
 import { RoleContextService } from '../role-context/role-context.service';
 import type { RoleContext } from '../role-context/role-context.types';
 import {
-import { SearchIndexService } from '../search/search-index.service';
   AccountRoleStatus,
   AccountRoleType,
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
+import { SearchIndexService } from '../search/search-index.service';
 
 @Injectable()
 export class TransportService {
