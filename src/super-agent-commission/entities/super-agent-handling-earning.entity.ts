@@ -24,6 +24,19 @@
  * later. Immutable via the same BEFORE UPDATE/DELETE trigger technique
  * ParcelCustodyEvent already established; a future correction must be a new,
  * separate adjustment record layered on top, never an edit here.
+ *
+ * Stage 3S-C6: UQ_super_agent_handling_earning_parcel_agent, a SECOND unique
+ * index on (parcelId, superAgentId) -- the cross-pathway deduplication
+ * safety net Stage 3S-C5's own report documented as a plan, not yet built.
+ * The existing custodyEventId index protects against reprocessing the SAME
+ * event twice; this one protects against two DIFFERENT custody events (one
+ * from a legacy pathway, one from the new Run-based pathway, say) that both
+ * happen to describe the SAME Super Agent physically handling the SAME
+ * parcel. Deliberately conservative: one Super Agent can only ever earn
+ * ONCE per parcel under this schema -- a genuine repeat-handling scenario
+ * (e.g. a returned parcel) would earn only the first time, which fails
+ * toward under- rather than over-payment, the safe direction for a
+ * financial constraint.
  */
 import {
   Entity,
@@ -39,6 +52,7 @@ import { SuperAgentHandlingRate } from './super-agent-handling-rate.entity';
 
 @Entity('super_agent_handling_earning')
 @Index('UQ_super_agent_handling_earning_custody_event', ['custodyEventId'], { unique: true })
+@Index('UQ_super_agent_handling_earning_parcel_agent', ['parcelId', 'superAgentId'], { unique: true })
 export class SuperAgentHandlingEarning {
   @PrimaryGeneratedColumn()
   id: number;

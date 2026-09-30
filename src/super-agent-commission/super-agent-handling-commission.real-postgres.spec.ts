@@ -460,8 +460,15 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     const reread = await earningRepo.findOneOrFail({ where: { id: oldEarning.id } });
     expect(Number(reread.amount)).toBe(500); // completely unchanged by the later rate change
 
+    // A DIFFERENT parcel handled by the SAME hub afterward -- not the same
+    // (parcelId, superAgentId) pair as oldEvent, which Stage 3S-C6's own
+    // cross-pathway dedup constraint would otherwise (correctly) collapse
+    // into "already compensated" rather than a genuinely new earning. This
+    // is also the more representative real scenario: the same Super Agent
+    // handling many different parcels over time, each correctly priced at
+    // whatever rate was in effect when THAT parcel's own event occurred.
     const newEvent = await mkCustodyEvent({
-      eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
+      parcelId: 42, eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
       recordedAt: new Date('2026-08-01T00:00:00Z'),
     });
     const newEarning = await earningService.recordEarningForCustodyEvent(newEvent.id, { userId: null });

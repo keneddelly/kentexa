@@ -24,10 +24,10 @@
  * so this entity never pulls Parcel's full relation graph (Order, Shipment,
  * User, SuperAgent, ...) into every consumer.
  *
- * Lifecycle is deliberately minimal for this foundation gate: scheduled ->
- * loaded -> unloaded, or scheduled -> cancelled. No automated custody
- * transition, segment-capacity accounting, or manifest logic is wired to
- * these state changes yet -- explicitly excluded from this gate.
+ * Lifecycle: scheduled -> loaded -> unloaded -> received (when the unload
+ * stop names a Super Agent -- confirmed independently by that Super Agent,
+ * see Stage 3S-C6), or scheduled -> cancelled. Segment-capacity accounting
+ * and manifest logic remain explicitly excluded.
  */
 import {
   Entity,
@@ -46,7 +46,17 @@ import { TransportRunStop } from './transport-run-stop.entity';
 export enum ParcelRunAssignmentStatus {
   SCHEDULED = 'scheduled', // created, parcel not yet physically loaded
   LOADED = 'loaded', // physically on board, between load and unload stops
-  UNLOADED = 'unloaded', // terminal -- the leg completed
+  // The transport PROVIDER's own claim the parcel came off the vehicle --
+  // NOT yet confirmed by whichever Super Agent (if any) the unload stop
+  // names. Terminal only when that stop has no Super Agent at all (an
+  // ordinary waypoint); otherwise superseded by RECEIVED once confirmed.
+  UNLOADED = 'unloaded',
+  // Stage 3S-C6: the RECEIVING Super Agent's own, independently
+  // authenticated confirmation of physical receipt -- a genuinely separate
+  // real-world moment and actor from the provider's own UNLOADED claim.
+  // Terminal. Only reachable from UNLOADED, and only when the unload stop
+  // names a real Super Agent.
+  RECEIVED = 'received',
   CANCELLED = 'cancelled', // terminal -- retracted before loading
 }
 
@@ -110,6 +120,9 @@ export class ParcelRunAssignment {
 
   @Column({ type: 'timestamp', nullable: true })
   unloadedAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  receivedAt: Date | null;
 
   @Column({ type: 'int' })
   createdByUserId: number;

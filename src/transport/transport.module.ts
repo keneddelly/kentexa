@@ -32,6 +32,7 @@ import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-even
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { IdentityModule } from '../identity/identity.module';
+import { SuperAgentCommissionModule } from '../super-agent-commission/super-agent-commission.module';
 
 @Module({
   imports: [
@@ -39,6 +40,11 @@ import { IdentityModule } from '../identity/identity.module';
     CommerceProfilesModule,
     TzLocationModule,
     IdentityModule,
+    // Stage 3S-C6: ParcelRunAssignmentService.confirmReceipt() triggers
+    // automatic commission generation as a best-effort side effect. One-
+    // directional (SuperAgentCommissionModule imports nothing from
+    // TransportModule) -- no circularity.
+    SuperAgentCommissionModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
     TypeOrmModule.forFeature([
       TransportProvider,

@@ -168,6 +168,19 @@ export class SuperAgentHandlingEarningService {
       return await this.earningRepo.save(row);
     } catch (error: any) {
       if (error?.code === UNIQUE_VIOLATION) {
+        if (error?.constraint === 'UQ_super_agent_handling_earning_parcel_agent') {
+          // Stage 3S-C6: a DIFFERENT custody event (from this pathway or a
+          // different one entirely) already earned for this exact
+          // (parcelId, superAgentId) pair -- the cross-pathway deduplication
+          // safety net firing, not a retry of THIS event. Returning the
+          // already-recorded earning keeps this call idempotent from the
+          // caller's point of view ("this parcel/agent pair is already
+          // compensated") without ever risking a second payment for what
+          // may be the same physical handoff recorded twice.
+          return this.earningRepo.findOneOrFail({
+            where: { parcelId: event.parcelId, superAgentId: event.toCustodianId! },
+          });
+        }
         // Idempotent retry / genuinely concurrent attempt for the SAME
         // custody event -- the DB's own unique constraint on custodyEventId
         // is what actually guarantees "retrying never increases earnings

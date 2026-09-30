@@ -19,6 +19,15 @@ import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-even
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { AccountRoleType, RoleProfileType } from '../role-context/entities/account-role.entity';
 import { RoleContext } from '../role-context/role-context.types';
+import { SuperAgentHandlingRate } from '../super-agent-commission/entities/super-agent-handling-rate.entity';
+import { SuperAgentHandlingEarning } from '../super-agent-commission/entities/super-agent-handling-earning.entity';
+import { SuperAgentCashCollection } from '../super-agent-commission/entities/super-agent-cash-collection.entity';
+import { SuperAgentHandlingRateService } from '../super-agent-commission/super-agent-handling-rate.service';
+import { SuperAgentHandlingEarningService } from '../super-agent-commission/super-agent-handling-earning.service';
+import {
+  ensureSuperAgentHandlingRateNoOverlapConstraint,
+  ensureSuperAgentEconomicLedgersImmutable,
+} from '../super-agent-commission/super-agent-commission-schema';
 
 /**
  * Stage 3S-C3 — ParcelRunAssignment + multi-stop parcel movement, proved
@@ -40,6 +49,9 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
   let transport: TransportService;
   let runService: TransportRunService;
   let assignmentService: ParcelRunAssignmentService;
+  let rateService: SuperAgentHandlingRateService;
+  let earningService: SuperAgentHandlingEarningService;
+  let earningRepo: Repository<SuperAgentHandlingEarning>;
   let userSeq = 0;
   let parcelSeq = 0;
 
@@ -70,6 +82,15 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     userId, accountRoleId: userId, roleType: AccountRoleType.TRANSPORT_PROVIDER,
     profileType: RoleProfileType.TRANSPORT_PROVIDER, profileId,
     capabilities: [], sessionId: `s-${userId}`, contextVersion: 1,
+  });
+  // Stage 3S-C6: a DIFFERENT actor shape for the RECEIVING Super Agent's own
+  // confirmReceipt() calls -- distinct from the provider's own mkRoleContext,
+  // since confirmReceipt's whole point is that this is a genuinely separate,
+  // independently authenticated actor.
+  const mkSuperAgentRoleContext = (userId: number, profileId: number): RoleContext => ({
+    userId, accountRoleId: userId, roleType: AccountRoleType.SUPER_AGENT,
+    profileType: RoleProfileType.SUPER_AGENT, profileId,
+    capabilities: [], sessionId: `sa-${userId}`, contextVersion: 1,
   });
   // Parcel is a bare stub table here -- the service only ever needs to know
   // "does this parcelId exist" (assertParcelExists), never the real
@@ -108,10 +129,12 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
       entities: [...B5B_BASE_ENTITIES, TransportRoute, RouteStop, TransportRun, TransportRunStop, Vehicle,
-        ParcelRunAssignment, ParcelCustodyEvent],
+        ParcelRunAssignment, ParcelCustodyEvent, SuperAgentHandlingRate, SuperAgentHandlingEarning, SuperAgentCashCollection],
     });
     await ds.initialize();
     await ensureRouteStopDeferrableSequenceConstraint((sql) => ds.query(sql));
+    await ensureSuperAgentHandlingRateNoOverlapConstraint((sql) => ds.query(sql));
+    await ensureSuperAgentEconomicLedgersImmutable((sql) => ds.query(sql));
     // Bare stand-in table -- see mkParcel()'s own comment for why the real
     // Parcel entity (and its Order/Shipment/User/SuperAgent relation graph)
     // isn't registered here at all.
@@ -129,14 +152,21 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     args[0] = providers; args[1] = routes; args[14] = ds;
     transport = new (TransportService as any)(...args);
     runService = new TransportRunService(routeStops, routes, runs, runStops, transport, { search: async () => [] } as any, ds);
+    earningRepo = ds.getRepository(SuperAgentHandlingEarning);
+    rateService = new SuperAgentHandlingRateService(ds.getRepository(SuperAgentHandlingRate), earningRepo);
+    earningService = new SuperAgentHandlingEarningService(ds.getRepository(ParcelCustodyEvent), earningRepo, rateService, ds);
     assignmentService = new ParcelRunAssignmentService(
-      ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds,
+      ds.getRepository(ParcelRunAssignment), runs, runStops, transport, ds, earningService,
     );
   });
 
   afterAll(async () => { if (ds) await ds.destroy().catch(() => {}); });
 
   beforeEach(async () => {
+    // TRUNCATE, not DELETE -- the earning ledger's own immutability trigger
+    // makes a plain DELETE impossible once any row exists; test-harness-only.
+    await ds.query(`TRUNCATE TABLE public.super_agent_handling_earning RESTART IDENTITY CASCADE`);
+    await ds.query(`DELETE FROM public.super_agent_handling_rate`);
     await ds.query(`DELETE FROM public.parcel_custody_event`);
     await ds.query(`DELETE FROM public.parcel_run_assignment`);
     await ds.query(`TRUNCATE TABLE public.transport_run_stop RESTART IDENTITY CASCADE`);
@@ -399,7 +429,7 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     expect(events[0].toCustodianType).toBe('transport_provider');
   });
 
-  it('markUnloaded at a destination Super Agent stop records a real Provider -> Super Agent receipt, correctly identifying that Super Agent', async () => {
+  it('markUnloaded at a destination Super Agent stop releases the provider\'s own custody WITHOUT yet claiming Super Agent receipt (Stage 3S-C6)', async () => {
     const { userId, provider } = await mkProviderWithUser();
     const originHub = await mkSuperAgent();
     const destHub = await mkSuperAgent();
@@ -424,9 +454,161 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     expect(events[0].operationKey).toBe(`parcel-run-unloaded:${a.id}`);
     expect(events[0].fromCustodianType).toBe('transport_provider');
     expect(events[0].fromCustodianId).toBe(provider.id);
-    expect(events[0].toCustodianType).toBe('super_agent');
-    expect(events[0].toCustodianId).toBe(destHub.id); // the destination hub, never the origin hub
+    expect(events[0].toCustodianType).toBeNull(); // NOT yet claimed -- see Stage 3S-C6's own confirmReceipt
+    expect(events[0].toCustodianId).toBeNull();
+    expect(events[0].hubId).toBe(destHub.id); // informational only -- which hub is EXPECTED, not confirmed
     expect(events[0].assignmentType).toBe('parcel_run_assignment');
+    expect(await earningRepo.count()).toBe(0); // no earning yet -- nothing has qualified
+  });
+
+  // ── Stage 3S-C6: receiver-confirmed handoffs + automatic commission ────────
+  describe('confirmReceipt (Stage 3S-C6)', () => {
+    const mkUnloadedAssignmentAtSuperAgentStop = async () => {
+      const { userId, provider } = await mkProviderWithUser();
+      const destHub = await mkSuperAgent();
+      const r = await mkRoute(provider.id);
+      await addStop(userId, r.id, 0, 'Kariakoo');
+      await addStop(userId, r.id, 1, 'Bunju', { superAgentId: destHub.id });
+      const run = await runService.createRun(userId, { routeId: r.id, scheduledDeparture: new Date(Date.now() + 86400000) });
+      const createdStops = await runService.getRunStops(run.id);
+      const loadStop = createdStops.find((s) => s.locationLabel === 'Kariakoo')!;
+      const unloadStop = createdStops.find((s) => s.locationLabel === 'Bunju')!;
+      const parcel = await mkParcel();
+      const a = await assignmentService.createAssignment(userId, {
+        runId: run.id, parcelId: parcel.id, loadRunStopId: loadStop.id, unloadRunStopId: unloadStop.id,
+      });
+      await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id);
+      await assignmentService.markUnloaded(mkRoleContext(userId, provider.id), a.id);
+      return { userId, provider, destHub, run, parcel, assignment: a };
+    };
+
+    it('confirmed receipt writes the real qualifying custody event and automatically generates the correct earning', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      const received = await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      expect(received.status).toBe(ParcelRunAssignmentStatus.RECEIVED);
+      expect(received.receivedAt).not.toBeNull();
+
+      const events = await ds.query(
+        `SELECT * FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      expect(events).toHaveLength(1);
+      expect(events[0].fromCustodianType).toBe('transport_provider');
+      expect(events[0].toCustodianType).toBe('super_agent');
+      expect(events[0].toCustodianId).toBe(destHub.id);
+      expect(events[0].actorSource).toBe('account_role');
+
+      const earning = await earningRepo.findOneOrFail({ where: { parcelId: parcel.id, superAgentId: destHub.id } });
+      expect(Number(earning.amount)).toBe(500);
+      expect(earning.source).toBe('parcel_run_received');
+    });
+
+    it('is idempotent -- repeating confirmReceipt never writes a second custody event or a second earning', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+      const context = mkSuperAgentRoleContext(destHub.userId, destHub.id);
+
+      const first = await assignmentService.confirmReceipt(context, assignment.id);
+      const second = await assignmentService.confirmReceipt(context, assignment.id);
+      expect(second.receivedAt!.getTime()).toBe(first.receivedAt!.getTime());
+
+      const events = await ds.query(
+        `SELECT count(*)::int AS n FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      expect(events[0].n).toBe(1);
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
+    });
+
+    it('rejects confirming receipt before the provider has even unloaded it', async () => {
+      const { userId, provider } = await mkProviderWithUser();
+      const destHub = await mkSuperAgent();
+      const r = await mkRoute(provider.id);
+      await addStop(userId, r.id, 0, 'Kariakoo');
+      await addStop(userId, r.id, 1, 'Bunju', { superAgentId: destHub.id });
+      const run = await runService.createRun(userId, { routeId: r.id, scheduledDeparture: new Date(Date.now() + 86400000) });
+      const createdStops = await runService.getRunStops(run.id);
+      const parcel = await mkParcel();
+      const a = await assignmentService.createAssignment(userId, {
+        runId: run.id, parcelId: parcel.id,
+        loadRunStopId: createdStops.find((s) => s.locationLabel === 'Kariakoo')!.id,
+        unloadRunStopId: createdStops.find((s) => s.locationLabel === 'Bunju')!.id,
+      });
+      await assignmentService.markLoaded(mkRoleContext(userId, provider.id), a.id);
+      // Never unloaded.
+      await expect(assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), a.id))
+        .rejects.toThrow(ConflictException);
+    });
+
+    it('rejects confirming receipt at an ordinary stop with no Super Agent to confirm', async () => {
+      const { userId, provider } = await mkProviderWithUser();
+      const { run, stops } = await mkPilotRun(userId, provider.id); // no stop here has a superAgentId
+      const parcel = await mkParcel();
+      const a = await assignmentService.createAssignment(userId, {
+        runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id,
+      });
+      const context = mkRoleContext(userId, provider.id);
+      await assignmentService.markLoaded(context, a.id);
+      await assignmentService.markUnloaded(context, a.id);
+
+      // There's no real Super Agent to authenticate as here -- the rejection
+      // must come from "no Super Agent at this stop", proven by using the
+      // PROVIDER's own (real, but wrong-role) context, which would otherwise
+      // fail on authority instead and mask the actual guard being tested.
+      await expect(assignmentService.confirmReceipt(context, a.id)).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects confirmation from anyone other than the receiving Super Agent\'s own operator -- including the provider themselves', async () => {
+      const { destHub, provider, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+      const stranger = await mkSuperAgent();
+
+      await expect(assignmentService.confirmReceipt(mkSuperAgentRoleContext(stranger.userId, destHub.id), assignment.id))
+        .rejects.toThrow(ForbiddenException);
+      // The PROVIDER'S own operation of the Run is not, by itself, authority
+      // to confirm on the Super Agent's behalf -- exactly the gap this gate closes.
+      const providerAsUser = (await ds.getRepository(TransportProvider).findOneOrFail({ where: { id: provider.id } }));
+      await expect(assignmentService.confirmReceipt(mkSuperAgentRoleContext(providerAsUser.userId, destHub.id), assignment.id))
+        .rejects.toThrow(ForbiddenException);
+      expect(await earningRepo.count()).toBe(0);
+    });
+
+    it('a missing rate configuration never blocks the physical receipt confirmation itself -- best-effort commission generation', async () => {
+      // Deliberately NO rate configured.
+      const { destHub, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      const received = await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      expect(received.status).toBe(ParcelRunAssignmentStatus.RECEIVED); // succeeded regardless
+      expect(await earningRepo.count()).toBe(0); // no earning, but no exception either
+    });
+
+    // ── cross-pathway deduplication (Stage 3S-C6) ──────────────────────────
+    it('cross-pathway dedup: a DIFFERENT custody event for the SAME (parcel, Super Agent) pair never generates a second earning', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      const first = await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      expect(first.status).toBe(ParcelRunAssignmentStatus.RECEIVED);
+
+      // A SEPARATE, independently-recorded custody event -- as if a
+      // different (e.g. legacy) pathway also recorded a receipt for this
+      // exact same Super Agent and parcel.
+      const custodyRepo = ds.getRepository(ParcelCustodyEvent);
+      const duplicateEvent = await custodyRepo.save(custodyRepo.create({
+        parcelId: parcel.id, eventKind: 'origin_hub_received', operationKey: `dedup-test:${assignment.id}`,
+        toCustodianType: 'super_agent', toCustodianId: destHub.id,
+        actorSource: 'account_role', assignmentType: null,
+      } as any));
+
+      const secondEarning = await earningService.recordEarningForCustodyEvent(duplicateEvent.id, { userId: null });
+      const onlyEarning = await earningRepo.findOneOrFail({ where: { parcelId: parcel.id, superAgentId: destHub.id } });
+      expect(secondEarning.id).toBe(onlyEarning.id); // the SAME earning, not a new one
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
+
+      // Independent DB-level backstop.
+      await expect(ds.query(
+        `INSERT INTO public.super_agent_handling_earning ("custodyEventId","parcelId","superAgentId","rateConfigId",amount,currency,source)
+         VALUES ($1,$2,$3,$4,500,'TZS','origin_hub_received')`,
+        [duplicateEvent.id, parcel.id, destHub.id, onlyEarning.rateConfigId],
+      )).rejects.toThrow();
+    });
   });
 
   it('repeated markLoaded/markUnloaded calls never create a second custody event for the same operation', async () => {
