@@ -10,6 +10,7 @@ export type SearchDomain =
   | 'classified'
   | 'service'
   | 'transport'
+  | 'moment'
   | 'people'
   | 'hub'
   | 'business'
