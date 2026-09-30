@@ -171,7 +171,7 @@ export class AiPromptTemplateService {
         'into structured filters. Classify which part of the marketplace it belongs to — ' +
         '"product" (a physical item sold by a business/shop), "classified" (a secondhand/' +
         'peer-to-peer item listing), "service" (a bookable service from a provider, e.g. a ' +
-        'plumber, tutor, or repair technician), "transport" (moving people or cargo between ' +
+        'plumber, tutor, or repair technician), "moment" (fresh social/discovery content — what a person or business is sharing, offering, needing, announcing, or showing now; e.g. "moments about CCTV", "what are businesses in Kariakoo posting today", "who posted they need a fundi"), "transport" (moving people or cargo between ' +
         'two cities — a transporter, courier, bus, or truck), "hub" (finding a Super Agent — ' +
         'a KenteXa parcel hub/agent in a city that receives, holds, and forwards packages, ' +
         'e.g. "super agent Mwanza", "hub near me", "who handles parcels in Dodoma", "send a ' +
@@ -205,7 +205,7 @@ export class AiPromptTemplateService {
         '"Mwanza". Do not populate location when no place is mentioned.\n\n' +
         `For "product" or "classified" queries, category MUST be exactly one of these keys ` +
         `if you set it at all (pick the closest match, or omit it if nothing fits): ` +
-        `${CATEGORY_LIST}. For "service", "transport", "hub", "people", or "business" queries, ` +
+        `${CATEGORY_LIST}. For "service", "moment", "transport", "hub", "people", or "business" queries, ` +
         'always omit category — those parts of the marketplace use a different classification ' +
         'and category here would be meaningless.',
       schema: {
@@ -213,7 +213,7 @@ export class AiPromptTemplateService {
         properties: {
           domain: {
             type: 'string',
-            enum: ['product', 'classified', 'service', 'transport', 'hub', 'people', 'business', 'all'],
+            enum: ['product', 'classified', 'service', 'moment', 'transport', 'hub', 'people', 'business', 'all'],
           },
           keywords: { type: 'string' },
           category: { type: ['string', 'null'] },
