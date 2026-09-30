@@ -21,6 +21,7 @@ import { Product } from '../products/entities/products.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
+import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 
 // The AI "front door" — one endpoint the frontend's unified search bar hits
 // before it knows which domain (product/classified/service/transport) to
@@ -36,6 +37,7 @@ export class SearchController {
     @InjectRepository(Classified) private classifiedRepo: Repository<Classified>,
     @InjectRepository(ServiceAd) private serviceAdRepo: Repository<ServiceAd>,
     @InjectRepository(CommerceProfile) private profileRepo: Repository<CommerceProfile>,
+    @InjectRepository(BusinessFeedItem) private momentRepo: Repository<BusinessFeedItem>,
   ) {}
 
   @UseGuards(ThrottlerGuard)
@@ -117,7 +119,7 @@ export class SearchController {
         matches.map((m) => [`${m.entityType}:${m.entityId}`, m.score]),
       );
 
-      const [products, classifieds, services, profiles] = await Promise.all([
+      const [products, classifieds, services, profiles, moments] = await Promise.all([
         idsByType.product?.length
           ? this.productRepo.find({ where: { id: In(idsByType.product) } })
           : [],
@@ -130,6 +132,9 @@ export class SearchController {
         idsByType.profile?.length
           ? this.profileRepo.find({ where: { id: In(idsByType.profile) } })
           : [],
+        idsByType.moment?.length
+          ? this.momentRepo.find({ where: { id: In(idsByType.moment), isActive: true } })
+          : [],
       ]);
 
       return [
@@ -137,6 +142,7 @@ export class SearchController {
         ...classifieds.map((c) => ({ ...c, _type: 'classified', _score: scoreOf.get(`classified:${c.id}`) })),
         ...services.map((s) => ({ ...s, _type: 'service', _score: scoreOf.get(`service:${s.id}`) })),
         ...profiles.map((pr) => ({ ...pr, _type: 'profile', _score: scoreOf.get(`profile:${pr.id}`) })),
+        ...moments.map((m) => ({ ...m, _type: 'moment', _score: scoreOf.get(`moment:${m.id}`) })),
       ].sort((a, b) => (b._score || 0) - (a._score || 0));
     } catch {
       return [];
