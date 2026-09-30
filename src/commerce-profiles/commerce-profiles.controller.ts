@@ -66,6 +66,12 @@ export class CommerceProfilesController {
     return this.service.findAccessibleForUser(req.user.id);
   }
 
+  @Get('onboarding/suggestions')
+  @UseGuards(JwtAuthGuard)
+  onboardingSuggestions(@Request() req, @Query('city') city?: string) {
+    return this.service.getOnboardingSuggestions(req.user.id, city);
+  }
+
   @Get(':id')
   @UseGuards(OptionalJwtAuthGuard)
   async getById(@Request() req, @Param('id', ParseIntPipe) id: number) {

@@ -15,12 +15,12 @@ test('saves personal photo, refreshes account state and preserves the posting de
   api.patch.mockResolvedValue({ data: { id: 7, avatarUrl: 'photo.jpg', onboardingCompleted: true } });
   localStorage.setItem('kentexa_after_login', 'CreateClassified');
   const navigate = jest.fn(); const updated = jest.fn();
-  const { container } = render(<AddProfilePhoto currentUser={{ id: 7 }} onNavigate={navigate} onUserUpdated={updated} />);
+  const { container } = render(<AddProfilePhoto currentUser={{ id: 7, onboardingCompleted: true }} onNavigate={navigate} onUserUpdated={updated} />);
   fireEvent.change(container.querySelector('input[type="file"]'), { target: { files: [new File(['photo'], 'photo.jpg', { type: 'image/jpeg' })] } });
   await waitFor(() => expect(screen.getByText('register.photo_continue_button')).toBeEnabled());
   fireEvent.click(screen.getByText('register.photo_continue_button'));
   await waitFor(() => expect(navigate).toHaveBeenCalledWith('CreateClassified'));
-  expect(api.patch).toHaveBeenCalledWith('/users/7', { avatarUrl: 'photo.jpg', onboardingCompleted: true });
+  expect(api.patch).toHaveBeenCalledWith('/users/7', { avatarUrl: 'photo.jpg' });
   expect(updated).toHaveBeenCalledWith(expect.objectContaining({ avatarUrl: 'photo.jpg', onboardingCompleted: true }));
 });
 test('failed photo save keeps the user on the photo step and allows retry', async () => {

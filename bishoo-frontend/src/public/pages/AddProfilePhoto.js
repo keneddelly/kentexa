@@ -39,9 +39,12 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
       setError('');
       const res = await api.patch(`/users/${currentUser?.id}`, {
         avatarUrl: photoUrl,
-        onboardingCompleted: true,
       });
-      onUserUpdated?.({ ...currentUser, ...res.data, avatarUrl: photoUrl, onboardingCompleted: true });
+      onUserUpdated?.({ ...currentUser, ...res.data, avatarUrl: photoUrl });
+      if (currentUser?.onboardingCompleted !== true) {
+        onNavigate('Onboarding');
+        return;
+      }
       const intended = localStorage.getItem('kentexa_after_login');
       if (intended) localStorage.removeItem('kentexa_after_login');
       onNavigate(intended || 'Home');

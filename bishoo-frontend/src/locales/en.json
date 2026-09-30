@@ -2596,6 +2596,18 @@
     "no_completed": "You haven't completed any jobs yet"
   },
   "onboarding": {
+    "retry": "Retry",
+    "finish_error": "Could not finish setup. Please try again.",
+    "follow_error": "Could not update the follow. Please try again.",
+    "suggestions_error": "Could not load suggestions.",
+    "no_local_business": "No additional business matches this city yet.",
+    "in_your_city": "In your city",
+    "official_page": "Official Kentexa page",
+    "change_city": "Change",
+    "choose_city": "Choose a city",
+    "curated_desc": "Follow Kentexa Official, BiS, and one business in your city. Choose the pages you want to follow.",
+    "curated_title": "Start following",
+    "local_city_desc": "Choose your city to discover one local business.",
     "step_indicator": "Step {{step}} of {{total}}",
     "skip": "Skip →",
     "greeting": "Welcome{{name}}!",

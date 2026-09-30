@@ -1,370 +1,110 @@
-/**
- * Onboarding.js — the first-time Kentexa Setup Wizard.
- * Place at: src/public/pages/Onboarding.js
- *
- * Used to open with a "What do you want to do on Kentexa?" branching
- * step (sell/manage/ship/super agent/transport/buy/AI) — removed per
- * explicit request: every new account now goes straight into the same
- * buyer-oriented steps below regardless of intent. Anyone who actually
- * wants to sell/ship/become a Super Agent or transport provider still
- * reaches those flows the normal way, through their own dedicated
- * BecomeSeller/BecomeSuperAgentInfo/BecomeTransportProvider pages
- * elsewhere in the app — this wizard was never the only path to them.
- *
- * Steps 1-3 (name is NOT asked here — Register.js already collects it):
- * 1. Location (city) — personalized greeting using the name from signup
- * 2. Interests (categories)
- * 3. Follow 3+ suggested businesses
- * 4. Done → HomeFeed
- */
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 
-const B  = '#2563EB';
-const DK = '#0F172A';
-const GR = '#64748B';
-const WH = '#FFFFFF';
+const CITIES = ['Dar es Salaam','Mwanza','Arusha','Mbeya','Dodoma','Tanga','Morogoro','Zanzibar','Kigoma','Shinyanga','Tabora','Iringa','Mtwara','Lindi','Musoma','Bukoba','Sumbawanga','Songea','Kahama','Moshi','Geita','Singida'];
+const button = { border: 'none', borderRadius: 12, padding: '14px 18px', fontSize: 16, fontWeight: 800, cursor: 'pointer', background: '#2563eb', color: '#fff', minHeight: 48 };
 
-const CITIES = [
-  'Dar es Salaam','Mwanza','Arusha','Mbeya','Dodoma','Tanga',
-  'Morogoro','Zanzibar','Kigoma','Shinyanga','Tabora','Iringa',
-  'Mtwara','Lindi','Musoma','Bukoba','Sumbawanga','Songea',
-  'Kahama','Moshi','Geita','Singida',
-];
-
-const getInterests = (t) => [
-  { key:'electronics',  icon:'📱', label:t('onboarding.interest_electronics')     },
-  { key:'fashion',      icon:'👗', label:t('onboarding.interest_fashion')        },
-  { key:'food',         icon:'🍔', label:t('onboarding.interest_food')        },
-  { key:'hardware',     icon:'🔨', label:t('onboarding.interest_hardware')          },
-  { key:'furniture',    icon:'🛋️', label:t('onboarding.interest_furniture')        },
-  { key:'agriculture',  icon:'🌾', label:t('onboarding.interest_agriculture')         },
-  { key:'beauty',       icon:'💄', label:t('onboarding.interest_beauty')         },
-  { key:'automotive',   icon:'🚗', label:t('onboarding.interest_automotive')         },
-  { key:'health',       icon:'💊', label:t('onboarding.interest_health')           },
-  { key:'education',    icon:'📚', label:t('onboarding.interest_education')          },
-  { key:'services',     icon:'🔧', label:t('onboarding.interest_services')         },
-  { key:'transport',    icon:'🚌', label:t('onboarding.interest_transport')        },
-];
-
-const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
+const Onboarding = ({ onNavigate, currentUser, onUserUpdated }) => {
   const { t } = useTranslation();
-  const INTERESTS = getInterests(t);
-  const [step,        setStep]        = useState(1);
-  const [name]        = useState(currentUser?.name || '');
-  const [city,        setCity]        = useState(currentUser?.city || '');
-  const [interests,   setInterests]   = useState([]);
-  const [sellers,     setSellers]     = useState([]);
-  const [officialKentexa, setOfficialKentexa] = useState(null);
-  const [followed,    setFollowed]    = useState(new Set());
-  const [saving,      setSaving]      = useState(false);
-  const [loadingSellers, setLoadingSellers] = useState(false);
+  const [step, setStep] = useState(1);
+  const [city, setCity] = useState(currentUser?.city || '');
+  const [profiles, setProfiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [pending, setPending] = useState(null);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
 
-  const TOTAL_STEPS = 3;
-  const progress = (step / TOTAL_STEPS) * 100;
-
-  // Load suggested sellers when reaching step 3 (the "follow businesses"
-  // step) — TOTAL_STEPS is 3, so step never reaches 4; this was silently
-  // never firing, leaving the follow-businesses list permanently empty.
   useEffect(() => {
-    if (step !== 3) return;
-    setLoadingSellers(true);
-    Promise.all([
-      api.get('/profiles/official/kentexa').catch(() => ({ data: null })),
-      api.get('/seller/public/all').catch(() => ({ data: [] })),
-    ]).then(([official, suggested]) => {
-      setOfficialKentexa(official.data || null);
-      setSellers((suggested.data?.sellers || suggested.data || []).slice(0, 8));
-      if (official.data?.isFollowing) {
-        setFollowed(prev => new Set([...prev, `profile:${official.data.id}`]));
-      }
-    }).finally(() => setLoadingSellers(false));
-  }, [step]);
+    if (step !== 2) return;
+    let cancelled = false;
+    setLoading(true); setError('');
+    api.get('/profiles/onboarding/suggestions', { params: { city } })
+      .then(res => { if (!cancelled) setProfiles(res.data || []); })
+      .catch(() => { if (!cancelled) setError(t('onboarding.suggestions_error')); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [step, city, reload, t]);
 
-  const saveStep = async (stepData) => {
+  const follow = async profile => {
+    if (pending !== null) return;
+    setPending(profile.id); setError('');
     try {
-      await api.patch(`/users/${currentUser?.id}`, stepData);
-    } catch {}
+      const res = await api.post(`/profiles/${profile.id}/follow`);
+      setProfiles(prev => prev.map(p => p.id === profile.id ? { ...p, isFollowing: !!res.data.following } : p));
+    } catch { setError(t('onboarding.follow_error')); }
+    finally { setPending(null); }
   };
 
-  const handleOfficialKentexaFollow = async () => {
-    if (!officialKentexa?.id) return;
+  const finish = async () => {
+    if (saving || pending !== null) return;
+    setSaving(true); setError('');
     try {
-      const res = await api.post(`/profiles/${officialKentexa.id}/follow`);
-      setOfficialKentexa(prev => prev ? { ...prev, isFollowing: res.data.following } : prev);
-      setFollowed(prev => {
-        const next = new Set(prev);
-        const key = `profile:${officialKentexa.id}`;
-        if (res.data.following) next.add(key); else next.delete(key);
-        return next;
-      });
-    } catch {}
-  };
-
-  const handleFollow = async (sellerId) => {
-    try {
-      await api.post(`/stores/${sellerId}/follow`);
-      setFollowed(prev => new Set([...prev, sellerId]));
-    } catch {}
-  };
-
-  const handleFinish = async () => {
-    setSaving(true);
-    try {
-      await api.patch(`/users/${currentUser?.id}`, {
-        onboardingCompleted: true,
-        name,
-        city,
-        interests,
-      });
-      onNavigate('Home');
-    } catch {
-      onNavigate('Home');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const canNext = () => {
-    if (step === 1) return city.length > 0;
-    if (step === 2) return interests.length >= 1;
-    if (step === 3) return true; // can skip following
-    return true;
-  };
-
-  const nextStep = async () => {
-    if (step === 1) await saveStep({ city });
-    if (step === 2) await saveStep({ interests });
-    if (step === 3) { handleFinish(); return; }
-    setStep(s => s + 1);
+      const res = await api.patch(`/users/${currentUser.id}`, { onboardingCompleted: true, ...(city ? { city } : {}) });
+      onUserUpdated?.({ ...currentUser, ...res.data, onboardingCompleted: true });
+      const intended = localStorage.getItem('kentexa_after_login');
+      if (intended) localStorage.removeItem('kentexa_after_login');
+      onNavigate(intended || 'Home');
+    } catch { setError(t('onboarding.finish_error')); }
+    finally { setSaving(false); }
   };
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC',
-      fontFamily: 'Manrope,Inter,-apple-system,sans-serif',
-      display: 'flex', flexDirection: 'column' }}>
-
-      {/* Progress bar */}
-      <div style={{ height: 4, backgroundColor: '#E2E8F0' }}>
-        <div style={{ height: '100%', backgroundColor: B,
-          width: `${progress}%`, transition: 'width 0.4s ease',
-          borderRadius: '0 2px 2px 0' }} />
+    <main style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, sans-serif', color: '#0f172a' }}>
+      <div style={{ height: 4, background: '#dbeafe' }}>
+        <div style={{ height: '100%', width: `${step * 50}%`, background: '#2563eb' }} />
       </div>
-
-      {/* Step indicator */}
-      <div style={{ padding: '16px 20px 0',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontSize: 12, color: GR, fontWeight: 700 }}>
-          {t('onboarding.step_indicator', { step, total: TOTAL_STEPS })}
-        </div>
-        {step < TOTAL_STEPS && (
-          <button onClick={() => setStep(s => s + 1)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer',
-              color: GR, fontSize: 12, fontWeight: 700 }}>
-            {t('onboarding.skip')}
-          </button>
-        )}
-      </div>
-
-      {/* Content */}
-      <div style={{ flex: 1, padding: '32px 20px 24px', maxWidth: 480,
-        margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-
-        {/* ── STEP 1: Location (personalized greeting — name already known from signup) ── */}
-        {step === 1 && (
-          <div style={{ animation: 'fadeIn 0.3s ease' }}>
-            <div style={{ fontSize: 32, marginBottom: 16 }}>📍</div>
-            <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
-              margin: '0 0 8px', lineHeight: 1.2 }}>
-              {t('onboarding.greeting', { name: currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : '' })}
-            </h1>
-            <p style={{ fontSize: 15, color: GR, margin: '0 0 24px', lineHeight: 1.6 }}>
-              {t('onboarding.step1_desc')}
-            </p>
+      <div style={{ maxWidth: 480, padding: '24px 20px', margin: 'auto' }}>
+        <p style={{ fontSize: 14, color: '#64748b' }}>{t('onboarding.step_indicator', { step, total: 2 })}</p>
+        {step === 1 ? (
+          <>
+            <h1 style={{ fontSize: 26 }}>{t('onboarding.greeting', { name: currentUser?.name ? `, ${currentUser.name.split(' ')[0]}` : '' })}</h1>
+            <p style={{ fontSize: 16, lineHeight: 1.6 }}>{t('onboarding.local_city_desc')}</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {CITIES.map(c => (
-                <button key={c} onClick={() => setCity(c)}
-                  style={{ padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
-                    border: `2px solid ${city === c ? B : '#E2E8F0'}`,
-                    backgroundColor: city === c ? '#EFF6FF' : WH,
-                    color: city === c ? B : DK,
-                    fontSize: 13, fontWeight: city === c ? 800 : 600,
-                    textAlign: 'left', transition: 'all 0.15s' }}>
-                  {city === c ? '✓ ' : ''}{c}
+              {CITIES.map(value => (
+                <button key={value} type="button" onClick={() => setCity(value)} aria-pressed={city === value}
+                  style={{ ...button, background: city === value ? '#eff6ff' : '#fff', color: city === value ? '#2563eb' : '#0f172a', border: `2px solid ${city === value ? '#2563eb' : '#e2e8f0'}`, textAlign: 'left' }}>
+                  {value}
                 </button>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* ── STEP 2: Interests ── */}
-        {step === 2 && (
-          <div>
-            <div style={{ fontSize: 32, marginBottom: 16 }}>🎯</div>
-            <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
-              margin: '0 0 8px', lineHeight: 1.2 }}>
-              {t('onboarding.step2_title')}
-            </h1>
-            <p style={{ fontSize: 15, color: GR, margin: '0 0 24px', lineHeight: 1.6 }}>
-              {t('onboarding.step2_desc')}
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {INTERESTS.map(i => {
-                const selected = interests.includes(i.key);
-                return (
-                  <button key={i.key}
-                    onClick={() => setInterests(prev =>
-                      selected ? prev.filter(k => k !== i.key) : [...prev, i.key]
-                    )}
-                    style={{ padding: '14px', borderRadius: 14, cursor: 'pointer',
-                      border: `2px solid ${selected ? B : '#E2E8F0'}`,
-                      backgroundColor: selected ? '#EFF6FF' : WH,
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      transition: 'all 0.15s' }}>
-                    <span style={{ fontSize: 24 }}>{i.icon}</span>
-                    <span style={{ fontSize: 13, fontWeight: selected ? 800 : 600,
-                      color: selected ? B : DK }}>
-                      {i.label}
-                    </span>
-                    {selected && (
-                      <span style={{ marginLeft: 'auto', color: B, fontWeight: 900 }}>✓</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {interests.length > 0 && (
-              <div style={{ marginTop: 12, fontSize: 12, color: B, fontWeight: 700 }}>
-                {t('onboarding.selected_count', { count: interests.length })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── STEP 3: Follow businesses ── */}
-        {step === 3 && (
-          <div>
-            <div style={{ fontSize: 32, marginBottom: 16 }}>🏪</div>
-            <h1 style={{ fontSize: 26, fontWeight: 900, color: DK,
-              margin: '0 0 8px', lineHeight: 1.2 }}>
-              {t('onboarding.step3_title')}
-            </h1>
-            <p style={{ fontSize: 15, color: GR, margin: '0 0 24px', lineHeight: 1.6 }}>
-              {t('onboarding.step3_desc_prefix', { city: city ? ` ${city}` : '' })}
-              {followed.size >= 3 ? t('onboarding.step3_desc_done') : t('onboarding.step3_desc_progress', { count: followed.size })}
-            </p>
-
-            {officialKentexa && (
-              <div style={{ border:'2px solid #2563EB', borderRadius:14, padding:14, marginBottom:12, background:'#EFF6FF' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                  <div style={{ width:46, height:46, borderRadius:'50%', background:'#DBEAFE', display:'grid', placeItems:'center', fontWeight:900, color:'#2563EB' }}>K</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontSize:15, fontWeight:900 }}>Kentexa <span title="Official Kentexa">✓</span></div>
-                    <div style={{ fontSize:12, color:'#64748B' }}>@kentexa · Official platform page</div>
-                    <div style={{ fontSize:11, color:'#64748B', marginTop:3 }}>Features, platform news, safety notices and important updates.</div>
-                  </div>
-                  <button onClick={handleOfficialKentexaFollow}
-                    style={{ border:'none', borderRadius:10, padding:'8px 14px', fontWeight:800, cursor:'pointer',
-                      background:officialKentexa.isFollowing ? '#DCFCE7' : '#2563EB',
-                      color:officialKentexa.isFollowing ? '#16A34A' : '#fff' }}>
-                    {officialKentexa.isFollowing ? 'Following' : 'Follow'}
-                  </button>
+            <button type="button" disabled={!city} onClick={() => setStep(2)} style={{ ...button, width: '100%', marginTop: 24, opacity: city ? 1 : 0.5 }}>{t('onboarding.continue_button')}</button>
+            <button type="button" onClick={() => { setCity(''); setStep(2); }} style={{ ...button, width: '100%', marginTop: 8, background: 'transparent', color: '#64748b' }}>{t('onboarding.skip_for_now')}</button>
+          </>
+        ) : (
+          <>
+            <h1 style={{ fontSize: 26 }}>{t('onboarding.curated_title')}</h1>
+            <p style={{ fontSize: 16, lineHeight: 1.6 }}>{t('onboarding.curated_desc')}</p>
+            <button type="button" onClick={() => setStep(1)} disabled={pending !== null || saving} style={{ ...button, background: 'transparent', color: '#2563eb', paddingLeft: 0 }}>{city || t('onboarding.choose_city')} · {t('onboarding.change_city')}</button>
+            {loading && <p role="status">{t('onboarding.loading_sellers')}</p>}
+            {!loading && profiles.map(profile => (
+              <div key={profile.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid #dbeafe', borderRadius: 14, padding: 14, marginBottom: 12 }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#eff6ff', overflow: 'hidden', display: 'grid', placeItems: 'center', flexShrink: 0, fontWeight: 900, color: '#2563eb' }}>
+                  {profile.photoUrl ? <img src={profile.photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : profile.displayName?.charAt(0)}
                 </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800, overflowWrap: 'anywhere' }}>{profile.displayName}</div>
+                  <div style={{ fontSize: 14, color: '#64748b', marginTop: 4 }}>
+                    {profile.isOfficialPlatformProfile ? t('onboarding.official_page') : profile.location || `@${profile.username}`}
+                  </div>
+                  {profile.isLocalSuggestion && <div style={{ fontSize: 14, color: '#2563eb', marginTop: 4 }}>{t('onboarding.in_your_city')}</div>}
+                </div>
+                <button type="button" disabled={pending !== null || saving} onClick={() => follow(profile)}
+                  style={{ ...button, padding: '12px', background: profile.isFollowing ? '#eff6ff' : '#2563eb', color: profile.isFollowing ? '#2563eb' : '#fff', opacity: pending !== null ? 0.6 : 1 }}>
+                  {pending === profile.id ? '…' : t(profile.isFollowing ? 'onboarding.following_button' : 'onboarding.follow_button')}
+                </button>
               </div>
-            )}
-
-            {loadingSellers ? (
-              <div style={{ textAlign: 'center', padding: 40, color: GR }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>🏪</div>
-                <div>{t('onboarding.loading_sellers')}</div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {sellers.map(s => {
-                  const isFollowed = followed.has(s.userId || s.id);
-                  return (
-                    <div key={s.id}
-                      style={{ backgroundColor: WH, borderRadius: 14,
-                        padding: '14px 16px', display: 'flex',
-                        alignItems: 'center', gap: 12,
-                        border: isFollowed ? `2px solid ${B}` : '2px solid #F1F5F9',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}>
-                      <div style={{ width: 44, height: 44, borderRadius: 12,
-                        backgroundColor: '#EFF6FF', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        overflow: 'hidden' }}>
-                        {s.logo
-                          ? <img src={s.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              onError={e => e.target.style.display = 'none'} />
-                          : <span style={{ fontSize: 20, fontWeight: 900, color: B }}>
-                              {(s.storeName || s.name || '?').charAt(0).toUpperCase()}
-                            </span>}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: DK,
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {s.storeName || s.name}
-                        </div>
-                        <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
-                          📍 {s.businessLocation || s.city || t('onboarding.default_location')}
-                          {s.reputationScore > 0 && ` · ⭐ ${s.reputationScore}`}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => !isFollowed && handleFollow(s.userId || s.id)}
-                        style={{ backgroundColor: isFollowed ? '#F0FDF4' : B,
-                          color: isFollowed ? '#16A34A' : WH,
-                          border: 'none', borderRadius: 10,
-                          padding: '8px 16px', cursor: isFollowed ? 'default' : 'pointer',
-                          fontSize: 12, fontWeight: 800, flexShrink: 0,
-                          transition: 'all 0.2s' }}>
-                        {isFollowed ? t('onboarding.following_button') : t('onboarding.follow_button')}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            ))}
+            {!loading && !profiles.some(p => p.isLocalSuggestion) && <p style={{ fontSize: 14, color: '#64748b' }}>{t('onboarding.no_local_business')}</p>}
+            {error && <div role="alert" style={{ color: '#b91c1c', fontSize: 16 }}>{error}<button type="button" onClick={() => setReload(n => n + 1)} style={{ ...button, margin: 8, background: '#fff', color: '#2563eb' }}>{t('onboarding.retry')}</button></div>}
+            <button type="button" onClick={finish} disabled={saving || pending !== null} style={{ ...button, width: '100%', marginTop: 24 }}>
+              {t(saving ? 'onboarding.saving_button' : 'onboarding.finish_button')}
+            </button>
+          </>
         )}
       </div>
-
-      {/* Bottom CTA */}
-      <div style={{ padding: '16px 20px 32px', maxWidth: 480,
-        margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-        <button
-          onClick={nextStep}
-          disabled={!canNext() || saving}
-          style={{ width: '100%', padding: '16px 0',
-            background: canNext()
-              ? `linear-gradient(135deg,${B},#7C3AED)`
-              : '#E2E8F0',
-            color: canNext() ? WH : GR,
-            border: 'none', borderRadius: 16, cursor: canNext() ? 'pointer' : 'default',
-            fontSize: 16, fontWeight: 900,
-            boxShadow: canNext() ? '0 4px 16px rgba(37,99,235,0.3)' : 'none',
-            transition: 'all 0.2s' }}>
-          {saving ? t('onboarding.saving_button') :
-           step === 3 ? (followed.size >= 3 ? t('onboarding.finish_button') : t('onboarding.continue_button')) :
-           t('onboarding.continue_button')}
-        </button>
-
-        {step === 3 && followed.size < 3 && (
-          <button onClick={handleFinish}
-            style={{ width: '100%', marginTop: 10, padding: '12px 0',
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: GR, fontSize: 13, fontWeight: 700 }}>
-            {t('onboarding.skip_for_now')}
-          </button>
-        )}
-      </div>
-
-      <style>{`
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-      `}</style>
-    </div>
+    </main>
   );
 };
-
 export default Onboarding;

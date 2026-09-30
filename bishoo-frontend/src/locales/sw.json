@@ -2442,6 +2442,18 @@
     "no_completed": "Bado hujamalizia kazi yoyote"
   },
   "onboarding": {
+    "retry": "Jaribu tena",
+    "finish_error": "Imeshindwa kukamilisha usajili. Jaribu tena.",
+    "follow_error": "Imeshindwa kusasisha ufuatiliaji. Jaribu tena.",
+    "suggestions_error": "Imeshindwa kupakia mapendekezo.",
+    "no_local_business": "Bado hakuna biashara nyingine inayolingana na mji huu.",
+    "in_your_city": "Katika mji wako",
+    "official_page": "Ukurasa rasmi wa Kentexa",
+    "change_city": "Badilisha",
+    "choose_city": "Chagua mji",
+    "curated_desc": "Fuata Kentexa Official, BiS, na biashara moja katika mji wako. Chagua kurasa unazotaka kufuata.",
+    "curated_title": "Anza kufuatilia",
+    "local_city_desc": "Chagua mji wako ili kuona biashara moja ya karibu.",
     "step_indicator": "Hatua {{step}} ya {{total}}",
     "skip": "Skip →",
     "greeting": "Karibu{{name}}!",
