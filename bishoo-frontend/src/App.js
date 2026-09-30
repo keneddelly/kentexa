@@ -382,15 +382,10 @@ function App() {
           localStorage.setItem('kentexa_user', JSON.stringify(profile));
         } catch {}
         setNavParams(null);
-        if (profile && !profile.avatarUrl) {
-          setPage('AddProfilePhoto');
-        } else if (!(data?.user?.onboardingCompleted ?? roleContext.user?.onboardingCompleted)) {
-          // Was role === 'user' only — the Setup Wizard is now the real
-          // first-time entry point for every role (it opens with "what do
-          // you want to do on Kentexa?" and branches from there), not just
-          // the buyer-only city/interests/follow flow it used to gate.
-          setTimeout(() => setPage('Onboarding'), 100);
-        } else {
+        {
+          // Fast-entry principle: authentication/OTP is sufficient to enter
+          // Kentexa. Photo and onboarding enrichment are optional progressive
+          // actions surfaced after Home, never post-auth navigation gates.
           // Check if there's a stored intended destination (e.g. from + menu)
           const intended = localStorage.getItem('kentexa_after_login');
           if (intended) {
@@ -424,9 +419,7 @@ function App() {
       api.get('/auth/profile').then(res => {
         setCurrentUser(res.data);
         localStorage.setItem('kentexa_user', JSON.stringify(res.data));
-        if (!res.data.avatarUrl) {
-          setPage('AddProfilePhoto');
-        }
+        // Missing profile photo is optional; never redirect away from Home.
       }).catch(() => {});
     }
   }, [isLoggedIn, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
