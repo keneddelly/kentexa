@@ -8,7 +8,7 @@ const actions = [
 ];
 
 const ActionIcon = ({ type }) => (
-  <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none"
+  <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none"
     stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
     style={{ flexShrink: 0 }}>
     {type === 'listing' && <><path d="M14 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-9" /><path d="M16 2v6m-3-3h6M7 11h7M7 15h10" /></>}
@@ -32,10 +32,11 @@ export default function HomeQuickActions({ onNavigate, isLoggedIn = false }) {
       style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, width: '100%', boxSizing: 'border-box' }}>
       {actions.map(action => (
         <button key={action.key} type="button" onClick={() => open(action.destination)}
-          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: 5, minHeight: 56, minWidth: 0, padding: '8px 4px', border: 'none',
-            borderRadius: 8, background: 'transparent', color: '#1d4ed8', fontFamily: 'inherit',
-            fontSize: 14, fontWeight: 700, lineHeight: 1.35, cursor: 'pointer', overflowWrap: 'anywhere' }}>
+          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+            gap: 6, minHeight: 48, minWidth: 0, padding: '8px 6px', border: '1px solid #1d4ed8',
+            borderRadius: 10, background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', color: '#ffffff',
+            boxShadow: '0 2px 5px rgba(29, 78, 216, 0.16)', fontFamily: 'inherit',
+            fontSize: 14, fontWeight: 700, lineHeight: 1.35, cursor: 'pointer', overflowWrap: 'break-word' }}>
           <ActionIcon type={action.key} />
           <span>{t(`home_quick_actions.${action.key}`)}</span>
         </button>
