@@ -834,7 +834,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
       {isOwnProfile && (
         <div style={{ padding:'0 16px', marginBottom:4 }}>
           <ProfileCompletion
-            currentUser={profile}
+            currentUser={currentUser}
             userRole={userRole}
             onNavigate={onNavigate}
             compact={true}
