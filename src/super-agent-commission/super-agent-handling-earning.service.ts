@@ -33,9 +33,22 @@
  *     all behind it.
  *   - `fromCustodianType` must be one of the small, stable set of custodian
  *     types that can legitimately precede a Super Agent RECEIVING custody
- *     (unknown/first custody, a transport provider, or another Super Agent)
- *     -- and the from/to pair may never be the identical custodian (a
- *     self-transfer proves nothing physically happened).
+ *     (unknown/first custody, a transport provider, another Super Agent, or
+ *     a local Agent) -- and the from/to pair may never be the identical
+ *     custodian (a self-transfer proves nothing physically happened).
+ *
+ * Second re-review correction: `local_agent` was initially left out of that
+ * set, which would have made a REAL, already-shipped canonical pathway
+ * permanently ineligible --
+ * parcel-collections.service.ts's own hub-handover flow already writes a
+ * genuine, authenticated `collection_received_at_origin_hub` event with
+ * exactly `fromCustodianType='local_agent'` when an Agent physically hands a
+ * collected parcel to the origin Super Agent desk. Added; the REVERSE
+ * direction (a Super Agent handing off TO an Agent) and a local-Agent-only
+ * delivery (never reaching a Super Agent's `toCustodianType` at all) both
+ * remain correctly excluded by the existing toCustodianType check, unaffected
+ * by this addition.
+ *
  * This still says nothing about whether the SAME physical handoff was ALSO
  * recorded a second time by a different pathway (legacy vs. Run-based) --
  * see this gate's own report for the documented, deliberately NOT-yet-built
@@ -72,11 +85,22 @@ const LEGITIMATE_ACTOR_SOURCES = new Set(['account_role', 'provider_webhook']);
 // The small, stable set of custodian types that can legitimately precede a
 // Super Agent RECEIVING custody: unknown/first custody (null -- e.g. a
 // customer origin drop-off, never itself recorded as a "from" custodian),
-// a transport provider (Stage 3S-C4's own parcel_run_unloaded), or another
-// Super Agent (a hub-to-hub transfer). Deliberately NOT an enumeration of
-// eventKind strings -- this is the custodian-type vocabulary the ledger
-// already established, a much smaller and more stable surface.
-const LEGITIMATE_PRIOR_CUSTODIAN_TYPES = new Set<string | null>([null, 'transport_provider', 'super_agent']);
+// a transport provider (Stage 3S-C4's own parcel_run_unloaded), another
+// Super Agent (a hub-to-hub transfer), or a local Agent (Stage 3S-C5
+// re-review correction: parcel-collections.service.ts's own existing
+// hub-handover flow already writes a genuine, authenticated
+// 'collection_received_at_origin_hub' event with exactly this shape --
+// fromCustodianType='local_agent' -- when an Agent physically hands a
+// collected parcel to the origin Super Agent desk. Excluding it would have
+// made a real, already-shipped qualifying receipt permanently ineligible).
+// Deliberately NOT an enumeration of eventKind strings -- this is the
+// custodian-type vocabulary the ledger already established, a much smaller
+// and more stable surface. The REVERSE direction (fromCustodianType=
+// 'super_agent' -- a Super Agent handing off TO an Agent) and a local-
+// Agent-only delivery (toCustodianType never 'super_agent' at all) are both
+// still correctly excluded by the toCustodianType check above, not by
+// anything in this set.
+const LEGITIMATE_PRIOR_CUSTODIAN_TYPES = new Set<string | null>([null, 'transport_provider', 'super_agent', 'local_agent']);
 
 @Injectable()
 export class SuperAgentHandlingEarningService {

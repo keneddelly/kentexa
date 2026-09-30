@@ -346,6 +346,54 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     expect(earning.superAgentId).toBe(destHub.id);
   });
 
+  // ── second re-review correction: the real Agent-pickup-to-hub-handover pathway ──
+  it('accepts the ACTUAL canonical Agent-pickup hub-handover shape (parcel-collections.service.ts\'s own collection_received_at_origin_hub event) as a genuine qualifying receipt', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const realAgentProfileId = 77; // stands in for a real Agent.id -- never validated by this service, exactly like every other fromCustodianId
+    // Mirrors parcel-collections.service.ts's own real insert (lines ~378-387)
+    // field-for-field: eventKind, both custodian sides, and actorSource --
+    // the ACTUAL shape that pathway ships today, not an approximation.
+    const event = await mkCustodyEvent({
+      eventKind: 'collection_received_at_origin_hub',
+      fromCustodianType: 'local_agent', fromCustodianId: realAgentProfileId,
+      toCustodianType: 'super_agent', toCustodianId: hub.id,
+      actorSource: 'account_role',
+    });
+
+    const earning = await earningService.recordEarningForCustodyEvent(event.id, { userId: null });
+    expect(earning.superAgentId).toBe(hub.id);
+    expect(earning.source).toBe('collection_received_at_origin_hub');
+    expect(await earningRepo.count()).toBe(1);
+  });
+
+  it('rejects the REVERSE direction of the same handover (a Super Agent handing off TO a local Agent) -- never a qualifying receipt', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({
+      eventKind: 'collection_received_at_origin_hub',
+      fromCustodianType: 'super_agent', fromCustodianId: hub.id,
+      toCustodianType: 'local_agent', toCustodianId: 77,
+      actorSource: 'account_role',
+    });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('rejects a local-Agent-only delivery (Agent -> recipient) that never reaches Super Agent custody at all', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const event = await mkCustodyEvent({
+      eventKind: 'recipient_agent_delivery',
+      fromCustodianType: 'local_agent', fromCustodianId: 77,
+      toCustodianType: 'recipient_contact', toCustodianId: null,
+      actorSource: 'account_role',
+    });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
   it('rejects an unknown custody event id', async () => {
     await expect(earningService.recordEarningForCustodyEvent(999999, { userId: null })).rejects.toThrow(NotFoundException);
   });
