@@ -61,6 +61,8 @@ import ClassifiedDetail from './public/pages/ClassifiedDetail';
 import OrderTracking       from './public/pages/OrderTracking';
 import MyOrders from './public/pages/MyOrders';
 import CustomerProfile from './public/pages/CustomerProfile';
+import EditPublicProfile from './public/pages/EditPublicProfile';
+import PayoutSettings from './public/pages/PayoutSettings';
 import BecomeSeller from './public/pages/BecomeSeller';
 import SellerAccessGate from './public/components/SellerAccessGate';
 import SellerDashboard from './public/pages/SellerDashboard';
@@ -780,7 +782,9 @@ function App() {
       case 'PayInvoice':        return <PayInvoice {...publicProps} />;
 
       case 'MyOrders':          return requireLogin(<MyOrders {...publicProps} />);
-      case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} />);
+      case 'EditPublicProfile': return requireLogin(<EditPublicProfile {...publicProps} commerceProfileId={navParams?.commerceProfileId} />);
+      case 'PayoutSettings': return requireLogin(<PayoutSettings {...publicProps} />);
+      case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} editField={navParams?.editField} />);
       case 'Checkout':          return requireLogin(<Checkout {...publicProps} />);
       case 'StoreSettings':     return requireVerifiedSeller(<StoreSettings {...publicProps} userId={activeContext?.userId} />);
       case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);

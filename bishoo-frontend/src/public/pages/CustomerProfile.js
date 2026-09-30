@@ -17,13 +17,13 @@ const BackIcon = ({ color = DK }) => (
   </svg>
 );
 
-const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onUserUpdated }) => {
+const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, onUserUpdated, editField }) => {
   const { t } = useTranslation();
   const [profile, setProfile]   = useState(null);
   const [orders, setOrders]     = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [editing, setEditing]   = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
+  const [editing, setEditing]   = useState(!!editField && editField !== 'password');
+  const [changingPassword, setChangingPassword] = useState(editField === 'password');
   const [message, setMessage]   = useState('');
   const [error, setError]       = useState('');
   const [form, setForm]         = useState({ name: '', username: '', phone: '', email: '', city: '', bio: '' });
@@ -50,12 +50,21 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
     fetchData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!editField || loading) return;
+    if (editField === 'password') setChangingPassword(true);
+    else setEditing(true);
+    const target = editField === 'location' ? 'city' : editField === 'photo' ? 'photo' : editField;
+    const timer = setTimeout(() => document.getElementById('profile-' + target)?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [editField, loading]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
       const [profileRes, ordersRes, commerceProfilesRes] = await Promise.all([
         api.get('/auth/profile'),
-        api.get('/orders/my-orders'),
+        api.get('/orders/my-orders').catch(() => ({ data: [] })),
         api.get('/profiles/mine').catch(() => ({ data: [] })),
       ]);
       const personalProfile = (commerceProfilesRes.data || []).find(p => p.type === 'personal');
@@ -221,7 +230,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
             fontSize: 30, fontWeight: 900, color: WH,
             boxShadow: '0 8px 24px rgba(0,0,0,0.25)', border: '3px solid rgba(255,255,255,0.35)' }}>
             {avatarUploading ? (
-              <span style={{ fontSize: 13 }}>⏳</span>
+              <span style={{ fontSize: 16 }}>⏳</span>
             ) : avatarUrl ? (
               <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             ) : (
@@ -231,7 +240,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           <div style={{ position: 'absolute', bottom: -4, right: -4, width: 26, height: 26, borderRadius: '50%',
             backgroundColor: WH, display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 12, boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>📷</div>
-          <input type="file" accept="image/*" onChange={handleAvatarUpload} style={{ display: 'none' }} disabled={avatarUploading} />
+          <input id="profile-photo" type="file" accept="image/*" onChange={handleAvatarUpload} style={{ position:'absolute', width:1, height:1, opacity:0 }} disabled={avatarUploading} />
         </label>
         <h1 style={{ fontSize: 20, fontWeight: 900, color: WH, margin: '0 0 4px', fontFamily: 'Manrope,sans-serif' }}>
           {profile?.name || profile?.email?.split('@')[0] || profile?.phone}
@@ -240,7 +249,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           {profile?.email || profile?.phone}
         </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
+          <span style={{ fontSize: 14, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
             backgroundColor: 'rgba(255,255,255,0.18)', color: WH, border: '1px solid rgba(255,255,255,0.3)' }}>
             {roleInfo.icon} {roleInfo.label}
           </span>
@@ -252,11 +261,11 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
 
         {message && (
           <div style={{ backgroundColor: '#DCFCE7', color: '#16A34A', padding: '12px 14px', borderRadius: 12,
-            marginBottom: 12, fontSize: 13, fontWeight: 700 }}>✅ {message}</div>
+            marginBottom: 12, fontSize: 16, fontWeight: 700 }}>✅ {message}</div>
         )}
         {error && (
           <div style={{ backgroundColor: '#FEE2E2', color: '#DC2626', padding: '12px 14px', borderRadius: 12,
-            marginBottom: 12, fontSize: 13, display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+            marginBottom: 12, fontSize: 16, display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
             <span>❌ {error}</span>
             <button onClick={() => setError('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', fontWeight: 'bold' }}>×</button>
           </div>
@@ -297,7 +306,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 900, color: DK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.storeName}</div>
                   {profile.storeTagline && (
-                    <div style={{ fontSize: 11, color: GR, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.storeTagline}</div>
+                    <div style={{ fontSize: 14, color: GR, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile.storeTagline}</div>
                   )}
                   {profile.rating > 0 && (
                     <div style={{ fontSize: 12, color: '#F59E0B', marginTop: 2 }}>
@@ -338,66 +347,66 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           </div>
 
           <div style={{ marginBottom: 10, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>{t('profile.full_name')}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.name || '—'}</div>
+            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>{t('profile.full_name')}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>{profile?.name || '—'}</div>
           </div>
           <div style={{ marginBottom: 10, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>{t('profile.phone')}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.phone || '—'}</div>
+            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>{t('profile.phone')}</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>{profile?.phone || '—'}</div>
           </div>
           <div style={{ marginBottom: 10, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>Email</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.email || '—'}</div>
+            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>Email</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>{profile?.email || '—'}</div>
           </div>
           <div style={{ marginBottom: 10, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>📍 Mahali</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.city || '—'}</div>
+            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>📍 Mahali</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>{profile?.city || '—'}</div>
           </div>
           <div style={{ marginBottom: editing ? 10 : 0, padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
-            <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>📝 Kuhusu mimi</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>{profile?.bio || '—'}</div>
+            <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>📝 Kuhusu mimi</div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>{profile?.bio || '—'}</div>
           </div>
 
           {editing && (
             <>
               <div style={{ marginTop: 10, marginBottom: 10 }}>
-                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.full_name')}</label>
-                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.full_name')}</label>
+                <input id="profile-name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                   placeholder={t('profile.name_placeholder')}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>Username</label>
-                <input value={form.username} onChange={e => setForm({ ...form, username: e.target.value })}
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>Username</label>
+                <input id="profile-username" value={form.username} onChange={e => setForm({ ...form, username: e.target.value })}
                   placeholder="@username" autoCapitalize="none" autoCorrect="off"
                   style={{ width:'100%', boxSizing:'border-box', padding:10, border:'1px solid #CBD5E1', borderRadius:10, marginBottom:12, fontSize:16 }} />
-                                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.phone')}</label>
-                <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
+                                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.phone')}</label>
+                <input id="profile-phone" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
                   placeholder={t('profile.phone_placeholder')}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 700 }}>Email</label>
-                <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 700 }}>Email</label>
+                <input type="email" id="profile-email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                   placeholder="barua@mfano.com"
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>Email inatumiwa kuingia kwenye akaunti</div>
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 16, outline: 'none', boxSizing: 'border-box' }} />
+                <div style={{ fontSize: 14, color: '#94A3B8', marginTop: 4 }}>Email inatumiwa kuingia kwenye akaunti</div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>📍 Mahali (Jiji)</label>
-                <input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>📍 Mahali (Jiji)</label>
+                <input id="profile-city" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })}
                   placeholder="mfano: Dar es Salaam"
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>📝 Kuhusu mimi</label>
-                <textarea value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })}
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>📝 Kuhusu mimi</label>
+                <textarea id="profile-bio" value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })}
                   placeholder="Maelezo mafupi kukuhusu..." rows={3} maxLength={200}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 13, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }} />
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `2px solid ${B}`, fontSize: 16, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit', resize: 'vertical' }} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setEditing(false)} style={{ flex: 1, backgroundColor: '#F1F5F9', color: GR, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('profile.cancel')}</button>
-                <button onClick={handleUpdateProfile} style={{ flex: 1, backgroundColor: B, color: WH, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>{saving ? '⏳ Inahifadhi...' : '💾 Hifadhi Mabadiliko'}</button>
+                <button onClick={() => setEditing(false)} style={{ flex: 1, backgroundColor: '#F1F5F9', color: GR, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 16 }}>{t('profile.cancel')}</button>
+                <button disabled={saving} onClick={handleUpdateProfile} style={{ flex: 1, backgroundColor: B, color: WH, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>{saving ? '⏳ Inahifadhi...' : '💾 Hifadhi Mabadiliko'}</button>
               </div>
             </>
           )}
@@ -417,16 +426,16 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           {!changingPassword ? (
             <>
               <div style={{ padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10, marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>{t('profile.password')}</div>
+                <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>{t('profile.password')}</div>
                 <div style={{ fontSize: 18, color: DK, letterSpacing: 4 }}>••••••••</div>
               </div>
               <div style={{ padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10, marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: GR, marginBottom: 4 }}>{t('profile.role')}</div>
+                <div style={{ fontSize: 14, color: GR, marginBottom: 4 }}>{t('profile.role')}</div>
                 <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 8, backgroundColor: roleInfo.bg, color: roleInfo.color }}>{roleInfo.icon} {roleInfo.label}</span>
               </div>
               <div style={{ padding: '10px 12px', backgroundColor: '#F8FAFC', borderRadius: 10 }}>
-                <div style={{ fontSize: 11, color: GR, marginBottom: 2 }}>{t('profile.member_since')}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: DK }}>
+                <div style={{ fontSize: 14, color: GR, marginBottom: 2 }}>{t('profile.member_since')}</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: DK }}>
                   {new Date(profile?.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </div>
               </div>
@@ -434,20 +443,20 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           ) : (
             <>
               <div style={{ marginBottom: 10 }}>
-                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.new_password')}</label>
-                <input type="password" placeholder={t('profile.min_chars')} value={passwordForm.newPassword}
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.new_password')}</label>
+                <input id="profile-password" type="password" placeholder={t('profile.min_chars')} value={passwordForm.newPassword}
                   onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #DC2626', fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #DC2626', fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 11, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.confirm_password')}</label>
+                <label style={{ display: 'block', fontSize: 14, color: GR, marginBottom: 4, fontWeight: 600 }}>{t('profile.confirm_password')}</label>
                 <input type="password" placeholder={t('profile.repeat_password')} value={passwordForm.confirmPassword}
                   onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #DC2626', fontSize: 13, boxSizing: 'border-box', outline: 'none' }} />
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '2px solid #DC2626', fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={() => setChangingPassword(false)} style={{ flex: 1, backgroundColor: '#F1F5F9', color: GR, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>{t('profile.cancel')}</button>
-                <button onClick={handleChangePassword} style={{ flex: 1, backgroundColor: '#DC2626', color: WH, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>{t('profile.update')}</button>
+                <button onClick={() => setChangingPassword(false)} style={{ flex: 1, backgroundColor: '#F1F5F9', color: GR, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: 16 }}>{t('profile.cancel')}</button>
+                <button onClick={handleChangePassword} style={{ flex: 1, backgroundColor: '#DC2626', color: WH, border: 'none', padding: 10, borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: 16 }}>{t('profile.update')}</button>
               </div>
             </>
           )}
@@ -457,7 +466,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <h2 style={{ fontSize: 15, fontWeight: 800, color: DK, margin: 0 }}>🛒 {t('profile.recent_orders')}</h2>
-            <button onClick={() => onNavigate('MyOrders')} style={{ backgroundColor: '#F0FDF4', color: '#16A34A', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
+            <button onClick={() => onNavigate('MyOrders')} style={{ backgroundColor: '#F0FDF4', color: '#16A34A', border: 'none', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
               {t('profile.view_all')} →
             </button>
           </div>
@@ -465,7 +474,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           {orders.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#94A3B8' }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>🛒</div>
-              <p style={{ marginBottom: 14, fontSize: 13 }}>{t('profile.no_orders')}</p>
+              <p style={{ marginBottom: 14, fontSize: 16 }}>{t('profile.no_orders')}</p>
               <button onClick={() => onNavigate('Stores')} style={{ backgroundColor: B, color: WH, border: 'none', padding: '9px 20px', borderRadius: 10, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>
                 🏪 {t('profile.start_shopping')}
               </button>
@@ -480,12 +489,12 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                       : <span style={{ fontSize: 18 }}>📦</span>}
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: DK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.product?.name || 'Product'}</div>
-                    <div style={{ fontSize: 11, color: GR }}>#{order.id} • {new Date(order.createdAt).toLocaleDateString()}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: DK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{order.product?.name || 'Product'}</div>
+                    <div style={{ fontSize: 14, color: GR }}>#{order.id} • {new Date(order.createdAt).toLocaleDateString()}</div>
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: B, marginBottom: 3 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: B, marginBottom: 3 }}>TZS {Number(order.totalAmount).toLocaleString()}</div>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, ...statusColor(order.status) }}>{order.status}</span>
                 </div>
               </div>
@@ -503,7 +512,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
           ].map(action => (
             <button key={action.label} onClick={() => onNavigate(action.page)}
               style={{ backgroundColor: action.bg, color: action.color, border: 'none', padding: 14, borderRadius: 14,
-                cursor: 'pointer', fontSize: 13, fontWeight: 700, textAlign: 'left' }}>
+                cursor: 'pointer', fontSize: 16, fontWeight: 700, textAlign: 'left' }}>
               {action.label}
             </button>
           ))}
@@ -524,10 +533,10 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   🏪
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: DK }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: DK }}>
                     {o.product?.name || o.manualProductName || 'Bidhaa'}
                   </div>
-                  <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
+                  <div style={{ fontSize: 14, color: GR, marginTop: 2 }}>
                     {o.seller?.storeName || o.seller?.businessName || 'Duka'}
                   </div>
                   <div style={{ fontSize: 18, marginTop: 4 }}>
@@ -539,7 +548,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                       "{o.buyerReview}"
                     </div>
                   )}
-                  <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
+                  <div style={{ fontSize: 14, color: '#94A3B8', marginTop: 4 }}>
                     {o.reviewedAt ? new Date(o.reviewedAt).toLocaleDateString('sw-TZ') : ''}
                   </div>
                 </div>
@@ -552,7 +561,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         {orders.filter(o => o.status === 'delivered' && !o.buyerRating).length > 0 && (
           <div style={{ marginBottom: 14, backgroundColor: '#FEF9C3', borderRadius: 16,
             padding: 16, border: '1px solid #FDE68A' }}>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#92400E', marginBottom: 12 }}>
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#92400E', marginBottom: 12 }}>
               ⭐ Tathmini Zinazokungoja ({orders.filter(o => o.status === 'delivered' && !o.buyerRating).length})
             </div>
             {orders.filter(o => o.status === 'delivered' && !o.buyerRating).map(o => (
@@ -563,7 +572,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   <div style={{ fontSize: 12, fontWeight: 700, color: DK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {o.product?.name || o.manualProductName || 'Bidhaa'}
                   </div>
-                  <div style={{ fontSize: 11, color: '#92400E' }}>
+                  <div style={{ fontSize: 14, color: '#92400E' }}>
                     {o.seller?.storeName || 'Duka'}
                   </div>
                 </div>
@@ -571,7 +580,7 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
                   onClick={() => onNavigate(`ConfirmDelivery-${o.confirmationToken || o.trackingNumber}`)}
                   style={{ backgroundColor: '#F59E0B', color: WH, border: 'none',
                     padding: '7px 14px', borderRadius: 8, cursor: 'pointer',
-                    fontSize: 11, fontWeight: 800, flexShrink: 0, marginLeft: 8 }}>
+                    fontSize: 14, fontWeight: 800, flexShrink: 0, marginLeft: 8 }}>
                   ✅ Thibitisha & Tathmini
                 </button>
               </div>

@@ -19,7 +19,7 @@ const ProfileCompletionBanner = ({ profile, onNavigate }) => {
     { key: 'storeName',        label: t('profile_completion_banner.check_store_name'),     done: !!profile.storeName },
     { key: 'logo',             label: t('profile_completion_banner.check_logo'),    done: !!profile.logo },
     { key: 'storeDescription', label: t('profile_completion_banner.check_description'),  done: !!(profile.storeDescription || profile.businessDescription) },
-    { key: 'phone',            label: t('profile_completion_banner.check_phone'),  done: !!profile.phone },
+    { key: 'phone',            label: t('profile_completion_banner.check_phone'),  done: !!(profile.storeWhatsApp || profile.phone) },
     { key: 'address',          label: t('profile_completion_banner.check_address'),           done: !!(profile.businessLocation || profile.address) },
   ];
 

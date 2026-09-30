@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import BackBar from '../../public/components/BackBar';
 import api from '../../api/api';
 // eslint-disable-next-line no-unused-vars
@@ -9,6 +10,7 @@ const labelStyle = { display: 'block', fontSize: 13, fontWeight: 700, color: '#4
 const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e2e8f0', fontSize: 13, outline: 'none', boxSizing: 'border-box', backgroundColor: '#fff' };
 
 const StoreSettings = ({ userId, onNavigate }) => {
+  const { t } = useTranslation();
   const [storeLocation, setStoreLocation] = useState({
     regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: ''
   });
@@ -18,8 +20,6 @@ const StoreSettings = ({ userId, onNavigate }) => {
     sellerPickupAddress: '',
     pickupAvailable: false, freeDelivery: false, fastShipping: false,
     galleryImages: [],
-    payoutMethod: '', payoutAccountName: '', payoutAccountNumber: '',
-    payoutBankName: '', payoutBranchName: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
@@ -48,11 +48,6 @@ const StoreSettings = ({ userId, onNavigate }) => {
       setForm({
         storeName:        s.storeName || '',
         storeWhatsApp:    s.storeWhatsApp || '',
-        payoutMethod:        s.payoutMethod || '',
-        payoutAccountName:   s.payoutAccountName || '',
-        payoutAccountNumber: s.payoutAccountNumber || '',
-        payoutBankName:      s.payoutBankName || '',
-        payoutBranchName:    s.payoutBranchName || '',
         storeTagline:     s.storeTagline || '',
         storeDescription: s.storeDescription || '',
         logo:             s.logo || '',
@@ -186,54 +181,13 @@ const StoreSettings = ({ userId, onNavigate }) => {
         </div>
       </div>
 
-      {/* Payout details — how KenteXa sends the seller their money */}
-      <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18, boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 14 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>💸 Njia ya Malipo</h3>
-        <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 14px' }}>
-          KenteXa itatumia maelezo haya kukulipa mauzo yako yaliyofanyika ndani ya mfumo. Bila hii, malipo yako hayawezi kutolewa.
-        </p>
-
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Njia ya Malipo *</label>
-          <select value={form.payoutMethod} onChange={e => setForm({ ...form, payoutMethod: e.target.value })} style={inputStyle}>
-            <option value="">— Chagua njia —</option>
-            <option value="mpesa">📱 M-Pesa (Vodacom)</option>
-            <option value="airtel_money">📱 Airtel Money</option>
-            <option value="tigo_pesa">📱 Tigo Pesa</option>
-            <option value="halotel">📱 Halotel</option>
-            <option value="bank">🏦 Benki</option>
-          </select>
-        </div>
-
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Jina kwenye Akaunti *</label>
-          <input type="text" value={form.payoutAccountName} onChange={e => setForm({ ...form, payoutAccountName: e.target.value })}
-            placeholder="e.g. Juma Hassan Mfaume" style={inputStyle} />
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>Jina lazima lifanane na jina lililosajiliwa kwenye akaunti/namba hii</div>
-        </div>
-
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>
-            {form.payoutMethod === 'bank' ? 'Namba ya Akaunti ya Benki *' : 'Namba ya Simu *'}
-          </label>
-          <input type="text" value={form.payoutAccountNumber} onChange={e => setForm({ ...form, payoutAccountNumber: e.target.value })}
-            placeholder={form.payoutMethod === 'bank' ? 'e.g. 0123456789012' : 'e.g. 0788075633'} style={inputStyle} />
-        </div>
-
-        {form.payoutMethod === 'bank' && (
-          <>
-            <div style={{ marginBottom: 14 }}>
-              <label style={labelStyle}>Jina la Benki *</label>
-              <input type="text" value={form.payoutBankName} onChange={e => setForm({ ...form, payoutBankName: e.target.value })}
-                placeholder="e.g. CRDB Bank, NMB, NBC..." style={inputStyle} />
-            </div>
-            <div style={{ marginBottom: 4 }}>
-              <label style={labelStyle}>Tawi (Optional)</label>
-              <input type="text" value={form.payoutBranchName} onChange={e => setForm({ ...form, payoutBranchName: e.target.value })}
-                placeholder="e.g. Kariakoo Branch" style={inputStyle} />
-            </div>
-          </>
-        )}
+      <div style={{ backgroundColor: '#fff', borderRadius: 14, padding: 18, marginBottom: 14 }}>
+        <h3>{t('payout_settings.title')}</h3>
+        <p style={{ fontSize: 16 }}>{t('payout_settings.hint')}</p>
+        <button type="button" onClick={() => onNavigate('PayoutSettings')}
+          style={{ padding: 14, fontSize: 16, border: 'none', borderRadius: 10, background: '#2563eb', color: '#fff' }}>
+          {t('payout_settings.title')}
+        </button>
       </div>
 
       {/* Business info */}
