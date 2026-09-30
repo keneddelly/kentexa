@@ -56,6 +56,7 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
   const [city,        setCity]        = useState(currentUser?.city || '');
   const [interests,   setInterests]   = useState([]);
   const [sellers,     setSellers]     = useState([]);
+  const [officialKentexa, setOfficialKentexa] = useState(null);
   const [followed,    setFollowed]    = useState(new Set());
   const [saving,      setSaving]      = useState(false);
   const [loadingSellers, setLoadingSellers] = useState(false);
@@ -69,15 +70,35 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
   useEffect(() => {
     if (step !== 3) return;
     setLoadingSellers(true);
-    api.get('/seller/public/all')
-      .then(r => setSellers((r.data?.sellers || r.data || []).slice(0, 8)))
-      .catch(() => {})
-      .finally(() => setLoadingSellers(false));
+    Promise.all([
+      api.get('/profiles/official/kentexa').catch(() => ({ data: null })),
+      api.get('/seller/public/all').catch(() => ({ data: [] })),
+    ]).then(([official, suggested]) => {
+      setOfficialKentexa(official.data || null);
+      setSellers((suggested.data?.sellers || suggested.data || []).slice(0, 8));
+      if (official.data?.isFollowing) {
+        setFollowed(prev => new Set([...prev, `profile:${official.data.id}`]));
+      }
+    }).finally(() => setLoadingSellers(false));
   }, [step]);
 
   const saveStep = async (stepData) => {
     try {
       await api.patch(`/users/${currentUser?.id}`, stepData);
+    } catch {}
+  };
+
+  const handleOfficialKentexaFollow = async () => {
+    if (!officialKentexa?.id) return;
+    try {
+      const res = await api.post(`/profiles/${officialKentexa.id}/follow`);
+      setOfficialKentexa(prev => prev ? { ...prev, isFollowing: res.data.following } : prev);
+      setFollowed(prev => {
+        const next = new Set(prev);
+        const key = `profile:${officialKentexa.id}`;
+        if (res.data.following) next.add(key); else next.delete(key);
+        return next;
+      });
     } catch {}
   };
 
@@ -233,6 +254,25 @@ const Onboarding = ({ onNavigate, currentUser, onLoginSuccess }) => {
               {t('onboarding.step3_desc_prefix', { city: city ? ` ${city}` : '' })}
               {followed.size >= 3 ? t('onboarding.step3_desc_done') : t('onboarding.step3_desc_progress', { count: followed.size })}
             </p>
+
+            {officialKentexa && (
+              <div style={{ border:'2px solid #2563EB', borderRadius:14, padding:14, marginBottom:12, background:'#EFF6FF' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ width:46, height:46, borderRadius:'50%', background:'#DBEAFE', display:'grid', placeItems:'center', fontWeight:900, color:'#2563EB' }}>K</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:15, fontWeight:900 }}>Kentexa <span title="Official Kentexa">✓</span></div>
+                    <div style={{ fontSize:12, color:'#64748B' }}>@kentexa · Official platform page</div>
+                    <div style={{ fontSize:11, color:'#64748B', marginTop:3 }}>Features, platform news, safety notices and important updates.</div>
+                  </div>
+                  <button onClick={handleOfficialKentexaFollow}
+                    style={{ border:'none', borderRadius:10, padding:'8px 14px', fontWeight:800, cursor:'pointer',
+                      background:officialKentexa.isFollowing ? '#DCFCE7' : '#2563EB',
+                      color:officialKentexa.isFollowing ? '#16A34A' : '#fff' }}>
+                    {officialKentexa.isFollowing ? 'Following' : 'Follow'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {loadingSellers ? (
               <div style={{ textAlign: 'center', padding: 40, color: GR }}>
