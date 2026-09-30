@@ -69,6 +69,11 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false 
 
   if (dismissed || !currentUser) return null;
 
+  // Account setup is canonical: once onboarding has been completed on the
+  // User record, do not resurrect an "Account Setup" prompt by recomputing
+  // completion from seller/store-shaped or legacy profile fields.
+  if (currentUser.onboardingCompleted) return null;
+
   const steps  = getSteps(currentUser, userRole, t);
   const done   = steps.filter(s => s.done).length;
   const total  = steps.length;
