@@ -34,6 +34,7 @@ import { SellerStatus } from '../seller/entities/seller-profile.entity';
 import { ActivityEventService } from '../activity/activity-event.service';
 import { ActivityCategory } from '../activity/entities/activity-event.entity';
 import { stripLegacyPriceOverlay } from './utils/strip-legacy-overlay.util';
+import { SearchIndexService } from '../search/search-index.service';
 
 export type FeedFilter =
   | 'for_you'
@@ -95,6 +96,7 @@ export class FeedService {
     private readonly profileScope: CommerceProfileScopeService,
     private readonly commerceProfiles: CommerceProfilesService,
     private readonly activityEvents: ActivityEventService,
+    private readonly searchIndex: SearchIndexService,
   ) {}
 
   // ── Publish a post ────────────────────────────────────────────────────────
@@ -237,6 +239,15 @@ export class FeedService {
         cvsScore: 0,
       }),
     );
+
+    // Moments are first-class discovery documents. Index the human text so
+    // Kentexa AI/semantic search can retrieve what people and businesses are
+    // saying now, not only permanent listings and profiles.
+    this.searchIndex.upsert(
+      'moment',
+      item.id,
+      [item.title, item.body, item.category, item.locationLabel, item.intent].filter(Boolean).join(' \n '),
+    ).catch(() => {});
 
     // Notify followers — fire-and-forget
     this.notifyFollowers(sellerId, item).catch((err) =>
