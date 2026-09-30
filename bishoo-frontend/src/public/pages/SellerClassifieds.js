@@ -21,10 +21,9 @@ const FALLBACK_CATEGORIES = {
   ] } } },
 };
 
-const CONDITIONS = ['Brand New', 'Like New', 'Good', 'Fair', 'Parts Only'];
 
 const labelStyle = { display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' };
-const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '2px solid #e2e8f0', fontSize: '13px', boxSizing: 'border-box', outline: 'none' };
+const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '2px solid #e2e8f0', fontSize: '16px', boxSizing: 'border-box', outline: 'none' };
 
 const EMPTY_FORM = {
   title: '', description: '', price: '',
@@ -59,6 +58,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   const [categorySuggested, setCategorySuggested]     = useState(false);
   const [suggestingCategory, setSuggestingCategory]   = useState(false);
 
+  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
   // Derived
   const currentCat  = CATEGORIES[form.category] || CATEGORIES.general;
   const subOptions  = Object.entries(currentCat.subcategories);
@@ -128,8 +128,9 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   }, [classifieds, editItemId]);
 
   const handleCategoryChange = (cat, opts = {}) => {
+    setShowOptionalDetails(false);
     const firstSub = Object.keys(CATEGORIES[cat]?.subcategories || {})[0] || '';
-    setForm(prev => ({ ...prev, category: cat, subcategory: firstSub, specs: {} }));
+    setForm(prev => ({ ...prev, category: cat, subcategory: firstSub, specs: {}, condition: '' }));
     if (!opts.fromSuggestion) { setCategoryManuallySet(true); setCategorySuggested(false); }
   };
 
@@ -150,7 +151,8 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
   };
 
   const handleSubcategoryChange = (sub) => {
-    setForm(prev => ({ ...prev, subcategory: sub, specs: {} }));
+    setShowOptionalDetails(false);
+    setForm(prev => ({ ...prev, subcategory: sub, specs: {}, condition: '' }));
   };
 
   const handleSpecChange = (key, value) => {
@@ -260,7 +262,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         flashSaleQuantity: form.isFlashSale ? Number(form.flashSaleQuantity) : null,
         specs:      Object.keys(form.specs || {}).length > 0 ? form.specs : null,
         subcategory: form.subcategory || null,
-        condition:  form.condition || null,
+        condition: attrFields.some(a => a.key === 'condition') ? (form.specs?.condition || null) : null,
         contactPhone: form.contactPhone || undefined,
       };
       if (editItem) {
@@ -311,6 +313,9 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
         if (oldEntry) migratedSpecs[attr.key] = oldEntry[1];
       }
     });
+    if (targetAttrs.some(a => a.key === 'condition') && !migratedSpecs.condition && item.condition) {
+      migratedSpecs.condition = item.condition === 'Brand New' ? 'New' : item.condition;
+    }
     setForm({
       title:        item.title,
       description:  item.description || '',
@@ -598,8 +603,15 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                   {t('seller_classifieds.listing_details_title')}
                   <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_classifieds.listing_details_hint')}</span>
                 </div>
+                {attrFields.some(a => !a.required && a.key !== 'condition') && (
+                  <button type="button" onClick={() => setShowOptionalDetails(v => !v)}
+                    aria-expanded={showOptionalDetails}
+                    style={{ fontSize: 16, padding: '12px 0', border: 'none', background: 'none', color: '#1d4ed8', cursor: 'pointer' }}>
+                    {t(showOptionalDetails ? 'listing_form.hide_details' : 'listing_form.optional_details')}
+                  </button>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                  {[...attrFields].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).map(attr => {
+                  {attrFields.filter(a => a.required || a.key === 'condition' || showOptionalDetails).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).map(attr => {
                     const currentValue = form.specs?.[attr.key] || '';
                     const fieldLabel = `${attr.label}${attr.unit ? ` (${attr.unit})` : ''}${attr.required ? ' *' : ''}`;
                     if (attr.type === 'select') {
@@ -607,7 +619,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                         <div key={attr.key}>
                           <label style={{ ...labelStyle, marginBottom: 4 }}>{fieldLabel}</label>
                           <select value={currentValue} onChange={e => handleSpecChange(attr.key, e.target.value)}
-                            style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }}>
+                            style={{ ...inputStyle, padding: '10px 12px', fontSize: 16 }}>
                             <option value="">{t('seller_classifieds.select_subcategory')}</option>
                             {(attr.allowedValues || []).map(v => <option key={v} value={v}>{v}</option>)}
                           </select>
@@ -632,7 +644,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                             </div>
                           ) : (
                             <input type="text" value={currentValue} onChange={e => handleSpecChange(attr.key, e.target.value)}
-                              style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
+                              style={{ ...inputStyle, padding: '10px 12px', fontSize: 16 }} />
                           )}
                         </div>
                       );
@@ -651,7 +663,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                         <input type={attr.type === 'number' ? 'number' : 'text'} placeholder={`e.g. ${attr.label}`}
                           value={currentValue}
                           onChange={e => handleSpecChange(attr.key, e.target.value)}
-                          style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
+                          style={{ ...inputStyle, padding: '10px 12px', fontSize: 16 }} />
                       </div>
                     );
                   })}
@@ -661,13 +673,6 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
 
             {/* Condition + Negotiable */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>
-              <div>
-                <label style={labelStyle}>{t('seller_classifieds.condition_label')}</label>
-                <select value={form.condition} onChange={e => setForm({ ...form, condition: e.target.value })} style={inputStyle}>
-                  <option value="">{t('seller_classifieds.select_condition')}</option>
-                  {CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', backgroundColor: '#f8fafc', borderRadius: 8, border: '2px solid #e2e8f0', height: 40, boxSizing: 'border-box' }}>
                   <input type="checkbox" id="isNeg" checked={form.isNegotiable} onChange={e => setForm({ ...form, isNegotiable: e.target.checked })} style={{ width: 14, height: 14 }} />
@@ -730,7 +735,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
                 <label style={labelStyle}>{t('seller_classifieds.price_label')} *</label>
                 <input type="number" min="1" step="1" placeholder={t('seller_classifieds.price_placeholder')} value={form.price}
                   onChange={e => setForm({ ...form, price: e.target.value })}
-                  onFocus={() => fetchPriceSuggestion(form.category, form.title, form.condition)}
+                  onFocus={() => fetchPriceSuggestion(form.category, form.title, form.specs?.condition)}
                   style={inputStyle} />
                 {/* Price suggestion widget */}
                 {(priceSuggestion || loadingPrice) && (

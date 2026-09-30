@@ -1,4 +1,9 @@
 {
+  "listing_form": {
+      "optional_details": "Ongeza maelezo ya hiari",
+      "hide_details": "Ficha maelezo ya hiari",
+      "service_details": "Utaalamu, mawasiliano na saa za kazi (hiari)"
+  },
   "listing_validation": {
     "valid_optional_number_required": "Weka namba sahihi zisizo hasi kwa ada, uzito, gharama na kiwango cha chini cha stoo.",
     "discard_changes": "Unataka kuacha mabadiliko ya tangazo hili?",

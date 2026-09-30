@@ -31,7 +31,7 @@ const FALLBACK_CATEGORIES = {
 };
 
 const labelStyle = { display: 'block', fontSize: '12px', color: '#64748b', marginBottom: '6px', fontWeight: '600' };
-const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '2px solid #e2e8f0', fontSize: '13px', boxSizing: 'border-box', outline: 'none' };
+const inputStyle = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '2px solid #e2e8f0', fontSize: '16px', boxSizing: 'border-box', outline: 'none' };
 
 const EMPTY_FORM = {
   name: '', description: '', basePrice: '', deliveryFee: '0', bodaFee: '0', sellerCity: 'Dar es Salaam',
@@ -134,6 +134,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   const currentCat    = CATEGORIES[form.category] || CATEGORIES.general;
   const subOptions    = Object.entries(currentCat.subcategories);
   const currentSub    = currentCat.subcategories[form.subcategory];
+  const [showOptionalDetails, setShowOptionalDetails] = useState(false);
   const attrFields    = currentSub?.attributes || [];
   const mediaRules    = currentCat.mediaRules || DEFAULT_MEDIA_RULES;
 
@@ -230,6 +231,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
 
   // When category changes, reset subcategory + specs
   const handleCategoryChange = (cat, opts = {}) => {
+    setShowOptionalDetails(false);
     const firstSub = Object.keys(CATEGORIES[cat]?.subcategories || {})[0] || '';
     setForm(prev => ({ ...prev, category: cat, subcategory: firstSub, specs: {} }));
     if (!opts.fromSuggestion) { setCategoryManuallySet(true); setCategorySuggested(false); }
@@ -252,6 +254,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
   };
 
   const handleSubcategoryChange = (sub) => {
+    setShowOptionalDetails(false);
     setForm(prev => ({ ...prev, subcategory: sub, specs: {} }));
   };
 
@@ -1051,8 +1054,15 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                   {`📋 ${t('seller_products.specs')}`}
                   <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.specs_hint')}</span>
                 </div>
+                {attrFields.some(a => !a.required && a.key !== 'condition') && (
+                  <button type="button" onClick={() => setShowOptionalDetails(v => !v)}
+                    aria-expanded={showOptionalDetails}
+                    style={{ fontSize: 16, padding: '12px 0', border: 'none', background: 'none', color: '#1d4ed8', cursor: 'pointer' }}>
+                    {t(showOptionalDetails ? 'listing_form.hide_details' : 'listing_form.optional_details')}
+                  </button>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                  {[...attrFields].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).map(attr => {
+                  {attrFields.filter(a => a.required || a.key === 'condition' || showOptionalDetails).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)).map(attr => {
                     const currentValue = form.specs?.[attr.key] || '';
                     const fieldLabel = `${attr.label}${attr.unit ? ` (${attr.unit})` : ''}${attr.required ? ' *' : ''}`;
                     if (attr.type === 'select') {
@@ -1060,7 +1070,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                         <div key={attr.key}>
                           <label style={{ ...labelStyle, marginBottom: 4 }}>{fieldLabel}</label>
                           <select value={currentValue} onChange={e => handleSpecChange(attr.key, e.target.value)}
-                            style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }}>
+                            style={{ ...inputStyle, padding: '10px 12px', fontSize: 16 }}>
                             <option value="">{t('seller_products.select_subcategory')}</option>
                             {(attr.allowedValues || []).map(v => <option key={v} value={v}>{v}</option>)}
                           </select>
@@ -1086,7 +1096,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                           ) : (
                             <input type="text" placeholder={t('seller_products.multiselect_placeholder')}
                               value={currentValue} onChange={e => handleSpecChange(attr.key, e.target.value)}
-                              style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
+                              style={{ ...inputStyle, padding: '10px 12px', fontSize: 16 }} />
                           )}
                         </div>
                       );
@@ -1106,7 +1116,7 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                         <input type={attr.type === 'number' ? 'number' : 'text'} placeholder={`e.g. ${attr.label}`}
                           value={currentValue}
                           onChange={e => handleSpecChange(attr.key, e.target.value)}
-                          style={{ ...inputStyle, padding: '8px 10px', fontSize: 12 }} />
+                          style={{ ...inputStyle, padding: '10px 12px', fontSize: 16 }} />
                       </div>
                     );
                   })}
@@ -1115,11 +1125,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
             )}
 
             {/* ── FEATURES (bullet points) ── */}
-            <div style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10 }}>
+            <details style={{ backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 14, border: '1px solid #e2e8f0' }}>
+              <summary style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', marginBottom: 10, cursor: 'pointer' }}>
                 {`✨ ${t('seller_products.features')}`}
                 <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{t('seller_products.features_hint')}</span>
-              </div>
+              </summary>
               {(form.features || []).map((f, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, backgroundColor: '#fff', borderRadius: 8, padding: '6px 10px', border: '1px solid #e2e8f0' }}>
                   <span style={{ fontSize: 12, flex: 1, color: '#1e293b' }}>✓ {f}</span>
@@ -1130,11 +1140,11 @@ const SellerProducts = ({ onNavigate, editProductId, activeProfileId }) => {
                 <input type="text" placeholder={t('seller_products.feature_placeholder')}
                   value={featureInput} onChange={e => setFeatureInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addFeature()}
-                  style={{ ...inputStyle, flex: 1, padding: '8px 10px', fontSize: 12 }} />
+                  style={{ ...inputStyle, flex: 1, padding: '10px 12px', fontSize: 16 }} />
                 <button onClick={addFeature} style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{`+ ${t('seller_products.add_feature')}`}</button>
               </div>
               <p style={{ fontSize: 10, color: '#94a3b8', margin: '4px 0 0' }}>{t('seller_products.feature_hint')}</p>
-            </div>
+            </details>
 
             {/* Price fields */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>

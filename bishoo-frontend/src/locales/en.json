@@ -1,4 +1,9 @@
 {
+  "listing_form": {
+      "optional_details": "Add optional details",
+      "hide_details": "Hide optional details",
+      "service_details": "Specialty, contact and working hours (optional)"
+  },
   "listing_validation": {
     "saving": "Saving listing…",
     "name_required": "Enter a product name.",

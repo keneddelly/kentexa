@@ -1,4 +1,9 @@
 {
+  "listing_form": {
+      "optional_details": "Ajouter des détails facultatifs",
+      "hide_details": "Masquer les détails facultatifs",
+      "service_details": "Spécialité, contact et horaires (facultatif)"
+  },
   "listing_validation": {
     "valid_optional_number_required": "Saisissez des valeurs valides pour les frais, le poids, le cout et le seuil de stock.",
     "discard_changes": "Abandonner les modifications de cette annonce ?",
