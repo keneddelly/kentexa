@@ -46,6 +46,7 @@ const getTabs = t => [
   { key:'classifieds',label:t('search.tab_classifieds')  },
   { key:'products',   label:t('search.tab_products')    },
   { key:'services',   label:t('search.tab_services')     },
+  { key:'moments',    label:'Moments'                    },
   { key:'transport',  label:t('search.tab_transport')    },
   { key:'hub',        label:t('search.tab_hub')          },
   { key:'people',     label:t('search.tab_people')       },
@@ -433,7 +434,7 @@ const rankResults = (list, semanticExtras, intent) => {
 };
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', transport: 'transport', hub: 'hub', people: 'people', business: 'business', all: 'all' };
+const AI_DOMAIN_TO_TAB = { product: 'products', classified: 'classifieds', service: 'services', moment: 'moments', transport: 'transport', hub: 'hub', people: 'people', business: 'business', all: 'all' };
 
 const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIntent, track }) => {
   const { t } = useTranslation();
@@ -451,6 +452,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
   const [transports,  setTransports]  = useState([]);
   const [hubs,        setHubs]        = useState([]);
   const [profiles,    setProfiles]    = useState([]);
+  const [moments,     setMoments]     = useState([]);
+  const [semanticRoutes, setSemanticRoutes] = useState([]);
   // AI/NL brand query integration (spec §23) — "which businesses sell
   // genuine LG products near me" etc. Same structured, domain-exclusive
   // shape as transports/hubs above, calling /brands/authorized-businesses
@@ -533,6 +536,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     setTransports([]);
     setHubs([]);
     setProfiles([]);
+    setMoments([]);
+    setSemanticRoutes([]);
     setBusinesses([]);
     setTransportNeedsCities(false);
     setHubNeedsCity(false);
@@ -557,12 +562,16 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
       classified: semanticResults.filter(r => r._type === 'classified'),
       service:    semanticResults.filter(r => r._type === 'service'),
       profile:    semanticResults.filter(r => r._type === 'profile'),
+      moment:     semanticResults.filter(r => r._type === 'moment'),
+      transport_route: semanticResults.filter(r => r._type === 'transport_route'),
     };
     const mergedProfiles = [
       ...profileResults,
       ...semanticByType.profile.filter(sp => !profileResults.some(p => p.id === sp.id)),
     ];
     setProfiles(mergedProfiles);
+    setMoments(semanticByType.moment);
+    setSemanticRoutes(semanticByType.transport_route);
 
     // finish() closes out every branch below: merges in semantic-only
     // extras for whatever this branch found, logs to search history, then
@@ -590,7 +599,8 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
         (finalClassifieds.length - classifiedsList.length) +
         (finalProducts.length - productsList.length) +
         (finalServices.length - servicesList.length) +
-        (mergedProfiles.length - profileResults.length);
+        (mergedProfiles.length - profileResults.length) +
+        semanticByType.moment.length + semanticByType.transport_route.length;
 
       setLoading(false);
       if (typeof track === 'function') {
@@ -792,7 +802,7 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     await handleAiSearch(trimmed, intent);
   }, [query, handleAiSearch]);
 
-  const total = classifieds.length + products.length + services.length + transports.length + hubs.length + profiles.length + businesses.length;
+  const total = classifieds.length + products.length + services.length + transports.length + hubs.length + profiles.length + businesses.length + moments.length + semanticRoutes.length;
 
   // Every item is tagged with _type so the render loop below picks the
   // right card regardless of whether it came via a single-domain tab or
@@ -804,10 +814,13 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
     all:        [...classifieds.map(c => ({...c, _type:'classified'})),
                  ...products.map(p => ({...p, _type:'product'})),
                  ...services.map(s => ({...s, _type:'service'})),
-                 ...profiles.map(p => ({...p, _type:'profile'}))],
+                 ...profiles.map(p => ({...p, _type:'profile'})),
+                 ...moments.map(m => ({...m, _type:'moment'})),
+                 ...semanticRoutes.map(r => ({...r, _type:'transport_route'}))],
     classifieds: classifieds.map(c => ({...c, _type:'classified'})),
     products:    products.map(p => ({...p, _type:'product'})),
     services:    services.map(s => ({...s, _type:'service'})),
+    moments:     moments.map(m => ({...m, _type:'moment'})),
     transport:   transports.map(tr => ({...tr, _type:'transport'})),
     hub:         hubs.map(h => ({...h, _type:'hub'})),
     people:      profiles.map(p => ({...p, _type:'profile'})),
@@ -977,6 +990,23 @@ const Search = ({ onNavigate, isLoggedIn, onLogout, userRole, initialQuery, aiIn
                     {(tab === 'all' ? tabItems.all : tabItems[tab]).map((item, i) => {
                       if (item._type === 'service') {
                         return <ServiceCard key={`s-${item.id}`} item={item} onNavigate={onNavigate} />;
+                      }
+                      if (item._type === 'moment') {
+                        return (
+                          <div key={`m-${item.id}`} onClick={() => onNavigate(item.intentRef?.destination || 'Home', { momentId: item.id })}
+                            style={{ backgroundColor:WH, borderRadius:14, overflow:'hidden', boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
+                            {item.imageUrl && <img src={item.imageUrl} alt="" style={{ width:'100%', height:120, objectFit:'cover' }} />}
+                            <div style={{ padding:'10px' }}><div style={{ fontSize:10, fontWeight:800, color:B, marginBottom:4 }}>MOMENT</div><div style={{ fontSize:12, fontWeight:700, color:DK, lineHeight:1.4 }}>{item.title || item.body || 'Moment'}</div>{item.locationLabel && <div style={{ fontSize:10, color:GR, marginTop:5 }}>📍 {item.locationLabel}</div>}</div>
+                          </div>
+                        );
+                      }
+                      if (item._type === 'transport_route') {
+                        return (
+                          <div key={`tr-${item.id}`} onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin')}
+                            style={{ backgroundColor:WH, borderRadius:14, padding:14, boxShadow:'0 2px 8px rgba(0,0,0,0.06)', cursor:'pointer' }}>
+                            <div style={{ fontSize:10, fontWeight:800, color:B, marginBottom:6 }}>🚚 ROUTE</div><div style={{ fontSize:13, fontWeight:800, color:DK }}>{item.originCity || item.coverageCity || item.loopStops?.[0] || 'Route'} → {item.destinationCity || item.loopStops?.[item.loopStops.length-1] || 'Delivery'}</div><div style={{ fontSize:10, color:GR, marginTop:6 }}>Send a parcel on this network →</div>
+                          </div>
+                        );
                       }
                       if (item._type === 'transport') {
                         return (
