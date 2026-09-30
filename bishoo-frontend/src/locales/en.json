@@ -3809,6 +3809,9 @@
     "tier_new": "New"
   },
   "profile_completion": {
+    "edit_personal": "Edit personal profile",
+    "step_username": "Choose your public username",
+    "personal_title": "Personal profile: {{percent}}% complete",
     "step_phone": "Verify phone",
     "step_name": "Enter your full name",
     "step_photo": "Add profile photo",

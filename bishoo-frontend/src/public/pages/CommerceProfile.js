@@ -737,7 +737,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
 
         {/* Bio */}
         {(activeProfile.bio || (isBusinessProfile && profile?.storeDescription)) && (
-          <p style={{ fontSize:13, color:'#475569', margin:'0 0 10px',
+          <p style={{ fontSize:16, color:'#475569', whiteSpace:'pre-wrap', margin:'0 0 10px',
             lineHeight:1.5 }}>
             {activeProfile.bio || profile.storeDescription}
           </p>
@@ -865,6 +865,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             userRole={userRole}
             onNavigate={onNavigate}
             compact={true}
+            personalProfile={activeProfile.type === 'personal' ? activeProfile : undefined}
           />
         </div>
       )}

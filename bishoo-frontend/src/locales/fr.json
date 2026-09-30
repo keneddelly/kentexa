@@ -3805,6 +3805,9 @@
     "tier_new": "Nouveau"
   },
   "profile_completion": {
+    "edit_personal": "Modifier le profil personnel",
+    "step_username": "Choisissez votre nom d’utilisateur public",
+    "personal_title": "Profil personnel : {{percent}}% complété",
     "step_phone": "Vérifier le téléphone",
     "step_name": "Entrez votre nom complet",
     "step_photo": "Ajouter une photo de profil",

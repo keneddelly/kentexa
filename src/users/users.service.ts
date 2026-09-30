@@ -103,14 +103,16 @@ export class UsersService {
     // PERSONAL CommerceProfile. Keep both representations synchronized at
     // the write boundary so an edit cannot leave a stale actor name/photo.
     // Business/Hub/Agent/etc. profiles remain independent identities.
-    if (dto.name !== undefined || dto.avatarUrl !== undefined) {
+    if (dto.name !== undefined || dto.avatarUrl !== undefined || dto.bio !== undefined || dto.city !== undefined) {
       const personalProfile = await this.commerceProfiles
         .findForUserByType(id, CommerceProfileType.PERSONAL)
         .catch(() => null);
       if (personalProfile) {
-        const publicFields: { displayName?: string; photoUrl?: string } = {};
+        const publicFields: { displayName?: string; photoUrl?: string; bio?: string; location?: string } = {};
         if (dto.name !== undefined) publicFields.displayName = dto.name.trim();
         if (dto.avatarUrl !== undefined) publicFields.photoUrl = dto.avatarUrl;
+        if (dto.bio !== undefined) publicFields.bio = dto.bio.trim();
+        if (dto.city !== undefined) publicFields.location = dto.city.trim();
         await this.commerceProfiles
           .updatePublicFields(personalProfile.id, publicFields)
           .catch(() => {});

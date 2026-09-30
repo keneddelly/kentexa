@@ -63,7 +63,7 @@ const getSteps = (user, role, t) => {
   return steps;
 };
 
-const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false }) => {
+const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false, personalProfile }) => {
   const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(false);
 
@@ -72,16 +72,22 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false 
   // Account setup is canonical: once onboarding has been completed on the
   // User record, do not resurrect an "Account Setup" prompt by recomputing
   // completion from seller/store-shaped or legacy profile fields.
-  if (currentUser.onboardingCompleted) return null;
+  if (!personalProfile && currentUser.onboardingCompleted) return null;
 
-  const steps  = getSteps(currentUser, userRole, t);
+  const steps = personalProfile ? [
+    { key: 'name', label: t('profile_completion.step_name'), done: !!personalProfile.displayName?.trim(), page: 'CustomerProfile' },
+    { key: 'photo', label: t('profile_completion.step_photo'), done: !!personalProfile.photoUrl, page: 'CustomerProfile' },
+    { key: 'username', label: t('profile_completion.step_username'), done: !!personalProfile.username, page: 'CustomerProfile' },
+    { key: 'location', label: t('profile_completion.step_location'), done: !!personalProfile.location?.trim(), page: 'CustomerProfile' },
+    { key: 'bio', label: t('profile_completion.step_bio'), done: !!personalProfile.bio?.trim(), page: 'CustomerProfile' },
+  ] : getSteps(currentUser, userRole, t);
   const done   = steps.filter(s => s.done).length;
   const total  = steps.length;
   const pct    = Math.round((done / total) * 100);
   const nextStep = steps.find(s => !s.done);
 
   // Don't show if 100% complete
-  if (pct === 100) return null;
+  if (!personalProfile && pct === 100) return null;
 
   if (compact) {
     return (
@@ -90,7 +96,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false 
         <div style={{ display:'flex', justifyContent:'space-between',
           alignItems:'center', marginBottom:8 }}>
           <span style={{ fontSize:13, fontWeight:800, color:'#1e293b' }}>
-            {t('profile_completion.compact_title', { percent: pct })}
+            {t(personalProfile ? 'profile_completion.personal_title' : 'profile_completion.compact_title', { percent: pct })}
           </span>
           <span style={{ fontSize:12, color:'#64748b' }}>{done}/{total}</span>
         </div>
@@ -98,12 +104,23 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false 
           <div style={{ height:'100%', borderRadius:100, backgroundColor:B,
             width:`${pct}%`, transition:'width 0.5s' }} />
         </div>
-        {nextStep && (
-          <button onClick={() => nextStep.page && onNavigate(nextStep.page)}
+        {personalProfile && (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:12 }}>
+            {steps.map(step => (
+              <button key={step.key} type="button" onClick={() => onNavigate(step.page)}
+                style={{ border:'1px solid #dbeafe', borderRadius:8, background:step.done ? '#f0fdf4' : '#eff6ff',
+                  color:step.done ? '#166534' : B, padding:'8px 10px', fontSize:14, cursor:'pointer' }}>
+                {step.done ? '✓ ' : ''}{step.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {(nextStep || personalProfile) && (
+          <button onClick={() => { const page = nextStep ? nextStep.page : 'CustomerProfile'; if (page) onNavigate(page); }}
             style={{ marginTop:8, background:'none', border:'none',
               cursor:'pointer', color:B, fontSize:12, fontWeight:700,
               padding:0 }}>
-            {nextStep.icon} {nextStep.label} →
+            {nextStep?.label || t('profile_completion.edit_personal')} →
           </button>
         )}
       </div>
