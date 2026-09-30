@@ -59,12 +59,12 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         api.get('/profiles/mine').catch(() => ({ data: [] })),
       ]);
       const personalProfile = (commerceProfilesRes.data || []).find(p => p.type === 'personal');
-      setProfile(profileRes.data);
+      setProfile({ ...profileRes.data, city: personalProfile?.location ?? profileRes.data.city, bio: personalProfile?.bio ?? profileRes.data.bio });
       setOrders(ordersRes.data);
       setForm({
         email: profileRes.data.email || '', name: profileRes.data.name || '',
         username: personalProfile?.username || '', phone: profileRes.data.phone || '',
-        city: profileRes.data.city || '', bio: profileRes.data.bio || '',
+        city: personalProfile?.location ?? profileRes.data.city ?? '', bio: personalProfile?.bio ?? profileRes.data.bio ?? '',
       });
       setAvatarUrl(profileRes.data.avatarUrl || '');
       onUserUpdated?.(profileRes.data);
@@ -77,10 +77,10 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
     // Validate
     if (!form.name.trim()) { setSaving(false); setError('Jina linahitajika.'); return; }
     if (form.phone && !/^(0|\+255|255)[0-9]{8,9}$/.test(form.phone.replace(/\s/g,''))) {
-      setError('Namba ya simu si sahihi. Mfano: 0712345678'); return;
+      setSaving(false); setError('Namba ya simu si sahihi. Mfano: 0712345678'); return;
     }
     if (form.email && !/^[^@]+@[^@]+\.[^@]+$/.test(form.email)) {
-      setError('Barua pepe si sahihi.'); return;
+      setSaving(false); setError('Barua pepe si sahihi.'); return;
     }
     setError('');
     try {
@@ -93,8 +93,8 @@ const CustomerProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUs
         name:  form.name.trim(),
         phone: form.phone.trim() || undefined,
         email: form.email.trim().toLowerCase() || undefined,
-        city:  form.city.trim() || undefined,
-        bio:   form.bio.trim() || undefined,
+        city:  form.city.trim(),
+        bio:   form.bio.trim(),
         avatarUrl: avatarUrl || undefined,
       });
       setSaving(false);

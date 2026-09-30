@@ -3655,6 +3655,9 @@
     "tier_new": "Mpya"
   },
   "profile_completion": {
+    "edit_personal": "Hariri wasifu binafsi",
+    "step_username": "Chagua jina lako la mtumiaji",
+    "personal_title": "Wasifu binafsi: {{percent}}% kamili",
     "step_phone": "Thibitisha simu",
     "step_name": "Weka jina lako kamili",
     "step_photo": "Weka picha ya wasifu",
