@@ -45,9 +45,13 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     } as any) as unknown as SuperAgent);
   };
 
+  // actorSource defaults to 'provider_webhook' -- a REAL, authenticated
+  // actor -- not 'system' (this ledger's own vocabulary for "no identifiable
+  // actor at all"). A dedicated test below explicitly proves a 'system'
+  // actor is rejected even when custodian direction looks otherwise correct.
   const mkCustodyEvent = (o: Partial<{
     parcelId: number; eventKind: string; fromCustodianType: string | null; fromCustodianId: number | null;
-    toCustodianType: string | null; toCustodianId: number | null; recordedAt: Date;
+    toCustodianType: string | null; toCustodianId: number | null; recordedAt: Date; actorSource: string;
   }> = {}) => custodyRepo.save(custodyRepo.create({
     parcelId: o.parcelId ?? 1,
     eventKind: o.eventKind ?? 'origin_hub_received',
@@ -56,7 +60,7 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     fromCustodianId: o.fromCustodianId ?? null,
     toCustodianType: o.toCustodianType ?? null,
     toCustodianId: o.toCustodianId ?? null,
-    actorSource: 'system',
+    actorSource: o.actorSource ?? 'provider_webhook',
     assignmentType: null,
     ...(o.recordedAt ? { recordedAt: o.recordedAt } : {}),
   } as any) as unknown as ParcelCustodyEvent);
@@ -75,12 +79,17 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     await ds.initialize();
     await ensureSuperAgentHandlingRateNoOverlapConstraint((sql) => ds.query(sql));
     await ensureSuperAgentEconomicLedgersImmutable((sql) => ds.query(sql));
+    // Bare stub table -- assertParcelExists only ever needs "does this
+    // parcelId exist", never the real Parcel entity's own relation graph
+    // (mirrors ParcelRunAssignmentService's own established convention).
+    await ds.query('CREATE TABLE public.parcel (id integer PRIMARY KEY)');
+    await ds.query('INSERT INTO public.parcel VALUES (1),(42),(43)');
 
     rateRepo = ds.getRepository(SuperAgentHandlingRate);
     earningRepo = ds.getRepository(SuperAgentHandlingEarning);
     custodyRepo = ds.getRepository(ParcelCustodyEvent);
 
-    rateService = new SuperAgentHandlingRateService(rateRepo);
+    rateService = new SuperAgentHandlingRateService(rateRepo, earningRepo);
     earningService = new SuperAgentHandlingEarningService(custodyRepo, earningRepo, rateService, ds);
   });
 
@@ -124,6 +133,20 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     expect(await rateService.getEffectiveRate('handling', 'global', new Date('2025-01-01T00:00:00Z'))).toBeNull();
   });
 
+  it('rejects a non-positive amount and an invalid (to before from) effective window', async () => {
+    await expect(rateService.configureRate({
+      commissionType: 'handling', amount: 0, effectiveFrom: new Date('2026-01-01T00:00:00Z'), createdByUserId: 1,
+    })).rejects.toThrow();
+    await expect(rateService.configureRate({
+      commissionType: 'handling', amount: -500, effectiveFrom: new Date('2026-01-01T00:00:00Z'), createdByUserId: 1,
+    })).rejects.toThrow();
+    await expect(rateService.configureRate({
+      commissionType: 'handling', amount: 500,
+      effectiveFrom: new Date('2026-06-01T00:00:00Z'), effectiveTo: new Date('2026-01-01T00:00:00Z'),
+      createdByUserId: 1,
+    })).rejects.toThrow();
+  });
+
   it('rejects an overlapping active configuration for the same commission type/scope', async () => {
     await rateService.configureRate({
       commissionType: 'handling', amount: 500, effectiveFrom: new Date('2026-01-01T00:00:00Z'), createdByUserId: 1,
@@ -137,6 +160,7 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     })).resolves.toBeDefined();
   });
 
+  // ── retraction is limited to still-future, not-yet-effective drafts ────────
   it('deactivating a still-future draft frees its own window for a corrected replacement', async () => {
     const draft = await rateService.configureRate({
       commissionType: 'handling', amount: 999, effectiveFrom: new Date('2030-01-01T00:00:00Z'), createdByUserId: 1,
@@ -146,6 +170,49 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
       commissionType: 'handling', amount: 700, effectiveFrom: new Date('2030-01-01T00:00:00Z'), createdByUserId: 1,
     })).resolves.toBeDefined();
     expect(await rateService.getEffectiveRate('handling', 'global', new Date('2030-06-01T00:00:00Z'))).toMatchObject({ amount: '700.00' });
+  });
+
+  it('rejects retracting an already-PAST configuration', async () => {
+    const past = await rateService.configureRate({
+      commissionType: 'handling', amount: 500,
+      effectiveFrom: new Date('2020-01-01T00:00:00Z'), effectiveTo: new Date('2020-06-01T00:00:00Z'),
+      createdByUserId: 1,
+    });
+    await expect(rateService.deactivateRate(past.id)).rejects.toThrow(ConflictException);
+    // Unchanged -- still readable at its own past window.
+    expect(await rateService.getEffectiveRate('handling', 'global', new Date('2020-03-01T00:00:00Z'))).toMatchObject({ amount: '500.00' });
+  });
+
+  it('rejects retracting a CURRENTLY ACTIVE (in-effect right now) configuration', async () => {
+    const active = await rateService.configureRate({
+      commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: 1,
+    });
+    await expect(rateService.deactivateRate(active.id)).rejects.toThrow(ConflictException);
+    expect(await rateService.getEffectiveRate('handling', 'global', new Date())).toMatchObject({ amount: '500.00' });
+  });
+
+  it('rejects retracting a configuration already referenced by a recorded earning, even one whose effectiveFrom is technically future', async () => {
+    // Contrived on purpose -- this should never legitimately happen (nothing
+    // is recorded against a rate before its own effectiveFrom), but the
+    // review specifically asked this be defended regardless.
+    const future = await rateService.configureRate({
+      commissionType: 'handling', amount: 500, effectiveFrom: new Date('2030-01-01T00:00:00Z'), createdByUserId: 1,
+    });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({ toCustodianType: 'super_agent', toCustodianId: hub.id });
+    await earningRepo.save(earningRepo.create({
+      custodyEventId: event.id, parcelId: event.parcelId, superAgentId: hub.id, rateConfigId: future.id,
+      amount: 500, currency: 'TZS', source: event.eventKind, actorUserId: null,
+    }));
+    await expect(rateService.deactivateRate(future.id)).rejects.toThrow(ConflictException);
+  });
+
+  it('idempotent: retracting an already-inactive draft is a no-op, not an error', async () => {
+    const draft = await rateService.configureRate({
+      commissionType: 'handling', amount: 999, effectiveFrom: new Date('2031-01-01T00:00:00Z'), createdByUserId: 1,
+    });
+    await rateService.deactivateRate(draft.id);
+    await expect(rateService.deactivateRate(draft.id)).resolves.toMatchObject({ isActive: false });
   });
 
   // ── qualifying eligibility ──────────────────────────────────────────────
@@ -221,6 +288,62 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
 
     await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
     expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('rejects a custody event whose parcelId does not reference an existing Parcel', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({ parcelId: 999999, toCustodianType: 'super_agent', toCustodianId: hub.id });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  // ── bound eligibility to the trusted custody-event contract, not just direction ──
+  it('rejects a "receiving" event with no real authenticated actor behind it (actorSource=system), even though custodian direction looks correct', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({ toCustodianType: 'super_agent', toCustodianId: hub.id, actorSource: 'system' });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('rejects an illegitimate prior-custodian shape (e.g. a recipient somehow "handing back" to a Super Agent)', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({
+      fromCustodianType: 'recipient_contact', fromCustodianId: null,
+      toCustodianType: 'super_agent', toCustodianId: hub.id,
+    });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('rejects a degenerate self-transfer (identical custodian on both sides) even though direction and actor both look correct', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({
+      fromCustodianType: 'super_agent', fromCustodianId: hub.id,
+      toCustodianType: 'super_agent', toCustodianId: hub.id,
+    });
+
+    await expect(earningService.recordEarningForCustodyEvent(event.id, { userId: null })).rejects.toThrow(BadRequestException);
+    expect(await earningRepo.count()).toBe(0);
+  });
+
+  it('accepts a legitimate hub-to-hub transfer (a Super Agent handing off to a DIFFERENT Super Agent) as a genuine receiving event', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const originHub = await mkSuperAgent();
+    const destHub = await mkSuperAgent();
+    const event = await mkCustodyEvent({
+      fromCustodianType: 'super_agent', fromCustodianId: originHub.id,
+      toCustodianType: 'super_agent', toCustodianId: destHub.id,
+    });
+
+    const earning = await earningService.recordEarningForCustodyEvent(event.id, { userId: null });
+    expect(earning.superAgentId).toBe(destHub.id);
   });
 
   it('rejects an unknown custody event id', async () => {

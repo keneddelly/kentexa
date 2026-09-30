@@ -21,6 +21,15 @@ import {
  * consistent with every prior migration's own treatment of those two tables.
  * super_agent_handling_rate/parcel_custody_event DO have real migrations, so
  * FKs to them ARE declared.
+ *
+ * Post-review correction (Stage 3S-C5 re-review, applied in place since this
+ * migration has never been merged or deployed): added CHECK constraints for
+ * positive rate amounts, valid (from < to) rate windows, and positive
+ * collected/nonnegative price-context amounts on the cash collection table --
+ * the reviewer's "enforce basic financial validity" finding. Mirrored on both
+ * entities as plain @Check decorators (see super-agent-commission-schema.ts's
+ * own comment for why a migration-only CHECK is otherwise invisible to a
+ * synchronize:true test schema).
  */
 export class AddSuperAgentCommissionFoundation1788287400000 implements MigrationInterface {
   name = 'AddSuperAgentCommissionFoundation1788287400000';
@@ -38,7 +47,10 @@ export class AddSuperAgentCommissionFoundation1788287400000 implements Migration
         "isActive" boolean NOT NULL DEFAULT true,
         reason text,
         "createdByUserId" integer,
-        "createdAt" timestamp NOT NULL DEFAULT now()
+        "createdAt" timestamp NOT NULL DEFAULT now(),
+        CONSTRAINT "CHK_super_agent_handling_rate_amount_positive" CHECK (amount > 0),
+        CONSTRAINT "CHK_super_agent_handling_rate_window_valid"
+          CHECK ("effectiveTo" IS NULL OR "effectiveTo" > "effectiveFrom")
       )`);
     await ensureSuperAgentHandlingRateNoOverlapConstraint((sql) => queryRunner.query(sql));
 
@@ -91,7 +103,9 @@ export class AddSuperAgentCommissionFoundation1788287400000 implements Migration
         "createdAt" timestamp NOT NULL DEFAULT now(),
         CONSTRAINT "CHK_super_agent_cash_collection_payment_method" CHECK ("paymentMethod" IN ('cash')),
         CONSTRAINT "CHK_super_agent_cash_collection_reconciliation_status"
-          CHECK ("reconciliationStatus" IN ('pending', 'reconciled'))
+          CHECK ("reconciliationStatus" IN ('pending', 'reconciled')),
+        CONSTRAINT "CHK_super_agent_cash_collection_amount_positive" CHECK ("collectedAmount" > 0),
+        CONSTRAINT "CHK_super_agent_cash_collection_price_context_nonnegative" CHECK ("priceContextAmount" >= 0)
       )`);
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_super_agent_cash_collection_idempotency"
       ON public.super_agent_cash_collection ("idempotencyKey")`);

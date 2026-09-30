@@ -71,6 +71,11 @@ suite('Stage 3S-C5 super agent commission foundation schema: real PostgreSQL', (
     expect(seeded[0].isActive).toBe(true);
     expect(seeded[0].createdByUserId).toBeNull(); // migration-seeded, no real acting user
 
+    // Post-review correction: positive amount and a genuinely valid window.
+    await expect(insertRate({ commissionType: 'chk1', amount: 0 })).rejects.toThrow();
+    await expect(insertRate({ commissionType: 'chk2', amount: -500 })).rejects.toThrow();
+    await expect(insertRate({ commissionType: 'chk3', effectiveFrom: '2026-06-01', effectiveTo: '2026-01-01' })).rejects.toThrow();
+
     // A second, overlapping ACTIVE configuration for the same type/scope is rejected.
     await expect(insertRate({ effectiveFrom: '2020-01-01', effectiveTo: null })).rejects.toThrow();
     // A different commissionType or scope is unaffected.
@@ -100,6 +105,18 @@ suite('Stage 3S-C5 super agent commission foundation schema: real PostgreSQL', (
 
   it('enforces the cash collection table\'s vocab/uniqueness shape and immutability', async () => {
     await expect(insertCollection({ paymentMethod: 'mobile_money' })).rejects.toThrow(); // CHK: not yet a supported method
+    // Post-review correction: positive collected amount, nonnegative price context.
+    await expect(ds.query(
+      `INSERT INTO public.super_agent_cash_collection
+        ("parcelId","superAgentId","priceContextAmount","priceContextCurrency","collectedAmount",currency,"paymentMethod","actorUserId","idempotencyKey")
+       VALUES (1,1,5000,'TZS',0,'TZS','cash',1,'chk-amt-1')`,
+    )).rejects.toThrow();
+    await expect(ds.query(
+      `INSERT INTO public.super_agent_cash_collection
+        ("parcelId","superAgentId","priceContextAmount","priceContextCurrency","collectedAmount",currency,"paymentMethod","actorUserId","idempotencyKey")
+       VALUES (1,1,-1,'TZS',5000,'TZS','cash',1,'chk-amt-2')`,
+    )).rejects.toThrow();
+
     const [row] = await insertCollection({ idempotencyKey: 'idem-1' });
     await expect(insertCollection({ idempotencyKey: 'idem-1' })).rejects.toThrow(); // UQ: idempotency key
     await expect(insertCollection({ idempotencyKey: 'idem-2' })).resolves.toHaveLength(1);

@@ -43,6 +43,12 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index, Check 
 // found zero DB-level backstop until these were added).
 @Check('CHK_super_agent_cash_collection_payment_method', `"paymentMethod" IN ('cash')`)
 @Check('CHK_super_agent_cash_collection_reconciliation_status', `"reconciliationStatus" IN ('pending', 'reconciled')`)
+// Post-review correction (Stage 3S-C5 re-review): "positive collected
+// amounts, nonnegative agreed-price context" -- a legitimate cash collection
+// can never be for a non-positive amount, and an agreed price context (even
+// a free/zero one) can never be negative.
+@Check('CHK_super_agent_cash_collection_amount_positive', '"collectedAmount" > 0')
+@Check('CHK_super_agent_cash_collection_price_context_nonnegative', '"priceContextAmount" >= 0')
 export class SuperAgentCashCollection {
   @PrimaryGeneratedColumn()
   id: number;

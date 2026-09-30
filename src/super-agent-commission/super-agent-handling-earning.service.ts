@@ -17,6 +17,31 @@
  * (origin_hub_received, destination_hub_received, parcel_run_unloaded)
  * without needing to enumerate event names at all.
  *
+ * Post-review correction (Stage 3S-C5 re-review): the reviewer correctly
+ * pointed out that "toCustodianType='super_agent'" alone is a NECESSARY
+ * condition but not, by itself, evidence the row represents a genuine
+ * physical handling operation performed by a real, identifiable actor --
+ * nothing stopped a degenerate/spoofed-looking row (e.g. a custodian
+ * "handing off to itself", or a bare `actorSource='system'` event with no
+ * identifiable human or authenticated provider behind it at all) from
+ * qualifying. Two further checks were added, both bound to the EXISTING
+ * custody-event contract's own vocabulary (never a brittle enumeration of
+ * eventKind strings):
+ *   - `actorSource` must be a REAL, authenticated actor ('account_role' or
+ *     'provider_webhook') -- never bare 'system', which this ledger's own
+ *     actor-shape CHECK already defines as having no identifiable actor at
+ *     all behind it.
+ *   - `fromCustodianType` must be one of the small, stable set of custodian
+ *     types that can legitimately precede a Super Agent RECEIVING custody
+ *     (unknown/first custody, a transport provider, or another Super Agent)
+ *     -- and the from/to pair may never be the identical custodian (a
+ *     self-transfer proves nothing physically happened).
+ * This still says nothing about whether the SAME physical handoff was ALSO
+ * recorded a second time by a different pathway (legacy vs. Run-based) --
+ * see this gate's own report for the documented, deliberately NOT-yet-built
+ * cross-pathway deduplication plan; solving that here would mean building a
+ * second custody ledger/index, explicitly out of this gate's scope.
+ *
  * Deliberately NOT wired as an automatic side effect of any existing
  * custody-writing call site in this gate (see this gate's own report for
  * why) -- this is a standalone, explicitly-invoked authority, proven correct
@@ -37,6 +62,22 @@ export interface RecordHandlingEarningActor {
 // Postgres error code for a unique-constraint violation.
 const UNIQUE_VIOLATION = '23505';
 
+// A REAL, authenticated actor must be behind a commission-qualifying
+// physical operation. 'system' is this ledger's own established vocabulary
+// for "no identifiable actor at all" (its actor-shape CHECK requires every
+// actor-identifying column to be NULL for that source) -- never sufficient
+// evidence a person or authenticated carrier actually handled a parcel.
+const LEGITIMATE_ACTOR_SOURCES = new Set(['account_role', 'provider_webhook']);
+
+// The small, stable set of custodian types that can legitimately precede a
+// Super Agent RECEIVING custody: unknown/first custody (null -- e.g. a
+// customer origin drop-off, never itself recorded as a "from" custodian),
+// a transport provider (Stage 3S-C4's own parcel_run_unloaded), or another
+// Super Agent (a hub-to-hub transfer). Deliberately NOT an enumeration of
+// eventKind strings -- this is the custodian-type vocabulary the ledger
+// already established, a much smaller and more stable surface.
+const LEGITIMATE_PRIOR_CUSTODIAN_TYPES = new Set<string | null>([null, 'transport_provider', 'super_agent']);
+
 @Injectable()
 export class SuperAgentHandlingEarningService {
   constructor(
@@ -47,12 +88,26 @@ export class SuperAgentHandlingEarningService {
   ) {}
 
   private isQualifyingReceipt(event: ParcelCustodyEvent): boolean {
-    return event.toCustodianType === 'super_agent' && event.toCustodianId != null;
+    if (event.toCustodianType !== 'super_agent' || event.toCustodianId == null) return false;
+    if (!LEGITIMATE_ACTOR_SOURCES.has(event.actorSource)) return false;
+    if (!LEGITIMATE_PRIOR_CUSTODIAN_TYPES.has(event.fromCustodianType)) return false;
+    // A degenerate self-transfer (identical custodian on both sides) proves
+    // nothing physically happened -- reject it even though its individual
+    // fields would otherwise pass every check above.
+    if (event.fromCustodianType === event.toCustodianType && event.fromCustodianId === event.toCustodianId) {
+      return false;
+    }
+    return true;
   }
 
   private async assertSuperAgentExists(superAgentId: number): Promise<void> {
     const rows = await this.dataSource.query('SELECT id FROM public.super_agent WHERE id = $1', [superAgentId]);
     if (!rows.length) throw new BadRequestException('toCustodianId does not reference an existing Super Agent');
+  }
+
+  private async assertParcelExists(parcelId: number): Promise<void> {
+    const rows = await this.dataSource.query('SELECT id FROM public.parcel WHERE id = $1', [parcelId]);
+    if (!rows.length) throw new BadRequestException('parcelId does not reference an existing Parcel');
   }
 
   async recordEarningForCustodyEvent(
@@ -68,6 +123,7 @@ export class SuperAgentHandlingEarningService {
       );
     }
     await this.assertSuperAgentExists(event.toCustodianId!);
+    await this.assertParcelExists(event.parcelId);
 
     const rate = await this.rateService.getEffectiveRate('handling', 'global', event.recordedAt);
     if (!rate) {

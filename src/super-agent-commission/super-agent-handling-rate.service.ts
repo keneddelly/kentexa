@@ -10,6 +10,7 @@ import { ConflictException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SuperAgentHandlingRate } from './entities/super-agent-handling-rate.entity';
+import { SuperAgentHandlingEarning } from './entities/super-agent-handling-earning.entity';
 
 export interface ConfigureHandlingRateDto {
   commissionType: string;
@@ -29,6 +30,7 @@ const EXCLUSION_VIOLATION = '23P01';
 export class SuperAgentHandlingRateService {
   constructor(
     @InjectRepository(SuperAgentHandlingRate) private rateRepo: Repository<SuperAgentHandlingRate>,
+    @InjectRepository(SuperAgentHandlingEarning) private earningRepo: Repository<SuperAgentHandlingEarning>,
   ) {}
 
   async configureRate(dto: ConfigureHandlingRateDto): Promise<SuperAgentHandlingRate> {
@@ -56,13 +58,31 @@ export class SuperAgentHandlingRateService {
   }
 
   // A genuine administrative retraction of a still-future, not-yet-effective
-  // draft -- never touches a row an earning may already reference (those
-  // rows freeze their own amount/currency/rateConfigId independently, so
-  // deactivating the config afterward changes nothing about history).
-  // Idempotent: retracting an already-inactive row is a no-op.
+  // draft ONLY. Post-review correction (Stage 3S-C5 re-review): the original
+  // version had no such check at all despite its own doc comment's promise --
+  // it would happily flip isActive=false on a version that is CURRENTLY in
+  // effect or already in the past, silently changing what getEffectiveRate()
+  // reports for real historical/live windows. An already-recorded earning's
+  // own amount/currency/rateConfigId are frozen independently of this row, so
+  // this can never rewrite THEIR economics -- but retracting a live or past
+  // configuration is still a real, user-visible correctness bug (a currently
+  // "in force" rate silently disappearing), not merely a historical-integrity
+  // one, so it is refused outright. Also refused if any earning already
+  // references this exact row (defensive: this should never legitimately
+  // happen for a still-future row, since nothing has been recorded against a
+  // rate before its own effectiveFrom -- confirmed by a dedicated test that
+  // constructs exactly that contrived case directly). Idempotent: retracting
+  // an already-inactive row is a no-op.
   async deactivateRate(id: number): Promise<SuperAgentHandlingRate> {
     const row = await this.rateRepo.findOneOrFail({ where: { id } });
     if (!row.isActive) return row;
+    if (row.effectiveFrom <= new Date()) {
+      throw new ConflictException('Only a future, not-yet-effective configuration can be retracted');
+    }
+    const referenced = await this.earningRepo.count({ where: { rateConfigId: id } });
+    if (referenced > 0) {
+      throw new ConflictException('Cannot retract a configuration already referenced by a recorded earning');
+    }
     row.isActive = false;
     return this.rateRepo.save(row);
   }

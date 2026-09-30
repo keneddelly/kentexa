@@ -27,9 +27,19 @@
  * to `isActive` rows only so a retracted draft frees its own time range for
  * a corrected replacement.
  */
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Check } from 'typeorm';
 
 @Entity('super_agent_handling_rate')
+// Post-review correction (Stage 3S-C5 re-review): declared here too, not
+// just in the migration's raw SQL -- a migration-only CHECK is invisible to
+// any synchronize:true test schema, this lineage's own repeatedly-hit gap
+// (RouteStop.CHK_route_stop_sequence, ParcelCustodyEvent's assignment-type
+// CHECKs). "A configured rate must be a real, positive amount" and "a
+// window's close must come after its own open" are both plain, fully-
+// validated constraints -- correct and sufficient for a freshly-built test
+// schema, which has no legacy rows to grandfather.
+@Check('CHK_super_agent_handling_rate_amount_positive', '"amount" > 0')
+@Check('CHK_super_agent_handling_rate_window_valid', '"effectiveTo" IS NULL OR "effectiveTo" > "effectiveFrom"')
 export class SuperAgentHandlingRate {
   @PrimaryGeneratedColumn()
   id: number;
