@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import ReputationBadge from '../components/ReputationBadge';
 import CommerceCommentSection from '../components/CommerceCommentSection';
 import AiSearchBar from '../components/AiSearchBar';
+import HomeQuickActions from '../components/HomeQuickActions';
 import api             from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
@@ -1760,6 +1761,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
               </svg>
             </button>
           </div>
+        </div>
+
+        <div style={{ padding: '10px 14px 0' }}>
+          <HomeQuickActions onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
         </div>
 
         {/* AI front door — the primary way to find anything on Kentexa */}

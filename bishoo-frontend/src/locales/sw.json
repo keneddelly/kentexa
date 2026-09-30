@@ -1,4 +1,10 @@
 {
+  "home_quick_actions": {
+      "label": "Hatua za haraka",
+      "listing": "Weka tangazo",
+      "service": "Tangaza huduma",
+      "business": "Fungua biashara"
+  },
   "listing_form": {
       "optional_details": "Ongeza maelezo ya hiari",
       "hide_details": "Ficha maelezo ya hiari",

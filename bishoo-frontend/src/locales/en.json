@@ -1,4 +1,10 @@
 {
+  "home_quick_actions": {
+      "label": "Quick actions",
+      "listing": "Post a listing",
+      "service": "Post a service",
+      "business": "Create a business"
+  },
   "listing_form": {
       "optional_details": "Add optional details",
       "hide_details": "Hide optional details",

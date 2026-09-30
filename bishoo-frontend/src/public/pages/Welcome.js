@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import HomeQuickActions from '../components/HomeQuickActions';
 import LandingEducation from '../components/landing/LandingEducation';
 import { getIntent } from '../../utils/campaignIntent';
 
@@ -55,6 +56,10 @@ const Welcome = ({ onNavigate }) => {
 
   return (
     <div style={{ backgroundColor: '#f0f4ff', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
+
+      <div style={{ maxWidth: 630, margin: '0 auto', padding: '16px', paddingTop: 'max(16px, env(safe-area-inset-top, 0px))' }}>
+        <HomeQuickActions onNavigate={onNavigate} />
+      </div>
 
       {/* Hero — its own full-height screen, exactly as before L2 (same
           buttons, same destinations); only addition is the secondary
