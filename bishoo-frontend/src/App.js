@@ -386,6 +386,10 @@ function App() {
           setPage('AddProfilePhoto');
           return;
         }
+        if (profile && profile.onboardingCompleted === false) {
+          setPage('Onboarding');
+          return;
+        }
         {
           // Personal photo setup finishes before consuming the user's destination.
           // Check if there's a stored intended destination (e.g. from + menu)
@@ -422,6 +426,7 @@ function App() {
         setCurrentUser(res.data);
         localStorage.setItem('kentexa_user', JSON.stringify(res.data));
         if (!res.data.avatarUrl) setPage('AddProfilePhoto');
+        else if (res.data.onboardingCompleted === false) setPage('Onboarding');
       }).catch(() => {});
     }
   }, [isLoggedIn, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -600,8 +605,11 @@ function App() {
 
   const needsProfilePhoto = isLoggedIn && !!currentUser && !currentUser.avatarUrl;
 
+  const needsOnboarding = isLoggedIn && currentUser?.onboardingCompleted === false;
+
   const renderPage = () => {
     if (needsProfilePhoto) return <AddProfilePhoto {...publicProps} />;
+    if (needsOnboarding) return <Onboarding {...publicProps} />;
     const pageStr = typeof page === 'string' ? page : 'Home';
     const policyDecision = evaluateDestination({
       page: pageStr, isAuthenticated: isLoggedIn, roleType: activeContext?.roleType,
@@ -884,7 +892,7 @@ function App() {
           position:fixed, zIndex:1000 bar was rendering directly on top of
           it, covering the send button (and on the conversation list, the
           bottom rows) since nothing in SellerInbox reserved space for it. */}
-      {isLoggedIn && !needsProfilePhoto && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
+      {isLoggedIn && !needsProfilePhoto && !needsOnboarding && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
         && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational'))) && (
         <BottomNav
           // Remount protection (profile-switch architecture spec): a stable

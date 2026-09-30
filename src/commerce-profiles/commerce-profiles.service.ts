@@ -158,6 +158,45 @@ export class CommerceProfilesService {
   // products/classifieds search already use, so "kamera"/"camera" synonym
   // expansion and shop/duka/seller stopword-stripping (see
   // search-term-normalizer.util.ts) apply here too.
+
+  // Pinned BiS identity is the current production business profile, distinct
+  // from its legacy profile #6 and the owner's personal identity.
+  async getOnboardingSuggestions(userId: number, city?: string) {
+    const official = await this.getOfficialKentexaProfile();
+    const bis = await this.repo.findOne({
+      where: { id: 26, type: CommerceProfileType.BUSINESS, status: CommerceProfileStatus.ACTIVE },
+    });
+    const pinned = [official, bis].filter(
+      (p): p is CommerceProfile => !!p && p.status === CommerceProfileStatus.ACTIVE && p.ownerId !== userId,
+    );
+    const excludedIds = [...new Set([26, ...pinned.map(p => p.id)])];
+    const location = city?.trim().slice(0, 80);
+    let local: CommerceProfile | null = null;
+    if (location) {
+      // Match a whole city phrase, not a wildcard supplied by the caller.
+      const escaped = location.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\  async search(q:');
+      local = await this.repo.createQueryBuilder('p')
+        .where('p.status = :status', { status: CommerceProfileStatus.ACTIVE })
+        .andWhere('p.type = :type', { type: CommerceProfileType.BUSINESS })
+        .andWhere('p.ownerId != :userId', { userId })
+        .andWhere('p.id NOT IN (:...excludedIds)', { excludedIds })
+        .andWhere('LOWER(p.location) ~ :location', { location: `(^|[^a-z])${escaped}([^a-z]|$)` })
+        .orderBy('p.isVerified', 'DESC')
+        .addOrderBy('p.followersCount', 'DESC')
+        .addOrderBy('p.id', 'ASC')
+        .getOne();
+    }
+    const profiles = [...pinned, ...(local ? [local] : [])];
+    return Promise.all(profiles.map(async profile => ({
+      id: profile.id, ownerId: profile.ownerId, displayName: profile.displayName,
+      username: profile.username, photoUrl: profile.photoUrl, location: profile.location,
+      type: profile.type, isVerified: profile.isVerified,
+      isOfficialPlatformProfile: profile.id === official?.id,
+      isLocalSuggestion: profile.id === local?.id,
+      isFollowing: await this.isFollowing(userId, profile.id),
+    })));
+  }
+
   async search(q: string, limit = 15): Promise<CommerceProfile[]> {
     const query = q?.trim();
     if (!query) return [];

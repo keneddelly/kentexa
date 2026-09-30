@@ -2592,6 +2592,18 @@
     "no_completed": "Vous n'avez terminé aucun travail pour le moment"
   },
   "onboarding": {
+    "retry": "Réessayer",
+    "finish_error": "Impossible de terminer la configuration. Réessayez.",
+    "follow_error": "Impossible de modifier le suivi. Réessayez.",
+    "suggestions_error": "Impossible de charger les suggestions.",
+    "no_local_business": "Aucune autre entreprise ne correspond à cette ville pour le moment.",
+    "in_your_city": "Dans votre ville",
+    "official_page": "Page officielle de Kentexa",
+    "change_city": "Modifier",
+    "choose_city": "Choisissez une ville",
+    "curated_desc": "Suivez Kentexa Official, BiS et une entreprise de votre ville. Choisissez les pages à suivre.",
+    "curated_title": "Commencez à suivre",
+    "local_city_desc": "Choisissez votre ville pour découvrir une entreprise locale.",
     "step_indicator": "Étape {{step}} sur {{total}}",
     "skip": "Passer →",
     "greeting": "Bienvenue{{name}} !",
