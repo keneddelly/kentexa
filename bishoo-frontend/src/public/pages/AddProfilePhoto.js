@@ -7,19 +7,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
-import { getAccessToken } from '../../api/tokenStore';
-
-// Same decode App.js's own login-time gate uses to decide Onboarding vs
-// Home — kept local (not exported/shared) to match how App.js already
-// keeps this private rather than introducing a shared utils module for
-// one small function.
-const decodeToken = (token) => {
-  try {
-    return JSON.parse(atob(token.split('.')[1]));
-  } catch (e) {
-    return null;
-  }
-};
 
 const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
   const { t } = useTranslation();
@@ -50,17 +37,14 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
     try {
       setFinishing(true);
       setError('');
-      await api.patch(`/users/${currentUser?.id}`, { avatarUrl: photoUrl });
-      onUserUpdated?.({ ...currentUser, avatarUrl: photoUrl });
-      // App.js's own login-time gate sends a brand-new account here FIRST
-      // (no avatarUrl yet) and only checks onboardingCompleted afterward —
-      // so this page is genuinely the first stop for every new signup, not
-      // just the "closed the app mid-Register" recovery case the comment
-      // above describes. Finishing here used to always land on Home,
-      // which silently skipped the entire Onboarding flow (city/interests/
-      // follow-suggested-accounts) for every new account, every time.
-      const decoded = decodeToken(getAccessToken());
-      onNavigate(decoded?.onboardingCompleted ? 'Home' : 'Onboarding');
+      const res = await api.patch(`/users/${currentUser?.id}`, {
+        avatarUrl: photoUrl,
+        onboardingCompleted: true,
+      });
+      onUserUpdated?.({ ...currentUser, ...res.data, avatarUrl: photoUrl, onboardingCompleted: true });
+      const intended = localStorage.getItem('kentexa_after_login');
+      if (intended) localStorage.removeItem('kentexa_after_login');
+      onNavigate(intended || 'Home');
     } catch (err) {
       setError(err?.response?.data?.message || t('register.photo_upload_failed'));
     } finally {
@@ -72,7 +56,7 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
     <div style={{ minHeight: '100vh', backgroundColor: '#f0f4ff', display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800;900&display=swap');
-        .rb { width:100%; padding:14px; background:linear-gradient(135deg,#1d4ed8,#2563eb); color:#fff; border:none; border-radius:12px; font-size:15px; font-weight:800; cursor:pointer; font-family:'Manrope',sans-serif; box-shadow:0 6px 18px rgba(37,99,235,0.4); }
+        .rb { width:100%; padding:14px; background:linear-gradient(135deg,#1d4ed8,#2563eb); color:#fff; border:none; border-radius:12px; font-size:16px; font-weight:800; cursor:pointer; font-family:'Manrope',sans-serif; box-shadow:0 6px 18px rgba(37,99,235,0.4); }
         .rb:disabled { opacity:0.6; cursor:not-allowed; }
       `}</style>
 
@@ -83,7 +67,7 @@ const AddProfilePhoto = ({ onNavigate, currentUser, onUserUpdated }) => {
             <h2 style={{ fontSize:20, fontWeight:900, color:'#0f172a', margin:'0 0 4px', fontFamily:'Manrope,sans-serif' }}>
               {t('register.add_photo_title')}
             </h2>
-            <p style={{ fontSize:13, color:'#64748b', margin:0 }}>
+            <p style={{ fontSize:16, color:'#64748b', margin:0 }}>
               {t('register.add_photo_subtitle')}
             </p>
           </div>
