@@ -66,6 +66,22 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
     }
   };
 
+  const handleAssignOfficialKentexa = async (user) => {
+    if (user.id !== 3) { showErr('Official Kentexa identity is bound to the approved account only.'); return; }
+    if (!window.confirm('Assign protected @kentexa to the official Kentexa profile? This action is restricted to Admin.')) return;
+    try {
+      setActionLoading(true);
+      const res = await api.post('/profiles/2/assign-official-kentexa');
+      showMsg(`✅ Official Kentexa page activated: @${res.data?.username || 'kentexa'}`);
+      setSelected(null);
+      await fetchUsers();
+    } catch (err) {
+      showErr(err?.response?.data?.message || 'Imeshindwa kuanzisha official @kentexa');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleDelete = async (userId, name) => {
     if (!window.confirm(`Futa akaunti ya ${name}? Hatua hii haiwezi kutenduliwa.`)) return;
     try {
@@ -176,6 +192,12 @@ const Users = ({ activePage, onNavigate, onLogout }) => {
                       </td>
                       <td style={{ padding: '11px 14px' }}>
                         <div style={{ display: 'flex', gap: 6 }}>
+                          {user.id === 3 && (
+                            <button onClick={e => { e.stopPropagation(); handleAssignOfficialKentexa(user); }} disabled={actionLoading}
+                              style={{ backgroundColor: '#dbeafe', color: '#1d4ed8', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 800 }}>
+                              ✓ Official @kentexa
+                            </button>
+                          )}
                           {!user.isVerified && (
                             <button onClick={e => { e.stopPropagation(); handleVerifyAccount(user); }} disabled={actionLoading}
                               style={{ backgroundColor: '#dcfce7', color: '#15803d', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: actionLoading ? 'not-allowed' : 'pointer', fontSize: 11, fontWeight: 700 }}>
