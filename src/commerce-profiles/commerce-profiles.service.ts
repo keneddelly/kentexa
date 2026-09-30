@@ -117,6 +117,26 @@ export class CommerceProfilesService {
     }
   }
 
+  async assignOfficialKentexaHandle(profileId: number): Promise<CommerceProfile> {
+    const profile = await this.findById(profileId);
+    const existing = await this.repo.findOne({ where: { username: 'kentexa' } });
+    if (existing && existing.id !== profileId) {
+      throw new ConflictException('@kentexa is already assigned');
+    }
+    await this.repo.update(profileId, {
+      username: 'kentexa',
+      displayName: 'Kentexa',
+      isVerified: true,
+    });
+    const updated = await this.findById(profileId);
+    this.enrichAndIndex(updated).catch(() => {});
+    return updated;
+  }
+
+  async getOfficialKentexaProfile(): Promise<CommerceProfile | null> {
+    return this.repo.findOne({ where: { username: 'kentexa', status: CommerceProfileStatus.ACTIVE } });
+  }
+
   async findByUsername(username: string): Promise<CommerceProfile | null> {
     return this.repo.findOne({
       where: { username: username.toLowerCase() },
