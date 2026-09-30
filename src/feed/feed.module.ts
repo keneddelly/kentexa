@@ -33,6 +33,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { AiModule } from '../ai/ai.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { ActivityModule } from '../activity/activity.module';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ActivityModule } from '../activity/activity.module';
     AiModule,
     CommerceProfilesModule,
     ActivityModule,
+    SearchModule,
   ],
   controllers: [FeedController, EngagementsController, CommentsController],
   providers: [
