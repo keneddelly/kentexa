@@ -10,11 +10,12 @@ import { Product } from '../products/entities/products.entity';
 import { Classified } from '../classifieds/entities/classified.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { CommerceProfile } from '../commerce-profiles/entities/commerce-profile.entity';
+import { BusinessFeedItem } from '../business/entities/business-feed-item.entity';
 
 @Module({
   imports: [
     AiModule,
-    TypeOrmModule.forFeature([Product, Classified, ServiceAd, CommerceProfile]),
+    TypeOrmModule.forFeature([Product, Classified, ServiceAd, CommerceProfile, BusinessFeedItem]),
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
   ],
   controllers: [SearchController],
