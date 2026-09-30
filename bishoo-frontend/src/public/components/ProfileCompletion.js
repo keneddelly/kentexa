@@ -30,21 +30,21 @@ const getSteps = (user, role, t) => {
       key: 'photo',
       label: t('profile_completion.step_photo'),
       icon: '📸',
-      done: !!(user?.logo || user?.avatar),
+      done: !!user?.avatarUrl,
       page: 'CustomerProfile',
     },
     {
       key: 'location',
       label: t('profile_completion.step_location'),
       icon: '📍',
-      done: !!(user?.businessLocation || user?.city),
+      done: !!user?.city,
       page: 'CustomerProfile',
     },
     {
       key: 'bio',
       label: t('profile_completion.step_bio'),
       icon: '✏️',
-      done: !!(user?.storeDescription || user?.bio),
+      done: !!user?.bio,
       page: 'CustomerProfile',
     },
   ];
@@ -107,7 +107,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false,
         {personalProfile && (
           <div style={{ display:'flex', flexWrap:'wrap', gap:8, marginTop:12 }}>
             {steps.map(step => (
-              <button key={step.key} type="button" onClick={() => onNavigate(step.page)}
+              <button key={step.key} type="button" onClick={() => onNavigate(step.page, { editField: step.key })}
                 style={{ border:'1px solid #dbeafe', borderRadius:8, background:step.done ? '#f0fdf4' : '#eff6ff',
                   color:step.done ? '#166534' : B, padding:'8px 10px', fontSize:14, cursor:'pointer' }}>
                 {step.done ? '✓ ' : ''}{step.label}
@@ -116,7 +116,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false,
           </div>
         )}
         {(nextStep || personalProfile) && (
-          <button onClick={() => { const page = nextStep ? nextStep.page : 'CustomerProfile'; if (page) onNavigate(page); }}
+          <button onClick={() => { const page = nextStep ? nextStep.page : 'CustomerProfile'; if (page) onNavigate(page, { editField: nextStep?.key || 'name' }); }}
             style={{ marginTop:8, background:'none', border:'none',
               cursor:'pointer', color:B, fontSize:12, fontWeight:700,
               padding:0 }}>
@@ -159,7 +159,7 @@ const ProfileCompletion = ({ currentUser, userRole, onNavigate, compact = false,
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
         {steps.map(s => (
           <div key={s.key}
-            onClick={() => !s.done && s.page && onNavigate(s.page)}
+            onClick={() => !s.done && s.page && onNavigate(s.page, { editField: s.key })}
             style={{ display:'flex', alignItems:'center', gap:10,
               cursor: s.done || !s.page ? 'default' : 'pointer' }}>
             <div style={{ width:20, height:20, borderRadius:'50%', flexShrink:0,

@@ -90,6 +90,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const ROLE_META = getRoleMeta(t);
   const getTier = s => TIERS.find(tier => Number(s||0) >= tier.min) || TIERS[4];
   const [section,    setSection]    = useState(null); // null = list home, like IG Settings
+  const [personalProfile, setPersonalProfile] = useState(null);
   const [profile,    setProfile]    = useState(currentUser || null);
   const [rep,        setRep]        = useState(null);
   const [orders,     setOrders]     = useState([]);
@@ -133,13 +134,15 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
       api.get('/identity/me'),
       api.get('/seller/my-profile'),
       getMyBusinesses(),
-    ]).then(([p, r, n, id, sp, bs]) => {
+      api.get('/profiles/mine'),
+    ]).then(([p, r, n, id, sp, bs, profiles]) => {
       if (p.status === 'fulfilled') setProfile(p.value.data);
       if (r.status === 'fulfilled') setRep(r.value.data);
       if (n.status === 'fulfilled') setUnread(n.value.data?.count || n.value.data || 0);
       if (id.status === 'fulfilled') setIdentityStatus(id.value.data);
       if (sp.status === 'fulfilled') setSellerProfile(sp.value.data);
       if (bs.status === 'fulfilled') setBusinesses(bs.value);
+      if (profiles.status === 'fulfilled') setPersonalProfile((profiles.value.data || []).find(p => p.type === 'personal') || null);
     }).finally(() => setLoading(false));
 
     // Eagerly load just the ONE role-relevant summary so the Quick Actions
@@ -468,6 +471,8 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           margin:'0 auto', width:'100%', boxSizing:'border-box' }}>
           <div style={{ backgroundColor:WH, borderRadius:16,
             boxShadow:'0 2px 8px rgba(0,0,0,0.05)', overflow:'hidden' }}>
+            <Row icon="✏️" label={t('profile_editor.title')}
+              onAction={() => onNavigate('EditPublicProfile', { commerceProfileId: activeProfile?.id || personalProfile?.id })} />
             {NAV.map((n,i) => (
               <button key={n.key} onClick={() => setSection(n.key)}
                 style={{ width:'100%', display:'flex', alignItems:'center', gap:14,
@@ -507,20 +512,24 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <Row icon="📸" label={t('my_profile.profile_photo_label')}
                 value={profile?.avatarUrl ? t('my_profile.set_status') : t('my_profile.incomplete_status')}
                 color={profile?.avatarUrl ? '#16A34A' : '#DC2626'}
-                onAction={() => onNavigate('CustomerProfile')} />
+                onAction={() => onNavigate('CustomerProfile', { editField: 'photo' })} />
+              <Row icon="@" label={t('profile_editor.username')} value={personalProfile?.username || '—'}
+                onAction={() => onNavigate('CustomerProfile', { editField: 'username' })} />
+              {personalProfile && <Row icon="▧" label={t('profile_editor.coverImage')}
+                onAction={() => onNavigate('EditPublicProfile', { commerceProfileId: personalProfile.id })} />}
               <Row icon="🆔" label={t('my_profile.kentexa_id_label')} value={profile?.kentexaId || '—'} />
               <Row icon="✏️" label={t('my_profile.full_name_label')} value={profile?.name || '—'}
-                onAction={() => onNavigate('CustomerProfile')} />
-              <Row icon="📱" label={t('my_profile.phone_number_label')} value={profile?.phone || '—'} />
+                onAction={() => onNavigate('CustomerProfile', { editField: 'name' })} />
+              <Row icon="📱" label={t('my_profile.phone_number_label')} value={profile?.phone || '—'} onAction={() => onNavigate('CustomerProfile', { editField: 'phone' })} />
               <Row icon="✉️" label={t('my_profile.email_label')} value={profile?.email || t('my_profile.not_set')}
-                onAction={() => onNavigate('CustomerProfile')} />
+                onAction={() => onNavigate('CustomerProfile', { editField: 'email' })} />
               <Row icon="📍" label={t('my_profile.location_label')}
-                value={profile?.businessLocation || profile?.city || t('my_profile.not_set')}
-                onAction={() => onNavigate('CustomerProfile')} />
+                value={(personalProfile?.location ?? profile?.city) || t('my_profile.not_set')}
+                onAction={() => onNavigate('CustomerProfile', { editField: 'city' })} />
               <Row icon="📝" label={t('my_profile.short_bio_label')}
-                value={(profile?.storeDescription || profile?.bio) ? '✓' : t('my_profile.incomplete_status')}
-                color={(profile?.storeDescription || profile?.bio) ? '#16A34A' : '#DC2626'}
-                onAction={() => onNavigate('CustomerProfile')} />
+                value={(personalProfile?.bio ?? profile?.bio) ? '✓' : t('my_profile.incomplete_status')}
+                color={(personalProfile?.bio ?? profile?.bio) ? '#16A34A' : '#DC2626'}
+                onAction={() => onNavigate('CustomerProfile', { editField: 'bio' })} />
             </SCard>
 
             <SCard>
@@ -849,13 +858,15 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               <Row icon="📄" label={t('my_profile.invoices_label')}
                 value={t('my_profile.invoices_count', { count: invoices.length })}
                 onAction={() => onNavigate('SellerInvoices')} />
+              {isBusinessOwner && (<>
               <Row icon="💸" label={t('my_profile.payout_method_label')}
-                value={profile?.payoutMethod || t('my_profile.not_set')}
-                color={profile?.payoutMethod ? '#16A34A' : '#DC2626'}
-                onAction={() => onNavigate('CustomerProfile')} />
+                value={undefined}
+                
+                onAction={() => onNavigate('PayoutSettings')} />
               <Row icon="🏦" label={t('my_profile.bank_account_label')}
-                value={profile?.payoutAccountName || t('my_profile.not_set')}
-                onAction={() => onNavigate('CustomerProfile')} />
+                value={undefined}
+                onAction={() => onNavigate('PayoutSettings')} />
+              </>)}
               {roles.includes('agent') && (
                 <Row icon="💰" label={t('my_profile.agent_earnings_label')}
                   value={agentData ? `TZS ${fmt(agentData.totalEarnings)}` : '—'}
@@ -1047,7 +1058,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 {t('my_profile.account_title')}
               </div>
               <Row icon="✏️" label={t('my_profile.edit_profile_label')}
-                onAction={() => onNavigate('CustomerProfile')} />
+                onAction={() => onNavigate('CustomerProfile', { editField: 'name' })} />
               {canInstallKentexa && (
                 <Row icon="📲" label={t('my_profile.install_kentexa_label')}
                   sub={t('my_profile.install_kentexa_sub')} onAction={onInstallKentexa} />
@@ -1086,20 +1097,20 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
             {/* Payout details — only means anything if KenteXa actually pays
                 you (seller/agent/admin/manager). A plain buyer never
                 receives a payout, only makes payments. */}
-            {isPaidRole && (
+            {isBusinessOwner && (
               <SCard>
                 <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
                   {t('my_profile.payments_title')}
                 </div>
                 <Row icon="🏦" label={t('my_profile.payout_method_label')}
-                  value={profile?.payoutMethod || t('my_profile.not_set')}
-                  onAction={() => onNavigate('CustomerProfile')} />
+                  value={undefined}
+                  onAction={() => onNavigate('PayoutSettings')} />
                 <Row icon="👤" label={t('my_profile.account_name_label')}
-                  value={profile?.payoutAccountName || '—'}
-                  onAction={() => onNavigate('CustomerProfile')} />
+                  value={undefined}
+                  onAction={() => onNavigate('PayoutSettings')} />
                 <Row icon="🏛️" label={t('my_profile.bank_label')}
-                  value={profile?.payoutBankName || '—'}
-                  onAction={() => onNavigate('CustomerProfile')} />
+                  value={undefined}
+                  onAction={() => onNavigate('PayoutSettings')} />
               </SCard>
             )}
 
@@ -1108,7 +1119,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                 {t('my_profile.security_privacy_title')}
               </div>
               <Row icon="🔑" label={t('my_profile.change_password_label')}
-                onAction={() => onNavigate('CustomerProfile')} />
+                onAction={() => onNavigate('CustomerProfile', { editField: 'password' })} />
               <Row icon="📱" label={t('my_profile.verify_phone_label')}
                 value={profile?.isVerified ? t('my_profile.verified_label') : t('my_profile.not_yet_label')}
                 color={profile?.isVerified ? '#16A34A' : '#DC2626'} />

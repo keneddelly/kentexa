@@ -1,4 +1,32 @@
 {
+  "profile_editor": {
+    "title": "Hariri wasifu wa umma",
+    "public_hint": "Maelezo haya yanaonekana kwenye wasifu huu. Mawasiliano binafsi na usalama viko kwenye mipangilio ya akaunti.",
+    "displayName": "Jina la wasifu",
+    "username": "Jina la mtumiaji",
+    "photoUrl": "Picha ya wasifu",
+    "coverImage": "Picha ya jalada",
+    "bio": "Maelezo mafupi",
+    "location": "Mahali",
+    "not_owner": "Huna ruhusa ya kuhariri wasifu huu.",
+    "save_failed": "Imeshindwa kuhifadhi wasifu. Jaribu tena."
+  },
+  "payout_settings": {
+    "title": "Malipo ya biashara",
+    "choose_business": "Badilisha kwenda biashara unayotaka kusanidi.",
+    "hint": "Weka akaunti ya kupokea malipo kwa biashara inayotumika. Maelezo mapya yanahitaji kuthibitishwa kabla ya kupokea malipo.",
+    "method": "Njia ya malipo",
+    "accountName": "Jina la mwenye akaunti",
+    "accountNumber": "Namba ya akaunti au simu",
+    "bankName": "Benki",
+    "unavailable": "Mipangilio ya malipo haipatikani kwa biashara hii au huna ruhusa ya mmiliki.",
+    "pending": "Maelezo yamehifadhiwa kwa uthibitisho.",
+    "save_failed": "Imeshindwa kuhifadhi. Huduma ya kusanidi malipo huenda haijawezeshwa kwa biashara hii.",
+    "status_pending_verification": "Inasubiri uthibitisho",
+    "status_active": "Imethibitishwa",
+    "status_disabled": "Imesitishwa",
+    "status_superseded": "Imebadilishwa"
+  },
   "profile_connections": {
       "followers": "Wafuasi",
       "following": "Unaowafuata",

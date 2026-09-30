@@ -388,7 +388,7 @@ const SellerClassifieds = ({ onNavigate, isLoggedIn, onLogout, userRole, current
           <button onClick={() => {
               if (!userPhone) {
                 if (window.confirm(t('seller_classifieds.phone_required_confirm'))) {
-                  onNavigate('CustomerProfile');
+                  onNavigate('CustomerProfile', { editField: 'phone' });
                 }
                 return;
               }

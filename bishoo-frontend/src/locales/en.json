@@ -1,4 +1,32 @@
 {
+  "profile_editor": {
+    "title": "Edit public profile",
+    "public_hint": "These details appear on this profile. Private contact and security details are in account settings.",
+    "displayName": "Display name",
+    "username": "Public username",
+    "photoUrl": "Profile photo",
+    "coverImage": "Cover photo",
+    "bio": "Bio",
+    "location": "Location",
+    "not_owner": "You do not manage this profile.",
+    "save_failed": "Could not save your profile. Please try again."
+  },
+  "payout_settings": {
+    "title": "Business payout details",
+    "choose_business": "Switch to the business you want to configure.",
+    "hint": "Add a payout destination for the active business. New details require verification before they can receive withdrawals.",
+    "method": "Payout method",
+    "accountName": "Account holder name",
+    "accountNumber": "Account or mobile number",
+    "bankName": "Bank",
+    "unavailable": "Payout settings are unavailable for this business or you do not have owner access.",
+    "pending": "Details saved for verification.",
+    "save_failed": "Could not save payout details. This business may not have payout setup enabled yet.",
+    "status_pending_verification": "Pending verification",
+    "status_active": "Verified",
+    "status_disabled": "Disabled",
+    "status_superseded": "Replaced"
+  },
   "profile_connections": {
       "followers": "Followers",
       "following": "Following",

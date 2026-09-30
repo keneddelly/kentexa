@@ -14,7 +14,7 @@ export const JOURNEYS = {
   seller: {
     labelKey: 'onboarding.journey_seller_label',
     steps: [
-      { id: 'account', labelKey: 'onboarding.journey_seller_step_account', targetPage: 'MyProfile' },
+      { id: 'account', labelKey: 'onboarding.journey_seller_step_account', targetPage: 'CustomerProfile' },
       { id: 'business_profile', labelKey: 'onboarding.journey_seller_step_business_profile', targetPage: 'BecomeSeller' },
       { id: 'first_product', labelKey: 'onboarding.journey_seller_step_first_product', targetPage: 'SellerProducts' },
       { id: 'first_order', labelKey: 'onboarding.journey_seller_step_first_order', targetPage: 'SellerOrders' },

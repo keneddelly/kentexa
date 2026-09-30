@@ -1,4 +1,32 @@
 {
+  "profile_editor": {
+    "title": "Modifier le profil public",
+    "public_hint": "Ces informations apparaissent sur ce profil. Les coordonnées privées et la sécurité sont dans les paramètres du compte.",
+    "displayName": "Nom affiché",
+    "username": "Nom d’utilisateur public",
+    "photoUrl": "Photo de profil",
+    "coverImage": "Photo de couverture",
+    "bio": "Biographie",
+    "location": "Lieu",
+    "not_owner": "Vous ne gérez pas ce profil.",
+    "save_failed": "Impossible d’enregistrer le profil. Réessayez."
+  },
+  "payout_settings": {
+    "title": "Coordonnées de paiement de l’entreprise",
+    "choose_business": "Passez à l’entreprise que vous souhaitez configurer.",
+    "hint": "Ajoutez un compte de paiement pour l’entreprise active. Les nouvelles coordonnées nécessitent une vérification avant les retraits.",
+    "method": "Mode de paiement",
+    "accountName": "Titulaire du compte",
+    "accountNumber": "Numéro de compte ou mobile",
+    "bankName": "Banque",
+    "unavailable": "Les paramètres sont indisponibles ou vous n’avez pas les droits du propriétaire.",
+    "pending": "Coordonnées enregistrées pour vérification.",
+    "save_failed": "Impossible d’enregistrer. La configuration des paiements peut ne pas être activée pour cette entreprise.",
+    "status_pending_verification": "En attente de vérification",
+    "status_active": "Vérifié",
+    "status_disabled": "Désactivé",
+    "status_superseded": "Remplacé"
+  },
   "profile_connections": {
       "followers": "Abonnés",
       "following": "Abonnements",

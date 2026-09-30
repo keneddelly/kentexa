@@ -583,7 +583,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           🔗
         </button>
         {isOwnProfile && (
-          <button onClick={() => onNavigate('MyProfile')}
+          <button onClick={() => onNavigate('EditPublicProfile', { commerceProfileId: activeProfile.id })}
             style={{ background:'none', border:'none', cursor:'pointer',
               color:B, fontSize:13, fontWeight:700 }}>
             {t('commerce_profile.edit_button')}
