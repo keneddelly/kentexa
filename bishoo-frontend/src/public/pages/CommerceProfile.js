@@ -480,6 +480,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const displayName   = activeProfile.displayName;
   const displayPhoto  = activeProfile.photoUrl || (activeProfile.type === 'personal' ? currentUser?.avatarUrl : null);
   const displayHandle = activeProfile.username ? `@${activeProfile.username}` : null;
+  // @kentexa is a protected, Admin-assigned handle. Treat it as the canonical
+  // platform identity, distinct from ordinary account/business verification.
+  const isOfficialKentexa = activeProfile.username?.toLowerCase() === 'kentexa';
   // RoleActions' internal keying predates CommerceProfileType and still
   // expects role-shaped strings ('seller' not 'business', 'super_agent'
   // not 'hub') — map at the boundary rather than rename that component's
@@ -657,7 +660,19 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <h1 style={{ fontSize:20, fontWeight:900, color:DK, margin:0 }}>
             {displayName || t('commerce_profile.default_name')}
           </h1>
-          {(activeProfile.isVerified || (isBusinessProfile && profile?.isOfficialStore)) && (
+          {isOfficialKentexa ? (
+            <span
+              aria-label="Official Kentexa"
+              title="Official Kentexa"
+              style={{
+                width:18, height:18, borderRadius:'50%', backgroundColor:'#2563eb',
+                color:'#fff', display:'inline-flex', alignItems:'center', justifyContent:'center',
+                fontSize:12, fontWeight:900, lineHeight:1, flexShrink:0,
+                boxShadow:'0 1px 3px rgba(37,99,235,0.35)'
+              }}>
+              ✓
+            </span>
+          ) : (activeProfile.isVerified || (isBusinessProfile && profile?.isOfficialStore)) && (
             <span style={{ fontSize:16 }} title={t('commerce_profile.verified_title')}>✅</span>
           )}
           {isBusinessProfile && profile?.verificationTier === 'verified_business' && (
