@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { EmbeddingService } from '../ai/embedding.service';
 import { VectorSchemaService } from './vector-schema.service';
 
-export type SearchEntityType = 'product' | 'classified' | 'service' | 'profile' | 'moment';
+export type SearchEntityType = 'product' | 'classified' | 'service' | 'profile' | 'moment' | 'transport_route';
 
 export interface SimilarityMatch {
   entityType: SearchEntityType;
