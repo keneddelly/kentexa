@@ -22,6 +22,7 @@ import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-even
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { IdentityModule } from '../identity/identity.module';
+import { SearchModule } from '../search/search.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { IdentityModule } from '../identity/identity.module';
     CommerceProfilesModule,
     TzLocationModule,
     IdentityModule,
+    SearchModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
     TypeOrmModule.forFeature([
       TransportProvider,
