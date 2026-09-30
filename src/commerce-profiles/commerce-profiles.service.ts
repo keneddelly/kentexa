@@ -223,7 +223,7 @@ export class CommerceProfilesService {
     ownerId: number,
     type: CommerceProfileType,
   ): Promise<CommerceProfile | null> {
-    return this.repo.findOne({ where: { ownerId, type } });
+    return this.repo.findOne({ where: { ownerId, type }, order: { id: 'ASC' } });
   }
 
   // The specific CommerceProfile linked to one Business entity — more
@@ -358,6 +358,12 @@ export class CommerceProfilesService {
   // ever following Kened personally, has to be representable. followerId
   // is a User id (whoever's logged in), commerceProfileId is the exact
   // profile being followed, never the owning account.
+  private async acceptsLegacyFollows(profile: CommerceProfile): Promise<boolean> {
+    if (profile.type !== CommerceProfileType.BUSINESS || !profile.ownerId) return false;
+    const legacyTarget = await this.findForUserByType(profile.ownerId, CommerceProfileType.BUSINESS);
+    return legacyTarget?.id === profile.id;
+  }
+
   async isFollowing(
     followerId: number | undefined,
     commerceProfileId: number,
@@ -372,7 +378,7 @@ export class CommerceProfilesService {
     // Transitional compatibility: legacy store follows represent following
     // the owner's BUSINESS profile. Read them here too so a profile page can
     // never render "Follow" while the next click actually unfollows.
-    if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
+    if (await this.acceptsLegacyFollows(profile)) {
       const legacy = await this.legacyFollowRepo.findOne({
         where: {
           follower: { id: followerId },
@@ -388,7 +394,7 @@ export class CommerceProfilesService {
     const profile = await this.findById(commerceProfileId);
     const rows = await this.followRepo.find({ where: { commerceProfileId } });
     const ids = new Set(rows.map((r) => r.followerId));
-    if (profile.type === CommerceProfileType.BUSINESS && profile.ownerId) {
+    if (await this.acceptsLegacyFollows(profile)) {
       const legacy = await this.legacyFollowRepo.find({
         where: { seller: { id: profile.ownerId } },
         relations: { follower: true },
@@ -416,7 +422,7 @@ export class CommerceProfilesService {
       where: { followerId, commerceProfileId },
     });
     const legacyExisting =
-      profileBefore.type === CommerceProfileType.BUSINESS && profileBefore.ownerId
+      await this.acceptsLegacyFollows(profileBefore)
         ? await this.legacyFollowRepo.findOne({
             where: {
               follower: { id: followerId },
@@ -454,10 +460,10 @@ export class CommerceProfilesService {
     if (!wasFollowing && profile.ownerId) {
       const follower = await this.userRepo.findOne({ where: { id: followerId } });
       const followerName = follower?.name || follower?.storeName || 'Mtumiaji';
-      const alreadyFollowedBack = await this.isFollowingSeller(profile.ownerId, followerId);
+      const alreadyFollowedBack = await this.isFollowedBy(commerceProfileId, followerId);
       const notify = alreadyFollowedBack
         ? this.notifService.followedBack(profile.ownerId, followerName, followerId)
-        : this.notifService.newFollower(profile.ownerId, followerName, followerId);
+        : this.notifService.newFollower(profile.ownerId, followerName, followerId, profile.displayName);
       notify.catch(() => {});
     }
 
@@ -484,7 +490,72 @@ export class CommerceProfilesService {
     if (!viewerId) return false;
     const profile = await this.findById(commerceProfileId);
     if (!profile.ownerId || profile.ownerId === viewerId) return false;
-    return this.isFollowingSeller(profile.ownerId, viewerId);
+    // Outgoing follows are account-based. Mutual personal following must
+    // never be inferred from a follow of somebody's business or hub.
+    if (profile.type !== CommerceProfileType.PERSONAL) return false;
+    const viewerPersonal = await this.findForUserByType(viewerId, CommerceProfileType.PERSONAL);
+    return viewerPersonal ? this.isFollowing(profile.ownerId, viewerPersonal.id) : false;
+  }
+
+  async getFollowingProfilesForAccount(ownerId: number): Promise<CommerceProfile[]> {
+    const direct = await this.followRepo.find({ where: { followerId: ownerId }, order: { id: 'DESC' } });
+    const legacy = await this.legacyFollowRepo.find({
+      where: { follower: { id: ownerId } }, relations: { seller: true }, order: { id: 'DESC' },
+    });
+    const ids = new Set(direct.map(row => row.commerceProfileId));
+    for (const row of legacy) {
+      if (!row.seller) continue;
+      const target = await this.findForUserByType(row.seller.id, CommerceProfileType.BUSINESS);
+      if (target) ids.add(target.id);
+    }
+    if (!ids.size) return [];
+    const profiles = await this.repo.find({ where: { id: In([...ids]), status: CommerceProfileStatus.ACTIVE } });
+    const byId = new Map(profiles.map(profile => [profile.id, profile]));
+    return [...ids].map(id => byId.get(id)).filter((p): p is CommerceProfile => !!p);
+  }
+
+  async getFollowingCount(commerceProfileId: number): Promise<number> {
+    const profile = await this.findById(commerceProfileId);
+    return profile.ownerId ? (await this.getFollowingProfilesForAccount(profile.ownerId)).length : 0;
+  }
+
+  async getConnections(commerceProfileId: number, kind: 'followers' | 'following', viewerId?: number, page = 1, limit = 20) {
+    const profile = await this.findById(commerceProfileId);
+    page = Math.max(1, Math.floor(Number(page) || 1));
+    limit = Math.min(50, Math.max(1, Math.floor(Number(limit) || 20)));
+    let people: Array<{ ownerId: number; profileId: number | null; displayName: string; photoUrl: string | null; type: string }> = [];
+    if (kind === 'following') {
+      const targets = profile.ownerId ? await this.getFollowingProfilesForAccount(profile.ownerId) : [];
+      people = targets.map(p => ({ ownerId: p.ownerId, profileId: p.id, displayName: p.displayName, photoUrl: p.photoUrl, type: p.type }));
+    } else {
+      const rows = await this.followRepo.find({ where: { commerceProfileId }, order: { id: 'DESC' } });
+      const ids = new Set(rows.map(row => row.followerId));
+      if (await this.acceptsLegacyFollows(profile)) {
+        const legacy = await this.legacyFollowRepo.find({ where: { seller: { id: profile.ownerId } }, relations: { follower: true } });
+        legacy.forEach(row => row.follower && ids.add(row.follower.id));
+      }
+      if (ids.size) {
+        const [personal, users] = await Promise.all([
+          this.repo.find({ where: { ownerId: In([...ids]), type: CommerceProfileType.PERSONAL, status: CommerceProfileStatus.ACTIVE } }),
+          this.userRepo.find({ where: { id: In([...ids]) }, select: { id: true, name: true, avatarUrl: true } }),
+        ]);
+        const byOwner = new Map(personal.map(p => [p.ownerId, p]));
+        const byUser = new Map(users.map(u => [u.id, u]));
+        for (const id of ids) {
+          const p = byOwner.get(id), u = byUser.get(id);
+          if (!u && !p) continue;
+          people.push({ ownerId: id, profileId: p?.id ?? null, displayName: p?.displayName || u?.name || 'Kentexa user', photoUrl: p?.photoUrl || u?.avatarUrl || null, type: 'personal' });
+        }
+      }
+    }
+    const items = people.slice((page - 1) * limit, page * limit);
+    const enriched = await Promise.all(items.map(async item => ({
+      ...item,
+      isFollowing: item.profileId ? await this.isFollowing(viewerId, item.profileId) : false,
+      isFollowedBy: item.profileId ? await this.isFollowedBy(item.profileId, viewerId) : false,
+      isSelf: item.ownerId === viewerId,
+    })));
+    return { items: enriched, total: people.length, page, limit, hasMore: page * limit < people.length, followingScope: 'account' };
   }
 
   // ── Cross-system follow resolution (legacy `follow` ∪ CommerceProfileFollow) ──
@@ -558,32 +629,17 @@ export class CommerceProfilesService {
   async getFollowedProfiles(
     followerId: number,
   ): Promise<{ businessScopedIds: number[]; profileScopedIds: number[] }> {
-    const [legacyRows, profileFollowRows] = await Promise.all([
-      this.legacyFollowRepo.find({
-        where: { follower: { id: followerId } },
-        relations: { seller: true },
-      }),
-      this.followRepo.find({ where: { followerId } }),
-    ]);
-    const legacyIds = legacyRows.map((r) => r.seller.id);
-
-    const profileIds = profileFollowRows.map((r) => r.commerceProfileId);
-    const businessScopedIds = new Set<number>(legacyIds);
-    const profileScopedIds = new Set<number>();
-    if (profileIds.length > 0) {
-      const profiles = await this.repo.find({ where: { id: In(profileIds) } });
-      for (const p of profiles) {
-        if (p.type === CommerceProfileType.BUSINESS && p.ownerId) {
-          businessScopedIds.add(p.ownerId);
-        } else {
-          profileScopedIds.add(p.id);
-        }
+    const profiles = await this.getFollowingProfilesForAccount(followerId);
+    const legacyRows = await this.legacyFollowRepo.find({ where: { follower: { id: followerId } }, relations: { seller: true } });
+    const businessScopedIds: number[] = [];
+    for (const row of legacyRows) {
+      if (row.seller && !profiles.some(p => p.ownerId === row.seller.id && p.type === CommerceProfileType.BUSINESS)) {
+        businessScopedIds.push(row.seller.id);
       }
     }
-    return {
-      businessScopedIds: [...businessScopedIds],
-      profileScopedIds: [...profileScopedIds],
-    };
+    // Explicit profile follows stay exact even for multiple businesses
+    // owned by the same person. Only unmigrated legacy follows use owner ids.
+    return { businessScopedIds: [...new Set(businessScopedIds)], profileScopedIds: profiles.map(p => p.id) };
   }
 
   // Audience (User ids) for a new post published under `postCommerceProfileId`

@@ -70,12 +70,25 @@ export class CommerceProfilesController {
   @UseGuards(OptionalJwtAuthGuard)
   async getById(@Request() req, @Param('id', ParseIntPipe) id: number) {
     const profile = await this.service.findById(id);
-    const [isFollowing, isFollowedBy, followersCount] = await Promise.all([
+    const [isFollowing, isFollowedBy, followersCount, followingCount] = await Promise.all([
       this.service.isFollowing(req.user?.id, id),
       this.service.isFollowedBy(id, req.user?.id),
       this.service.getCanonicalFollowersCount(id),
+      this.service.getFollowingCount(id),
     ]);
-    return { ...profile, followersCount, isFollowing, isFollowedBy };
+    return { ...profile, followersCount, followingCount, followingScope: 'account', isFollowing, isFollowedBy };
+  }
+
+  @Get(':id/followers')
+  @UseGuards(OptionalJwtAuthGuard)
+  followers(@Request() req, @Param('id', ParseIntPipe) id: number, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.service.getConnections(id, 'followers', req.user?.id, Number(page), Number(limit));
+  }
+
+  @Get(':id/following')
+  @UseGuards(OptionalJwtAuthGuard)
+  following(@Request() req, @Param('id', ParseIntPipe) id: number, @Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.service.getConnections(id, 'following', req.user?.id, Number(page), Number(limit));
   }
 
   // Reviews scoped to THIS profile — never account-wide. Public: reviews

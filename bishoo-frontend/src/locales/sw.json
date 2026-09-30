@@ -1,4 +1,21 @@
 {
+  "profile_connections": {
+      "followers": "Wafuasi",
+      "following": "Unaowafuata",
+      "account_following": "Akaunti inawafuata",
+      "account_hint": "Orodha hii ni ya akaunti ya mmiliki. Wafuasi wa biashara wanabaki tofauti.",
+      "empty": "Hakuna mahusiano bado.",
+      "error": "Imeshindikana kupakia au kubadilisha. Jaribu tena.",
+      "more": "Onyesha zaidi",
+      "close": "Funga",
+      "follows_you": "Anakufuata",
+      "type_personal": "Mtu",
+      "type_business": "Biashara",
+      "type_agent": "Wakala",
+      "type_hub": "Kituo",
+      "type_transport_provider": "Msafirishaji",
+      "type_service_provider": "Mtoa huduma"
+  },
   "home_quick_actions": {
       "label": "Hatua za haraka",
       "listing": "Weka tangazo",

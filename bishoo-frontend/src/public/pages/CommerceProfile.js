@@ -14,6 +14,8 @@ import CommerceCommentSection from '../components/CommerceCommentSection';
 import api             from '../../api/api';
 import { commenterIdentity } from '../utils/publicActor';
 
+import ProfileConnections from '../components/ProfileConnections';
+
 const B  = '#2563EB';
 const DK = '#0F172A';
 const GR = '#64748B';
@@ -59,11 +61,11 @@ const getTiers = t => [
 
 // ─── Stat pill ────────────────────────────────────────────────────────────────
 const Stat = ({ value, label, onClick }) => (
-  <div onClick={onClick}
-    style={{ textAlign:'center', padding:'8px 12px', cursor: onClick ? 'pointer' : 'default' }}>
+  <button type="button" onClick={onClick} disabled={!onClick}
+    style={{ textAlign:'center', padding:'8px 10px', cursor: onClick ? 'pointer' : 'default', border: 'none', background: 'transparent', fontFamily: 'inherit', flex: 1, minWidth: 0 }}>
     <div style={{ fontSize:18, fontWeight:900, color:DK }}>{value}</div>
-    <div style={{ fontSize:10, color:GR, marginTop:2, fontWeight:600 }}>{label}</div>
-  </div>
+    <div style={{ fontSize:12, color:GR, marginTop:2, fontWeight:600 }}>{label}</div>
+  </button>
 );
 
 // ─── Action button ────────────────────────────────────────────────────────────
@@ -275,6 +277,9 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   const [providerServices, setProviderServices] = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [tab,        setTab]        = useState('posts');
+  const [connections, setConnections] = useState(null);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [followError, setFollowError] = useState('');
   const [following,  setFollowing]  = useState(false);
   const [isFollowedBy, setIsFollowedBy] = useState(false);
 
@@ -282,6 +287,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
   useEffect(() => {
     setLoading(true);
     setActiveProfile(null);
+    setConnections(null);
+    setFollowError('');
     // Which tab actually applies depends on this profile's TYPE, not known
     // until it resolves below — Step 2 picks the real default (deep-linked
     // tab if valid for this type, else this type's first tab) once
@@ -324,11 +331,17 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           return { data: hinted || active || personal || list[0] || null };
         });
 
-    resolve.then(res => {
+    let cancelled = false;
+    resolve.then(async res => {
+      // for-user gives identity metadata, not current social relationships.
+      const detailed = res.data?.id && !commerceProfileId ? await api.get(`/profiles/${res.data.id}`) : res;
+      if (cancelled) return;
+      res = detailed;
       setActiveProfile(res.data || null);
       setFollowing(!!res.data?.isFollowing);
       setIsFollowedBy(!!res.data?.isFollowedBy);
-    }).catch(() => setActiveProfile(null));
+    }).catch(() => { if (!cancelled) setActiveProfile(null); });
+    return () => { cancelled = true; };
   }, [targetId, commerceProfileId, viewerActiveProfileId]); // eslint-disable-line
 
   // Step 2 — once the specific profile is known, load everything that
@@ -441,10 +454,13 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
     try {
       // Follows THIS profile specifically — following Bishoo Intelligence
       // Systems never implies following Kened personally, or vice versa.
+      if (followBusy) return;
+      setFollowBusy(true); setFollowError('');
       const res = await api.post(`/profiles/${activeProfile.id}/follow`);
       setFollowing(res.data.following);
       setActiveProfile(p => p ? { ...p, followersCount: res.data.followersCount } : p);
-    } catch {}
+    } catch { setFollowError(t('profile_connections.error')); }
+    finally { setFollowBusy(false); }
   };
 
   if (loading) return (
@@ -615,7 +631,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             </button>
           ) : (
             <>
-              <button onClick={handleFollow}
+              <button onClick={handleFollow} disabled={followBusy}
                 style={{ backgroundColor: following ? WH : B,
                   color: following ? GR : WH,
                   border:`1px solid ${following ? '#e2e8f0' : B}`,
@@ -747,7 +763,8 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
             </>
           )}
-          <Stat value={fmtM(activeProfile.followersCount||0)} label={t('commerce_profile.stat_followers')} />
+          <Stat value={fmtM(activeProfile.followersCount||0)} label={t('commerce_profile.stat_followers')} onClick={() => setConnections('followers')} />
+          <Stat value={fmtM(activeProfile.followingCount||0)} label={t(activeProfile.type === 'personal' ? 'profile_connections.following' : 'profile_connections.account_following')} onClick={() => setConnections('following')} />
           {isBusinessProfile && (
             <>
               <div style={{ width:1, backgroundColor:'#f1f5f9', margin:'8px 0' }} />
@@ -758,6 +775,16 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
           <Stat value={score} label={t('commerce_profile.stat_reputation')} />
         </div>
       </div>
+
+      {followError && <p role="alert" style={{ color: '#b91c1c', padding: '0 16px' }}>{followError}</p>}
+      {connections && (
+        <ProfileConnections profile={activeProfile} kind={connections} isLoggedIn={isLoggedIn}
+          currentUser={currentUser} onNavigate={onNavigate} onClose={() => setConnections(null)}
+          onChanged={async () => {
+            const res = await api.get(`/profiles/${activeProfile.id}`);
+            setActiveProfile(res.data); setFollowing(!!res.data.isFollowing); setIsFollowedBy(!!res.data.isFollowedBy);
+          }} />
+      )}
 
       {/* Also on Kentexa — every OTHER independent profile this account
           runs, shown as its own clickable card (own photo/name/type/

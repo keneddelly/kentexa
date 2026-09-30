@@ -466,6 +466,7 @@ export class InAppNotificationService {
     businessUserId: number,
     followerName: string,
     followerId?: number,
+    followedProfileName?: string,
   ) {
     // actionCommerceProfileId must identify the FOLLOWER's own profile, not
     // the profile that was just followed (the recipient's own) — passing
@@ -479,7 +480,9 @@ export class InAppNotificationService {
       userId: businessUserId,
       type: NotificationType.FOLLOW,
       title: '👤 Mfuataji Mpya!',
-      body: `${followerName} ameanza kufuata biashara yako.`,
+      body: followedProfileName
+        ? `${followerName} ameanza kufuata ${followedProfileName}.`
+        : `${followerName} ameanza kufuata biashara yako.`,
       actionPage: 'CommerceProfile',
       actionParam: followerId ? String(followerId) : undefined,
       icon: '👤',

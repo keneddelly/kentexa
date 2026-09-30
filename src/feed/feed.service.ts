@@ -1031,12 +1031,14 @@ export class FeedService {
 
     let followedFeed: any[] = [];
     let followedSellerIds = new Set<number>();
+    let followedProfileIds = new Set<number>();
 
     if (userId) {
       const { businessScopedIds, profileScopedIds } = await this.commerceProfiles
         .getFollowedProfiles(userId)
         .catch(() => ({ businessScopedIds: [], profileScopedIds: [] }));
       followedSellerIds = new Set(businessScopedIds);
+      followedProfileIds = new Set(profileScopedIds);
 
       if (businessScopedIds.length > 0 || profileScopedIds.length > 0) {
         const qb = this.feedRepo
@@ -1089,12 +1091,14 @@ export class FeedService {
         completedOrders: (u as any).completedOrders || 0,
         rating: u.rating || 0,
         followersCount: u.followersCount || 0,
-        isFollowing: followedSellerIds.has(u.id),
+        isFollowing: sellerProfileByOwnerId.get(u.id)
+          ? followedProfileIds.has(sellerProfileByOwnerId.get(u.id)!.id)
+          : followedSellerIds.has(u.id),
       })),
       suggestedServices: services,
       nearbyListings: listings,
       followedFeed,
-      hasFollows: followedSellerIds.size > 0,
+      hasFollows: followedSellerIds.size > 0 || followedProfileIds.size > 0,
     };
   }
 

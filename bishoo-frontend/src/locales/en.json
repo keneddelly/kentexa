@@ -1,4 +1,21 @@
 {
+  "profile_connections": {
+      "followers": "Followers",
+      "following": "Following",
+      "account_following": "Account following",
+      "account_hint": "This list shows the owner’s account follows. Business audiences remain separate.",
+      "empty": "No connections yet.",
+      "error": "Could not load or update connections. Please try again.",
+      "more": "Load more",
+      "close": "Close",
+      "follows_you": "Follows you",
+      "type_personal": "Person",
+      "type_business": "Business",
+      "type_agent": "Agent",
+      "type_hub": "Hub",
+      "type_transport_provider": "Transport provider",
+      "type_service_provider": "Service provider"
+  },
   "home_quick_actions": {
       "label": "Quick actions",
       "listing": "Post a listing",
