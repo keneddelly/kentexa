@@ -15,6 +15,7 @@ import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.m
 import { PoliciesModule } from '../policies/policies.module';
 import { IdentityModule } from '../identity/identity.module';
 import { RoleContextModule } from '../role-context/role-context.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { RoleContextModule } from '../role-context/role-context.module';
     SmsModule,
     MailModule,
     RoleContextModule,
+    NotificationsModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 3600000, limit: 100 }]),
   ],
   providers: [AuthService, JwtStrategy],
