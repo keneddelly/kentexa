@@ -58,15 +58,24 @@ export enum EarningObligationStatus {
   // "no rate configured yet") error -- excluded from automatic reclaim, so
   // it stops silently retrying and stays visible for a human to
   // investigate. FAILED_NO_RATE never escalates here: a missing rate is an
-  // expected, self-healing configuration gap, not a fault.
+  // expected, self-healing configuration gap, not a fault. Requires an
+  // explicit authorized replay (SuperAgentHandlingEarningObligationService.
+  // forceReplay()), never an automatic one.
   FAILED_PERMANENT = 'failed_permanent',
+  // Stage 3S-C6 third correction: the qualifying custody event carries no
+  // provable physical-handoff identity, and a prior earning already exists
+  // for the same (parcel, Super Agent) pair -- cross-writer equivalence
+  // can't be proven automatically. NO earning was created. Excluded from
+  // automatic reclaim; resolved only by an explicit human decision
+  // (resolveAmbiguousHold()).
+  HELD_AMBIGUOUS_IDENTITY = 'held_ambiguous_identity',
 }
 
 @Entity('super_agent_handling_earning_obligation')
 @Index('UQ_super_agent_handling_earning_obligation_custody_event', ['custodyEventId'], { unique: true })
 @Check(
   'CHK_super_agent_handling_earning_obligation_status_vocab',
-  `status IN ('pending','processing','completed','failed_no_rate','failed_error','failed_permanent')`,
+  `status IN ('pending','processing','completed','failed_no_rate','failed_error','failed_permanent','held_ambiguous_identity')`,
 )
 export class SuperAgentHandlingEarningObligation {
   @PrimaryGeneratedColumn()

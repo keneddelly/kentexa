@@ -53,13 +53,37 @@
  * on the qualifying event's own `evidenceRef` (frozen onto the earning row
  * as `physicalHandoffRef`) -- a proven, concrete-operation identity, not a
  * custodian-type category guess. See SuperAgentHandlingEarning's own header
- * comment for the full reasoning. When a qualifying event carries no
- * evidenceRef at all, cross-writer equivalence can't be proven, so this
- * service does NOT silently guess: it records an independent earning and,
- * if another earning already exists for the same (parcel, Super Agent)
- * pair, flags the pairing as ambiguous via a non-blocking ActivityEvent for
- * admin review -- "mark/review ambiguity rather than silently returning an
- * unrelated earning."
+ * comment for the full reasoning.
+ *
+ * Stage 3S-C6 third correction: the FINAL re-review correctly rejected the
+ * earlier version of this ambiguity handling, which inserted a SECOND
+ * immutable earning FIRST and only flagged the ambiguity afterward --
+ * "detection after a potential duplicate financial liability has been
+ * created, not a safe ambiguity hold." It also pointed out that
+ * `parcel_run_assignment:<id>` and `collection:<id>` are different
+ * namespaces with no mechanism proving a legacy write and a Run write of
+ * the SAME real transfer would ever share an identical evidenceRef --
+ * this service never invents or asserts such equivalence.
+ *
+ * The corrected rule: when a qualifying event carries NO evidenceRef at
+ * all, cross-writer equivalence with any EXISTING earning for the same
+ * (parcel, Super Agent) pair can't be proven either way. Rather than
+ * guessing, this service now HOLDS -- it throws
+ * UnresolvedHandoffAmbiguityException and creates NO earning at all,
+ * leaving the decision to an explicit, separately-invoked resolution
+ * (SuperAgentHandlingEarningObligationService.resolveAmbiguousHold()) that
+ * either links the event to the EXISTING earning (a human has determined
+ * it's the same handoff) or explicitly authorizes an independent one (a
+ * human has determined it's genuinely separate) via `allowAmbiguous`. The
+ * FIRST-ever no-evidenceRef event for a pair (nothing yet to be ambiguous
+ * WITH) still earns immediately -- there's no ambiguity to hold on.
+ *
+ * This whole check-then-decide sequence runs inside a transaction that
+ * locks the target Super Agent row first (mirroring this lineage's own
+ * established "lock the contended resource before checking its state"
+ * pattern) -- without it, two truly concurrent, equally ambiguous
+ * (no-evidenceRef) receipts for the SAME pair could both see zero prior
+ * earnings and both proceed, defeating the entire hold.
  *
  * Deliberately NOT wired as an automatic side effect of any existing
  * custody-writing call site in this gate (see this gate's own report for
@@ -79,6 +103,22 @@ import { ActivityCategory } from '../activity/entities/activity-event.entity';
 export interface RecordHandlingEarningActor {
   userId: number | null;
 }
+
+export interface RecordEarningOptions {
+  // Explicit authorization (from SuperAgentHandlingEarningObligationService.
+  // resolveAmbiguousHold(), never set by any automatic call path) to create
+  // an earning for a no-evidenceRef event despite an existing earning for
+  // the same pair -- a human has determined these are genuinely separate.
+  allowAmbiguous?: boolean;
+}
+
+// Thrown instead of creating a second earning when a qualifying receipt
+// carries no provable physical-handoff identity AND a prior earning
+// already exists for the same (parcel, Super Agent) pair. Never
+// automatically retried by SuperAgentHandlingEarningObligationService's own
+// processPending() sweep -- resolving it requires an explicit human
+// decision (resolveAmbiguousHold()).
+export class UnresolvedHandoffAmbiguityException extends ConflictException {}
 
 // Postgres error code for a unique-constraint violation.
 const UNIQUE_VIOLATION = '23505';
@@ -143,9 +183,14 @@ export class SuperAgentHandlingEarningService {
     if (!rows.length) throw new BadRequestException('parcelId does not reference an existing Parcel');
   }
 
+  async findEarningById(id: number): Promise<SuperAgentHandlingEarning | null> {
+    return this.earningRepo.findOne({ where: { id } });
+  }
+
   async recordEarningForCustodyEvent(
     custodyEventId: number,
     actor: RecordHandlingEarningActor,
+    opts: RecordEarningOptions = {},
   ): Promise<SuperAgentHandlingEarning> {
     const event = await this.custodyRepo.findOne({ where: { id: custodyEventId } });
     if (!event) throw new NotFoundException('Custody event not found');
@@ -166,73 +211,90 @@ export class SuperAgentHandlingEarningService {
     // Frozen from the qualifying event's own evidenceRef -- the proven
     // physical-handoff identity, see the entity's header comment.
     const physicalHandoffRef = event.evidenceRef ?? null;
+    const superAgentId = event.toCustodianId!;
 
-    const row = this.earningRepo.create({
-      custodyEventId: event.id,
-      parcelId: event.parcelId,
-      superAgentId: event.toCustodianId!,
-      physicalHandoffRef,
-      rateConfigId: rate.id,
-      amount: rate.amount,
-      currency: rate.currency,
-      source: event.eventKind,
-      actorUserId: actor.userId,
-    });
-    let created: SuperAgentHandlingEarning;
-    try {
-      created = await this.earningRepo.save(row);
-    } catch (error: any) {
-      if (error?.code === UNIQUE_VIOLATION) {
-        if (error?.constraint === 'UQ_super_agent_handling_earning_physical_handoff') {
-          // A DIFFERENT custody event -- from this pathway or a different
-          // one entirely -- already recorded an earning for this exact,
-          // PROVEN physical operation (physicalHandoffRef can only collide
-          // when two rows genuinely describe the same real-world handoff).
-          // Returning the already-recorded earning keeps this call
-          // idempotent from the caller's point of view without ever risking
-          // a second payment for what is provably the same handoff.
-          return this.earningRepo.findOneOrFail({ where: { physicalHandoffRef: physicalHandoffRef! } });
+    return this.dataSource.transaction(async (manager) => {
+      // Locks the target Super Agent row FIRST -- serializes every
+      // earning-recording attempt for it, so two truly concurrent,
+      // equally-ambiguous (no-evidenceRef) receipts for the SAME pair can
+      // never both pass the "any prior earning?" check before either
+      // commits. See this service's own header comment.
+      await manager.query('SELECT id FROM public.super_agent WHERE id = $1 FOR UPDATE', [superAgentId]);
+      const earningRepo = manager.getRepository(SuperAgentHandlingEarning);
+
+      // Idempotent-retry fast path: if THIS exact custody event already has
+      // an earning, return it directly -- BEFORE the ambiguity-hold check
+      // below. Without this, a genuine retry of the SAME event would look
+      // identical to "a second, different event for this pair" and would
+      // be wrongly held.
+      const existingForThisEvent = await earningRepo.findOne({ where: { custodyEventId: event.id } });
+      if (existingForThisEvent) return existingForThisEvent;
+
+      if (physicalHandoffRef == null && !opts.allowAmbiguous) {
+        const priorCount = await earningRepo.count({ where: { parcelId: event.parcelId, superAgentId } });
+        if (priorCount > 0) {
+          await this.activityEventService.record({
+            eventType: 'SUPER_AGENT_HANDLING_EARNING_UNRESOLVED_HANDOFF_AMBIGUITY',
+            category: ActivityCategory.LOGISTICS,
+            actorId: actor.userId,
+            targetType: 'parcel_custody_event',
+            targetId: event.id,
+            severity: 'warning',
+            visibility: 'admin',
+            metadata: {
+              custodyEventId: event.id,
+              parcelId: event.parcelId,
+              superAgentId,
+              reason: 'no evidenceRef on the qualifying custody event -- cannot prove this is (or is not) the same physical handoff as an existing earning for this parcel/Super Agent pair; held pending explicit resolution',
+            },
+          });
+          throw new UnresolvedHandoffAmbiguityException(
+            'This custody event carries no physical-handoff reference, and a prior earning already exists for this parcel/Super Agent pair -- cross-writer equivalence cannot be proven automatically. Held pending explicit resolution.',
+          );
         }
-        // Idempotent retry / genuinely concurrent attempt for the SAME
-        // custody event -- the DB's own unique constraint on custodyEventId
-        // is what actually guarantees "retrying never increases earnings
-        // twice", not this check-then-insert; re-reading here just returns
-        // the already-committed winner.
-        return this.earningRepo.findOneOrFail({ where: { custodyEventId: event.id } });
       }
-      throw error;
-    }
 
-    // The event carried no provable physical-handoff identity, so this row
-    // was NOT deduplicated against anything -- if another earning already
-    // exists for the same (parcel, Super Agent) pair, we genuinely can't
-    // tell whether this is a second real handling operation or an
-    // accidental duplicate recording. Never guess either way: flag it for a
-    // human via the same non-blocking Activity/Event mechanism Stage 3S-C6's
-    // confirmReceipt correction already established, and still return the
-    // real, newly-created earning either way.
-    if (physicalHandoffRef == null) {
-      const priorCount = await this.earningRepo.count({
-        where: { parcelId: event.parcelId, superAgentId: event.toCustodianId! },
+      const row = earningRepo.create({
+        custodyEventId: event.id,
+        parcelId: event.parcelId,
+        superAgentId,
+        physicalHandoffRef,
+        rateConfigId: rate.id,
+        amount: rate.amount,
+        currency: rate.currency,
+        source: event.eventKind,
+        actorUserId: actor.userId,
       });
-      if (priorCount > 1) {
-        await this.activityEventService.record({
-          eventType: 'SUPER_AGENT_HANDLING_EARNING_UNPROVABLE_DUPLICATE_RISK',
-          category: ActivityCategory.LOGISTICS,
-          actorId: actor.userId,
-          targetType: 'super_agent_handling_earning',
-          targetId: created.id,
-          severity: 'warning',
-          visibility: 'admin',
-          metadata: {
-            custodyEventId: event.id,
-            parcelId: event.parcelId,
-            superAgentId: event.toCustodianId,
-            reason: 'no evidenceRef on the qualifying custody event -- cannot prove this is (or is not) the same physical handoff as an existing earning for this parcel/Super Agent pair',
-          },
-        });
+      // A SAVEPOINT, not a bare try/catch -- Postgres aborts the WHOLE
+      // transaction on ANY error (including a caught unique-violation) until
+      // something rolls back, so the re-select queries below would
+      // otherwise fail with "current transaction is aborted." Rolling back
+      // to this savepoint undoes only the failed insert, keeping the
+      // Super Agent row lock (and the surrounding transaction) intact.
+      await manager.query('SAVEPOINT before_earning_insert');
+      try {
+        return await earningRepo.save(row);
+      } catch (error: any) {
+        await manager.query('ROLLBACK TO SAVEPOINT before_earning_insert');
+        if (error?.code === UNIQUE_VIOLATION) {
+          if (error?.constraint === 'UQ_super_agent_handling_earning_physical_handoff') {
+            // A DIFFERENT custody event -- from this pathway or a different
+            // one entirely -- already recorded an earning for this exact,
+            // PROVEN physical operation (physicalHandoffRef can only
+            // collide when two rows genuinely describe the same real-world
+            // handoff). Returning the already-recorded earning keeps this
+            // call idempotent without ever risking a second payment for
+            // what is provably the same handoff.
+            return earningRepo.findOneOrFail({ where: { physicalHandoffRef: physicalHandoffRef! } });
+          }
+          // Belt-and-suspenders: the fast path above already handles the
+          // common case, but a genuinely concurrent retry for the SAME
+          // custody event (racing in before this transaction's own lock)
+          // still resolves correctly via the DB's own unique constraint.
+          return earningRepo.findOneOrFail({ where: { custodyEventId: event.id } });
+        }
+        throw error;
       }
-    }
-    return created;
+    });
   }
 }

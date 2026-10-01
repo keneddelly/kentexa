@@ -10,7 +10,7 @@ import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-even
 import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { User } from '../users/entities/user.entity';
 import { SuperAgentHandlingRateService } from './super-agent-handling-rate.service';
-import { SuperAgentHandlingEarningService } from './super-agent-handling-earning.service';
+import { SuperAgentHandlingEarningService, UnresolvedHandoffAmbiguityException } from './super-agent-handling-earning.service';
 import {
   ensureSuperAgentHandlingRateNoOverlapConstraint,
   ensureSuperAgentEconomicLedgersImmutable,
@@ -303,33 +303,74 @@ suite('Stage 3S-C5 — Super Agent handling commission, real PostgreSQL', () => 
     expect(await earningRepo.count({ where: { parcelId: 1, superAgentId: hub.id } })).toBe(2);
   });
 
-  it('a qualifying event with NO evidenceRef at all earns independently (never silently merged) and flags the pairing for review once a prior earning already exists', async () => {
+  it('the FIRST-ever qualifying event with no evidenceRef for a pair earns normally -- nothing yet to be ambiguous WITH', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const event = await mkCustodyEvent({
+      parcelId: 1, eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
+    });
+    const earning = await earningService.recordEarningForCustodyEvent(event.id, { userId: null });
+    expect(earning.physicalHandoffRef).toBeNull();
+    expect(await earningRepo.count({ where: { parcelId: 1, superAgentId: hub.id } })).toBe(1);
+    expect(await activityEventRepo.count({ where: { eventType: 'SUPER_AGENT_HANDLING_EARNING_UNRESOLVED_HANDOFF_AMBIGUITY' } })).toBe(0);
+  });
+
+  // ── Stage 3S-C6 third correction: hold BEFORE crediting, never after ────
+  it('a SECOND qualifying event with no evidenceRef for the SAME pair is HELD -- no second earning is ever created, and the ambiguity is flagged durably', async () => {
     await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
     const hub = await mkSuperAgent();
     const first = await mkCustodyEvent({
       parcelId: 1, eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
     });
     const firstEarning = await earningService.recordEarningForCustodyEvent(first.id, { userId: null });
-    expect(await activityEventRepo.count({ where: { eventType: 'SUPER_AGENT_HANDLING_EARNING_UNPROVABLE_DUPLICATE_RISK' } })).toBe(0);
 
     // A SECOND qualifying event, same parcel/agent, ALSO with no evidenceRef
     // -- cross-writer equivalence with `first` can't be proven either way.
     const second = await mkCustodyEvent({
       parcelId: 1, eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
     });
-    const secondEarning = await earningService.recordEarningForCustodyEvent(second.id, { userId: null });
+    await expect(earningService.recordEarningForCustodyEvent(second.id, { userId: null }))
+      .rejects.toThrow(UnresolvedHandoffAmbiguityException);
 
-    // Never silently merged -- a real, independent second earning.
-    expect(secondEarning.id).not.toBe(firstEarning.id);
-    expect(await earningRepo.count({ where: { parcelId: 1, superAgentId: hub.id } })).toBe(2);
+    // NO second earning was ever created -- the hold happens BEFORE any
+    // insert, not a flag raised after the fact.
+    expect(await earningRepo.count({ where: { parcelId: 1, superAgentId: hub.id } })).toBe(1);
+    const only = await earningRepo.findOneOrFail({ where: { parcelId: 1, superAgentId: hub.id } });
+    expect(only.id).toBe(firstEarning.id);
 
-    // But the ambiguity IS flagged, durably, for a human to review.
-    const flags = await activityEventRepo.find({ where: { eventType: 'SUPER_AGENT_HANDLING_EARNING_UNPROVABLE_DUPLICATE_RISK' } });
+    // The ambiguity IS flagged, durably, for a human to review.
+    const flags = await activityEventRepo.find({ where: { eventType: 'SUPER_AGENT_HANDLING_EARNING_UNRESOLVED_HANDOFF_AMBIGUITY' } });
     expect(flags).toHaveLength(1);
     expect(flags[0].category).toBe(ActivityCategory.LOGISTICS);
     expect(flags[0].severity).toBe('warning');
     expect(flags[0].visibility).toBe('admin');
     expect(flags[0].metadata).toMatchObject({ parcelId: 1, superAgentId: hub.id });
+  });
+
+  it('two CONCURRENT ambiguous (no-evidenceRef) attempts for the SAME new pair never both create an earning', async () => {
+    await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+    const hub = await mkSuperAgent();
+    const eventA = await mkCustodyEvent({
+      parcelId: 1, eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
+    });
+    const eventB = await mkCustodyEvent({
+      parcelId: 1, eventKind: 'origin_hub_received', toCustodianType: 'super_agent', toCustodianId: hub.id,
+    });
+
+    // Neither has a prior earning to be ambiguous against YET -- but if both
+    // race the "any prior earning?" check before either commits, both could
+    // wrongly conclude "nothing to hold on" and both insert. The Super
+    // Agent row lock is what prevents that.
+    const results = await Promise.allSettled([
+      earningService.recordEarningForCustodyEvent(eventA.id, { userId: null }),
+      earningService.recordEarningForCustodyEvent(eventB.id, { userId: null }),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === 'fulfilled');
+    const rejected = results.filter((r) => r.status === 'rejected');
+    expect(fulfilled).toHaveLength(1); // exactly one is treated as "the first, nothing to hold on"
+    expect(rejected).toHaveLength(1); // the other is correctly held as ambiguous
+    expect(await earningRepo.count({ where: { parcelId: 1, superAgentId: hub.id } })).toBe(1);
   });
 
   it('a Super Agent RELEASING custody (the C4 load event, Super Agent -> provider) never generates an earning on its own', async () => {

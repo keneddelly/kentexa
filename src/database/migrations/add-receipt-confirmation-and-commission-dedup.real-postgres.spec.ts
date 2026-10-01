@@ -131,6 +131,9 @@ suite('Stage 3S-C6 receipt confirmation + commission dedup schema: real PostgreS
     await expect(insertObligation({ custodyEventId: 1 })).rejects.toThrow();
     // Status vocabulary is enforced by a real CHECK constraint.
     await expect(insertObligation({ custodyEventId: 2, status: 'bogus' })).rejects.toThrow();
+    // Stage 3S-C6 third correction: held_ambiguous_identity is a real,
+    // accepted status.
+    await expect(insertObligation({ custodyEventId: 2, status: 'held_ambiguous_identity' })).resolves.toHaveLength(1);
     // FK to a real custody event -- a nonexistent one is refused.
     await expect(insertObligation({ custodyEventId: 999999 })).rejects.toThrow();
 

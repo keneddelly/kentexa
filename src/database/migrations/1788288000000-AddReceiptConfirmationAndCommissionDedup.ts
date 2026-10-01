@@ -36,7 +36,12 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *    transactional-outbox record for "this custody receipt owes an
  *    earning." Deliberately a MUTABLE processing-state table (no
  *    immutability trigger, unlike the earning/cash-collection ledgers) --
- *    see SuperAgentHandlingEarningObligation's own header comment.
+ *    see SuperAgentHandlingEarningObligation's own header comment. Its
+ *    status vocabulary gained `held_ambiguous_identity` in this gate's
+ *    third correction round (still the same never-merged migration, edited
+ *    in place again) for the case where a qualifying receipt's physical-
+ *    handoff identity can't be proven and must be held for explicit human
+ *    resolution rather than automatically earning a second time.
  */
 export class AddReceiptConfirmationAndCommissionDedup1788288000000 implements MigrationInterface {
   name = 'AddReceiptConfirmationAndCommissionDedup1788288000000';
@@ -85,7 +90,7 @@ export class AddReceiptConfirmationAndCommissionDedup1788288000000 implements Mi
       "updatedAt" timestamp without time zone NOT NULL DEFAULT now(),
       CONSTRAINT "UQ_super_agent_handling_earning_obligation_custody_event" UNIQUE ("custodyEventId"),
       CONSTRAINT "CHK_super_agent_handling_earning_obligation_status_vocab"
-        CHECK (status IN ('pending','processing','completed','failed_no_rate','failed_error','failed_permanent')),
+        CHECK (status IN ('pending','processing','completed','failed_no_rate','failed_error','failed_permanent','held_ambiguous_identity')),
       CONSTRAINT "FK_super_agent_handling_earning_obligation_custody_event"
         FOREIGN KEY ("custodyEventId") REFERENCES public.parcel_custody_event(id) ON DELETE RESTRICT,
       CONSTRAINT "FK_super_agent_handling_earning_obligation_resulting_earning"

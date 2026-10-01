@@ -693,14 +693,21 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       expect(await earningRepo.count()).toBe(0); // no earning, but no exception either
 
       // Stage 3S-C6 second correction: telemetry is supplemental (never the
-      // recovery mechanism itself -- see the durable obligation-row tests
-      // below for that), but it should still exist here.
+      // recovery mechanism itself -- the durable obligation row, asserted
+      // separately below, is what actually guarantees recovery), but it
+      // should still exist here, keyed by obligationId.
       const failures = await activityEventService.findByEventType('SUPER_AGENT_HANDLING_EARNING_GENERATION_FAILED');
       expect(failures).toHaveLength(1);
       expect(failures[0].category).toBe(ActivityCategory.LOGISTICS);
       expect(failures[0].severity).toBe('error');
       expect(failures[0].visibility).toBe('admin');
-      expect(failures[0].metadata).toMatchObject({ parcelId: parcel.id, superAgentId: destHub.id });
+      expect(failures[0].metadata).toMatchObject({ attempts: 1, reason: "No effective handling-rate configuration covers this custody event's time" });
+
+      const custody = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: custody[0].id } });
+      expect(obligation.status).toBe(EarningObligationStatus.FAILED_NO_RATE);
+      expect((failures[0].metadata as any).obligationId).toBe(obligation.id);
     });
 
     // ── cross-pathway deduplication on a PROVEN physical-handoff identity (Stage 3S-C6 second correction) ──
@@ -878,11 +885,109 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
       spy.mockRestore();
 
       const [a, b] = await Promise.all([obligationService.processPending(), obligationService.processPending()]);
-      // Exactly one earning is ever created, regardless of how the two
-      // sweeps split the single claimable obligation between them.
+      // Both sweeps may see the SAME candidate id (candidate selection is a
+      // plain read), but the per-row atomic claim inside attemptResolve()
+      // means only ONE of them ever actually performs the work and
+      // finalizes it -- exactly one earning is ever created, regardless of
+      // how the two sweeps overlap.
       expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
-      expect(a.claimed + b.claimed).toBe(1); // SKIP LOCKED means only ONE sweep ever claims the single obligation
       expect(a.completed + b.completed).toBe(1);
+      const obligation = await obligationRepo.findOneOrFail({ where: { parcelId: parcel.id, superAgentId: destHub.id } });
+      expect(obligation.status).toBe(EarningObligationStatus.COMPLETED); // never left corrupted by the loser
+    });
+
+    // ── Stage 3S-C6 third correction: claim/finalize ownership is race-safe ──
+    it('two concurrent attemptResolve() calls for the SAME obligation never both perform the work', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      const spy = jest.spyOn(earningService, 'recordEarningForCustodyEvent').mockRejectedValueOnce(new Error('simulated failure'));
+      await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      spy.mockRestore();
+
+      const earning = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: earning[0].id } });
+
+      await Promise.all([
+        obligationService.attemptResolve(obligation.id, { userId: null }),
+        obligationService.attemptResolve(obligation.id, { userId: null }),
+      ]);
+
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
+      const resolved = await obligationRepo.findOneOrFail({ where: { id: obligation.id } });
+      expect(resolved.status).toBe(EarningObligationStatus.COMPLETED);
+    });
+
+    it('a late/stale finalize can never overwrite an already-completed obligation (compare-and-set)', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      // Force the FIRST attemptResolve (confirmReceipt's own immediate call)
+      // to fail, leaving the obligation claimable again.
+      const firstAttemptSpy = jest.spyOn(earningService, 'recordEarningForCustodyEvent').mockRejectedValueOnce(new Error('simulated failure'));
+      await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      firstAttemptSpy.mockRestore();
+
+      const custody = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: custody[0].id } });
+      expect(obligation.status).toBe(EarningObligationStatus.FAILED_ERROR);
+
+      // A real, independent earning to stand in as "the real winner's own
+      // result" -- the FK on resultingEarningId requires a genuine row.
+      const unrelatedHub = await mkSuperAgent();
+      const unrelatedEvent = await ds.getRepository(ParcelCustodyEvent).save(ds.getRepository(ParcelCustodyEvent).create({
+        parcelId: parcel.id, eventKind: 'origin_hub_received', operationKey: `stale-finalize-winner:${obligation.id}`,
+        toCustodianType: 'super_agent', toCustodianId: unrelatedHub.id, actorSource: 'account_role', assignmentType: null,
+      } as any));
+      const winnerEarning = await earningService.recordEarningForCustodyEvent(unrelatedEvent.id, { userId: null });
+
+      // Now simulate a SECOND, stale/delayed attempt: it successfully CLAIMS
+      // the obligation (flips it to 'processing'), but while its own
+      // earning-generation call is "in flight", a DIFFERENT, faster
+      // concurrent attempt (modelled directly here) completes the SAME
+      // obligation first. When the stale attempt's own call finally
+      // resolves (here: fails), its finalize() must NOT be allowed to
+      // overwrite the real winner's COMPLETED status.
+      const staleAttemptSpy = jest.spyOn(earningService, 'recordEarningForCustodyEvent').mockImplementationOnce(async () => {
+        // The "faster concurrent winner" completes the obligation WHILE this
+        // (stale) attempt's own earning call is still pending.
+        await ds.query(
+          `UPDATE public.super_agent_handling_earning_obligation SET status = 'completed', "resultingEarningId" = $2 WHERE id = $1`,
+          [obligation.id, winnerEarning.id],
+        );
+        throw new Error('stale attempt fails after the real winner already completed it');
+      });
+      await obligationService.attemptResolve(obligation.id, { userId: null });
+      staleAttemptSpy.mockRestore();
+
+      const reread = await obligationRepo.findOneOrFail({ where: { id: obligation.id } });
+      expect(reread.status).toBe(EarningObligationStatus.COMPLETED); // untouched by the stale attempt's own finalize
+      expect(reread.resultingEarningId).toBe(winnerEarning.id); // the real winner's write survives
+    });
+
+    it('an already-COMPLETED obligation is never reclaimed by a later explicit attemptResolve() or processPending() call', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+      await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+
+      const custody = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: custody[0].id } });
+      expect(obligation.status).toBe(EarningObligationStatus.COMPLETED);
+      const originalResultingEarningId = obligation.resultingEarningId;
+
+      const spy = jest.spyOn(earningService, 'recordEarningForCustodyEvent');
+      await obligationService.attemptResolve(obligation.id, { userId: null });
+      await obligationService.processPending();
+      expect(spy).not.toHaveBeenCalled(); // a COMPLETED obligation is never re-attempted at all
+      spy.mockRestore();
+
+      const reread = await obligationRepo.findOneOrFail({ where: { id: obligation.id } });
+      expect(reread.status).toBe(EarningObligationStatus.COMPLETED);
+      expect(reread.resultingEarningId).toBe(originalResultingEarningId);
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
     });
 
     it('a permanent no-rate condition stays FAILED_NO_RATE and retryable indefinitely across repeated sweeps, never fabricating an earning', async () => {
@@ -921,8 +1026,115 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
 
       // No longer auto-reclaimed even though a real rate now exists.
       const sweep = await obligationService.processPending();
-      expect(sweep.claimed).toBe(0);
+      expect(sweep.attempted).toBe(0);
       expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(0);
+    });
+
+    // ── Stage 3S-C6 third correction: hold BEFORE crediting, never after ────
+    it('an ambiguous (no-evidenceRef) receipt with a prior earning for the SAME pair is HELD -- never automatically credited a second time', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const hub = await mkSuperAgent();
+      const parcel = await mkParcel();
+      const custodyRepo = ds.getRepository(ParcelCustodyEvent);
+
+      // A FIRST qualifying receipt for this hub/parcel with no evidenceRef
+      // of its own (a plain, non-Run-based receipt) -- earns normally,
+      // nothing yet to be ambiguous WITH.
+      const firstEvent = await custodyRepo.save(custodyRepo.create({
+        parcelId: parcel.id, eventKind: 'origin_hub_received', operationKey: `ambiguity-test-first:${parcel.id}`,
+        toCustodianType: 'super_agent', toCustodianId: hub.id, actorSource: 'account_role', assignmentType: null,
+      } as any));
+      const firstEarning = await earningService.recordEarningForCustodyEvent(firstEvent.id, { userId: null });
+
+      // A SECOND qualifying receipt for the SAME pair, also with no
+      // evidenceRef -- driven through the obligation flow directly (this
+      // models an older/legacy-shaped custody write, same as the real
+      // obligation table would hold any such event regardless of which
+      // call site created it).
+      const secondEvent = await custodyRepo.save(custodyRepo.create({
+        parcelId: parcel.id, eventKind: 'origin_hub_received', operationKey: `ambiguity-test-second:${parcel.id}`,
+        toCustodianType: 'super_agent', toCustodianId: hub.id, actorSource: 'account_role', assignmentType: null,
+      } as any));
+      const obligation = await obligationRepo.save(obligationRepo.create({
+        custodyEventId: secondEvent.id, parcelId: parcel.id, superAgentId: hub.id,
+        status: EarningObligationStatus.PENDING,
+      }));
+
+      await obligationService.attemptResolve(obligation.id, { userId: null });
+      const held = await obligationRepo.findOneOrFail({ where: { id: obligation.id } });
+      expect(held.status).toBe(EarningObligationStatus.HELD_AMBIGUOUS_IDENTITY);
+      expect(held.resultingEarningId).toBeNull();
+
+      // NO second earning was ever created.
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: hub.id } })).toBe(1);
+
+      // A further automatic sweep leaves it alone -- requires a human decision.
+      await expect(obligationService.processPending()).resolves.toMatchObject({ attempted: 0 });
+
+      // A human resolves it: this really was the SAME physical handoff as
+      // the first earning.
+      const resolved = await obligationService.resolveAmbiguousHold(
+        obligation.id, { duplicateOfEarningId: firstEarning.id }, { userId: null },
+      );
+      expect(resolved.status).toBe(EarningObligationStatus.COMPLETED);
+      expect(resolved.resultingEarningId).toBe(firstEarning.id);
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: hub.id } })).toBe(1); // still just one
+    });
+
+    it('resolveAmbiguousHold can also authorize a genuinely independent earning for a held obligation', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const hub = await mkSuperAgent();
+      const parcel = await mkParcel();
+      const custodyRepo = ds.getRepository(ParcelCustodyEvent);
+      const firstEvent = await custodyRepo.save(custodyRepo.create({
+        parcelId: parcel.id, eventKind: 'origin_hub_received', operationKey: `ambiguity-test-indep-first:${parcel.id}`,
+        toCustodianType: 'super_agent', toCustodianId: hub.id, actorSource: 'account_role', assignmentType: null,
+      } as any));
+      await earningService.recordEarningForCustodyEvent(firstEvent.id, { userId: null });
+
+      const secondEvent = await custodyRepo.save(custodyRepo.create({
+        parcelId: parcel.id, eventKind: 'origin_hub_received', operationKey: `ambiguity-test-indep-second:${parcel.id}`,
+        toCustodianType: 'super_agent', toCustodianId: hub.id, actorSource: 'account_role', assignmentType: null,
+      } as any));
+      await expect(earningService.recordEarningForCustodyEvent(secondEvent.id, { userId: null }))
+        .rejects.toThrow();
+
+      // Manually drive it through the obligation flow for this test, since
+      // this custody event wasn't created via confirmReceipt.
+      const obligation = await obligationRepo.save(obligationRepo.create({
+        custodyEventId: secondEvent.id, parcelId: parcel.id, superAgentId: hub.id,
+        status: EarningObligationStatus.HELD_AMBIGUOUS_IDENTITY,
+      }));
+
+      const resolved = await obligationService.resolveAmbiguousHold(
+        obligation.id, { authorizeIndependentEarning: true }, { userId: null },
+      );
+      expect(resolved.status).toBe(EarningObligationStatus.COMPLETED);
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: hub.id } })).toBe(2); // genuinely two now
+    });
+
+    it('forceReplay() revives a FAILED_PERMANENT obligation that automatic sweeps no longer touch', async () => {
+      await rateService.configureRate({ commissionType: 'handling', amount: 500, effectiveFrom: new Date(Date.now() - 1000), createdByUserId: null });
+      const { destHub, parcel, assignment } = await mkUnloadedAssignmentAtSuperAgentStop();
+
+      const spy = jest.spyOn(earningService, 'recordEarningForCustodyEvent').mockRejectedValue(new Error('persistent simulated failure'));
+      await assignmentService.confirmReceipt(mkSuperAgentRoleContext(destHub.userId, destHub.id), assignment.id);
+      for (let i = 0; i < 4; i++) await obligationService.processPending();
+      spy.mockRestore();
+
+      const custody = await ds.query(
+        `SELECT id FROM public.parcel_custody_event WHERE "parcelId" = $1 AND "eventKind" = 'parcel_run_received'`, [parcel.id]);
+      const obligation = await obligationRepo.findOneOrFail({ where: { custodyEventId: custody[0].id } });
+      expect(obligation.status).toBe(EarningObligationStatus.FAILED_PERMANENT);
+
+      // An ordinary sweep still ignores it.
+      await expect(obligationService.processPending()).resolves.toMatchObject({ attempted: 0 });
+
+      // Explicit authorized replay succeeds now that the underlying error is gone.
+      await obligationService.forceReplay(obligation.id, { userId: null });
+      const replayed = await obligationRepo.findOneOrFail({ where: { id: obligation.id } });
+      expect(replayed.status).toBe(EarningObligationStatus.COMPLETED);
+      expect(await earningRepo.count({ where: { parcelId: parcel.id, superAgentId: destHub.id } })).toBe(1);
     });
   });
 
