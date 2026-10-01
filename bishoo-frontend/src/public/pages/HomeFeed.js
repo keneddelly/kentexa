@@ -1235,11 +1235,17 @@ const TrendingBar = ({ trending, onNavigate, isLoggedIn }) => {
 
 // ── Create a Moment — photo + tag one listing + optional caption ─────────────
 // ── View a Moment — full-screen, tap CTA to jump to the tagged listing ───────
-const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser, activeProfileId }) => {
+const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser, activeProfileId, initiallyLiked = false, onLikeToggle }) => {
   const { t } = useTranslation();
   const ago = getAgo(t);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(initiallyLiked);
   const biz = moment.business || {};
+
+  // The modal is mounted from the story rail, not the main PostCard, so it
+  // must hydrate the persisted engagement state explicitly. Without this,
+  // every reopen started at false even though /feed/saved/ids still contained
+  // the Moment — the heart appeared to "disappear" after a successful like.
+  useEffect(() => { setSaved(initiallyLiked); }, [initiallyLiked, moment.momentId]);
   const bizName = biz.storeName || biz.name || t('home_feed.store_fallback');
   const isLookingFor = moment.postType === 'looking_for';
   const typeLabel = moment.linkedEntityType === 'product' ? t('home_feed.view_product_short')
@@ -1258,7 +1264,11 @@ const ViewMomentModal = ({ moment, onClose, onNavigate, isLoggedIn, currentUser,
   const handleSave = async () => {
     if (!isLoggedIn) { onNavigate('PublicLogin'); return; }
     const res = await Engagement.track(moment.momentId, 'moment', moment.momentId, 'save', isLoggedIn, onNavigate);
-    if (res !== null) setSaved(res.toggled ?? !saved);
+    if (res !== null) {
+      const toggled = res.toggled ?? !saved;
+      setSaved(toggled);
+      onLikeToggle?.(moment.momentId, toggled);
+    }
   };
 
   const goToListing = () => {
@@ -1866,6 +1876,10 @@ const HomeFeed = ({ onNavigate, isLoggedIn, currentUser, onOpenMoment, momentRef
           isLoggedIn={isLoggedIn}
           currentUser={currentUser}
           activeProfileId={activeProfileId}
+          initiallyLiked={savedIds.includes(viewingMoment.momentId)}
+          onLikeToggle={(id, liked) => setSavedIds(prev => liked
+            ? (prev.includes(id) ? prev : [...prev, id])
+            : prev.filter(x => x !== id))}
         />
       )}
 
