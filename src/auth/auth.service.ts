@@ -22,6 +22,8 @@ import { VerificationService } from '../identity/verification.service';
 import { RoleContextService } from '../role-context/role-context.service';
 import { AccountRole } from '../role-context/entities/account-role.entity';
 import { ActiveRoleSession } from '../role-context/entities/active-role-session.entity';
+import { InAppNotificationService } from '../notifications/in-app-notification.service';
+import { NotificationType } from '../notifications/entities/notification.entity';
 import {
   RequestMetadata,
   RoleContext,
@@ -40,6 +42,7 @@ export class AuthService {
     private policyVersions: PolicyVersionService,
     private verification: VerificationService,
     private roleContextService: RoleContextService,
+    private inAppNotifications: InAppNotificationService,
   ) {}
 
   // Stamps whatever Terms of Service version is currently active at the
@@ -334,6 +337,27 @@ export class AuthService {
     } catch {
       // Non-fatal — the admin backfill will catch any account that slips
       // through here.
+    }
+
+    // Account-wide welcome/discovery notification. This is stored in Kentexa
+    // itself, so it works even when the user has not granted browser/OS push
+    // permission. PushService may additionally deliver it to subscribed
+    // devices, but lack of a subscription never blocks signup.
+    try {
+      await this.inAppNotifications.notify({
+        userId: user.id,
+        type: NotificationType.SYSTEM,
+        title: 'Karibu Kentexa 👋',
+        body: 'Gundua bidhaa, huduma, biashara, Moments na usafirishaji. Anza kwa kuona kilicho kipya Kentexa.',
+        actionPage: 'Home',
+        actionRouteKey: 'discovery.home',
+        actionParams: { tab: 'for_you' },
+        sourceType: 'platform_welcome',
+        icon: '✨',
+        classificationStatus: 'resolved',
+      });
+    } catch {
+      // Notifications are engagement infrastructure, never an auth blocker.
     }
 
     const authenticated = await this.issueAuthenticatedResponse(user);
