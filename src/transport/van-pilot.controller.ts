@@ -148,7 +148,7 @@ export class VanPilotController {
   // provider-ownership-scoped inside the services, unchanged.
   @Get('runs/:runId/stops')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT)
   async getRunStops(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
     await this.runs.assertRunOperationalVisibility(ctx.userId, ctx.roleType, ctx.profileId ?? null, runId);
     return this.runs.getRunStops(runId);
@@ -156,7 +156,7 @@ export class VanPilotController {
 
   @Get('runs/:runId/assignments')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT)
   async getRunAssignments(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
     await this.runs.assertRunOperationalVisibility(ctx.userId, ctx.roleType, ctx.profileId ?? null, runId);
     return this.assignments.getAssignmentsForRun(runId);
