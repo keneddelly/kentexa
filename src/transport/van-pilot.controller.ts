@@ -127,6 +127,13 @@ export class VanPilotController {
     return this.runs.listMyRuns(ctx.userId);
   }
 
+  @Patch('runs/:runId/cancel')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  cancelRun(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    return this.runs.cancelRun(ctx.userId, runId);
+  }
+
   // Stage 3S-C8 review: deliberately global, not provider-scoped --
   // getRunStops/getAssignmentsForRun never resolve a caller-owned provider
   // profile (unlike every write route above), so there is no "advertised
@@ -142,14 +149,16 @@ export class VanPilotController {
   @Get('runs/:runId/stops')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
-  getRunStops(@Param('runId', ParseIntPipe) runId: number) {
+  async getRunStops(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    await this.runs.assertRunOperationalVisibility(ctx.userId, ctx.roleType, ctx.profileId ?? null, runId);
     return this.runs.getRunStops(runId);
   }
 
   @Get('runs/:runId/assignments')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
-  getRunAssignments(@Param('runId', ParseIntPipe) runId: number) {
+  async getRunAssignments(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    await this.runs.assertRunOperationalVisibility(ctx.userId, ctx.roleType, ctx.profileId ?? null, runId);
     return this.assignments.getAssignmentsForRun(runId);
   }
 
