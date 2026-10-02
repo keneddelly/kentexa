@@ -638,6 +638,35 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
       expect(queue.map((x: any) => Number(x.parcelId))).toEqual([p1.id]);
     });
 
+
+    it('parcel operational reads fail closed for unrelated provider and Super Agent', async () => {
+      const owner = await mkProviderWithUser();
+      const rival = await mkProviderWithUser();
+      const hub = await mkSuperAgent();
+      const outsiderHub = await mkSuperAgent();
+      const { run, stops } = await mkPilotRun(owner.userId, owner.provider.id, {
+        mbagala: { superAgentId: hub.id },
+      });
+      const parcel = await mkParcel({ destinationSuperAgentId: hub.id });
+      await assignmentService.createAssignment(owner.userId, {
+        runId: run.id, parcelId: parcel.id,
+        loadRunStopId: stops.kariakoo.id, unloadRunStopId: stops.mbagala.id,
+      });
+
+      await expect(journeyService.assertParcelOperationalVisibility(
+        owner.userId, 'transport_provider', owner.provider.id, parcel.id,
+      )).resolves.toBeUndefined();
+      await expect(journeyService.assertParcelOperationalVisibility(
+        rival.userId, 'transport_provider', rival.provider.id, parcel.id,
+      )).rejects.toBeInstanceOf(NotFoundException);
+      await expect(journeyService.assertParcelOperationalVisibility(
+        (hub as any).userId, 'super_agent', hub.id, parcel.id,
+      )).resolves.toBeUndefined();
+      await expect(journeyService.assertParcelOperationalVisibility(
+        (outsiderHub as any).userId, 'super_agent', outsiderHub.id, parcel.id,
+      )).rejects.toBeInstanceOf(NotFoundException);
+    });
+
   });
 
 });
