@@ -224,6 +224,17 @@ export class VanPilotController {
     return this.assignments.cancelAssignment(ctx.userId, assignmentId);
   }
 
+  // ── SUPER AGENT: explicit carrier release / movement tender ──────────────
+  @Post('movement-tenders')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  tenderParcelToProvider(
+    @CurrentRoleContext() ctx: RoleContext,
+    @Body() dto: { parcelId: number; transportProviderId: number; runId: number; loadRunStopId: number; idempotencyKey: string; expiresAt?: string | null },
+  ) {
+    return this.assignments.tenderFromSuperAgent(ctx, dto);
+  }
+
   // ── SUPER AGENT: receiving desk ──────────────────────────────────────────
   @Patch('assignments/:assignmentId/confirm-receipt')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
