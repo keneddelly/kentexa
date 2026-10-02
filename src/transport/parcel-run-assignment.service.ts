@@ -199,6 +199,106 @@ export class ParcelRunAssignmentService {
     return null;
   }
 
+  // Van Pilot Readiness: a provider may schedule a parcel only from an
+  // explicit one-use movement authority. Shipment provider selection can
+  // mint that authority server-side; hub/walk-in/multi-leg parcels require
+  // an explicit current-holder Super Agent release.
+  async tenderFromSuperAgent(
+    ctx: RoleContext,
+    dto: { parcelId: number; transportProviderId: number; runId: number; loadRunStopId: number; idempotencyKey: string; expiresAt?: string | null },
+  ): Promise<any> {
+    if (ctx.roleType !== 'super_agent' || ctx.profileId == null) throw new ForbiddenException('Super Agent role required');
+    if (!dto.idempotencyKey?.trim()) throw new BadRequestException('idempotencyKey is required');
+
+    return this.dataSource.transaction(async (manager) => {
+      await this.lockParcel(manager, dto.parcelId);
+      const latest = await manager.query(
+        `SELECT "toCustodianType", "toCustodianId" FROM public.parcel_custody_event
+          WHERE "parcelId"=$1 ORDER BY "recordedAt" DESC, id DESC LIMIT 1`,
+        [dto.parcelId],
+      );
+      if (!latest.length || latest[0].toCustodianType !== 'super_agent' || Number(latest[0].toCustodianId) !== Number(ctx.profileId)) {
+        throw new NotFoundException('Parcel not found');
+      }
+      const runRows = await manager.query(
+        `SELECT r.id, r."providerId", s."superAgentId"
+           FROM public.transport_run r
+           JOIN public.transport_run_stop s ON s.id=$2 AND s."runId"=r.id
+          WHERE r.id=$1 AND r."providerId"=$3`,
+        [dto.runId, dto.loadRunStopId, dto.transportProviderId],
+      );
+      if (!runRows.length || Number(runRows[0].superAgentId) !== Number(ctx.profileId)) {
+        throw new NotFoundException('Run not found');
+      }
+      const existing = await manager.query(
+        `SELECT * FROM public.parcel_movement_tender WHERE "idempotencyKey"=$1`,
+        [dto.idempotencyKey.trim()],
+      );
+      if (existing.length) {
+        const e=existing[0];
+        if (Number(e.parcelId)!==dto.parcelId || Number(e.transportProviderId)!==dto.transportProviderId ||
+            Number(e.runId)!==dto.runId || Number(e.loadRunStopId)!==dto.loadRunStopId ||
+            Number(e.releasingSuperAgentId)!==Number(ctx.profileId)) {
+          throw new ConflictException('idempotencyKey was already used for a different movement tender');
+        }
+        return e;
+      }
+      const rows = await manager.query(
+        `INSERT INTO public.parcel_movement_tender
+          ("parcelId","transportProviderId","runId","loadRunStopId","releasingSuperAgentId","source","status",
+           "issuedByUserId","issuedByRoleType","idempotencyKey","expiresAt")
+         VALUES ($1,$2,$3,$4,$5,'super_agent_release','open',$6,'super_agent',$7,$8)
+         RETURNING *`,
+        [dto.parcelId,dto.transportProviderId,dto.runId,dto.loadRunStopId,ctx.profileId,ctx.userId,dto.idempotencyKey.trim(),dto.expiresAt ?? null],
+      );
+      return rows[0];
+    });
+  }
+
+  private async resolveMovementTender(
+    manager: EntityManager,
+    userId: number,
+    providerId: number,
+    dto: CreateParcelRunAssignmentDto,
+    loadStop: TransportRunStop,
+  ): Promise<any> {
+    // Lock an existing explicit tender first. SKIP no rows: assignment must
+    // serialize on the tender and fail closed rather than infer authority.
+    let rows = await manager.query(
+      `SELECT * FROM public.parcel_movement_tender
+        WHERE "parcelId"=$1 AND "transportProviderId"=$2
+          AND ("runId" IS NULL OR "runId"=$3)
+          AND ("loadRunStopId" IS NULL OR "loadRunStopId"=$4)
+          AND status='open' AND ("expiresAt" IS NULL OR "expiresAt">now())
+        ORDER BY id ASC LIMIT 1 FOR UPDATE`,
+      [dto.parcelId,providerId,dto.runId,dto.loadRunStopId],
+    );
+    if (rows.length) return rows[0];
+
+    // Direct-booking authority is derived only from persisted canonical
+    // Parcel -> Shipment.providerId. Client input cannot assert it.
+    const booked = await manager.query(
+      `SELECT p."shipmentId" FROM public.parcel p
+        JOIN public.shipment s ON s.id=p."shipmentId"
+       WHERE p.id=$1 AND s."providerId"=$2 LIMIT 1`,
+      [dto.parcelId,providerId],
+    );
+    if (booked.length) {
+      const key=`shipment-provider:${booked[0].shipmentId}:parcel:${dto.parcelId}:provider:${providerId}`;
+      rows = await manager.query(
+        `INSERT INTO public.parcel_movement_tender
+          ("parcelId","transportProviderId","runId","loadRunStopId","source","status",
+           "issuedByUserId","issuedByRoleType","idempotencyKey")
+         VALUES ($1,$2,$3,$4,'shipment_provider_booking','open',$5,'transport_provider',$6)
+         ON CONFLICT ("idempotencyKey") DO UPDATE SET "idempotencyKey"=EXCLUDED."idempotencyKey"
+         RETURNING *`,
+        [dto.parcelId,providerId,dto.runId,dto.loadRunStopId,userId,key],
+      );
+      return rows[0];
+    }
+    throw new ForbiddenException('No carrier movement authority exists for this parcel');
+  }
+
   async createAssignment(userId: number, dto: CreateParcelRunAssignmentDto): Promise<ParcelRunAssignment> {
     const provider = await this.transportService.getMyProfile(userId);
     const run = await this.runRepo.findOne({ where: { id: dto.runId, providerId: provider.id } });
@@ -251,6 +351,11 @@ export class ParcelRunAssignmentService {
         );
       }
 
+      const tender = await this.resolveMovementTender(manager, userId, provider.id, dto, loadStop);
+      if (tender.source === 'super_agent_release' && Number(tender.releasingSuperAgentId) !== Number(loadStop.superAgentId)) {
+        throw new ForbiddenException('Movement tender does not authorize this load stop');
+      }
+
       await this.assertRunCapacity(manager, run, dto.parcelId);
 
       const assignment = manager.getRepository(ParcelRunAssignment).create({
@@ -263,7 +368,16 @@ export class ParcelRunAssignmentService {
         unloadedAt: null,
         createdByUserId: userId,
       });
-      return manager.getRepository(ParcelRunAssignment).save(assignment);
+      const saved = await manager.getRepository(ParcelRunAssignment).save(assignment);
+      const consumed = await manager.query(
+        `UPDATE public.parcel_movement_tender
+            SET status='consumed', "consumedByParcelRunAssignmentId"=$2, "consumedAt"=now()
+          WHERE id=$1 AND status='open'
+          RETURNING id`,
+        [tender.id,saved.id],
+      );
+      if (!consumed.length) throw new ConflictException('Movement tender is no longer available');
+      return saved;
     });
   }
 
