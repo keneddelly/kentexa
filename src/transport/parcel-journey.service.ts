@@ -71,6 +71,17 @@ export class ParcelJourneyService {
     return rows[0];
   }
 
+  async resolveJourneyByTrackingNumber(trackingNumber: string): Promise<ParcelJourneyContext> {
+    const value = trackingNumber?.trim();
+    if (!value) throw new NotFoundException('Parcel not found');
+    const rows = await this.dataSource.query(
+      `SELECT id FROM public.parcel WHERE "trackingNumber" = $1 LIMIT 1`,
+      [value],
+    );
+    if (!rows.length) throw new NotFoundException('Parcel not found');
+    return this.resolveJourneyContext(Number(rows[0].id));
+  }
+
   async resolveJourneyContext(parcelId: number): Promise<ParcelJourneyContext> {
     const parcel = await this.getParcelSummary(parcelId);
     const latestCustodyEvent = await this.dataSource.getRepository(ParcelCustodyEvent).findOne({
@@ -118,6 +129,34 @@ export class ParcelJourneyService {
       ],
     );
     return rows;
+  }
+
+  // Readiness desk queues: same canonical conditions as the admin read
+  // models, but hard-scoped to the caller's active Super Agent profile.
+  async listHubBlockedAwaitingReceipt(superAgentId: number) {
+    return this.dataSource.query(
+      `SELECT a.id AS "assignmentId", a."parcelId", a."runId", p."trackingNumber",
+              a."unloadedAt",
+              EXTRACT(EPOCH FROM (now() - a."unloadedAt")) / 60 AS "waitingMinutes"
+         FROM public.parcel_run_assignment a
+         JOIN public.transport_run_stop us ON us.id = a."unloadRunStopId"
+         JOIN public.parcel p ON p.id = a."parcelId"
+        WHERE a.status = 'unloaded' AND us."superAgentId" = $1
+        ORDER BY a."unloadedAt" ASC`,
+      [superAgentId],
+    );
+  }
+
+  async listHubAwaitingCompletion(superAgentId: number) {
+    return this.dataSource.query(
+      `SELECT id, "trackingNumber", status, "arrivedAtHubTime"
+         FROM public.parcel
+        WHERE "destinationSuperAgentId" = $1
+          AND status IN ('arrived_at_hub', 'awaiting_buyer')
+        ORDER BY "arrivedAtHubTime" ASC NULLS LAST
+        LIMIT 200`,
+      [superAgentId],
+    );
   }
 
   // ── Stage 3S-C8 (C8-F): admin operational visibility ───────────────────────
