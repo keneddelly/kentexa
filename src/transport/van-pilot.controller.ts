@@ -254,14 +254,16 @@ export class VanPilotController {
   @Get('parcels/:parcelId/journey')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.AGENT, AccountRoleType.ADMIN)
-  getParcelJourney(@Param('parcelId', ParseIntPipe) parcelId: number) {
+  async getParcelJourney(@CurrentRoleContext() ctx: RoleContext, @Param('parcelId', ParseIntPipe) parcelId: number) {
+    await this.journey.assertParcelOperationalVisibility(ctx.userId, ctx.roleType, ctx.profileId ?? null, parcelId);
     return this.journey.resolveJourneyContext(parcelId);
   }
 
   @Get('parcels/:parcelId/eligible-runs')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
-  getEligibleRuns(@Param('parcelId', ParseIntPipe) parcelId: number) {
+  async getEligibleRuns(@CurrentRoleContext() ctx: RoleContext, @Param('parcelId', ParseIntPipe) parcelId: number) {
+    await this.journey.assertParcelOperationalVisibility(ctx.userId, ctx.roleType, ctx.profileId ?? null, parcelId);
     return this.journey.findEligibleRuns(parcelId);
   }
 
