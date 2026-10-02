@@ -1313,6 +1313,10 @@ export class SuperAgentsService {
           .catch(() => null)
       : null;
 
+    // Public tracking is deliberately a journey projection, not a customer
+    // record. Tracking references may be shared with recipients and support
+    // staff, so never expose phone numbers, street addresses, declared value,
+    // seller WhatsApp, handler contacts, or free-form operational notes here.
     return {
       trackingNumber: parcel.trackingNumber,
       status: parcel.status,
@@ -1321,79 +1325,25 @@ export class SuperAgentsService {
       transitCity: (parcel as any).transitCity || null,
       expectedArrival: (parcel as any).expectedArrival || null,
       estimatedDays: (parcel as any).estimatedDays || null,
-      // Sender
-      senderName: (parcel as any).senderName || parcel.seller?.name || null,
-      senderPhone: (parcel as any).senderPhone || parcel.seller?.phone || null,
-      // Recipient
-      recipientName: (parcel as any).recipientName,
-      deliveryAddress: (parcel as any).deliveryAddress,
-      // Item
       description:
         (parcel as any).description ||
         (parcel.order as any)?.manualProductName ||
         null,
-      weightKg: (parcel as any).weightKg || null,
-      parcelSize: (parcel as any).parcelSize || null,
-      declaredValue: (parcel as any).declaredValue || null,
-      // Origin hub
       originAgent: parcel.superAgent?.businessName || null,
-      originAgentPhone: parcel.superAgent?.user?.phone || null,
-      // Destination hub — registered agent first, then a Shehena manual
-      // contact (no Kentexa account, so no destinationSuperAgent to read).
       destinationAgent:
         parcel.destinationSuperAgent?.businessName ||
         bulkShipment?.lastMileContactName ||
         null,
-      destinationAgentPhone:
-        parcel.destinationSuperAgent?.user?.phone ||
-        bulkShipment?.lastMileContactPhone ||
-        null,
-      destinationAgentAddress:
-        parcel.destinationSuperAgent?.address ||
-        bulkShipment?.lastMileContactAddress ||
-        null,
-      // Transport — parcel directly (single-parcel dispatch/seller_shipment),
-      // the order (online), or the Shehena batch it was folded into.
       busCompany:
         (parcel as any).busCompany ||
         (parcel.order as any)?.busCompany ||
         bulkShipment?.transportCompany ||
         null,
-      busTicketNumber:
-        (parcel as any).busTicketNumber ||
-        (parcel.order as any)?.busTicketNumber ||
-        bulkShipment?.transportRef ||
-        null,
-      busDeparture: (parcel as any).busDeparture || null,
-      courierName:
-        (parcel as any).courierName ||
-        (parcel.order as any)?.courierName ||
-        null,
-      courierTrackingRef:
-        (parcel as any).courierTrackingRef ||
-        (parcel.order as any)?.externalTrackingRef ||
-        null,
-      // Seller info for WhatsApp button
-      sellerWhatsApp: parcel.order?.seller
-        ? (parcel.order.seller as any).storeWhatsApp
-        : null,
-      sellerStoreName: parcel.order?.seller
-        ? (parcel.order.seller as any).storeName
-        : null,
-      // Dispatch info
       dispatchTime: (parcel as any).dispatchTime || bulkShipment?.dispatchTime || null,
       arrivedAtHubTime: (parcel as any).arrivedAtHubTime || null,
-      buyerRequestedDelivery: parcel.buyerRequestedDelivery,
-      localAgentName: parcel.localAgentName,
-      agreedDeliveryFee: parcel.agreedDeliveryFee,
       history: tracking.map((t) => ({
         status: t.status,
         city: t.city,
-        note: t.note,
-        updatedBy: t.updatedBy,
-        handlerPhone: (t as any).handlerPhone || null,
-        handlerLocation: (t as any).handlerLocation || null,
-        handlerType: (t as any).handlerType || null,
         createdAt: t.createdAt,
       })),
     };
