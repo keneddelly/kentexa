@@ -567,4 +567,83 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
       expect(await ds.getRepository(ParcelCustodyEvent).count({ where: { parcelId: parcel.id, eventKind: 'parcel_run_loaded' } })).toBe(1);
     });
   });
+
+  describe('Van Pilot Readiness hardening', () => {
+    it('provider can cancel a pre-load Run and scheduled assignments atomically', async () => {
+      const { userId, provider } = await mkProviderWithUser();
+      const { run, stops } = await mkPilotRun(userId, provider.id);
+      const parcel = await mkParcel();
+      const assignment = await assignmentService.createAssignment(userId, {
+        runId: run.id, parcelId: parcel.id,
+        loadRunStopId: stops.kariakoo.id, unloadRunStopId: stops.mbagala.id,
+      });
+      const cancelled = await runService.cancelRun(userId, run.id);
+      expect(cancelled.status).toBe('cancelled');
+      const row = await ds.getRepository(ParcelRunAssignment).findOneByOrFail({ id: assignment.id });
+      expect(row.status).toBe(ParcelRunAssignmentStatus.CANCELLED);
+    });
+
+    it('Run cancellation fails closed after physical loading and preserves custody', async () => {
+      const { userId, provider } = await mkProviderWithUser();
+      const { run, stops } = await mkPilotRun(userId, provider.id);
+      const parcel = await mkParcel();
+      const assignment = await assignmentService.createAssignment(userId, {
+        runId: run.id, parcelId: parcel.id,
+        loadRunStopId: stops.kariakoo.id, unloadRunStopId: stops.mbagala.id,
+      });
+      await assignmentService.markLoaded(mkRoleContext(userId, provider.id), assignment.id);
+      await expect(runService.cancelRun(userId, run.id)).rejects.toBeInstanceOf(ConflictException);
+      expect(await ds.getRepository(ParcelCustodyEvent).count({
+        where: { parcelId: parcel.id, eventKind: 'parcel_run_loaded' },
+      })).toBe(1);
+    });
+
+    it('Run operational visibility is provider-owned or itinerary-hub scoped', async () => {
+      const owner = await mkProviderWithUser();
+      const rival = await mkProviderWithUser();
+      const hub = await mkSuperAgent();
+      const outsiderHub = await mkSuperAgent();
+      const { run } = await mkPilotRun(owner.userId, owner.provider.id, {
+        mbagala: { superAgentId: hub.id },
+      });
+
+      await expect(runService.assertRunOperationalVisibility(
+        owner.userId, 'transport_provider', owner.provider.id, run.id,
+      )).resolves.toBeUndefined();
+      await expect(runService.assertRunOperationalVisibility(
+        rival.userId, 'transport_provider', rival.provider.id, run.id,
+      )).rejects.toBeTruthy();
+      await expect(runService.assertRunOperationalVisibility(
+        (hub as any).userId, 'super_agent', hub.id, run.id,
+      )).resolves.toBeUndefined();
+      await expect(runService.assertRunOperationalVisibility(
+        (outsiderHub as any).userId, 'super_agent', outsiderHub.id, run.id,
+      )).rejects.toBeTruthy();
+    });
+
+    it('desk queues are scoped to exactly one Super Agent hub', async () => {
+      const { userId, provider } = await mkProviderWithUser();
+      const hub = await mkSuperAgent();
+      const otherHub = await mkSuperAgent();
+      const first = await mkPilotRun(userId, provider.id, { mbagala: { superAgentId: hub.id } });
+      const second = await mkPilotRun(userId, provider.id, { mbagala: { superAgentId: otherHub.id } });
+      const p1 = await mkParcel();
+      const p2 = await mkParcel();
+      const ctx = mkRoleContext(userId, provider.id);
+      const a1 = await assignmentService.createAssignment(userId, { runId: first.run.id, parcelId: p1.id, loadRunStopId: first.stops.kariakoo.id, unloadRunStopId: first.stops.mbagala.id });
+      await assignmentService.markLoaded(ctx, a1.id); await assignmentService.markUnloaded(ctx, a1.id);
+      const a2 = await assignmentService.createAssignment(userId, { runId: second.run.id, parcelId: p2.id, loadRunStopId: second.stops.kariakoo.id, unloadRunStopId: second.stops.mbagala.id });
+      await assignmentService.markLoaded(ctx, a2.id); await assignmentService.markUnloaded(ctx, a2.id);
+      const queue = await journeyService.listHubBlockedAwaitingReceipt(hub.id);
+      expect(queue.map((x: any) => Number(x.parcelId))).toEqual([p1.id]);
+    });
+
+    it('tracking-number journey lookup resolves the canonical parcel', async () => {
+      const parcel = await mkParcel();
+      const [row] = await ds.query(`SELECT "trackingNumber" FROM public.parcel WHERE id = $1`, [parcel.id]);
+      const journey = await journeyService.resolveJourneyByTrackingNumber(row.trackingNumber);
+      expect(journey.parcel.id).toBe(parcel.id);
+    });
+  });
+
 });
