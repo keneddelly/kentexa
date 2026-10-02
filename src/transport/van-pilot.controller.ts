@@ -10,6 +10,23 @@
  * (every handler is a thin pass-through), and every ownership/authority
  * check still happens inside the services themselves, exactly as it
  * already did for the existing TransportController routes above.
+ *
+ * Stage 3S-C8 review correction: every provider-owned operational route
+ * (route stops, runs, vehicles, assignments create/load/unload/cancel)
+ * resolves authority through TransportService.getMyProfile(ctx.userId) --
+ * it requires the CALLER THEMSELF to own exactly one TransportProvider
+ * profile. Originally admitting AccountRoleType.ADMIN alongside
+ * TRANSPORT_PROVIDER on these routes advertised an authority that didn't
+ * exist: an ordinary admin active-role user would pass this controller's
+ * own guard and then hit "Transport account not found" inside the service,
+ * since no admin-on-behalf-of-provider resolution exists anywhere in this
+ * codebase. Rather than inventing a new impersonation model, these routes
+ * are now TRANSPORT_PROVIDER-only; admin visibility stays exactly where it
+ * already correctly lived -- the separate /van-pilot/admin/* endpoints
+ * below, which never resolve through a caller-owned provider profile at
+ * all. confirmReceipt has the identical shape (assertSuperAgentAuthority
+ * requires the caller to own the specific super_agent row) and is
+ * corrected the same way -- SUPER_AGENT only.
  */
 import {
   Controller,
@@ -37,8 +54,6 @@ import { ParcelRunAssignmentService } from './parcel-run-assignment.service';
 import type { CreateParcelRunAssignmentDto } from './parcel-run-assignment.service';
 import { ParcelJourneyService } from './parcel-journey.service';
 
-const PROVIDER_OR_ADMIN = [AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.ADMIN] as const;
-
 @Controller('van-pilot')
 export class VanPilotController {
   constructor(
@@ -50,21 +65,21 @@ export class VanPilotController {
   // ── PROVIDER: route stops (reusable plan) ──────────────────────────────────
   @Post('routes/:routeId/stops')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   addRouteStop(@CurrentRoleContext() ctx: RoleContext, @Param('routeId', ParseIntPipe) routeId: number, @Body() dto: AddRouteStopDto) {
     return this.runs.addRouteStop(ctx.userId, routeId, dto);
   }
 
   @Get('routes/:routeId/stops')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   listRouteStops(@CurrentRoleContext() ctx: RoleContext, @Param('routeId', ParseIntPipe) routeId: number) {
     return this.runs.listRouteStops(ctx.userId, routeId);
   }
 
   @Patch('routes/:routeId/stops/:stopId')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   updateRouteStop(
     @CurrentRoleContext() ctx: RoleContext,
     @Param('routeId', ParseIntPipe) routeId: number,
@@ -76,7 +91,7 @@ export class VanPilotController {
 
   @Patch('routes/:routeId/stops/:stopId/reorder')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   reorderRouteStop(
     @CurrentRoleContext() ctx: RoleContext,
     @Param('routeId', ParseIntPipe) routeId: number,
@@ -88,7 +103,7 @@ export class VanPilotController {
 
   @Patch('routes/:routeId/stops/:stopId/deactivate')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   deactivateRouteStop(
     @CurrentRoleContext() ctx: RoleContext,
     @Param('routeId', ParseIntPipe) routeId: number,
@@ -100,18 +115,30 @@ export class VanPilotController {
   // ── PROVIDER: Runs ───────────────────────────────────────────────────────
   @Post('runs')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   createRun(@CurrentRoleContext() ctx: RoleContext, @Body() dto: CreateRunDto) {
     return this.runs.createRun(ctx.userId, dto);
   }
 
   @Get('runs')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   listMyRuns(@CurrentRoleContext() ctx: RoleContext) {
     return this.runs.listMyRuns(ctx.userId);
   }
 
+  // Stage 3S-C8 review: deliberately global, not provider-scoped --
+  // getRunStops/getAssignmentsForRun never resolve a caller-owned provider
+  // profile (unlike every write route above), so there is no "advertised
+  // authority that doesn't exist" problem here for any of the three roles.
+  // The data itself is safe operational metadata: stop labels/sequence/
+  // flags and assignment status/parcelId/timestamps -- no customer PII, no
+  // financial figures, no auth secrets. A Super Agent legitimately needs to
+  // see ANY Run's itinerary to judge whether to request a leg (mirrors
+  // ParcelJourneyService.findEligibleRuns' own intentionally cross-provider
+  // discovery design), and Admin needs the same for oversight. Mutating
+  // operations on these same Runs/assignments remain strictly
+  // provider-ownership-scoped inside the services, unchanged.
   @Get('runs/:runId/stops')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
@@ -129,35 +156,35 @@ export class VanPilotController {
   // ── PROVIDER: Vehicles ───────────────────────────────────────────────────
   @Post('vehicles')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   addVehicle(@CurrentRoleContext() ctx: RoleContext, @Body() dto: AddVehicleDto) {
     return this.runs.addVehicle(ctx.userId, dto);
   }
 
   @Get('vehicles')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   listVehicles(@CurrentRoleContext() ctx: RoleContext) {
     return this.runs.listVehicles(ctx.userId);
   }
 
   @Patch('vehicles/:vehicleId')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   updateVehicle(@CurrentRoleContext() ctx: RoleContext, @Param('vehicleId', ParseIntPipe) vehicleId: number, @Body() dto: UpdateVehicleDto) {
     return this.runs.updateVehicle(ctx.userId, vehicleId, dto);
   }
 
   @Patch('vehicles/:vehicleId/deactivate')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   deactivateVehicle(@CurrentRoleContext() ctx: RoleContext, @Param('vehicleId', ParseIntPipe) vehicleId: number) {
     return this.runs.deactivateVehicle(ctx.userId, vehicleId);
   }
 
   @Post('runs/:runId/vehicle')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   assignVehicleToRun(
     @CurrentRoleContext() ctx: RoleContext,
     @Param('runId', ParseIntPipe) runId: number,
@@ -169,28 +196,28 @@ export class VanPilotController {
   // ── PROVIDER: Parcel-Run assignments (load/unload) ──────────────────────
   @Post('assignments')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   createAssignment(@CurrentRoleContext() ctx: RoleContext, @Body() dto: CreateParcelRunAssignmentDto) {
     return this.assignments.createAssignment(ctx.userId, dto);
   }
 
   @Patch('assignments/:assignmentId/loaded')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   markLoaded(@CurrentRoleContext() ctx: RoleContext, @Param('assignmentId', ParseIntPipe) assignmentId: number) {
     return this.assignments.markLoaded(ctx, assignmentId);
   }
 
   @Patch('assignments/:assignmentId/unloaded')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   markUnloaded(@CurrentRoleContext() ctx: RoleContext, @Param('assignmentId', ParseIntPipe) assignmentId: number) {
     return this.assignments.markUnloaded(ctx, assignmentId);
   }
 
   @Patch('assignments/:assignmentId/cancel')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(...PROVIDER_OR_ADMIN)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   cancelAssignment(@CurrentRoleContext() ctx: RoleContext, @Param('assignmentId', ParseIntPipe) assignmentId: number) {
     return this.assignments.cancelAssignment(ctx.userId, assignmentId);
   }
@@ -198,7 +225,7 @@ export class VanPilotController {
   // ── SUPER AGENT: receiving desk ──────────────────────────────────────────
   @Patch('assignments/:assignmentId/confirm-receipt')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
   confirmReceipt(@CurrentRoleContext() ctx: RoleContext, @Param('assignmentId', ParseIntPipe) assignmentId: number) {
     return this.assignments.confirmReceipt(ctx, assignmentId);
   }
