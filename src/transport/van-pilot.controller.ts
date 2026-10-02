@@ -134,18 +134,11 @@ export class VanPilotController {
     return this.runs.cancelRun(ctx.userId, runId);
   }
 
-  // Stage 3S-C8 review: deliberately global, not provider-scoped --
-  // getRunStops/getAssignmentsForRun never resolve a caller-owned provider
-  // profile (unlike every write route above), so there is no "advertised
-  // authority that doesn't exist" problem here for any of the three roles.
-  // The data itself is safe operational metadata: stop labels/sequence/
-  // flags and assignment status/parcelId/timestamps -- no customer PII, no
-  // financial figures, no auth secrets. A Super Agent legitimately needs to
-  // see ANY Run's itinerary to judge whether to request a leg (mirrors
-  // ParcelJourneyService.findEligibleRuns' own intentionally cross-provider
-  // discovery design), and Admin needs the same for oversight. Mutating
-  // operations on these same Runs/assignments remain strictly
-  // provider-ownership-scoped inside the services, unchanged.
+  // Van Pilot Readiness hardening: these shared operational reads are no
+  // longer globally enumerable across providers/hubs. The controller admits
+  // provider and Super Agent roles; assertRunOperationalVisibility then
+  // requires provider ownership or actual hub participation in the immutable
+  // Run itinerary. Admin uses the dedicated /admin read models below.
   @Get('runs/:runId/stops')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT)
