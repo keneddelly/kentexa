@@ -239,7 +239,29 @@ export class VanPilotController {
     return this.assignments.confirmReceipt(ctx, assignmentId);
   }
 
+  // ── SUPER AGENT: desk queues ────────────────────────────────────────────
+  @Get('desk/blocked-receipts')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  listMyDeskBlockedReceipts(@CurrentRoleContext() ctx: RoleContext) {
+    return this.journey.listHubBlockedAwaitingReceipt(ctx.profileId);
+  }
+
+  @Get('desk/awaiting-completion')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  listMyDeskAwaitingCompletion(@CurrentRoleContext() ctx: RoleContext) {
+    return this.journey.listHubAwaitingCompletion(ctx.profileId);
+  }
+
   // ── Shared: parcel journey context / eligible Runs ──────────────────────
+  @Get('parcels/by-tracking/:trackingNumber/journey')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.AGENT, AccountRoleType.ADMIN)
+  getParcelJourneyByTracking(@Param('trackingNumber') trackingNumber: string) {
+    return this.journey.resolveJourneyByTrackingNumber(trackingNumber);
+  }
+
   // Any operational actor may look up where a parcel is and what Runs it
   // could join -- read-only, never a write; ownership for the actual write
   // (createAssignment etc.) is still enforced inside those services.
