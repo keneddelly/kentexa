@@ -71,17 +71,6 @@ export class ParcelJourneyService {
     return rows[0];
   }
 
-  async resolveJourneyByTrackingNumber(trackingNumber: string): Promise<ParcelJourneyContext> {
-    const value = trackingNumber?.trim();
-    if (!value) throw new NotFoundException('Parcel not found');
-    const rows = await this.dataSource.query(
-      `SELECT id FROM public.parcel WHERE "trackingNumber" = $1 LIMIT 1`,
-      [value],
-    );
-    if (!rows.length) throw new NotFoundException('Parcel not found');
-    return this.resolveJourneyContext(Number(rows[0].id));
-  }
-
   async resolveJourneyContext(parcelId: number): Promise<ParcelJourneyContext> {
     const parcel = await this.getParcelSummary(parcelId);
     const latestCustodyEvent = await this.dataSource.getRepository(ParcelCustodyEvent).findOne({
