@@ -323,6 +323,52 @@ export class TransportRunService {
     return this.runStopRepo.find({ where: { runId }, order: { sequence: 'ASC' } });
   }
 
+  async assertRunOperationalVisibility(
+    userId: number, roleType: string, roleProfileId: number | null, runId: number,
+  ): Promise<void> {
+    const run = await this.runRepo.findOne({ where: { id: runId } });
+    if (!run) throw new NotFoundException('Run not found');
+    if (roleType === 'transport_provider') {
+      const provider = await this.transportService.getMyProfile(userId);
+      if (run.providerId !== provider.id) throw new NotFoundException('Run not found');
+      return;
+    }
+    if (roleType === 'super_agent' && roleProfileId != null) {
+      const stop = await this.runStopRepo.findOne({ where: { runId, superAgentId: roleProfileId } });
+      if (!stop) throw new NotFoundException('Run not found');
+      return;
+    }
+    throw new NotFoundException('Run not found');
+  }
+
+  async cancelRun(userId: number, runId: number): Promise<TransportRun> {
+    const provider = await this.transportService.getMyProfile(userId);
+    return this.dataSource.transaction(async (manager) => {
+      const runRepo = manager.getRepository(TransportRun);
+      const run = await runRepo.findOne({ where: { id: runId }, lock: { mode: 'pessimistic_write' } });
+      if (!run || run.providerId !== provider.id) throw new NotFoundException('Run not found');
+      if (run.status === TransportRunStatus.CANCELLED) return run;
+      if (run.status === TransportRunStatus.COMPLETED) {
+        throw new ConflictException('A completed Run cannot be cancelled');
+      }
+      const progressed = await manager.query(
+        `SELECT id FROM public.parcel_run_assignment
+          WHERE "runId" = $1 AND status NOT IN ('scheduled', 'cancelled') LIMIT 1`,
+        [runId],
+      );
+      if (progressed.length) {
+        throw new ConflictException('This Run already has physical parcel movement and cannot be cancelled');
+      }
+      await manager.query(
+        `UPDATE public.parcel_run_assignment SET status = 'cancelled'
+          WHERE "runId" = $1 AND status = 'scheduled'`,
+        [runId],
+      );
+      run.status = TransportRunStatus.CANCELLED;
+      return runRepo.save(run);
+    });
+  }
+
   // ── Vehicle administration (Stage 3S-C2) ──────────────────────────────────
   // Provider-scoped, without assuming Kentexa ownership (Issue #62 section
   // E). Deliberately minimal: no admin UI, no driver/operator, no capacity
