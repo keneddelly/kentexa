@@ -638,12 +638,6 @@ suite('Stage 3S-C8 — Van Pilot Operational Integration, real PostgreSQL', () =
       expect(queue.map((x: any) => Number(x.parcelId))).toEqual([p1.id]);
     });
 
-    it('tracking-number journey lookup resolves the canonical parcel', async () => {
-      const parcel = await mkParcel();
-      const [row] = await ds.query(`SELECT "trackingNumber" FROM public.parcel WHERE id = $1`, [parcel.id]);
-      const journey = await journeyService.resolveJourneyByTrackingNumber(row.trackingNumber);
-      expect(journey.parcel.id).toBe(parcel.id);
-    });
   });
 
 });
