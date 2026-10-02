@@ -248,13 +248,6 @@ export class VanPilotController {
   }
 
   // ── Shared: parcel journey context / eligible Runs ──────────────────────
-  @Get('parcels/by-tracking/:trackingNumber/journey')
-  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.AGENT, AccountRoleType.ADMIN)
-  getParcelJourneyByTracking(@Param('trackingNumber') trackingNumber: string) {
-    return this.journey.resolveJourneyByTrackingNumber(trackingNumber);
-  }
-
   // Any operational actor may look up where a parcel is and what Runs it
   // could join -- read-only, never a write; ownership for the actual write
   // (createAssignment etc.) is still enforced inside those services.
