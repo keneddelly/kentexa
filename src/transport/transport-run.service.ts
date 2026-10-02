@@ -419,4 +419,61 @@ export class TransportRunService {
     run.vehicleId = vehicle.id;
     return this.runRepo.save(run);
   }
+
+  // ── Stage 3S-C8 (C8-C): provider-facing Run visibility ─────────────────────
+  // "View today's/upcoming Runs" -- no such query existed before this gate
+  // (createRun/getRunStops only ever fetched by a known id).
+  async listMyRuns(userId: number): Promise<TransportRun[]> {
+    const provider = await this.transportService.getMyProfile(userId);
+    return this.runRepo.find({
+      where: { providerId: provider.id },
+      order: { scheduledDeparture: 'DESC' },
+      take: 100,
+    });
+  }
+
+  // ── Stage 3S-C8 (C8-F): admin operational visibility ───────────────────────
+  // Reuses canonical tables only -- no mutable "override status" shortcut.
+  // Vehicle capacity usage is reported, never silently enforced here (that
+  // remains ParcelRunAssignmentService.assertRunCapacity's own job at
+  // assignment time) -- an admin may legitimately need to SEE an over-
+  // capacity Run (e.g. one assigned a smaller vehicle after the fact) even
+  // though no NEW assignment could have created that state going forward.
+  async adminListRuns(): Promise<Array<{
+    id: number; providerId: number; routeId: number; vehicleId: number | null;
+    scheduledDeparture: Date; status: TransportRunStatus;
+    activeAssignmentCount: number; parcelCapacity: number | null;
+  }>> {
+    return this.dataSource.query(
+      `SELECT r.id, r."providerId", r."routeId", r."vehicleId", r."scheduledDeparture", r.status,
+              (SELECT count(*)::int FROM public.parcel_run_assignment a
+                WHERE a."runId" = r.id AND a.status IN ('scheduled','loaded')) AS "activeAssignmentCount",
+              v."parcelCapacity"
+         FROM public.transport_run r
+         LEFT JOIN public.vehicle v ON v.id = r."vehicleId"
+        ORDER BY r."scheduledDeparture" DESC
+        LIMIT 200`,
+    );
+  }
+
+  async adminGetRunDetail(runId: number): Promise<{
+    run: TransportRun;
+    stops: TransportRunStop[];
+    assignmentsByStop: Record<number, { loading: number; unloading: number }>;
+  }> {
+    const run = await this.runRepo.findOne({ where: { id: runId } });
+    if (!run) throw new NotFoundException('Run not found');
+    const stops = await this.runStopRepo.find({ where: { runId }, order: { sequence: 'ASC' } });
+    const rows = await this.dataSource.query(
+      `SELECT "loadRunStopId", "unloadRunStopId" FROM public.parcel_run_assignment WHERE "runId" = $1`,
+      [runId],
+    );
+    const assignmentsByStop: Record<number, { loading: number; unloading: number }> = {};
+    for (const stop of stops) assignmentsByStop[stop.id] = { loading: 0, unloading: 0 };
+    for (const row of rows) {
+      if (assignmentsByStop[row.loadRunStopId]) assignmentsByStop[row.loadRunStopId].loading++;
+      if (assignmentsByStop[row.unloadRunStopId]) assignmentsByStop[row.unloadRunStopId].unloading++;
+    }
+    return { run, stops, assignmentsByStop };
+  }
 }

@@ -23,7 +23,9 @@ import { TransportService } from './transport.service';
 import { TransportQuoteService } from './transport-quote.service';
 import { TransportRunService } from './transport-run.service';
 import { ParcelRunAssignmentService } from './parcel-run-assignment.service';
+import { ParcelJourneyService } from './parcel-journey.service';
 import { TransportController } from './transport.controller';
+import { VanPilotController } from './van-pilot.controller';
 import { ReputationModule } from '../reputation/reputation.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { TzLocationModule } from '../tz-location/tz-location.module';
@@ -77,12 +79,12 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
       Shipment,
     ]),
   ],
-  controllers: [TransportController],
-  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService],
+  controllers: [TransportController, VanPilotController],
+  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService],
   // Exported now (unused by any other module yet) per Issue #61's own
   // design requirement: a future Super Agent counter or Intent caller
   // should be able to inject these same canonical authorities without a
   // module change here — neither is wired in during this gate.
-  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService],
+  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService],
 })
 export class TransportModule {}

@@ -53,6 +53,39 @@
  *   outbox obligation (SuperAgentHandlingEarningObligationService), written
  *   in the SAME transaction as the qualifying custody event, rather than a
  *   bare post-commit try/catch -- see that service's own header comment.
+ *
+ * Stage 3S-C8 (Van Pilot Operational Integration): two additive seams, both
+ * purely integration -- no change to any C1-C7 invariant above.
+ *
+ *   1. Vehicle capacity (createAssignment): before this gate,
+ *      Vehicle.parcelCapacity/weightCapacityKg were validated as
+ *      non-negative on input and never read again. assertRunCapacity() is
+ *      the first real enforcement -- a no-op whenever the Run has no
+ *      vehicle assigned yet, or a dimension is left null ("not configured",
+ *      never treated as zero). volumeCapacityM3 is deliberately never
+ *      enforced: Parcel carries no per-parcel volume dimension to compare
+ *      against, and pretending otherwise would be reporting an exactness
+ *      the data cannot support.
+ *   2. confirmReceipt now ALSO emits the pre-existing, already-consumed
+ *      'destination_hub_received' custody signal (and the matching
+ *      ParcelStatus.ARRIVED_AT_HUB transition + ParcelTracking row) when
+ *      the receiving Super Agent IS the parcel's actual destination -- the
+ *      exact same signal super-agents.service.ts's own
+ *      recordDestinationHubReceipt() already produces for the legacy
+ *      carrier-delivery path, and the exact signal
+ *      lockedPickupParcel/lockedAgentHandoffParcel already hard-require as
+ *      the parcel's LATEST custody event before self-pickup or Agent
+ *      last-mile handoff can begin. Before this, a Run-delivered parcel's
+ *      own Parcel.status never changed at all, so it could never reach
+ *      either existing completion path. This makes a Run-delivered parcel
+ *      indistinguishable, at those two existing gates, from a legacy
+ *      carrier-delivered one -- "route into an existing legitimate
+ *      completion path" by reusing its own canonical signal, not inventing
+ *      a parallel one. An INTERMEDIATE transit hub (destinationSuperAgent
+ *      already set to a DIFFERENT hub) never gets this signal; the parcel
+ *      instead becomes eligible for a new ParcelRunAssignment leg via the
+ *      existing findBlockingAssignment rule once RECEIVED -- multi-leg
+ *      journeys need nothing further.
  */
 import {
   Injectable,
@@ -62,14 +95,26 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { TransportRun } from './entities/transport-run.entity';
 import { TransportRunStop } from './entities/transport-run-stop.entity';
+import { Vehicle } from './entities/vehicle.entity';
 import { ParcelRunAssignment, ParcelRunAssignmentStatus } from './entities/parcel-run-assignment.entity';
 import { TransportService } from './transport.service';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
+// A plain TS enum import only -- NOT the Parcel/ParcelTracking entity
+// classes. Mirrors this file's own established "plain parcelId column, raw
+// SQL, never @InjectRepository(Parcel)" convention (see assertParcelExists'
+// own comment): Parcel's full relation graph (Order, Shipment, User,
+// SuperAgent, ...) is exactly what the real-Postgres test suite for this
+// service deliberately avoids registering, via a bare stub `parcel` table.
+// Using the ORM repository for Parcel/ParcelTracking here would silently
+// require that whole graph wherever this service is exercised.
+import { ParcelStatus } from '../super-agents/entities/parcel.entity';
 import { RoleContext } from '../role-context/role-context.types';
 import { SuperAgentHandlingEarningObligationService } from '../super-agent-commission/super-agent-handling-earning-obligation.service';
+
+const UNIQUE_VIOLATION = '23505';
 
 export interface CreateParcelRunAssignmentDto {
   runId: number;
@@ -180,6 +225,10 @@ export class ParcelRunAssignmentService {
     // below -- not re-invented here.
     return this.dataSource.transaction(async (manager) => {
       await this.lockParcel(manager, dto.parcelId);
+      // Stage 3S-C8: serializes concurrent createAssignment calls for the
+      // SAME Run, so two parcels racing for the last unit of capacity can
+      // never both pass assertRunCapacity's own count before either commits.
+      await manager.query('SELECT id FROM public.transport_run WHERE id = $1 FOR UPDATE', [run.id]);
 
       const live = await this.findBlockingAssignment(
         dto.parcelId,
@@ -202,6 +251,8 @@ export class ParcelRunAssignmentService {
         );
       }
 
+      await this.assertRunCapacity(manager, run, dto.parcelId);
+
       const assignment = manager.getRepository(ParcelRunAssignment).create({
         runId: run.id,
         parcelId: dto.parcelId,
@@ -214,6 +265,53 @@ export class ParcelRunAssignmentService {
       });
       return manager.getRepository(ParcelRunAssignment).save(assignment);
     });
+  }
+
+  // Stage 3S-C8: a no-op whenever the Run has no vehicle assigned yet --
+  // capacity cannot be meaningfully enforced before a vehicle is known, and
+  // a Run scheduled ahead of that decision must still accept assignments
+  // (TransportRun.vehicleId has always been nullable for exactly this
+  // reason -- see its own entity comment). Each dimension is checked
+  // independently and only when the Vehicle itself has that dimension
+  // configured; a null dimension means "not configured," never "zero."
+  private async assertRunCapacity(manager: EntityManager, run: TransportRun, newParcelId: number): Promise<void> {
+    if (run.vehicleId == null) return;
+    const vehicle = await manager.getRepository(Vehicle).findOne({ where: { id: run.vehicleId } });
+    if (!vehicle) return; // defensive -- FK guarantees this in practice
+    if (vehicle.parcelCapacity == null && vehicle.weightCapacityKg == null) return;
+
+    const activeAssignments = await manager.getRepository(ParcelRunAssignment).find({
+      where: { runId: run.id, status: In(ACTIVE_STATUSES) },
+    });
+
+    if (vehicle.parcelCapacity != null && activeAssignments.length >= vehicle.parcelCapacity) {
+      throw new ConflictException(
+        `This Run's assigned vehicle is at its parcel-count capacity (${vehicle.parcelCapacity})`,
+      );
+    }
+
+    if (vehicle.weightCapacityKg != null) {
+      const parcelIds = activeAssignments.map((a) => a.parcelId);
+      const sumRows = await manager.query(
+        `SELECT COALESCE(SUM("weightKg"), 0) AS total FROM public.parcel WHERE id = ANY($1::int[])`,
+        [parcelIds],
+      );
+      const currentWeight = Number(sumRows[0].total);
+      const [newParcelRow] = await manager.query(`SELECT "weightKg" FROM public.parcel WHERE id = $1`, [newParcelId]);
+      // An unweighed parcel contributes 0 to the running total -- this
+      // dimension genuinely cannot be enforced for it ("do not pretend
+      // weight enforcement is exact if Parcel currently lacks trustworthy
+      // dimensions"), so it is admitted rather than wrongly blocked.
+      const newWeight = Number(newParcelRow?.weightKg ?? 0);
+      if (currentWeight + newWeight > Number(vehicle.weightCapacityKg)) {
+        throw new ConflictException(
+          `This Run's assigned vehicle would exceed its weight capacity (${vehicle.weightCapacityKg}kg)`,
+        );
+      }
+    }
+    // volumeCapacityM3 is deliberately never checked here -- Parcel has no
+    // per-parcel volume column to compare against (see this file's own
+    // header comment).
   }
 
   private async assertOwnsAssignment(userId: number, assignmentId: number): Promise<ParcelRunAssignment> {
@@ -311,6 +409,21 @@ export class ParcelRunAssignmentService {
         assignmentType: 'parcel_run_assignment',
         evidenceRef: `parcel_run_assignment:${assignment.id}`,
       });
+      // Stage 3S-C8: the customer-facing milestone this physical load
+      // produces -- ParcelTracking is the existing, separate projection
+      // trackParcel()/trackByOrderId() already read (never ParcelCustodyEvent
+      // directly); a Van-pilot leg was previously invisible to it entirely.
+      // Raw SQL, not the ORM repository -- see this file's own import
+      // comment for why.
+      await manager.query(
+        `INSERT INTO public.parcel_tracking
+          ("parcelId", status, city, note, "updatedBy", "handlerPhone", "handlerLocation", "handlerType")
+         VALUES ($1, $2, $3, $4, NULL, NULL, $5, 'transport_provider')`,
+        [
+          assignment.parcelId, ParcelStatus.IN_TRANSIT, loadRunStop?.locationLabel ?? null,
+          `On board -- departed ${loadRunStop?.locationLabel ?? 'the load stop'}`, loadRunStop?.locationLabel ?? null,
+        ],
+      );
       assignment.status = ParcelRunAssignmentStatus.LOADED;
       assignment.loadedAt = new Date();
       return repo.save(assignment);
@@ -355,18 +468,43 @@ export class ParcelRunAssignmentService {
         assignmentType: 'parcel_run_assignment',
         evidenceRef: `parcel_run_assignment:${assignment.id}`,
       });
+      // Stage 3S-C8: customer-facing milestone -- "arrived/unloaded (provider
+      // claim)," deliberately distinct from the LATER, Super-Agent-confirmed
+      // "received at destination desk/hub" milestone confirmReceipt writes
+      // (see that method's own comment) -- the two remain separate, real
+      // events even in the tracking projection, mirroring ParcelCustodyEvent
+      // itself never conflating a provider's claim with independent receipt.
+      // Raw SQL, not the ORM repository -- see this file's own import
+      // comment for why.
+      await manager.query(
+        `INSERT INTO public.parcel_tracking
+          ("parcelId", status, city, note, "updatedBy", "handlerPhone", "handlerLocation", "handlerType")
+         VALUES ($1, $2, $3, $4, NULL, NULL, $5, 'transport_provider')`,
+        [
+          assignment.parcelId, ParcelStatus.TRANSFERRED_HUB, unloadRunStop?.locationLabel ?? null,
+          `Off-loaded by the carrier at ${unloadRunStop?.locationLabel ?? 'the unload stop'} -- awaiting hub confirmation`,
+          unloadRunStop?.locationLabel ?? null,
+        ],
+      );
       assignment.status = ParcelRunAssignmentStatus.UNLOADED;
       assignment.unloadedAt = new Date();
       return repo.save(assignment);
     });
   }
 
-  private async assertSuperAgentAuthority(userId: number, superAgentId: number): Promise<void> {
-    const rows = await this.dataSource.query('SELECT id, "userId" FROM public.super_agent WHERE id = $1', [superAgentId]);
+  private async assertSuperAgentAuthority(
+    userId: number,
+    superAgentId: number,
+  ): Promise<{ id: number; businessName: string; phone: string | null; address: string | null; city: string }> {
+    const rows = await this.dataSource.query(
+      'SELECT id, "userId", "businessName", phone, address, city FROM public.super_agent WHERE id = $1',
+      [superAgentId],
+    );
     if (!rows.length) throw new NotFoundException('Super Agent not found');
     if (rows[0].userId !== userId) {
       throw new ForbiddenException("You don't have authority to confirm receipt for this Super Agent");
     }
+    return rows[0];
   }
 
   // Stage 3S-C6: the RECEIVING Super Agent's own confirmation -- the real
@@ -410,7 +548,7 @@ export class ParcelRunAssignmentService {
       if (superAgentId == null) {
         throw new BadRequestException("This assignment's unload stop has no Super Agent to confirm receipt");
       }
-      await this.assertSuperAgentAuthority(context.userId, superAgentId);
+      const hub = await this.assertSuperAgentAuthority(context.userId, superAgentId);
 
       if (assignment.status === ParcelRunAssignmentStatus.RECEIVED) {
         return { assignment, custodyEventId: null as number | null, obligationId: null as number | null }; // idempotent
@@ -458,6 +596,73 @@ export class ParcelRunAssignmentService {
         parcelId: assignment.parcelId,
         superAgentId,
       });
+
+      // Stage 3S-C8: if this Super Agent IS (or, per the pre-existing
+      // auto-set convention recordDestinationHubReceipt already uses,
+      // BECOMES) the parcel's actual destination, emit the same canonical
+      // "destination hub received" signal the legacy carrier-delivery path
+      // already produces -- see this file's own header comment for exactly
+      // why. An intermediate transit hub (destinationSuperAgent already set
+      // to someone else) gets no such signal; the parcel instead becomes
+      // eligible for a new leg via findBlockingAssignment once RECEIVED.
+      // Raw SQL throughout -- see this file's own import comment for why
+      // Parcel/ParcelTracking are never resolved through the ORM here.
+      const [parcelRow] = await manager.query(
+        `SELECT id, "arrivedAtHubTime", "destinationSuperAgentId" FROM public.parcel WHERE id = $1`,
+        [assignment.parcelId],
+      );
+      const isFinalDestination =
+        !!parcelRow && (parcelRow.destinationSuperAgentId == null || parcelRow.destinationSuperAgentId === superAgentId);
+      if (parcelRow && isFinalDestination) {
+        // SAVEPOINT: in the rare case this exact parcel+hub combination was
+        // already recorded (e.g. a second Run assignment terminating at the
+        // same hub), the operationKey unique constraint correctly refuses a
+        // duplicate -- treated as a harmless no-op rather than aborting the
+        // whole confirmReceipt transaction, the same recovery technique this
+        // lineage already established (Stage 3S-C6 third correction).
+        await manager.query('SAVEPOINT before_destination_hub_received');
+        try {
+          await manager.getRepository(ParcelCustodyEvent).insert({
+            parcelId: assignment.parcelId,
+            eventKind: 'destination_hub_received',
+            operationKey: `destination-hub-received:${superAgentId}`,
+            fromCustodianType: 'transport_provider',
+            fromCustodianId: run.providerId,
+            toCustodianType: 'super_agent',
+            toCustodianId: superAgentId,
+            actorSource: 'account_role',
+            actorUserId: context.userId,
+            actorAccountRoleId: context.accountRoleId,
+            actorRoleType: context.roleType,
+            actorWorkspaceId: context.workspaceId ?? null,
+            actorProviderId: null,
+            hubId: superAgentId,
+            assignmentId: assignment.id,
+            assignmentType: 'parcel_run_assignment',
+            evidenceRef: null,
+          });
+        } catch (error: any) {
+          if (error?.code !== UNIQUE_VIOLATION) throw error;
+          await manager.query('ROLLBACK TO SAVEPOINT before_destination_hub_received');
+        }
+        await manager.query(
+          `UPDATE public.parcel
+              SET status = $1,
+                  "arrivedAtHubTime" = COALESCE("arrivedAtHubTime", $2),
+                  "destinationSuperAgentId" = COALESCE("destinationSuperAgentId", $3)
+            WHERE id = $4`,
+          [ParcelStatus.ARRIVED_AT_HUB, new Date(), superAgentId, parcelRow.id],
+        );
+        await manager.query(
+          `INSERT INTO public.parcel_tracking
+            ("parcelId", status, city, note, "updatedBy", "handlerPhone", "handlerLocation", "handlerType")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, 'super_agent')`,
+          [
+            parcelRow.id, ParcelStatus.ARRIVED_AT_HUB, hub.city, `Received at ${hub.businessName} via Run #${run.id}`,
+            hub.businessName, hub.phone ?? null, hub.address || hub.city,
+          ],
+        );
+      }
 
       assignment.status = ParcelRunAssignmentStatus.RECEIVED;
       assignment.receivedAt = new Date();

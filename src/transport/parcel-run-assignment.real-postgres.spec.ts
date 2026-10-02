@@ -146,9 +146,23 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     await ensureSuperAgentEconomicLedgersImmutable((sql) => ds.query(sql));
     // Bare stand-in table -- see mkParcel()'s own comment for why the real
     // Parcel entity (and its Order/Shipment/User/SuperAgent relation graph)
-    // isn't registered here at all.
+    // isn't registered here at all. Stage 3S-C8 added status/
+    // destinationSuperAgentId/arrivedAtHubTime/weightKg columns -- confirmReceipt
+    // and assertRunCapacity now read/write them via raw SQL (never the ORM),
+    // so this stub needs them too or those new code paths would hit
+    // "column does not exist" even in tests that never touch C8 behavior.
     await ds.query(`CREATE TABLE public.parcel (
-      id SERIAL PRIMARY KEY, "trackingNumber" varchar, "originCity" varchar, "destinationCity" varchar
+      id SERIAL PRIMARY KEY, "trackingNumber" varchar, "originCity" varchar, "destinationCity" varchar,
+      status varchar DEFAULT 'pending', "destinationSuperAgentId" integer, "arrivedAtHubTime" timestamp,
+      "weightKg" decimal(8,2)
+    )`);
+    // Stage 3S-C8: markLoaded/markUnloaded/confirmReceipt now also write a
+    // ParcelTracking row -- a bare stand-in table for the same reason as
+    // parcel above (the real entity is a relation off Parcel).
+    await ds.query(`CREATE TABLE public.parcel_tracking (
+      id SERIAL PRIMARY KEY, "parcelId" integer, status varchar, city varchar, note text,
+      "updatedBy" varchar, "handlerPhone" varchar, "handlerLocation" varchar, "handlerType" varchar,
+      "createdAt" timestamp NOT NULL DEFAULT now()
     )`);
 
     providers = ds.getRepository(TransportProvider);
@@ -188,6 +202,7 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     await ds.query(`DELETE FROM public.transport_route`);
     await ds.query(`DELETE FROM public.activity_events`);
     await ds.query(`DELETE FROM public.transport_provider`);
+    await ds.query(`DELETE FROM public.parcel_tracking`);
     await ds.query(`DELETE FROM public.parcel`);
     await ds.query(`DELETE FROM public.super_agent`);
   });
