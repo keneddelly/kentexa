@@ -127,6 +127,13 @@ describe('Stage 3S-C8 — VanPilotController authorization correction', () => {
       expect(() => canActivateAs(VanPilotController.prototype.cancelRun, AccountRoleType.SUPER_AGENT)).toThrow(ForbiddenException);
       expect(() => canActivateAs(VanPilotController.prototype.cancelRun, AccountRoleType.ADMIN)).toThrow(ForbiddenException);
     });
+    it('movement tender issuance is SUPER_AGENT-only', () => {
+      const handler = VanPilotController.prototype.tenderParcelToProvider;
+      expect(canActivateAs(handler, AccountRoleType.SUPER_AGENT)).toBe(true);
+      expect(() => canActivateAs(handler, AccountRoleType.TRANSPORT_PROVIDER)).toThrow(ForbiddenException);
+      expect(() => canActivateAs(handler, AccountRoleType.ADMIN)).toThrow(ForbiddenException);
+      expect(() => canActivateAs(handler, AccountRoleType.AGENT)).toThrow(ForbiddenException);
+    });
     it('desk queues are SUPER_AGENT-only', () => {
       for (const handler of [
         VanPilotController.prototype.listMyDeskBlockedReceipts,
