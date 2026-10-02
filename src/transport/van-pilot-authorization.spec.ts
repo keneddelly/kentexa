@@ -101,11 +101,11 @@ describe('Stage 3S-C8 — VanPilotController authorization correction', () => {
     });
   });
 
-  // Shared read routes: deliberately NOT provider-scoped (see the
-  // controller's own comment) -- still correctly reachable by all three
-  // operational roles, unlike the write routes above.
-  describe('shared read routes remain reachable by every operational role', () => {
-    for (const roleType of [AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN]) {
+  // Readiness hardening: shared Run reads are admitted only for provider or
+  // Super Agent active roles; service-level ownership/itinerary scoping then
+  // decides which exact Run is visible. Admin uses dedicated /admin routes.
+  describe('shared Run reads expose only operational roles with scoped visibility', () => {
+    for (const roleType of [AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT]) {
       it(`getRunStops admits ${roleType}`, () => {
         expect(canActivateAs(VanPilotController.prototype.getRunStops, roleType)).toBe(true);
       });
@@ -113,5 +113,29 @@ describe('Stage 3S-C8 — VanPilotController authorization correction', () => {
         expect(canActivateAs(VanPilotController.prototype.getRunAssignments, roleType)).toBe(true);
       });
     }
+    it('getRunStops rejects ADMIN (dedicated admin read-model exists)', () => {
+      expect(() => canActivateAs(VanPilotController.prototype.getRunStops, AccountRoleType.ADMIN)).toThrow(ForbiddenException);
+    });
+    it('getRunAssignments rejects ADMIN (dedicated admin read-model exists)', () => {
+      expect(() => canActivateAs(VanPilotController.prototype.getRunAssignments, AccountRoleType.ADMIN)).toThrow(ForbiddenException);
+    });
+  });
+
+  describe('readiness-only operational routes', () => {
+    it('cancelRun is TRANSPORT_PROVIDER-only', () => {
+      expect(canActivateAs(VanPilotController.prototype.cancelRun, AccountRoleType.TRANSPORT_PROVIDER)).toBe(true);
+      expect(() => canActivateAs(VanPilotController.prototype.cancelRun, AccountRoleType.SUPER_AGENT)).toThrow(ForbiddenException);
+      expect(() => canActivateAs(VanPilotController.prototype.cancelRun, AccountRoleType.ADMIN)).toThrow(ForbiddenException);
+    });
+    it('desk queues are SUPER_AGENT-only', () => {
+      for (const handler of [
+        VanPilotController.prototype.listMyDeskBlockedReceipts,
+        VanPilotController.prototype.listMyDeskAwaitingCompletion,
+      ]) {
+        expect(canActivateAs(handler, AccountRoleType.SUPER_AGENT)).toBe(true);
+        expect(() => canActivateAs(handler, AccountRoleType.TRANSPORT_PROVIDER)).toThrow(ForbiddenException);
+        expect(() => canActivateAs(handler, AccountRoleType.ADMIN)).toThrow(ForbiddenException);
+      }
+    });
   });
 });
