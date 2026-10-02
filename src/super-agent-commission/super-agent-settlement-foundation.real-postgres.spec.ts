@@ -497,6 +497,117 @@ suite('Stage 3S-C7 — Payment Validation and Cash-Desk Settlement Foundation, r
       expect(wallets).toHaveLength(0);
     });
 
+    // ── Correction (review verdict on 81582da): payout eligibility must be
+    // LIVE, not the proposal's own frozen totalCashOutstandingAmount -- a
+    // settlement created before its cash is remitted must become payable
+    // once that exact claimed cash is later, genuinely remitted, without
+    // ever mutating the frozen proposal row.
+    describe('correction: live cash-reconciliation payout gate', () => {
+      it('a settlement blocked by outstanding cash becomes payable once its exact claimed collections are later remitted, without mutating the frozen historical total', async () => {
+        const hub = await mkSuperAgent();
+        await mkEarning({ superAgentId: hub.id, amount: 500, createdAt: new Date('2026-01-05T00:00:00Z') });
+        const c1 = await mkCashCollection({ superAgentId: hub.id, amount: 1000, createdAt: new Date('2026-01-05T00:00:00Z') });
+        const proposal = await settlementService.createSettlementProposal({
+          superAgentId: hub.id, currency: 'TZS',
+          periodStart: new Date('2026-01-01T00:00:00Z'), periodEnd: new Date('2026-02-01T00:00:00Z'), actorUserId: null,
+        });
+        expect(Number(proposal.totalCashOutstandingAmount)).toBe(1000); // frozen at creation
+
+        // (1) blocked while outstanding.
+        await expect(payoutService.payoutSettlement(proposal.id, { userId: 1 })).rejects.toThrow(ConflictException);
+
+        // (2) remit the EXACT claimed collection AFTER proposal creation.
+        await remittanceService.recordRemittance({
+          superAgentId: hub.id, currency: 'TZS', cashCollectionIds: [c1.id], actorUserId: 1, idempotencyKey: `remit-${++idemSeq}`,
+        });
+
+        const payout = await payoutService.payoutSettlement(proposal.id, { userId: 1 });
+        expect(Number(payout.amount)).toBe(500);
+
+        // (3) retry on the SAME proposal succeeds exactly once.
+        const retried = await payoutService.payoutSettlement(proposal.id, { userId: 1 });
+        expect(retried.id).toBe(payout.id);
+        expect(await payoutRepo.count()).toBe(1);
+        const wallet = await walletRepo.findOneOrFail({ where: { superAgentId: hub.id } as any });
+        expect(Number(wallet.balance)).toBe(500); // credited exactly once despite two calls
+
+        // (7) the ORIGINAL frozen total is untouched -- historical audit
+        // state at proposal creation, never rewritten.
+        const refetched = await settlementService.findProposalById(proposal.id);
+        expect(Number(refetched!.totalCashOutstandingAmount)).toBe(1000);
+      });
+
+      it('(4) remitting an unrelated cash collection does not unblock a different, still-unresolved settlement', async () => {
+        const hub = await mkSuperAgent();
+        await mkEarning({ superAgentId: hub.id, amount: 500, createdAt: new Date('2026-01-05T00:00:00Z') });
+        await mkCashCollection({ superAgentId: hub.id, amount: 1000, createdAt: new Date('2026-01-05T00:00:00Z') }); // claimed, never remitted
+        const proposal = await settlementService.createSettlementProposal({
+          superAgentId: hub.id, currency: 'TZS',
+          periodStart: new Date('2026-01-01T00:00:00Z'), periodEnd: new Date('2026-02-01T00:00:00Z'), actorUserId: null,
+        });
+
+        const unrelated = await mkCashCollection({ superAgentId: hub.id, amount: 400, createdAt: new Date('2026-03-05T00:00:00Z') }); // outside this proposal's period -- never claimed by it
+        await remittanceService.recordRemittance({
+          superAgentId: hub.id, currency: 'TZS', cashCollectionIds: [unrelated.id], actorUserId: 1, idempotencyKey: `remit-${++idemSeq}`,
+        });
+
+        await expect(payoutService.payoutSettlement(proposal.id, { userId: 1 })).rejects.toThrow(ConflictException);
+      });
+
+      it('(5) a partially-remitted claimed cash-member set remains blocked until every member is resolved', async () => {
+        const hub = await mkSuperAgent();
+        await mkEarning({ superAgentId: hub.id, amount: 500, createdAt: new Date('2026-01-05T00:00:00Z') });
+        const c1 = await mkCashCollection({ superAgentId: hub.id, amount: 600, createdAt: new Date('2026-01-05T00:00:00Z') });
+        const c2 = await mkCashCollection({ superAgentId: hub.id, amount: 400, createdAt: new Date('2026-01-06T00:00:00Z') });
+        const proposal = await settlementService.createSettlementProposal({
+          superAgentId: hub.id, currency: 'TZS',
+          periodStart: new Date('2026-01-01T00:00:00Z'), periodEnd: new Date('2026-02-01T00:00:00Z'), actorUserId: null,
+        }); // claims both c1 and c2
+
+        await remittanceService.recordRemittance({
+          superAgentId: hub.id, currency: 'TZS', cashCollectionIds: [c1.id], actorUserId: 1, idempotencyKey: `remit-${++idemSeq}`,
+        }); // only c1 resolved
+        await expect(payoutService.payoutSettlement(proposal.id, { userId: 1 })).rejects.toThrow(ConflictException);
+
+        await remittanceService.recordRemittance({
+          superAgentId: hub.id, currency: 'TZS', cashCollectionIds: [c2.id], actorUserId: 1, idempotencyKey: `remit-${++idemSeq}`,
+        }); // now c2 too -- fully resolved
+        const payout = await payoutService.payoutSettlement(proposal.id, { userId: 1 });
+        expect(Number(payout.amount)).toBe(500);
+      });
+
+      it('(6) a concurrent remittance/payout race never credits before every required allocation has committed', async () => {
+        const hub = await mkSuperAgent();
+        await mkEarning({ superAgentId: hub.id, amount: 500, createdAt: new Date('2026-01-05T00:00:00Z') });
+        const c1 = await mkCashCollection({ superAgentId: hub.id, amount: 1000, createdAt: new Date('2026-01-05T00:00:00Z') });
+        const proposal = await settlementService.createSettlementProposal({
+          superAgentId: hub.id, currency: 'TZS',
+          periodStart: new Date('2026-01-01T00:00:00Z'), periodEnd: new Date('2026-02-01T00:00:00Z'), actorUserId: null,
+        });
+
+        const [remitResult, payoutResult] = await Promise.allSettled([
+          remittanceService.recordRemittance({ superAgentId: hub.id, currency: 'TZS', cashCollectionIds: [c1.id], actorUserId: 1, idempotencyKey: `remit-${++idemSeq}` }),
+          payoutService.payoutSettlement(proposal.id, { userId: 1 }),
+        ]);
+
+        // The Super Agent row lock serializes the two transactions -- the
+        // remittance always eventually succeeds (nothing conflicts with its
+        // own uniqueness); the payout either succeeds (if it ran AFTER the
+        // remittance committed) or is correctly blocked (if it ran BEFORE).
+        // What must NEVER happen is a payout that both succeeded and left
+        // the cash unremitted at that moment.
+        expect(remitResult.status).toBe('fulfilled');
+        if (payoutResult.status === 'rejected') {
+          expect(payoutResult.reason).toBeInstanceOf(ConflictException);
+          await payoutService.payoutSettlement(proposal.id, { userId: 1 }); // now resolved -- retry succeeds
+        }
+
+        expect(await payoutRepo.count()).toBe(1);
+        const wallet = await walletRepo.findOneOrFail({ where: { superAgentId: hub.id } as any });
+        expect(Number(wallet.balance)).toBe(500); // exactly once, never partial, never double
+      });
+    });
+
     it('succeeds when eligible: wallet balance and payout allocations commit atomically in one transaction', async () => {
       const hub = await mkSuperAgent();
       const e1 = await mkEarning({ superAgentId: hub.id, amount: 500, createdAt: new Date('2026-01-05T00:00:00Z') });
