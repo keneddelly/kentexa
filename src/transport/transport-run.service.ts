@@ -348,8 +348,8 @@ export class TransportRunService {
       const run = await runRepo.findOne({ where: { id: runId }, lock: { mode: 'pessimistic_write' } });
       if (!run || run.providerId !== provider.id) throw new NotFoundException('Run not found');
       if (run.status === TransportRunStatus.CANCELLED) return run;
-      if (run.status === TransportRunStatus.COMPLETED) {
-        throw new ConflictException('A completed Run cannot be cancelled');
+      if (run.status === TransportRunStatus.COMPLETED || run.status === TransportRunStatus.STARTED) {
+        throw new ConflictException('A started or completed Run cannot be cancelled through the pre-load recovery path');
       }
       const progressed = await manager.query(
         `SELECT id FROM public.parcel_run_assignment
