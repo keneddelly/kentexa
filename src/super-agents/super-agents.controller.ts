@@ -46,12 +46,9 @@ export class SuperAgentsController {
     return this.service.trackParcel(trackingNumber);
   }
 
-  // Track by Order ID — for boda/personal/direct delivery orders
-  @Get('track-order/:orderId')
-  trackByOrderId(@Param('orderId', ParseIntPipe) orderId: number) {
-    return this.service.trackByOrderId(orderId);
-  }
-
+  // Van Pilot Readiness security hardening: sequential order IDs are not
+  // public tracking credentials. Public recipients use the parcel tracking
+  // reference instead; authenticated order views remain separate.
   // Get all Tanzania cities
   @Get('cities')
   getCities() {
