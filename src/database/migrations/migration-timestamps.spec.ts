@@ -68,10 +68,16 @@ describe('migration timestamps', () => {
     expect(stamp(commission)).toBeGreaterThan(1788286800000);
   });
 
-  it('Stage 3S-C6\'s receipt-confirmation/dedup migration sorts AFTER the commission foundation and is currently the latest', () => {
+  it('Stage 3S-C6\'s receipt-confirmation/dedup migration sorts AFTER the commission foundation', () => {
     const receipt = files.find((f) => f.includes('AddReceiptConfirmationAndCommissionDedup'))!;
     expect(receipt).toBe('1788288000000-AddReceiptConfirmationAndCommissionDedup.ts');
     expect(stamp(receipt)).toBeGreaterThan(1788287400000);
-    expect(files.every((f) => stamp(f) <= stamp(receipt))).toBe(true);
+  });
+
+  it('Stage 3S-C7\'s settlement foundation migration sorts AFTER the receipt-confirmation/dedup migration and is currently the latest', () => {
+    const settlement = files.find((f) => f.includes('AddSuperAgentSettlementFoundation'))!;
+    expect(settlement).toBe('1788288600000-AddSuperAgentSettlementFoundation.ts');
+    expect(stamp(settlement)).toBeGreaterThan(1788288000000);
+    expect(files.every((f) => stamp(f) <= stamp(settlement))).toBe(true);
   });
 });

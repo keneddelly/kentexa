@@ -86,6 +86,13 @@ export class SuperAgentCashCollection {
   @Column({ type: 'varchar', length: 128 })
   idempotencyKey: string;
 
+  // Stage 3S-C5 field, left exactly as-is. Stage 3S-C7 note: because this
+  // table is immutable (BEFORE UPDATE/DELETE trigger below), this column
+  // can only ever be set at INSERT time and NEVER transitioned afterward --
+  // it is effectively vestigial, permanently 'pending'. The real
+  // reconciliation state is now derived from whether a row exists in
+  // SuperAgentCashRemittanceAllocation referencing this collection (see
+  // that entity's own header comment), never from this column.
   @Column({ type: 'varchar', length: 24, default: 'pending' })
   reconciliationStatus: string;
 

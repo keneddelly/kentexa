@@ -88,6 +88,28 @@ export class WalletService {
     return this.toWallet(rows[0]);
   }
 
+  /**
+   * Stage 3S-C7: a Super Agent's OWN wallet -- never its operator's Personal
+   * wallet. SuperAgent.userId is only unique when workspaceId IS NULL
+   * (UQ_super_agent_unbound_user); a single user can legitimately operate
+   * multiple workspace-bound Super Agent hubs, so a Personal-wallet mapping
+   * would silently merge two different Super Agents' settlement money.
+   * Idempotent and unique-constraint-backed (UQ_wallet_super_agent), same
+   * create-if-absent pattern as the other two resolvers.
+   */
+  async getOrCreateSuperAgentWallet(superAgentId: number, manager?: EntityManager): Promise<Wallet> {
+    if (!Number.isInteger(superAgentId) || superAgentId <= 0) throw new BadRequestException('WALLET_OWNER_REQUIRED');
+    const m = manager ?? this.dataSource.manager;
+    const sa = await m.query(`SELECT id FROM public.super_agent WHERE id = $1`, [superAgentId]);
+    if (!sa[0]) throw new NotFoundException({ code: 'SUPER_AGENT_NOT_FOUND', message: 'SUPER_AGENT_NOT_FOUND' });
+    await m.query(
+      `INSERT INTO wallet ("userId", "workspaceId", "superAgentId") VALUES (NULL, NULL, $1) ON CONFLICT ("superAgentId") WHERE "superAgentId" IS NOT NULL DO NOTHING`,
+      [superAgentId],
+    );
+    const rows = await m.query(`SELECT * FROM wallet WHERE "superAgentId" = $1`, [superAgentId]);
+    return this.toWallet(rows[0]);
+  }
+
   /** The wallet of the authenticated acting context: BUSINESS -> its workspace wallet; anything else -> the person's Personal wallet. */
   async walletForContext(ctx: Pick<RoleContext, 'identityType' | 'workspaceId' | 'userId'>, manager?: EntityManager): Promise<Wallet> {
     if (ctx.identityType === 'BUSINESS') {

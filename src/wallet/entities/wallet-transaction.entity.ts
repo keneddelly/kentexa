@@ -14,6 +14,10 @@ export enum WalletTransactionType {
   WITHDRAWAL_PAID = 'withdrawal_paid',
   WITHDRAWAL_REJECTED = 'withdrawal_rejected',
   ADJUSTMENT = 'adjustment',
+  // Stage 3S-C7: a Super Agent handling-commission payout, credited via the
+  // SAME creditWallet() primitive every other credit type uses -- a
+  // genuinely new money type, never overloading an existing one.
+  SUPER_AGENT_COMMISSION_PAYOUT = 'super_agent_commission_payout',
 }
 
 export enum WalletTransactionStatus {
