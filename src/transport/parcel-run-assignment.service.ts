@@ -355,6 +355,22 @@ export class ParcelRunAssignmentService {
       if (tender.source === 'super_agent_release' && Number(tender.releasingSuperAgentId) !== Number(loadStop.superAgentId)) {
         throw new ForbiddenException('Movement tender does not authorize this load stop');
       }
+      // A Run stop that names a Super Agent is a physical-hub load claim,
+      // not merely a routing label. Require the immutable latest custody
+      // evidence to show that exact hub currently holds the parcel.
+      if (loadStop.superAgentId != null) {
+        const latestCustody = await manager.query(
+          `SELECT "toCustodianType", "toCustodianId"
+             FROM public.parcel_custody_event
+            WHERE "parcelId"=$1
+            ORDER BY "recordedAt" DESC, id DESC LIMIT 1`,
+          [dto.parcelId],
+        );
+        if (!latestCustody.length || latestCustody[0].toCustodianType !== 'super_agent' ||
+            Number(latestCustody[0].toCustodianId) !== Number(loadStop.superAgentId)) {
+          throw new ForbiddenException('Parcel is not in custody of this Run load hub');
+        }
+      }
 
       await this.assertRunCapacity(manager, run, dto.parcelId);
 
