@@ -71,6 +71,56 @@ export class ParcelJourneyService {
     return rows[0];
   }
 
+  async assertParcelOperationalVisibility(
+    userId: number,
+    roleType: string,
+    roleProfileId: number | null,
+    parcelId: number,
+  ): Promise<void> {
+    if (roleType === 'admin') return;
+
+    if (roleType === 'transport_provider' && roleProfileId != null) {
+      const rows = await this.dataSource.query(
+        `SELECT 1
+           FROM public.parcel_run_assignment a
+           JOIN public.transport_run r ON r.id = a."runId"
+          WHERE a."parcelId" = $1 AND r."providerId" = $2
+          LIMIT 1`,
+        [parcelId, roleProfileId],
+      );
+      if (rows.length) return;
+    }
+
+    if (roleType === 'super_agent' && roleProfileId != null) {
+      const rows = await this.dataSource.query(
+        `SELECT 1
+           FROM public.parcel p
+          WHERE p.id = $1
+            AND (p."superAgentId" = $2 OR p."destinationSuperAgentId" = $2)
+          UNION ALL
+         SELECT 1
+           FROM public.parcel_custody_event e
+          WHERE e."parcelId" = $1
+            AND ((e."fromCustodianType" = 'super_agent' AND e."fromCustodianId" = $2)
+              OR (e."toCustodianType" = 'super_agent' AND e."toCustodianId" = $2))
+          LIMIT 1`,
+        [parcelId, roleProfileId],
+      );
+      if (rows.length) return;
+    }
+
+    if (roleType === 'agent') {
+      const rows = await this.dataSource.query(
+        `SELECT 1 FROM public.parcel
+          WHERE id = $1 AND "localAgentId" = $2::text LIMIT 1`,
+        [parcelId, userId],
+      );
+      if (rows.length) return;
+    }
+
+    throw new NotFoundException('Parcel not found');
+  }
+
   async resolveJourneyContext(parcelId: number): Promise<ParcelJourneyContext> {
     const parcel = await this.getParcelSummary(parcelId);
     const latestCustodyEvent = await this.dataSource.getRepository(ParcelCustodyEvent).findOne({
