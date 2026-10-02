@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { Client } from 'pg';
 import { DataSource, Repository } from 'typeorm';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { getB5BTestConnectionConfig, resetB5BTestSchema, B5B_BASE_ENTITIES } from '../business/b5b-closure-test-db';
 import { TransportService } from './transport.service';
 import { TransportRunService } from './transport-run.service';
