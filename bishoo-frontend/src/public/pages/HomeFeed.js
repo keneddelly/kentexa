@@ -782,7 +782,7 @@ const PostCard = ({ post, isLoggedIn, onNavigate, currentUser, savedIds, onSaveT
           {/* 📦 Ship (classifieds only) */}
           {isClassified && entityId && (
             <button onClick={() => {
-              onNavigate('SellerShipment');
+              onNavigate('SendShipment', { classifiedId: entityId });
               Engagement.track(post.id, entityType, entityId, 'shipment', isLoggedIn, onNavigate);
             }}
               style={{ display:'flex', alignItems:'center', gap:4, background:'none',
