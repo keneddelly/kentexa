@@ -131,6 +131,22 @@ export class TransportRunService {
     if (!rows.length) throw new BadRequestException('superAgentId does not reference an existing Super Agent');
   }
 
+  async listActiveHubsForProvider(userId: number, search?: string) {
+    await this.transportService.getMyProfile(userId);
+    const q=(search || '').trim();
+    return this.dataSource.query(
+      `SELECT id, "businessName", city, address, phone, "agentCode"
+         FROM public.super_agent
+        WHERE status='active'
+          AND ($1='' OR lower("businessName") LIKE lower('%'||$1||'%')
+                    OR lower(city) LIKE lower('%'||$1||'%')
+                    OR lower(COALESCE(address,'')) LIKE lower('%'||$1||'%'))
+        ORDER BY city ASC, "businessName" ASC
+        LIMIT 100`,
+      [q],
+    );
+  }
+
   // ── RouteStop CRUD (reusable, editable plan) ──────────────────────────────
 
   async addRouteStop(userId: number, routeId: number, dto: AddRouteStopDto): Promise<RouteStop> {
