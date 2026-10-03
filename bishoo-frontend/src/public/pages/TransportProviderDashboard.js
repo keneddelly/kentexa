@@ -100,6 +100,8 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const [showVehicleForm,setShowVehicleForm] = useState(false);
   const [routeStops, setRouteStops] = useState({});
   const [stopDraft, setStopDraft] = useState({});
+  const [activeHubs, setActiveHubs] = useState([]);
+  const [newRouteStops, setNewRouteStops] = useState([]);
   const [vehicleForm,   setVehicleForm]   = useState({ identifier:'', registrationPlate:'', type:'van', parcelCapacity:'', weightCapacityKg:'' });
   const [loading,       setLoading]       = useState(true);
   const [tab,           setTab]           = useState('home');
@@ -165,6 +167,20 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   // "Add Route" button elsewhere in the app just linked back to
   // registration. POST /transport/routes has always existed server-side;
   // this is the first UI that actually calls it.
+  const loadActiveHubs = async () => {
+    try { const res=await api.get('/van-pilot/hubs'); setActiveHubs(res.data || []); }
+    catch(e){ alert(e.response?.data?.message || 'Could not load active Kentexa hubs'); }
+  };
+
+  const addNewRouteStop = (hubId='') => {
+    if(hubId) {
+      const hub=activeHubs.find(h=>Number(h.id)===Number(hubId)); if(!hub) return;
+      const locationLabel=[hub.address,hub.city].filter(Boolean).join(', ') || hub.businessName;
+      setNewRouteStops(p=>[...p,{ locationLabel, superAgentId:Number(hub.id), hubName:hub.businessName }]); return;
+    }
+    const locationLabel=prompt('Stop location'); if(locationLabel?.trim()) setNewRouteStops(p=>[...p,{locationLabel:locationLabel.trim(),superAgentId:null}]);
+  };
+
   const handleAddRoute = async () => {
     try {
       setSavingRoute(true);
@@ -179,12 +195,21 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
         dto.originCity = routeForm.originCity;
         dto.destinationCity = routeForm.destinationCity;
       } else if (routeForm.routeType === 'local_loop') {
-        dto.loopStops = routeForm.loopStops.split(',').map(s => s.trim()).filter(Boolean);
+        if (newRouteStops.length < 2) throw new Error('Add at least two Van stops');
+        dto.loopStops = newRouteStops.map(s => s.locationLabel);
       } else if (routeForm.routeType === 'last_mile') {
         dto.coverageCity = routeForm.coverageCity;
         dto.coverageWards = routeForm.coverageWards.split(',').map(s => s.trim()).filter(Boolean);
       }
-      await api.post('/transport/routes', dto);
+      const routeRes = await api.post('/transport/routes', dto);
+      const createdRoute = routeRes.data;
+      if (routeForm.routeType === 'local_loop' && createdRoute?.id) {
+        for (let sequence=0; sequence<newRouteStops.length; sequence++) {
+          const st=newRouteStops[sequence];
+          await api.post(`/van-pilot/routes/${createdRoute.id}/stops`, { sequence, locationLabel:st.locationLabel, superAgentId:st.superAgentId || undefined });
+        }
+      }
+      setNewRouteStops([]);
       setShowRouteForm(false);
       setRouteForm(p => ({ ...p, originCity: '', destinationCity: '', loopStops: '', coverageCity: '', coverageWards: '', pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '' }));
       fetchAll();
@@ -835,10 +860,19 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                 )}
 
                 {routeForm.routeType === 'local_loop' && (
-                  <div style={{ marginBottom: 10 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_loop_stops')}</label>
-                    <input style={inp} value={routeForm.loopStops} placeholder="Kariakoo, Buguruni, Mbagala"
-                      onChange={e => setRouteForm(p => ({ ...p, loopStops: e.target.value }))} />
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={{ fontSize:12,fontWeight:800,color:'#334155',display:'block',marginBottom:6 }}>Van stops / Kentexa hubs</label>
+                    <button type="button" onClick={loadActiveHubs} style={{border:'none',borderRadius:8,padding:'8px 10px',fontWeight:800,marginBottom:8}}>Load active Kentexa hubs</button>
+                    {activeHubs.length>0 && <select defaultValue="" onChange={e=>{addNewRouteStop(e.target.value);e.target.value='';}} style={{...inp,marginBottom:8}}>
+                      <option value="">Add Super Agent hub…</option>
+                      {activeHubs.map(h=><option key={h.id} value={h.id}>{h.businessName} · {h.address || h.city}</option>)}
+                    </select>}
+                    {newRouteStops.map((st,i)=><div key={i} style={{display:'flex',justifyContent:'space-between',gap:8,padding:'7px 0',fontSize:12,borderTop:'1px solid #f1f5f9'}}>
+                      <span><strong>{i+1}. {st.locationLabel}</strong>{st.superAgentId ? ` · ${st.hubName}` : ' · ordinary stop'}</span>
+                      <button type="button" onClick={()=>setNewRouteStops(p=>p.filter((_,x)=>x!==i))} style={{border:'none',background:'none',color:'#b91c1c'}}>Remove</button>
+                    </div>)}
+                    <button type="button" onClick={()=>addNewRouteStop()} style={{border:'1px solid #cbd5e1',borderRadius:8,padding:'7px 10px',background:'#fff',fontWeight:700,marginTop:6}}>+ Ordinary stop</button>
+                    <div style={{fontSize:11,color:'#64748b',marginTop:6}}>Use a Kentexa hub where parcels can enter/leave custody. Ordinary stops can still be used as route waypoints.</div>
                   </div>
                 )}
 
