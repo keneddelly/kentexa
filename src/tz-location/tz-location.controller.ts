@@ -57,6 +57,23 @@ export class TzLocationController {
     return this.locationService.search(q);
   }
 
+  // Human-first location picker: one typed query across region/district/ward.
+  // The selected result carries canonical administrative ids plus coordinates;
+  // callers never need to force the user through Region -> District -> Ward.
+  @Get('places')
+  searchPlaces(@Query('q') q: string, @Query('limit') limit?: string) {
+    if (!q || q.trim().length < 2) return [];
+    return this.locationService.searchPlaces(q, limit ? Number(limit) : 8);
+  }
+
+  @Get('places/:level/:id')
+  findPlace(
+    @Param('level') level: 'ward' | 'district' | 'region',
+    @Param('id') id: string,
+  ) {
+    return this.locationService.findPlaceById(level, Number(id));
+  }
+
   @Get('delivery-type')
   deliveryType(
     @Query('originWard') originWard?: string,
