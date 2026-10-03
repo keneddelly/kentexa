@@ -10,6 +10,7 @@ import {
   Request,
   Query,
   ParseIntPipe,
+  Header,
 } from '@nestjs/common';
 import { AgentsService } from '../agents/agents.service';
 import { SuperAgentsService } from './super-agents.service';
@@ -45,12 +46,9 @@ export class SuperAgentsController {
     return this.service.trackParcel(trackingNumber);
   }
 
-  // Track by Order ID — for boda/personal/direct delivery orders
-  @Get('track-order/:orderId')
-  trackByOrderId(@Param('orderId', ParseIntPipe) orderId: number) {
-    return this.service.trackByOrderId(orderId);
-  }
-
+  // Van Pilot Readiness security hardening: sequential order IDs are not
+  // public tracking credentials. Public recipients use the parcel tracking
+  // reference instead; authenticated order views remain separate.
   // Get all Tanzania cities
   @Get('cities')
   getCities() {
@@ -305,6 +303,60 @@ export class SuperAgentsController {
   @Patch('parcels/:trackingNumber/claim')
   claimParcel(@Request() req, @Param('trackingNumber') tn: string) {
     return this.service.claimParcel(req.user, tn);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  @Post('parcels/:trackingNumber/agent-handoff-code')
+  @Header('Cache-Control', 'no-store')
+  issueAgentHandoffCode(
+    @Request() req, @Param('trackingNumber') tn: string,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.issueAgentHandoffCode(req.user, tn, roleContext);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  @Post('parcels/:trackingNumber/confirm-agent-handoff')
+  confirmAgentHandoff(
+    @Request() req, @Param('trackingNumber') tn: string,
+    @Body() body: { code: string }, @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.confirmAgentHandoff(req.user, tn, body?.code, roleContext);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  @Post('parcels/:trackingNumber/recipient-delivery-code')
+  issueAgentDeliveryCode(
+    @Request() req, @Param('trackingNumber') tn: string,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.issueAgentDeliveryCode(req.user, tn, roleContext);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  @Post('parcels/:trackingNumber/confirm-recipient-delivery')
+  confirmAgentDelivery(
+    @Request() req, @Param('trackingNumber') tn: string,
+    @Body() body: { code: string }, @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.confirmAgentDelivery(req.user, tn, body?.code, roleContext);
+  }
+
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  @Post('parcels/:trackingNumber/confirm-recipient-cod-delivery')
+  confirmCodAgentDelivery(
+    @Request() req, @Param('trackingNumber') tn: string,
+    @Body() body: { code: string; codBalanceCollected: number },
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.confirmCodAgentDelivery(
+      req.user, tn, body?.code, body?.codBalanceCollected, roleContext,
+    );
   }
 
   // Mark out-for-delivery / delivered (only my claimed parcels)

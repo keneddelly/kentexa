@@ -20,6 +20,7 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { ShipmentHubSource } from '../shipment-hub-source';
 
@@ -39,7 +40,12 @@ export enum ShipmentHandoffOption {
   STATION = 'station', // collect/drop at the provider's own point
 }
 
+// Stage 3S-B3: a quote can back at most one Shipment. Declared on the
+// entity (not just the migration's raw SQL) so synchronize:true test
+// environments enforce the exact same constraint a real deployment's
+// migration creates -- see 1788283800000-AddTransportQuote's "UQ_shipment_quote".
 @Entity('shipment')
+@Index('UQ_shipment_quote', ['quoteId'], { unique: true, where: '"quoteId" IS NOT NULL' })
 export class Shipment {
   @PrimaryGeneratedColumn()
   id: number;
@@ -207,6 +213,14 @@ export class Shipment {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   priceQuoted: number | null;
+
+  // Stage 3S-B3: when set, priceQuoted came from this TransportQuote's own
+  // frozen totalAmount, never recomputed from TransportRoute's current
+  // price — a later route-price edit cannot change it. Null for every
+  // Shipment created without a quote (unchanged, existing behaviour). A
+  // quote can back at most one Shipment (DB-enforced partial unique index).
+  @Column({ type: 'int', nullable: true })
+  quoteId: number | null;
 
   // Set only when a marketplace sale triggered this shipment — null for
   // every independent, user-initiated request. Not wired into the

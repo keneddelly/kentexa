@@ -20,6 +20,7 @@ describe('destination arrival routes', () => {
     service.orderRepo = { update: jest.fn() };
     service.superAgentRepo = { findOne: async () => hub };
     service.agentRepo = { find: async () => [] };
+    service.dataSource = { query: jest.fn(async () => []) }; // Stage 3S-A: the first-mile boarding guard reads parcel_pickup_task; here no Parcel has a pickup task.
     service.recordDestinationHubReceipt = jest.fn(async () => {});
     service.addTrackingEvent = jest.fn(async () => {});
     service.smsService = { sendSms: jest.fn(async () => true) };

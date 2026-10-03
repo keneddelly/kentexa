@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { TransportService } from './transport.service';
-import { AssignmentStatus } from './entities/transport-assignment.entity';
+import { AssignmentStatus, TransportAssignment } from './entities/transport-assignment.entity';
+import { TransportProvider } from './entities/transport-provider.entity';
 
 /**
  * Legacy authority security closure: the admin/manager override that lets
@@ -36,6 +37,17 @@ describe('TransportService legacy authority closure', () => {
       }),
     };
     const noop: any = {};
+    // 3S-B1: updateAssignmentStatus() now re-reads/writes the assignment
+    // (and, for COMPLETED, the provider) through a transaction's
+    // EntityManager rather than the plain repositories directly. This fake
+    // manager dispatches getRepository() back to the SAME mock repos above,
+    // so every existing findOne/save/update expectation below keeps working
+    // unchanged — only the call path changed, not the mocked behaviour.
+    const manager: any = {
+      getRepository: (cls: any) =>
+        cls === TransportAssignment ? assignmentRepo : cls === TransportProvider ? providerRepo : noop,
+    };
+    const dataSource: any = { transaction: (fn: any) => fn(manager) };
     const service = new TransportService(
       providerRepo,
       noop, // route repo
@@ -51,7 +63,7 @@ describe('TransportService legacy authority closure', () => {
       noop, // commerceProfiles
       noop, // tzLocation
       noop, // roleContextService
-      noop, // dataSource
+      dataSource,
     );
     return { service, assignmentRepo, providerRepo, superAgentRepo };
   };

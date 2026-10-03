@@ -25,7 +25,7 @@ describe('origin hub custody intake', () => {
     const service: any = Object.create(SuperAgentsService.prototype);
     service.parcelRepo = { findOne: jest.fn().mockResolvedValue(parcel), update: jest.fn() };
     service.resolveActingSuperAgent = jest.fn().mockResolvedValue(hub);
-    service.dataSource = { transaction };
+    service.dataSource = { transaction, query: jest.fn(async () => []) }; // Stage 3S-A: the first-mile boarding guard reads parcel_pickup_task; here no Parcel has a pickup task.
     service.commerceProfiles = { findForUserByType: jest.fn() };
     service.activityEvents = { record: jest.fn() };
     service.smsService = { sendSms: jest.fn() };

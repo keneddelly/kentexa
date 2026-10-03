@@ -58,6 +58,8 @@ test('service worker never handles transaction or navigation fetches as cached c
     if (url.includes('/api/')) await event.respondWith.mock.calls[0][0];
     else expect(event.respondWith).not.toHaveBeenCalled();
   }
+  expect(dispatch(request('https://api-stage3kr.kentexa.com/shipments/10')).respondWith)
+    .not.toHaveBeenCalled();
   await dispatch(request('https://kentexa.com/static/js/main.hash.js', 'script', true))
     .respondWith.mock.calls[0][0];
   expect(cache.put).not.toHaveBeenCalled();

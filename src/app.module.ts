@@ -31,6 +31,7 @@ import { TzPricingModule } from './tz-location/tz-pricing.module';
 import { BusinessModule } from './business/business.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { TransportModule } from './transport/transport.module';
+import { SuperAgentCommissionModule } from './super-agent-commission/super-agent-commission.module';
 import { ReputationModule } from './reputation/reputation.module';
 import { WalletModule } from './wallet/wallet.module';
 import { FeedModule } from './feed/feed.module';
@@ -108,6 +109,7 @@ export const allowDevelopmentSchemaSync =
     BusinessModule,
     NotificationsModule,
     TransportModule,
+    SuperAgentCommissionModule,
     ReputationModule,
     WalletModule,
     FeedModule,

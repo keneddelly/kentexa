@@ -25,6 +25,7 @@ import { EntityManager, IsNull, Repository } from 'typeorm';
 import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
+import { TransportQuote, TransportQuoteStatus } from '../transport/entities/transport-quote.entity';
 import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
@@ -136,6 +137,13 @@ export interface CreateShipmentDto {
   routeId?: number;
   availabilityId?: number;
   providerId?: number;
+  // Stage 3S-B3: an accepted TransportQuote's own frozen provider/route/
+  // availability/weight/price take over completely when supplied — routeId/
+  // availabilityId/providerId/weightKg above are then IGNORED, not merged
+  // with it (accepting anything else here would let a client silently swap
+  // in a different price after acceptance). See createShipment()'s own
+  // comment for the exact precedence.
+  quoteId?: number;
   pickupOption?: ShipmentHandoffOption;
   deliveryOption?: ShipmentHandoffOption;
 }
@@ -188,6 +196,13 @@ export class ShipmentsService {
     private readonly transportService: TransportService,
     private readonly tzLocation: TzLocationService,
     private readonly locationIntelligence: LocationIntelligenceService,
+    // Stage 3S-B3, appended and OPTIONAL rather than inserted earlier, so
+    // every existing hand-constructed test double (real-PG specs build this
+    // service with positional `new ShipmentsService(...)` calls, not NestJS
+    // DI) keeps compiling and working unchanged. NestJS itself always
+    // injects the real repository regardless of this TS-level optionality;
+    // only a caller that actually sets dto.quoteId ever touches it.
+    @InjectRepository(TransportQuote) private quoteRepo?: Repository<TransportQuote>,
   ) {}
 
   // Re-resolves a client-selected place reference EXACTLY (no name search, no
@@ -376,12 +391,17 @@ export class ShipmentsService {
 
   // Price comes from the route's own configured rate — never estimated by
   // guesswork. fixedFee acts as a floor (matches how a provider would
-  // actually charge a very light parcel).
+  // actually charge a very light parcel). Stage 3S-B4: resolves the route's
+  // CURRENTLY EFFECTIVE price through the one canonical resolver
+  // (TransportService.getEffectiveRoutePrice) instead of reading
+  // route.pricePerKg/fixedFee directly -- that resolver itself throws
+  // NotFoundException('Route not found') for a nonexistent routeId (no
+  // history row can ever reference one), preserving this method's existing
+  // not-found behaviour exactly.
   async estimateShipmentPrice(routeId: number, weightKg: number): Promise<number> {
-    const route = await this.routeRepo.findOne({ where: { id: routeId } });
-    if (!route) throw new NotFoundException('Route not found');
-    const byWeight = Number(route.pricePerKg) * (weightKg || 0);
-    return Math.max(byWeight, Number(route.fixedFee) || 0);
+    const { pricePerKg, fixedFee } = await this.transportService.getEffectiveRoutePrice(routeId);
+    const byWeight = pricePerKg * (weightKg || 0);
+    return Math.max(byWeight, fixedFee || 0);
   }
 
   async createShipment(userId: number, dto: CreateShipmentDto): Promise<Shipment> {
@@ -444,22 +464,62 @@ export class ShipmentsService {
     const d = side(destination, dto.destinationCity, dto.destinationWard, dto.destinationRegionId, dto.destinationWardId);
     const [originRegionId, destinationRegionId] = await Promise.all([o.regionId, d.regionId]);
 
+    // Stage 3S-B3: an accepted quote is the frozen source of truth for
+    // provider/route/availability/weight/price. dto.routeId/availabilityId/
+    // providerId/weightKg are ignored once quoteId is given -- there is no
+    // "merge" between a quote and separately-supplied fields, since that
+    // would reopen exactly the silent-repricing gap a quote exists to close.
+    let quote: TransportQuote | null = null;
+    if (dto.quoteId != null) {
+      if (!this.quoteRepo) throw new Error('Quote support is not configured on this ShipmentsService instance');
+      quote = await this.quoteRepo.findOne({ where: { id: dto.quoteId } });
+      if (!quote) throw new NotFoundException('Quote not found');
+      if (quote.requestedByUserId !== userId) {
+        throw new ForbiddenException("Only the quote's requester can use it");
+      }
+      if (quote.status !== TransportQuoteStatus.ACCEPTED) {
+        throw new ConflictException('Quote must be accepted before creating a shipment');
+      }
+      // Correction (post-B3 review): the SAME canonical route-journey check
+      // createQuote() uses, applied here against the Shipment's own resolved
+      // origin/destination (o.city/d.city -- whichever the requester actually
+      // selected, place or free text). Without this, a Shipment could bind a
+      // quote's frozen provider/route/price while declaring an unrelated
+      // journey, e.g. consuming a Dar->Mwanza quote for a Dar->Arusha
+      // Shipment. The richer Shipment place/snapshot system itself is
+      // untouched -- this only proves the two are compatible before capacity
+      // is reserved.
+      await this.transportService.assertRouteServesJourney(quote.routeId, o.city, d.city);
+    }
+    const effectiveProviderId = quote ? quote.providerId : dto.providerId;
+    const effectiveRouteId = quote ? quote.routeId : dto.routeId;
+    const effectiveAvailabilityId = quote ? (quote.availabilityId ?? undefined) : dto.availabilityId;
+
     // A providerId on create is only a stored SELECTION -- it never confirms
     // anything (see status below). Still validated here with the canonical
     // provider policy so a nonexistent/unverified/suspended provider is
-    // rejected up front, before any capacity is reserved or row inserted.
-    // confirmShipment() re-validates, since provider state can change.
-    if (dto.providerId) {
-      await this.transportService.assertEligibleProvider(dto.providerId);
+    // rejected up front, before any capacity is reserved or row inserted --
+    // re-checked even with a quote, since the provider's own status can
+    // change between quote acceptance and Shipment creation.
+    // confirmShipment() re-validates again, since provider state can change further.
+    if (effectiveProviderId) {
+      await this.transportService.assertEligibleProvider(effectiveProviderId);
     }
 
     // Non-finite / negative weights are rejected up front (they would corrupt
-    // the capacity arithmetic); unspecified stays 0 exactly as before.
-    const weightKg = this.normalizeWeightKg(dto.weightKg);
+    // the capacity arithmetic); unspecified stays 0 exactly as before. A
+    // quote's own weight is already validated/frozen -- never re-normalized
+    // against a possibly-different dto.weightKg.
+    const weightKg = quote ? Number(quote.weightKg) : this.normalizeWeightKg(dto.weightKg);
 
+    // priceQuoted: from the quote's frozen total when one is used (NEVER
+    // recomputed from TransportRoute's current price — the entire point of
+    // Stage 3S-B3), otherwise the exact prior inline computation, unchanged.
     let priceQuoted: number | null = null;
-    if (dto.routeId) {
-      priceQuoted = await this.estimateShipmentPrice(dto.routeId, weightKg);
+    if (quote) {
+      priceQuoted = Number(quote.totalAmount);
+    } else if (effectiveRouteId) {
+      priceQuoted = await this.estimateShipmentPrice(effectiveRouteId, weightKg);
     }
 
     // Capacity boundary: a reservation FOLLOWS availabilityId -- acquired
@@ -476,11 +536,11 @@ export class ShipmentsService {
     // write fails the reservation rolls back with it (no leaked slot).
     return this.shipmentRepo.manager.transaction(async (em) => {
       const shipments = em.getRepository(Shipment);
-      if (dto.availabilityId) {
+      if (effectiveAvailabilityId) {
         await this.transportService.reserveSlot(
-          dto.availabilityId,
+          effectiveAvailabilityId,
           capacityWeightKg(weightKg),
-          { providerId: dto.providerId, routeId: dto.routeId },
+          { providerId: effectiveProviderId, routeId: effectiveRouteId },
           em,
         );
       }
@@ -504,9 +564,10 @@ export class ShipmentsService {
           ...toDestinationSnapshotColumns(d.snapshot),
           itemDescription: dto.itemDescription.trim(),
           weightKg,
-          routeId: dto.routeId || null,
-          availabilityId: dto.availabilityId || null,
-          providerId: dto.providerId || null,
+          routeId: effectiveRouteId || null,
+          availabilityId: effectiveAvailabilityId || null,
+          providerId: effectiveProviderId || null,
+          quoteId: quote?.id ?? null,
           pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
           deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
           priceQuoted,

@@ -48,9 +48,10 @@ describe('carrier collection custody boundary', () => {
   it('records carrier custody, parcel progress and tracking in the same transaction', async () => {
     const { service, writes, manager, repos } = setup();
     await service.updateAssignmentStatus(caller, 8, { status: AssignmentStatus.COLLECTED }, context);
-    expect(manager.query.mock.calls.map(([sql]: [string]) => sql)).toEqual([
+    expect(manager.query.mock.calls.map(([sql]: [string]) => (/parcel_pickup_task/.test(sql) ? 'FIRST_MILE_GUARD' : sql))).toEqual([
       'SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE',
       'SELECT id FROM public.transport_assignment WHERE id=$1 FOR UPDATE',
+      'FIRST_MILE_GUARD', // Stage 3S-A: never board before physical origin-hub receipt
     ]);
     expect(writes).toEqual(['custody', 'parcel', 'tracking', 'assignment']);
     expect(repos.get(ParcelCustodyEvent).insert).toHaveBeenCalledWith(

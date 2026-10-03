@@ -13,12 +13,28 @@ export class SmsService {
   // so we only pass `from` when we have a real, configured value.
   private readonly shortCode: string | undefined;
   private readonly isDev: boolean;
+  private readonly outboundDisabled: boolean;
+  private readonly rehearsalPhone: string | null;
 
   constructor(private config: ConfigService) {
     const apiKey = config.get<string>('AT_API_KEY') || '';
     const username = config.get<string>('AT_USERNAME') || 'sandbox';
     this.shortCode = config.get<string>('AT_SHORTCODE') || undefined;
     this.isDev = config.get<string>('NODE_ENV') !== 'production';
+    const disabled = config.get<string>('STAGE3KR_DISABLE_OUTBOUND_SMS') === 'true';
+    const rehearsal = config.get<string>('STAGE3KR_SMS_REHEARSAL') === 'true';
+    const testPhone = config.get<string>('STAGE3KR_SMS_TEST_PHONE') || '';
+    const isolated = config.get<string>('DB_NAME') === 'kentexa_stage3kr' &&
+      config.get<string>('DB_USERNAME') === 'kentexa_stage3kr';
+    this.rehearsalPhone = !disabled && rehearsal && isolated && apiKey &&
+      username !== 'sandbox' && /^\+255\d{9}$/.test(testPhone) ? testPhone : null;
+    this.outboundDisabled = disabled || (isolated && !this.rehearsalPhone) ||
+      (rehearsal && !this.rehearsalPhone);
+
+    if (this.outboundDisabled) {
+      this.sms = null;
+      return;
+    }
 
     const at = AfricasTalking({ apiKey, username });
     this.sms = at.SMS;
@@ -40,7 +56,9 @@ export class SmsService {
 
   // ── Send SMS ──────────────────────────────────────────────────────────
   async sendSms(phone: string, message: string, sensitive = false): Promise<boolean> {
+    if (this.outboundDisabled) return false;
     const formatted = this.formatPhone(phone);
+    if (this.rehearsalPhone && formatted !== this.rehearsalPhone) return false;
 
     // Keep credentials out of application logs in every environment.
     this.logger.log(`[SMS] To: ${formatted} | ${sensitive ? '[sensitive message omitted]' : message}`);

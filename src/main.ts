@@ -37,6 +37,9 @@ async function bootstrap() {
       'https://kentexa.com',
       'https://www.kentexa.com',
       'https://staging.kentexa.com',
+      ...(process.env.STAGE3KR_FRONTEND_ORIGIN
+        ? [process.env.STAGE3KR_FRONTEND_ORIGIN]
+        : []),
       'https://earlyaccess.kentexa.com', // Kentexa Early Access Portal (prod custom domain — not yet set up)
       'https://kentexa-early-access.onrender.com', // Kentexa Early Access Portal (actual Render URL)
       'https://bishoo-frontend.onrender.com', // Main Kentexa app (actual Render URL)

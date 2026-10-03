@@ -76,6 +76,17 @@ export class Order {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // Walk-in registration retry identity. Nullable for every other Order and
+  // historical row; the partial unique index is installed by migration.
+  @Column({ type: 'uuid', nullable: true })
+  offlineRequestKey: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  offlineRequestPayloadHash: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  offlineReceiptSnapshot: object | null;
+
   // I2G: the OperationalWorkspace that owns this order's commerce/sender
   // accounting (NOT the custody/hub workspace -- that is SuperAgent.workspaceId).
   // Stamped ONLY server-side from the authoritative RoleContext (or, for a
@@ -292,6 +303,11 @@ export class Order {
 
   @Column({ type: 'int', nullable: true })
   codBalanceCollectedByAgentId: number | null;
+
+  // Local Agent profile ID; the older codBalanceCollectedByAgentId is a
+  // Super Agent hub ID and must never be overloaded with another ID space.
+  @Column({ type: 'int', nullable: true })
+  codBalanceCollectedByLocalAgentId: number | null;
 
   @Column({ type: 'timestamp', nullable: true })
   codBalanceCollectedAt: Date | null;

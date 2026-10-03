@@ -78,6 +78,20 @@ export class ActivityEventService {
     });
   }
 
+  // Layer 1 recovery building block -- lets a caller that recorded a
+  // best-effort side-effect FAILURE (e.g. Stage 3S-C6's
+  // SUPER_AGENT_HANDLING_EARNING_GENERATION_FAILED) find every such row back
+  // again later, so a reconciliation job or admin tool can replay whatever
+  // the metadata points at. This is what turns "durably logged" into an
+  // actual recovery mechanism instead of a write-only trail.
+  async findByEventType(eventType: string, limit = 100): Promise<ActivityEvent[]> {
+    return this.repo.find({
+      where: { eventType },
+      order: { createdAt: 'DESC' },
+      take: limit,
+    });
+  }
+
   // Layer 2 building block — deterministic count of a specific event type
   // for one business identity since a given time. Used by
   // BusinessService.getTodayIntelligence() rather than exposing the raw

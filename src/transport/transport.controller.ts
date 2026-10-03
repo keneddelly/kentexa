@@ -20,7 +20,9 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
-import { TransportService } from './transport.service';
+import { TransportService, DiscoverySortBy, DISCOVERY_SORT_VALUES } from './transport.service';
+import { TransportQuoteService } from './transport-quote.service';
+import type { CreateQuoteDto } from './transport-quote.service';
 import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
 import { VerificationService } from '../identity/verification.service';
@@ -37,7 +39,31 @@ export class TransportController {
   constructor(
     private readonly svc: TransportService,
     private readonly verification: VerificationService,
+    private readonly quotes: TransportQuoteService,
   ) {}
+
+  // ── QUOTES (Stage 3S-B3) ────────────────────────────────────────────────
+  // Any authenticated user — same "ordinary sender or seller/business acting
+  // user, no marketplace Order required" convention Shipment itself already
+  // uses. Creation/acceptance never reserves capacity or writes a Parcel;
+  // see TransportQuoteService's own doc comment.
+  @UseGuards(JwtAuthGuard)
+  @Post('quotes')
+  createQuote(@Request() req, @Body() dto: CreateQuoteDto) {
+    return this.quotes.createQuote(req.user, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('quotes/:id')
+  getQuote(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.quotes.getQuote(req.user, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('quotes/:id/accept')
+  acceptQuote(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.quotes.acceptQuote(req.user, id);
+  }
 
   // ── PROVIDER REGISTRATION ─────────────────────────────────────────────────
   // 2026-08-28 identity-verification architecture audit: registering as an
@@ -133,9 +159,24 @@ export class TransportController {
   // including apiKey/contract fields, embedded in every result) to anyone.
   // Same underlying query now goes through a safe, credential-free
   // projection instead.
+  //
+  // Stage 3S-B2: `sortBy`/`weightKg` are additive query params. Neither is
+  // required — a caller supplying neither (every existing caller today) sees
+  // byte-for-byte the same trips in the same order as before this stage.
   @Get('available')
-  findAvailable(@Query('from') from: string, @Query('to') to: string) {
-    return this.svc.findPublicAvailabilityForRoute(from, to);
+  findAvailable(
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('weightKg') weightKgRaw?: string,
+  ) {
+    const parsedSort = DISCOVERY_SORT_VALUES.includes(sortBy as DiscoverySortBy)
+      ? (sortBy as DiscoverySortBy)
+      : undefined; // unrecognised/absent -> findAvailableForRoute's own default ('earliest')
+    const weightKg = Number(weightKgRaw);
+    return this.svc.findPublicAvailabilityForRoute(
+      from, to, Number.isFinite(weightKg) && weightKg > 0 ? weightKg : 0, parsedSort,
+    );
   }
 
   // ── PUBLIC: CONSUMER SEARCH (AI front door) ───────────────────────────────
@@ -159,11 +200,17 @@ export class TransportController {
   // ids; the role guard here plus the ownership/legitimacy checks inside
   // createAssignment() (parcel must belong to the caller's own hub,
   // availability must belong to the selected provider) close that.
+  //
+  // 3S-B1: gated on the CURRENT active role (RoleContextGuard/ActiveRoleGuard),
+  // matching every other hub-authority route in this file, instead of the
+  // legacy account-wide `UserRole` field — createAssignment() itself now
+  // validates the specific acting hub profile from roleContext, not merely
+  // "this user owns a SuperAgent row somewhere."
   @Post('assignments')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN, UserRole.MANAGER)
-  createAssignment(@Request() req, @Body() dto: any) {
-    return this.svc.createAssignment(req.user, dto);
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT, AccountRoleType.ADMIN, AccountRoleType.MANAGER)
+  createAssignment(@Request() req, @Body() dto: any, @CurrentRoleContext() roleContext: RoleContext) {
+    return this.svc.createAssignment(req.user, dto, roleContext);
   }
 
   @Get('assignments')

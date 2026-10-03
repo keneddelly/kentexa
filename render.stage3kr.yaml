@@ -1,0 +1,86 @@
+# Isolated Stage 3K–3R rehearsal. Select this path explicitly when creating
+# a NEW Blueprint instance; never sync the production render.yaml with it.
+databases:
+  - name: kentexa-stage3kr-db
+    plan: basic-256mb
+    region: oregon
+    databaseName: kentexa_stage3kr
+    user: kentexa_stage3kr
+
+services:
+  - type: web
+    name: kentexa-stage3kr-api
+    runtime: node
+    plan: starter
+    region: oregon
+    branch: feature/stage3kr-behavior-integration
+    autoDeployTrigger: off
+    buildCommand: npm ci --include=dev && npm run build
+    # This database is new and empty. The bounded baseline and later schema
+    # migrations run here only, using fromDatabase values below.
+    preDeployCommand: MIGRATION_RUN_CONFIRM=RUN_REAL_MIGRATIONS MIGRATION_RUN_UPTO=1788281400000 npm run migration:run:direct && STAGE3KR_SEED_CONFIRM=SEED_ISOLATED_STAGE3KR npm run staging:seed:actors && STAGE3KR_SEED_CONFIRM=SEED_ISOLATED_STAGE3KR npm run staging:seed:locations
+    startCommand: npm run start:prod
+    domains:
+      - api-stage3kr.kentexa.com
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: TYPEORM_SYNCHRONIZE
+        value: "false"
+      - key: PAYMENTS_ENABLED_PROVIDERS
+        value: ""
+      - key: PAYMENTS_ALLOW_MOCK
+        value: "false"
+      - key: STAGE3KR_DISABLE_OUTBOUND_SMS
+        value: "true"
+      - key: STAGE3KR_DISABLE_UPLOADS
+        value: "true"
+      - key: STAGE3KR_TEST_PASSWORD
+        generateValue: true
+      - key: STAGE3KR_FRONTEND_ORIGIN
+        value: https://stage3kr.kentexa.com
+      - key: FRONTEND_URL
+        value: https://stage3kr.kentexa.com
+      - key: BACKEND_URL
+        value: https://api-stage3kr.kentexa.com
+      - key: DB_HOST
+        fromDatabase:
+          name: kentexa-stage3kr-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: kentexa-stage3kr-db
+          property: port
+      - key: DB_USERNAME
+        fromDatabase:
+          name: kentexa-stage3kr-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: kentexa-stage3kr-db
+          property: password
+      - key: DB_NAME
+        fromDatabase:
+          name: kentexa-stage3kr-db
+          property: database
+
+  - type: web
+    name: kentexa-stage3kr-frontend
+    runtime: static
+    branch: feature/stage3kr-behavior-integration
+    autoDeployTrigger: off
+    buildCommand: cd bishoo-frontend && npm ci && npm run build
+    staticPublishPath: bishoo-frontend/build
+    domains:
+      - stage3kr.kentexa.com
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://api-stage3kr.kentexa.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

@@ -8,6 +8,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -32,7 +33,7 @@ import { FRONTEND_URL } from '../config/urls.config';
  * Endpoints:
  *   POST /api/v1/webhook/departure   — parcel left origin (bus departed, courier collected)
  *   POST /api/v1/webhook/arrival     — parcel arrived at destination or transit hub
- *   POST /api/v1/webhook/delivered   — parcel delivered to recipient
+ *   POST /api/v1/webhook/delivered   — retired terminal write (recipient proof required)
  *   GET  /api/v1/track/:trackingNumber — public tracking (no auth needed)
  */
 @Controller('api/v1')
@@ -251,47 +252,11 @@ export class WebhookController {
       notes?: string;
     },
   ) {
-    const provider = await this.authenticate(apiKey);
-    if (!body.trackingNumber)
-      throw new BadRequestException('trackingNumber required');
-
-    const parcel = await this.findParcel(body.trackingNumber);
-
-    await this.parcelRepo.update((parcel as any).id, {
-      status: ParcelStatus.DELIVERED,
-      deliveredTime: body.deliveredAt ? new Date(body.deliveredAt) : new Date(),
-    });
-
-    await this.addEvent(
-      parcel,
-      ParcelStatus.DELIVERED,
-      (parcel as any).destinationCity || '',
-      `${provider.name}: Imefikishwa` +
-        (body.receivedBy ? ` — Alipokea: ${body.receivedBy}` : '') +
-        (body.notes ? ` — ${body.notes}` : ''),
-      provider,
-    );
-
-    // SMS buyer: delivery confirmation
-    const buyerPhone = (parcel as any).buyerPhone || parcel.order?.buyer?.phone;
-    const recipientName = (parcel as any).recipientName || 'Mpokeaji';
-
-    if (buyerPhone) {
-      await this.smsService
-        .sendSms(
-          buyerPhone,
-          `KenteXa: ✅ Habari ${recipientName}! Bidhaa yako (${body.trackingNumber}) ` +
-            `imefikishwa na ${provider.name}. Asante kwa kutumia KenteXa! 🎉`,
-        )
-        .catch(() => {});
-    }
-
-    return {
-      success: true,
-      trackingNumber: body.trackingNumber,
-      status: 'delivered',
-      message: 'Delivery recorded. Buyer notified.',
-    };
+    // Provider authentication alone cannot establish assignment, physical
+    // possession, or recipient handover for an arbitrary tracking number.
+    // Keep the route for existing integrations, but reject its terminal write
+    // until a provider-bound, recipient-verifiable delivery flow exists.
+    throw new ConflictException('Transport delivery requires verified recipient handover');
   }
 
   // ── GET /api/v1/track/:trackingNumber ─────────────────────────────────────

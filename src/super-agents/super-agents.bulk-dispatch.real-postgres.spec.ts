@@ -28,6 +28,8 @@ const config = getB5BTestConnectionConfig();
     await db.initialize();
     await db.query('CREATE TABLE public.bulk_shipment (id integer PRIMARY KEY, status varchar NOT NULL)');
     await db.query('CREATE TABLE public.parcel (id integer PRIMARY KEY, status varchar NOT NULL, "bulkShipmentId" integer, "destinationCity" varchar)');
+    // Stage 3S-A: the first-mile boarding guard reads parcel_pickup_task; here no Parcel has a pickup task.
+    await db.query('CREATE TABLE public.parcel_pickup_task (id serial PRIMARY KEY, "parcelId" integer NOT NULL, status varchar NOT NULL)');
     await db.query('CREATE TABLE public.parcel_tracking (id serial PRIMARY KEY, "parcelId" integer NOT NULL, status varchar NOT NULL)');
     await db.query('INSERT INTO public.bulk_shipment (id,status) VALUES (5,$1)', [BulkShipmentStatus.OPEN]);
     await db.query('INSERT INTO public.parcel (id,status,"bulkShipmentId","destinationCity") VALUES (11,$1,5,$2),(12,$1,5,$2)',

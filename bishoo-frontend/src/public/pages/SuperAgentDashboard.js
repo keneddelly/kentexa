@@ -35,6 +35,8 @@ import TourTrigger from '../../onboarding/TourTrigger';
 import SetupProgressCard from '../../onboarding/SetupProgressCard';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 
+const pendingWalkInRequests = new Map();
+
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Full hub-operations dashboard (receive/dispatch/pricing/van) re-enabled —
 // the backend endpoints it calls have been live all along.
@@ -212,6 +214,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [walkRoute, setWalkRoute]       = useState(null);
   const [walkDestLocation, setWalkDestLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
   const [walkPriceEstimate, setWalkPriceEstimate] = useState(null);
+  const [walkHubs, setWalkHubs] = useState([]);
+  const [walkHubsLoading, setWalkHubsLoading] = useState(false);
+  const [walkDestinationHubId, setWalkDestinationHubId] = useState('');
   const [confirmSending, setConfirmSending]     = useState({});
   const [walkRouteLoading, setWalkRouteLoading] = useState(false);
   const [walkResult, setWalkResult]     = useState(null);
@@ -379,6 +384,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [newStatus, setNewStatus]       = useState('');
   const [statusNote, setStatusNote]     = useState('');
   const [pickupCode, setPickupCode] = useState('');
+  const [agentHandoffChallenge, setAgentHandoffChallenge] = useState(null);
   const [codBalanceAmount, setCodBalanceAmount] = useState('');
 
   // ── Apply form ────────────────────────────────────────────────────────────
@@ -516,16 +522,36 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     if (!walkForm.declaredValue || Number(walkForm.declaredValue) <= 0) {
       setError('Weka thamani ya mzigo (lazima iwe zaidi ya sifuri)'); return;
     }
+    if (walkHubs.length > 1 && !walkDestinationHubId) {
+      setError('Chagua hub ya mpokeaji'); return;
+    }
     try {
       setActionLoading(true); setError('');
-      const res = await api.post('/super-agents/offline-intercity', {
+      const payload = {
         ...walkForm,
+        destinationSuperAgentId: walkDestinationHubId ? Number(walkDestinationHubId) : undefined,
         originCity: profile?.city,
         weightKg:   walkForm.weightKg ? Number(walkForm.weightKg) : undefined,
         declaredValue: Number(walkForm.declaredValue),
         shippingFeeCollected: Number(walkForm.shippingFeeCollected || 0),
-      });
+      };
+      // Reuse the request identity after a lost response or page reload.
+      // A changed form starts a different request; the backend also compares
+      // every material field before returning an existing receipt.
+      const storageKey = `kentexa-walkin-request:${profile?.id}`;
+      const fingerprint = JSON.stringify(payload);
+      let pending = pendingWalkInRequests.get(storageKey);
+      if (!pending) {
+        try { pending = JSON.parse(sessionStorage.getItem(storageKey) || 'null'); } catch { pending = null; }
+      }
+      const requestKey = pending?.fingerprint === fingerprint
+        ? pending.requestKey : crypto.randomUUID();
+      pendingWalkInRequests.set(storageKey, { fingerprint, requestKey });
+      try { sessionStorage.setItem(storageKey, JSON.stringify({ fingerprint, requestKey })); } catch { /* storage unavailable */ }
+      const res = await api.post('/super-agents/offline-intercity', { ...payload, requestKey });
       setWalkResult(res.data);
+      pendingWalkInRequests.delete(storageKey);
+      try { sessionStorage.removeItem(storageKey); } catch { /* storage unavailable */ }
       // Refresh dashboard data in the background so the new parcel shows up
       // on the Tuma tab immediately — previously required a manual page
       // reload since dashData was only refetched on resetWalk().
@@ -540,6 +566,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       destinationCity: '', deliveryAddress: '', description: '',
       weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
     setWalkRoute(null); setWalkResult(null);
+    setWalkHubs([]); setWalkDestinationHubId('');
     setPokeaMode('list'); fetchAll();
   };
 
@@ -741,18 +768,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
   // ── Status update handler ─────────────────────────────────────────────────
 
-  const needsCodBalance = statusParcel &&
-    newStatus === 'delivered' &&
-    statusParcel.order?.paymentMethod === 'cod' &&
-    !statusParcel.order?.codBalanceCollected;
-
   const handleStatus = async () => {
     if (!statusParcel || !newStatus) return;
     try {
       setActionLoading(true); setError('');
       await api.patch(`/super-agents/parcels/${statusParcel.trackingNumber}/status`, {
         status: newStatus, city: profile?.city, note: statusNote,
-        ...(needsCodBalance ? { codBalanceCollected: Number(codBalanceAmount) || 0 } : {}),
       });
       setSuccess('✅ Hali imesasishwa');
       setStatusParcel(null); setStatusNote(''); setNewStatus(''); setCodBalanceAmount('');
@@ -788,6 +809,17 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       setSuccess('Namba ya kuthibitisha imetumwa kwa simu ya mpokeaji');
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kutuma namba');
+    } finally { setActionLoading(false); }
+  };
+
+  const handleIssueAgentHandoff = async () => {
+    if (!statusParcel) return;
+    try {
+      setActionLoading(true); setError(''); setAgentHandoffChallenge(null);
+      const { data } = await api.post(`/super-agents/parcels/${statusParcel.trackingNumber}/agent-handoff-code`);
+      setAgentHandoffChallenge({ trackingNumber: statusParcel.trackingNumber, code: data.code });
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kuandaa makabidhiano ya wakala');
     } finally { setActionLoading(false); }
   };
 
@@ -1233,6 +1265,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         value={walkDestLocation}
                         onChange={async loc => {
                           setWalkDestLocation(loc);
+                          setWalkDestinationHubId(''); setWalkHubs([]);
                           // Region, not district — Super Agents register
                           // `city` against the fixed TANZANIA_CITIES region
                           // list (see super-agent.entity.ts); a district
@@ -1242,6 +1275,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           // hub existed for the region.
                           const cityStr = loc.regionName || loc.districtName || '';
                           setWalkForm(p => ({ ...p, destinationCity: cityStr }));
+                          if (cityStr) {
+                            setWalkHubsLoading(true);
+                            try {
+                              const hubs = await api.get(`/super-agents/hubs/${encodeURIComponent(cityStr)}`);
+                              setWalkHubs(hubs.data || []);
+                              if (hubs.data?.length === 1) setWalkDestinationHubId(String(hubs.data[0].id));
+                            } catch { setWalkHubs([]); }
+                            finally { setWalkHubsLoading(false); }
+                          }
                           lookupWalkRoute(cityStr);
                           // Fetch price estimate
                           if (cityStr && profile?.city) {
@@ -1261,6 +1303,18 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         required
                       />
                     </div>
+                    {walkHubsLoading && <div>Inatafuta hub za mpokeaji...</div>}
+                    {walkHubs.length > 0 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <label style={{ display: 'block', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
+                          Hub ya mpokeaji {walkHubs.length > 1 ? '*' : ''}
+                        </label>
+                        <select value={walkDestinationHubId} onChange={e => setWalkDestinationHubId(e.target.value)} style={inp}>
+                          <option value="">{walkHubs.length > 1 ? 'Chagua hub' : 'Hub pekee itachaguliwa'}</option>
+                          {walkHubs.map(hub => <option key={hub.id} value={hub.id}>{hub.businessName} · {hub.city}</option>)}
+                        </select>
+                      </div>
+                    )}
 
                     {/* Route info */}
                     {/* Live price estimate */}
@@ -2594,12 +2648,29 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
                 </div>
               )}
-            <select value={newStatus} onChange={e => {
-                setNewStatus(e.target.value);
-                if (e.target.value === 'delivered' && statusParcel.order?.paymentMethod === 'cod' && !statusParcel.order?.codBalanceCollected) {
-                  setCodBalanceAmount(String(Number(statusParcel.order?.codRemainingBalance || 0)));
-                }
-              }}
+            {statusParcel.buyerRequestedDelivery === true && statusParcel.localAgentId &&
+              ['arrived_at_hub', 'awaiting_buyer'].includes(statusParcel.status) &&
+              statusParcel.myRole !== 'origin' && (
+                <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, backgroundColor: '#eff6ff' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>
+                    Kabidhi kifurushi kwa wakala aliyechaguliwa
+                  </div>
+                  <button onClick={handleIssueAgentHandoff} disabled={actionLoading}
+                    style={{ width: '100%', padding: 12, border: 'none', borderRadius: 8,
+                      backgroundColor: '#2563eb', color: '#fff', fontWeight: 800, cursor: 'pointer' }}>
+                    Toa namba ya makabidhiano
+                  </button>
+                  {agentHandoffChallenge?.trackingNumber === statusParcel.trackingNumber && (
+                    <div style={{ marginTop: 10, fontSize: 13 }}>
+                      Mwonyeshe wakala namba hii akiwa hapa. Inaisha baada ya dakika 10.
+                      <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 6 }}>
+                        {agentHandoffChallenge.code}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
               style={{ ...inp, marginBottom: 12 }}>
               <option value="">— Chagua Hali Mpya —</option>
               {(() => {
@@ -2630,31 +2701,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     ['in_transit',       '🚚 Njiani'],
                   ] : []),
                   // Destination-side statuses — only offered when this hub is
-                  // the receiver (or both). Marking "arrived"/"delivered" is
+                  // the receiver (or both). Marking "arrived" is
                   // the receiving hub's job, never the sender's — and never
                   // possible before the parcel has actually been dispatched.
                   ...(statusParcel.myRole !== 'origin' && !preDispatch ? [
                     ['arrived_at_hub',   '🏢 Imefika Hubuni'],
                     ['awaiting_buyer',   '⏳ Inasubiri Mteja'],
-                    ['out_for_delivery', '🏍️ Inafikishwa'],
-                    ['delivered',        '✅ Imefikishwa'],
                   ] : []),
                 ].map(([v, l]) => <option key={v} value={v}>{l}</option>);
               })()}
             </select>
-            {needsCodBalance && (
-              <div style={{ backgroundColor: '#fef9c3', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 6 }}>
-                  🚚 Malipo Baada ya Kupokea — kiasi kilichokusanywa kwa mteja
-                </div>
-                <input type="number" placeholder="0" value={codBalanceAmount}
-                  onChange={e => setCodBalanceAmount(e.target.value)}
-                  style={{ ...inp, marginBottom: 0 }} />
-                <div style={{ fontSize: 11, color: '#92400e', marginTop: 6 }}>
-                  Kinachotarajiwa: TZS {Number(statusParcel.order?.codRemainingBalance || 0).toLocaleString()}
-                </div>
-              </div>
-            )}
             <input type="text" placeholder="Maelezo (hiari)"
               value={statusNote} onChange={e => setStatusNote(e.target.value)}
               style={{ ...inp, marginBottom: 14 }} />
