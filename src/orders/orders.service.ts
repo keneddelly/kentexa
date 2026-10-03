@@ -1174,13 +1174,15 @@ export class OrdersService {
     }
 
     const orderUpdate: any = {
-      status: OrderStatus.IN_TRANSIT,
+      // Hub intake is not transport movement. Keep the commercial Order in
+      // PREPARING while the canonical Parcel records RECEIVED_AT_HUB. Stage
+      // 3S run/load/start events own the physical movement truth.
+      status: OrderStatus.PREPARING,
       trackingNumber, // re-affirm, never overwrite with a new value
       shippingMethod: 'agent',
       shippingNote:
         data.notes || `Received at ${originCity} Super Agent hub`,
       shippingProductImage: data.parcelPhoto || null,
-      shippedAt: new Date(),
     };
 
     if (isManualOrder) {
@@ -1429,7 +1431,8 @@ export class OrdersService {
         : `Parcel received! Tracking number confirmed.`,
       trackingNumber,
       orderId,
-      status: OrderStatus.IN_TRANSIT,
+      status: OrderStatus.PREPARING,
+      parcelStatus: ParcelStatus.RECEIVED_AT_HUB,
       originCity,
       destinationCity,
       buyerPhone: order.buyer?.phone || order.phone,
