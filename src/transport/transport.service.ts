@@ -55,6 +55,7 @@ import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-age
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
 import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
 import { RoleContextService } from '../role-context/role-context.service';
+import { SearchIndexService } from '../search/search-index.service';
 import type { RoleContext } from '../role-context/role-context.types';
 import {
   AccountRoleStatus,
@@ -90,6 +91,7 @@ export class TransportService {
     private commerceProfiles: CommerceProfilesService,
     private readonly tzLocation: TzLocationService,
     private readonly roleContextService: RoleContextService,
+    private readonly searchIndex: SearchIndexService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -780,6 +782,7 @@ export class TransportService {
       /* non-critical */
     }
 
+    this.indexRoute(route).catch(() => {});
     return route;
   }
 
@@ -824,6 +827,8 @@ export class TransportService {
       if (dto[key] !== undefined) (route as any)[key] = dto[key];
     }
     const saved = await this.routeRepo.save(route);
+    if (saved.isActive) this.indexRoute(saved).catch(() => {});
+    else this.searchIndex.remove('transport_route', saved.id).catch(() => {});
 
     if (dto.pricePerKg !== undefined || dto.fixedFee !== undefined) {
       return this.setRoutePrice(userId, routeId, {
@@ -833,6 +838,11 @@ export class TransportService {
       });
     }
     return saved;
+  }
+
+  private async indexRoute(route: TransportRoute): Promise<void> {
+    const text = [route.routeType, route.originCity, route.destinationCity, ...(route.transitCities || []), ...(route.loopStops || []), ...(route.coverageWards || []), route.coverageCity, route.notes].filter(Boolean).join(' \n ');
+    await this.searchIndex.upsert('transport_route', route.id, text);
   }
 
   // ── AVAILABILITY ─────────────────────────────────────────────────────────
