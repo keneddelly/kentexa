@@ -6,9 +6,14 @@ on:
       - worktree-service-provider-profiles
     paths:
       - 'src/super-agents/**'
+      - 'src/agent-orders/**'
+      - 'src/agents/**'
       - 'src/transport/**'
       - 'src/money-routing/**'
+      - 'src/orders/**'
       - 'src/invoices/**'
+      - 'src/database/migrations/1788280800000-AddAgentCodCollection.ts'
+      - 'src/database/migrations/1788281400000-AddAgentCodRemittance.ts'
       - '.github/workflows/stage3f-destination-receipt.yml'
 
 permissions:
@@ -54,11 +59,20 @@ jobs:
       - run: npm test -- --runInBand super-agents/super-agents.destination-receipt.real-postgres.spec.ts
       - run: npm test -- --runInBand transport/transport.hub-arrival.spec.ts
       - run: npm test -- --runInBand transport/transport.carrier-collection.spec.ts
+      - run: npm test -- --runInBand transport/webhook.delivery-boundary.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.destination-receipt.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.buyer-choice.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.buyer-choice.real-postgres.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.recipient-pickup.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.recipient-pickup.real-postgres.spec.ts
       - run: npm test -- --runInBand super-agents/super-agents.cod-pickup.real-postgres.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.cod-release-boundary.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.agent-handoff.real-postgres.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.agent-delivery.real-postgres.spec.ts
+      - run: npm test -- --runInBand super-agents/super-agents.agent-cod.real-postgres.spec.ts
+      - run: npm test -- --runInBand agents/agent-cod-remittance.real-postgres.spec.ts
       - run: npm test -- --runInBand money-routing/order-release-handover.real-postgres.spec.ts
+      - run: npm test -- --runInBand orders/orders.custody-sync.spec.ts
+      - run: npm test -- --runInBand orders/orders.custody-completion.real-postgres.spec.ts
+      - run: npm test -- --runInBand agent-orders/agent-orders.delivery-boundary.real-postgres.spec.ts
       - run: npx tsc --noEmit --project tsconfig.build.json
