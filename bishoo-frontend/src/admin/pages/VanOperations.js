@@ -43,7 +43,7 @@ export default function VanOperations({ onNavigate, activePage }) {
       {error && <div style={{background:'#fef2f2',color:'#b91c1c',padding:12,borderRadius:10,marginBottom:14}}>{error}</div>}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:18}}>
         {[['Active / recent Runs',runs.length,'🚐'],['Blocked receipt',blocked.length,'⚠️'],['Awaiting completion',awaiting.length,'📦']].map(([l,v,i])=>
-          <div key={l} style={card}><div style={{fontSize:24}}>{i}</div><div style={{fontSize:26,fontWeight:900,color:'#0f172a',marginTop:6}}>{v}</div><div style={{fontSize:12,color:'#64748b'}}>{l}</div></div>)}
+          <div key={l} style={card}><div style={{fontSize:24}}>{i}</div><div style={{fontSize:26,fontWeight:900,color:'#0f172a',marginTop:6}}>{v}</div><div style={{fontSize:12,color:'#64748b'}>{l}</div></div>)}
       </div>
       {loading ? <div style={card}>Inapakia...</div> : <>
         <section style={{...card,marginBottom:16}}>
@@ -61,9 +61,9 @@ export default function VanOperations({ onNavigate, activePage }) {
         </section>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:16}}>
           <section style={card}><div style={{fontWeight:900,marginBottom:10}}>⚠️ Unloaded, waiting hub receipt</div>
-            {blocked.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel iliyokwama.</div>:blocked.map(x=><div key={x.assignmentId} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>Parcel #{x.parcelId}</b> · Run #{x.runId}<br/><span style={{color:'#64748b'}}>Hub #{x.superAgentId} · {Math.round(Number(x.waitingMinutes)||0)} min waiting</span></div>)}</section>
+            {blocked.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel iliyokwama.</div>:blocked.map(x=><div key={x.assignmentId} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>Parcel #{x.parcelId}</b> · Run #{x.runId}<br/><span style={{color:'#64748b'}>Hub #{x.superAgentId} · {Math.round(Number(x.waitingMinutes)||0)} min waiting</span></div>)}</section>
           <section style={card}><div style={{fontWeight:900,marginBottom:10}}>📦 Awaiting last mile / pickup</div>
-            {awaiting.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel inayosubiri completion.</div>:awaiting.map(x=><div key={x.id} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>{x.trackingNumber||('Parcel #'+x.id)}</b><br/><span style={{color:'#64748b'}}>{x.status} · Hub #{x.destinationSuperAgentId||'—'}</span></div>)}</section>
+            {awaiting.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel inayosubiri completion.</div>:awaiting.map(x=><div key={x.id} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>{x.trackingNumber||('Parcel #'+x.id)}</b><br/><span style={{color:'#64748b'}>{x.status} · Hub #{x.destinationSuperAgentId||'—'}</span></div>)}</section>
         </div>
       </>}
       {selected && <div onClick={()=>setSelected(null)} style={{position:'fixed',inset:0,background:'rgba(15,23,42,.5)',zIndex:200,display:'flex',justifyContent:'flex-end'}}>
