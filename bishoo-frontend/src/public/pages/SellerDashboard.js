@@ -245,7 +245,6 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
   const [invoiceForm, setInvoiceForm]         = useState({ amount: '', invoiceDescription: '', sellerNotes: '', dueDays: 3 });
   const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [invoiceMessage, setInvoiceMessage]   = useState('');
-  const [vanStatus, setVanStatus]             = useState(null);
   const [posDashboard, setPosDashboard]       = useState(null);
 
   useEffect(() => {
@@ -288,10 +287,6 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
         const invoiceRes = await api.get('/classifieds/invoices/seller-requests');
         setInvoiceRequests(invoiceRes.data);
       } catch { setInvoiceRequests([]); }
-      try {
-        const vanRes = await api.get('/daily-batches/manifest/today');
-        setVanStatus(vanRes.data);
-      } catch { setVanStatus(null); }
       try {
         const posRes = await api.get('/sales/dashboard');
         setPosDashboard(posRes.data);
@@ -337,11 +332,6 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
   const actorParts = actorLabelParts(activeProfile, t);
   const displayName = activeProfile?.actorKind ? activeProfile.displayName : (profile?.storeName || profile?.businessName || t('seller_dashboard.your_business'));
   const inputStyle  = { width: '100%', padding: '10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 14, boxSizing: 'border-box' };
-
-  const vanBatch     = vanStatus?.batch;
-  const vanParcels   = vanStatus?.totalParcels || 0;
-  const vanCutoff    = vanBatch ? new Date(vanBatch.cutoffTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }) : null;
-  const vanDeparts   = vanBatch ? new Date(vanBatch.plannedDepartureTime).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' }) : null;
 
   if (loading) return (
     <div style={{ minHeight: '100vh', backgroundColor: '#F8FAFC' }}>
@@ -432,31 +422,6 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
           <>
             {profile && !profile.phone && <PhoneNudgeBanner userId={currentUser?.id} onSaved={fetchData} />}
             <ProfileCompletionBanner profile={profile} onNavigate={onNavigate} />
-
-            {/* ── Van Today banner ── */}
-            {vanBatch && (
-              <div onClick={() => onNavigate('VanToday')}
-                style={{ background: `linear-gradient(135deg,#1E1B4B,${B})`, borderRadius: 14,
-                  padding: '14px 16px', marginBottom: 16, cursor: 'pointer', display: 'flex',
-                  justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: '#A5B4FC', marginBottom: 4 }}>
-                    🚐 {t('seller_dashboard.van_today')}
-                  </div>
-                  <div style={{ fontSize: 18, fontWeight: 900, color: WH }}>
-                    {vanParcels} {t('seller_dashboard.parcels')}
-                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 400, marginLeft: 8 }}>
-                      {t('seller_dashboard.cutoff')}: {vanCutoff} · {t('seller_dashboard.departs')}: {vanDeparts}
-                    </span>
-                  </div>
-                </div>
-                <div style={{ fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
-                  backgroundColor: PU, color: WH }}>
-                  {t('seller_dashboard.view')} →
-                </div>
-              </div>
-            )}
-
             {/* ── Quick Actions — 4 live numbers, not decoration ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
               {[
@@ -496,8 +461,7 @@ const SellerDashboard = ({ onNavigate, isLoggedIn, onLogout, userRole, onOpenMom
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
               <MenuRow t={t} icon="🏷️" label={t('seller_dashboard.my_brands')} onClick={() => onNavigate('MyBrands')}
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
-              <MenuRow t={t} icon="🚐" label={t('seller_dashboard.van_today')} value={vanParcels > 0 ? `${vanParcels} ${t('seller_dashboard.parcels')}` : null} onClick={() => onNavigate('VanToday')}
-                locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
+              <MenuRow t={t} icon="🚚" label="Send / Track Shipment" onClick={() => onNavigate('SendShipment')} />
               <MenuRow t={t} icon="💸" label={t('seller_dashboard.payouts')} onClick={() => onNavigate('SellerPayouts')}
                 locked={profileStatus !== 'approved'} onLockedClick={() => onNavigate('BecomeSeller')} />
               <MenuRow t={t} icon="👛" label={t('seller_dashboard.wallet')} onClick={() => onNavigate('SellerWallet')}
