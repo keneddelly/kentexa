@@ -841,6 +841,25 @@ export class ParcelRunAssignmentService {
     return this.assignmentRepo.find({ where: { runId }, order: { id: 'ASC' } });
   }
 
+  async getManifestForRun(runId: number) {
+    return this.dataSource.query(
+      `SELECT a.id, a."parcelId", a.status, a."loadRunStopId", a."unloadRunStopId",
+              a."loadedAt", a."unloadedAt", a."receivedAt",
+              p."trackingNumber", p.status AS "parcelStatus", p."recipientName",
+              p."buyerPhone" AS "recipientPhone", p."deliveryAddress", p.description,
+              ls.sequence AS "loadSequence", ls."locationLabel" AS "loadLocation",
+              us.sequence AS "unloadSequence", us."locationLabel" AS "unloadLocation",
+              us."superAgentId" AS "destinationSuperAgentId"
+         FROM public.parcel_run_assignment a
+         JOIN public.parcel p ON p.id = a."parcelId"
+         JOIN public.transport_run_stop ls ON ls.id = a."loadRunStopId"
+         JOIN public.transport_run_stop us ON us.id = a."unloadRunStopId"
+        WHERE a."runId" = $1
+        ORDER BY ls.sequence ASC, us.sequence ASC, a.id ASC`,
+      [runId],
+    );
+  }
+
   async getActiveAssignmentForParcel(parcelId: number): Promise<ParcelRunAssignment | null> {
     return this.findBlockingAssignment(parcelId);
   }
