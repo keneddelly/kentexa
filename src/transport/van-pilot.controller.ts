@@ -49,6 +49,7 @@ import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
 import { TransportRunService } from './transport-run.service';
+import { TransportRunStatus } from './entities/transport-run.entity';
 import type { AddRouteStopDto, UpdateRouteStopDto, CreateRunDto, AddVehicleDto, UpdateVehicleDto } from './transport-run.service';
 import { ParcelRunAssignmentService } from './parcel-run-assignment.service';
 import type { CreateParcelRunAssignmentDto } from './parcel-run-assignment.service';
@@ -125,6 +126,34 @@ export class VanPilotController {
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
   listMyRuns(@CurrentRoleContext() ctx: RoleContext) {
     return this.runs.listMyRuns(ctx.userId);
+  }
+
+  @Patch('runs/:runId/open')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  openRun(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    return this.runs.transitionRun(ctx.userId, runId, TransportRunStatus.OPEN);
+  }
+
+  @Patch('runs/:runId/close')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  closeRun(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    return this.runs.transitionRun(ctx.userId, runId, TransportRunStatus.CLOSED);
+  }
+
+  @Patch('runs/:runId/start')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  startRun(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    return this.runs.transitionRun(ctx.userId, runId, TransportRunStatus.STARTED);
+  }
+
+  @Patch('runs/:runId/complete')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  completeRun(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    return this.runs.transitionRun(ctx.userId, runId, TransportRunStatus.COMPLETED);
   }
 
   @Patch('runs/:runId/cancel')
