@@ -207,6 +207,31 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     } catch(e){ alert(e.response?.data?.message || 'Could not add route stop'); }
   };
 
+  const renameCanonicalStop = async (routeId, stop) => {
+    const locationLabel=prompt('Stop name', stop.locationLabel); if(!locationLabel || locationLabel===stop.locationLabel) return;
+    try { await api.patch(`/van-pilot/routes/${routeId}/stops/${stop.id}`, { locationLabel }); await loadRouteStops(routeId); }
+    catch(e){ alert(e.response?.data?.message || 'Could not update stop'); }
+  };
+
+  const reorderCanonicalStop = async (routeId, stop, delta) => {
+    const sequence=Math.max(0, Number(stop.sequence)+delta);
+    try { await api.patch(`/van-pilot/routes/${routeId}/stops/${stop.id}/reorder`, { sequence }); await loadRouteStops(routeId); }
+    catch(e){ alert(e.response?.data?.message || 'Could not reorder stop'); }
+  };
+
+  const updateVehicle = async vehicle => {
+    const identifier=prompt('Vehicle name / identifier', vehicle.identifier); if(!identifier) return;
+    const registrationPlate=prompt('Plate number', vehicle.registrationPlate || '') ?? vehicle.registrationPlate;
+    try { await api.patch(`/van-pilot/vehicles/${vehicle.id}`, { identifier, registrationPlate }); await fetchAll(); }
+    catch(e){ alert(e.response?.data?.message || 'Could not update vehicle'); }
+  };
+
+  const deactivateVehicle = async vehicleId => {
+    if(!window.confirm('Deactivate this vehicle?')) return;
+    try { await api.patch(`/van-pilot/vehicles/${vehicleId}/deactivate`); await fetchAll(); }
+    catch(e){ alert(e.response?.data?.message || 'Could not deactivate vehicle'); }
+  };
+
   const deactivateCanonicalStop = async (routeId,stopId) => {
     try { await api.patch(`/van-pilot/routes/${routeId}/stops/${stopId}/deactivate`); await loadRouteStops(routeId); }
     catch(e){ alert(e.response?.data?.message || 'Could not deactivate stop'); }
@@ -695,6 +720,13 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
               <input type="datetime-local" style={{...inp,marginTop:8}} value={runForm.scheduledDeparture} onChange={e=>setRunForm(p=>({...p,scheduledDeparture:e.target.value}))}/>
               <button disabled={!runForm.routeId||!runForm.scheduledDeparture||runBusy==='create'} onClick={createVanRun} style={{ width:'100%', marginTop:8, padding:10, border:'none', borderRadius:8, background:'#16a34a', color:'#fff', fontWeight:800 }}>Create Run</button>
             </div>}
+            {vehicles.length>0 && <div style={{background:'#fff',borderRadius:12,padding:12,marginBottom:12}}>
+              <div style={{fontSize:12,fontWeight:900,marginBottom:6}}>VEHICLES</div>
+              {vehicles.map(v=><div key={v.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,padding:'6px 0',borderTop:'1px solid #f1f5f9'}}>
+                <span><strong>{v.identifier}</strong>{v.registrationPlate ? ` · ${v.registrationPlate}` : ''} · {v.operationalStatus}</span>
+                <span><button onClick={()=>updateVehicle(v)} style={{border:'none',background:'none',color:'#1d4ed8'}}>Edit</button>{v.isActive && <button onClick={()=>deactivateVehicle(v.id)} style={{border:'none',background:'none',color:'#b91c1c'}}>Deactivate</button>}</span>
+              </div>)}
+            </div>}
             {showVehicleForm && <div style={{ background:'#fff', borderRadius:12, padding:14, marginBottom:12 }}>
               <input style={inp} placeholder="Vehicle name / identifier" value={vehicleForm.identifier} onChange={e=>setVehicleForm(p=>({...p,identifier:e.target.value}))}/>
               <input style={{...inp,marginTop:8}} placeholder="Plate number" value={vehicleForm.registrationPlate} onChange={e=>setVehicleForm(p=>({...p,registrationPlate:e.target.value}))}/>
@@ -885,7 +917,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                   {routeStops[r.id] && <div style={{marginTop:8}}>
                     {routeStops[r.id].filter(x=>x.isActive!==false).map(st=><div key={st.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,padding:'5px 0'}}>
                       <span>{st.sequence+1}. {st.locationLabel}{st.superAgentId ? ` · Hub #${st.superAgentId}` : ''}</span>
-                      <button onClick={()=>deactivateCanonicalStop(r.id,st.id)} style={{border:'none',background:'none',color:'#b91c1c',cursor:'pointer'}}>Remove</button>
+                      <span><button onClick={()=>reorderCanonicalStop(r.id,st,-1)} style={{border:'none',background:'none',cursor:'pointer'}}>↑</button><button onClick={()=>reorderCanonicalStop(r.id,st,1)} style={{border:'none',background:'none',cursor:'pointer'}}>↓</button><button onClick={()=>renameCanonicalStop(r.id,st)} style={{border:'none',background:'none',color:'#1d4ed8',cursor:'pointer'}}>Edit</button><button onClick={()=>deactivateCanonicalStop(r.id,st.id)} style={{border:'none',background:'none',color:'#b91c1c',cursor:'pointer'}}>Remove</button></span>
                     </div>)}
                     <div style={{display:'flex',gap:6,marginTop:6}}>
                       <input style={{...inp,padding:8}} placeholder="Add stop" value={stopDraft[r.id]||''} onChange={e=>setStopDraft(p=>({...p,[r.id]:e.target.value}))}/>
