@@ -61,6 +61,8 @@ import ClassifiedDetail from './public/pages/ClassifiedDetail';
 import OrderTracking       from './public/pages/OrderTracking';
 import MyOrders from './public/pages/MyOrders';
 import CustomerProfile from './public/pages/CustomerProfile';
+import EditPublicProfile from './public/pages/EditPublicProfile';
+import PayoutSettings from './public/pages/PayoutSettings';
 import BecomeSeller from './public/pages/BecomeSeller';
 import SellerAccessGate from './public/components/SellerAccessGate';
 import SellerDashboard from './public/pages/SellerDashboard';
@@ -389,13 +391,14 @@ function App() {
         setNavParams(null);
         if (profile && !profile.avatarUrl) {
           setPage('AddProfilePhoto');
-        } else if (!(data?.user?.onboardingCompleted ?? roleContext.user?.onboardingCompleted)) {
-          // Was role === 'user' only — the Setup Wizard is now the real
-          // first-time entry point for every role (it opens with "what do
-          // you want to do on Kentexa?" and branches from there), not just
-          // the buyer-only city/interests/follow flow it used to gate.
-          setTimeout(() => setPage('Onboarding'), 100);
-        } else {
+          return;
+        }
+        if (profile && profile.onboardingCompleted === false) {
+          setPage('Onboarding');
+          return;
+        }
+        {
+          // Personal photo setup finishes before consuming the user's destination.
           // Check if there's a stored intended destination (e.g. from + menu)
           const intended = localStorage.getItem('kentexa_after_login');
           if (intended) {
@@ -432,9 +435,8 @@ function App() {
       api.get('/auth/profile').then(res => {
         setCurrentUser(res.data);
         localStorage.setItem('kentexa_user', JSON.stringify(res.data));
-        if (!res.data.avatarUrl) {
-          setPage('AddProfilePhoto');
-        }
+        if (!res.data.avatarUrl) setPage('AddProfilePhoto');
+        else if (res.data.onboardingCompleted === false) setPage('Onboarding');
       }).catch(() => {});
     }
   }, [isLoggedIn, contextEpoch]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -611,7 +613,13 @@ function App() {
     return component;
   };
 
+  const needsProfilePhoto = isLoggedIn && !!currentUser && !currentUser.avatarUrl;
+
+  const needsOnboarding = isLoggedIn && currentUser?.onboardingCompleted === false;
+
   const renderPage = () => {
+    if (needsProfilePhoto) return <AddProfilePhoto {...publicProps} />;
+    if (needsOnboarding) return <Onboarding {...publicProps} />;
     const pageStr = typeof page === 'string' ? page : 'Home';
     const policyDecision = evaluateDestination({
       page: pageStr, isAuthenticated: isLoggedIn, roleType: activeContext?.roleType,
@@ -782,7 +790,9 @@ function App() {
       case 'PayInvoice':        return <PayInvoice {...publicProps} />;
 
       case 'MyOrders':          return requireLogin(<MyOrders {...publicProps} />);
-      case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} />);
+      case 'EditPublicProfile': return requireLogin(<EditPublicProfile {...publicProps} commerceProfileId={navParams?.commerceProfileId} />);
+      case 'PayoutSettings': return requireLogin(<PayoutSettings {...publicProps} />);
+      case 'CustomerProfile':   return requireLogin(<CustomerProfile {...publicProps} editField={navParams?.editField} />);
       case 'Checkout':          return requireLogin(<Checkout {...publicProps} />);
       case 'StoreSettings':     return requireVerifiedSeller(<StoreSettings {...publicProps} userId={activeContext?.userId} />);
       case 'SellerDashboard':   return requireVerifiedSeller(<SellerDashboard {...publicProps} />);
@@ -894,7 +904,7 @@ function App() {
           position:fixed, zIndex:1000 bar was rendering directly on top of
           it, covering the send button (and on the conversation list, the
           bottom rows) since nothing in SellerInbox reserved space for it. */}
-      {isLoggedIn && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
+      {isLoggedIn && !needsProfilePhoto && !needsOnboarding && page !== 'Onboarding' && page !== 'AddProfilePhoto' && page !== 'POS'
         && !(typeof page === 'string' && (page.startsWith('SellerInbox') || page.startsWith('MessageSeller') || page.startsWith('MessageOperational'))) && (
         <BottomNav
           // Remount protection (profile-switch architecture spec): a stable
