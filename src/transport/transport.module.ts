@@ -34,6 +34,7 @@ import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-even
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { IdentityModule } from '../identity/identity.module';
+import { SearchModule } from '../search/search.module';
 import { SuperAgentCommissionModule } from '../super-agent-commission/super-agent-commission.module';
 
 @Module({
@@ -42,6 +43,7 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
     CommerceProfilesModule,
     TzLocationModule,
     IdentityModule,
+    SearchModule,
     // Stage 3S-C6: ParcelRunAssignmentService.confirmReceipt() writes a
     // transactional-outbox earning obligation (second correction) and
     // triggers best-effort resolution via SuperAgentHandlingEarningObligation-
