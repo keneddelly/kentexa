@@ -98,6 +98,8 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const [showRunForm,   setShowRunForm]   = useState(false);
   const [runForm,       setRunForm]       = useState({ routeId:'', scheduledDeparture:'' });
   const [showVehicleForm,setShowVehicleForm] = useState(false);
+  const [routeStops, setRouteStops] = useState({});
+  const [stopDraft, setStopDraft] = useState({});
   const [vehicleForm,   setVehicleForm]   = useState({ identifier:'', registrationPlate:'', type:'van', parcelCapacity:'', weightCapacityKg:'' });
   const [loading,       setLoading]       = useState(true);
   const [tab,           setTab]           = useState('home');
@@ -190,6 +192,25 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     finally { setSavingRoute(false); }
   };
 
+
+  const loadRouteStops = async routeId => {
+    try { const res=await api.get(`/van-pilot/routes/${routeId}/stops`); setRouteStops(p=>({...p,[routeId]:res.data||[]})); }
+    catch(e){ alert(e.response?.data?.message || 'Could not load route stops'); }
+  };
+
+  const addCanonicalStop = async routeId => {
+    const label=(stopDraft[routeId]||'').trim(); if(!label) return;
+    try {
+      const existing=routeStops[routeId]||[];
+      await api.post(`/van-pilot/routes/${routeId}/stops`, { sequence:existing.length, locationLabel:label });
+      setStopDraft(p=>({...p,[routeId]:''})); await loadRouteStops(routeId);
+    } catch(e){ alert(e.response?.data?.message || 'Could not add route stop'); }
+  };
+
+  const deactivateCanonicalStop = async (routeId,stopId) => {
+    try { await api.patch(`/van-pilot/routes/${routeId}/stops/${stopId}/deactivate`); await loadRouteStops(routeId); }
+    catch(e){ alert(e.response?.data?.message || 'Could not deactivate stop'); }
+  };
 
   const createVanRun = async () => {
     try {
@@ -859,6 +880,19 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                   {r.estimatedHours && ` ${t('transport_provider_dashboard.hours_suffix', { hours: r.estimatedHours })}`}
                   {r.pricePerKg > 0 && ` · TZS ${Number(r.pricePerKg).toLocaleString()}/kg`}
                 </div>
+                {r.routeType === 'local_loop' && <div style={{marginTop:10,borderTop:'1px solid #e2e8f0',paddingTop:10}}>
+                  <button onClick={()=>loadRouteStops(r.id)} style={{border:'none',borderRadius:8,padding:'7px 10px',fontSize:11,fontWeight:800,cursor:'pointer'}}>Manage Van Stops</button>
+                  {routeStops[r.id] && <div style={{marginTop:8}}>
+                    {routeStops[r.id].filter(x=>x.isActive!==false).map(st=><div key={st.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:11,padding:'5px 0'}}>
+                      <span>{st.sequence+1}. {st.locationLabel}{st.superAgentId ? ` · Hub #${st.superAgentId}` : ''}</span>
+                      <button onClick={()=>deactivateCanonicalStop(r.id,st.id)} style={{border:'none',background:'none',color:'#b91c1c',cursor:'pointer'}}>Remove</button>
+                    </div>)}
+                    <div style={{display:'flex',gap:6,marginTop:6}}>
+                      <input style={{...inp,padding:8}} placeholder="Add stop" value={stopDraft[r.id]||''} onChange={e=>setStopDraft(p=>({...p,[r.id]:e.target.value}))}/>
+                      <button onClick={()=>addCanonicalStop(r.id)} style={{border:'none',borderRadius:8,padding:'0 12px',background:'#1d4ed8',color:'#fff',fontWeight:800}}>Add</button>
+                    </div>
+                  </div>}
+                </div>}
                 <button onClick={() => onOpenMoment?.('selling', {
                     type: 'route', id: r.id, title: routeLabel || t('transport_provider_dashboard.my_route_fallback'), image: null,
                   })}
