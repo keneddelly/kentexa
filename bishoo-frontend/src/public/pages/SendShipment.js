@@ -122,6 +122,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(null);
   const [quote, setQuote] = useState(null);
+  const [originHubs, setOriginHubs] = useState([]);
+  const [destinationHubs, setDestinationHubs] = useState([]);
+  const [originHubId, setOriginHubId] = useState('');
+  const [destinationHubId, setDestinationHubId] = useState('');
+  const [hubsLoading, setHubsLoading] = useState(false);
 
   const searchRoutes = useCallback(async () => {
     if (!origin.trim() || !destination.trim()) return;
@@ -130,8 +135,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     try {
       const res = await api.get('/shipments/routes', {
         params: {
-          origin: origin.trim(),
-          destination: destination.trim(),
+          origin: originResolved ? undefined : origin.trim(),
+          destination: destinationResolved ? undefined : destination.trim(),
+          originPlace: originResolved?.placeRef || undefined,
+          destinationPlace: destinationResolved?.placeRef || undefined,
           weightKg: Number(weightKg) || undefined,
         },
       });
@@ -155,6 +162,19 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadHubChoices = async () => {
+    if (!originResolved?.placeRef && !destinationResolved?.placeRef) return;
+    setHubsLoading(true);
+    try {
+      const [o,d]=await Promise.all([
+        originResolved?.placeRef ? api.get('/shipments/hubs',{params:{place:originResolved.placeRef,side:'origin'}}) : Promise.resolve({data:{hubs:[]}}),
+        destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:{place:destinationResolved.placeRef,side:'destination'}}) : Promise.resolve({data:{hubs:[]}}),
+      ]);
+      setOriginHubs(o.data?.hubs || []); setDestinationHubs(d.data?.hubs || []);
+    } catch { setOriginHubs([]); setDestinationHubs([]); }
+    finally { setHubsLoading(false); }
+  };
 
   const priceEstimate = (() => {
     if (!selected) return null;
@@ -205,7 +225,14 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         pickupOption,
         deliveryOption,
       });
-      setConfirmed(res.data);
+      const created=res.data;
+      const final = await api.patch(`/shipments/${created.id}/confirm`, {
+        originHubId: originHubId ? Number(originHubId) : undefined,
+        destinationHubId: destinationHubId ? Number(destinationHubId) : undefined,
+        requestOriginHub: originHubId ? true : undefined,
+        requestDestinationHub: destinationHubId ? true : undefined,
+      });
+      setConfirmed({ ...final.data.shipment, parcelTrackingNumber: final.data.parcel?.trackingNumber });
       setStep(5);
     } catch (err) {
       setError(err?.response?.data?.message || t('send_shipment.post_error'));
@@ -452,7 +479,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               ))}
             </div>
 
-            <button onClick={() => setStep(4)} disabled={!canContinueStep3}
+            <button onClick={async () => { await loadHubChoices(); setStep(4); }} disabled={!canContinueStep3}
               style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
                 borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
                 fontWeight: 800, opacity: canContinueStep3 ? 1 : 0.5 }}>
@@ -495,6 +522,18 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 </div>
               )}
             </div>
+
+            {(originHubs.length>0 || destinationHubs.length>0) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Kentexa Hub</div>
+              <div style={{fontSize:11,color:GR,marginBottom:10}}>Choose a hub only when you want to drop off or collect through a Kentexa Super Agent.</div>
+              {originHubs.length>0 && <select value={originHubId} onChange={e=>setOriginHubId(e.target.value)} style={inputSt}>
+                <option value="">Origin: no hub</option>{originHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name} · {h.address || h.city}</option>)}
+              </select>}
+              {destinationHubs.length>0 && <select value={destinationHubId} onChange={e=>setDestinationHubId(e.target.value)} style={inputSt}>
+                <option value="">Destination: no hub</option>{destinationHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name} · {h.address || h.city}</option>)}
+              </select>}
+            </div>}
+            {hubsLoading && <div style={{fontSize:12,color:GR,marginBottom:10}}>Loading Kentexa hubs…</div>}
 
             {error && (
               <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 12, fontWeight: 600 }}>{error}</div>
