@@ -233,6 +233,13 @@ export class VanPilotController {
   }
 
   // ── PROVIDER: Parcel-Run assignments (load/unload) ──────────────────────
+  @Get('movement-tenders/open')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  listOpenMovementTenders(@CurrentRoleContext() ctx: RoleContext) {
+    return this.assignments.listOpenTendersForProvider(ctx.userId);
+  }
+
   @Post('assignments')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
