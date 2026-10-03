@@ -37,17 +37,17 @@ export class BridgeLocalLoopRoutesToStage3S1788290400000 implements MigrationInt
              END,
              CASE
                WHEN coalesce(r."estimatedHours",0) > 0
-                 THEN round(((s.ord - 1)::numeric / GREATEST(array_length(r."loopStops",1)-1,1)) * r."estimatedHours" * 60)::int
+                 THEN round(((s.ord - 1)::numeric / GREATEST(array_length(string_to_array(r."loopStops", ','), 1)-1,1)) * r."estimatedHours" * 60)::int
                ELSE NULL
              END,
              NULL,
              true, now(), now()
         FROM public.transport_route r
-        CROSS JOIN LATERAL unnest(r."loopStops") WITH ORDINALITY AS s(label, ord)
+        CROSS JOIN LATERAL unnest(string_to_array(r."loopStops", ',')) WITH ORDINALITY AS s(label, ord)
        WHERE r."routeType" = 'local_loop'
          AND r."isActive" = true
          AND r."loopStops" IS NOT NULL
-         AND cardinality(r."loopStops") >= 2
+         AND array_length(string_to_array(r."loopStops", ','), 1) >= 2
          AND NOT EXISTS (
            SELECT 1 FROM public.route_stop rs WHERE rs."routeId" = r.id
          )
