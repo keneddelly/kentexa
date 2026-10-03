@@ -121,6 +121,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(null);
+  const [quote, setQuote] = useState(null);
 
   const searchRoutes = useCallback(async () => {
     if (!origin.trim() || !destination.trim()) return;
@@ -169,6 +170,20 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     setSubmitting(true);
     setError('');
     try {
+      let acceptedQuote = null;
+      if (selected?.providerId && selected?.routeId) {
+        const offered = await api.post('/transport/quotes', {
+          providerId: selected.providerId,
+          routeId: selected.routeId,
+          availabilityId: selected.availabilityId || undefined,
+          originCity: origin.trim(),
+          destinationCity: destination.trim(),
+          weightKg: Number(weightKg) || 0,
+        });
+        const accepted = await api.post(`/transport/quotes/${offered.data.id}/accept`);
+        acceptedQuote = accepted.data;
+        setQuote(acceptedQuote);
+      }
       const res = await api.post('/shipments', {
         senderName: senderName.trim() || undefined,
         senderPhone: senderPhone.trim() || undefined,
@@ -183,9 +198,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         destinationPlace: destinationResolved?.placeRef || undefined,
         itemDescription: itemDescription.trim(),
         weightKg: Number(weightKg) || 0,
-        routeId: selected?.routeId || undefined,
-        availabilityId: selected?.availabilityId || undefined,
-        providerId: selected?.providerId || undefined,
+        quoteId: acceptedQuote?.id || undefined,
+        routeId: acceptedQuote ? undefined : (selected?.routeId || undefined),
+        availabilityId: acceptedQuote ? undefined : (selected?.availabilityId || undefined),
+        providerId: acceptedQuote ? undefined : (selected?.providerId || undefined),
         pickupOption,
         deliveryOption,
       });
@@ -464,6 +480,9 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                   <span style={{ fontSize: 12, fontWeight: 700, color: DK, textAlign: 'right' }}>{value}</span>
                 </div>
               ))}
+              <div style={{ marginTop: 12, padding: 12, borderRadius: 12, backgroundColor: '#EFF6FF', color: '#1E3A8A', fontSize: 12, lineHeight: 1.5 }}>
+                Kentexa will confirm the final transport price securely when you send. Your accepted price is then frozen for this shipment.
+              </div>
               {priceEstimate != null && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12 }}>
                   <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('send_shipment.review_price')}</span>
@@ -500,6 +519,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <div style={{ fontSize: 13, color: GR, marginBottom: 20 }}>
               {t('send_shipment.tracking_number_label')}: <strong>{confirmed.trackingNumber}</strong>
             </div>
+            {quote?.totalAmount != null && (
+              <div style={{ backgroundColor:'#EFF6FF', borderRadius:12, padding:12, margin:'0 auto 18px', maxWidth:300, color:'#1E3A8A', fontSize:13 }}>
+                <strong>TZS {fmt(quote.totalAmount)}</strong><br/>Transport price confirmed
+              </div>
+            )}
             <button onClick={() => onNavigate(`TrackParcel-${confirmed.trackingNumber}`)}
               style={{ width: '100%', maxWidth: 300, backgroundColor: B, color: WH, border: 'none',
                 borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14, fontWeight: 800,
