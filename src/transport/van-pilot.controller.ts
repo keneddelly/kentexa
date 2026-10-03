@@ -288,6 +288,13 @@ export class VanPilotController {
   }
 
   // ── SUPER AGENT: desk queues ────────────────────────────────────────────
+  @Get('desk/ready-for-movement')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  listMyDeskReadyForMovement(@CurrentRoleContext() ctx: RoleContext) {
+    return this.journey.listHubReadyForMovement(ctx.profileId);
+  }
+
   @Get('desk/blocked-receipts')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.SUPER_AGENT)
