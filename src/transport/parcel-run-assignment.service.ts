@@ -299,6 +299,40 @@ export class ParcelRunAssignmentService {
     throw new ForbiddenException('No carrier movement authority exists for this parcel');
   }
 
+  async listOpenTendersForProvider(userId: number): Promise<any[]> {
+    const provider = await this.transportService.getMyProfile(userId);
+    return this.dataSource.query(
+      `SELECT t.id AS "tenderId", t."parcelId", t."runId", t."loadRunStopId",
+              t."releasingSuperAgentId", t.source, t."expiresAt", t."createdAt",
+              p."trackingNumber", p."destinationCity", p."recipientName", p."buyerPhone",
+              p."weightKg", p.description,
+              ls."locationLabel" AS "loadLocation",
+              us.id AS "unloadRunStopId", us."locationLabel" AS "unloadLocation",
+              r."scheduledDeparture"
+         FROM public.parcel_movement_tender t
+         JOIN public.parcel p ON p.id=t."parcelId"
+         JOIN public.transport_run r ON r.id=t."runId" AND r."providerId"=t."transportProviderId"
+         JOIN public.transport_run_stop ls ON ls.id=t."loadRunStopId" AND ls."runId"=r.id
+         JOIN LATERAL (
+           SELECT s.id, s."locationLabel"
+             FROM public.transport_run_stop s
+            WHERE s."runId"=r.id
+              AND s.sequence > ls.sequence
+              AND (
+                (p."destinationSuperAgentId" IS NOT NULL AND s."superAgentId"=p."destinationSuperAgentId")
+                OR lower(s."locationLabel") LIKE lower('%' || p."destinationCity" || '%')
+              )
+            ORDER BY s.sequence ASC LIMIT 1
+         ) us ON true
+        WHERE t."transportProviderId"=$1
+          AND t.status='open'
+          AND (t."expiresAt" IS NULL OR t."expiresAt">now())
+          AND r.status IN ('scheduled','open')
+        ORDER BY r."scheduledDeparture" ASC, t.id ASC`,
+      [provider.id],
+    );
+  }
+
   async createAssignment(userId: number, dto: CreateParcelRunAssignmentDto): Promise<ParcelRunAssignment> {
     const provider = await this.transportService.getMyProfile(userId);
     const run = await this.runRepo.findOne({ where: { id: dto.runId, providerId: provider.id } });
