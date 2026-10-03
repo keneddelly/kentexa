@@ -90,6 +90,9 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const [routes,        setRoutes]        = useState([]);
   const [availability,  setAvailability]  = useState([]);
   const [assignments,   setAssignments]   = useState([]);
+  const [vanRuns,       setVanRuns]       = useState([]);
+  const [runManifest,   setRunManifest]   = useState({});
+  const [runBusy,       setRunBusy]       = useState(null);
   const [loading,       setLoading]       = useState(true);
   const [tab,           setTab]           = useState('home');
   const [showAvailForm, setShowAvailForm] = useState(false);
@@ -114,16 +117,18 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [pRes, rRes, aRes, asRes] = await Promise.all([
+      const [pRes, rRes, aRes, asRes, runRes] = await Promise.all([
         api.get('/transport/my-profile'),
         api.get('/transport/routes'),
         api.get('/transport/availability'),
         api.get('/transport/assignments'),
+        api.get('/van-pilot/runs').catch(() => ({ data: [] })),
       ]);
       setProfile(pRes.data);
       setRoutes(rRes.data || []);
       setAvailability(aRes.data || []);
       setAssignments(asRes.data || []);
+      setVanRuns(runRes.data || []);
     } catch { /* not registered yet */ }
     finally { setLoading(false); }
   };
@@ -173,6 +178,33 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       fetchAll();
     } catch (e) { alert(e.response?.data?.message || t('transport_provider_dashboard.route_save_error')); }
     finally { setSavingRoute(false); }
+  };
+
+
+  const loadManifest = async runId => {
+    try {
+      const res = await api.get(`/van-pilot/runs/${runId}/manifest`);
+      setRunManifest(p => ({ ...p, [runId]: res.data || [] }));
+    } catch (e) { alert(e.response?.data?.message || 'Failed to load Van manifest'); }
+  };
+
+  const transitionRun = async (runId, action) => {
+    try {
+      setRunBusy(runId);
+      await api.patch(`/van-pilot/runs/${runId}/${action}`);
+      await fetchAll();
+      await loadManifest(runId);
+    } catch (e) { alert(e.response?.data?.message || 'Van Run action failed'); }
+    finally { setRunBusy(null); }
+  };
+
+  const markRunParcel = async (runId, assignmentId, action) => {
+    try {
+      setRunBusy(assignmentId);
+      await api.patch(`/van-pilot/assignments/${assignmentId}/${action}`);
+      await loadManifest(runId);
+    } catch (e) { alert(e.response?.data?.message || 'Parcel action failed'); }
+    finally { setRunBusy(null); }
   };
 
   const handleRespond = async (id, accept) => {
@@ -323,6 +355,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
             { key: 'availability', label: t('transport_provider_dashboard.tab_availability') },
             { key: 'assignments',  label: `${t('transport_provider_dashboard.tab_assignments')}${assignments.length > 0 ? ` (${assignments.length})` : ''}` },
             { key: 'routes',       label: t('transport_provider_dashboard.tab_routes') },
+            { key: 'van',          label: `Van Runs${vanRuns.length ? ` (${vanRuns.length})` : ''}` },
           ].map(tabItem => (
             <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
               style={{ flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
@@ -569,6 +602,54 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                   {a.agreedPrice && (
                     <div style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', marginTop: 4 }}>
                       💰 TZS {Number(a.agreedPrice).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+
+        {tab === 'van' && (
+          <div>
+            {vanRuns.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, backgroundColor:'#fff', borderRadius:14, color:'#64748b' }}>
+                No Van Runs yet. Create a Run from a configured local-loop route when the vehicle is scheduled.
+              </div>
+            ) : vanRuns.map(run => {
+              const manifest = runManifest[run.id];
+              const next = run.status === 'scheduled' ? 'open' : run.status === 'open' ? 'close' :
+                run.status === 'closed' ? 'start' : run.status === 'started' ? 'complete' : null;
+              return (
+                <div key={run.id} style={{ backgroundColor:'#fff', borderRadius:14, padding:16, marginBottom:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', gap:10, marginBottom:8 }}>
+                    <div>
+                      <div style={{ fontSize:15, fontWeight:900 }}>Van Run #{run.id}</div>
+                      <div style={{ fontSize:12, color:'#64748b' }}>{new Date(run.scheduledDeparture).toLocaleString()} · Route #{run.routeId}</div>
+                    </div>
+                    <span style={{ fontSize:11, fontWeight:800, textTransform:'uppercase' }}>{run.status}</span>
+                  </div>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+                    <button onClick={() => loadManifest(run.id)} style={{ border:'none', borderRadius:8, padding:'9px 12px', cursor:'pointer', fontWeight:700 }}>Manifest</button>
+                    {next && <button disabled={runBusy === run.id} onClick={() => transitionRun(run.id, next)}
+                      style={{ border:'none', borderRadius:8, padding:'9px 12px', cursor:'pointer', fontWeight:800, backgroundColor:'#1d4ed8', color:'#fff' }}>
+                      {next === 'open' ? 'Open Run' : next === 'close' ? 'Close Loading' : next === 'start' ? 'Start Van' : 'Complete Run'}
+                    </button>}
+                  </div>
+                  {manifest && (
+                    <div>
+                      {manifest.length === 0 ? <div style={{ fontSize:12, color:'#94a3b8' }}>No parcels assigned to this Run yet.</div> :
+                        manifest.map(a => (
+                          <div key={a.id} style={{ borderTop:'1px solid #e2e8f0', padding:'10px 0' }}>
+                            <div style={{ fontSize:12, fontWeight:800 }}>{a.trackingNumber || `Parcel #${a.parcelId}`} · {a.recipientName || 'Recipient'}</div>
+                            <div style={{ fontSize:11, color:'#64748b', marginTop:2 }}>{a.loadLocation} → {a.unloadLocation} · {a.status}</div>
+                            <div style={{ display:'flex', gap:6, marginTop:7 }}>
+                              {a.status === 'scheduled' && <button disabled={runBusy === a.id} onClick={() => markRunParcel(run.id, a.id, 'loaded')}>Load</button>}
+                              {a.status === 'loaded' && <button disabled={runBusy === a.id} onClick={() => markRunParcel(run.id, a.id, 'unloaded')}>Unload</button>}
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   )}
                 </div>
