@@ -187,6 +187,35 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [success, setSuccess]           = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [handoverRequests, setHandoverRequests] = useState([]);
+  const [vanIncoming, setVanIncoming] = useState([]);
+  const [vanReady, setVanReady] = useState([]);
+  const [vanDeskLoading, setVanDeskLoading] = useState(false);
+
+  const fetchVanDesk = async () => {
+    try {
+      setVanDeskLoading(true);
+      const [incomingRes, readyRes] = await Promise.all([
+        api.get('/van-pilot/desk/blocked-receipts'),
+        api.get('/van-pilot/desk/awaiting-completion'),
+      ]);
+      setVanIncoming(incomingRes.data || []);
+      setVanReady(readyRes.data || []);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kupakia shughuli za Van');
+    } finally { setVanDeskLoading(false); }
+  };
+
+  const confirmVanReceipt = async assignmentId => {
+    try {
+      setActionLoading(true); setError('');
+      await api.patch(`/van-pilot/assignments/${assignmentId}/confirm-receipt`);
+      setSuccess('✅ Mzigo umepokelewa na custody imehamia kwenye hub yako.');
+      await fetchVanDesk();
+      fetchAll();
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Imeshindwa kuthibitisha mzigo');
+    } finally { setActionLoading(false); }
+  };
 
   const acceptHandover = async (id) => {
     try {
@@ -1042,7 +1071,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               ...(isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
             ].map(t => (
               <button key={t.key} data-tour={`sa-tab-${t.key}`}
-                onClick={() => { setActiveTab(t.key); setPokeaMode('list'); }}
+                onClick={() => { setActiveTab(t.key); setPokeaMode('list'); if (t.key === 'van') fetchVanDesk(); }}
                 style={{ flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
                   fontSize: 10, fontWeight: 800, borderRadius: '6px 6px 0 0',
                   backgroundColor: activeTab === t.key ? '#f1f5f9' : 'transparent',
@@ -2495,24 +2524,34 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             🚐 VAN YA LEO TAB (Dar only)
             ════════════════════════════════════════════════════════════════ */}
         {activeTab === 'van' && isDar && (
-          <div style={{ textAlign: 'center', padding: 32 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🚐</div>
-            <div style={{ fontSize: 16, fontWeight: 900, color: '#1e293b', marginBottom: 8 }}>
-              Van ya Leo — Dar es Salaam
+          <div>
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:18, fontWeight:900, color:'#1e293b' }}>🚐 Van Desk</div>
+              <div style={{ fontSize:12, color:'#64748b', marginTop:4 }}>Pokea mizigo iliyoshushwa na Van, kisha endelea na pickup au delivery.</div>
             </div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-              Simamia batchi ya leo ya uwasilishaji ndani ya Dar
-            </div>
-            <button onClick={() => onNavigate('VanToday')}
-              style={{ backgroundColor: '#7c3aed', color: '#fff', border: 'none',
-                padding: '14px 28px', borderRadius: 12, cursor: 'pointer',
-                fontSize: 15, fontWeight: 900 }}>
-              🚐 Fungua Van ya Leo
-            </button>
+            {vanDeskLoading && <div style={{ padding:20, textAlign:'center', color:'#64748b' }}>Inapakia...</div>}
+            {!vanDeskLoading && (
+              <>
+                <div style={{ fontSize:12, fontWeight:900, color:'#7c3aed', marginBottom:8 }}>INCOMING VAN · {vanIncoming.length}</div>
+                {vanIncoming.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12, marginBottom:18 }}>Hakuna mzigo wa Van unaosubiri kupokelewa.</div> :
+                  vanIncoming.map(p => <div key={p.assignmentId} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8 }}>
+                    <div style={{ fontWeight:900, fontSize:13, color:'#1e293b' }}>{p.trackingNumber || `Parcel #${p.parcelId}`}</div>
+                    <div style={{ fontSize:11, color:'#64748b', margin:'4px 0 10px' }}>Run #{p.runId} · Imeshushwa {Math.max(0, Math.round(Number(p.waitingMinutes || 0)))} dk zilizopita</div>
+                    <button disabled={actionLoading} onClick={() => confirmVanReceipt(p.assignmentId)}
+                      style={{ width:'100%', border:'none', borderRadius:10, padding:11, background:'#16a34a', color:'#fff', fontWeight:900, cursor:'pointer' }}>
+                      ✓ Nimepokea Mzigo
+                    </button>
+                  </div>)}
+                <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO HUBUNI · {vanReady.length}</div>
+                {vanReady.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12 }}>Hakuna mzigo wa Van unaosubiri pickup/delivery.</div> :
+                  vanReady.map(p => <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8, display:'flex', justifyContent:'space-between', gap:10 }}>
+                    <div><div style={{ fontWeight:900, fontSize:13 }}>{p.trackingNumber}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
+                    <SBadge status={p.status} />
+                  </div>)}
+              </>
+            )}
           </div>
         )}
-      </div>
-
       {/* ── Parcel history modal — full tracking timeline + all details ────── */}
       {historyModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
