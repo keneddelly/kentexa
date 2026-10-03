@@ -812,7 +812,7 @@ function App() {
       case 'SellerClassifieds': return requireLogin(<SellerClassifieds {...publicProps} listingMode="business" />);
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
       case 'SellerShipping':    return requireVerifiedSeller(<SellerShipping {...publicProps} />);
-      case 'SendShipment':      return requireVerifiedSeller(<SendShipment {...publicProps} navParams={navParams} />);
+      case 'SendShipment':      return requireLogin(<SendShipment {...publicProps} navParams={navParams} />);
       case 'SellerInvoices':    return requireVerifiedSeller(<SellerInvoices {...publicProps} preSelected={navParams?.preSelected} />);
       case 'AgentDashboard':    return requireLogin(<AgentDashboard {...publicProps} />);
       case 'AgentOrderDashboard': return requireLogin(<AgentDashboard {...publicProps} />); // merged into unified dashboard
