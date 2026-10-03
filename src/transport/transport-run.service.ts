@@ -341,6 +341,40 @@ export class TransportRunService {
     throw new NotFoundException('Run not found');
   }
 
+  async transitionRun(userId: number, runId: number, target: TransportRunStatus): Promise<TransportRun> {
+    const provider = await this.transportService.getMyProfile(userId);
+    const allowed: Partial<Record<TransportRunStatus, TransportRunStatus[]>> = {
+      [TransportRunStatus.SCHEDULED]: [TransportRunStatus.OPEN],
+      [TransportRunStatus.OPEN]: [TransportRunStatus.CLOSED],
+      [TransportRunStatus.CLOSED]: [TransportRunStatus.STARTED],
+      [TransportRunStatus.STARTED]: [TransportRunStatus.COMPLETED],
+    };
+    return this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(TransportRun);
+      const run = await repo.findOne({ where: { id: runId }, lock: { mode: 'pessimistic_write' } });
+      if (!run || run.providerId !== provider.id) throw new NotFoundException('Run not found');
+      if (!(allowed[run.status] || []).includes(target)) {
+        throw new ConflictException(`Run cannot move from ${run.status} to ${target}`);
+      }
+      if (target === TransportRunStatus.STARTED) {
+        const loaded = await manager.query(
+          `SELECT id FROM public.parcel_run_assignment WHERE "runId" = $1 AND status = 'loaded' LIMIT 1`,
+          [runId],
+        );
+        if (!loaded.length) throw new ConflictException('Load at least one parcel before starting this Run');
+      }
+      if (target === TransportRunStatus.COMPLETED) {
+        const inTransit = await manager.query(
+          `SELECT id FROM public.parcel_run_assignment WHERE "runId" = $1 AND status = 'loaded' LIMIT 1`,
+          [runId],
+        );
+        if (inTransit.length) throw new ConflictException('Run cannot complete while parcels are still loaded');
+      }
+      run.status = target;
+      return repo.save(run);
+    });
+  }
+
   async cancelRun(userId: number, runId: number): Promise<TransportRun> {
     const provider = await this.transportService.getMyProfile(userId);
     return this.dataSource.transaction(async (manager) => {
