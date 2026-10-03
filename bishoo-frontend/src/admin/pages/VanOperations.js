@@ -38,7 +38,16 @@ export default function VanOperations({ onNavigate, activePage }) {
       <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',marginBottom:20,flexWrap:'wrap'}}>
         <div><div style={{fontSize:22,fontWeight:900,color:'#0f172a'}}>🚐 Van Operations</div>
           <div style={{fontSize:13,color:'#64748b',marginTop:3}}>Runs, hub exceptions na parcels zinazongoja completion — production view.</div></div>
-        <button onClick={load} style={{border:0,borderRadius:10,padding:'10px 14px',background:'#2563eb',color:'#fff',fontWeight:800,cursor:'pointer'}}>Refresh</button>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <button onClick={()=>onNavigate('DispatcherManifest')} style={{border:0,borderRadius:10,padding:'10px 14px',background:'#0f172a',color:'#fff',fontWeight:800,cursor:'pointer'}}>📋 Today's Manifest</button>
+          <button onClick={()=>onNavigate('TransportAdmin')} style={{border:'1px solid #cbd5e1',borderRadius:10,padding:'10px 14px',background:'#fff',color:'#0f172a',fontWeight:800,cursor:'pointer'}}>🚌 Transport Providers</button>
+          <button onClick={()=>onNavigate('RouteManagement')} style={{border:'1px solid #cbd5e1',borderRadius:10,padding:'10px 14px',background:'#fff',color:'#0f172a',fontWeight:800,cursor:'pointer'}}>🗺️ Routes</button>
+          <button onClick={load} style={{border:0,borderRadius:10,padding:'10px 14px',background:'#2563eb',color:'#fff',fontWeight:800,cursor:'pointer'}}>Refresh</button>
+        </div>
+      </div>
+      <div style={{...card,marginBottom:14,border:'1px solid #dbeafe',background:'#eff6ff'}}>
+        <div style={{fontSize:13,fontWeight:900,color:'#1e3a8a'}}>Operations desk</div>
+        <div style={{fontSize:12,color:'#475569',marginTop:4,lineHeight:1.55}}>Today's Manifest opens the existing daily dispatch workflow (receive at hub, depart, zone arrival and delivery). Stage 3S runs below are the new movement/custody model. Load, unload and hub receipt remain actions of the Transport Provider or Super Agent role.</div>
       </div>
       {error && <div style={{background:'#fef2f2',color:'#b91c1c',padding:12,borderRadius:10,marginBottom:14}}>{error}</div>}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:18}}>
