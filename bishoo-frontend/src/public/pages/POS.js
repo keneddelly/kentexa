@@ -33,7 +33,7 @@ const PAYMENT_METHODS = [
 
 const inputStyle = { width: '100%', padding: '11px 14px', borderRadius: 10, border: '2px solid #e2e8f0', fontSize: 14, boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit' };
 
-const POS = ({ onNavigate, currentUser }) => {
+const POS = ({ onNavigate, currentUser, activeProfileId }) => {
   const { t } = useTranslation();
   const [step, setStep] = useState('cart'); // 'cart' | 'payment' | 'receipt'
   const [products, setProducts] = useState([]);
@@ -58,12 +58,12 @@ const POS = ({ onNavigate, currentUser }) => {
   const searchRef = useRef(null);
 
   useEffect(() => {
-    api.get('/products/my/products')
+    api.get('/products/my/products', { params: activeProfileId ? { commerceProfileId: activeProfileId } : {} })
       .then(r => setProducts((r.data || []).filter(p => p.isActive && p.availableInStore !== false)))
       .catch(() => setError(t('pos.load_products_failed')))
       .finally(() => setLoading(false));
     if (!isAppleMobile()) searchRef.current?.focus();
-  }, [t]);
+  }, [t, activeProfileId]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
