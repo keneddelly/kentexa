@@ -10,22 +10,10 @@ import { TransportProvider } from './entities/transport-provider.entity';
 import { TransportRoute } from './entities/transport-route.entity';
 import { ProviderAvailability } from './entities/provider-availability.entity';
 import { TransportAssignment } from './entities/transport-assignment.entity';
-import { TransportQuote } from './entities/transport-quote.entity';
-import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
-import { RouteStop } from './entities/route-stop.entity';
-import { TransportRun } from './entities/transport-run.entity';
-import { TransportRunStop } from './entities/transport-run-stop.entity';
-import { Vehicle } from './entities/vehicle.entity';
-import { ParcelRunAssignment } from './entities/parcel-run-assignment.entity';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { User } from '../users/entities/user.entity';
 import { TransportService } from './transport.service';
-import { TransportQuoteService } from './transport-quote.service';
-import { TransportRunService } from './transport-run.service';
-import { ParcelRunAssignmentService } from './parcel-run-assignment.service';
-import { ParcelJourneyService } from './parcel-journey.service';
 import { TransportController } from './transport.controller';
-import { VanPilotController } from './van-pilot.controller';
 import { ReputationModule } from '../reputation/reputation.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { TzLocationModule } from '../tz-location/tz-location.module';
@@ -35,7 +23,6 @@ import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { Shipment } from '../shipments/entities/shipment.entity';
 import { IdentityModule } from '../identity/identity.module';
 import { SearchModule } from '../search/search.module';
-import { SuperAgentCommissionModule } from '../super-agent-commission/super-agent-commission.module';
 
 @Module({
   imports: [
@@ -44,25 +31,12 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
     TzLocationModule,
     IdentityModule,
     SearchModule,
-    // Stage 3S-C6: ParcelRunAssignmentService.confirmReceipt() writes a
-    // transactional-outbox earning obligation (second correction) and
-    // triggers best-effort resolution via SuperAgentHandlingEarningObligation-
-    // Service. One-directional (SuperAgentCommissionModule imports nothing
-    // from TransportModule) -- no circularity.
-    SuperAgentCommissionModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
     TypeOrmModule.forFeature([
       TransportProvider,
       TransportRoute,
       ProviderAvailability,
       TransportAssignment,
-      TransportQuote,
-      TransportRoutePriceHistory,
-      RouteStop,
-      TransportRun,
-      TransportRunStop,
-      Vehicle,
-      ParcelRunAssignment,
       ServiceAd, // for auto-linking transport providers to service marketplace
       User,
       // Repo-only access into the super-agents/shipments entities — NOT a
@@ -81,12 +55,8 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
       Shipment,
     ]),
   ],
-  controllers: [TransportController, VanPilotController],
-  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService],
-  // Exported now (unused by any other module yet) per Issue #61's own
-  // design requirement: a future Super Agent counter or Intent caller
-  // should be able to inject these same canonical authorities without a
-  // module change here — neither is wired in during this gate.
-  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService],
+  controllers: [TransportController],
+  providers: [TransportService],
+  exports: [TransportService],
 })
 export class TransportModule {}
