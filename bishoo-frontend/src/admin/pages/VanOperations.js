@@ -41,7 +41,7 @@ export default function VanOperations({ onNavigate, activePage }) {
         <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
           <button onClick={()=>onNavigate('DispatcherManifest')} style={{border:0,borderRadius:10,padding:'10px 14px',background:'#0f172a',color:'#fff',fontWeight:800,cursor:'pointer'}}>📋 Today's Manifest</button>
           <button onClick={()=>onNavigate('TransportAdmin')} style={{border:'1px solid #cbd5e1',borderRadius:10,padding:'10px 14px',background:'#fff',color:'#0f172a',fontWeight:800,cursor:'pointer'}}>🚌 Transport Providers</button>
-          <button onClick={()=>onNavigate('RouteManagement')} style={{border:'1px solid #cbd5e1',borderRadius:10,padding:'10px 14px',background:'#fff',color:'#0f172a',fontWeight:800,cursor:'pointer'}}>🗺️ Routes</button>
+          <button onClick={()=>onNavigate('ZoneManagement')} style={{border:'1px solid #cbd5e1',borderRadius:10,padding:'10px 14px',background:'#fff',color:'#0f172a',fontWeight:800,cursor:'pointer'}}>🗺️ Van Route</button>
           <button onClick={load} style={{border:0,borderRadius:10,padding:'10px 14px',background:'#2563eb',color:'#fff',fontWeight:800,cursor:'pointer'}}>Refresh</button>
         </div>
       </div>
