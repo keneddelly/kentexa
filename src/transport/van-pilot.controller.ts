@@ -35,6 +35,7 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
@@ -62,6 +63,13 @@ export class VanPilotController {
     private readonly assignments: ParcelRunAssignmentService,
     private readonly journey: ParcelJourneyService,
   ) {}
+
+  @Get('hubs')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  listActiveHubs(@CurrentRoleContext() ctx: RoleContext, @Query('q') q?: string) {
+    return this.runs.listActiveHubsForProvider(ctx.userId, q);
+  }
 
   // ── PROVIDER: route stops (reusable plan) ──────────────────────────────────
   @Post('routes/:routeId/stops')
