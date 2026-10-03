@@ -40,6 +40,7 @@ import TransportProviderSettings from './public/pages/TransportProviderSettings'
 import SellerAnalytics            from './public/pages/SellerAnalytics'; // eslint-disable-line
 import BecomeTransportProvider    from './public/pages/BecomeTransportProvider'; // eslint-disable-line
 import TransportAdmin             from './admin/pages/TransportAdmin'; // eslint-disable-line
+import VanOperations              from './admin/pages/VanOperations'; // eslint-disable-line
 import HubAdmin                   from './admin/pages/HubAdmin'; // eslint-disable-line
 import SellerTeam                 from './public/pages/SellerTeam'; // eslint-disable-line
 import AgentScorecard             from './public/pages/AgentScoreCard'; // eslint-disable-line
@@ -865,6 +866,7 @@ function App() {
       case 'TransportProviderDashboard': return requireLogin(<TransportProviderDashboard {...publicProps} />);
       case 'TransportProviderSettings': return requireLogin(<TransportProviderSettings {...publicProps} />);
       case 'TransportAdmin':             return requireAdmin(<TransportAdmin onNavigate={handleNavigate} activePage={page} />);
+      case 'VanOperations':              return requireAdmin(<VanOperations onNavigate={handleNavigate} activePage={page} />);
       case 'HubAdmin':                   return requireAdmin(<HubAdmin onNavigate={handleNavigate} activePage={page} />);
       case 'SellerAnalytics':            return requireVerifiedSeller(<SellerAnalytics {...publicProps} />);
       case 'SellerTeam':                 return requireVerifiedSeller(<SellerTeam {...publicProps} />);
