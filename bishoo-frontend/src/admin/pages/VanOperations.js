@@ -43,7 +43,7 @@ export default function VanOperations({ onNavigate, activePage }) {
       {error && <div style={{background:'#fef2f2',color:'#b91c1c',padding:12,borderRadius:10,marginBottom:14}}>{error}</div>}
       <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:12,marginBottom:18}}>
         {[['Active / recent Runs',runs.length,'🚐'],['Blocked receipt',blocked.length,'⚠️'],['Awaiting completion',awaiting.length,'📦']].map(([l,v,i])=>
-          <div key={l} style={card}><div style={{fontSize:24}}>{i}</div><div style={{fontSize:26,fontWeight:900,color:'#0f172a',marginTop:6}}>{v}</div><div style={{fontSize:12,color:'#64748b'}>{l}</div></div>)}
+          <div key={l} style={card}><div style={{fontSize:24}}>{i}</div><div style={{fontSize:26,fontWeight:900,color:'#0f172a',marginTop:6}}>{v}</div><div style={{fontSize:12,color:'#64748b'}}>{l}</div></div>)}
       </div>
       {loading ? <div style={card}>Inapakia...</div> : <>
         <section style={{...card,marginBottom:16}}>
