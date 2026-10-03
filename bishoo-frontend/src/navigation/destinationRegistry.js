@@ -7,7 +7,7 @@ const SELLER_PAGES = ['SellerDashboard','SellerCustomers','SellerPayouts','Selle
 const AGENT_PAGES = ['AgentDashboard','AgentOrderDashboard','AgentEarnings','AgentScorecard'];
 const HUB_PAGES = ['SuperAgentDashboard','DispatcherManifest','HubReceive','BatchHandoff','SuperAgentParcel','SuperAgentSettings'];
 const TRANSPORT_PAGES = ['TransportProviderDashboard','TransportProviderSettings'];
-const ADMIN_PAGES = ['Profile','Dashboard','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','ZoneManagement','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','HubAdmin'];
+const ADMIN_PAGES = ['Profile','Dashboard','Products','Classifieds','Users','Orders','Payments','Sellers','AdminServices','IdentityVerifications','AdminBrands','AdminBrandAuthorizations','AdminWarrantyClaims','OfficialProducts','Agents','SuperAgents','Disputes','Payouts','Invoices','Reports','ContactMessages','Announcements','Analytics','ZoneManagement','BodaRates','RouteManagement','CollectionFees','AgentPerformance','FinancialDashboard','TransportAdmin','VanOperations','HubAdmin'];
 
 export const DESTINATIONS = Object.freeze(Object.fromEntries([
   ...PUBLIC_PAGES.map((id) => [id, destination(id, DESTINATION_KIND.PUBLIC)]),
