@@ -50,16 +50,24 @@ import {
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus, ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
-import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { assertFirstMileComplete } from '../shipments/first-mile-guard';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
+import { TransportRoutePriceHistory } from './entities/transport-route-price-history.entity';
 import { RoleContextService } from '../role-context/role-context.service';
+import { SearchIndexService } from '../search/search-index.service';
 import type { RoleContext } from '../role-context/role-context.types';
 import {
   AccountRoleStatus,
   AccountRoleType,
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
-import { SearchIndexService } from '../search/search-index.service';
+
+// Stage 3S-B2: the only three comparison orders discovery supports. An
+// unrecognised/absent value is never an error here — every caller treats it
+// as "use the default", which findAvailableForRoute defines as 'earliest'.
+export type DiscoverySortBy = 'cheapest' | 'fastest' | 'earliest';
+export const DISCOVERY_SORT_VALUES: readonly DiscoverySortBy[] = ['cheapest', 'fastest', 'earliest'];
 
 @Injectable()
 export class TransportService {
@@ -83,8 +91,8 @@ export class TransportService {
     private commerceProfiles: CommerceProfilesService,
     private readonly tzLocation: TzLocationService,
     private readonly roleContextService: RoleContextService,
-    private readonly dataSource: DataSource,
     private readonly searchIndex: SearchIndexService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ── Safe, credential-free provider projection ────────────────────────────
@@ -126,6 +134,41 @@ export class TransportService {
   private async findCallerSuperAgent(userId: number): Promise<SuperAgent | null> {
     const matches = await this.superAgentRepo.find({ where: { user: { id: userId } }, order: { id: 'ASC' } });
     return matches.length === 1 ? matches[0] : null;
+  }
+
+  // 3S-B1: canonical Super-Agent authority for creating a transport
+  // assignment — the caller's CURRENT active role must name the SPECIFIC
+  // hub profile (id + owning user + a workspace consistent with the acting
+  // context), never merely "this user happens to own a SuperAgent row
+  // somewhere," matching the standard collectAssignedParcel() already holds
+  // the provider side to. A Business that legitimately also owns a
+  // TransportProvider profile is unaffected — this only ever reads the
+  // SuperAgent table, scoped to the profile the caller is actively acting
+  // as; switching into the Transport Provider role for the same Business
+  // does not carry over authority here, and vice versa.
+  private async resolveAssigningHub(caller: User, roleContext?: RoleContext): Promise<SuperAgent> {
+    if (roleContext?.roleType === AccountRoleType.SUPER_AGENT) {
+      if (roleContext.userId !== caller.id) {
+        throw new ForbiddenException('Only a Super Agent can create a transport assignment');
+      }
+      const hub = await this.superAgentRepo.findOne({
+        where: { id: roleContext.profileId, userId: caller.id, status: SuperAgentStatus.ACTIVE },
+      });
+      if (!hub || (hub.workspaceId != null && hub.workspaceId !== roleContext.workspaceId)) {
+        throw new ForbiddenException('An active Super Agent hub is required to create a transport assignment');
+      }
+      return hub;
+    }
+    // Administrative fallback — unchanged from the prior behaviour: an
+    // admin/manager may act without switching into the SUPER_AGENT role,
+    // but only when they themselves unambiguously own exactly one
+    // SuperAgent row (the same fail-closed-on-ambiguity lookup this method
+    // always used; not re-scoped here to keep this slice minimal).
+    if (roleContext?.roleType === AccountRoleType.ADMIN || roleContext?.roleType === AccountRoleType.MANAGER) {
+      const hub = await this.findCallerSuperAgent(caller.id);
+      if (hub) return hub;
+    }
+    throw new ForbiddenException('Only a Super Agent can create a transport assignment');
   }
 
   // Multi-Business Authority Stage 1B. Same fail-closed-on-ambiguity
@@ -231,6 +274,325 @@ export class TransportService {
       throw new BadRequestException('Msafirishaji huyu hajahakikiwa au hafanyi kazi kwa sasa');
     }
     return provider;
+  }
+
+  // Stage 3S-B3 correction: server-authoritative proof that an already-
+  // SELECTED route actually serves a requested journey, using the EXACT
+  // same directional city-matching predicate findAvailableForRoute's
+  // publishedQuery uses for a real bookable leg (r.originCity for "from",
+  // r.destinationCity for "to", with the same coverageWards/loopStops/
+  // coverageCity fallbacks that already carry LOCAL_LOOP/transit/last-mile
+  // semantics) — reused here against ONE route row instead of duplicated
+  // into a second matcher. Without this, a quote's or Shipment's own
+  // client-supplied city labels could silently redefine which route/
+  // journey a frozen price actually applies to.
+  async assertRouteServesJourney(
+    routeId: number,
+    fromCity: string,
+    toCity: string,
+  ): Promise<void> {
+    const from = normalizeDiscoveryCity(fromCity);
+    const to = normalizeDiscoveryCity(toCity);
+    if (from === null || to === null) {
+      throw new BadRequestException('Both cities are required to validate the selected route');
+    }
+    const cityMatch = cityMatchSql;
+    const match = await this.routeRepo
+      .createQueryBuilder('r')
+      .where('r.id = :routeId', { routeId })
+      .andWhere(
+        `(${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')})`,
+        cityMatchParams('from', from),
+      )
+      .andWhere(
+        `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
+        cityMatchParams('to', to),
+      )
+      .getOne();
+    if (!match) {
+      throw new BadRequestException(
+        'The selected route does not serve the requested origin/destination',
+      );
+    }
+  }
+
+  // Stage 3S-B3 correction: proves a specific availability slot is CURRENTLY
+  // eligible/discoverable — reusing the identical conditions
+  // findAvailableForRoute's publishedQuery already applies (open status,
+  // verified/active provider, today/tomorrow window, slot + weight
+  // capacity) via a query scoped to this one row, rather than a second,
+  // possibly-divergent eligibility policy. A caller cannot use the direct
+  // quote API to obtain an OFFERED quote against a FULL/CANCELLED/stale/
+  // unverified-provider slot that discovery itself would never have shown.
+  async assertAvailabilityIsDiscoverable(
+    availabilityId: number,
+    weightKg: number,
+  ): Promise<ProviderAvailability> {
+    const today = new Date().toISOString().slice(0, 10);
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const qb = this.availabilityRepo
+      .createQueryBuilder('a')
+      .leftJoin('a.provider', 'p')
+      .where('a.id = :id', { id: availabilityId })
+      .andWhere('a.status = :open', { open: AvailabilityStatus.OPEN })
+      .andWhere('p.status IN (:...publishedProviderStatuses)', {
+        publishedProviderStatuses: [ProviderStatus.VERIFIED, ProviderStatus.ACTIVE],
+      })
+      .andWhere('a.date IN (:...dates)', { dates: [today, tomorrow] })
+      .andWhere('a.usedSlots < a.totalSlots');
+    if (weightKg > 0) {
+      qb.andWhere('(a.totalCapacityKg - a.usedCapacityKg) >= :weightKg', { weightKg });
+    }
+    const availability = await qb.getOne();
+    if (!availability) {
+      throw new BadRequestException(
+        'That availability slot is no longer eligible for a new quote',
+      );
+    }
+    return availability;
+  }
+
+  // Stage 3S-B4: the ONE deterministic resolver for "what does this route
+  // actually cost right now" -- discovery's cheapest sort, quote creation,
+  // and Shipment's own inline pricing all resolve through this rather than
+  // reading TransportRoute.pricePerKg/fixedFee directly, so a scheduled
+  // future price change can never leak early and an already-frozen
+  // TransportQuote/Shipment (which never call this again after creation)
+  // can never be affected by a later edit. Falls back to the route's own
+  // plain columns only for a route that predates this table and has never
+  // been price-edited since (no history row exists yet for it at all) --
+  // existence of the route itself is therefore always validated, whether by
+  // that fallback or implicitly (a real history row's FK guarantees its
+  // route exists).
+  async getEffectiveRoutePrice(
+    routeId: number,
+    at: Date = new Date(),
+  ): Promise<{ pricePerKg: number; fixedFee: number }> {
+    // Uses the routeRepo's own manager (matching this file's established
+    // "repo.manager as the default connection" convention, e.g. reserveSlot's
+    // `em ?? this.availabilityRepo.manager`) rather than this.dataSource
+    // directly -- a plain read needs no transaction.
+    const rows = await this.routeRepo.manager.query(
+      `SELECT "pricePerKg", "fixedFee" FROM public.transport_route_price_history
+       WHERE "routeId" = $1 AND "effectiveFrom" <= $2 AND ("effectiveTo" IS NULL OR "effectiveTo" > $2)
+       ORDER BY "effectiveFrom" DESC LIMIT 1`,
+      [routeId, at],
+    );
+    if (rows.length) {
+      return { pricePerKg: Number(rows[0].pricePerKg), fixedFee: Number(rows[0].fixedFee) };
+    }
+    const route = await this.routeRepo.findOne({ where: { id: routeId } });
+    if (!route) throw new NotFoundException('Route not found');
+    return { pricePerKg: Number(route.pricePerKg), fixedFee: Number(route.fixedFee) };
+  }
+
+  // Stage 3S-B4 (post-review correction): the ONLY write path for a route's
+  // price. Called from updateRoute() (the existing, sole route-management
+  // endpoint/authority -- ownership is already enforced there via
+  // getMyProfile()+providerId, not duplicated here); never overwrites a
+  // prior price in place.
+  //
+  // The version model supports one currently-effective version, zero or more
+  // future-scheduled versions, and an immediate correction that does not
+  // disturb an already-scheduled future version: the new version SPLITS
+  // whichever existing window currently covers the requested `effectiveFrom`
+  // instant, inheriting that window's own `effectiveTo` (so anything
+  // scheduled beyond it is untouched), and truncates that window to end
+  // exactly where the new one begins. Calling this again with the SAME
+  // `effectiveFrom` as an existing not-yet-superseded version (most commonly
+  // re-editing a future schedule before it takes effect) updates that
+  // version's price IN PLACE instead of splitting -- an explicit reschedule,
+  // not a new window. `effectiveFrom` must never be in the past (no
+  // rewriting history); the two genuinely mutating cases are therefore
+  // "now" (an immediate correction) and "a future instant" (a schedule).
+  //
+  // The DB-level range-EXCLUDE constraint (route-price-history-schema.ts) is
+  // the actual, concurrency-proof backstop against overlap; the
+  // pessimistic_write lock on the route row below serializes concurrent
+  // callers for the SAME route so the in-memory "find the covering version"
+  // step is never racing another write to that same route, but the
+  // constraint is what fails a write closed even if that serialization were
+  // ever bypassed (a second writer, a bug) -- see
+  // transport-route-price-history.real-postgres.spec.ts's concurrency proof.
+  async setRoutePrice(
+    userId: number,
+    routeId: number,
+    dto: { pricePerKg?: number; fixedFee?: number; effectiveFrom?: string | Date },
+  ): Promise<TransportRoute> {
+    const p = await this.getMyProfile(userId);
+    return this.dataSource.transaction(async (manager) => {
+      const routeRepo = manager.getRepository(TransportRoute);
+      const historyRepo = manager.getRepository(TransportRoutePriceHistory);
+
+      const route = await routeRepo.findOne({
+        where: { id: routeId, providerId: p.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!route) throw new NotFoundException('Njia haijapatikana');
+
+      const nextPricePerKg = dto.pricePerKg != null ? Number(dto.pricePerKg) : Number(route.pricePerKg);
+      const nextFixedFee = dto.fixedFee != null ? Number(dto.fixedFee) : Number(route.fixedFee);
+      if (
+        !Number.isFinite(nextPricePerKg) || nextPricePerKg < 0 ||
+        !Number.isFinite(nextFixedFee) || nextFixedFee < 0
+      ) {
+        throw new BadRequestException('pricePerKg and fixedFee must be non-negative numbers');
+      }
+      const now = new Date();
+      const effectiveFrom = dto.effectiveFrom ? new Date(dto.effectiveFrom) : now;
+      if (Number.isNaN(effectiveFrom.getTime())) {
+        throw new BadRequestException('Invalid effectiveFrom');
+      }
+      if (effectiveFrom.getTime() < now.getTime()) {
+        throw new BadRequestException('effectiveFrom cannot be in the past');
+      }
+
+      // Backfill: this route predates Stage 3S-B4 versioning (no history row
+      // exists for it yet) -- seed its first version at the route's own
+      // createdAt, open-ended, using its current (pre-B4) plain columns, so
+      // history becomes gapless from this point on without a separate data
+      // migration.
+      let versions = await historyRepo.find({
+        where: { routeId: route.id },
+        order: { effectiveFrom: 'ASC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (versions.length === 0) {
+        // Guards against a real (if narrow) clock-precision edge case: the
+        // route was just read back with a DB-generated createdAt, and
+        // `effectiveFrom` defaults to a separately-captured JS `new Date()`
+        // a moment later in the SAME request -- normally later, but two
+        // independent clocks (even on the same host) are never guaranteed
+        // strictly monotonic against each other down to the millisecond.
+        // Seeding at whichever instant is earlier guarantees this seed's own
+        // window always covers the effectiveFrom this exact call is about to
+        // use, without ever manufacturing a version that starts in the future.
+        const seedEffectiveFrom = route.createdAt.getTime() <= effectiveFrom.getTime()
+          ? route.createdAt
+          : effectiveFrom;
+        const seed = await historyRepo.save(historyRepo.create({
+          routeId: route.id,
+          pricePerKg: route.pricePerKg,
+          fixedFee: route.fixedFee,
+          effectiveFrom: seedEffectiveFrom,
+          effectiveTo: null,
+          changedByUserId: null,
+        }));
+        versions = [seed];
+      }
+
+      const covering = versions.find(
+        (v) =>
+          v.effectiveFrom.getTime() <= effectiveFrom.getTime() &&
+          (v.effectiveTo === null || new Date(v.effectiveTo).getTime() > effectiveFrom.getTime()),
+      );
+      if (!covering) {
+        // effectiveFrom >= now is enforced above, and the earliest version
+        // always starts at route.createdAt <= now, so every valid
+        // effectiveFrom falls inside exactly one existing window -- this
+        // should be structurally unreachable, but fail closed rather than
+        // silently doing something undefined if it ever is.
+        throw new ConflictException('No price version covers the requested effective time');
+      }
+
+      if (covering.effectiveFrom.getTime() === effectiveFrom.getTime()) {
+        // Reschedule in place: same version identity (its own start time is
+        // unchanged), only its price changes. No other row's window is
+        // touched, so this can never create an overlap or a gap.
+        covering.pricePerKg = nextPricePerKg;
+        covering.fixedFee = nextFixedFee;
+        await historyRepo.save(covering);
+      } else {
+        // Genuine split: the new version starts partway through `covering`'s
+        // window and inherits whatever `covering` used to end at --
+        // preserving any later scheduled version beyond it untouched.
+        const inheritedEffectiveTo = covering.effectiveTo;
+        covering.effectiveTo = effectiveFrom;
+        await historyRepo.save(covering);
+        await historyRepo.save(historyRepo.create({
+          routeId: route.id,
+          pricePerKg: nextPricePerKg,
+          fixedFee: nextFixedFee,
+          effectiveFrom,
+          effectiveTo: inheritedEffectiveTo,
+          changedByUserId: userId,
+        }));
+      }
+
+      // Keep the route's own denormalized columns in sync exactly when this
+      // write actually changes what's effective RIGHT NOW -- true whenever
+      // effectiveFrom <= now (an immediate correction, or a reschedule of
+      // the version that already covers now); false for a genuine future
+      // schedule, which must not leak into these columns early.
+      if (effectiveFrom.getTime() <= now.getTime()) {
+        route.pricePerKg = nextPricePerKg;
+        route.fixedFee = nextFixedFee;
+        await routeRepo.save(route);
+      }
+      return route;
+    });
+  }
+
+  // Stage 3S-B4 (post-review correction): cancels a genuinely future,
+  // not-yet-effective scheduled price version, merging its window back into
+  // the version immediately preceding it (which now simply extends to cover
+  // what the cancelled version used to). Refuses to touch a version that has
+  // already become (or already was) effective -- only a still-future
+  // schedule can be retracted this way; an already-active version can only
+  // be superseded going forward via setRoutePrice, never deleted, since it
+  // is real audit history the moment any part of its window has passed.
+  async cancelScheduledRoutePrice(
+    userId: number,
+    routeId: number,
+    effectiveFrom: string | Date,
+  ): Promise<TransportRoute> {
+    const p = await this.getMyProfile(userId);
+    const target = new Date(effectiveFrom);
+    if (Number.isNaN(target.getTime())) {
+      throw new BadRequestException('Invalid effectiveFrom');
+    }
+    return this.dataSource.transaction(async (manager) => {
+      const routeRepo = manager.getRepository(TransportRoute);
+      const historyRepo = manager.getRepository(TransportRoutePriceHistory);
+
+      const route = await routeRepo.findOne({
+        where: { id: routeId, providerId: p.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!route) throw new NotFoundException('Njia haijapatikana');
+
+      const version = await historyRepo.findOne({
+        where: { routeId: route.id, effectiveFrom: target },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!version) throw new NotFoundException('Scheduled price version not found');
+      if (version.effectiveFrom.getTime() <= Date.now()) {
+        throw new ConflictException('Only a future, not-yet-effective price version can be cancelled');
+      }
+
+      const predecessor = await historyRepo.findOne({
+        where: { routeId: route.id, effectiveTo: version.effectiveFrom },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!predecessor) {
+        throw new ConflictException('No predecessor version found to merge the cancelled schedule into');
+      }
+      // Delete the cancelled version BEFORE extending its predecessor to
+      // cover the gap -- doing it in the other order would momentarily leave
+      // both rows overlapping (the extended predecessor's new window would
+      // fully contain the still-present version's own window), which the
+      // range-EXCLUDE constraint correctly refuses even mid-transaction.
+      await historyRepo.remove(version);
+      predecessor.effectiveTo = version.effectiveTo;
+      await historyRepo.save(predecessor);
+
+      if (predecessor.effectiveFrom.getTime() <= Date.now()) {
+        route.pricePerKg = predecessor.pricePerKg;
+        route.fixedFee = predecessor.fixedFee;
+        await routeRepo.save(route);
+      }
+      return route;
+    });
   }
 
   // ── Public: provider info + active routes for CommerceProfile.js ─────────
@@ -401,8 +763,6 @@ export class TransportService {
       }),
     );
 
-    this.indexRoute(route).catch(() => {});
-
     // Update service ad coverage city from route
     try {
       const city = dto.originCity || dto.coverageCity || null;
@@ -422,6 +782,7 @@ export class TransportService {
       /* non-critical */
     }
 
+    this.indexRoute(route).catch(() => {});
     return route;
   }
 
@@ -445,6 +806,11 @@ export class TransportService {
     // request that was only supposed to let them edit their own route,
     // silently reassigning/vandalizing it. `providerId`/`id` are never
     // editable here regardless of what the caller sends.
+    // Stage 3S-B4: pricePerKg/fixedFee no longer go through this generic
+    // whitelist-assign -- they route through setRoutePrice(), the canonical
+    // price-history authority, so a price edit is versioned/auditable
+    // instead of silently overwriting what the price used to be. Every
+    // other field on this same endpoint keeps its existing simple path.
     const editable = [
       'routeType',
       'originCity',
@@ -453,8 +819,6 @@ export class TransportService {
       'loopStops',
       'coverageWards',
       'coverageCity',
-      'pricePerKg',
-      'fixedFee',
       'estimatedHours',
       'isActive',
       'notes',
@@ -465,6 +829,14 @@ export class TransportService {
     const saved = await this.routeRepo.save(route);
     if (saved.isActive) this.indexRoute(saved).catch(() => {});
     else this.searchIndex.remove('transport_route', saved.id).catch(() => {});
+
+    if (dto.pricePerKg !== undefined || dto.fixedFee !== undefined) {
+      return this.setRoutePrice(userId, routeId, {
+        pricePerKg: dto.pricePerKg,
+        fixedFee: dto.fixedFee,
+        effectiveFrom: dto.priceEffectiveFrom,
+      });
+    }
     return saved;
   }
 
@@ -572,7 +944,7 @@ export class TransportService {
     fromCity: string,
     toCity: string,
     weightKg = 0,
-    opts: { allowUnconstrainedSide?: boolean } = {},
+    opts: { allowUnconstrainedSide?: boolean; sortBy?: DiscoverySortBy } = {},
   ): Promise<{
     published: ProviderAvailability[];
     providers: TransportProvider[];
@@ -638,9 +1010,51 @@ export class TransportService {
         { weightKg },
       );
     }
+    // Stage 3S-B2: comparison sort — read-side only, no capacity/Shipment/
+    // custody write anywhere in this method. Unspecified/unrecognised sortBy
+    // preserves the EXACT prior default (earliest departure), so every
+    // existing caller (Shipment discovery, the coverage map, the specs
+    // above) keeps its current behaviour unchanged. A trip with no linked
+    // TransportRoute has no price/duration to compare by (a route-less
+    // manually-published slot only ever carried fromCity/toCity/date/time)
+    // — such trips sort to the END of a price/duration ordering (NULLS
+    // LAST) rather than falsely tying at zero, and still appear normally
+    // under 'earliest'. `a.id` is the final, deterministic tiebreaker for
+    // every mode: it is the one value guaranteed stable and unique across
+    // repeated identical searches.
+    // Stage 3S-B4: sorts by the route's CURRENTLY EFFECTIVE price (a
+    // correlated subquery into transport_route_price_history, resolved at
+    // query time), not the possibly-stale denormalized route columns -- a
+    // scheduled future price change must not affect today's ordering, and an
+    // already-active edit must be reflected immediately. Falls back to the
+    // plain route columns only for a route with no history row at all yet
+    // (never price-edited since Stage 3S-B4 shipped).
+    const effectivePriceSubquery = (column: 'pricePerKg' | 'fixedFee') =>
+      `(SELECT h."${column}" FROM public.transport_route_price_history h
+        WHERE h."routeId" = r.id AND h."effectiveFrom" <= now()
+          AND (h."effectiveTo" IS NULL OR h."effectiveTo" > now())
+        ORDER BY h."effectiveFrom" DESC LIMIT 1)`;
+    const cheapestExpr = `CASE WHEN r.id IS NULL THEN NULL ELSE GREATEST(
+      COALESCE(${effectivePriceSubquery('pricePerKg')}, r."pricePerKg", 0) * :cmpWeight,
+      COALESCE(${effectivePriceSubquery('fixedFee')}, r."fixedFee", 0)
+    ) END`;
+    switch (opts.sortBy) {
+      case 'cheapest':
+        publishedQuery
+          .addSelect(cheapestExpr, 'cheapest_price')
+          .setParameter('cmpWeight', weightKg > 0 ? weightKg : 0)
+          .orderBy('cheapest_price', 'ASC', 'NULLS LAST');
+        break;
+      case 'fastest':
+        publishedQuery.orderBy('r.estimatedHours', 'ASC', 'NULLS LAST');
+        break;
+      case 'earliest':
+      default:
+        publishedQuery.orderBy('a.date', 'ASC').addOrderBy('a.departureTime', 'ASC');
+        break;
+    }
     const published = await publishedQuery
-      .orderBy('a.date', 'ASC')
-      .addOrderBy('a.departureTime', 'ASC')
+      .addOrderBy('a.id', 'ASC')
       .getMany();
 
     // All verified providers covering this route (even without published availability)
@@ -688,15 +1102,23 @@ export class TransportService {
   // TransportProvider entity (apiKey, contract fields, contactEmail, admin
   // notes) embedded in every result the way findAvailableForRoute's
   // internal shape does. Same underlying query, safe projection on top.
-  async findPublicAvailabilityForRoute(fromCity: string, toCity: string) {
+  // weightKg/sortBy are additive (Stage 3S-B2): both optional, both default
+  // to the exact prior behaviour (unspecified weight, earliest-departure
+  // order) — an existing caller passing neither sees no change at all.
+  async findPublicAvailabilityForRoute(
+    fromCity: string,
+    toCity: string,
+    weightKg = 0,
+    sortBy?: DiscoverySortBy,
+  ) {
     // The public coverage page sends `to=` (empty) meaning "from X, anywhere":
     // an absent/exactly-empty side is an explicit, literal "unconstrained"
     // here only -- never a wildcard pattern, and never whitespace-only text.
     const { published, providers } = await this.findAvailableForRoute(
       fromCity,
       toCity,
-      0,
-      { allowUnconstrainedSide: true },
+      weightKg,
+      { allowUnconstrainedSide: true, sortBy },
     );
     return {
       trips: published.map((a) => ({
@@ -714,6 +1136,10 @@ export class TransportService {
         ),
         pricePerKg: (a as any).route?.pricePerKg ?? null,
         fixedFee: (a as any).route?.fixedFee ?? null,
+        // Canonical journey duration (Stage 3S-B2) — the same TransportRoute
+        // field 'fastest' sorts by; null when no route is linked (a
+        // manually-published slot has no journey-time data to report).
+        estimatedHours: (a as any).route?.estimatedHours ?? null,
       })),
       providers: providers.map((p) => this.toSafeProvider(p)),
     };
@@ -1004,6 +1430,7 @@ export class TransportService {
           lastCustody.toCustodianId !== hub.id) {
         throw new ConflictException('Origin hub custody must be confirmed before collection');
       }
+      await assertFirstMileComplete(manager, parcel.id); // never board before physical origin-hub receipt
       const now = new Date();
       assignment.status = AssignmentStatus.COLLECTED;
       assignment.collectedAt = now;
@@ -1044,16 +1471,13 @@ export class TransportService {
       scheduledDeparture?: string;
       superAgentNotes?: string;
     },
+    roleContext?: RoleContext,
   ): Promise<TransportAssignment> {
-    // Only an active Super Agent may create an assignment, and only for a
-    // parcel their own hub actually holds — never trust a bare "I am a
-    // super agent, trust my ids" claim from the client.
-    const superAgent = await this.findCallerSuperAgent(caller.id);
-    if (!superAgent) {
-      throw new ForbiddenException(
-        'Only a Super Agent can create a transport assignment',
-      );
-    }
+    // 3S-B1: canonical RoleContext/capability authority — see
+    // resolveAssigningHub()'s own doc comment. Only for a parcel their own
+    // hub actually holds — never trust a bare "I am a super agent, trust my
+    // ids" claim from the client.
+    const superAgent = await this.resolveAssigningHub(caller, roleContext);
 
     if (!dto.parcelId && !dto.trackingNumber) {
       throw new BadRequestException('parcelId or trackingNumber is required');
@@ -1072,22 +1496,19 @@ export class TransportService {
       );
     }
 
-    const provider = await this.providerRepo.findOne({
-      where: { id: dto.providerId },
-    });
-    if (!provider) throw new NotFoundException('Msafirishaji hajapatikana');
-    if (
-      ![ProviderStatus.VERIFIED, ProviderStatus.ACTIVE].includes(
-        provider.status,
-      )
-    ) {
-      throw new BadRequestException('Msafirishaji huyu hajakaguliwa bado');
-    }
+    // Canonical, shared provider-eligibility policy (3S-B1) — the exact
+    // check the Shipment confirmation path already uses, no longer a
+    // second, independently-maintained copy of the same rule.
+    const provider = await this.assertEligibleProvider(dto.providerId);
 
     // If a specific slot was chosen, it must actually belong to the
-    // selected provider and still have room — pairing an unrelated
-    // availabilityId with any providerId used to silently deplete a
-    // stranger's capacity with no relationship check at all.
+    // selected provider — pairing an unrelated availabilityId with any
+    // providerId used to silently deplete a stranger's capacity with no
+    // relationship check at all. This is only an ADVISORY fast-fail for a
+    // friendly error message: the real, final capacity decision is the
+    // atomic conditional UPDATE inside the transaction below, which
+    // re-checks OPEN status/a free slot/kg headroom itself and cannot be
+    // raced past this earlier read (see slot-capacity.ts).
     if (dto.availabilityId) {
       const availability = await this.availabilityRepo.findOne({
         where: { id: dto.availabilityId },
@@ -1100,59 +1521,108 @@ export class TransportService {
           "That availability slot doesn't belong to the selected provider",
         );
       }
-      if (
-        availability.status !== AvailabilityStatus.OPEN ||
-        availability.usedSlots >= availability.totalSlots
-      ) {
-        throw new BadRequestException('That slot is no longer available');
-      }
     }
 
     // Auto-confirm large providers, manual for small
     const isAutoConfirm = provider.confirmMode === ConfirmMode.AUTO;
-
-    if (dto.availabilityId) {
-      await this.reserveCapacity(dto.availabilityId, dto.weightKg || 1);
-    }
-
-    // orderId/shipmentId are never taken from the client — always derived
-    // from the parcel that was just validated above, so they can't be
-    // spoofed independently of a legitimate parcelId.
-    const assignment = await this.assignmentRepo.save(
-      this.assignmentRepo.create({
-        trackingNumber: parcel.trackingNumber || null,
-        orderId: parcel.order?.id || null,
-        parcelId: parcel.id,
-        shipmentId: (parcel as any).shipment?.id || null,
-        parcelRefId: parcel.id,
-        orderRefId: parcel.order?.id || null,
-        shipmentRefId: (parcel as any).shipment?.id || null,
-        assignedById: caller.id,
-        providerId: dto.providerId,
-        availabilityId: dto.availabilityId || null,
-        fromCity: parcel.originCity,
-        toCity: parcel.destinationCity,
-        parcelCount: dto.parcelCount || 1,
-        weightKg: dto.weightKg || Number(parcel.weightKg) || 0,
-        agreedPrice: dto.agreedPrice || null,
-        scheduledDeparture: dto.scheduledDeparture || null,
-        superAgentNotes: dto.superAgentNotes || null,
-        status: isAutoConfirm
-          ? AssignmentStatus.ACCEPTED
-          : AssignmentStatus.PENDING,
-        acceptedAt: isAutoConfirm ? new Date() : null,
-      }),
+    // 3S-B1: ONE weight figure, used for BOTH the capacity reservation and
+    // the value recorded on the assignment — previously these were two
+    // independently-defaulted numbers (the reservation used
+    // `dto.weightKg || 1`, ignoring the parcel's own declared weight
+    // entirely, while the stored record used `dto.weightKg || parcel.weightKg
+    // || 0`), so a caller that omitted weightKg on a heavier parcel reserved
+    // far less capacity than the parcel actually needed — a real KG
+    // oversubscription channel with no concurrency required at all.
+    const weight = capacityWeightKg(
+      dto.weightKg != null ? dto.weightKg : parcel.weightKg,
     );
 
-    // Update provider stats
-    await this.providerRepo.update(provider.id, {
-      totalAssignments: () => 'totalAssignments + 1',
-    });
+    // 3S-B1: capacity reservation and the TransportAssignment insert are now
+    // ONE transaction — a failed reservation creates no assignment, and a
+    // failed insert after a successful reservation rolls the reservation
+    // back with it. The parcel is locked FIRST, the same order every other
+    // parcel-authority write in this codebase already uses (see
+    // collectAssignedParcel/dispatchParcel), which also serialises two
+    // concurrent createAssignment calls for the SAME parcel against each
+    // other and against the idempotent-reuse check below.
+    return this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT id FROM public.parcel WHERE id=$1 FOR UPDATE', [parcel.id]);
 
-    return assignment;
+      // Idempotent reuse: a parcel already carrying a LIVE (non-terminal)
+      // assignment to this SAME provider/slot is a retry of the same
+      // request (client timeout, double submit), not a second, independent
+      // demand for capacity — return the existing row rather than reserving
+      // a second slot for one physical parcel. A live assignment to a
+      // DIFFERENT provider/slot is a genuine conflict: a parcel cannot be
+      // simultaneously promised to two carriers.
+      const live = await manager.getRepository(TransportAssignment).findOne({
+        where: { parcelRefId: parcel.id },
+        order: { id: 'DESC' },
+      });
+      if (live && ![AssignmentStatus.DECLINED, AssignmentStatus.CANCELLED].includes(live.status)) {
+        if (live.providerId === dto.providerId && live.availabilityId === (dto.availabilityId ?? null)) {
+          return live;
+        }
+        throw new ConflictException('This parcel already has an active transport assignment');
+      }
+
+      if (dto.availabilityId) {
+        const reserved = await reserveSlotAtomic(manager, dto.availabilityId, weight, {
+          today: new Date().toISOString().slice(0, 10),
+          providerId: dto.providerId,
+        });
+        if (!reserved) {
+          throw new ConflictException('That slot is full or no longer available');
+        }
+      }
+
+      // orderId/shipmentId are never taken from the client — always derived
+      // from the parcel that was just validated above, so they can't be
+      // spoofed independently of a legitimate parcelId.
+      const assignment = await manager.getRepository(TransportAssignment).save(
+        manager.getRepository(TransportAssignment).create({
+          trackingNumber: parcel.trackingNumber || null,
+          orderId: parcel.order?.id || null,
+          parcelId: parcel.id,
+          shipmentId: (parcel as any).shipment?.id || null,
+          parcelRefId: parcel.id,
+          orderRefId: parcel.order?.id || null,
+          shipmentRefId: (parcel as any).shipment?.id || null,
+          assignedById: caller.id,
+          providerId: dto.providerId,
+          availabilityId: dto.availabilityId || null,
+          fromCity: parcel.originCity,
+          toCity: parcel.destinationCity,
+          parcelCount: dto.parcelCount || 1,
+          weightKg: weight,
+          agreedPrice: dto.agreedPrice || null,
+          scheduledDeparture: dto.scheduledDeparture || null,
+          superAgentNotes: dto.superAgentNotes || null,
+          status: isAutoConfirm
+            ? AssignmentStatus.ACCEPTED
+            : AssignmentStatus.PENDING,
+          acceptedAt: isAutoConfirm ? new Date() : null,
+        }),
+      );
+
+      // Update provider stats. 3S-B1: quoted — an unquoted raw expression here
+      // folds to the lowercase "totalassignments" in real PostgreSQL, which
+      // does not exist (the real column is the mixed-case "totalAssignments");
+      // this was silently broken against a real database before this slice's
+      // first real-PG exercise of this exact line, unrelated to the
+      // transaction/idempotency changes around it. See the same fix on
+      // completedAssignments in updateAssignmentStatus below.
+      await manager.getRepository(TransportProvider).update(provider.id, {
+        totalAssignments: () => '"totalAssignments" + 1',
+      });
+
+      return assignment;
+    });
   }
 
-  // Provider responds to assignment
+  // Provider responds to assignment. 3S-B1: locked + idempotent — two
+  // concurrent/retried responses for the same assignment (a double-tap, a
+  // client timeout-retry) must release its slot at most once, never twice.
   async respondToAssignment(
     userId: number,
     assignmentId: number,
@@ -1160,26 +1630,34 @@ export class TransportService {
     declineReason?: string,
   ) {
     const provider = await this.getMyProfile(userId);
-    const assignment = await this.assignmentRepo.findOne({
-      where: {
-        id: assignmentId,
-        providerId: provider.id,
-        status: AssignmentStatus.PENDING,
-      },
+    const targetStatus = accept ? AssignmentStatus.ACCEPTED : AssignmentStatus.DECLINED;
+
+    return this.dataSource.transaction(async (manager) => {
+      const assignments = manager.getRepository(TransportAssignment);
+      const assignment = await assignments.findOne({
+        where: { id: assignmentId, providerId: provider.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!assignment) throw new NotFoundException('Mgawo haukupatikana');
+      if (assignment.status === targetStatus) {
+        // Idempotent retry: this response already committed under an
+        // earlier request — return the settled row, never release twice.
+        return assignment;
+      }
+      if (assignment.status !== AssignmentStatus.PENDING) {
+        throw new NotFoundException('Mgawo haukupatikana');
+      }
+
+      assignment.status = targetStatus;
+      assignment.acceptedAt = accept ? new Date() : null;
+      assignment.declineReason = declineReason || null;
+      const saved = await assignments.save(assignment);
+
+      if (!accept && assignment.availabilityId) {
+        await releaseSlotAtomic(manager, assignment.availabilityId, capacityWeightKg(assignment.weightKg));
+      }
+      return saved;
     });
-    if (!assignment) throw new NotFoundException('Mgawo haukupatikana');
-
-    assignment.status = accept
-      ? AssignmentStatus.ACCEPTED
-      : AssignmentStatus.DECLINED;
-    assignment.acceptedAt = accept ? new Date() : null;
-    assignment.declineReason = declineReason || null;
-    const saved = await this.assignmentRepo.save(assignment);
-
-    if (!accept && assignment.availabilityId) {
-      await this.releaseCapacity(assignment.availabilityId, Number(assignment.weightKg) || 1);
-    }
-    return saved;
   }
 
   // Update assignment status (collected/departed/arrived/completed/cancelled)
@@ -1202,13 +1680,13 @@ export class TransportService {
       }
       return this.collectAssignedParcel(caller, assignmentId, dto, roleContext);
     }
-    const a = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
-    if (!a) throw new NotFoundException('Mgawo haukupatikana');
+    const existing = await this.assignmentRepo.findOne({ where: { id: assignmentId } });
+    if (!existing) throw new NotFoundException('Mgawo haukupatikana');
 
     const providerProfile = await this.resolveActingTransportProvider(caller.id);
-    const isOwningProvider = !!providerProfile && providerProfile.id === a.providerId;
+    const isOwningProvider = !!providerProfile && providerProfile.id === existing.providerId;
     const isCreatingSuperAgent =
-      a.assignedById === caller.id && !!(await this.findCallerSuperAgent(caller.id));
+      existing.assignedById === caller.id && !!(await this.findCallerSuperAgent(caller.id));
     // Active-role authority, never the legacy caller.role field — an admin
     // operating as another role loses the state-machine-skip privilege below
     // until they switch back.
@@ -1219,53 +1697,78 @@ export class TransportService {
       throw new ForbiddenException('Not authorized to update this transport assignment');
     }
 
-    const allowedNext = TransportService.NEXT_STATUS[a.status] || [];
-    if (!isAdmin && !allowedNext.includes(dto.status)) {
-      throw new BadRequestException(
-        `Cannot move assignment from "${a.status}" to "${dto.status}"`,
-      );
-    }
+    // 3S-B1: locked + idempotent. The unlocked read above is only for the
+    // fast auth/404 checks; the transition itself re-reads the row UNDER a
+    // row lock, so two concurrent/retried calls for the SAME assignment
+    // (double-tap, client timeout-retry, or a genuine race) serialise on it.
+    // The loser re-reads the ALREADY-APPLIED result and either finds itself
+    // already at the target status (a pure no-op — no second capacity
+    // release, no second reputation award, no second parcel-sync side
+    // effect) or a real conflict against the now-current status — never a
+    // duplicate transition.
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const assignments = manager.getRepository(TransportAssignment);
+      const a = await assignments.findOne({ where: { id: assignmentId }, lock: { mode: 'pessimistic_write' } });
+      if (!a) throw new NotFoundException('Mgawo haukupatikana');
+      if (a.status === dto.status) return a;
 
-    const now = new Date();
-    const previousStatus = a.status;
-    a.status = dto.status;
-    if (dto.notes) a.providerNotes = dto.notes;
+      const allowedNext = TransportService.NEXT_STATUS[a.status] || [];
+      if (!isAdmin && !allowedNext.includes(dto.status)) {
+        throw new BadRequestException(
+          `Cannot move assignment from "${a.status}" to "${dto.status}"`,
+        );
+      }
 
-    switch (dto.status) {
-      case AssignmentStatus.DEPARTED:
-        a.departedAt = now;
-        a.departureProofUrl = dto.proofUrl || null;
-        break;
-      case AssignmentStatus.ARRIVED:
-        a.arrivedAt = now;
-        a.arrivalProofUrl = dto.proofUrl || null;
-        break;
-      case AssignmentStatus.CANCELLED:
-        if (a.availabilityId && previousStatus !== AssignmentStatus.DEPARTED) {
-          await this.releaseCapacity(a.availabilityId, Number(a.weightKg) || 1);
-        }
-        break;
-      case AssignmentStatus.COMPLETED:
-        a.completedAt = now;
-        await this.providerRepo.update(a.providerId, {
-          completedAssignments: () => 'completedAssignments + 1',
-        });
-        // Award reputation for completed transport assignment
-        if (providerProfile?.userId) {
-          this.reputationService
-            .award(providerProfile.userId, ReputationEventType.TRANSPORT_COMPLETED, {
-              sourceEntityType: 'transport_assignment',
-              sourceEntityId: a.id,
-            })
-            .catch(() => {});
-        }
-        break;
-    }
-    const saved = await this.assignmentRepo.save(a);
+      const now = new Date();
+      const previousStatus = a.status;
+      a.status = dto.status;
+      if (dto.notes) a.providerNotes = dto.notes;
+
+      switch (dto.status) {
+        case AssignmentStatus.DEPARTED:
+          a.departedAt = now;
+          a.departureProofUrl = dto.proofUrl || null;
+          break;
+        case AssignmentStatus.ARRIVED:
+          a.arrivedAt = now;
+          a.arrivalProofUrl = dto.proofUrl || null;
+          break;
+        case AssignmentStatus.CANCELLED:
+          if (a.availabilityId && previousStatus !== AssignmentStatus.DEPARTED) {
+            await releaseSlotAtomic(manager, a.availabilityId, capacityWeightKg(a.weightKg));
+          }
+          break;
+        case AssignmentStatus.COMPLETED:
+          a.completedAt = now;
+          // 3S-B1: quoted — see the identical fix on totalAssignments above.
+          await manager.getRepository(TransportProvider).update(a.providerId, {
+            completedAssignments: () => '"completedAssignments" + 1',
+          });
+          break;
+      }
+      const row = await assignments.save(a);
+
+      // Reputation award stays inside the lock so a retry can never award it
+      // twice — this only ever runs on the winning transition (the idempotent
+      // no-op above returns before reaching here on any later call).
+      if (dto.status === AssignmentStatus.COMPLETED && providerProfile?.userId) {
+        this.reputationService
+          .award(providerProfile.userId, ReputationEventType.TRANSPORT_COMPLETED, {
+            sourceEntityType: 'transport_assignment',
+            sourceEntityId: row.id,
+          })
+          .catch(() => {});
+      }
+
+      return row;
+    });
 
     // Kentexa (not the transport provider directly) turns a real transport
     // event into the Parcel's own lifecycle — see PARCEL_SYNC's comment for
     // exactly which transitions apply and why COMPLETED is excluded.
+    // syncParcelFromAssignment is itself idempotent (it re-checks the
+    // parcel's CURRENT status before writing), so re-running it for the
+    // no-op retry branch above is harmless.
     await this.syncParcelFromAssignment(saved, dto.status);
 
     return saved;
