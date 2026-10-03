@@ -189,20 +189,50 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [handoverRequests, setHandoverRequests] = useState([]);
   const [vanIncoming, setVanIncoming] = useState([]);
   const [vanReady, setVanReady] = useState([]);
+  const [vanToSend, setVanToSend] = useState([]);
+  const [eligibleRuns, setEligibleRuns] = useState({});
+  const [selectedRun, setSelectedRun] = useState({});
   const [vanDeskLoading, setVanDeskLoading] = useState(false);
 
   const fetchVanDesk = async () => {
     try {
       setVanDeskLoading(true);
-      const [incomingRes, readyRes] = await Promise.all([
+      const [incomingRes, readyRes, sendRes] = await Promise.all([
         api.get('/van-pilot/desk/blocked-receipts'),
         api.get('/van-pilot/desk/awaiting-completion'),
+        api.get('/van-pilot/desk/ready-for-movement'),
       ]);
       setVanIncoming(incomingRes.data || []);
       setVanReady(readyRes.data || []);
+      setVanToSend(sendRes.data || []);
     } catch (err) {
       setError(err?.response?.data?.message || 'Imeshindwa kupakia shughuli za Van');
     } finally { setVanDeskLoading(false); }
+  };
+
+  const loadEligibleRuns = async parcelId => {
+    try {
+      const res = await api.get(`/van-pilot/parcels/${parcelId}/eligible-runs`);
+      setEligibleRuns(p => ({ ...p, [parcelId]: res.data || [] }));
+    } catch (err) { setError(err?.response?.data?.message || 'Hakuna Van inayopatikana kwa mzigo huu'); }
+  };
+
+  const releaseParcelToVan = async parcel => {
+    const run = (eligibleRuns[parcel.id] || []).find(x => Number(x.runId) === Number(selectedRun[parcel.id]));
+    if (!run) return;
+    try {
+      setActionLoading(true); setError('');
+      await api.post('/van-pilot/movement-tenders', {
+        parcelId: parcel.id,
+        transportProviderId: Number(run.transportProviderId),
+        runId: Number(run.runId),
+        loadRunStopId: Number(run.loadRunStopId),
+        idempotencyKey: `hub-release:${parcel.id}:run:${run.runId}:stop:${run.loadRunStopId}`,
+      });
+      setSuccess('✅ Mzigo umeachiwa kwa transporter. Utatokea kwenye manifest baada ya transporter kuukubali.');
+      await fetchVanDesk();
+    } catch (err) { setError(err?.response?.data?.message || 'Imeshindwa kuachia mzigo kwa Van'); }
+    finally { setActionLoading(false); }
   };
 
   const confirmVanReceipt = async assignmentId => {
@@ -2532,7 +2562,21 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             {vanDeskLoading && <div style={{ padding:20, textAlign:'center', color:'#64748b' }}>Inapakia...</div>}
             {!vanDeskLoading && (
               <>
-                <div style={{ fontSize:12, fontWeight:900, color:'#7c3aed', marginBottom:8 }}>INCOMING VAN · {vanIncoming.length}</div>
+                <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', marginBottom:8 }}>READY TO SEND · {vanToSend.length}</div>
+                {vanToSend.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12, marginBottom:18 }}>Hakuna mzigo uliopo custody yako unaosubiri Van.</div> :
+                  vanToSend.map(p => {
+                    const candidates=eligibleRuns[p.id] || [];
+                    return <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8 }}>
+                      <div style={{fontWeight:900,fontSize:13}}>{p.trackingNumber || `Parcel #${p.id}`}</div>
+                      <div style={{fontSize:11,color:'#64748b',margin:'3px 0 8px'}}>{p.originCity} → {p.destinationCity}{p.weightKg ? ` · ${p.weightKg}kg` : ''}</div>
+                      {candidates.length===0 ? <button onClick={()=>loadEligibleRuns(p.id)} style={{width:'100%',border:'none',borderRadius:8,padding:9,fontWeight:800,cursor:'pointer'}}>Tafuta Van</button> :
+                        <><select value={selectedRun[p.id] || ''} onChange={e=>setSelectedRun(x=>({...x,[p.id]:e.target.value}))} style={{width:'100%',padding:9,borderRadius:8,border:'1px solid #cbd5e1',marginBottom:7}}>
+                          <option value="">Chagua Van</option>{candidates.map(x=><option key={x.runId} value={x.runId}>{x.loadLabel} → {x.unloadLabel} · {new Date(x.scheduledDeparture).toLocaleString()}</option>)}
+                        </select>
+                        <button disabled={!selectedRun[p.id]||actionLoading} onClick={()=>releaseParcelToVan(p)} style={{width:'100%',border:'none',borderRadius:8,padding:9,background:'#1d4ed8',color:'#fff',fontWeight:900}}>Achia kwa Van</button></>}
+                    </div>;
+                  })}
+                <div style={{ fontSize:12, fontWeight:900, color:'#7c3aed', margin:'18px 0 8px' }}>INCOMING VAN · {vanIncoming.length}</div>
                 {vanIncoming.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12, marginBottom:18 }}>Hakuna mzigo wa Van unaosubiri kupokelewa.</div> :
                   vanIncoming.map(p => <div key={p.assignmentId} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8 }}>
                     <div style={{ fontWeight:900, fontSize:13, color:'#1e293b' }}>{p.trackingNumber || `Parcel #${p.parcelId}`}</div>
