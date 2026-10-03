@@ -714,6 +714,8 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                     </select>}
                     {run.vehicleId && <span style={{fontSize:11,padding:'8px 10px',background:'#f1f5f9',borderRadius:8}}>Vehicle #{run.vehicleId}</span>}
                     <button onClick={() => loadManifest(run.id)} style={{ border:'none', borderRadius:8, padding:'9px 12px', cursor:'pointer', fontWeight:700 }}>Manifest</button>
+                    {['scheduled','open','closed'].includes(run.status) && <button disabled={runBusy===run.id} onClick={()=>transitionRun(run.id,'cancel')}
+                      style={{border:'none',borderRadius:8,padding:'9px 12px',cursor:'pointer',fontWeight:700,background:'#fee2e2',color:'#b91c1c'}}>Cancel</button>}
                     {next && <button disabled={runBusy === run.id} onClick={() => transitionRun(run.id, next)}
                       style={{ border:'none', borderRadius:8, padding:'9px 12px', cursor:'pointer', fontWeight:800, backgroundColor:'#1d4ed8', color:'#fff' }}>
                       {next === 'open' ? 'Open Run' : next === 'close' ? 'Close Loading' : next === 'start' ? 'Start Van' : 'Complete Run'}
@@ -729,6 +731,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                             <div style={{ display:'flex', gap:6, marginTop:7 }}>
                               {a.status === 'scheduled' && <button disabled={runBusy === a.id} onClick={() => markRunParcel(run.id, a.id, 'loaded')}>Load</button>}
                               {a.status === 'loaded' && <button disabled={runBusy === a.id} onClick={() => markRunParcel(run.id, a.id, 'unloaded')}>Unload</button>}
+                              {a.status === 'scheduled' && <button disabled={runBusy === a.id} onClick={() => markRunParcel(run.id, a.id, 'cancel')} style={{color:'#b91c1c'}}>Cancel parcel</button>}
                             </div>
                           </div>
                         ))}
