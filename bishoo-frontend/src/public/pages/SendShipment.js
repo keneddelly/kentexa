@@ -48,7 +48,7 @@ const LocationInput = ({ label, value, onChange, onResolved, placeholder, resolv
   useEffect(() => {
     if (!value?.trim() || value.trim().length < 2) { setSuggestions([]); return; }
     const t = setTimeout(() => {
-      api.get('/locations/search', { params: { q: value.trim() } })
+      api.get('/locations/places', { params: { q: value.trim(), limit: 8 } })
         .then(r => setSuggestions(r.data || []))
         .catch(() => setSuggestions([]));
     }, 250);
@@ -77,7 +77,7 @@ const LocationInput = ({ label, value, onChange, onResolved, placeholder, resolv
           marginTop: 4, overflow: 'hidden', maxHeight: 220, overflowY: 'auto' }}>
           {suggestions.map((s, i) => (
             <button key={i}
-              onClick={() => { onChange(s.region || s.fullAddress); onResolved(s); setShowList(false); }}
+              onClick={() => { onChange(s.fullAddress || s.ward || s.district || s.region); onResolved(s); setShowList(false); }}
               style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 14px',
                 border: 'none', borderBottom: '1px solid #F1F5F9', backgroundColor: WH,
                 cursor: 'pointer', fontSize: 13, color: DK }}>
@@ -179,10 +179,16 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         // suggestion — never a stale one left over from a different typed
         // string (onResolved(null) clears this the moment the text changes).
         originRegionId: originResolved?.regionId || undefined,
+        originDistrictId: originResolved?.districtId || undefined,
         originWardId: originResolved?.wardId || undefined,
+        originLat: originResolved?.lat != null ? Number(originResolved.lat) : undefined,
+        originLng: originResolved?.lng != null ? Number(originResolved.lng) : undefined,
         destinationCity: destination.trim(),
         destinationRegionId: destinationResolved?.regionId || undefined,
+        destinationDistrictId: destinationResolved?.districtId || undefined,
         destinationWardId: destinationResolved?.wardId || undefined,
+        destinationLat: destinationResolved?.lat != null ? Number(destinationResolved.lat) : undefined,
+        destinationLng: destinationResolved?.lng != null ? Number(destinationResolved.lng) : undefined,
         itemDescription: itemDescription.trim(),
         weightKg: Number(weightKg) || 0,
         routeId: selected?.routeId || undefined,
