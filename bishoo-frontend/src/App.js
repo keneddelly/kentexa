@@ -190,12 +190,10 @@ function App() {
     try {
       const params = new URLSearchParams(window.location.search);
       const track   = params.get('track');
-      const receive = params.get('receive');
       const confirm = params.get('confirm');
       const token   = params.get('token');
       if (params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')) return 'Activity';
       if (confirm && token) return `ConfirmDelivery-${token}`;
-      if (receive && /^KTX-[A-Z0-9-]+$/i.test(receive)) return `BuyerParcelAction-${receive}`;
       if (track) return `TrackParcel-${track}`;
       // Real shareable paths (/product/42, /store/7, ...) — resolves
       // synchronously from the URL alone, no network round trip needed.
@@ -305,12 +303,9 @@ function App() {
     // Restoring a session from a notification tap must preserve that exact
     // destination; an ordinary role switch still lands on its role home.
     const params = new URLSearchParams(window.location.search);
-    const receive = params.get('receive');
     if (activeContext?.roleType) setPage(
-      receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
-        ? `BuyerParcelAction-${receive}`
-        : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
-          ? 'Activity' : homeForRole(activeContext.roleType));
+      params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
+        ? 'Activity' : homeForRole(activeContext.roleType));
   }, [contextEpoch, activeContext?.roleType]);
 
   // Syncs the visible browser URL for the 4 shareable content types
@@ -412,11 +407,8 @@ function App() {
             // overrides an explicit targetPage a caller already asked for.
             const intentDestination = destinationForIntent(consumeIntent());
             const params = new URLSearchParams(window.location.search);
-            const receive = params.get('receive');
-            setPage(receive && /^KTX-[A-Z0-9-]+$/i.test(receive)
-              ? `BuyerParcelAction-${receive}`
-              : params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
-                ? 'Activity' : (intentDestination || 'Home'));
+            setPage(params.get('notification') === '1' || /^\d+$/.test(params.get('notificationId') || '')
+              ? 'Activity' : (intentDestination || 'Home'));
           } else {
             setPage(options.targetPage);
           }
