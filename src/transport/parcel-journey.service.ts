@@ -149,7 +149,7 @@ export class ParcelJourneyService {
     const currentSuperAgentId = latest?.toCustodianType === 'super_agent' ? latest.toCustodianId : null;
 
     const rows = await this.dataSource.query(
-      `SELECT r.id AS "runId", r."scheduledDeparture",
+      `SELECT r.id AS "runId", r."providerId" AS "transportProviderId", r."scheduledDeparture",
               ls.id AS "loadRunStopId", ls."locationLabel" AS "loadLabel",
               us.id AS "unloadRunStopId", us."locationLabel" AS "unloadLabel"
          FROM public.transport_run r
