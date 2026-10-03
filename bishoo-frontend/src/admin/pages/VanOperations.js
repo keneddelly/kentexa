@@ -61,9 +61,9 @@ export default function VanOperations({ onNavigate, activePage }) {
         </section>
         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(300px,1fr))',gap:16}}>
           <section style={card}><div style={{fontWeight:900,marginBottom:10}}>⚠️ Unloaded, waiting hub receipt</div>
-            {blocked.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel iliyokwama.</div>:blocked.map(x=><div key={x.assignmentId} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>Parcel #{x.parcelId}</b> · Run #{x.runId}<br/><span style={{color:'#64748b'}>Hub #{x.superAgentId} · {Math.round(Number(x.waitingMinutes)||0)} min waiting</span></div>)}</section>
+            {blocked.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel iliyokwama.</div>:blocked.map(x=><div key={x.assignmentId} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>Parcel #{x.parcelId}</b> · Run #{x.runId}<br/><span style={{color:'#64748b'}}>Hub #{x.superAgentId} · {Math.round(Number(x.waitingMinutes)||0)} min waiting</span></div>)}</section>
           <section style={card}><div style={{fontWeight:900,marginBottom:10}}>📦 Awaiting last mile / pickup</div>
-            {awaiting.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel inayosubiri completion.</div>:awaiting.map(x=><div key={x.id} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>{x.trackingNumber||('Parcel #'+x.id)}</b><br/><span style={{color:'#64748b'}>{x.status} · Hub #{x.destinationSuperAgentId||'—'}</span></div>)}</section>
+            {awaiting.length===0?<div style={{color:'#64748b',fontSize:12}}>Hakuna parcel inayosubiri completion.</div>:awaiting.map(x=><div key={x.id} style={{padding:'10px 0',borderBottom:'1px solid #f1f5f9',fontSize:12}}><b>{x.trackingNumber||('Parcel #'+x.id)}</b><br/><span style={{color:'#64748b'}}>{x.status} · Hub #{x.destinationSuperAgentId||'—'}</span></div>)}</section>
         </div>
       </>}
       {selected && <div onClick={()=>setSelected(null)} style={{position:'fixed',inset:0,background:'rgba(15,23,42,.5)',zIndex:200,display:'flex',justifyContent:'flex-end'}}>
