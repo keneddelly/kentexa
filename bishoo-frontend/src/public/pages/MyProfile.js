@@ -97,6 +97,9 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
   const [payments,   setPayments]   = useState([]);
   const [invoices,   setInvoices]   = useState([]);
   const [followed,   setFollowed]   = useState([]);
+  const [followers, setFollowers] = useState([]);
+  const [followingPeople, setFollowingPeople] = useState([]);
+  const [networkOpen, setNetworkOpen] = useState(null);
   const [agentData,  setAgentData]  = useState(null);
   const [saData,     setSaData]     = useState(null);
   const [tpData,     setTpData]     = useState(null);
@@ -151,6 +154,19 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
     if (['seller','admin','manager'].includes(r))
       api.get('/seller/dashboard').then(res => setSellerStats(res.data)).catch(()=>{});
   }, [isLoggedIn]); // eslint-disable-line
+
+  useEffect(() => {
+    if (!personalProfile?.id) return;
+    Promise.all([
+      api.get(`/profiles/${personalProfile.id}`),
+      api.get(`/profiles/${personalProfile.id}/followers`),
+      api.get(`/profiles/${personalProfile.id}/following`),
+    ]).then(([p,fr,fg]) => {
+      setPersonalProfile(prev => ({ ...(prev || {}), ...p.data }));
+      setFollowers(fr.data?.items || []);
+      setFollowingPeople(fg.data?.items || []);
+    }).catch(()=>{});
+  }, [personalProfile?.id]);
 
   // Agent/Super Agent/Transport Provider stat fetches are keyed on the
   // ACTIVE profile's type, separately from the effect above — the Quick
@@ -321,6 +337,18 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
               </div>
             </div>
           </div>
+          {personalProfile && <div style={{display:'flex',gap:20,marginTop:14,paddingTop:12,borderTop:'1px solid rgba(255,255,255,.18)'}}>
+            <button onClick={()=>setNetworkOpen(networkOpen==='followers'?null:'followers')} style={{border:'none',background:'none',color:'#fff',padding:0,cursor:'pointer',fontWeight:800}}>{personalProfile.followersCount ?? followers.length} Followers</button>
+            <button onClick={()=>setNetworkOpen(networkOpen==='following'?null:'following')} style={{border:'none',background:'none',color:'#fff',padding:0,cursor:'pointer',fontWeight:800}}>{personalProfile.followingCount ?? followingPeople.length} Following</button>
+          </div>}
+          {networkOpen && <div style={{marginTop:10,background:'rgba(255,255,255,.12)',borderRadius:12,padding:8}}>
+            {(networkOpen==='followers'?followers:followingPeople).length===0 ? <div style={{fontSize:12,color:'rgba(255,255,255,.7)',padding:8}}>No connections yet.</div> :
+              (networkOpen==='followers'?followers:followingPeople).map(person=><button key={person.profileId || person.ownerId} onClick={()=>person.profileId && onNavigate(`CommerceProfile-${person.profileId}`,{commerceProfileId:person.profileId})} style={{display:'flex',alignItems:'center',gap:9,width:'100%',border:'none',background:'none',color:'#fff',padding:7,cursor:person.profileId?'pointer':'default',textAlign:'left'}}>
+                {person.photoUrl ? <img src={person.photoUrl} alt="" style={{width:32,height:32,borderRadius:'50%',objectFit:'cover'}}/> : <span style={{width:32,height:32,borderRadius:'50%',background:'rgba(255,255,255,.2)',display:'grid',placeItems:'center'}}>👤</span>}
+                <span style={{fontSize:12,fontWeight:800}}>{person.displayName}</span>
+                {person.isFollowedBy && networkOpen==='followers' && <span style={{fontSize:10,opacity:.75}}>Follows you</span>}
+              </button>)}
+          </div>}
         </div>
       )}
 
