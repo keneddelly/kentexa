@@ -311,17 +311,10 @@ export class OrdersController {
     );
   }
 
-  // ── Agent: Mark received ──────────────────────────────────────────────────
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.AGENT, UserRole.ADMIN)
-  @Patch(':id/agent-received')
-  agentMarkReceived(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req,
-    @Body() body: { note?: string },
-  ) {
-    return this.ordersService.agentMarkReceived(id, req.user, body.note);
-  }
+  // Agent last-mile receipt/delivery is intentionally NOT exposed here.
+  // Canonical Parcel custody is authoritative and requires the verified
+  // Super Agent -> selected Agent handoff + recipient delivery challenge
+  // under /super-agents/parcels/:trackingNumber/*.
 
   // ── Admin ─────────────────────────────────────────────────────────────────
 
