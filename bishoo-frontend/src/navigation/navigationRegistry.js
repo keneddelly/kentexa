@@ -24,7 +24,7 @@ export const ADMIN_NAVIGATION = Object.freeze([
   ['Agents','Agents','agent'],['SuperAgents','Super Agents','hub'],['AgentPerformance','Agent Performance','analytics'],['Products','Products','products'],
   ['AdminBrands','Brands','brand'],['AdminBrandAuthorizations','Brand Authorizations','verified'],['AdminWarrantyClaims','Warranty Claims','warranty'],
   ['OfficialProducts','Official Catalog','catalog'],['AdminServices','Services','services'],['Classifieds','Classifieds','listings'],['Orders','Orders','orders'],
-  ['TransportAdmin','Transport Providers','transport'],['Disputes','Disputes','warning'],['Payouts','Payouts','payouts'],['Payments','Payments','payments'],
+  ['TransportAdmin','Transport Providers','transport'],['VanOperations','Van Operations','transport'],['Disputes','Disputes','warning'],['Payouts','Payouts','payouts'],['Payments','Payments','payments'],
   ['Invoices','Invoices','invoices'],['FinancialDashboard','Fedha (Finance)','finance'],['Reports','Reports','reports'],['RouteManagement','Njia za Intercity','routes'],
   ['CollectionFees','Ada za Kukusanya','collection'],['ZoneManagement','Zones (Dar)','zones'],['Profile','Profile','profile'],
 ].map(([destination,label,iconId]) => ({ id: `admin.${destination}`, destination, label, iconId, placements: ['admin'] })));
