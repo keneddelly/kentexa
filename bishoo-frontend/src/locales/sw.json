@@ -28,32 +28,33 @@
     "status_superseded": "Imebadilishwa"
   },
   "profile_connections": {
-      "followers": "Wafuasi",
-      "following": "Unaowafuata",
-      "account_following": "Akaunti inawafuata",
-      "account_hint": "Orodha hii ni ya akaunti ya mmiliki. Wafuasi wa biashara wanabaki tofauti.",
-      "empty": "Hakuna mahusiano bado.",
-      "error": "Imeshindikana kupakia au kubadilisha. Jaribu tena.",
-      "more": "Onyesha zaidi",
-      "close": "Funga",
-      "follows_you": "Anakufuata",
-      "type_personal": "Mtu",
-      "type_business": "Biashara",
-      "type_agent": "Wakala",
-      "type_hub": "Kituo",
-      "type_transport_provider": "Msafirishaji",
-      "type_service_provider": "Mtoa huduma"
+    "followers": "Wafuasi",
+    "following": "Unaowafuata",
+    "account_following": "Akaunti inawafuata",
+    "account_hint": "Orodha hii ni ya akaunti ya mmiliki. Wafuasi wa biashara wanabaki tofauti.",
+    "empty": "Hakuna mahusiano bado.",
+    "error": "Imeshindikana kupakia au kubadilisha. Jaribu tena.",
+    "more": "Onyesha zaidi",
+    "close": "Funga",
+    "follows_you": "Anakufuata",
+    "type_personal": "Mtu",
+    "type_business": "Biashara",
+    "type_agent": "Wakala",
+    "type_hub": "Kituo",
+    "type_transport_provider": "Msafirishaji",
+    "type_service_provider": "Mtoa huduma"
   },
   "home_quick_actions": {
-      "label": "Hatua za haraka",
-      "listing": "Weka tangazo",
-      "service": "Tangaza huduma",
-      "business": "Fungua biashara"
+    "label": "Hatua za haraka",
+    "listing": "Weka tangazo",
+    "service": "Tangaza huduma",
+    "business": "Fungua biashara",
+    "shipment": "Tuma Mzigo"
   },
   "listing_form": {
-      "optional_details": "Ongeza maelezo ya hiari",
-      "hide_details": "Ficha maelezo ya hiari",
-      "service_details": "Utaalamu, mawasiliano na saa za kazi (hiari)"
+    "optional_details": "Ongeza maelezo ya hiari",
+    "hide_details": "Ficha maelezo ya hiari",
+    "service_details": "Utaalamu, mawasiliano na saa za kazi (hiari)"
   },
   "listing_validation": {
     "valid_optional_number_required": "Weka namba sahihi zisizo hasi kwa ada, uzito, gharama na kiwango cha chini cha stoo.",
@@ -789,72 +790,72 @@
   },
   "apply_capability": {
     "legacy_seller_hint": "Uuzaji wako wa sasa ni binafsi ({{name}}). Anza Kuuza ili uuze kama Biashara hii.",
-      "page_title": "Washa uwezo",
-      "hero_title_commerce": "Anza Kuuza kama {{business}}",
-      "hero_title_transport": "Anza Usafirishaji kama {{business}}",
-      "hero_subtitle_commerce": "Omba kuuza bidhaa chini ya utambulisho wa biashara hii. Wasifu wako binafsi haubadiliki.",
-      "hero_subtitle_transport": "Omba kutoa usafirishaji chini ya utambulisho wa biashara hii. Wasifu wako binafsi haubadiliki.",
-      "transport_type_label": "Unasafirisha kwa nini?",
-      "type_bus": "Basi",
-      "type_courier": "Kuriya",
-      "type_van": "Van",
-      "type_truck": "Lori",
-      "type_boda": "Boda",
-      "submit_button": "Tuma Ombi",
-      "submitting_button": "Inatuma...",
-      "submit_failed": "Imeshindwa kutuma ombi. Jaribu tena.",
-      "already_pending": "Tayari una ombi linalosubiri kwa biashara hii.",
-      "already_active": "Uwezo huu tayari umewashwa kwa biashara hii.",
-      "mismatch": "Unafanya kazi kama biashara nyingine. Badilisha kwanza kwenda biashara hii, kisha jaribu tena.",
-      "verification_required": "Thibitisha utambulisho wako kwanza, kisha omba tena.",
-      "success_title": "Ombi limetumwa",
-      "success_desc": "Msimamizi atakagua ombi lako. Litapatikana chini ya biashara hii likikubaliwa.",
-      "back_to_business": "Rudi kwenye Biashara",
-      "cta_start_commerce": "Anza Kuuza",
-      "cta_start_transport": "Anza Usafirishaji",
-      "cta_start_service": "Toa Huduma",
-      "cta_pending": "Inasubiri ukaguzi",
-      "cta_rejected": "Limekataliwa — omba tena"
+    "page_title": "Washa uwezo",
+    "hero_title_commerce": "Anza Kuuza kama {{business}}",
+    "hero_title_transport": "Anza Usafirishaji kama {{business}}",
+    "hero_subtitle_commerce": "Omba kuuza bidhaa chini ya utambulisho wa biashara hii. Wasifu wako binafsi haubadiliki.",
+    "hero_subtitle_transport": "Omba kutoa usafirishaji chini ya utambulisho wa biashara hii. Wasifu wako binafsi haubadiliki.",
+    "transport_type_label": "Unasafirisha kwa nini?",
+    "type_bus": "Basi",
+    "type_courier": "Kuriya",
+    "type_van": "Van",
+    "type_truck": "Lori",
+    "type_boda": "Boda",
+    "submit_button": "Tuma Ombi",
+    "submitting_button": "Inatuma...",
+    "submit_failed": "Imeshindwa kutuma ombi. Jaribu tena.",
+    "already_pending": "Tayari una ombi linalosubiri kwa biashara hii.",
+    "already_active": "Uwezo huu tayari umewashwa kwa biashara hii.",
+    "mismatch": "Unafanya kazi kama biashara nyingine. Badilisha kwanza kwenda biashara hii, kisha jaribu tena.",
+    "verification_required": "Thibitisha utambulisho wako kwanza, kisha omba tena.",
+    "success_title": "Ombi limetumwa",
+    "success_desc": "Msimamizi atakagua ombi lako. Litapatikana chini ya biashara hii likikubaliwa.",
+    "back_to_business": "Rudi kwenye Biashara",
+    "cta_start_commerce": "Anza Kuuza",
+    "cta_start_transport": "Anza Usafirishaji",
+    "cta_start_service": "Toa Huduma",
+    "cta_pending": "Inasubiri ukaguzi",
+    "cta_rejected": "Limekataliwa — omba tena"
   },
   "business_entry": {
-      "mismatch_title": "Unafanya kazi kama biashara nyingine",
-      "mismatch_body": "Badilisha kwanza kwenda biashara hii, au endelea na biashara unayofanyia kazi sasa.",
-      "open_current": "Fungua biashara yangu ya sasa",
-      "choose": "Chagua biashara"
+    "mismatch_title": "Unafanya kazi kama biashara nyingine",
+    "mismatch_body": "Badilisha kwanza kwenda biashara hii, au endelea na biashara unayofanyia kazi sasa.",
+    "open_current": "Fungua biashara yangu ya sasa",
+    "choose": "Chagua biashara"
   },
   "actor_label": {
-      "personal": "Binafsi",
-      "business": "Biashara",
-      "posting_as": "Unachapisha kama",
-      "selling_personal": "Kuuza · Binafsi",
-      "transport_personal": "Usafirishaji · Binafsi",
-      "hub_personal": "Kituo · Binafsi",
-      "agent_personal": "Wakala · Binafsi",
-      "service_personal": "Huduma · Binafsi",
-      "unresolved": "Bado huna wasifu mmoja wa umma wa kuchapisha kama, kwa hiyo uchapishaji umesimamishwa. Tafadhali wasiliana na msaada.",
-      "connect_banner": "Unauza kama {{name}} (Binafsi). Unataka kuuza kama moja ya Biashara zako?",
-      "connect_button": "Unganisha uuzaji na Biashara"
+    "personal": "Binafsi",
+    "business": "Biashara",
+    "posting_as": "Unachapisha kama",
+    "selling_personal": "Kuuza · Binafsi",
+    "transport_personal": "Usafirishaji · Binafsi",
+    "hub_personal": "Kituo · Binafsi",
+    "agent_personal": "Wakala · Binafsi",
+    "service_personal": "Huduma · Binafsi",
+    "unresolved": "Bado huna wasifu mmoja wa umma wa kuchapisha kama, kwa hiyo uchapishaji umesimamishwa. Tafadhali wasiliana na msaada.",
+    "connect_banner": "Unauza kama {{name}} (Binafsi). Unataka kuuza kama moja ya Biashara zako?",
+    "connect_button": "Unganisha uuzaji na Biashara"
   },
   "connect_selling": {
-      "title": "Unganisha uuzaji na Biashara",
-      "intro": "Uuzaji wako wa sasa unabaki binafsi ({{name}}). Chagua Biashara unayotaka kuanza kuuza kwa ajili yake. Hakuna kinachobadilika hadi uchague na Biashara ikubaliwe.",
-      "legacy_note": "Uuzaji wako wa sasa ni binafsi na hautahamishwa.",
-      "empty": "Bado huna Biashara.",
-      "start": "Anza Kuuza",
-      "open": "Fungua Biashara",
-      "state_none": "Bado hauuzi",
-      "state_pending": "Inasubiri ukaguzi",
-      "state_active": "Inauza",
-      "state_rejected": "Imekataliwa — unaweza kuomba tena",
-      "state_suspended": "Uuzaji umesimamishwa",
-      "state_revoked": "Uuzaji umefutwa",
-      "blocker_BUSINESS_PROFILE_CARDINALITY_INVALID": "Biashara hii inahitaji wasifu mmoja wa umma kabla ya kuuza. Tafadhali wasiliana na msaada.",
-      "blocker_BUSINESS_PROFILE_RELATIONSHIP_INVALID": "Wasifu wa umma wa biashara hii haulingani na mmiliki wake. Tafadhali wasiliana na msaada.",
-      "blocker_BUSINESS_NOT_ACTIVE": "Biashara hii haifanyi kazi.",
-      "blocker_WORKSPACE_NOT_ACTIVE": "Biashara hii haina eneo la kazi linalofanya kazi.",
-      "blocker_BUSINESS_WORKSPACE_UNRESOLVED": "Biashara hii haina ugawaji halali wa eneo la kazi.",
-      "blocker_BUSINESS_OWNER_REQUIRED": "Mmiliki pekee ndiye anaweza kuanza kuuza.",
-      "load_failed": "Imeshindwa kupakia Biashara zako."
+    "title": "Unganisha uuzaji na Biashara",
+    "intro": "Uuzaji wako wa sasa unabaki binafsi ({{name}}). Chagua Biashara unayotaka kuanza kuuza kwa ajili yake. Hakuna kinachobadilika hadi uchague na Biashara ikubaliwe.",
+    "legacy_note": "Uuzaji wako wa sasa ni binafsi na hautahamishwa.",
+    "empty": "Bado huna Biashara.",
+    "start": "Anza Kuuza",
+    "open": "Fungua Biashara",
+    "state_none": "Bado hauuzi",
+    "state_pending": "Inasubiri ukaguzi",
+    "state_active": "Inauza",
+    "state_rejected": "Imekataliwa — unaweza kuomba tena",
+    "state_suspended": "Uuzaji umesimamishwa",
+    "state_revoked": "Uuzaji umefutwa",
+    "blocker_BUSINESS_PROFILE_CARDINALITY_INVALID": "Biashara hii inahitaji wasifu mmoja wa umma kabla ya kuuza. Tafadhali wasiliana na msaada.",
+    "blocker_BUSINESS_PROFILE_RELATIONSHIP_INVALID": "Wasifu wa umma wa biashara hii haulingani na mmiliki wake. Tafadhali wasiliana na msaada.",
+    "blocker_BUSINESS_NOT_ACTIVE": "Biashara hii haifanyi kazi.",
+    "blocker_WORKSPACE_NOT_ACTIVE": "Biashara hii haina eneo la kazi linalofanya kazi.",
+    "blocker_BUSINESS_WORKSPACE_UNRESOLVED": "Biashara hii haina ugawaji halali wa eneo la kazi.",
+    "blocker_BUSINESS_OWNER_REQUIRED": "Mmiliki pekee ndiye anaweza kuanza kuuza.",
+    "load_failed": "Imeshindwa kupakia Biashara zako."
   },
   "become_agent": {
     "page_title": "Kuwa Wakala",
@@ -2513,18 +2514,15 @@
     "interest_education": "Elimu",
     "interest_services": "Huduma",
     "interest_transport": "Usafiri",
-
     "setup_title": "Usanidi wako wa Kentexa",
     "continue_setup": "Endelea na usanidi",
     "setup_complete": "Usanidi wako wa Kentexa umekamilika!",
-
     "journey_seller_label": "Muuzaji",
     "journey_seller_step_account": "Usanidi wa akaunti",
     "journey_seller_step_business_profile": "Wasifu wa biashara",
     "journey_seller_step_first_product": "Bidhaa ya kwanza",
     "journey_seller_step_first_order": "Agizo la kwanza",
     "journey_seller_step_shipping_setup": "Usanidi wa usafirishaji",
-
     "journey_super_agent_label": "Super Agent",
     "journey_super_agent_step_hub_setup": "Usanidi wa hub",
     "journey_super_agent_step_receive_parcel": "Pokea kifurushi",
@@ -2533,7 +2531,6 @@
     "journey_super_agent_step_handover": "Kabidhi",
     "journey_super_agent_step_tracking": "Ufuatiliaji",
     "journey_super_agent_step_earnings": "Mapato",
-
     "journey_transport_provider_label": "Mtoa Huduma wa Usafirishaji",
     "journey_transport_provider_step_profile": "Wasifu wa usafirishaji",
     "journey_transport_provider_step_route": "Tengeneza njia",
@@ -2542,7 +2539,6 @@
     "journey_transport_provider_step_update": "Sasisha usafirishaji",
     "journey_transport_provider_step_complete": "Kamilisha uwasilishaji",
     "journey_transport_provider_step_earnings": "Mapato",
-
     "journey_buyer_label": "Mnunuzi",
     "journey_buyer_step_search": "Tafuta",
     "journey_buyer_step_product": "Bidhaa",
@@ -2557,7 +2553,6 @@
     "next": "Endelea",
     "finish": "Maliza",
     "trigger_label": "Mgeni hapa? Angalia mafunzo mafupi",
-
     "super_agent_first_parcel_title": "Kifurushi Chako cha Kwanza",
     "sa_step_intro_title": "Super Agent ni nini?",
     "sa_step_intro_desc": "Super Agent anasimamia hub ya kilogistiki — unapokea vifurushi kutoka kwa wauzaji au wateja wanaokuja moja kwa moja, unavituma miji mingine, na unapata mapato kutoka kila ada ya usafirishaji unayokusanya.",
@@ -2576,7 +2571,6 @@
     "sa_step_cta_title": "Uko tayari? Tengeneza kifurushi chako cha kwanza",
     "sa_step_cta_destination_desc": "Anza kwa kuchagua kifurushi hiki kinakwenda wapi.",
     "sa_step_cta_submit_desc": "Jaza maelezo ya mtumaji na mpokeaji hapo juu, kisha bonyeza hapa kusajili kifurushi chako cha kwanza.",
-
     "seller_dashboard_title": "Dashibodi Yako ya Muuzaji",
     "sd_step_intro_title": "Karibu kwenye dashibodi yako",
     "sd_step_intro_desc": "Hapa ndipo unaendesha biashara yako ya Kentexa — uza mtandaoni, ana kwa ana, fuatilia maagizo na pokea malipo. Mafunzo mafupi?",
@@ -2594,7 +2588,6 @@
     "sd_step_invoices_desc": "Ankara zinakuwezesha kumtumia mnunuzi ombi salama la malipo — nzuri kwa mauzo ya matangazo au maagizo maalum.",
     "sd_step_final_title": "Uko tayari kuuza",
     "sd_step_final_desc": "Hayo ndiyo muhimu. Ongeza bidhaa au fungua POS wakati wowote uko tayari — unaweza kurudia mafunzo haya wakati wowote.",
-
     "pos_title": "Kutumia POS",
     "pos_step_intro_title": "Kuuza ana kwa ana",
     "pos_step_intro_desc": "POS ni mashine yako ya mauzo kwa wateja wanaokuja dukani — tafuta bidhaa, jenga kikapu, pokea malipo.",
@@ -2602,7 +2595,6 @@
     "pos_step_search_desc": "Tafuta kwa jina au skani barcode. Bonyeza matokeo kuiweka kwenye kikapu.",
     "pos_step_charge_title": "Pokea malipo",
     "pos_step_charge_desc": "Ukishaongeza bidhaa, bonyeza Toza chini ili kupokea malipo na kupata risiti.",
-
     "buyer_home_title": "Kutafuta Bidhaa Kentexa",
     "bh_step_intro_title": "Karibu Kentexa",
     "bh_step_intro_desc": "Bidhaa, matangazo, huduma na usafirishaji kutoka Tanzania nzima, vyote katika mtiririko mmoja. Tembelea haraka?",
@@ -2612,7 +2604,6 @@
     "bh_step_filters_desc": "Telezesha kuona wauzaji unaowafuata, vilivyo karibu, vinavyovuma, au bidhaa, huduma na usafirishaji tu.",
     "bh_step_roles_title": "Uza, safirisha au toa huduma pia",
     "bh_step_roles_desc": "Akaunti moja, majukumu yote. Gusa Profaili kisha Majukumu wakati wowote kuwa Muuzaji, Wakala, Super Agent au Msafirishaji — huhitaji kuamua sasa.",
-
     "agent_dashboard_title": "Dashibodi Yako ya Wakala",
     "ag_step_intro_title": "Unachofanya kama Wakala",
     "ag_step_intro_desc": "Unasaidia wanunuzi kulipa ana kwa ana na kupata kamisheni kwa kila malipo unayoshughulikia. Tembelea haraka?",
@@ -3266,7 +3257,6 @@
     "type_routes": "Njia",
     "type_moments": "Nyakati",
     "filter_all": "Yote",
-
     "saved_title": "❤️ Zilizohifadhiwa",
     "loading": "Inapakia...",
     "nothing_saved": "Bado hakuna kilichohifadhiwa",
@@ -3280,7 +3270,6 @@
     "role_seller_label": "Muuzaji",
     "role_agent_label": "Wakala",
     "role_super_agent_label": "Super Agent",
-
     "buyer_step1_title": "Vinjari na Gundua",
     "buyer_step1_desc": "Tafuta bidhaa kutoka maduka yaliyothibitishwa au vinjari matangazo kote Tanzania. Chuja kwa kategoria, mahali au bei.",
     "buyer_step2_title": "Weka Kikapuni",
@@ -3293,7 +3282,6 @@
     "buyer_step5_desc": "Kifurushi chako kinapata namba ya kufuatilia (mf. KTX-ORD-1042). Kifuatilie kwa wakati halisi kutoka kuchukuliwa hadi mlangoni pako.",
     "buyer_step6_title": "Thibitisha na Toa Malipo",
     "buyer_step6_desc": "Ukipokea agizo lako, thibitisha. Malipo yatatolewa kwa muuzaji. Ikiwa kuna tatizo, piga rufaa ndani ya siku 7.",
-
     "seller_step1_title": "Omba Duka",
     "seller_step1_desc": "Jisajili kwenye KenteXa na uombe kuwa muuzaji. Duka lako linapitiwa na kuidhinishwa ndani ya masaa 24.",
     "seller_step2_title": "Tangaza Bidhaa Zako",
@@ -3306,7 +3294,6 @@
     "seller_step5_desc": "Kwa matangazo, unda ankara kwa wanunuzi ili walipe mtandaoni au kupitia wakala. Fuatilia ankara zako zote mahali pamoja.",
     "seller_step6_title": "Pokea Malipo",
     "seller_step6_desc": "Mara mnunuzi anapothibitisha kupokea, malipo yako (baada ya kamisheni ndogo ya KenteXa) yanatolewa kwenye akaunti yako.",
-
     "agent_step1_title": "Omba Kuwa Wakala",
     "agent_step1_desc": "Jisajili na uombe kuwa wakala wa malipo wa KenteXa. Idhinishwa kwa kutumia NIDA yako na maelezo ya mahali.",
     "agent_step2_title": "Weka Kituo Chako",
@@ -3319,7 +3306,6 @@
     "agent_step5_desc": "Thibitisha malipo kwenye dashibodi yako. Mnunuzi anapata risiti na muuzaji anaarifiwa.",
     "agent_step6_title": "Pata Kamisheni",
     "agent_step6_desc": "Pata kamisheni ya 2.5%-5% kwa kila malipo unayoshughulikia. Fuatilia mapato yako kwa wakati halisi kwenye dashibodi yako.",
-
     "super_agent_step1_title": "Omba kuwa Super Agent",
     "super_agent_step1_desc": "Super Agents ni hub za kilogistiki zinazopokea, kupanga na kutuma vifurushi katika mji wao. Omba kwa maelezo ya biashara yako na anwani halisi ya ofisi — wanunuzi wanahitaji kukupata.",
     "super_agent_step2_title": "Pokea Vifurushi",
@@ -3332,7 +3318,6 @@
     "super_agent_step5_desc": "Tumia Hamisha kukabidhi kifurushi kwa hub ya Super Agent mshirika katika mji mwingine, au mwache mnunuzi achukue mwenyewe au aombe utoaji wa karibu. Hub inayopokea na mnunuzi wote wanaarifiwa kiotomatiki.",
     "super_agent_step6_title": "Weka Unachokusanya",
     "super_agent_step6_desc": "Unaweka 100% ya ada ya usafirishaji unayokusanya — KenteXa haichukui sehemu. Maagizo yako ya kwanza 50 hayana ada ya jukwaa; baada ya hapo, ada ya kudumu ya TZS 1,000 kwa kila agizo inatumika. Fuatilia kila kitu kwenye dashibodi yako.",
-
     "fee_electronics": "Elektroniki",
     "fee_fashion": "Mavazi",
     "fee_vehicles": "Magari",
@@ -3342,12 +3327,10 @@
     "fee_property_services": "Mali na Huduma",
     "note_product_price_only": "Kwa bei ya bidhaa pekee",
     "note_free_contact_seller": "Bure — wasiliana na muuzaji moja kwa moja",
-
     "hero_title": "Jinsi KenteXa Inavyofanya Kazi",
     "hero_desc": "KenteXa inaunganisha wanunuzi, wauzaji, mawakala wa malipo na mawakala wa utoaji katika mfumo mmoja wa kuaminika.",
     "for_role_title": "Kwa {{role}}",
     "step_label": "Hatua {{num}}: {{title}}",
-
     "payment_methods_title": "💳 Njia za Malipo",
     "payment_mpesa_desc": "Vodacom Tanzania",
     "payment_airtel_desc": "Airtel Tanzania",
@@ -3355,20 +3338,17 @@
     "payment_halopesa_desc": "Halotel Tanzania",
     "payment_agent_name": "Wakala wa KenteXa",
     "payment_agent_desc": "Lipa taslimu karibu nawe",
-
     "commission_title": "💰 Ada za Kamisheni ya Muuzaji",
     "commission_desc": "Kamisheni inatozwa tu kwa bei ya bidhaa — ada za usafirishaji zinaenda kikamilifu kwa muuzaji.",
     "table_category": "Kategoria",
     "table_fee": "Ada",
     "table_note": "Maelezo",
-
     "protection_title": "🛡️ Ulinzi wa Mnunuzi wa KenteXa",
     "protection_point1": "Malipo yako yanashikiliwa kwenye escrow — muuzaji analipwa tu baada ya wewe kuthibitisha kupokea",
     "protection_point2": "Piga rufaa ndani ya siku 7 ukipokea kitu kibaya au kilichoharibika",
     "protection_point3": "Marejesho kamili ikiwa agizo lako halijatolewa kamwe",
     "protection_point4": "Wauzaji waliothibitishwa pekee — maduka yote yanapitiwa kabla ya kuidhinishwa",
     "protection_point5": "Ufuatiliaji wa wakati halisi ili ujue wakati wote kifurushi chako kiko wapi",
-
     "cta_title": "Uko Tayari Kuanza?",
     "cta_desc": "Jiunge na maelfu ya Watanzania wanaonunua na kuuza kwenye KenteXa.",
     "cta_create_account": "🚀 Fungua Akaunti Bure",
@@ -3434,7 +3414,6 @@
     "faq6_a": "Gusa kitufe cha ➕ na chagua \"Kuwa Wakala\". Utapata kamisheni ya 2.5%-5% ukishughulikia malipo kwa wateja karibu nawe.",
     "faq7_q": "Nikiwa na tatizo na agizo langu, nifanye nini?",
     "faq7_a": "Unaweza kupiga rufaa kwenye ukurasa wa \"Maagizo Yangu\" ndani ya saa 24 baada ya kupokea bidhaa. Timu yetu itashughulikia ndani ya saa 24.",
-
     "page_title": "Wasiliana Nasi",
     "hero_title": "Tuko Hapa Kukusaidia",
     "hero_subtitle": "Tutapenda kusikia kutoka kwako",
@@ -3469,11 +3448,9 @@
     "team3_name": "Timu ya Msaada",
     "team3_role": "Mafanikio ya Wateja",
     "team3_desc": "Kuhakikisha kila mnunuzi na muuzaji anapata uzoefu mzuri.",
-
     "milestone1": "Wazo la KenteXa lilizaliwa — kutatua tatizo la soko lililogawanyika la Tanzania",
     "milestone2": "Uendelezaji wa jukwaa unaanza chini ya Bishoo Intelligence Systems (BiS)",
     "milestone3": "KenteXa inazinduliwa hadharani — kuunganisha wanunuzi, wauzaji na mawakala nchi nzima",
-
     "value1_title": "Imani na Usalama",
     "value1_desc": "Kila muamala umelindwa. Wanunuzi wanalipa kwa usalama, wauzaji wanapokea malipo yaliyothibitishwa.",
     "value2_title": "Imetengenezwa kwa Tanzania",
@@ -3486,30 +3463,24 @@
     "value5_desc": "Ada wazi, sera za uaminifu, hakuna gharama za siri kwa wanunuzi au wauzaji.",
     "value6_title": "Kutegemewa",
     "value6_desc": "Mtandao wetu wa Super Agent unahakikisha kifurushi chako kinakufikia popote Tanzania.",
-
     "hero_tagline": "Soko Namba 1 la Tanzania",
     "hero_title_line1": "Kuunganisha Tanzania —",
     "hero_title_line2": "Muamala Mmoja kwa Wakati",
     "hero_desc": "KenteXa ni soko salama la kidijitali lililojengwa kwa ajili ya Tanzania — likiwawezesha wanunuzi, wauzaji, na mawakala kufanya biashara kwa ujasiri katika mikoa yote 21.",
-
     "mission_title": "🎯 Dhamira Yetu",
     "mission_desc": "Kudemokrasi biashara Tanzania kwa kujenga soko la kidijitali la kuaminika ambapo mtu yeyote — kutoka mama ntilie Mwanza hadi muuzaji wa teknolojia Dar es Salaam — anaweza kununua na kuuza kwa usalama, kulipa kwa urahisi, na kupokea bidhaa kwa uhakika popote nchini.",
-
     "story_title": "📖 Historia Yetu",
     "story_p1": "KenteXa ilizaliwa kutokana na uchunguzi rahisi — Tanzania ina mamilioni ya wauzaji wenye vipaji, wajasiriamali wabunifu, na wamiliki wa biashara ndogo wachapakazi, lakini hakuna jukwaa moja la kuaminika ambapo wangeweza kuwafikia wateja kwa usalama nchi nzima.",
     "story_p2": "Masoko ya kimtandao ya jadi yalikosa muunganiko wa pesa za simu, mitandao ya utoaji wa karibu, na mifumo ya imani inayohitajika kwa biashara ya Kitanzania. Wanunuzi waliogopa kudanganywa. Wauzaji walihangaika kupata malipo. Vifurushi vilipotea bila ufuatiliaji.",
     "story_p3": "KenteXa inatatua haya yote — kwa ulinzi wa escrow uliojengwa ndani, mtandao wa utoaji wa Super Agent nchi nzima, malipo ya pesa za simu (M-Pesa, Airtel, Tigo), ufuatiliaji wa vifurushi wa wakati halisi, na jamii ya wauzaji waliothibitishwa. Imejengwa na Watanzania, kwa ajili ya Tanzania.",
-
     "values_title": "💎 Maadili Yetu",
     "journey_title": "🏆 Safari Yetu",
     "team_title": "👥 Timu",
-
     "stats_title": "KenteXa kwa Namba",
     "stat1_label": "Mikoa Iliyofikiwa",
     "stat2_label": "Malipo Salama",
     "stat3_label": "Mitandao ya Malipo",
     "stat4_label": "Jukwaa Linapatikana",
-
     "contact_title": "📬 Wasiliana Nasi",
     "contact_desc": "Una maswali, maoni au maombi ya ushirikiano? Tungependa kusikia kutoka kwako.",
     "contact_email_label": "Barua pepe",
@@ -3570,12 +3541,10 @@
     "action_hub_shipment_sub": "Sajili kifurushi kipya kwenye hub yako",
     "action_shipment_title": "Unda Shehena",
     "action_shipment_sub": "Sajili kifurushi kipya kwenye mfumo",
-
     "header_add_listing": "Ongeza Tangazo",
     "header_post": "Tuma",
     "sub_what_listing": "Unatangaza nini?",
     "sub_choose_action": "Chagua unachotaka kufanya",
-
     "casual_listing_title": "Tangazo la Kawaida",
     "casual_listing_desc": "Kitu kimoja — simu, nguo, samani...",
     "shop_product_title": "Bidhaa ya Duka",
@@ -3592,41 +3561,32 @@
     "category_automotive": "Magari",
     "category_services": "Huduma",
     "category_other": "Mengine",
-
     "my_route_fallback": "Njia Yangu",
-
     "validate_add_photo": "Ongeza picha kwanza",
     "validate_tag_item": "Weka lebo ya bidhaa, tangazo, au huduma",
     "validate_describe": "Eleza unachotafuta",
     "validate_pick_category": "Chagua kategoria",
     "upload_failed": "Imeshindwa kupakia",
     "post_failed": "Imeshindwa kutuma — jaribu tena",
-
     "title_selling": "📸 Shiriki Wakati",
     "title_looking_for": "🙋 Ninatafuta Kitu",
     "toggle_selling": "🛍️ Ninauza",
     "toggle_looking_for": "🙋 Ninatafuta",
-
     "change_photo": "Badilisha picha",
     "tap_add_photo": "Gusa kuongeza picha",
     "add_photo_optional": "Ongeza picha (hiari)",
-
     "placeholder_selling": "Sema kitu kuhusu hii (hiari)...",
     "placeholder_looking_for": "Unatafuta nini? mf. \"Nahitaji friji ya mtumba, hali nzuri, eneo la Kariakoo\"",
-
     "tag_moment_label": "Weka lebo Wakati huu unahusu nini",
     "loading_items": "Inapakia bidhaa zako...",
     "no_items_msg": "Bado huna bidhaa, matangazo, huduma, au njia — ongeza moja kwanza, kisha rudi kushiriki Wakati kuhusu hiyo.",
-
     "type_label_business": "🏢 Biashara Yangu",
     "type_label_product": "🛍️ Bidhaa za Duka",
     "type_label_classified": "🏷️ Matangazo",
     "type_label_service": "🔧 Huduma",
     "type_label_route": "🚌 Njia Zangu",
-
     "category_label": "Kategoria",
     "looking_for_hint": "🙋 Wauzaji wenye unachohitaji wanaweza kujibu na \"Nina Hii\" — utaona bidhaa yao halisi moja kwa moja kwenye maoni.",
-
     "posting": "Inatuma...",
     "share_moment_button": "📸 Shiriki Wakati",
     "post_request_button": "🙋 Tuma Ombi"
@@ -3636,21 +3596,16 @@
     "minutes_ago": "dakika {{count}} zilizopita",
     "hours_ago": "saa {{count}} zilizopita",
     "days_ago": "siku {{count}} zilizopita",
-
     "filter_all": "Yote",
     "filter_reviews": "⭐ Maoni",
     "filter_questions": "💬 Maswali",
     "filter_media": "📷 Picha/Video",
-
     "badge_kentexa_purchase": "✓ Ununuzi wa Kentexa",
     "badge_offline_purchase": "✓ Mnunuzi Aliyethibitishwa",
     "badge_community": "Maoni ya Jamii",
-
     "reviews_count": "maoni {{count}}",
     "verified_count": "{{count}} yamethibitishwa",
-
     "ai_summary_label": "Muhtasari wa AI wa Maoni ya Wateja",
-
     "reply_error": "Imeshindwa kutuma jibu lako — jaribu tena.",
     "question_badge": "❓ Swali",
     "user_fallback": "Mtumiaji",
@@ -3661,7 +3616,6 @@
     "reply_placeholder": "Andika jibu lako...",
     "send_button": "Tuma",
     "seller_badge": "Muuzaji",
-
     "upload_failed": "Imeshindwa kupakia faili hiyo — jaribu tena.",
     "post_failed": "Imeshindwa kutuma — tafadhali jaribu tena.",
     "mode_comment": "💬 Maoni",
@@ -3675,7 +3629,6 @@
     "post_review_button": "Tuma Tathmini",
     "ask_button": "Uliza",
     "post_button": "Tuma",
-
     "loading": "Inapakia...",
     "load_failed": "Imeshindwa kupakia maoni — jaribu tena.",
     "no_reviews": "Bado hakuna maoni — kuwa wa kwanza kushiriki uzoefu wako.",
@@ -3928,7 +3881,6 @@
     "is_available": "Bidhaa inapatikana kununuliwa",
     "images": "Picha za Bidhaa (max 5)",
     "choose_images": "Chagua Picha",
-    "uploading": "Inapakia...",
     "first_image": "Picha ya kwanza ni ya kuonyesha",
     "specs": "Vipimo vya Bidhaa",
     "features": "Vipengele Muhimu",
@@ -4498,7 +4450,6 @@
     "save_failed_paid_hint": "Imeshindwa kuhifadhi. Hakikisha agizo limelipwa.",
     "marked_shipped_msg": "✅ Agizo #{{id}} limewekwa kama limetumwa! Mnunuzi ameelezwa.",
     "mark_shipped_failed": "Imeshindwa kuweka kama limetumwa",
-
     "method_agent": "KenteXa Super Agent",
     "method_agent_desc": "Peleka dukani kwa Super Agent — itafuatiliwa kiotomatiki",
     "method_agent_proof": "Piga picha ya risiti utakayopewa na Super Agent",
@@ -4522,35 +4473,28 @@
     "method_van": "Van ya KenteXa",
     "method_van_desc": "Usafirishaji wa kundi Dar es Salaam — Mbagala, Mbezi, Bunju",
     "method_van_proof": "Pangilia kwenye van ya leo — mnunuzi alichagua hii wakati wa malipo",
-
     "needs_shipping_alert": "Maagizo {{count}} yanasubiri kutumwa!",
     "needs_shipping_hint": "Bofya \"Anza Kutuma\" kuanza",
-
     "stat_total_orders": "Jumla ya Maagizo",
     "stat_need_shipping": "Yanahitaji Kutumwa",
     "stat_completed": "Yamekamilika",
     "stat_released": "Yaliyotolewa",
-
     "filter_all": "Yote",
     "status_paid": "Yamelipwa",
     "status_preparing": "Yanaandaliwa",
     "status_in_transit": "Yanasafirishwa",
     "status_completed": "Yamekamilika",
     "status_disputed": "Yenye Mgogoro",
-
     "loading": "⏳ Inapakia...",
     "no_orders_found": "Hakuna maagizo",
-
     "order_type_shipment": "📦 Shehena",
     "order_type_offline": "🤝 Mkono",
     "order_type_intercity": "🚌 Mkoa",
     "order_type_default": "Agizo",
     "ship_now_badge": "⚡ TUMA SASA",
-
     "product_label": "BIDHAA",
     "qty_label": "Idadi: {{qty}}",
     "deliver_to_label": "PELEKA KWA",
-
     "fee_product": "Bidhaa ({{qty}}x)",
     "fee_delivery_boda": "🛵 Ada ya Boda",
     "fee_delivery_van": "🚐 Ada ya Van",
@@ -4559,9 +4503,7 @@
     "fee_total_paid": "Jumla Iliyolipwa",
     "fee_kentexa": "Ada ya KenteXa",
     "fee_you_receive": "Utapata",
-
     "dispute_raised": "⚠️ Mgogoro umeripotiwa: {{reason}}",
-
     "start_shipping_button": "🚀 Anza Kutuma",
     "van_chosen_note": "🚐 Mnunuzi alichagua KenteXa Van — pangilia kwenye van ya leo",
     "assign_van_button": "🚐 Pangilia kwenye Van ya Leo",
@@ -4575,7 +4517,6 @@
     "mark_shipped_button": "🚚 Weka Limetumwa",
     "track_button": "👁 Fuatilia",
     "view_details_button": "📄 Angalia Maelezo",
-
     "cod_label": "Malipo Baada ya Kupokea",
     "cod_settled_label": "Limekusanywa",
     "cod_owed_suffix": "linadaiwa",
@@ -4583,7 +4524,6 @@
     "cod_collected_msg": "✅ Salio la COD limerekodiwa kama limekusanywa.",
     "cod_collect_failed": "Imeshindwa kurekodi ukusanyaji wa COD",
     "saving": "⏳ Inahifadhi...",
-
     "ship_order_title": "🚀 Tuma Agizo",
     "order_hash_deliver_to": "Agizo #{{id}} · Peleka: {{address}}",
     "buyer_chosen_method_label": "📦 NJIA ALIYOCHAGUA MNUNUZI",
@@ -4591,14 +4531,12 @@
     "cancel_button": "Ghairi",
     "continue_button": "Endelea →",
     "delivering_to_label": "📍 Peleka kwa:",
-
     "method_name_boda": "🛵 Boda Boda",
     "method_name_van_dar": "🚐 Van ya KenteXa (Dar)",
     "method_name_agent_intercity": "🏢 KenteXa Super Agent (Mkoa)",
     "method_name_bus": "🚌 Basi la Abiria",
     "method_name_courier": "📦 Courier",
     "method_name_personal": "🚶 Kujipelekea Mwenyewe",
-
     "dropoff_title": "🤝 Kabidhi kwa Super Agent",
     "show_to_agent": "ONYESHA HII KWA SUPER AGENT",
     "agent_scan_note": "Agent atapiga skani na kutengeneza namba ya ufuatiliaji",
@@ -4609,7 +4547,6 @@
     "back_button": "← Nyuma",
     "drop_at_hub_button": "✅ Kabidhi hub hii → Pakia Uthibitisho",
     "select_hub_first": "Chagua hub kwanza",
-
     "order_hash": "Agizo #{{id}}",
     "tracking_number_permanent_label": "NAMBARI YA UFUATILIAJI (HAIBADILIKI)",
     "tracking_number_note": "Nambari hii itatumwa kwa mnunuzi na itaonekana kwenye ukurasa wa ufuatiliaji",
@@ -4626,12 +4563,9 @@
     "no_upload_needed_note": "✅ Baada ya kuthibitisha, agizo litawekwa kama \"Linasafirishwa\" na mnunuzi ataelezwa kuthibitisha akipokea.",
     "save_continue_button": "✅ Hifadhi na Endelea",
     "confirm_shipped_button": "✅ Thibitisha Limetumwa",
-    "saving": "⏳ Inahifadhi...",
-
     "courier_placeholder_bus": "mf. Kilimanjaro, Scandinavian, Fresh Ya Bus, au nyingine...",
     "courier_placeholder_boda": "mf. Juma Rider 0712345678",
     "courier_placeholder_generic": "mf. DHL Tanzania",
-
     "transport_modal_title": "📋 Maelezo ya Usafiri",
     "transport_modal_desc": "Weka maelezo baada ya kufika ofisi ya basi au kukabidhi kwa courier.",
     "via_bus_label": "🚌 Kupitia Basi",
@@ -4703,32 +4637,26 @@
     "confirm_mark_sold": "Weka kama limeuzwa?",
     "marked_sold": "Limewekwa kama limeuzwa",
     "update_failed": "Imeshindwa kusasisha tangazo",
-
     "phone_warning_title": "Namba ya simu inahitajika kutangaza",
     "phone_warning_desc": "Wanunuzi wanahitaji njia ya kuwasiliana nawe. Ongeza namba yako ya simu kwenye profaili kwanza.",
     "add_phone_button": "Ongeza Namba →",
-
     "stat_total": "Jumla",
     "stat_active": "Hai",
     "stat_sold": "Yaliyouzwa",
-
     "loading": "Inapakia...",
     "no_listings_title": "Bado hakuna matangazo",
     "no_listings_desc": "Tangaza bidhaa yako ya kwanza",
     "post_first_listing": "+ Tangaza ya Kwanza",
-
     "negotiable_badge": "Inajadiliwa",
     "view_button": "👁 Angalia",
     "edit_button": "✏️ Hariri",
     "sold_button": "🏷️ Imeuzwa",
-
     "modal_edit_title": "✏️ Hariri Tangazo",
     "modal_new_title": "+ Tangaza Bidhaa Mpya",
     "photos_label": "Picha (upeo 5)",
     "uploading": "⏳ Inapakia...",
     "choose_photos": "📷 Chagua Picha",
     "photos_count_hint": "{{count}}/5 · Picha ya kwanza ndiyo jalada",
-
     "title_label": "Kichwa cha Habari *",
     "title_placeholder": "mf. Toyota Land Cruiser 2019 Inauzwa",
     "category_label": "Kategoria",
@@ -4742,21 +4670,17 @@
     "ai_description_generating": "Inatengeneza...",
     "ai_description_failed": "Imeshindwa kutengeneza maelezo — jaribu tena au andika mwenyewe.",
     "ai_description_needs_photo": "Weka kichwa cha habari na picha angalau moja kwanza",
-
     "listing_details_title": "📋 Maelezo ya Tangazo",
     "listing_details_hint": "Yanaonekana kwenye sehemu ya Specs",
-
     "condition_label": "Hali",
     "select_condition": "Chagua hali...",
     "price_negotiable_label": "Bei inajadiliwa",
-
     "flash_sale_label": "🔥 Flash Sale — Punguzo la Muda Mfupi",
     "flash_sale_price_label": "Bei ya Flash Sale (TZS) *",
     "flash_sale_price_placeholder": "Bei iliyopunguzwa",
     "flash_sale_ends_label": "Inaisha Saa (Tarehe na Muda) *",
     "flash_sale_qty_label": "Idadi Iliyopunguzwa (hiari)",
     "flash_sale_qty_placeholder": "mf. vipande 20",
-
     "price_label": "Bei (TZS) *",
     "price_placeholder": "mf. 15000000",
     "searching_market_prices": "🔍 Inatafuta bei za soko...",
@@ -4764,13 +4688,10 @@
     "price_low": "Chini",
     "price_fair": "Wastani",
     "price_high": "Juu",
-
     "location_label": "📍 Mahali (Mkoa / Wilaya / Kata)",
-
     "contact_phone_label": "Namba ya Mawasiliano (si lazima)",
     "contact_phone_placeholder": "Itatumia namba ya akaunti yako ukiacha wazi",
     "contact_phone_hint": "Muhimu ikiwa tangazo hili linapaswa kufikia namba tofauti na ya akaunti yako — mfano namba yako binafsi ya biashara ndogo.",
-
     "cancel_button": "Ghairi",
     "please_wait": "Tafadhali subiri...",
     "update_listing_button": "✅ Sasisha Tangazo",
@@ -4792,14 +4713,12 @@
     "order_created_msg": "✅ Agizo #{{id}} limeundwa! Namba ya kufuatilia: {{tracking}}",
     "shipping_set_msg": "✅ Njia ya utoaji imewekwa. Mnunuzi ataarifiwa.",
     "shipping_update_failed": "Imeshindwa kusasisha njia ya utoaji",
-
     "tracking_issued_title": "📦 Namba ya Kufuatilia Imetolewa",
     "tracking_issued_desc": "Tuma namba hii kwa mnunuzi wako ili aweze kufuatilia kifurushi chake.",
     "copy_number": "📋 Nakili Namba",
     "number_copied": "Namba imenakiliwa!",
     "track_now": "🔍 Fuatilia Sasa",
     "my_orders": "📦 Maagizo Yangu",
-
     "invoice_created_title": "Ankara Imeundwa!",
     "invoice_created_desc": "Shiriki namba hii ya ankara na mnunuzi wako ili aweze kulipa.",
     "invoice_number_label": "Namba ya Ankara",
@@ -4810,26 +4729,21 @@
     "copy_button": "📋 Nakili",
     "copied": "Imenakiliwa!",
     "done_button": "Imekamilika",
-
     "all_invoices_title": "📥 Ankara Zote",
     "all_invoices_desc": "Maombi ya ankara na ankara za mkono",
     "no_invoices": "Bado hakuna ankara. Unda moja hapo juu.",
     "manual_invoice_fallback": "Ankara ya Mkono",
     "track_link": "Fuatilia",
-
     "paid_needs_shipping_title": "🚚 Malipo yamepokelewa! Chagua njia ya utoaji",
     "paid_needs_shipping_desc": "TZS {{amount}} imelipwa. Agizo na namba ya kufuatilia vitaundwa mara baada ya kuchagua njia.",
     "set_shipping_button": "📦 Weka Njia ya Utoaji → Pata Tracking Number",
-
     "paid_via_agent": "🤝 Via KenteXa Agent",
     "paid_direct_delivery": "📦 Utoaji Moja kwa Moja",
     "paid_label": "✅ Imelipwa",
     "tracking_awaiting": "Inafuatiliwa: {{tracking}} · Inasubiri uthibitisho wa mnunuzi",
     "awaiting_confirmation": "Inasubiri uthibitisho wa mnunuzi kutoa malipo yako",
-
     "invoice_sent_label": "Invoice imetumwa:",
     "awaiting_payment": "Inasubiri malipo",
-
     "create_invoice_for": "Unda Ankara kwa {{name}}",
     "amount_label": "Kiasi (TZS) *",
     "description_label": "Maelezo *",
@@ -4838,15 +4752,12 @@
     "cancel_button": "Ghairi",
     "send_invoice_button": "📤 Tuma Ankara",
     "create_send_invoice_button": "🧾 Unda na Tuma Ankara",
-
     "invoice_pdf": "📄 PDF ya Ankara",
     "track_order": "🔍 Fuatilia Agizo",
-
     "choose_shipping_title": "🚚 Chagua Njia ya Utoaji",
     "payment_received_from": "Malipo ya TZS {{amount}} yamepokelewa kutoka kwa {{name}}",
     "buyer_fallback": "mnunuzi",
     "auto_tracking_note": "📦 Baada ya kuchagua, agizo na namba ya kufuatilia (KTX-ORD-...) vitaundwa kiotomatiki. Mnunuzi ataweza kufuatilia kifurushi chake mara moja.",
-
     "method_agent": "KenteXa Super Agent",
     "method_agent_desc": "Peleka hub ya KenteXa karibu nawe. Ufuatiliaji wa wakati halisi, SMS kwa mnunuzi, usalama kamili.",
     "method_bus": "Basi la Abiria",
@@ -4859,7 +4770,6 @@
     "method_direct_desc": "Unapeleka mwenyewe kwa mnunuzi. Rahisi kwa vitu vikubwa au wateja wa karibu.",
     "method_buyer_pickup": "Mnunuzi Anachukua Mwenyewe",
     "method_buyer_pickup_desc": "Mnunuzi anachukua bidhaa mwenyewe — hakuna usafirishaji unaohitajika.",
-
     "notes_label": "Maelezo (hiari)",
     "bus_details_title": "🚌 Maelezo ya Basi (hiari — unaweza kuongeza baadaye kwenye Maagizo)",
     "bus_company_placeholder": "Kampuni ya Basi (mf. Scandinavian, Kilimanjaro...)",
@@ -4872,7 +4782,6 @@
     "ghairi_button": "Ghairi",
     "creating_order": "⏳ Inaunda Agizo...",
     "confirm_get_tracking": "✅ Thibitisha → Pata Tracking Number",
-
     "manual_invoice_title": "📄 Unda Ankara ya Mkono",
     "manual_invoice_desc": "Unda ankara ili mnunuzi aweze kulipa mtandaoni au kupitia wakala.",
     "step1_label": "Hatua ya 1 — Chagua Tangazo Lako *",
@@ -4906,7 +4815,6 @@
     "expected_on": "⏳ Inatarajiwa: {{date}}",
     "auto_suffix": " (Otomatiki)",
     "buyer_confirmed": "✅ Mnunuzi alithibitisha: {{date}}",
-
     "page_title": "Mapato & Malipo",
     "loading": "Inapakia...",
     "load_failed": "Imeshindwa kupakia data",
@@ -4954,7 +4862,6 @@
     "role_inventory_desc": "Inaweza kusimamia bidhaa",
     "role_delivery": "🏍️ Utoaji",
     "role_delivery_desc": "Inaweza kutoa na kuthibitisha",
-
     "perm_view_orders": "Ona Maagizo",
     "perm_create_orders": "Unda Maagizo",
     "perm_view_customers": "Ona Wateja",
@@ -4964,18 +4871,15 @@
     "perm_manage_team": "Simamia Timu",
     "perm_operate_pos": "Tumia POS (Mauzo ya Duka)",
     "perm_manage_inventory": "Simamia Hisa na Ghairi Mauzo",
-
     "phone_required": "Weka nambari ya simu",
     "invite_failed": "Imeshindwa. Jaribu tena.",
     "confirm_remove": "Ondoa {{name}} kwenye timu?",
     "remove_failed": "Imeshindwa",
     "toggle_failed": "Imeshindwa",
-
     "page_title": "👥 Timu Yangu",
     "hero_title": "👥 Timu ya Biashara",
     "hero_desc": "Ongeza wafanyakazi, weka majukumu na ruhusa. Kila mwanachama ataona tu sehemu unayomruhusu.",
     "add_member_button": "+ Ongeza Mwanachama",
-
     "invite_form_title": "➕ Ongeza Mwanachama Mpya",
     "phone_label": "Nambari ya Simu *",
     "phone_placeholder": "0788 000 000 — lazima awe na akaunti ya KenteXa",
@@ -4984,19 +4888,16 @@
     "close_button": "Funga",
     "sending": "⏳ Inatuma...",
     "add_member_confirm": "✅ Ongeza Mwanachama",
-
     "loading_team": "Inapakia timu...",
     "team_empty_title": "Timu yako iko tupu",
     "team_empty_desc": "Ongeza wafanyakazi wa biashara yako",
     "add_first_button": "+ Ongeza Wa Kwanza",
-
     "member_fallback": "Mwanachama",
     "suspended_badge": "Imesimamishwa",
     "suspend_button": "⏸ Simamisha",
     "restore_button": "▶ Rudisha",
     "remove_button": "Ondoa",
     "member_fallback_lower": "mwanachama",
-
     "role_guide_title": "📋 Mwongozo wa Majukumu"
   },
   "seller_shipping": {
@@ -5008,57 +4909,46 @@
     "stat_total_orders": "Jumla ya Maagizo",
     "escrow_explanation_title": "Kentexa Escrow:",
     "escrow_explanation_desc": "Malipo yanashikiliwa salama hadi utoaji uthibitishwe. Fedha zinatolewa kwako kiotomatiki baada ya mnunuzi kuthibitisha kupokea au siku 7 baada ya utoaji.",
-
     "load_failed": "Imeshindwa kupakia maagizo",
     "marked_preparing_msg": "Agizo limewekwa kama linaandaliwa",
     "update_failed": "Imeshindwa kusasisha",
     "tracking_courier_required": "Namba ya kufuatilia na jina la courier vinahitajika",
     "shipment_uploaded_msg": "Maelezo ya shehena yamepakiwa! Agizo sasa linasafirishwa.",
     "upload_failed": "Imeshindwa kupakia maelezo ya shehena",
-
     "escrow_holding": "🔒 Inashikiliwa kwenye Escrow",
     "escrow_released": "✅ Imetolewa Kwako",
     "escrow_refunded": "↩️ Imerudishwa kwa Mnunuzi",
     "escrow_disputed": "⚠️ Ina Mgogoro",
     "escrow_awaiting": "⏳ Inasubiri Malipo",
-
     "filter_all": "Yote",
     "loading_orders": "⏳ Inapakia maagizo...",
     "no_orders_found": "Hakuna maagizo",
-
     "order_hash": "Agizo #{{id}}",
     "product_label": "BIDHAA",
     "qty_label": "Idadi: {{qty}}",
     "buyer_paid_suffix": "(mnunuzi alilipa)",
     "buyer_label": "MNUNUZI",
-
     "fin_buyer_paid": "Mnunuzi Alilipa",
     "fin_platform_fee": "Ada ya Jukwaa (5%)",
     "fin_agent_commission": "Kamisheni ya Agent",
     "fin_your_earnings": "Mapato Yako",
-
     "shipment_info_title": "📦 MAELEZO YA SHEHENA",
     "courier_label": "Courier:",
     "tracking_label": "Kufuatilia:",
     "shipped_label": "Ilitumwa:",
-
     "mark_preparing_button": "📦 Weka Inaandaliwa",
     "upload_shipment_button": "🚚 Pakia Maelezo ya Shehena",
     "waiting_agent_pickup": "🤝 Inasubiri Kentexa Agent achukue",
     "track_button": "📍 Fuatilia",
-
     "modal_title": "🚚 Pakia Maelezo ya Shehena",
     "modal_order_desc": "Agizo #{{id}} — {{product}}",
-
     "field_courier_label": "Jina la Courier / Msafirishaji *",
     "field_courier_placeholder": "mf. DHL, UPS, Dar Express, Basi",
     "field_tracking_label": "Namba ya Kufuatilia *",
     "field_tracking_placeholder": "mf. DHL1234567",
     "field_proof_label": "Link ya Uthibitisho wa Shehena (hiari)",
     "field_proof_placeholder": "mf. link ya picha/screenshot",
-
     "confirm_note": "⚠️ Kwa kutuma, unathibitisha bidhaa imekabidhiwa kwa courier. Fedha zitatolewa baada ya uthibitisho wa utoaji.",
-
     "cancel_button": "Ghairi",
     "submitting": "⏳ Inatuma...",
     "confirm_shipment_button": "✅ Thibitisha Shehena"
@@ -5104,28 +4994,23 @@
     "method_courier_name": "📦 {{courier}} (Ref: {{ref}})",
     "new_order_button": "📦 Agizo Jipya",
     "dashboard_button": "🏪 Dashibodi",
-
     "form_title": "🚚 Agizo la Mkoa — Mkono",
     "info_banner": "💡 Mnunuzi alikuja dukani au alikupigia simu? Sajili hapa. Malipo umeshapata. Tutashughulikia usafirishaji.",
-
     "section_product": "Bidhaa",
     "select_product_label": "Chagua Bidhaa *",
     "loading_products": "⏳ Inapakia bidhaa...",
     "select_product_placeholder": "— Chagua Bidhaa —",
     "shipping_fee_suffix": "(usafirishaji)",
     "quantity_label": "Idadi",
-
     "section_buyer": "Mnunuzi",
     "buyer_name_label": "Jina la Mnunuzi *",
     "buyer_name_placeholder": "mf. Amina Hassan",
     "buyer_phone_label": "Simu ya Mnunuzi *",
     "buyer_phone_hint": "Atatumwa SMS na namba ya kufuatilia",
     "buyer_phone_placeholder": "0712345678 au 255712345678",
-
     "section_destination": "Mji wa Mwisho",
     "city_label": "Mji *",
     "select_city_placeholder": "— Chagua Mji —",
-
     "finding_route": "⏳ Inatafuta njia...",
     "route_details_title": "📅 Maelezo ya Njia",
     "via_transit": "Via {{city}}",
@@ -5138,11 +5023,9 @@
     "transport_agent_van": "Van ya Agent",
     "transport_courier": "Courier",
     "no_route_registered": "⚠️ Hakuna njia iliyosajiliwa kwa {{city}}. Muda wa utoaji utategemea usafiri unaochagua.",
-
     "delivery_address_label": "Anwani ya Uwasilishaji *",
     "delivery_address_hint": "Mtaa, alama muhimu — wakala atatumia hii",
     "delivery_address_placeholder": "mf. Karibu na kanisa, nyumba ya paa la bati nyekundu",
-
     "section_shipping_method": "Njia ya Usafirishaji",
     "method_agent": "🏢 Super Agent",
     "method_agent_desc": "KenteXa itashughulikia",
@@ -5150,23 +5033,19 @@
     "method_bus_desc": "Wewe unatuma",
     "method_courier": "📦 Courier",
     "method_courier_desc": "DHL, EMS n.k.",
-
     "bus_company_label": "Kampuni ya Basi *",
     "select_company_placeholder": "— Chagua Kampuni —",
     "ticket_number_label": "Namba ya Tiketi *",
     "departure_date_label": "Tarehe ya Kuondoka",
-
     "courier_name_label": "Jina la Courier",
     "courier_ref_label": "Ref ya Kufuatilia",
     "courier_ref_placeholder": "Namba ya courier",
-
     "section_payment": "Malipo (Umeshapokea)",
     "payment_method_label": "Njia ya Malipo",
     "payment_ref_label": "Ref ya Malipo (si lazima)",
     "payment_ref_placeholder": "mf. namba ya M-Pesa confirmation",
     "notes_label": "Maelezo Zaidi",
     "notes_placeholder": "Maelezo yoyote ya ziada",
-
     "validate_select_product": "Chagua bidhaa",
     "validate_buyer_name": "Weka jina la mnunuzi",
     "validate_buyer_phone": "Weka simu ya mnunuzi",
@@ -5175,7 +5054,6 @@
     "validate_bus_company": "Chagua kampuni ya basi",
     "validate_ticket_number": "Weka nambari ya tiketi",
     "create_failed": "Imeshindwa kuunda agizo",
-
     "registering": "⏳ Inasajili...",
     "register_order_button": "✅ Sajili Agizo"
   },
@@ -5186,7 +5064,6 @@
     "size_medium_desc": "2–10kg — sanduku la kati",
     "size_large": "Kubwa",
     "size_large_desc": "10kg+ — sanduku kubwa",
-
     "validate_sender_name": "Weka jina la mtumaji",
     "validate_sender_phone": "Weka simu ya mtumaji",
     "validate_recipient_name": "Weka jina la mpokeaji",
@@ -5199,7 +5076,6 @@
     "fee_phone_required": "Weka namba yako ya simu ya M-Pesa",
     "fee_payment_failed_confirm": "Malipo yameshindwa. Jaribu tena.",
     "fee_init_failed": "Imeshindwa kuanzisha malipo",
-
     "success_page_title": "Agizo la Mkoa",
     "pay_tracking_fee_title": "Lipa Ada ya Ufuatiliaji",
     "pay_tracking_fee_desc": "Lipa TZS 1,000 kupitia M-Pesa ili kuamsha namba ya kufuatilia na SMS kwa mtumaji na mpokeaji",
@@ -5212,12 +5088,10 @@
     "mpesa_number_label": "Namba ya M-Pesa (255XXXXXXXXX)",
     "processing_mpesa": "⏳ Inashughulikia M-Pesa...",
     "pay_now_button": "💳 Lipa TZS 1,000 Sasa",
-
     "parcel_registered_title": "Kifurushi Kimesajiliwa!",
     "parcel_registered_desc": "SMS imetumwa kwa mtumaji na mpokeaji",
     "tracking_number_label": "NAMBA YA KUFUATILIA",
     "give_sender_hint": "Mpe mtumaji namba hii — atatumia kufuatilia kifurushi chake",
-
     "summary_title": "📋 Muhtasari wa Agizo",
     "summary_from": "Kutoka",
     "summary_to": "Kwenda",
@@ -5231,25 +5105,20 @@
     "summary_route_via": "Via {{city}}",
     "summary_delivery_time": "Muda wa Utoaji",
     "days_value": "Siku {{count}}",
-
     "new_parcel_button": "📦 Kifurushi Kipya",
     "dashboard_button": "🏠 Dashibodi",
-
     "form_title": "📦 Agizo la Mkoa — Kaunta",
     "info_banner": "💡 Pokea kifurushi kutoka kwa mtu yeyote — mjumbe, muuzaji, au mtu wa kawaida. Hakuna akaunti ya KenteXa inayohitajika.",
-
     "section_sender": "Mtumaji (Anayeacha Kifurushi)",
     "sender_name_label": "Jina la Mtumaji",
     "sender_phone_label": "Simu ya Mtumaji",
     "sender_phone_hint": "Atatumwa SMS na namba ya kufuatilia",
-
     "section_recipient": "Mpokeaji (Atakayepokea)",
     "recipient_name_label": "Jina la Mpokeaji",
     "recipient_phone_label": "Simu ya Mpokeaji",
     "recipient_phone_hint": "Atatumwa SMS wakati kifurushi kikifika",
     "destination_city_label": "Mji wa Mwisho",
     "location_picker_label": "Mji wa Mwisho / Kata *",
-
     "route_details_title": "📦 Maelezo ya Njia",
     "via_label": "Via",
     "transit_leg_note": " — Siku {{leg1}} hadi {{transit}}, siku {{leg2}} hadi {{dest}}",
@@ -5258,23 +5127,19 @@
     "transport_bus": "🚌 Basi",
     "transport_courier": "📦 Courier",
     "no_route_warning": "⚠️ Hakuna route iliyowekwa kwa {{city}}. Muda wa kawaida: siku 2-3.",
-
     "recipient_address_label": "Anwani ya Mpokeaji",
     "recipient_address_hint": "Mtaa, alama muhimu — wakala atatumia hii kufikia",
     "recipient_address_placeholder": "mf. Nyumba ya Rangi ya Bluu, Mtaa wa Geita, karibu na shule ya msingi",
-
     "section_parcel": "Maelezo ya Kifurushi",
     "contents_label": "Yaliyomo",
     "contents_hint": "Eleza kwa ufupi — mf. nguo, vitabu, vifaa vya simu",
     "contents_placeholder": "mf. Nguo za watoto",
     "weight_label": "Uzito (kg)",
     "size_label": "Ukubwa",
-
     "section_declared_value": "Thamani ya Mzigo",
     "declared_value_label": "Thamani ya Mzigo (TSh)",
     "declared_value_hint": "Weka thamani halisi ya bidhaa zilizomo kwenye mzigo. Thamani hii inaweza kutumika kama kumbukumbu katika kushughulikia upotevu, uharibifu au madai.",
     "validate_declared_value": "Weka thamani ya mzigo (lazima iwe zaidi ya sifuri)",
-
     "section_payment": "Malipo ya Kaunta",
     "fee_collected_label": "Ada Iliyokusanywa (TZS)",
     "fee_collected_hint": "Kiasi halisi kilicholipwa na mtumaji",
@@ -5284,7 +5149,6 @@
     "payment_airtel": "📱 Airtel",
     "notes_label": "Maelezo Zaidi (si lazima)",
     "notes_placeholder": "mf. Kioo — kushughulikia kwa uangalifu",
-
     "registering": "⏳ Inasajili...",
     "register_parcel_button": "✅ Sajili Kifurushi"
   },
@@ -5293,7 +5157,6 @@
     "load_failed": "Imeshindwa kupakia maelezo",
     "save_success": "✅ Mipangilio imehifadhiwa",
     "save_failed": "Imeshindwa kuhifadhi",
-
     "field_business_name_label": "Jina la Hub *",
     "field_phone_label": "Simu *",
     "field_whatsapp_label": "WhatsApp",
@@ -5306,10 +5169,8 @@
     "field_description_label": "Maelezo ya Huduma",
     "field_description_placeholder": "Tunapokea mzigo, vifurushi...",
     "location_picker_label": "Chagua Mkoa / Wilaya ya Hub",
-
     "save_button": "💾 Hifadhi Mabadiliko",
     "saving": "⏳ Inahifadhi...",
-
     "rates_title": "Bei ya Njia",
     "rates_desc": "Bei unazotoza kutoka {{city}} kwenda kila mahali — zinaonekana kwa wauzaji wanaokadiria gharama ya usafirishaji na zinatumiwa na mfumo wa Kentexa.",
     "rate_destination_label": "Unakoenda",
@@ -5338,15 +5199,12 @@
     "submit_application_button": "🏢 Wasilisha Ombi",
     "submitting": "⏳ Inawasilisha...",
     "submit_failed": "Imeshindwa kuwasilisha",
-
     "pending_title": "Ombi Lako Lipo Chini ya Mapitio",
     "pending_desc": "Tutawasiliana nawe ndani ya masaa 24.",
-
     "registered_title": "{{name}} Imesajiliwa ✅",
     "registered_desc": "Usimamizi kamili wa hub — kupokea, kutuma, bei — unakuja hivi karibuni. Kwa sasa, bado unaweza kuunda shehena moja kwa moja.",
     "create_shipment_button": "📦 Unda Shehena",
     "your_hub_fallback": "Hub Yako",
-
     "loading": "⏳ Inapakia..."
   },
   "login": {
@@ -5406,19 +5264,16 @@
     "benefit_earn_desc": "Lipwa kwa usalama kupitia pesa za simu",
     "benefit_track_title": "Fuatilia Mauzo",
     "benefit_track_desc": "Angalia maagizo na mapato kwa wakati halisi",
-
     "apply_title": "📝 Omba Sasa",
     "business_name_required": "Jina la biashara linahitajika",
     "apply_success": "Ombi limewasilishwa! Tutapitia na kuidhinisha akaunti yako.",
     "apply_failed": "Imeshindwa kuwasilisha ombi",
-
     "identity_required_title": "🪪 Thibitisha Utambulisho Wako Kwanza",
     "identity_required_desc": "Ili kuamilisha Kiwango cha 1 cha Muuzaji na kufikia zana za muuzaji za Kentexa, tafadhali thibitisha utambulisho wako kwa kutumia NIDA, leseni ya udereva, pasipoti, au kitambulisho cha mpiga kura.",
     "identity_rejected_title": "Uthibitisho wa Utambulisho Umekataliwa",
     "identity_rejected_desc": "Uwasilishaji wako wa awali wa utambulisho ulikataliwa. Tafadhali pitia sababu hapa chini na uwasilishe tena taarifa zako.",
     "identity_rejected_reason": "Sababu: {{reason}}",
     "identity_verify_button": "Thibitisha Utambulisho Wangu",
-
     "field_business_name_label": "Jina la Biashara *",
     "field_business_name_placeholder": "mf. Dar Tech Solutions",
     "field_display_name_label": "Jina la Kuonyesha (hiari)",
@@ -5452,13 +5307,11 @@
     "document_upload_failed": "Kupakia hati kumeshindwa — jaribu tena.",
     "field_registration_number_label": "Namba ya Usajili wa BRELA (si lazima)",
     "field_registration_number_placeholder": "mf. namba ya usajili BRELA",
-
     "submit_button": "🚀 Wasilisha Ombi",
     "submitting": "Inawasilisha...",
     "login_required_pre": "Unahitaji",
     "login_required_link": "kuingia",
     "login_required_post": "kwanza ili kuomba",
-
     "how_it_works_title": "⚡ Jinsi Inavyofanya Kazi",
     "step1_title": "Wasilisha Ombi",
     "step1_desc": "Jaza maelezo ya biashara yako na uwasilishe",
@@ -5468,7 +5321,6 @@
     "step3_desc": "Pata idhini na ufikie dashibodi ya muuzaji",
     "step4_title": "Anza Kuuza",
     "step4_desc": "Orodhesha bidhaa na anza kupata mapato",
-
     "already_applied_title": "Tayari umeomba?",
     "already_applied_desc": "Angalia hali ya ombi lako na ufikie dashibodi yako ya muuzaji",
     "go_to_dashboard_button": "📊 Nenda kwenye Dashibodi ya Muuzaji"
@@ -5490,16 +5342,13 @@
     "benefit5_desc": "Super Agents wako katika miji mingi — wanaomba malipo na kupeleka bidhaa.",
     "benefit6_title": "Dashboard ya Mauzo",
     "benefit6_desc": "Ona mapato, maagizo, na hali ya vifurushi vyote mahali pamoja.",
-
     "fee_title": "💡 Ada ya Kufuatilia",
     "fee_amount": "TZS 1,000",
     "fee_desc": " kwa kila kifurushi unachotuma — namba ya kufuatilia, SMS kwa mnunuzi, na usalama wote umejumuishwa. Hakuna ada nyingine za siri.",
-
     "steps_title": "Jinsi ya Kuanza 🚀",
     "step1": "Omba kuwa Muuzaji — chapisha fomu rahisi",
     "step2": "Tunathibitisha akaunti yako (kawaida saa 24)",
     "step3": "Anza kutuma bidhaa na kufuatilia wakati halisi",
-
     "apply_button": "🏪 Omba Kuwa Muuzaji",
     "back_button": "Rudi Nyuma",
     "already_seller_label": "Tayari una akaunti ya muuzaji?",
@@ -5509,7 +5358,6 @@
     "page_title": "Kuwa Super Agent",
     "hero_title": "Kuwa Super Agent wa KenteXa",
     "hero_desc": "Simamia vifurushi vya intercity na uongeze mapato yako",
-
     "status_pending_title": "Ombi Liko Chini ya Mapitio",
     "status_pending_desc": "Tutalipigia kazi ndani ya saa 24–48. Utapata ujumbe ukithibitishwa.",
     "status_active_title": "Umeidhinishwa kama Super Agent!",
@@ -5518,7 +5366,6 @@
     "status_blocked_title": "Akaunti Imezuiwa",
     "status_default_desc": "Wasiliana na KenteXa support.",
     "go_to_dashboard_button": "📊 Nenda Dashibodini",
-
     "benefits_title": "💼 Kwa Nini Kuwa Super Agent?",
     "benefit1_title": "Mapato Imara",
     "benefit1_desc": "Pata kamisheni kwa kila kifurushi unachoshughulikia — intercity na Dar es Salaam",
@@ -5530,7 +5377,6 @@
     "benefit4_desc": "KenteXa inakua — Super Agents wanaanzisha mapema watanufaika zaidi",
     "benefit5_title": "Msaada Kamili",
     "benefit5_desc": "Mafunzo, mwongozo, na msaada wa KenteXa team nyuma yako",
-
     "earnings_example_title": "📊 MFANO WA MAPATO",
     "earnings_line1_label": "Vifurushi 50/mwezi @ TZS 5,000/kila kimoja",
     "earnings_line1_value": "TZS 250,000",
@@ -5540,18 +5386,15 @@
     "earnings_line3_value": "TZS 40,000/mwezi",
     "earnings_total_label": "Jumla ya Mwezi",
     "earnings_total_value": "TZS 65,000+",
-
     "requirements_title": "✅ Mahitaji",
     "req1": "Eneo la kuhifadhia vifurushi (nyumba, ofisi, au duka)",
     "req2": "Simu ya mkononi (Android au iPhone)",
     "req3": "Kitambulisho cha serikali (NIDA, Pasipoti, au Leseni)",
     "req4": "Uwezo wa kupokea na kutuma vifurushi kila siku",
     "req5": "Akaunti ya KenteXa (bure — unda hapa hapa)",
-
     "done_title": "Ombi Limetumwa!",
     "done_desc": "Tutakipigia kazi ombi lako ndani ya saa 24. Utapata SMS na email ukithibitishwa.",
     "back_home_button": "🏠 Rudi Nyumbani",
-
     "form_title": "📝 Jaza Fomu ya Ombi",
     "business_name_label": "Jina la Biashara / Hub *",
     "city_label": "Mji wa Kufanyia Kazi *",
@@ -5562,14 +5405,11 @@
     "phone_label": "Namba ya Simu * (255XXXXXXXXX)",
     "gov_id_label": "Namba ya Kitambulisho *",
     "gov_id_placeholder": "NIDA / Pasipoti / Leseni",
-
     "login_required_pre": "Unahitaji",
     "login_required_link": "kuingia",
     "login_required_post": "kwanza ili kutuma ombi",
-
     "submit_button": "🚀 Wasilisha Ombi la Super Agent",
     "submitting": "⏳ Inatuma...",
-
     "business_name_required": "Weka jina la biashara",
     "city_required": "Chagua mji wa kufanyia kazi",
     "phone_required": "Weka namba ya simu",
@@ -5580,10 +5420,8 @@
     "page_title": "Unda Biashara",
     "hero_title": "Unda Wasifu wa Biashara Yako",
     "hero_desc": "Uwepo wa umma kwenye KenteXa — hakuna haja ya kuuza",
-
     "already_have_title": "Tayari Una Biashara",
     "go_to_dashboard_button": "🏢 Nenda Dashibodi ya Biashara",
-
     "benefits_title": "💼 Utakachopata",
     "benefit1_title": "Ukurasa wa Chapa wa Umma",
     "benefit1_desc": "Wasifu ambao wateja wanaweza kuupata na kuufuata",
@@ -5593,10 +5431,8 @@
     "benefit3_desc": "Wateja wanaweza kukufikia bila kuhitaji duka",
     "benefit4_title": "Washa Muuzaji Wakati Wowote",
     "benefit4_desc": "Anza kuuza baadaye bila kuunda wasifu mpya",
-
     "done_title": "Biashara Imeundwa!",
     "done_desc": "Wasifu wa biashara yako uko hewani. Unaweza kuuhariri wakati wowote kutoka dashibodi yako.",
-
     "form_title": "📝 Maelezo ya Biashara",
     "legal_name_label": "Jina Rasmi la Biashara *",
     "legal_name_placeholder": "mf. Geita Manufacturing Ltd",
@@ -5610,14 +5446,11 @@
     "address_placeholder": "mf. Mtaa wa Uhuru, karibu na soko",
     "phone_label": "Namba ya Simu * (255XXXXXXXXX)",
     "email_label": "Barua Pepe",
-
     "login_required_pre": "Unahitaji",
     "login_required_link": "kuingia",
     "login_required_post": "kwanza ili kuunda biashara",
-
     "submit_button": "🚀 Unda Biashara",
     "submitting": "⏳ Inaunda...",
-
     "legal_name_required": "Weka jina rasmi la biashara",
     "phone_required": "Weka namba ya simu",
     "submit_failed": "Imeshindwa kuunda biashara"
