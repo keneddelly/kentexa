@@ -93,6 +93,12 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const [vanRuns,       setVanRuns]       = useState([]);
   const [runManifest,   setRunManifest]   = useState({});
   const [runBusy,       setRunBusy]       = useState(null);
+  const [vanTenders,    setVanTenders]    = useState([]);
+  const [vehicles,      setVehicles]      = useState([]);
+  const [showRunForm,   setShowRunForm]   = useState(false);
+  const [runForm,       setRunForm]       = useState({ routeId:'', scheduledDeparture:'' });
+  const [showVehicleForm,setShowVehicleForm] = useState(false);
+  const [vehicleForm,   setVehicleForm]   = useState({ identifier:'', registrationPlate:'', type:'van', parcelCapacity:'', weightCapacityKg:'' });
   const [loading,       setLoading]       = useState(true);
   const [tab,           setTab]           = useState('home');
   const [showAvailForm, setShowAvailForm] = useState(false);
@@ -117,18 +123,22 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [pRes, rRes, aRes, asRes, runRes] = await Promise.all([
+      const [pRes, rRes, aRes, asRes, runRes, tenderRes, vehicleRes] = await Promise.all([
         api.get('/transport/my-profile'),
         api.get('/transport/routes'),
         api.get('/transport/availability'),
         api.get('/transport/assignments'),
         api.get('/van-pilot/runs').catch(() => ({ data: [] })),
+        api.get('/van-pilot/movement-tenders/open').catch(() => ({ data: [] })),
+        api.get('/van-pilot/vehicles').catch(() => ({ data: [] })),
       ]);
       setProfile(pRes.data);
       setRoutes(rRes.data || []);
       setAvailability(aRes.data || []);
       setAssignments(asRes.data || []);
       setVanRuns(runRes.data || []);
+      setVanTenders(tenderRes.data || []);
+      setVehicles(vehicleRes.data || []);
     } catch { /* not registered yet */ }
     finally { setLoading(false); }
   };
@@ -180,6 +190,46 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     finally { setSavingRoute(false); }
   };
 
+
+  const createVanRun = async () => {
+    try {
+      setRunBusy('create');
+      await api.post('/van-pilot/runs', { routeId:Number(runForm.routeId), scheduledDeparture:runForm.scheduledDeparture });
+      setShowRunForm(false); setRunForm({ routeId:'', scheduledDeparture:'' }); await fetchAll();
+    } catch(e) { alert(e.response?.data?.message || 'Could not create Van Run'); }
+    finally { setRunBusy(null); }
+  };
+
+  const addVehicle = async () => {
+    try {
+      setRunBusy('vehicle');
+      await api.post('/van-pilot/vehicles', {
+        identifier:vehicleForm.identifier, registrationPlate:vehicleForm.registrationPlate || undefined,
+        type:vehicleForm.type, parcelCapacity:vehicleForm.parcelCapacity ? Number(vehicleForm.parcelCapacity) : undefined,
+        weightCapacityKg:vehicleForm.weightCapacityKg ? Number(vehicleForm.weightCapacityKg) : undefined,
+      });
+      setShowVehicleForm(false); setVehicleForm({ identifier:'', registrationPlate:'', type:'van', parcelCapacity:'', weightCapacityKg:'' }); await fetchAll();
+    } catch(e) { alert(e.response?.data?.message || 'Could not add vehicle'); }
+    finally { setRunBusy(null); }
+  };
+
+  const assignVehicle = async (runId, vehicleId) => {
+    if (!vehicleId) return;
+    try { setRunBusy(runId); await api.post(`/van-pilot/runs/${runId}/vehicle`, { vehicleId:Number(vehicleId) }); await fetchAll(); }
+    catch(e) { alert(e.response?.data?.message || 'Could not assign vehicle'); } finally { setRunBusy(null); }
+  };
+
+  const acceptTenderIntoRun = async tender => {
+    try {
+      setRunBusy(`tender-${tender.tenderId}`);
+      await api.post('/van-pilot/assignments', {
+        runId:Number(tender.runId), parcelId:Number(tender.parcelId),
+        loadRunStopId:Number(tender.loadRunStopId), unloadRunStopId:Number(tender.unloadRunStopId),
+      });
+      await fetchAll(); await loadManifest(tender.runId);
+    } catch(e) { alert(e.response?.data?.message || 'Could not add released parcel to Run'); }
+    finally { setRunBusy(null); }
+  };
 
   const loadManifest = async runId => {
     try {
@@ -613,6 +663,34 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
 
         {tab === 'van' && (
           <div>
+            <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+              <button onClick={() => setShowRunForm(v=>!v)} style={{ flex:1, border:'none', borderRadius:10, padding:12, background:'#1d4ed8', color:'#fff', fontWeight:800 }}>+ Schedule Run</button>
+              <button onClick={() => setShowVehicleForm(v=>!v)} style={{ flex:1, border:'none', borderRadius:10, padding:12, background:'#0f172a', color:'#fff', fontWeight:800 }}>+ Vehicle</button>
+            </div>
+            {showRunForm && <div style={{ background:'#fff', borderRadius:12, padding:14, marginBottom:12 }}>
+              <select style={inp} value={runForm.routeId} onChange={e=>setRunForm(p=>({...p,routeId:e.target.value}))}>
+                <option value="">Choose local-loop route</option>{routes.filter(r=>r.routeType==='local_loop').map(r=><option key={r.id} value={r.id}>#{r.id} {(r.loopStops||[]).join(' → ')}</option>)}
+              </select>
+              <input type="datetime-local" style={{...inp,marginTop:8}} value={runForm.scheduledDeparture} onChange={e=>setRunForm(p=>({...p,scheduledDeparture:e.target.value}))}/>
+              <button disabled={!runForm.routeId||!runForm.scheduledDeparture||runBusy==='create'} onClick={createVanRun} style={{ width:'100%', marginTop:8, padding:10, border:'none', borderRadius:8, background:'#16a34a', color:'#fff', fontWeight:800 }}>Create Run</button>
+            </div>}
+            {showVehicleForm && <div style={{ background:'#fff', borderRadius:12, padding:14, marginBottom:12 }}>
+              <input style={inp} placeholder="Vehicle name / identifier" value={vehicleForm.identifier} onChange={e=>setVehicleForm(p=>({...p,identifier:e.target.value}))}/>
+              <input style={{...inp,marginTop:8}} placeholder="Plate number" value={vehicleForm.registrationPlate} onChange={e=>setVehicleForm(p=>({...p,registrationPlate:e.target.value}))}/>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:8}}>
+                <input type="number" style={inp} placeholder="Parcel capacity" value={vehicleForm.parcelCapacity} onChange={e=>setVehicleForm(p=>({...p,parcelCapacity:e.target.value}))}/>
+                <input type="number" style={inp} placeholder="Max kg" value={vehicleForm.weightCapacityKg} onChange={e=>setVehicleForm(p=>({...p,weightCapacityKg:e.target.value}))}/>
+              </div>
+              <button disabled={!vehicleForm.identifier||runBusy==='vehicle'} onClick={addVehicle} style={{ width:'100%', marginTop:8, padding:10, border:'none', borderRadius:8, background:'#16a34a', color:'#fff', fontWeight:800 }}>Save Vehicle</button>
+            </div>}
+            {vanTenders.length>0 && <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,fontWeight:900,color:'#7c3aed',marginBottom:7}}>RELEASED TO YOU · {vanTenders.length}</div>
+              {vanTenders.map(t=><div key={t.tenderId} style={{background:'#fff',borderRadius:12,padding:12,marginBottom:7}}>
+                <div style={{fontSize:13,fontWeight:900}}>{t.trackingNumber || `Parcel #${t.parcelId}`}</div>
+                <div style={{fontSize:11,color:'#64748b',margin:'3px 0 8px'}}>{t.loadLocation} → {t.unloadLocation} · Run #{t.runId}{t.weightKg ? ` · ${t.weightKg}kg` : ''}</div>
+                <button disabled={runBusy===`tender-${t.tenderId}`} onClick={()=>acceptTenderIntoRun(t)} style={{width:'100%',border:'none',borderRadius:8,padding:9,background:'#1d4ed8',color:'#fff',fontWeight:800}}>Accept into Manifest</button>
+              </div>)}
+            </div>}
             {vanRuns.length === 0 ? (
               <div style={{ textAlign:'center', padding:40, backgroundColor:'#fff', borderRadius:14, color:'#64748b' }}>
                 No Van Runs yet. Create a Run from a configured local-loop route when the vehicle is scheduled.
@@ -631,6 +709,10 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                     <span style={{ fontSize:11, fontWeight:800, textTransform:'uppercase' }}>{run.status}</span>
                   </div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+                    {!run.vehicleId && vehicles.filter(v=>v.isActive).length>0 && <select defaultValue="" onChange={e=>assignVehicle(run.id,e.target.value)} style={{border:'1px solid #cbd5e1',borderRadius:8,padding:'8px 10px',fontSize:11}}>
+                      <option value="">Assign vehicle</option>{vehicles.filter(v=>v.isActive).map(v=><option key={v.id} value={v.id}>{v.identifier}{v.registrationPlate ? ` · ${v.registrationPlate}` : ''}</option>)}
+                    </select>}
+                    {run.vehicleId && <span style={{fontSize:11,padding:'8px 10px',background:'#f1f5f9',borderRadius:8}}>Vehicle #{run.vehicleId}</span>}
                     <button onClick={() => loadManifest(run.id)} style={{ border:'none', borderRadius:8, padding:'9px 12px', cursor:'pointer', fontWeight:700 }}>Manifest</button>
                     {next && <button disabled={runBusy === run.id} onClick={() => transitionRun(run.id, next)}
                       style={{ border:'none', borderRadius:8, padding:'9px 12px', cursor:'pointer', fontWeight:800, backgroundColor:'#1d4ed8', color:'#fff' }}>
