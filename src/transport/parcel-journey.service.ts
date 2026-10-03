@@ -172,6 +172,43 @@ export class ParcelJourneyService {
 
   // Readiness desk queues: same canonical conditions as the admin read
   // models, but hard-scoped to the caller's active Super Agent profile.
+  async listHubReadyForMovement(superAgentId: number) {
+    return this.dataSource.query(
+      `SELECT p.id, p."trackingNumber", p.status, p.description, p."weightKg",
+              p."originCity", p."destinationCity", p."destinationSuperAgentId",
+              ce."recordedAt" AS "custodySince"
+         FROM public.parcel p
+         JOIN LATERAL (
+           SELECT e."toCustodianType", e."toCustodianId", e."recordedAt"
+             FROM public.parcel_custody_event e
+            WHERE e."parcelId"=p.id
+            ORDER BY e."recordedAt" DESC, e.id DESC LIMIT 1
+         ) ce ON true
+        WHERE ce."toCustodianType"='super_agent' AND ce."toCustodianId"=$1
+          AND NOT EXISTS (
+            SELECT 1 FROM public.parcel_run_assignment a
+             WHERE a."parcelId"=p.id
+               AND (
+                 a.status IN ('scheduled','loaded')
+                 OR (a.status='unloaded' AND NOT EXISTS (
+                   SELECT 1 FROM public.parcel_custody_event rce
+                    WHERE rce."parcelRunAssignmentId"=a.id
+                      AND rce."toCustodianType"='super_agent'
+                 ))
+               )
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM public.parcel_movement_tender t
+             WHERE t."parcelId"=p.id AND t.status='open'
+               AND (t."expiresAt" IS NULL OR t."expiresAt">now())
+          )
+          AND p.status NOT IN ('delivered','cancelled')
+        ORDER BY ce."recordedAt" ASC
+        LIMIT 200`,
+      [superAgentId],
+    );
+  }
+
   async listHubBlockedAwaitingReceipt(superAgentId: number) {
     return this.dataSource.query(
       `SELECT a.id AS "assignmentId", a."parcelId", a."runId", p."trackingNumber",
