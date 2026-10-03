@@ -176,6 +176,14 @@ export class VanPilotController {
     return this.runs.getRunStops(runId);
   }
 
+  @Get('runs/:runId/manifest')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT)
+  async getRunManifest(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    await this.runs.assertRunOperationalVisibility(ctx.userId, ctx.roleType, ctx.profileId ?? null, runId);
+    return this.assignments.getManifestForRun(runId);
+  }
+
   @Get('runs/:runId/assignments')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT)
