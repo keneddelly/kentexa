@@ -54,9 +54,7 @@ export class BridgeLocalLoopRoutesToStage3S1788290400000 implements MigrationInt
     `);
   }
 
-  async down(queryRunner: QueryRunner): Promise<void> {
-    -- Deliberately conservative: these stops become live reusable operations
-    -- configuration and may be edited after deployment. Never delete them
-    -- automatically on rollback.
+  async down(_queryRunner: QueryRunner): Promise<void> {
+    // Conservative no-op: route stops may become live operations configuration.
   }
 }
