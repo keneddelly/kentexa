@@ -2552,6 +2552,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             )}
           </div>
         )}
+      </div>
       {/* ── Parcel history modal — full tracking timeline + all details ────── */}
       {historyModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
