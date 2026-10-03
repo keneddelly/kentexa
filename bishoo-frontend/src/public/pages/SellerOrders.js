@@ -185,11 +185,6 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
   };
 
   const openShipModal = (order) => {
-    // kentexa_delivery has its own button — never open modal for it
-    if (order.shippingMethod === 'kentexa_delivery') {
-      onNavigate(`BatchHandoff-${order.id}`);
-      return;
-    }
     setSelectedOrder(order);
     setModalStep('method');
     // Pre-select buyer's chosen method — if boda/personal, lock to it
@@ -223,9 +218,11 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
 
   const handleChooseMethod = async () => {
     if (shippingMethodKey === 'kentexa_delivery') {
-      // Redirect directly to BatchHandoff — no proof needed, van handles it
+      // KenteXa transport starts with hub intake. The Super Agent scans the
+      // existing order tracking number; backend creates/updates the canonical
+      // Parcel + custody event, after which Stage 3S movement takes over.
       setShowModal(false);
-      onNavigate(`BatchHandoff-${selectedOrder.id}`);
+      setMessage('KenteXa Delivery selected. Take the parcel to a KenteXa Super Agent hub with its tracking number for intake.');
       return;
     }
     if (shippingMethodKey === 'agent') {
@@ -606,22 +603,16 @@ const SellerOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrd
                         {t('seller_orders.start_shipping_button')}
                       </button>
                     )}
-                    {/* KenteXa Van delivery — show assign button when paid/preparing and not yet in batch */}
-                    {order.shippingMethod === 'kentexa_delivery' && ['paid','preparing'].includes(order.status) && !order.trackingNumber && (
+                    {order.shippingMethod === 'kentexa_delivery' && ['paid','preparing'].includes(order.status) && (
                       <div style={{ marginBottom: 6 }}>
-                        <div style={{ backgroundColor: '#ede9fe', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 11, color: '#7c3aed', fontWeight: 700 }}>
-                          {t('seller_orders.van_chosen_note')}
+                        <div style={{ backgroundColor: '#eff6ff', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 11, color: '#1d4ed8', fontWeight: 700 }}>
+                          KenteXa Delivery: take this parcel to a Super Agent hub. The hub will scan {order.trackingNumber || `KTX-ORD-${order.id}`} and receive it into the KenteXa transport network.
                         </div>
-                        <button onClick={() => onNavigate(`BatchHandoff-${order.id}`)}
-                          style={{ width: '100%', background: 'linear-gradient(135deg,#7c3aed,#a78bfa)', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800 }}>
-                          {t('seller_orders.assign_van_button')}
-                        </button>
                       </div>
                     )}
-                    {/* KenteXa Van — already assigned to batch */}
-                    {order.shippingMethod === 'kentexa_delivery' && order.trackingNumber && (
+                    {order.shippingMethod === 'kentexa_delivery' && order.status === 'in_transit' && (
                       <div style={{ backgroundColor: '#dcfce7', borderRadius: 8, padding: '8px 12px', marginBottom: 6, fontSize: 11, color: '#16a34a', fontWeight: 700 }}>
-                        {t('seller_orders.van_assigned_note', { tracking: order.trackingNumber })}
+                        Parcel accepted into KenteXa logistics · {order.trackingNumber || `KTX-ORD-${order.id}`}
                       </div>
                     )}
                     {/* Notify buyer via WhatsApp — appears as soon as shipping has started (tracking number exists) */}
