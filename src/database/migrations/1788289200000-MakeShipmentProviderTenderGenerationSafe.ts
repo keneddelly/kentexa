@@ -3,17 +3,14 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 /**
  * Van Pilot Readiness correction.
  *
- * Direct Shipment->provider authority is durable, but each movement tender is
- * deliberately one-use. The application derives a stable base idempotency key
- * from shipment/parcel/provider. Before this migration, a legitimate
- * pre-load cancellation followed by rescheduling hit the already-consumed
- * base-key tender and could never obtain fresh one-use authority.
+ * A Shipment->provider booking is durable authority, while each movement
+ * tender is deliberately one-use. The application derives a stable base key
+ * from shipment/parcel/provider. Once the first tender was consumed, that
+ * stable key previously resolved the consumed row forever, preventing a
+ * legitimate pre-load cancellation from being rescheduled.
  *
- * Keep the application-level authority model unchanged and make the database
- * key generation-safe. A BEFORE INSERT trigger serializes generation issuance
- * for the stable base key. Terminal prior generations receive :gN suffixes;
- * an OPEN generation remains idempotent only for the same run/load stop and
- * fails closed if a caller attempts to reinterpret it for another movement.
+ * This migration makes that stable authority generation-safe without
+ * weakening provider, hub, or custody checks in ParcelRunAssignmentService.
  * Super-Agent release tenders are intentionally untouched.
  */
 export class MakeShipmentProviderTenderGenerationSafe1788289200000
@@ -38,9 +35,9 @@ export class MakeShipmentProviderTenderGenerationSafe1788289200000
 
         base_key := regexp_replace(NEW."idempotencyKey", ':g[0-9]+$', '');
 
-        -- Serialize issuance even when no row for the next generation exists
-        -- yet. createAssignment already locks the Parcel first; this advisory
-        -- lock additionally protects direct SQL/concurrent generation races.
+        -- Serialize generation issuance even before the next row exists.
+        -- createAssignment also locks the Parcel first, so normal service
+        -- calls retain the established parcel -> run -> tender lock order.
         PERFORM pg_advisory_xact_lock(hashtext(base_key));
 
         SELECT * INTO existing_row
@@ -49,8 +46,8 @@ export class MakeShipmentProviderTenderGenerationSafe1788289200000
          FOR UPDATE;
 
         IF FOUND AND existing_row.status = 'open' THEN
-          -- An OPEN authority may only be retried for the movement it was
-          -- minted for. Never reinterpret an old open token for another Run.
+          -- An OPEN generation is idempotent only for the movement for which
+          -- it was minted. Never reinterpret it for another Run/load stop.
           IF existing_row."parcelId" <> NEW."parcelId"
              OR existing_row."transportProviderId" <> NEW."transportProviderId"
              OR existing_row."runId" IS DISTINCT FROM NEW."runId"
@@ -65,15 +62,13 @@ export class MakeShipmentProviderTenderGenerationSafe1788289200000
           SELECT COALESCE(MAX(
             CASE
               WHEN "idempotencyKey" = base_key THEN 0
-              WHEN "idempotencyKey" ~ (':g[0-9]+$')
-                THEN substring("idempotencyKey" from ':g([0-9]+)$')::integer
-              ELSE 0
+              ELSE substring("idempotencyKey" from ':g([0-9]+)$')::integer
             END
           ), 0) + 1
-          INTO next_generation
-          FROM public.parcel_movement_tender
-          WHERE "idempotencyKey" = base_key
-             OR "idempotencyKey" ~ ('^' || regexp_replace(base_key, '([\\.\\+\\*\\?\\[\\^\\]\\$\\(\\)\\{\\}=!<>|:\\-])', '\\\\\1', 'g') || ':g[0-9]+$');
+            INTO next_generation
+            FROM public.parcel_movement_tender
+           WHERE "idempotencyKey" = base_key
+              OR "idempotencyKey" LIKE base_key || ':g%';
 
           NEW."idempotencyKey" := base_key || ':g' || next_generation::text;
         END IF;
