@@ -8,6 +8,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Shipment } from './entities/shipment.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportQuote } from '../transport/entities/transport-quote.entity';
+import { JourneySelection } from '../transport/entities/journey-selection.entity';
 import { ShipmentsService } from './shipments.service';
 import { ShipmentsController } from './shipments.controller';
 import { TransportModule } from '../transport/transport.module';
@@ -24,7 +25,7 @@ import { PickupTasksController } from './pickup-tasks.controller';
     // repo-only registration — lets confirmShipment() create the Parcel a
     // confirmed Shipment becomes (Phase 3) and resolve an origin SuperAgent
     // by city, without importing SuperAgentsModule as a whole.
-    TypeOrmModule.forFeature([Shipment, TransportRoute, TransportQuote, Parcel, SuperAgent]),
+    TypeOrmModule.forFeature([Shipment, TransportRoute, TransportQuote, JourneySelection, Parcel, SuperAgent]),
     TransportModule,
     TzLocationModule,
     // Stage 2D: server-side, exact re-resolution of selected place references.
