@@ -191,8 +191,32 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     setError('');
     try {
       let acceptedQuote = null;
+      let journeySelection = null;
       if (selected?.providerId && selected?.routeId) {
+        const journey = await api.post('/transport/journeys', {
+          originSnapshot: originResolved || { displayLabel: origin.trim() },
+          destinationSnapshot: destinationResolved || { displayLabel: destination.trim() },
+          cargoRequirements: {
+            description: itemDescription.trim(),
+            cargoClass: 'normal',
+            quantity: 1,
+            weightKg: Number(weightKg) || 0,
+            evidenceLevel: 'declared',
+            capturedAt: new Date().toISOString(),
+          },
+          legs: [{
+            type: 'transport',
+            fromNode: originResolved || { displayLabel: origin.trim() },
+            toNode: destinationResolved || { displayLabel: destination.trim() },
+            providerId: selected.providerId,
+            routeId: selected.routeId,
+            availabilityId: selected.availabilityId || null,
+          }],
+        });
+        journeySelection = journey.data;
+
         const offered = await api.post('/transport/quotes', {
+          journeySelectionId: journeySelection.id,
           providerId: selected.providerId,
           routeId: selected.routeId,
           availabilityId: selected.availabilityId || undefined,
@@ -219,6 +243,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         itemDescription: itemDescription.trim(),
         weightKg: Number(weightKg) || 0,
         quoteId: acceptedQuote?.id || undefined,
+        journeySelectionId: journeySelection?.id || undefined,
         routeId: acceptedQuote ? undefined : (selected?.routeId || undefined),
         availabilityId: acceptedQuote ? undefined : (selected?.availabilityId || undefined),
         providerId: acceptedQuote ? undefined : (selected?.providerId || undefined),
