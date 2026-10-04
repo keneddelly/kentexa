@@ -152,6 +152,16 @@ export class Agent {
   @Column({ type: 'varchar', nullable: true })
   vehicleDescription: string | null;
 
+  // L1 local-leg capability. Null means unknown, never unlimited.
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true }) maxVolumeM3: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true }) maxItemLengthCm: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true }) maxItemWidthCm: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true }) maxItemHeightCm: number | null;
+  @Column({ type: 'jsonb', nullable: true }) acceptedCargoClasses: string[] | null;
+  @Column({ type: 'boolean', nullable: true }) supportsLoadingAssistance: boolean | null;
+  @Column({ type: 'boolean', nullable: true }) supportsUnloadingAssistance: boolean | null;
+  @Column({ type: 'boolean', nullable: true }) supportsLiftingEquipment: boolean | null;
+
   // Online/offline toggle — only online agents receive job broadcasts and appear in listings
   // Agent switches this from their dashboard like Uber driver going online
   @Column({ type: 'boolean', default: false })
