@@ -158,6 +158,9 @@ export class TransportProvider {
   @Column({ type: 'decimal', precision: 8, scale: 2, default: 0 })
   defaultMaxWeightKg: number;
 
+  @Column({ type: 'simple-array', nullable: true })
+  acceptedCargoClasses: string[] | null;
+
   // ── Coverage (Phase 2: simple array, Phase 1: use TransportRoute entity) ─
   @Column({ type: 'simple-array', nullable: true })
   cities: string[] | null;
