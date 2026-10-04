@@ -23,6 +23,8 @@ import { UserRole } from '../users/entities/user.entity';
 import { TransportService, DiscoverySortBy, DISCOVERY_SORT_VALUES } from './transport.service';
 import { TransportQuoteService } from './transport-quote.service';
 import type { CreateQuoteDto } from './transport-quote.service';
+import { JourneySelectionService } from './journey-selection.service';
+import type { SelectJourneyDto } from './journey-selection.service';
 import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
 import { VerificationService } from '../identity/verification.service';
@@ -40,7 +42,27 @@ export class TransportController {
     private readonly svc: TransportService,
     private readonly verification: VerificationService,
     private readonly quotes: TransportQuoteService,
+    private readonly journeys: JourneySelectionService,
   ) {}
+
+  // ── JOURNEY SELECTION (L1) ───────────────────────────────────────────────
+  @UseGuards(JwtAuthGuard)
+  @Post('journeys')
+  selectJourney(@Request() req, @Body() dto: SelectJourneyDto) {
+    return this.journeys.select(req.user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('journeys/:id')
+  getJourney(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.journeys.getOwned(req.user.id, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('journeys/:id/replan')
+  replanJourney(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() dto: SelectJourneyDto) {
+    return this.journeys.replan(req.user.id, id, dto);
+  }
 
   // ── QUOTES (Stage 3S-B3) ────────────────────────────────────────────────
   // Any authenticated user — same "ordinary sender or seller/business acting
