@@ -147,6 +147,23 @@ export class Agent {
   @Column({ type: 'decimal', precision: 8, scale: 1, default: 20 })
   maxWeightKg: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  maxVolumeM3: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  maxCargoLengthCm: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  maxCargoWidthCm: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  maxCargoHeightCm: number | null;
+  @Column({ type: 'simple-array', nullable: true })
+  acceptedCargoClasses: string[] | null;
+  @Column({ type: 'boolean', nullable: true })
+  supportsLoadingAssistance: boolean | null;
+  @Column({ type: 'boolean', nullable: true })
+  supportsUnloadingAssistance: boolean | null;
+  @Column({ type: 'boolean', nullable: true })
+  supportsLiftingEquipment: boolean | null;
+
   // Agent's vehicle description — shown to seller when picking
   // e.g. "Toyota HiAce — Reg T123ABC" or "Boda Honda CG125"
   @Column({ type: 'varchar', nullable: true })
