@@ -74,6 +74,21 @@ export class Vehicle {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   volumeCapacityM3: number | null;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  maxCargoLengthCm: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  maxCargoWidthCm: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  maxCargoHeightCm: number | null;
+  @Column({ type: 'simple-array', nullable: true })
+  acceptedCargoClasses: string[] | null;
+  @Column({ type: 'boolean', nullable: true })
+  supportsLoadingAssistance: boolean | null;
+  @Column({ type: 'boolean', nullable: true })
+  supportsUnloadingAssistance: boolean | null;
+  @Column({ type: 'boolean', nullable: true })
+  supportsLiftingEquipment: boolean | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
