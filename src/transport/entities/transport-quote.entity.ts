@@ -44,6 +44,10 @@ export class TransportQuote {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // L1: exact selected journey this commercial promise prices. Nullable for historical quotes.
+  @Column({ type: 'int', nullable: true })
+  journeySelectionId: number | null;
+
   // Who asked for this price — the ordinary sender OR a seller/business
   // acting user, same "any authenticated user" convention as
   // Shipment.requestedByUserId. Never a marketplace Order requirement.
