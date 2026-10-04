@@ -19,6 +19,7 @@ import { Vehicle } from './entities/vehicle.entity';
 import { ParcelRunAssignment } from './entities/parcel-run-assignment.entity';
 import { JourneySelection, JourneyLeg } from './entities/journey-selection.entity';
 import { JourneySelectionService } from './journey-selection.service';
+import { JourneyComposerService } from './journey-composer.service';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { User } from '../users/entities/user.entity';
 import { TransportService } from './transport.service';
@@ -86,11 +87,11 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
     ]),
   ],
   controllers: [TransportController, VanPilotController],
-  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService],
+  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService, JourneyComposerService],
   // Exported now (unused by any other module yet) per Issue #61's own
   // design requirement: a future Super Agent counter or Intent caller
   // should be able to inject these same canonical authorities without a
   // module change here — neither is wired in during this gate.
-  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService],
+  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService, JourneyComposerService],
 })
 export class TransportModule {}
