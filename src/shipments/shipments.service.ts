@@ -568,6 +568,8 @@ export class ShipmentsService {
           availabilityId: effectiveAvailabilityId || null,
           providerId: effectiveProviderId || null,
           quoteId: quote?.id ?? null,
+          // Journey authority comes from the accepted quote, never a parallel client assertion.
+          journeySelectionId: quote?.journeySelectionId ?? null,
           pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
           deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
           priceQuoted,
