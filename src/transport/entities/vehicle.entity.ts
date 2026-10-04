@@ -74,6 +74,15 @@ export class Vehicle {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   volumeCapacityM3: number | null;
 
+  // L1 capability contract: dimensional fit and handling are independent of weight.
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true }) maxItemLengthCm: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true }) maxItemWidthCm: number | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true }) maxItemHeightCm: number | null;
+  @Column({ type: 'jsonb', nullable: true }) acceptedCargoClasses: string[] | null;
+  @Column({ type: 'boolean', nullable: true }) supportsLoadingAssistance: boolean | null;
+  @Column({ type: 'boolean', nullable: true }) supportsUnloadingAssistance: boolean | null;
+  @Column({ type: 'boolean', nullable: true }) supportsLiftingEquipment: boolean | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
