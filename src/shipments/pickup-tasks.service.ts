@@ -6,6 +6,7 @@ import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from 
 import { DataSource } from 'typeorm';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
+import { ShipmentHubSource } from './shipment-hub-source';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
 export interface RequestPickupDto {
