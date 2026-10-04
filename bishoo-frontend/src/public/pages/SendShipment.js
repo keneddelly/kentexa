@@ -150,7 +150,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     } finally {
       setSearching(false);
     }
-  }, [origin, destination, weightKg]);
+  }, [origin, destination, weightKg, originResolved, destinationResolved]);
 
   // If arriving from a Transport Profile's route/trip card, jump straight
   // to the route step with that context pre-filled (weight isn't known
