@@ -89,9 +89,23 @@ export class AddJourneyFoundation1788291000000 implements MigrationInterface {
     await q.query(`ALTER TABLE "transport_quote" ADD COLUMN IF NOT EXISTS "journeySelectionId" integer`);
     await q.query(`ALTER TABLE "transport_quote" ADD CONSTRAINT "FK_transport_quote_journey_selection" FOREIGN KEY ("journeySelectionId") REFERENCES "journey_selection"("id") ON DELETE RESTRICT`);
     await q.query(`CREATE INDEX "IDX_transport_quote_journey_selection" ON "transport_quote" ("journeySelectionId") WHERE "journeySelectionId" IS NOT NULL`);
+
+    await q.query(`ALTER TABLE "shipment" ADD COLUMN IF NOT EXISTS "journeySelectionId" integer`);
+    await q.query(`ALTER TABLE "shipment" ADD CONSTRAINT "FK_shipment_journey_selection" FOREIGN KEY ("journeySelectionId") REFERENCES "journey_selection"("id") ON DELETE RESTRICT`);
+    await q.query(`CREATE INDEX "IDX_shipment_journey_selection" ON "shipment" ("journeySelectionId") WHERE "journeySelectionId" IS NOT NULL`);
+
+    await q.query(`ALTER TABLE "parcel" ADD COLUMN IF NOT EXISTS "journeySelectionId" integer`);
+    await q.query(`ALTER TABLE "parcel" ADD CONSTRAINT "FK_parcel_journey_selection" FOREIGN KEY ("journeySelectionId") REFERENCES "journey_selection"("id") ON DELETE RESTRICT`);
+    await q.query(`CREATE INDEX "IDX_parcel_journey_selection" ON "parcel" ("journeySelectionId") WHERE "journeySelectionId" IS NOT NULL`);
   }
 
   async down(q: QueryRunner): Promise<void> {
+    await q.query(`ALTER TABLE "parcel" DROP CONSTRAINT IF EXISTS "FK_parcel_journey_selection"`);
+    await q.query(`DROP INDEX IF EXISTS "IDX_parcel_journey_selection"`);
+    await q.query(`ALTER TABLE "parcel" DROP COLUMN IF EXISTS "journeySelectionId"`);
+    await q.query(`ALTER TABLE "shipment" DROP CONSTRAINT IF EXISTS "FK_shipment_journey_selection"`);
+    await q.query(`DROP INDEX IF EXISTS "IDX_shipment_journey_selection"`);
+    await q.query(`ALTER TABLE "shipment" DROP COLUMN IF EXISTS "journeySelectionId"`);
     await q.query(`ALTER TABLE "transport_quote" DROP CONSTRAINT IF EXISTS "FK_transport_quote_journey_selection"`);
     await q.query(`DROP INDEX IF EXISTS "IDX_transport_quote_journey_selection"`);
     await q.query(`ALTER TABLE "transport_quote" DROP COLUMN IF EXISTS "journeySelectionId"`);
