@@ -222,6 +222,10 @@ export class Shipment {
   @Column({ type: 'int', nullable: true })
   quoteId: number | null;
 
+  // New journey authority. Nullable keeps every historical Shipment valid.
+  @Column({ type: 'int', nullable: true })
+  journeySelectionId: number | null;
+
   // Set only when a marketplace sale triggered this shipment — null for
   // every independent, user-initiated request. Not wired into the
   // checkout flow yet (deliberate — see plan's explicit deferrals); this
