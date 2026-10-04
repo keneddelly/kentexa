@@ -29,6 +29,9 @@ import { TransportRoute } from './entities/transport-route.entity';
 import { ProviderAvailability } from './entities/provider-availability.entity';
 import { TransportService } from './transport.service';
 import { TransportQuoteComponents, sumQuoteComponents } from './transport-quote-components';
+import { JourneySelection, JourneySelectionStatus } from './entities/journey-selection.entity';
+import { JourneyLeg } from './entities/journey-leg.entity';
+import { JourneyLegType } from './journey-contract';
 
 // A quote is a short-lived commercial offer, not a long-hold reservation
 // (nothing is reserved while it's merely OFFERED) — 15 minutes is enough for
@@ -42,6 +45,7 @@ export interface CreateQuoteDto {
   originCity?: string;
   destinationCity?: string;
   weightKg?: number;
+  journeySelectionId?: number;
 }
 
 @Injectable()
@@ -50,6 +54,8 @@ export class TransportQuoteService {
     @InjectRepository(TransportQuote) private quoteRepo: Repository<TransportQuote>,
     @InjectRepository(TransportRoute) private routeRepo: Repository<TransportRoute>,
     @InjectRepository(ProviderAvailability) private availabilityRepo: Repository<ProviderAvailability>,
+    @InjectRepository(JourneySelection) private journeyRepo: Repository<JourneySelection>,
+    @InjectRepository(JourneyLeg) private journeyLegRepo: Repository<JourneyLeg>,
     private readonly transportService: TransportService,
     private readonly dataSource: DataSource,
   ) {}
@@ -73,6 +79,24 @@ export class TransportQuoteService {
   }
 
   async createQuote(user: User, dto: CreateQuoteDto): Promise<TransportQuote> {
+    let journey: JourneySelection | null = null;
+    if (dto.journeySelectionId != null) {
+      journey = await this.journeyRepo.findOne({ where: { id: dto.journeySelectionId, requestedByUserId: user.id } });
+      if (!journey || journey.status !== JourneySelectionStatus.SELECTED) {
+        throw new BadRequestException('Journey selection is not available for quoting');
+      }
+      const transportLegs = await this.journeyLegRepo.find({
+        where: { journeySelectionId: journey.id, legType: JourneyLegType.TRANSPORT },
+        order: { sequence: 'ASC' },
+      });
+      if (transportLegs.length !== 1) {
+        throw new BadRequestException('This quote endpoint currently requires exactly one transport leg');
+      }
+      const leg = transportLegs[0];
+      if (leg.providerId !== dto.providerId || leg.routeId !== dto.routeId || (leg.availabilityId ?? undefined) !== dto.availabilityId) {
+        throw new BadRequestException('Quote inputs do not match the selected journey');
+      }
+    }
     const provider = await this.transportService.assertEligibleProvider(dto.providerId);
 
     const route = await this.routeRepo.findOne({ where: { id: dto.routeId } });
@@ -130,6 +154,7 @@ export class TransportQuoteService {
     const now = new Date();
     const quote = this.quoteRepo.create({
       requestedByUserId: user.id,
+      journeySelectionId: journey?.id ?? null,
       providerId: provider.id,
       routeId: route.id,
       availabilityId: availability?.id ?? null,
