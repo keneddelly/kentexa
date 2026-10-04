@@ -39,13 +39,49 @@ export class JourneySelectionService {
 
   private cashCollector(legs: SelectJourneyLegDto[], paymentMethod?: string): { type: string | null; sequence: number | null } {
     if (paymentMethod !== 'cash') return { type: null, sequence: null };
+    // Cash follows physical custody, not merely the first actor id appearing
+    // anywhere in the plan. CUSTOMER_PICKUP never authorizes collection and a
+    // future informational leg cannot accidentally become a cash desk.
+    const custodyTypes = new Set<JourneyLegType>([
+      JourneyLegType.FIRST_MILE,
+      JourneyLegType.HUB_INTAKE,
+      JourneyLegType.TRANSPORT,
+      JourneyLegType.TRANSFER,
+      JourneyLegType.LAST_MILE,
+    ]);
     for (let i = 0; i < legs.length; i++) {
       const leg = legs[i];
+      if (!custodyTypes.has(leg.type)) continue;
       if (leg.agentId != null) return { type: 'agent', sequence: i + 1 };
       if (leg.superAgentId != null) return { type: 'super_agent', sequence: i + 1 };
       if (leg.providerId != null) return { type: 'transport_provider', sequence: i + 1 };
     }
     throw new BadRequestException('Cash journey has no authorized first physical custodian');
+  }
+
+  async markQuoted(userId: number, id: number, manager?: any): Promise<void> {
+    const repo = manager ? manager.getRepository(JourneySelection) : this.selections;
+    const journey = await repo.findOne({ where: { id, requestedByUserId: userId } });
+    if (!journey) throw new NotFoundException('Journey selection not found');
+    if (journey.status === JourneySelectionStatus.SUPERSEDED || journey.status === JourneySelectionStatus.CANCELLED) {
+      throw new BadRequestException('Journey selection is not available for quoting');
+    }
+    if (journey.status === JourneySelectionStatus.SELECTED) {
+      journey.status = JourneySelectionStatus.QUOTED;
+      await repo.save(journey);
+    }
+  }
+
+  async markCommitted(userId: number, id: number, manager?: any): Promise<void> {
+    const repo = manager ? manager.getRepository(JourneySelection) : this.selections;
+    const journey = await repo.findOne({ where: { id, requestedByUserId: userId } });
+    if (!journey) throw new NotFoundException('Journey selection not found');
+    if (journey.status === JourneySelectionStatus.COMMITTED) return;
+    if (journey.status !== JourneySelectionStatus.QUOTED) {
+      throw new BadRequestException('Journey must be quoted before it can be committed');
+    }
+    journey.status = JourneySelectionStatus.COMMITTED;
+    await repo.save(journey);
   }
 
   private async revalidateLegs(legs: SelectJourneyLegDto[], cargo: CargoRequirements): Promise<void> {

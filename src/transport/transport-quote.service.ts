@@ -30,6 +30,7 @@ import { ProviderAvailability } from './entities/provider-availability.entity';
 import { TransportService } from './transport.service';
 import { TransportQuoteComponents, sumQuoteComponents } from './transport-quote-components';
 import { JourneyLeg, JourneySelection, JourneySelectionStatus } from './entities/journey-selection.entity';
+import { JourneySelectionService } from './journey-selection.service';
 
 // A quote is a short-lived commercial offer, not a long-hold reservation
 // (nothing is reserved while it's merely OFFERED) — 15 minutes is enough for
@@ -55,6 +56,7 @@ export class TransportQuoteService {
     @InjectRepository(JourneySelection) private journeyRepo: Repository<JourneySelection>,
     private readonly transportService: TransportService,
     private readonly dataSource: DataSource,
+    private readonly journeys: JourneySelectionService,
   ) {}
 
   // The SAME formula TransportService.estimateShipmentPrice() already uses
@@ -83,8 +85,19 @@ export class TransportQuoteService {
         throw new BadRequestException('Journey selection is not available for quoting');
       }
       const transportLegs = await this.dataSource.getRepository(JourneyLeg).find({ where: { journeySelectionId: journey.id } });
-      if (!transportLegs.some(l => l.providerId === dto.providerId && l.routeId === dto.routeId)) {
+      const matchingLeg = transportLegs.find(l => l.providerId === dto.providerId && l.routeId === dto.routeId);
+      if (!matchingLeg) {
         throw new BadRequestException('Quote provider/route must belong to the selected journey');
+      }
+      if (matchingLeg.availabilityId != null && dto.availabilityId !== matchingLeg.availabilityId) {
+        throw new BadRequestException('Quote availability must match the selected journey leg');
+      }
+      if (dto.availabilityId != null && matchingLeg.availabilityId == null) {
+        throw new BadRequestException('Quote cannot add an availability that was not selected by the journey');
+      }
+      const selectedWeight = Number(journey.cargoRequirements?.weightKg) || 0;
+      if (dto.weightKg != null && Number(dto.weightKg) !== selectedWeight) {
+        throw new BadRequestException('Quote weight must match the selected journey cargo');
       }
     }
 
@@ -161,7 +174,9 @@ export class TransportQuoteService {
       expiresAt: new Date(now.getTime() + QUOTE_VALIDITY_MS),
       acceptedAt: null,
     });
-    return this.quoteRepo.save(quote);
+    const saved = await this.quoteRepo.save(quote);
+    if (journey) await this.journeys.markQuoted(user.id, journey.id);
+    return saved;
   }
 
   async getQuote(user: User, quoteId: number): Promise<TransportQuote> {
@@ -190,7 +205,11 @@ export class TransportQuoteService {
       }
       quote.status = TransportQuoteStatus.ACCEPTED;
       quote.acceptedAt = new Date();
-      return repo.save(quote);
+      const saved = await repo.save(quote);
+      if (quote.journeySelectionId != null) {
+        await this.journeys.markCommitted(user.id, quote.journeySelectionId, manager);
+      }
+      return saved;
     });
   }
 }
