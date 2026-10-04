@@ -25,6 +25,8 @@ import { TransportQuoteService } from './transport-quote.service';
 import type { CreateQuoteDto } from './transport-quote.service';
 import { JourneySelectionService } from './journey-selection.service';
 import type { SelectJourneyDto } from './journey-selection.service';
+import { JourneyComposerService } from './journey-composer.service';
+import type { ComposeJourneyDto, SelectComposedJourneyDto } from './journey-composer.service';
 import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
 import { VerificationService } from '../identity/verification.service';
@@ -43,7 +45,21 @@ export class TransportController {
     private readonly verification: VerificationService,
     private readonly quotes: TransportQuoteService,
     private readonly journeys: JourneySelectionService,
+    private readonly journeyComposer: JourneyComposerService,
   ) {}
+
+  // ── JOURNEY COMPOSITION (L1) ─────────────────────────────────────────────
+  @UseGuards(JwtAuthGuard)
+  @Post('journeys/compose')
+  composeJourney(@Body() dto: ComposeJourneyDto) {
+    return this.journeyComposer.compose(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('journeys/select-composed')
+  selectComposedJourney(@Request() req, @Body() dto: SelectComposedJourneyDto) {
+    return this.journeyComposer.selectComposed(req.user.id, dto);
+  }
 
   // ── JOURNEY SELECTION (L1) ───────────────────────────────────────────────
   @UseGuards(JwtAuthGuard)
