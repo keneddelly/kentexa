@@ -686,7 +686,24 @@ export class ShipmentsService {
     }
     this.assertTransition(shipment.status, ShipmentStatus.CONFIRMED);
 
-    const providerId = dto.providerId ?? shipment.providerId;
+    // A Journey-backed Shipment is already commercially committed. Its
+    // provider/route/availability came from the accepted quote and cannot be
+    // reopened by the confirmation request. Legacy shipments keep the old
+    // explicit-confirmation path until their UI is retired.
+    if (shipment.journeySelectionId != null) {
+      if (dto.providerId != null && dto.providerId !== shipment.providerId) {
+        throw new ConflictException('Confirmed journey provider cannot be changed');
+      }
+      if (dto.routeId != null && dto.routeId !== shipment.routeId) {
+        throw new ConflictException('Confirmed journey route cannot be changed');
+      }
+      if (dto.availabilityId != null && dto.availabilityId !== shipment.availabilityId) {
+        throw new ConflictException('Confirmed journey availability cannot be changed');
+      }
+    }
+    const providerId = shipment.journeySelectionId != null
+      ? shipment.providerId
+      : (dto.providerId ?? shipment.providerId);
     if (!providerId) {
       throw new BadRequestException('Select a provider before confirming');
     }
@@ -700,9 +717,10 @@ export class ShipmentsService {
       providerId,
     };
     const switchesSlot =
+      shipment.journeySelectionId == null &&
       !!dto.availabilityId && dto.availabilityId !== shipment.availabilityId;
     if (switchesSlot) updates.availabilityId = dto.availabilityId;
-    if (dto.routeId) updates.routeId = dto.routeId;
+    if (shipment.journeySelectionId == null && dto.routeId) updates.routeId = dto.routeId;
 
     // Claim + capacity are ONE transaction (every write below goes through
     // this transaction's EntityManager): the PENDING->CONFIRMED claim, the
@@ -711,7 +729,9 @@ export class ShipmentsService {
     // committed and a lost claim rolls the capacity changes back. The claim
     // is first, so a loser does nothing else. Parcel creation stays AFTER
     // commit (idempotent, retry-completable, never touches capacity).
-    const finalRouteId = dto.routeId || shipment.routeId;
+    const finalRouteId = shipment.journeySelectionId != null
+      ? shipment.routeId
+      : (dto.routeId || shipment.routeId);
     const outcome = await this.shipmentRepo.manager.transaction(async (em) => {
       const claim = await em
         .getRepository(Shipment)
