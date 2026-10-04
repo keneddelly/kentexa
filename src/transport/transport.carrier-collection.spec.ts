@@ -34,7 +34,7 @@ describe('carrier collection custody boundary', () => {
     const dataSource: any = { transaction: jest.fn(async (fn) => fn(manager)) };
     const noop: any = {};
     const service = new TransportService(noop, noop, noop, repos.get(TransportAssignment),
-      noop, noop, noop, noop, noop, noop, noop, noop, noop, noop, dataSource);
+      noop, noop, noop, noop, noop, noop, noop, noop, noop, noop, noop, dataSource);
     return { service, writes, manager, dataSource, current, repos };
   }
 
