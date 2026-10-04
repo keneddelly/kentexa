@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { JourneyLeg, JourneyLegType, JourneySelection, JourneySelectionStatus } from './entities/journey-selection.entity';
 import { CargoRequirements, normalizeCargoRequirements } from './journey/cargo-requirements';
+import { TransportService } from './transport.service';
 
 export interface SelectJourneyLegDto {
   type: JourneyLegType;
@@ -33,6 +34,7 @@ export class JourneySelectionService {
   constructor(
     @InjectRepository(JourneySelection) private readonly selections: Repository<JourneySelection>,
     private readonly dataSource: DataSource,
+    private readonly transport: TransportService,
   ) {}
 
   private cashCollector(legs: SelectJourneyLegDto[], paymentMethod?: string): { type: string | null; sequence: number | null } {
@@ -46,9 +48,23 @@ export class JourneySelectionService {
     throw new BadRequestException('Cash journey has no authorized first physical custodian');
   }
 
+  private async revalidateLegs(legs: SelectJourneyLegDto[], cargo: CargoRequirements): Promise<void> {
+    for (const leg of legs) {
+      if (leg.type !== JourneyLegType.TRANSPORT) continue;
+      if (leg.providerId == null || leg.routeId == null) throw new BadRequestException('Transport leg requires providerId and routeId');
+      await this.transport.assertEligibleProvider(leg.providerId);
+      const from = String((leg.fromNode as any)?.city ?? (leg.fromNode as any)?.label ?? '').trim();
+      const to = String((leg.toNode as any)?.city ?? (leg.toNode as any)?.label ?? '').trim();
+      if (!from || !to) throw new BadRequestException('Transport leg requires server-resolvable from/to nodes');
+      await this.transport.assertRouteServesJourney(leg.routeId, from, to);
+      if (leg.availabilityId != null) await this.transport.assertAvailabilityIsDiscoverable(leg.availabilityId, Number(cargo.weightKg) || 0);
+    }
+  }
+
   async select(requestedByUserId: number, dto: SelectJourneyDto): Promise<JourneySelection> {
     if (!dto.legs?.length) throw new BadRequestException('A journey must contain at least one leg');
     const cargo = normalizeCargoRequirements(dto.cargoRequirements);
+    await this.revalidateLegs(dto.legs, cargo);
     const collector = this.cashCollector(dto.legs, dto.paymentMethod);
     return this.dataSource.transaction(async manager => {
       const selection = await manager.getRepository(JourneySelection).save(manager.getRepository(JourneySelection).create({
@@ -87,6 +103,7 @@ export class JourneySelectionService {
       if (previous.status === JourneySelectionStatus.COMMITTED) throw new BadRequestException('Committed journey requires an execution exception flow');
       if (previous.status === JourneySelectionStatus.SUPERSEDED) throw new BadRequestException('Journey is already superseded');
       const cargo = normalizeCargoRequirements(dto.cargoRequirements);
+      await this.revalidateLegs(dto.legs, cargo);
       const collector = this.cashCollector(dto.legs, dto.paymentMethod);
       const next = await repo.save(repo.create({
         requestedByUserId: userId,
