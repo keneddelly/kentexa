@@ -17,6 +17,8 @@ import { TransportRun } from './entities/transport-run.entity';
 import { TransportRunStop } from './entities/transport-run-stop.entity';
 import { Vehicle } from './entities/vehicle.entity';
 import { ParcelRunAssignment } from './entities/parcel-run-assignment.entity';
+import { JourneySelection, JourneyLeg } from './entities/journey-selection.entity';
+import { JourneySelectionService } from './journey-selection.service';
 import { ServiceAd } from '../services/entities/service-ad.entity';
 import { User } from '../users/entities/user.entity';
 import { TransportService } from './transport.service';
@@ -63,6 +65,8 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
       TransportRunStop,
       Vehicle,
       ParcelRunAssignment,
+      JourneySelection,
+      JourneyLeg,
       ServiceAd, // for auto-linking transport providers to service marketplace
       User,
       // Repo-only access into the super-agents/shipments entities — NOT a
@@ -82,11 +86,11 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
     ]),
   ],
   controllers: [TransportController, VanPilotController],
-  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService],
+  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService],
   // Exported now (unused by any other module yet) per Issue #61's own
   // design requirement: a future Super Agent counter or Intent caller
   // should be able to inject these same canonical authorities without a
   // module change here — neither is wired in during this gate.
-  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService],
+  exports: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService],
 })
 export class TransportModule {}

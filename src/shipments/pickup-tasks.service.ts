@@ -6,6 +6,7 @@ import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from 
 import { DataSource } from 'typeorm';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
+import { ShipmentHubSource } from './shipment-hub-source';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
 export interface RequestPickupDto {
@@ -94,13 +95,13 @@ export class PickupTasksService {
       }
       let hubId: number | null = null;
       if (input.servicePath === 'direct_delivery') {
-        if (s.originHubSource !== 'not_required' || s.destinationHubSource !== 'not_required' ||
+        if (s.originHubSource !== ShipmentHubSource.NOT_REQUIRED || s.destinationHubSource !== ShipmentHubSource.NOT_REQUIRED ||
             !normalizeCity(s.originCity) || normalizeCity(s.originCity) !== normalizeCity(s.destinationCity)) {
           throw new BadRequestException('Direct Agent delivery requires a no-hub intracity Shipment');
         }
       } else {
         hubId = s.originHubId;
-        if (!hubId || !['sender_selected','auto_single_candidate'].includes(s.originHubSource)) {
+        if (!hubId || ![ShipmentHubSource.SENDER_SELECTED, ShipmentHubSource.AUTO_SINGLE_CANDIDATE].includes(s.originHubSource)) {
           throw new BadRequestException('Select an origin hub before requesting hub-routed pickup');
         }
         const hubs: any[] = await em.query('SELECT id FROM public.super_agent WHERE id=$1 AND status=$2', [hubId, 'active']);

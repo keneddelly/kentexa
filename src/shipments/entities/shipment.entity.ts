@@ -50,6 +50,10 @@ export class Shipment {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // L1: frozen path authority. Nullable only for legacy/pre-L1 shipments.
+  @Column({ type: 'int', nullable: true })
+  journeySelectionId: number | null;
+
   // Who's asking — never sellerId. Any authenticated user.
   @Column({ type: 'int' })
   requestedByUserId: number;

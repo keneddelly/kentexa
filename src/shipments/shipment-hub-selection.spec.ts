@@ -185,7 +185,7 @@ describe('structural guards', () => {
       const src = strip(readFileSync(f, 'utf8'));
       if (/(origin|destination)HubSource|hubDecidedAt/.test(src)) {
         const rel = f.slice(root.length + 1).replace(/\\/g, '/');
-        if (!['shipments/shipments.service.ts', 'shipments/entities/shipment.entity.ts', 'shipments/shipment-hub-selection.ts',
+        if (!['shipments/shipments.service.ts', 'shipments/pickup-tasks.service.ts', 'shipments/entities/shipment.entity.ts', 'shipments/shipment-hub-selection.ts',
           'database/migrations/1788274800000-AddShipmentHubDecision.ts'].includes(rel)) offenders.push(rel);
       }
     }

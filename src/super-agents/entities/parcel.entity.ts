@@ -36,6 +36,10 @@ export class Parcel {
   @PrimaryGeneratedColumn()
   id: number;
 
+  // L1: immutable selected path used to create/execute this physical parcel.
+  @Column({ type: 'int', nullable: true })
+  journeySelectionId: number | null;
+
   // ── Tracking ──────────────────────────────────────────────────────────────
   @Column({ type: 'varchar', unique: true, nullable: true })
   trackingNumber: string | null; // e.g. KTX-DAR-MZA-000001

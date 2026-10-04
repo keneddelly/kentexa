@@ -568,6 +568,8 @@ export class ShipmentsService {
           availabilityId: effectiveAvailabilityId || null,
           providerId: effectiveProviderId || null,
           quoteId: quote?.id ?? null,
+          // Journey authority comes from the accepted quote, never a parallel client assertion.
+          journeySelectionId: quote?.journeySelectionId ?? null,
           pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
           deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
           priceQuoted,
@@ -1045,6 +1047,7 @@ export class ShipmentsService {
 
     const created: Parcel = parcels.create({
       shipment: { id: shipment.id } as any,
+      journeySelectionId: shipment.journeySelectionId,
       order: null,
       senderName: shipment.senderName,
       senderPhone: shipment.senderPhone,
