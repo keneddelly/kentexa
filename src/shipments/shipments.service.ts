@@ -1047,6 +1047,7 @@ export class ShipmentsService {
 
     const created: Parcel = parcels.create({
       shipment: { id: shipment.id } as any,
+      journeySelectionId: shipment.journeySelectionId,
       order: null,
       senderName: shipment.senderName,
       senderPhone: shipment.senderPhone,
