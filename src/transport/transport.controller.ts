@@ -23,6 +23,7 @@ import { UserRole } from '../users/entities/user.entity';
 import { TransportService, DiscoverySortBy, DISCOVERY_SORT_VALUES } from './transport.service';
 import { TransportQuoteService } from './transport-quote.service';
 import type { CreateQuoteDto } from './transport-quote.service';
+import { JourneyService, DiscoverJourneyDto } from './journey.service';
 import { AssignmentStatus } from './entities/transport-assignment.entity';
 import { AvailabilityStatus } from './entities/provider-availability.entity';
 import { VerificationService } from '../identity/verification.service';
@@ -40,7 +41,32 @@ export class TransportController {
     private readonly svc: TransportService,
     private readonly verification: VerificationService,
     private readonly quotes: TransportQuoteService,
+    private readonly journeys: JourneyService,
   ) {}
+
+  // ── JOURNEY DISCOVERY / SELECTION (L1) ────────────────────────────────
+  // Discovery is advisory and mutates nothing. Selection re-runs discovery
+  // server-side so clients can never assert provider/route/agent authority.
+  @UseGuards(JwtAuthGuard)
+  @Post('journeys/discover')
+  discoverJourneys(@Body() dto: DiscoverJourneyDto) {
+    return this.journeys.discover(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('journeys/select')
+  selectJourney(
+    @Request() req,
+    @Body() body: { request: DiscoverJourneyDto; planId: string; paymentMethod?: string },
+  ) {
+    return this.journeys.select(req.user, body.request, body.planId, body.paymentMethod);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('journeys/:id')
+  getJourney(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.journeys.getSelection(req.user, id);
+  }
 
   // ── QUOTES (Stage 3S-B3) ────────────────────────────────────────────────
   // Any authenticated user — same "ordinary sender or seller/business acting
