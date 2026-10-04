@@ -10,12 +10,17 @@ describe('migration timestamps', () => {
   const files = readdirSync(__dirname).filter((n) => /^\d{13}-.+\.ts$/.test(n) && !/\.spec\.ts$/.test(n));
   const stamp = (n: string) => Number(n.slice(0, 13));
 
-  it('are unique across the repository sequence', () => {
-    const seen = new Map<number, string>();
-    for (const f of files) {
-      expect(seen.get(stamp(f))).toBeUndefined();
-      seen.set(stamp(f), f);
-    }
+  it('are unique except the immutable production 1788288600000 historical pair', () => {
+    const byStamp = new Map<number, string[]>();
+    for (const f of files) byStamp.set(stamp(f), [...(byStamp.get(stamp(f)) ?? []), f]);
+    const duplicates = [...byStamp.entries()].filter(([, names]) => names.length > 1);
+    expect(duplicates).toEqual([[
+      1788288600000,
+      expect.arrayContaining([
+        '1788288600000-AddParcelMovementTender.ts',
+        '1788288600000-AddSuperAgentSettlementFoundation.ts',
+      ]),
+    ]]);
   });
 
   it('the pickup-task migration sorts AFTER the reserved checkout (1788282600000) and walk-in (1788282000000) migrations', () => {
@@ -74,10 +79,12 @@ describe('migration timestamps', () => {
     expect(stamp(receipt)).toBeGreaterThan(1788287400000);
   });
 
-  it('Stage 3S-C7\'s settlement foundation migration sorts AFTER the receipt-confirmation/dedup migration and is currently the latest', () => {
+  it('Stage 3S-C7 settlement preserves its historical timestamp and L1 is later than the deployed lineage', () => {
     const settlement = files.find((f) => f.includes('AddSuperAgentSettlementFoundation'))!;
     expect(settlement).toBe('1788288600000-AddSuperAgentSettlementFoundation.ts');
     expect(stamp(settlement)).toBeGreaterThan(1788288000000);
-    expect(files.every((f) => stamp(f) <= stamp(settlement))).toBe(true);
+    const l1 = files.find((f) => f.includes('AddJourneyFoundation'))!;
+    expect(l1).toBe('1788291000000-AddJourneyFoundation.ts');
+    expect(stamp(l1)).toBeGreaterThan(1788290400000);
   });
 });
