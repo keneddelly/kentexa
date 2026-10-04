@@ -73,6 +73,11 @@ export class TransportQuote {
   @Column({ type: 'int', nullable: true })
   availabilityId: number | null;
 
+  // L1: exact journey this commercial promise prices. Nullable for all
+  // legacy/provider-first quotes until their customer path is retired.
+  @Column({ type: 'int', nullable: true })
+  journeySelectionId: number | null;
+
   // Snapshot, not a live lookup — origin/destination as they were AT QUOTE
   // TIME, independent of whatever the route's own fields say later.
   @Column({ type: 'varchar' })
