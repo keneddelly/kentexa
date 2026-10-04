@@ -199,7 +199,14 @@ export class TransportQuoteService {
       }
       quote.status = TransportQuoteStatus.ACCEPTED;
       quote.acceptedAt = new Date();
-      return repo.save(quote);
+      const saved = await repo.save(quote);
+      if (quote.journeySelectionId != null) {
+        await manager.getRepository(JourneySelection).update(
+          { id: quote.journeySelectionId, requestedByUserId: user.id, status: JourneySelectionStatus.SELECTED },
+          { status: JourneySelectionStatus.QUOTED },
+        );
+      }
+      return saved;
     });
   }
 }
