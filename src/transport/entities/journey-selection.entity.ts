@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import { CargoRequirements, JourneyActorType } from '../journey-contract';
+import { JourneyActorType } from '../journey-contract';
+import type { CargoRequirements } from '../journey-contract';
 
 export enum JourneySelectionStatus {
   SELECTED = 'selected',
