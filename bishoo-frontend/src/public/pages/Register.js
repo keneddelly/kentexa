@@ -23,8 +23,8 @@ const Register = ({ onNavigate, onLoginSuccess }) => {
   // Step 3 — mandatory profile photo, verified account/JWT already exist
   // by this point (token stashed in handleVerify below), just not
   // considered "done" registering until this completes.
-  const [verifiedUserId, setVerifiedUserId] = useState(null);
-  const [kentexaId, setKentexaId]           = useState('');
+  const [verifiedUserId] = useState(null);
+  const [kentexaId] = useState('');
   const [photoUrl, setPhotoUrl]             = useState('');
   const [photoUploading, setPhotoUploading] = useState(false);
   const [finishing, setFinishing]           = useState(false);
