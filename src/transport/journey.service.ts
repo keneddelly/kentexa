@@ -6,6 +6,7 @@ import { Agent, AgentStatus } from '../agents/entities/agent.entity';
 import { TransportProvider, ProviderStatus } from './entities/transport-provider.entity';
 import { TransportRoute } from './entities/transport-route.entity';
 import { ProviderAvailability, AvailabilityStatus } from './entities/provider-availability.entity';
+import { RouteStop } from './entities/route-stop.entity';
 import { JourneyLeg } from './entities/journey-leg.entity';
 import { JourneySelection, JourneySelectionStatus } from './entities/journey-selection.entity';
 import {
@@ -48,6 +49,8 @@ export interface JourneyPlan {
     actorType: JourneyActorType;
     fromLabel: string;
     toLabel: string;
+    fromRouteStopId?: number;
+    toRouteStopId?: number;
     providerId?: number;
     routeId?: number;
     availabilityId?: number;
@@ -62,6 +65,7 @@ export class JourneyService {
     @InjectRepository(TransportRoute) private readonly routeRepo: Repository<TransportRoute>,
     @InjectRepository(TransportProvider) private readonly providerRepo: Repository<TransportProvider>,
     @InjectRepository(ProviderAvailability) private readonly availabilityRepo: Repository<ProviderAvailability>,
+    @InjectRepository(RouteStop) private readonly routeStopRepo: Repository<RouteStop>,
     @InjectRepository(Agent) private readonly agentRepo: Repository<Agent>,
     @InjectRepository(JourneySelection) private readonly selectionRepo: Repository<JourneySelection>,
     @InjectRepository(JourneyLeg) private readonly legRepo: Repository<JourneyLeg>,
@@ -100,7 +104,27 @@ export class JourneyService {
       .andWhere(cityMatchSql('r."originCity"', 'origin'))
       .andWhere(cityMatchSql('r."destinationCity"', 'destination'))
       .setParameters({ ...cityMatchParams('origin', originCity), ...cityMatchParams('destination', destinationCity) });
-    const routes = await qb.getMany();
+    const intercityRoutes = await qb.getMany();
+
+    // Local-loop discovery uses canonical RouteStop ordering rather than
+    // legacy loopStops/city labels. Exact ward IDs win; labels are only a
+    // compatibility fallback for old location records.
+    const allStops = await this.routeStopRepo.find({ where: { isActive: true }, order: { routeId: 'ASC', sequence: 'ASC' } });
+    const byRoute = new Map<number, RouteStop[]>();
+    for (const stop of allStops) byRoute.set(stop.routeId, [...(byRoute.get(stop.routeId) ?? []), stop]);
+    const activeRouteIds = [...byRoute.keys()];
+    const stopRoutes = activeRouteIds.length ? await this.routeRepo.find({ where: { id: In(activeRouteIds), isActive: true } }) : [];
+    const norm = (v: string) => v.trim().toLowerCase();
+    const stopMatches = (stop: RouteStop, label: string, wardId?: number) =>
+      wardId != null && stop.wardId != null ? stop.wardId === wardId :
+      norm(stop.locationLabel).includes(norm(label)) || norm(label).includes(norm(stop.locationLabel));
+    const localRoutes = stopRoutes.filter(route => {
+      const stops = byRoute.get(route.id) ?? [];
+      const from = stops.find(s => s.loadingAllowed && stopMatches(s, dto.originLabel, dto.originWardId));
+      const to = stops.find(s => s.unloadingAllowed && stopMatches(s, dto.destinationLabel, dto.destinationWardId));
+      return !!from && !!to && from.sequence < to.sequence;
+    });
+    const routes = [...new Map([...intercityRoutes, ...localRoutes].map(route => [route.id, route])).values()];
     if (!routes.length) return [];
 
     const providers = await this.providerRepo.find({
@@ -147,6 +171,9 @@ export class JourneyService {
           compatibility: pickup.result,
         });
       }
+      const routeStops = byRoute.get(route.id) ?? [];
+      const fromStop = routeStops.find(s => s.loadingAllowed && stopMatches(s, dto.originLabel, dto.originWardId));
+      const toStop = routeStops.find(s => s.unloadingAllowed && stopMatches(s, dto.destinationLabel, dto.destinationWardId));
       legs.push({
         sequence: legs.length,
         legType: JourneyLegType.TRANSPORT,
@@ -156,6 +183,8 @@ export class JourneyService {
         providerId: provider.id,
         routeId: route.id,
         availabilityId: availability?.id,
+        fromRouteStopId: fromStop?.id,
+        toRouteStopId: toStop?.id,
         compatibility: transportCompatibility,
       });
       if (dto.requestAgentDelivery) {
@@ -249,8 +278,8 @@ export class JourneyService {
         availabilityId: l.availabilityId ?? null,
         runId: null,
         vehicleId: null,
-        fromRouteStopId: null,
-        toRouteStopId: null,
+        fromRouteStopId: l.fromRouteStopId ?? null,
+        toRouteStopId: l.toRouteStopId ?? null,
         agentId: l.agentId ?? null,
         superAgentId: null,
         commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
