@@ -26,6 +26,7 @@ import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportQuote, TransportQuoteStatus } from '../transport/entities/transport-quote.entity';
+import { JourneySelection, JourneySelectionStatus } from '../transport/entities/journey-selection.entity';
 import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
@@ -568,6 +569,7 @@ export class ShipmentsService {
           availabilityId: effectiveAvailabilityId || null,
           providerId: effectiveProviderId || null,
           quoteId: quote?.id ?? null,
+          journeySelectionId: quote?.journeySelectionId ?? null,
           pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
           deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
           priceQuoted,
@@ -1018,7 +1020,14 @@ export class ShipmentsService {
       if (current.status !== ShipmentStatus.CONFIRMED) {
         throw new BadRequestException(`Cannot create a Parcel for a shipment that is "${current.status}"`);
       }
-      return this.createParcelForConfirmedShipment(current, em.getRepository(Parcel));
+      const parcel = await this.createParcelForConfirmedShipment(current, em.getRepository(Parcel));
+      if (current.journeySelectionId != null) {
+        await em.getRepository(JourneySelection).update(
+          { id: current.journeySelectionId, requestedByUserId: current.requestedByUserId },
+          { status: JourneySelectionStatus.COMMITTED },
+        );
+      }
+      return parcel;
     });
   }
 
@@ -1045,6 +1054,7 @@ export class ShipmentsService {
 
     const created: Parcel = parcels.create({
       shipment: { id: shipment.id } as any,
+      journeySelectionId: shipment.journeySelectionId ?? null,
       order: null,
       senderName: shipment.senderName,
       senderPhone: shipment.senderPhone,
