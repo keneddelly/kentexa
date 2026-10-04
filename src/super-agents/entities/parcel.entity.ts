@@ -56,6 +56,10 @@ export class Parcel {
   @ManyToOne(() => Shipment, { nullable: true, onDelete: 'SET NULL' })
   shipment: Shipment | null;
 
+  // Physical execution converges here. Nullable for historical/legacy parcels.
+  @Column({ type: 'int', nullable: true })
+  journeySelectionId: number | null;
+
   // ── People ────────────────────────────────────────────────────────────────
   @ManyToOne(() => User, { eager: false, nullable: true, onDelete: 'SET NULL' })
   seller: User | null;
