@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import {
   routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody, isBookableTrip,
+  canDeliverDirect, isDirectDelivery, directJourneyBody, pickupTaskBody,
   confirmBody, searchOutcome,
 } from '../../api/shipmentRequests';
 
@@ -29,6 +30,13 @@ const fmt = n => Number(n || 0).toLocaleString();
 // Matches ProviderType on the backend (transport-provider.entity.ts) —
 // showing a bus icon for every provider regardless of what they actually
 // operate told a shipper nothing true about who they were picking.
+// A UUID for an idempotent request. crypto.randomUUID needs a secure context;
+// the fallback is only ever used on plain-http development hosts.
+const newRequestKey = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
+};
+
 const PROVIDER_TYPE_ICON = {
   bus: '🚌', van: '🚐', courier: '📦', truck: '🚛',
   boda: '🏍️', rail: '🚆', air: '✈️', boat: '⛵',
@@ -130,6 +138,9 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [deliveryOption, setDeliveryOption] = useState('door');
 
   const [submitting, setSubmitting] = useState(false);
+  // One key per visit to this form: a retried confirmation asks for the same
+  // pickup job, never a second one.
+  const [pickupRequestKey] = useState(newRequestKey);
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(null);
   const [quote, setQuote] = useState(null);
@@ -196,6 +207,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // a route card stay prefilled for Step 2 after Step 1 is completed.
 
   const loadHubChoices = async () => {
+    // Direct Agent delivery uses no hub: nothing to choose, and nothing may be chosen.
+    if (isDirectDelivery(selected)) {
+      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId(''); setHubsError(false);
+      return;
+    }
     if (!originResolved?.placeRef && !destinationResolved?.placeRef) return;
     setHubsLoading(true);
     setHubsError(false);
@@ -240,10 +256,26 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         acceptedQuote = accepted.data;
         setQuote(acceptedQuote);
       }
-      const res = await api.post('/shipments', shipmentBody(requestState, selected, acceptedQuote));
+      // Direct Agent delivery: no trip and no transporter. The server composes
+      // sender -> Agent -> recipient from the two places.
+      const direct = isDirectDelivery(selected);
+      if (direct) {
+        const journey = await api.post('/transport/journeys/select-direct', directJourneyBody(requestState));
+        journeySelection = journey.data;
+      }
+      const res = await api.post('/shipments', shipmentBody(requestState, selected, acceptedQuote, direct ? journeySelection : null));
       const created=res.data;
-      const final = await api.patch(`/shipments/${created.id}/confirm`, confirmBody(requestState));
-      setConfirmed({ ...final.data.shipment, parcelTrackingNumber: final.data.parcel?.trackingNumber });
+      const final = await api.patch(`/shipments/${created.id}/confirm`, confirmBody(direct ? {} : requestState));
+      // ...and an Agent is asked to come. If that request fails the shipment
+      // still exists; it can be asked for again from My Shipments.
+      let pickupRequested = false;
+      if (direct) {
+        try {
+          await api.post(`/shipments/${created.id}/pickup-task`, pickupTaskBody(requestState, 'direct_delivery', pickupRequestKey));
+          pickupRequested = true;
+        } catch { pickupRequested = false; }
+      }
+      setConfirmed({ ...final.data.shipment, parcelTrackingNumber: final.data.parcel?.trackingNumber, direct, pickupRequested });
       setStep(5);
     } catch (err) {
       setError(err?.response?.data?.message || t('send_shipment.post_error'));
@@ -381,6 +413,23 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{ padding: '10px 12px', color: '#92400E', fontSize: 12, backgroundColor: '#FFFBEB',
                 border: '1px solid #FDE68A', borderRadius: 12, marginBottom: 12 }}>
                 {t('send_shipment.no_open_trip')}
+              </div>
+            )}
+
+            {searched && !searching && canDeliverDirect(requestState) && !navParams?.transportProviderId && (
+              <div onClick={() => { setSelected({ direct: true }); setStep(3); }}
+                style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16, cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  border: isDirectDelivery(selected) ? `2px solid ${B}` : '2px solid transparent' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#EFF6FF', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🛵</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('send_shipment.direct_title')}</div>
+                    <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{t('send_shipment.direct_subtitle')}</div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: OR }}>{t('send_shipment.select_button')}</span>
+                </div>
               </div>
             )}
 
@@ -614,6 +663,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
               Keep this shipment number. Kentexa uses one customer-facing number even after a Parcel is created internally.
             </div>
+            {confirmed.direct && (
+              <div style={{ backgroundColor: confirmed.pickupRequested ? '#ECFDF5' : '#FFFBEB', borderRadius: 12, padding: 12,
+                margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5,
+                color: confirmed.pickupRequested ? '#065F46' : '#92400E' }}>
+                {confirmed.pickupRequested ? t('send_shipment.direct_pickup_requested') : t('send_shipment.direct_pickup_not_requested')}
+              </div>
+            )}
             {quote?.totalAmount != null && (
               <div style={{ backgroundColor:'#EFF6FF', borderRadius:12, padding:12, margin:'0 auto 18px', maxWidth:300, color:'#1E3A8A', fontSize:13 }}>
                 <strong>TZS {fmt(quote.totalAmount)}</strong><br/>Transport price confirmed

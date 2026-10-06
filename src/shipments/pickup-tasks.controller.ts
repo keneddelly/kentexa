@@ -1,4 +1,4 @@
-import { Body, Controller, Param, ParseIntPipe, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Request, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { RoleContextGuard } from '../role-context/role-context.guard';
 import { ActiveRoleGuard } from '../role-context/active-role.guard';
@@ -53,6 +53,41 @@ export class PickupTasksController {
   @RequireActiveRole(AccountRoleType.SUPER_AGENT)
   hubReceive(@Request() req, @Param('id', ParseIntPipe) id: number, @CurrentRoleContext() role: RoleContext) {
     return this.tasks.hubReceive(id, req.user.id, role);
+  }
+
+  // ── Gate 4: the Agent's queue, the sender's view, and direct delivery ──
+  @Get('pickup-tasks/available')
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  available(@Request() req, @CurrentRoleContext() role: RoleContext) {
+    return this.tasks.listAvailable(req.user.id, role);
+  }
+
+  @Get('pickup-tasks/mine')
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  mine(@Request() req, @CurrentRoleContext() role: RoleContext) {
+    return this.tasks.listMine(req.user.id, role);
+  }
+
+  @Get('shipments/:id/pickup-task')
+  forShipment(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.tasks.getForShipment(req.user.id, id);
+  }
+
+  @Post('pickup-tasks/:id/delivery-code')
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  issueDeliveryCode(@Request() req, @Param('id', ParseIntPipe) id: number, @CurrentRoleContext() role: RoleContext) {
+    return this.tasks.issueDeliveryCode(id, req.user.id, role);
+  }
+
+  @Post('pickup-tasks/:id/deliver')
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.AGENT)
+  deliver(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() body: { code: string },
+    @CurrentRoleContext() role: RoleContext) {
+    return this.tasks.deliver(id, req.user.id, role, body?.code);
   }
 
   @Post('pickup-tasks/:id/claim')

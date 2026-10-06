@@ -74,6 +74,35 @@ export const selectJourneyBody = (state, selected, now = new Date()) => ({
   providerId: positiveNumber(state.transportProviderId),
 });
 
+// Direct Agent delivery (Gate 4): an Agent collects from the sender and
+// delivers to the recipient, with no hub and no transporter. Offered only
+// when both places were selected and are in the same region -- the server
+// enforces the same rule.
+export const canDeliverDirect = (state) => {
+  const a = state?.originResolved?.regionName;
+  const b = state?.destinationResolved?.regionName;
+  return Boolean(state?.originResolved?.placeRef && state?.destinationResolved?.placeRef && a && b &&
+    String(a).trim().toLowerCase() === String(b).trim().toLowerCase());
+};
+export const isDirectDelivery = (selected) => Boolean(selected && selected.direct === true);
+
+// POST /transport/journeys/select-direct -- two places and the cargo; the
+// server writes every leg.
+export const directJourneyBody = (state, now = new Date()) => ({
+  origin: journeySide(state.originResolved, state.origin),
+  destination: journeySide(state.destinationResolved, state.destination),
+  cargoRequirements: cargoRequirements(state, now),
+});
+
+// POST /shipments/:id/pickup-task -- ask for an Agent to come. requestKey is
+// a UUID the form generates once per attempt, so a retry cannot create two jobs.
+export const pickupTaskBody = (state, servicePath, requestKey) => ({
+  requestKey,
+  servicePath,
+  pickupContactName: (state.senderName || '').trim(),
+  pickupContactPhone: (state.senderPhone || '').trim(),
+});
+
 // POST /transport/quotes -- origin/destination and the trip are NOT sent: a
 // Journey-backed quote takes them from the Journey the server stored.
 export const quoteBody = (journeySelection, selected, state) => ({
@@ -83,8 +112,10 @@ export const quoteBody = (journeySelection, selected, state) => ({
   weightKg: Number(state.weightKg) || 0,
 });
 
-// POST /shipments
-export const shipmentBody = (state, selected, acceptedQuote) => ({
+// POST /shipments. A Journey with a transport leg is bound through its
+// accepted quote (quoteId); a Journey with none -- direct Agent delivery --
+// has nothing to quote and is bound by journeySelectionId.
+export const shipmentBody = (state, selected, acceptedQuote, directJourney = null) => ({
   senderName: (state.senderName || '').trim() || undefined,
   senderPhone: (state.senderPhone || '').trim() || undefined,
   receiverName: (state.receiverName || '').trim(),
@@ -96,8 +127,9 @@ export const shipmentBody = (state, selected, acceptedQuote) => ({
   itemDescription: (state.itemDescription || '').trim(),
   weightKg: Number(state.weightKg) || 0,
   quoteId: acceptedQuote?.id || undefined,
-  routeId: acceptedQuote ? undefined : (selected?.routeId || undefined),
-  providerId: acceptedQuote ? undefined : (selected?.providerId || undefined),
+  journeySelectionId: !acceptedQuote && directJourney?.id ? directJourney.id : undefined,
+  routeId: acceptedQuote || directJourney ? undefined : (selected?.routeId || undefined),
+  providerId: acceptedQuote || directJourney ? undefined : (selected?.providerId || undefined),
   pickupOption: state.pickupOption,
   deliveryOption: state.deliveryOption,
 });
