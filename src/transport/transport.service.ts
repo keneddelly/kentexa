@@ -621,6 +621,39 @@ export class TransportService {
         })
       : [];
 
+    // Stage 3S public identity: a Transport Provider profile should reflect
+    // the physical execution model (Routes -> immutable Run stop snapshots),
+    // not only the older sellable ProviderAvailability slots. Keep the
+    // availability list below as a compatibility/booking surface while
+    // exposing real upcoming Runs as the operational source of truth.
+    const now = new Date();
+    const upcomingRuns = isVerified
+      ? await this.dataSource.query(
+          `SELECT tr.id, tr."routeId", tr."vehicleId", tr."scheduledDeparture", tr.status,
+                  COALESCE(
+                    json_agg(
+                      json_build_object(
+                        'sequence', trs.sequence,
+                        'locationLabel', trs."locationLabel",
+                        'loadingAllowed', trs."loadingAllowed",
+                        'unloadingAllowed', trs."unloadingAllowed",
+                        'customerCollectionAllowed', trs."customerCollectionAllowed"
+                      ) ORDER BY trs.sequence
+                    ) FILTER (WHERE trs.id IS NOT NULL),
+                    '[]'::json
+                  ) AS stops
+             FROM public.transport_run tr
+             LEFT JOIN public.transport_run_stop trs ON trs."runId" = tr.id
+            WHERE tr."providerId" = $1
+              AND tr.status IN ('scheduled','open','closed')
+              AND tr."scheduledDeparture" >= $2
+            GROUP BY tr.id
+            ORDER BY tr."scheduledDeparture" ASC
+            LIMIT 20`,
+          [p.id, now],
+        )
+      : [];
+
     // Real upcoming departures, not just static route coverage — a visitor
     // should see WHEN the next trip actually leaves, per the spec's "never
     // hardcode route information into the profile UI" instruction. Same
@@ -650,7 +683,30 @@ export class TransportService {
       whatsappPhone: p.whatsappPhone,
       cities: p.cities,
       rating: Number(p.rating),
+      totalRatings: p.totalRatings,
       completedAssignments: p.completedAssignments,
+      // Safe verification signal: visitors learn that Kentexa approved the
+      // provider without exposing registration numbers, licence files,
+      // admin notes or any other sensitive verification material.
+      verification: {
+        providerVerified: isVerified,
+        verifiedAt: isVerified ? p.verifiedAt : null,
+      },
+      // Coverage is derived from canonical active routes/stops. The legacy
+      // free-text provider.cities field remains in the response above only
+      // for backwards compatibility and is not the public authority.
+      coverage: Array.from(new Set(routes.flatMap((r: any) => [
+        r.originCity, r.destinationCity, r.coverageCity,
+        ...(r.transitCities || []), ...(r.loopStops || []), ...(r.coverageWards || []),
+      ]).filter(Boolean))),
+      upcomingRuns: upcomingRuns.map((r: any) => ({
+        id: Number(r.id),
+        routeId: Number(r.routeId),
+        vehicleId: r.vehicleId == null ? null : Number(r.vehicleId),
+        scheduledDeparture: r.scheduledDeparture,
+        status: r.status,
+        stops: Array.isArray(r.stops) ? r.stops : [],
+      })),
       routes: routes.map((r) => ({
         id: r.id,
         routeType: r.routeType,
