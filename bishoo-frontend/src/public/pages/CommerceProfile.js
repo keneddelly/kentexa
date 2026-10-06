@@ -211,6 +211,7 @@ const tabs = (profileType, isOwn, t) => {
       { key:'transport', label:t('commerce_profile.tab_routes') },
       { key:'feed',       label:t('commerce_profile.tab_posts') },
       { key:'reviews',   label:t('commerce_profile.tab_reviews') },
+      { key:'about',     label:t('commerce_profile.tab_about') },
     ];
   }
   // Personal — About + (own-only) their own listing grid/quick services,
@@ -755,6 +756,43 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             tab (deliveries completed, parcels handled, etc.). Followers
             and Reputation (account-level trust) are the only two that
             genuinely apply to every type. */}
+        {isTransportProfile && publicTransportData && (
+          <div style={{ margin:'12px 0 10px' }}>
+            <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:10 }}>
+              <span style={{ fontSize:12, fontWeight:800, color: publicTransportData.isVerified ? '#166534' : '#B45309',
+                backgroundColor: publicTransportData.isVerified ? '#DCFCE7' : '#FEF3C7',
+                borderRadius:100, padding:'6px 10px' }}>
+                {publicTransportData.isVerified ? '✓ Verified transporter' : 'Verification pending'}
+              </span>
+              <span style={{ fontSize:12, fontWeight:800, color:DK, backgroundColor:'#F1F5F9',
+                borderRadius:100, padding:'6px 10px', textTransform:'capitalize' }}>
+                {PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'} {publicTransportData.type}
+              </span>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:12 }}>
+              <div style={{ background:'#F8FAFC', borderRadius:12, padding:'10px 8px', textAlign:'center' }}>
+                <div style={{ fontSize:17, fontWeight:900, color:DK }}>{fmtM(publicTransportData.completedAssignments||0)}</div>
+                <div style={{ fontSize:10, color:GR, fontWeight:700 }}>Deliveries</div>
+              </div>
+              <div style={{ background:'#F8FAFC', borderRadius:12, padding:'10px 8px', textAlign:'center' }}>
+                <div style={{ fontSize:17, fontWeight:900, color:DK }}>⭐ {Number(publicTransportData.rating||0).toFixed(1)}</div>
+                <div style={{ fontSize:10, color:GR, fontWeight:700 }}>{fmtM(publicTransportData.totalRatings||0)} ratings</div>
+              </div>
+              <div style={{ background:'#F8FAFC', borderRadius:12, padding:'10px 8px', textAlign:'center' }}>
+                <div style={{ fontSize:17, fontWeight:900, color:DK }}>{fmtM(publicTransportData.routes?.length||0)}</div>
+                <div style={{ fontSize:10, color:GR, fontWeight:700 }}>Routes</div>
+              </div>
+            </div>
+            {!isOwnProfile && (
+              <button onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin')}
+                style={{ width:'100%', backgroundColor:B, color:WH, border:'none', borderRadius:12,
+                  padding:'13px 16px', cursor:'pointer', fontSize:15, fontWeight:900 }}>
+                📦 Tuma Mzigo
+              </button>
+            )}
+          </div>
+        )}
+
         <div style={{ display:'flex', borderTop:'1px solid #f1f5f9',
           marginTop:8 }}>
           {isBusinessProfile && (
@@ -1309,10 +1347,47 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                   )}
                 </div>
 
-                {/* Real upcoming departures — when the next trip actually
-                    leaves, not just static coverage. Never hardcoded:
-                    sourced from ProviderAvailability via
-                    GET /transport/public/:userId. */}
+                {/* Canonical Stage 3S physical Runs first. ProviderAvailability
+                    remains below only as the compatible bookable-slot surface. */}
+                {publicTransportData.upcomingRuns?.length > 0 && (
+                  <div style={{ backgroundColor:WH, borderRadius:16, padding:16,
+                    boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:12 }}>
+                    <div style={{ fontSize:12, fontWeight:900, color:DK, marginBottom:10 }}>
+                      🚐 Upcoming Runs
+                    </div>
+                    {publicTransportData.upcomingRuns.map(run => {
+                      const stops = run.stops || [];
+                      const first = stops[0]?.locationLabel;
+                      const last = stops[stops.length - 1]?.locationLabel;
+                      return (
+                        <div key={run.id}
+                          onClick={() => onNavigate('SendShipment', {
+                            origin:first, destination:last, routeId:run.routeId, transportRunId:run.id,
+                          })}
+                          style={{ padding:'12px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                            <span style={{ fontSize:18 }}>{PROVIDER_TYPE_ICON[publicTransportData.type] || '🚚'}</span>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ fontSize:14, fontWeight:900, color:DK }}>
+                                {first && last ? `${first} → ${last}` : `Run #${run.id}`}
+                              </div>
+                              <div style={{ fontSize:11, color:GR, marginTop:2 }}>
+                                {new Date(run.scheduledDeparture).toLocaleString('sw-TZ')} · {run.status}
+                              </div>
+                            </div>
+                            <span style={{ fontSize:11, fontWeight:800, color:B }}>Tuma</span>
+                          </div>
+                          {stops.length > 2 && (
+                            <div style={{ fontSize:11, color:GR, marginTop:7, paddingLeft:26 }}>
+                              Stops: {stops.map(s => s.locationLabel).join(' → ')}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {publicTransportData.upcomingTrips?.length > 0 && (
                   <div style={{ backgroundColor:WH, borderRadius:16, padding:16,
                     boxShadow:'0 2px 8px rgba(0,0,0,0.06)', marginBottom:12 }}>
@@ -1498,6 +1573,12 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
             its own. */}
         {tab==='about' && (() => {
           const facts = [
+            isTransportProfile && publicTransportData?.type &&
+              ['Transport type', publicTransportData.type],
+            isTransportProfile && publicTransportData?.coverage?.length > 0 &&
+              ['Route coverage', publicTransportData.coverage.slice(0,8).join(', ')],
+            isTransportProfile && publicTransportData &&
+              ['Transport verification', publicTransportData.isVerified ? 'Verified by Kentexa' : 'Pending verification'],
             (activeProfile.location || (isBusinessProfile && profile?.businessLocation)) &&
               [t('commerce_profile.about_location'), activeProfile.location || profile.businessLocation],
             (isBusinessProfile && (profile?.storeWhatsApp || profile?.phone)) &&
