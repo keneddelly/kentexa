@@ -67,6 +67,7 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
 
   const [loading, setLoading]   = useState(false);
   const [routeInfo, setRouteInfo] = useState(null);
+  const [transportSupply, setTransportSupply] = useState({ published: [], providers: [] });
   const [error, setError]       = useState('');
   const [result, setResult]     = useState(null);
   const [feePaid, setFeePaid]   = useState(false);
@@ -84,9 +85,13 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
   const set = (key, value) => {
     setForm(f => ({ ...f, [key]: value }));
     if (key === 'destinationCity' && value) {
-      api.get(`/super-agents/route/${encodeURIComponent(agentCity || 'Dar es Salaam')}/${encodeURIComponent(value)}`)
-        .then(res => setRouteInfo(res.data))
-        .catch(() => setRouteInfo(null));
+      Promise.all([
+        api.get(`/super-agents/route/${encodeURIComponent(agentCity || 'Dar es Salaam')}/${encodeURIComponent(value)}`).catch(() => ({ data: null })),
+        api.get(`/transport/available?from=${encodeURIComponent(agentCity || 'Dar es Salaam')}&to=${encodeURIComponent(value)}`).catch(() => ({ data: { published: [], providers: [] } })),
+      ]).then(([routeRes, transportRes]) => {
+        setRouteInfo(routeRes.data || null);
+        setTransportSupply(transportRes.data || { published: [], providers: [] });
+      });
     }
   };
 
@@ -334,7 +339,9 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
               value={recipientLocation}
               onChange={loc => {
                 setRecipientLocation(loc);
-                setForm(f => ({ ...f, destinationCity: loc.districtName || loc.regionName || '' }));
+                const city = loc.districtName || loc.regionName || '';
+                setForm(f => ({ ...f, destinationCity: city }));
+                if (city) set('destinationCity', city);
               }}
               required
             />
@@ -369,7 +376,14 @@ const SuperAgentParcel = ({ onNavigate, isLoggedIn, currentUser, onLogout, userR
               )}
             </div>
           )}
-          {form.destinationCity && !routeInfo && (
+          {form.destinationCity && (transportSupply.published.length > 0 || transportSupply.providers.length > 0) && (
+            <div style={{ backgroundColor: '#eff6ff', borderRadius: 10, padding: '10px 14px', marginBottom: 14, border: '1px solid #bfdbfe', fontSize: 12, color: '#1d4ed8' }}>
+              🚚 {transportSupply.published.length > 0
+                ? `${transportSupply.published.length} trip(s) available for ${agentCity || 'Dar es Salaam'} → ${form.destinationCity}`
+                : `${transportSupply.providers.length} verified transport provider(s) cover this route`}
+            </div>
+          )}
+          {form.destinationCity && !routeInfo && transportSupply.published.length === 0 && transportSupply.providers.length === 0 && (
             <div style={{ backgroundColor: '#fef9c3', borderRadius: 8, padding: '8px 12px', marginBottom: 14, fontSize: 11, color: '#92400e' }}>
               {t('super_agent_parcel.no_route_warning', { city: form.destinationCity })}
             </div>
