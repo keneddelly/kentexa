@@ -34,6 +34,7 @@ export class ShipmentsController {
     @Query('originPlace') originPlace?: string,
     @Query('destinationPlace') destinationPlace?: string,
     @Query('weightKg') weightKg?: string,
+    @Query('providerId') providerId?: string,
   ) {
     // Per side: a selected place reference (`<providerKey>:<providerPlaceId>`,
     // split only at the FIRST ':') wins over legacy text; either may be used
@@ -54,6 +55,7 @@ export class ShipmentsController {
       side('origin', originPlace, origin),
       side('destination', destinationPlace, destination),
       weightKg ? Number(weightKg) : 0,
+      providerId ? Number(providerId) : undefined,
     );
   }
 
