@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
-import { ShipmentsService, ConfirmShipmentDto } from './shipments.service';
+import { ShipmentsService } from './shipments.service';
+import type { ConfirmShipmentDto } from './shipments.service';
 import { PickupTasksService } from './pickup-tasks.service';
 import { ShipmentHandoffOption } from './entities/shipment.entity';
 
