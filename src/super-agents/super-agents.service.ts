@@ -749,7 +749,7 @@ export class SuperAgentsService {
       superAgent: superAgent,
       destinationSuperAgent: destAgent || null,
       transportMethod: servicePath,
-      originCity:
+      originCity,
       destinationCity,
       transitCity,
       expectedArrival: expectedArrivalStr,
