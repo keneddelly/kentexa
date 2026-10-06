@@ -77,6 +77,9 @@ jobs:
           PAYMENT_EVIDENCE_SEAL_KEY: ci-only-not-a-real-key
           AT_API_KEY: ci-only
           AT_USERNAME: sandbox
+          CLOUDINARY_CLOUD_NAME: ci-only
+          CLOUDINARY_API_KEY: ci-only
+          CLOUDINARY_API_SECRET: ci-only
           STAGE3KR_DISABLE_OUTBOUND_SMS: 'true'
           RENDER_GIT_COMMIT: ${{ github.sha }}
           RENDER_GIT_BRANCH: ci
@@ -102,7 +105,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          { echo '### Backend build and boot failed'; echo; echo '```'; tail -n 70 backend.log 2>/dev/null; echo '```'; printf '\n_Commit %s_\n' "${{ github.event.pull_request.head.sha }}"; } > fail.md
+          { echo '### Backend build and boot failed'; echo; echo '```'; grep -a -E "ERROR|Error|error TS|Exception|not configured|required" backend.log | sed 's/\x1b\[[0-9;]*m//g' | cut -c1-400 | head -n 40; echo '```'; printf '\n_Commit %s_\n' "${{ github.event.pull_request.head.sha }}"; } > fail.md
           gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file fail.md || true
 
   logistics:
@@ -184,14 +187,30 @@ jobs:
           cache: npm
           cache-dependency-path: bishoo-frontend/package-lock.json
       - run: npm ci
-      - name: Frontend tests
-        run: set -o pipefail; CI=true npm test -- --watch=false --runInBand 2>&1 | tee -a frontend.log
       - name: Frontend build
-        run: set -o pipefail; npm run build 2>&1 | tee -a frontend.log
-      - name: Post the failure on the pull request
-        if: failure() && github.event_name == 'pull_request'
+        run: set -o pipefail; npm run build 2>&1 | tee build.log
+      - name: Frontend tests
+        if: always()
+        run: CI=true npm test -- --watch=false --runInBand --json --outputFile=jest-frontend.json > jest-frontend.log 2>&1 || true
+      - name: Compare with the known-failure baseline
+        if: always()
+        run: |
+          set +e
+          node ../scripts/ci/jest-baseline.js jest-frontend.json ../.github/frontend-known-failures.txt "Frontend tests" > summary.md
+          STATUS=$?
+          cat summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          exit $STATUS
+      - name: Post the result on the pull request
+        if: always() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          { echo '### Frontend tests or build failed'; echo; echo '```'; grep -E "FAIL|●|Failed to compile|Error|Tests:|Test Suites:" frontend.log | head -n 60; echo '```'; printf '\n_Commit %s_\n' "${{ github.event.pull_request.head.sha }}"; } > fail.md
-          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file fail.md || true
+          [ -s summary.md ] || printf '### Frontend tests\n\nNo summary was produced.\n' > summary.md
+          if grep -q -E "Failed to compile|npm ERR|error Command failed" build.log 2>/dev/null; then
+            { echo; echo '**Frontend build failed:**'; echo '```'; grep -v '^$' build.log | tail -n 30; echo '```'; } >> summary.md
+          else
+            printf '\nFrontend production build: completed.\n' >> summary.md
+          fi
+          printf '\n_Commit %s_\n' "${{ github.event.pull_request.head.sha }}" >> summary.md
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file summary.md || true

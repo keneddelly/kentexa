@@ -2,7 +2,7 @@
 /**
  * Ratchet for a test suite that already has known failures.
  *
- * Usage: node scripts/ci/jest-baseline.js <jest-json-output> <baseline-file>
+ * Usage: node scripts/ci/jest-baseline.js <jest-json-output> <baseline-file> [title]
  *
  * The logistics suites had pre-existing failing spec files before the
  * repair mission started. Requiring "everything green" would make the
@@ -16,13 +16,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const [, , jsonPath, baselinePath] = process.argv;
+const [, , jsonPath, baselinePath, titleArg] = process.argv;
+const title = titleArg || 'Logistics tests';
 if (!jsonPath || !baselinePath) {
   console.error('usage: jest-baseline.js <jest.json> <baseline.txt>');
   process.exit(2);
 }
 if (!fs.existsSync(jsonPath)) {
-  console.log('### Logistics tests\n\nJest produced no result file — the run crashed before reporting.');
+  console.log(`### ${title}\n\nJest produced no result file — the run crashed before reporting.`);
   process.exit(1);
 }
 const report = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
@@ -51,7 +52,7 @@ const knownFailures = failed.filter((f) => baseline.has(f.name));
 const fixed = passed.filter((p) => baseline.has(p));
 
 const lines = [];
-lines.push('### Logistics tests');
+lines.push(`### ${title}`);
 lines.push('');
 lines.push(`Suites: ${report.numPassedTestSuites} passed, ${report.numFailedTestSuites} failed, ${report.numPendingTestSuites || 0} skipped. ` +
   `Tests: ${report.numPassedTests} passed, ${report.numFailedTests} failed, ${report.numPendingTests || 0} skipped.`);
