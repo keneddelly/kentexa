@@ -154,7 +154,15 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     await ds.query(`CREATE TABLE public.parcel (
       id SERIAL PRIMARY KEY, "trackingNumber" varchar, "originCity" varchar, "destinationCity" varchar,
       status varchar DEFAULT 'pending', "destinationSuperAgentId" integer, "arrivedAtHubTime" timestamp,
-      "weightKg" decimal(8,2)
+      "weightKg" decimal(8,2), "journeySelectionId" integer NULL, "shipmentId" integer NULL
+    )`);
+    await ds.query(`CREATE TABLE public.journey_selection (
+      id integer PRIMARY KEY, status varchar(24) NOT NULL
+    )`);
+    await ds.query(`CREATE TABLE public.journey_leg (
+      id serial PRIMARY KEY, "journeySelectionId" integer NOT NULL, sequence integer NOT NULL,
+      type varchar(24) NOT NULL, "providerId" integer, "routeId" integer, "runId" integer,
+      "loadRouteStopId" integer, "unloadRouteStopId" integer
     )`);
     // Stage 3S-C8: markLoaded/markUnloaded/confirmReceipt now also write a
     // ParcelTracking row -- a bare stand-in table for the same reason as
@@ -204,6 +212,8 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
     await ds.query(`DELETE FROM public.transport_provider`);
     await ds.query(`DELETE FROM public.parcel_tracking`);
     await ds.query(`DELETE FROM public.parcel`);
+    await ds.query(`DELETE FROM public.journey_leg`);
+    await ds.query(`DELETE FROM public.journey_selection`);
     await ds.query(`DELETE FROM public.super_agent`);
   });
 
@@ -237,6 +247,41 @@ suite('Stage 3S-C3 — parcel run assignment and multi-stop movement, real Postg
 
     const all = await assignmentService.getAssignmentsForRun(run.id);
     expect(all.map((a) => a.id).sort()).toEqual([a1.id, a2.id, a3.id].sort());
+  });
+
+  it('L5 rejects a provider/run that is not authorized by the committed Journey transport leg', async () => {
+    const selected = await mkProviderWithUser();
+    const stranger = await mkProviderWithUser();
+    const selectedPilot = await mkPilotRun(selected.userId, selected.provider.id);
+    const strangerPilot = await mkPilotRun(stranger.userId, stranger.provider.id);
+    const parcel = await mkParcel();
+    await ds.query(`INSERT INTO public.journey_selection (id,status) VALUES (501,'committed')`);
+    await ds.query(`INSERT INTO public.journey_leg
+      ("journeySelectionId",sequence,type,"providerId","routeId","runId")
+      VALUES (501,1,'transport',$1,$2,$3)`,
+      [selected.provider.id, selectedPilot.run.routeId, selectedPilot.run.id]);
+    await ds.query(`UPDATE public.parcel SET "journeySelectionId"=501 WHERE id=$1`, [parcel.id]);
+
+    await expect(assignmentService.createAssignment(stranger.userId, {
+      runId: strangerPilot.run.id, parcelId: parcel.id,
+      loadRunStopId: strangerPilot.stops.mbagala.id, unloadRunStopId: strangerPilot.stops.bunju.id,
+    })).rejects.toThrow(ForbiddenException);
+  });
+
+  it('L5 accepts the provider/run frozen by the committed Journey transport leg', async () => {
+    const selected = await mkProviderWithUser();
+    const { run, stops } = await mkPilotRun(selected.userId, selected.provider.id);
+    const parcel = await mkParcel();
+    await ds.query(`INSERT INTO public.journey_selection (id,status) VALUES (502,'committed')`);
+    await ds.query(`INSERT INTO public.journey_leg
+      ("journeySelectionId",sequence,type,"providerId","routeId","runId")
+      VALUES (502,1,'transport',$1,$2,$3)`, [selected.provider.id, run.routeId, run.id]);
+    await ds.query(`UPDATE public.parcel SET "journeySelectionId"=502 WHERE id=$1`, [parcel.id]);
+
+    const assignment = await assignmentService.createAssignment(selected.userId, {
+      runId: run.id, parcelId: parcel.id, loadRunStopId: stops.mbagala.id, unloadRunStopId: stops.bunju.id,
+    });
+    expect(assignment.runId).toBe(run.id);
   });
 
   // ── ordering invariant ─────────────────────────────────────────────────────
