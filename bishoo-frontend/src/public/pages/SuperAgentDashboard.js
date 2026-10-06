@@ -273,7 +273,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   });
   const [walkRoute, setWalkRoute]       = useState(null);
   const [walkDestText, setWalkDestText] = useState('');
-  const [walkDestLocation, setWalkDestLocation] = useState(null);
   const [walkPriceEstimate, setWalkPriceEstimate] = useState(null);
   const [walkHubs, setWalkHubs] = useState([]);
   const [walkHubsLoading, setWalkHubsLoading] = useState(false);
@@ -1326,7 +1325,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         value={walkDestText}
                         onTextChange={text => { setWalkDestText(text); setWalkDestinationHubId(''); setWalkHubs([]); }}
                         onResolved={async loc => {
-                          setWalkDestLocation(loc);
                           if (!loc) return;
                           const cityStr = loc.regionName || loc.districtName || '';
                           setWalkForm(p => ({ ...p, destinationCity: cityStr, deliveryAddress: loc.displayLabel || p.deliveryAddress }));
