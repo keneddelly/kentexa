@@ -204,8 +204,10 @@ suite('Gates 1-2 — booking contract on Transport Runs, real PostgreSQL', () =>
     const providers = ds.getRepository(TransportProvider);
     const routes = ds.getRepository(TransportRoute);
     const slots = ds.getRepository(ProviderAvailability);
-    const args: any[] = new Array(15).fill({});
-    args[0] = providers; args[1] = routes; args[2] = slots; args[14] = ds;
+    // Positional, as the constructor declares them: repositories 0-2, the
+    // DataSource last (index 15). Everything between is unused here.
+    const args: any[] = new Array(16).fill({});
+    args[0] = providers; args[1] = routes; args[2] = slots; args[15] = ds;
     transport = new (TransportService as any)(...args);
     runService = new TransportRunService(
       ds.getRepository(RouteStop), routes, ds.getRepository(TransportRun), ds.getRepository(TransportRunStop),
