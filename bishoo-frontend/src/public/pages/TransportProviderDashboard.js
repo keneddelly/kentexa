@@ -85,10 +85,8 @@ const CityInput = ({ label, value, onChange, placeholder }) => {
 const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) => {
   const { t } = useTranslation();
   const STATUS_STYLE = getStatusStyle(t);
-  const AVAIL_STATUS = getAvailStatus(t);
   const [profile,       setProfile]       = useState(null);
   const [routes,        setRoutes]        = useState([]);
-  const [availability,  setAvailability]  = useState([]);
   const [assignments,   setAssignments]   = useState([]);
   const [vanRuns,       setVanRuns]       = useState([]);
   const [runManifest,   setRunManifest]   = useState({});
@@ -105,14 +103,6 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const [vehicleForm,   setVehicleForm]   = useState({ identifier:'', registrationPlate:'', type:'van', parcelCapacity:'', weightCapacityKg:'' });
   const [loading,       setLoading]       = useState(true);
   const [tab,           setTab]           = useState('home');
-  const [showAvailForm, setShowAvailForm] = useState(false);
-  const [availForm,     setAvailForm]     = useState({
-    routeId: '', date: new Date().toISOString().slice(0,10),
-    departureTime: '', arrivalEstimate: '', bookingDeadline: '',
-    totalSlots: '20', totalCapacityKg: '200',
-    fromCity: '', toCity: '', notes: '',
-  });
-  const [savingAvail, setSavingAvail] = useState(false);
   const [showRouteForm, setShowRouteForm] = useState(false);
   const [routeForm,     setRouteForm]     = useState({
     routeType: 'intercity',
@@ -127,10 +117,9 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [pRes, rRes, aRes, asRes, runRes, tenderRes, vehicleRes] = await Promise.all([
+      const [pRes, rRes, asRes, runRes, tenderRes, vehicleRes] = await Promise.all([
         api.get('/transport/my-profile'),
         api.get('/transport/routes'),
-        api.get('/transport/availability'),
         api.get('/transport/assignments'),
         api.get('/van-pilot/runs').catch(() => ({ data: [] })),
         api.get('/van-pilot/movement-tenders/open').catch(() => ({ data: [] })),
@@ -138,7 +127,6 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       ]);
       setProfile(pRes.data);
       setRoutes(rRes.data || []);
-      setAvailability(aRes.data || []);
       setAssignments(asRes.data || []);
       setVanRuns(runRes.data || []);
       setVanTenders(tenderRes.data || []);
@@ -147,22 +135,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     finally { setLoading(false); }
   };
 
-  const handlePublishAvailability = async () => {
-    try {
-      setSavingAvail(true);
-      await api.post('/transport/availability', {
-        ...availForm,
-        routeId:         availForm.routeId ? Number(availForm.routeId) : undefined,
-        totalSlots:      Number(availForm.totalSlots),
-        totalCapacityKg: Number(availForm.totalCapacityKg),
-      });
-      setShowAvailForm(false);
-      fetchAll();
-    } catch (e) { alert(e.response?.data?.message || t('transport_provider_dashboard.publish_error')); }
-    finally { setSavingAvail(false); }
-  };
-
-  // Previously there was no way to add a route at all — the Routes tab
+  // Dated transport supply is represented canonically by Transport Runs.\n  // Legacy /transport/availability publishing is intentionally retired from this UI.\n\n  // Previously there was no way to add a route at all — the Routes tab
   // only ever listed rows a route had to already exist to show, and the
   // "Add Route" button elsewhere in the app just linked back to
   // registration. POST /transport/routes has always existed server-side;
@@ -267,7 +240,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       setRunBusy('create');
       await api.post('/van-pilot/runs', { routeId:Number(runForm.routeId), scheduledDeparture:runForm.scheduledDeparture });
       setShowRunForm(false); setRunForm({ routeId:'', scheduledDeparture:'' }); await fetchAll();
-    } catch(e) { alert(e.response?.data?.message || 'Could not create Van Run'); }
+    } catch(e) { alert(e.response?.data?.message || 'Could not create Transport Run'); }
     finally { setRunBusy(null); }
   };
 
@@ -315,7 +288,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       await api.patch(`/van-pilot/runs/${runId}/${action}`);
       await fetchAll();
       await loadManifest(runId);
-    } catch (e) { alert(e.response?.data?.message || 'Van Run action failed'); }
+    } catch (e) { alert(e.response?.data?.message || 'Transport Run action failed'); }
     finally { setRunBusy(null); }
   };
 
@@ -473,10 +446,9 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
           padding: 4, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
           {[
             { key: 'home',         label: t('transport_provider_dashboard.tab_home') },
-            { key: 'availability', label: t('transport_provider_dashboard.tab_availability') },
             { key: 'assignments',  label: `${t('transport_provider_dashboard.tab_assignments')}${assignments.length > 0 ? ` (${assignments.length})` : ''}` },
             { key: 'routes',       label: t('transport_provider_dashboard.tab_routes') },
-            { key: 'van',          label: `Van Runs${vanRuns.length ? ` (${vanRuns.length})` : ''}` },
+            { key: 'van',          label: `Runs${vanRuns.length ? ` (${vanRuns.length})` : ''}` },
           ].map(tabItem => (
             <button key={tabItem.key} onClick={() => setTab(tabItem.key)}
               style={{ flex: 1, padding: '9px 4px', border: 'none', cursor: 'pointer',
@@ -585,118 +557,6 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
           </div>
         )}
 
-        {/* Availability tab */}
-        {tab === 'availability' && (
-          <div>
-            <button onClick={() => setShowAvailForm(true)}
-              style={{ width: '100%', background: 'linear-gradient(135deg,#16a34a,#15803d)',
-                color: '#fff', border: 'none', borderRadius: 12, padding: '14px 0',
-                fontSize: 14, fontWeight: 800, cursor: 'pointer', marginBottom: 16 }}>
-              {t('transport_provider_dashboard.publish_today_button')}
-            </button>
-
-            {showAvailForm && (
-              <div style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20,
-                marginBottom: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b', marginBottom: 16 }}>
-                  {t('transport_provider_dashboard.new_trip_title')}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_date')}</label>
-                    <input type="date" style={inp} value={availForm.date}
-                      onChange={e => setAvailForm(p => ({ ...p, date: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_departure_time')}</label>
-                    <input type="time" style={inp} value={availForm.departureTime}
-                      onChange={e => setAvailForm(p => ({ ...p, departureTime: e.target.value }))} />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_from')}</label>
-                    <input style={inp} value={availForm.fromCity} placeholder="Dar es Salaam"
-                      onChange={e => setAvailForm(p => ({ ...p, fromCity: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_to')}</label>
-                    <input style={inp} value={availForm.toCity} placeholder="Mbeya"
-                      onChange={e => setAvailForm(p => ({ ...p, toCity: e.target.value }))} />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_slots')}</label>
-                    <input type="number" style={inp} value={availForm.totalSlots}
-                      onChange={e => setAvailForm(p => ({ ...p, totalSlots: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_max_weight')}</label>
-                    <input type="number" style={inp} value={availForm.totalCapacityKg}
-                      onChange={e => setAvailForm(p => ({ ...p, totalCapacityKg: e.target.value }))} />
-                  </div>
-                </div>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_notes')}</label>
-                  <input style={inp} value={availForm.notes} placeholder={t('transport_provider_dashboard.notes_placeholder')}
-                    onChange={e => setAvailForm(p => ({ ...p, notes: e.target.value }))} />
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => setShowAvailForm(false)}
-                    style={{ flex: 1, backgroundColor: '#f1f5f9', color: '#64748b', border: 'none',
-                      borderRadius: 8, padding: '10px 0', cursor: 'pointer', fontWeight: 700 }}>
-                    {t('transport_provider_dashboard.close_button')}
-                  </button>
-                  <button onClick={handlePublishAvailability} disabled={savingAvail}
-                    style={{ flex: 2, backgroundColor: '#16a34a', color: '#fff', border: 'none',
-                      borderRadius: 8, padding: '10px 0', cursor: 'pointer', fontWeight: 800 }}>
-                    {savingAvail ? t('transport_provider_dashboard.publishing_button') : t('transport_provider_dashboard.publish_button')}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {availability.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 40, backgroundColor: '#fff', borderRadius: 14, color: '#94a3b8' }}>
-                {t('transport_provider_dashboard.no_availability_yet')}
-              </div>
-            ) : availability.map(a => {
-              const sc = AVAIL_STATUS[a.status] || AVAIL_STATUS.open;
-              const slotsLeft = a.totalSlots - a.usedSlots;
-              return (
-                <div key={a.id} style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
-                  marginBottom: 10, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>
-                        {a.fromCity || a.route?.originCity} → {a.toCity || a.route?.destinationCity}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
-                        📅 {a.date} {a.departureTime && `· ${a.departureTime}`}
-                      </div>
-                      <div style={{ fontSize: 12, color: slotsLeft > 0 ? '#16a34a' : '#dc2626', marginTop: 2 }}>
-                        {slotsLeft > 0 ? t('transport_provider_dashboard.slots_left', { count: slotsLeft }) : t('transport_provider_dashboard.slots_full')}
-                        {a.totalCapacityKg > 0 && ` · ${a.totalCapacityKg - a.usedCapacityKg}kg`}
-                      </div>
-                    </div>
-                    <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 100,
-                      backgroundColor: sc.bg, color: sc.text, fontWeight: 700 }}>
-                      {sc.label}
-                    </span>
-                  </div>
-                  {a.notes && (
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 6,
-                      backgroundColor: '#f8fafc', borderRadius: 6, padding: '4px 8px' }}>
-                      "{a.notes}"
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
         {/* Assignments tab */}
         {tab === 'assignments' && (
           <div>
@@ -771,7 +631,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
             </div>}
             {vanRuns.length === 0 ? (
               <div style={{ textAlign:'center', padding:40, backgroundColor:'#fff', borderRadius:14, color:'#64748b' }}>
-                No Van Runs yet. Create a Run from a configured local-loop route when the vehicle is scheduled.
+                No Transport Runs yet. Create a Run from a configured local-loop route when the vehicle is scheduled.
               </div>
             ) : vanRuns.map(run => {
               const manifest = runManifest[run.id];
@@ -781,7 +641,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                 <div key={run.id} style={{ backgroundColor:'#fff', borderRadius:14, padding:16, marginBottom:12, boxShadow:'0 2px 8px rgba(0,0,0,0.06)' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', gap:10, marginBottom:8 }}>
                     <div>
-                      <div style={{ fontSize:15, fontWeight:900 }}>Van Run #{run.id}</div>
+                      <div style={{ fontSize:15, fontWeight:900 }}>Transport Run #{run.id}</div>
                       <div style={{ fontSize:12, color:'#64748b' }}>{new Date(run.scheduledDeparture).toLocaleString()} · Route #{run.routeId}</div>
                     </div>
                     <span style={{ fontSize:11, fontWeight:800, textTransform:'uppercase' }}>{run.status}</span>
