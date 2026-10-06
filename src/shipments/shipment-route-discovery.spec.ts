@@ -19,9 +19,11 @@ const BY_REF: Record<string, LocationCandidate> = {
   'tz_seed|ward:56': MBEZI, 'tz_seed|district:3': UBUNGO, 'tz_seed|region:9': MWANZA, 'tz_seed|region:5': KILI, 'tz_seed|ward:900': KIBOSHO, 'tz_seed|ward:77': REGIONLESS,
 };
 
+// Gate 2: a trip is a bookable Transport Run (transport/run-supply.ts BookableRun).
 const trip = (id: number, date = '2026-09-25', time = '08:00') => ({
-  id, providerId: 5, routeId: null, date, departureTime: time, arrivalEstimate: null, totalSlots: 5, usedSlots: 1, totalCapacityKg: 100, usedCapacityKg: 10,
-  provider: { name: 'P' }, route: null,
+  runId: id, providerId: 5, providerName: 'P', providerLogo: null, providerType: 'van', routeId: 9, date, departureTime: time,
+  departureAt: new Date(`${date}T${time}:00+03:00`), loadLabel: 'A', unloadLabel: 'B',
+  slotsAvailable: 4, capacityAvailableKg: 90, pricePerKg: 500, fixedFee: 2000,
 });
 const prov = (id: number, rating = 4) => ({ id, name: `P${id}`, type: 'bus', logoUrl: null, rating, whatsappPhone: null, contactPhone: null });
 
@@ -30,19 +32,19 @@ describe('ShipmentsService.findAvailableRoutesForSides — candidates, never a d
   let li: any;
   let superAgentRepo: any;
   let service: ShipmentsService;
-  let byPair: Record<string, { published: any[]; providers: any[] }>;
+  let byPair: Record<string, { trips: any[]; providers: any[] }>;
 
   beforeEach(() => {
     byPair = {};
     transport = {
-      findAvailableForRoute: jest.fn(async (from: string, to: string) => byPair[`${from}>${to}`] ?? { published: [], providers: [] }),
+      discoverSupply: jest.fn(async (from: string, to: string) => byPair[`${from}>${to}`] ?? { trips: [], providers: [] }),
     };
     li = { resolve: jest.fn(async (ref: any) => BY_REF[`${ref.providerKey}|${ref.providerPlaceId}`] ?? null) };
     superAgentRepo = { findOne: jest.fn(() => { throw new Error('hub lookup must not happen in discovery'); }), find: jest.fn(() => { throw new Error('hub lookup must not happen in discovery'); }) };
     service = new ShipmentsService({} as any, {} as any, {} as any, superAgentRepo, transport, { search: jest.fn() } as any, li);
   });
 
-  const pairs = () => transport.findAvailableForRoute.mock.calls.map((c: any[]) => `${c[0]}>${c[1]}`);
+  const pairs = () => transport.discoverSupply.mock.calls.map((c: any[]) => `${c[0]}>${c[1]}`);
   const place = (providerPlaceId: string, extra: object = {}) => ({ place: { providerKey: 'tz_seed', providerPlaceId, ...extra } });
 
   describe('key expansion matrix (ward / district / region / partial / free text)', () => {
@@ -64,7 +66,7 @@ describe('ShipmentsService.findAvailableRoutesForSides — candidates, never a d
     it('partial selection = the selected resolved place EXACTLY; unmatched locality text contributes zero routing authority', async () => {
       const plain = await service.findAvailableRoutesForSides(place('ward:56'), place('region:9'));
       const firstCalls = pairs();
-      transport.findAvailableForRoute.mockClear();
+      transport.discoverSupply.mockClear();
       const partial = await service.findAvailableRoutesForSides(place('ward:56', { localityText: 'Mwisho', label: 'Mbezi Mwisho' }), place('region:9'));
       expect(pairs()).toEqual(firstCalls);
       expect(JSON.stringify(partial)).not.toContain('Mwisho');
@@ -92,20 +94,20 @@ describe('ShipmentsService.findAvailableRoutesForSides — candidates, never a d
   describe('bounded, deterministic fan-out', () => {
     it('worst case (ward with capital on both sides) is exactly 4x4 = MAX_KEY_PAIRS and never more', async () => {
       await service.findAvailableRoutesForSides(place('ward:900'), place('ward:900'));
-      expect(transport.findAvailableForRoute).toHaveBeenCalledTimes(16);
+      expect(transport.discoverSupply).toHaveBeenCalledTimes(16);
       expect(MAX_KEY_PAIRS).toBe(16);
-      expect(transport.findAvailableForRoute.mock.calls.length).toBeLessThanOrEqual(MAX_KEY_PAIRS);
+      expect(transport.discoverSupply.mock.calls.length).toBeLessThanOrEqual(MAX_KEY_PAIRS);
     });
 
     it('union/dedupe is deterministic: each trip/provider once, matchedOn lists every matching pair in pair order, stable across runs', async () => {
-      byPair['Mbezi>Mwanza'] = { published: [trip(1)], providers: [prov(7)] };
-      byPair['Dar es Salaam>Mwanza'] = { published: [trip(1), trip(2, '2026-09-24')], providers: [prov(7), prov(8, 5)] };
+      byPair['Mbezi>Mwanza'] = { trips: [trip(1)], providers: [prov(7)] };
+      byPair['Dar es Salaam>Mwanza'] = { trips: [trip(1), trip(2, '2026-09-24')], providers: [prov(7), prov(8, 5)] };
       const run = () => service.findAvailableRoutesForSides(place('ward:56'), place('region:9'));
       const a = await run();
       const b = await run();
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-      expect(a.availableTrips.map((t) => t.availabilityId)).toEqual([2, 1]); // date asc then id
-      expect(a.availableTrips.find((t) => t.availabilityId === 1)!.matchedOn.map((m) => `${m.originKind}:${m.originKey}`)).toEqual(['ward:Mbezi', 'region:Dar es Salaam']);
+      expect(a.availableTrips.map((t) => t.runId)).toEqual([2, 1]); // departure asc then id
+      expect(a.availableTrips.find((t) => t.runId === 1)!.matchedOn.map((m) => `${m.originKind}:${m.originKey}`)).toEqual(['ward:Mbezi', 'region:Dar es Salaam']);
       expect(a.providers.map((p) => p.id)).toEqual([8, 7]); // rating desc then id
       expect(a.providers.find((p) => p.id === 7)!.matchedOn).toHaveLength(2);
     });
@@ -114,8 +116,8 @@ describe('ShipmentsService.findAvailableRoutesForSides — candidates, never a d
   describe('0 / 1 / many are all candidate lists — no selection, no inference', () => {
     it.each([
       ['0', {}, 0],
-      ['1', { 'Mbezi>Mwanza': { published: [trip(1)], providers: [prov(7)] } }, 1],
-      ['many', { 'Mbezi>Mwanza': { published: [trip(1), trip(2), trip(3)], providers: [prov(7), prov(8), prov(9)] } }, 3],
+      ['1', { 'Mbezi>Mwanza': { trips: [trip(1)], providers: [prov(7)] } }, 1],
+      ['many', { 'Mbezi>Mwanza': { trips: [trip(1), trip(2), trip(3)], providers: [prov(7), prov(8), prov(9)] } }, 3],
     ])('%s matches', async (_n, data: any, count) => {
       byPair = data;
       const r = await service.findAvailableRoutesForSides(place('ward:56'), place('region:9'));
@@ -129,7 +131,7 @@ describe('ShipmentsService.findAvailableRoutesForSides — candidates, never a d
     });
 
     it('never binds anything: discovery never touches shipment/route/parcel storage or a hub lookup', async () => {
-      byPair['Mbezi>Mwanza'] = { published: [trip(1)], providers: [prov(7)] };
+      byPair['Mbezi>Mwanza'] = { trips: [trip(1)], providers: [prov(7)] };
       await service.findAvailableRoutesForSides(place('ward:56'), place('region:9'));
       expect(superAgentRepo.findOne).not.toHaveBeenCalled();
       expect(superAgentRepo.find).not.toHaveBeenCalled();
@@ -142,21 +144,21 @@ describe('ShipmentsService.findAvailableRoutesForSides — candidates, never a d
         await expect(service.findAvailableRoutesForSides({ place: ref }, { text: 'Mwanza' })).rejects.toThrow(BadRequestException);
         await expect(service.findAvailableRoutesForSides({ text: 'Mwanza' }, { place: ref })).rejects.toThrow(BadRequestException);
       }
-      expect(transport.findAvailableForRoute).not.toHaveBeenCalled();
+      expect(transport.discoverSupply).not.toHaveBeenCalled();
     });
 
     it('a resolved place without region context is a 400 (never borrows typed text)', async () => {
       await expect(service.findAvailableRoutesForSides({ place: { providerKey: 'tz_seed', providerPlaceId: 'ward:77' }, text: 'Dar es Salaam' }, { text: 'Mwanza' })).rejects.toThrow('no usable city context');
-      expect(transport.findAvailableForRoute).not.toHaveBeenCalled();
+      expect(transport.discoverSupply).not.toHaveBeenCalled();
     });
 
     it.each([[{}], [{ text: '' }], [{ text: '   ' }], [{ text: undefined }]])('a side with neither a place nor text (%p) is a 400', async (side: any) => {
       await expect(service.findAvailableRoutesForSides(side, { text: 'Mwanza' })).rejects.toThrow(BadRequestException);
-      expect(transport.findAvailableForRoute).not.toHaveBeenCalled();
+      expect(transport.discoverSupply).not.toHaveBeenCalled();
     });
 
     it('hardened text input errors from the shared path propagate as 400 (e.g. "%", one character)', async () => {
-      transport.findAvailableForRoute.mockRejectedValue(new BadRequestException('A city must be at least 2 characters'));
+      transport.discoverSupply.mockRejectedValue(new BadRequestException('A city must be at least 2 characters'));
       await expect(service.findAvailableRoutesForSides({ text: '%' }, { text: 'Mwanza' })).rejects.toThrow(BadRequestException);
     });
   });
@@ -175,10 +177,10 @@ describe('ShipmentsService.findAvailableRoutesForSides — candidates, never a d
 
   describe('legacy string API (both sides text)', () => {
     it('findAvailableRoutes keeps its signature and result fields, adding only explanatory blocks', async () => {
-      byPair['Dar es Salaam>Mwanza'] = { published: [trip(1)], providers: [prov(7)] };
+      byPair['Dar es Salaam>Mwanza'] = { trips: [trip(1)], providers: [prov(7)] };
       const r = await service.findAvailableRoutes(' Dar es Salaam ', 'Mwanza', 25);
-      expect(transport.findAvailableForRoute).toHaveBeenCalledWith('Dar es Salaam', 'Mwanza', 25);
-      expect(r.availableTrips[0]).toMatchObject({ availabilityId: 1, providerId: 5, slotsAvailable: 4, capacityAvailableKg: 90 });
+      expect(transport.discoverSupply).toHaveBeenCalledWith('Dar es Salaam', 'Mwanza', 25, {});
+      expect(r.availableTrips[0]).toMatchObject({ runId: 1, availabilityId: null, providerId: 5, slotsAvailable: 4, capacityAvailableKg: 90, loadStop: 'A', unloadStop: 'B' });
       expect(r.availableTrips[0].matchedOn).toEqual([{ originKey: 'Dar es Salaam', originKind: 'text', destinationKey: 'Mwanza', destinationKind: 'text' }]);
       expect(r.origin.source).toBe('text');
     });
@@ -259,6 +261,18 @@ describe('ShipmentsController GET /shipments/routes — parameter contract', () 
         'originPlace[providerKey]': 'tz_seed',
       })).toThrow(BadRequestException);
     });
+  });
+
+  // Gate 2: an optional travel day.
+  it('date=YYYY-MM-DD is passed through; no date adds no argument', () => {
+    controller.findRoutes('Kariakoo', 'Mbagala', undefined, undefined, '2', undefined, { date: '2026-10-26' });
+    expect(sides()).toEqual([{ text: 'Kariakoo' }, { text: 'Mbagala' }, 2, undefined, '2026-10-26']);
+    svc.findAvailableRoutesForSides.mockClear();
+    controller.findRoutes('Kariakoo', 'Mbagala', undefined, undefined, '2', undefined, { date: '' });
+    expect(sides()).toHaveLength(4);
+  });
+  it.each([['tomorrow'], ['26-10-2026'], ['2026-13-45'], [['2026-10-26']]])('date %p is a 400', (date) => {
+    expect(() => controller.findRoutes('Kariakoo', 'Mbagala', undefined, undefined, undefined, undefined, { date } as any)).toThrow(BadRequestException);
   });
 
   it.each([['-1'], ['abc'], ['Infinity']])('weightKg %p is a 400', (w) => {

@@ -1,5 +1,5 @@
 {
-  "_about": "The requests the send-shipment form makes, pinned for BOTH test suites. Frontend: bishoo-frontend/src/api/shipmentRequests.test.js asserts the request builders produce exactly these. Backend: src/shipments/booking-contract.real-postgres.spec.ts drives the real services with these bodies. Numeric ids (availabilityId, providerId, routeId, journeySelectionId, quoteId) are placeholders the backend test replaces with the rows it creates.",
+  "_about": "The requests the send-shipment form makes, pinned for BOTH test suites. Frontend: bishoo-frontend/src/api/shipmentRequests.test.js asserts the request builders produce exactly these. Backend: src/shipments/booking-contract.real-postgres.spec.ts drives the real services with these bodies. Numeric ids (runId, providerId, routeId, journeySelectionId, quoteId) are placeholders the backend test replaces with the rows it creates.",
   "now": "2026-10-06T09:00:00.000Z",
   "state": {
     "itemDescription": "  Nguo za watoto ",
@@ -32,7 +32,7 @@
     "originHubId": "",
     "destinationHubId": ""
   },
-  "selected": { "availabilityId": 501, "providerId": 31, "routeId": 41 },
+  "selected": { "runId": 501, "providerId": 31, "routeId": 41 },
   "journeySelection": { "id": 900 },
   "acceptedQuote": { "id": 700 },
   "requests": {
@@ -65,13 +65,13 @@
           "evidenceLevel": "declared",
           "capturedAt": "2026-10-06T09:00:00.000Z"
         },
-        "availabilityId": 501
+        "runId": 501
       }
     },
     "quote": {
       "method": "POST",
       "path": "/transport/quotes",
-      "body": { "journeySelectionId": 900, "providerId": 31, "routeId": 41, "availabilityId": 501, "weightKg": 2 }
+      "body": { "journeySelectionId": 900, "providerId": 31, "routeId": 41, "weightKg": 2 }
     },
     "shipment": {
       "method": "POST",

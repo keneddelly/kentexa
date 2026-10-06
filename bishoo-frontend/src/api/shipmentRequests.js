@@ -36,13 +36,16 @@ const positiveNumber = (value) => {
 };
 
 // GET /shipments/routes
-export const routeSearchParams = ({ origin, destination, originResolved, destinationResolved, weightKg, transportProviderId }) => ({
+export const routeSearchParams = ({ origin, destination, originResolved, destinationResolved, weightKg, transportProviderId, travelDate }) => ({
   origin: originResolved?.placeRef ? undefined : (origin || '').trim(),
   destination: destinationResolved?.placeRef ? undefined : (destination || '').trim(),
   originPlace: placeRefParam(originResolved?.placeRef),
   destinationPlace: placeRefParam(destinationResolved?.placeRef),
   weightKg: positiveNumber(weightKg),
   providerId: positiveNumber(transportProviderId),
+  // Optional travel day, YYYY-MM-DD (Tanzania calendar). Without it the
+  // server lists the earliest upcoming trips.
+  date: travelDate || undefined,
 });
 
 // GET /shipments/hubs
@@ -57,23 +60,26 @@ export const cargoRequirements = ({ itemDescription, weightKg }, now = new Date(
   capturedAt: now.toISOString(),
 });
 
-// POST /transport/journeys/select-composed -- the client names an option the
-// server offered (availabilityId); the server composes the legs.
+// A trip the server offered is a Transport Run (Gate 2): `runId`.
+export const isBookableTrip = (selected) =>
+  Boolean(selected && positiveNumber(selected.runId) && selected.providerId && selected.routeId);
+
+// POST /transport/journeys/select-composed -- the client names the trip the
+// server offered (runId); the server composes the legs.
 export const selectJourneyBody = (state, selected, now = new Date()) => ({
   origin: journeySide(state.originResolved, state.origin),
   destination: journeySide(state.destinationResolved, state.destination),
   cargoRequirements: cargoRequirements(state, now),
-  availabilityId: Number(selected.availabilityId),
+  runId: Number(selected.runId),
   providerId: positiveNumber(state.transportProviderId),
 });
 
-// POST /transport/quotes -- origin/destination are NOT sent: a Journey-backed
-// quote takes them from the Journey the server stored.
+// POST /transport/quotes -- origin/destination and the trip are NOT sent: a
+// Journey-backed quote takes them from the Journey the server stored.
 export const quoteBody = (journeySelection, selected, state) => ({
   journeySelectionId: journeySelection.id,
   providerId: Number(selected.providerId),
   routeId: Number(selected.routeId),
-  availabilityId: Number(selected.availabilityId),
   weightKg: Number(state.weightKg) || 0,
 });
 
@@ -91,7 +97,6 @@ export const shipmentBody = (state, selected, acceptedQuote) => ({
   weightKg: Number(state.weightKg) || 0,
   quoteId: acceptedQuote?.id || undefined,
   routeId: acceptedQuote ? undefined : (selected?.routeId || undefined),
-  availabilityId: acceptedQuote ? undefined : (selected?.availabilityId || undefined),
   providerId: acceptedQuote ? undefined : (selected?.providerId || undefined),
   pickupOption: state.pickupOption,
   deliveryOption: state.deliveryOption,

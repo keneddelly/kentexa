@@ -5578,7 +5578,8 @@
     "search_request_failed": "Impossible de joindre Kentexa pour chercher cet itinéraire. Vérifiez votre connexion et réessayez.",
     "search_invalid_location": "Nous n'avons pas pu lire l'un des lieux. Choisissez-le de nouveau dans la liste, ou saisissez le nom du quartier.",
     "search_retry": "Réessayer",
-    "no_open_trip": "Ces transporteurs couvrent cet itinéraire mais n'ont aucun trajet ouvert aujourd'hui ni demain.",
+    "travel_date_label": "Date du trajet (facultatif)",
+    "no_open_trip": "Ces transporteurs couvrent cet itinéraire mais n'ont aucun trajet ouvert à réserver pour le moment.",
     "provider_does_not_serve_route": "Ce transporteur ne dessert pas cet itinéraire. Revenez en arrière pour voir ceux qui le desservent.",
     "hubs_load_failed": "Impossible de charger les hubs Kentexa. Vous pouvez continuer sans hub, ou revenir en arrière et réessayer."
   },

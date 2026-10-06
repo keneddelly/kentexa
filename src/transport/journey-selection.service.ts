@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { JourneyLeg, JourneyLegType, JourneySelection, JourneySelectionStatus } from './entities/journey-selection.entity';
+import { JourneyCommitmentLevel, JourneyLeg, JourneyLegType, JourneySelection, JourneySelectionStatus } from './entities/journey-selection.entity';
 import { CargoRequirements, normalizeCargoRequirements } from './journey/cargo-requirements';
 import { TransportService } from './transport.service';
 
@@ -17,6 +17,7 @@ export interface SelectJourneyLegDto {
   runId?: number | null;
   agentId?: number | null;
   superAgentId?: number | null;
+  commitmentLevel?: JourneyCommitmentLevel;
   requiredActorCapability?: string | null;
   executionRequirements?: Record<string, unknown>;
 }
@@ -54,6 +55,11 @@ export function assertClientAuthoredJourney(dto: SelectJourneyDto | undefined | 
     }
     if (leg.agentId != null || leg.superAgentId != null) {
       throw new BadRequestException('A journey request cannot name an Agent or a Super Agent');
+    }
+    // Gate 2: which Run, which of its stops and how firmly it is committed
+    // are decided by the server (POST /transport/journeys/select-composed).
+    if (leg.runId != null || leg.loadRouteStopId != null || leg.unloadRouteStopId != null || leg.commitmentLevel != null) {
+      throw new BadRequestException('A trip is selected through journeys/select-composed, not written into a journey request');
     }
   }
 }
@@ -121,6 +127,15 @@ export class JourneySelectionService {
       const from = String((leg.fromNode as any)?.city ?? (leg.fromNode as any)?.label ?? '').trim();
       const to = String((leg.toNode as any)?.city ?? (leg.toNode as any)?.label ?? '').trim();
       if (!from || !to) throw new BadRequestException('Transport leg requires server-resolvable from/to nodes');
+      if (leg.runId != null) {
+        // Gate 2: a leg on a Transport Run is proved against the Run itself
+        // (open, not departed, room, this provider/route, and a stop pair
+        // that serves from -> to) -- not against the route's summary columns.
+        await this.transport.assertRunServes(leg.runId, from, to, Number(cargo.weightKg) || 0, {
+          providerId: leg.providerId, routeId: leg.routeId,
+        });
+        continue;
+      }
       await this.transport.assertRouteServesJourney(leg.routeId, from, to);
       if (leg.availabilityId != null) await this.transport.assertAvailabilityIsDiscoverable(leg.availabilityId, Number(cargo.weightKg) || 0);
     }

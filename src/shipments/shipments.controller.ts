@@ -2,6 +2,7 @@
  * ShipmentsController
  * Place at: src/shipments/shipments.controller.ts
  */
+import { parseTravelDate } from '../transport/run-supply';
 import {
   Controller,
   Get,
@@ -66,12 +67,17 @@ export class ShipmentsController {
     if (provider !== undefined && (!Number.isInteger(provider) || provider <= 0)) {
       throw new BadRequestException('providerId must be a positive integer');
     }
-    return this.svc.findAvailableRoutesForSides(
+    // Gate 2: an optional travel day (Tanzania calendar, YYYY-MM-DD). Read
+    // from the query object so the positional signature stays as it was.
+    const rawDate = query?.date;
+    const onDate = rawDate === undefined || rawDate === '' ? undefined : parseTravelDate(rawDate);
+    const sides: [DiscoverySideInput, DiscoverySideInput] = [
       side('origin', originPlace, origin),
       side('destination', destinationPlace, destination),
-      weight,
-      provider,
-    );
+    ];
+    return onDate
+      ? this.svc.findAvailableRoutesForSides(sides[0], sides[1], weight, provider, onDate)
+      : this.svc.findAvailableRoutesForSides(sides[0], sides[1], weight, provider);
   }
 
   // Stage 2F hub discovery -- authenticated, READ-ONLY: lists eligible hubs,

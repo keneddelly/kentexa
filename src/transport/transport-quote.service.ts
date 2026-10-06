@@ -85,6 +85,7 @@ export class TransportQuoteService {
     // Salaam"), which is not what the route was matched on.
     let journeyOriginCity: string | null = null;
     let journeyDestinationCity: string | null = null;
+    let journeyRunId: number | null = null;
     if (dto.journeySelectionId != null) {
       journey = await this.journeyRepo.findOne({ where: { id: dto.journeySelectionId, requestedByUserId: user.id } });
       if (!journey || journey.status === JourneySelectionStatus.SUPERSEDED || journey.status === JourneySelectionStatus.CANCELLED) {
@@ -109,6 +110,7 @@ export class TransportQuoteService {
         const value = (node as any)?.city ?? (node as any)?.label;
         return typeof value === 'string' && value.trim() ? value.trim() : null;
       };
+      journeyRunId = matchingLeg.runId ?? null;
       journeyOriginCity = nodeCity(matchingLeg.fromNode);
       journeyDestinationCity = nodeCity(matchingLeg.toNode);
     }
@@ -139,7 +141,15 @@ export class TransportQuoteService {
     if (!originCity || !destinationCity) {
       throw new BadRequestException('Origin and destination are required to quote this route');
     }
-    await this.transportService.assertRouteServesJourney(route.id, originCity, destinationCity);
+    if (journeyRunId != null) {
+      // Gate 2: the Journey books a Transport Run. It must still be open,
+      // not departed, have room, and serve these two places.
+      await this.transportService.assertRunServes(journeyRunId, originCity, destinationCity, weightKg, {
+        providerId: provider.id, routeId: route.id,
+      });
+    } else {
+      await this.transportService.assertRouteServesJourney(route.id, originCity, destinationCity);
+    }
 
     let availability: ProviderAvailability | null = null;
     if (dto.availabilityId != null) {
