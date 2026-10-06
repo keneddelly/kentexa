@@ -19,7 +19,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
-import LocationPicker from '../components/LocationPicker';
+import IntelligentLocationInput from '../components/IntelligentLocationInput';
 
 
 const inputStyle = {
@@ -64,6 +64,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
   const [routeLoading, setRouteLoading] = useState(false);
   const [isSameCity, setIsSameCity]   = useState(false);
   const [destLocation, setDestLocation]     = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [destLocationText, setDestLocationText] = useState('');
   const [priceEstimate, setPriceEstimate]   = useState(null);
   const [priceLoading, setPriceLoading]     = useState(false);
   // eslint-disable-next-line no-unused-vars
@@ -962,33 +963,20 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
           </div>
 
           <Field label={t('seller_shipment.destination_city_label')} required>
-            <LocationPicker
-              label={t('seller_shipment.location_picker_label')}
-              value={destLocation}
-              onChange={loc => {
-                setDestLocation(loc);
-                // Region, not district — Super Agents register their `city`
-                // against the fixed TANZANIA_CITIES list (region names:
-                // "Dar es Salaam", "Mwanza", ...; see super-agent.entity.ts),
-                // never a district. This fed handleCityChange() a district
-                // name instead (e.g. "Kinondoni"), which never matches any
-                // real Super Agent's city — the "nearby hubs" picker below
-                // silently returned empty for every destination inside a
-                // region that already has real, active hubs registered.
-                // fetchPriceEstimate right below already got this correct
-                // (loc.regionName first) — this brings the other caller in
-                // this same handler in line with it, not a new convention.
+            <IntelligentLocationInput
+              label={t('seller_shipment.destination_label')}
+              value={destLocationText || form.destinationCity}
+              onTextChange={text => { setDestLocationText(text); if (!text) set('destinationCity',''); }}
+              onResolved={loc => {
+                if (!loc) return;
+                setDestLocation({ regionId: loc.regionId || null, regionName: loc.regionName || '', districtId: loc.districtId || null, districtName: loc.districtName || '', wardId: loc.wardId || null, wardName: loc.wardName || '' });
+                setDestLocationText(loc.displayLabel || '');
                 const cityStr = loc.regionName || loc.districtName || '';
-                handleCityChange(cityStr);
-                fetchPriceEstimate(
-                  loc.regionName || cityStr,
-                  loc.districtId,
-                  loc.districtName,
-                  form.weightKg
-                );
+                handleCityChange(cityStr, loc.districtId, loc.districtName);
+                set('deliveryAddress', loc.displayLabel || '');
               }}
+              placeholder="Tafuta eneo la mpokeaji…"
               required
-              style={{ marginBottom: 8 }}
             />
 
             {/* Live price estimate */}
