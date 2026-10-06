@@ -1,11 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { AgentsService } from '../agents/agents.service';
 import { TransportService } from './transport.service';
+import { JourneyComposerService } from './journey-composer.service';
 
 export interface DiscoverServiceOffersDto {
   fromCity: string; toCity: string; weightKg: number;
   pickup: 'door' | 'point'; delivery: 'door' | 'collect';
+  origin?: any; destination?: any;
 }
+export interface CommitServiceOfferDto extends DiscoverServiceOffersDto { serviceType: 'direct_delivery' | 'composed_intercity'; runId?: number; paymentMethod?: 'cash' | 'prepaid'; }
+
 export interface LogisticsServiceOffer {
   serviceType: 'direct_delivery' | 'composed_intercity';
   name: string; price: number; currency: 'TZS'; etaLabel: string;
@@ -15,7 +19,32 @@ export interface LogisticsServiceOffer {
 
 @Injectable()
 export class LogisticsServiceOfferService {
-  constructor(private readonly agents: AgentsService, private readonly transport: TransportService) {}
+  constructor(private readonly agents: AgentsService, private readonly transport: TransportService, private readonly journeys: JourneyComposerService) {}
+
+  async commit(userId: number, dto: CommitServiceOfferDto) {
+    // Re-discover immediately: the client cannot commit a stale/fabricated service.
+    const offers = await this.discover(dto);
+    if (dto.serviceType === 'direct_delivery') {
+      if (!offers.some(o => o.serviceType === 'direct_delivery')) throw new BadRequestException('Direct delivery is no longer fulfillable');
+      return this.journeys.selectDirectDelivery(userId, {
+        origin: dto.origin, destination: dto.destination,
+        originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
+        destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
+        cargoRequirements: { weightKg: dto.weightKg },
+        paymentMethod: dto.paymentMethod,
+      } as any);
+    }
+    const runId = Number(dto.runId);
+    const chosen = offers.find(o => o.serviceType === 'composed_intercity' && Number((o.fulfillment.transportOption as any)?.runId) === runId);
+    if (!chosen) throw new BadRequestException('That shipping service is no longer available; choose a fresh offer');
+    return this.journeys.selectComposed(userId, {
+      origin: dto.origin, destination: dto.destination,
+      originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
+      destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
+      cargoRequirements: { weightKg: dto.weightKg },
+      paymentMethod: dto.paymentMethod, runId,
+    } as any);
+  }
 
   async discover(dto: DiscoverServiceOffersDto): Promise<LogisticsServiceOffer[]> {
     const from = dto?.fromCity?.trim(); const to = dto?.toCity?.trim(); const weight = Number(dto?.weightKg);
