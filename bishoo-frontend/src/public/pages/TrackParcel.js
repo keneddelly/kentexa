@@ -285,6 +285,26 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, trackingNumbe
               )}
 
               {/* Rich shipping info based on method */}
+              {result.transportAssignment && (
+                <div style={{ backgroundColor:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:12, padding:14, marginBottom:14 }}>
+                  <div style={{ fontSize:12, fontWeight:800, color:'#1d4ed8', marginBottom:8 }}>🚚 Usafiri wa KenteXa</div>
+                  {result.transportAssignment.providerName && (
+                    <div style={{ fontSize:14, fontWeight:800, color:'#0f172a' }}>{result.transportAssignment.providerName}</div>
+                  )}
+                  <div style={{ fontSize:12, color:'#475569', marginTop:4 }}>
+                    {result.transportAssignment.fromCity} → {result.transportAssignment.toCity}
+                  </div>
+                  <div style={{ fontSize:12, color:'#1d4ed8', fontWeight:700, marginTop:6 }}>
+                    Hali: {String(result.transportAssignment.status || '').replace(/_/g, ' ').toUpperCase()}
+                  </div>
+                  {result.transportAssignment.scheduledDeparture && (
+                    <div style={{ fontSize:11, color:'#64748b', marginTop:4 }}>
+                      Kuondoka: {new Date(result.transportAssignment.scheduledDeparture).toLocaleString('sw-TZ')}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {result.shippingMethod === 'bus' && (result.busCompany || result.busTicketNumber) && (
                 <div style={{ backgroundColor: '#fef9c3', border: '1px solid #fde68a', borderRadius: 12, padding: 14, marginBottom: 10 }}>
                   <div style={{ fontSize: 12, fontWeight: 800, color: '#92400e', marginBottom: 8 }}>{t('track_parcel.bus_details_title')}</div>

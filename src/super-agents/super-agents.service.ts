@@ -809,6 +809,17 @@ export class SuperAgentsService {
       order: { createdAt: 'DESC' },
     });
 
+    // Movement transport is authoritative once a Super Agent assigns a
+    // verified provider. Keep legacy bus/courier fields as fallback only.
+    const transportAssignments = await this.assignmentRepo
+      .find({
+        where: { trackingNumber: parcel.trackingNumber },
+        relations: { provider: true, availability: true },
+        order: { createdAt: 'DESC' },
+      })
+      .catch(() => []);
+    const activeTransport = transportAssignments[0] || null;
+
     return {
       trackingNumber: parcel.trackingNumber,
       status: parcel.status,
@@ -837,7 +848,19 @@ export class SuperAgentsService {
       // Destination hub
       destinationAgent: parcel.destinationSuperAgent?.businessName || null,
       destinationAgentPhone: parcel.destinationSuperAgent?.user?.phone || null,
-      // Transport — from parcel directly (seller_shipment) or from order (online)
+      // Current movement assignment (new transport architecture)
+      transportAssignment: activeTransport
+        ? {
+            id: activeTransport.id,
+            status: activeTransport.status,
+            providerName: (activeTransport as any).provider?.businessName || (activeTransport as any).provider?.name || null,
+            fromCity: activeTransport.fromCity,
+            toCity: activeTransport.toCity,
+            scheduledDeparture: activeTransport.scheduledDeparture || (activeTransport as any).availability?.departureTime || null,
+            agreedPrice: activeTransport.agreedPrice || null,
+          }
+        : null,
+      // Legacy transport — retained as fallback for older parcels
       busCompany:
         (parcel as any).busCompany || (parcel.order as any)?.busCompany || null,
       busTicketNumber:
