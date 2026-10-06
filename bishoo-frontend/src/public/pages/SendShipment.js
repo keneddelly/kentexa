@@ -108,7 +108,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [searched, setSearched] = useState(false);
   const [trips, setTrips] = useState([]);
   const [providers, setProviders] = useState([]);
-  const [selected, setSelected] = useState(null); // { availabilityId?, routeId?, providerId?, pricePerKg?, fixedFee? }
+  const [selected, setSelected] = useState(() => navParams?.transportProviderId ? { providerId:Number(navParams.transportProviderId), routeId:navParams?.routeId ? Number(navParams.routeId) : undefined, availabilityId:navParams?.availabilityId ? Number(navParams.availabilityId) : undefined, transportRunId:navParams?.transportRunId ? Number(navParams.transportRunId) : undefined } : null);
 
   // Step 3 — receiver + handoff.
   const [receiverName, setReceiverName] = useState('');
@@ -142,15 +142,21 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           weightKg: Number(weightKg) || undefined,
         },
       });
-      setTrips(res.data?.availableTrips || []);
-      setProviders(res.data?.providers || []);
+      const providerId = navParams?.transportProviderId ? Number(navParams.transportProviderId) : null;
+      const matchingTrips = (res.data?.availableTrips || []).filter(x => !providerId || Number(x.providerId) === providerId);
+      const matchingProviders = (res.data?.providers || []).filter(x => !providerId || Number(x.id) === providerId);
+      setTrips(matchingTrips); setProviders(matchingProviders);
+      if (providerId) {
+        const requestedTrip = matchingTrips.find(x => (navParams?.availabilityId && Number(x.availabilityId) === Number(navParams.availabilityId)) || (navParams?.routeId && Number(x.routeId) === Number(navParams.routeId)));
+        setSelected(prev => requestedTrip ? { ...requestedTrip, transportRunId:navParams?.transportRunId || prev?.transportRunId } : (prev || { providerId, routeId:navParams?.routeId ? Number(navParams.routeId) : undefined, availabilityId:navParams?.availabilityId ? Number(navParams.availabilityId) : undefined, transportRunId:navParams?.transportRunId ? Number(navParams.transportRunId) : undefined }));
+      }
     } catch {
       setTrips([]);
       setProviders([]);
     } finally {
       setSearching(false);
     }
-  }, [origin, destination, weightKg, originResolved, destinationResolved]);
+  }, [origin, destination, weightKg, originResolved, destinationResolved, navParams?.transportProviderId, navParams?.routeId, navParams?.availabilityId, navParams?.transportRunId]);
 
   // If arriving from a Transport Profile's route/trip card, jump straight
   // to the route step with that context pre-filled (weight isn't known
@@ -301,6 +307,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       </div>
 
       <div style={{ padding: 16, maxWidth: 520, margin: '0 auto' }}>
+        {navParams?.transportProviderId && step < 5 && (
+          <div style={{ backgroundColor:'#EFF6FF', border:'1px solid #BFDBFE', borderRadius:12, padding:'10px 12px', marginBottom:14, display:'flex', alignItems:'center', gap:9 }}>
+            <span style={{ fontSize:20 }}>🚚</span><div><div style={{ fontSize:11, color:GR, fontWeight:700 }}>Unatuma kupitia</div><div style={{ fontSize:14, color:DK, fontWeight:900 }}>{navParams.transportProviderName || 'Transport provider'}</div></div>
+          </div>
+        )}
 
         {/* Step 1 — what & how much, captured before any route is shown */}
         {step === 1 && (
