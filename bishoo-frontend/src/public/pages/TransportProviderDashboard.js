@@ -176,9 +176,13 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       }
       const routeRes = await api.post('/transport/routes', dto);
       const createdRoute = routeRes.data;
-      if (routeForm.routeType === 'local_loop' && createdRoute?.id) {
-        for (let sequence=0; sequence<newRouteStops.length; sequence++) {
-          const st=newRouteStops[sequence];
+      if (createdRoute?.id && (routeForm.routeType === 'local_loop' || routeForm.routeType === 'intercity')) {
+        const stopsToCreate = routeForm.routeType === 'intercity'
+          ? [{ locationLabel: routeForm.originCity, superAgentId: null }, { locationLabel: routeForm.destinationCity, superAgentId: null }]
+          : newRouteStops;
+        if (stopsToCreate.length < 2 || stopsToCreate.some(s => !s.locationLabel?.trim())) throw new Error('Route needs an origin and destination');
+        for (let sequence=0; sequence<stopsToCreate.length; sequence++) {
+          const st=stopsToCreate[sequence];
           await api.post(`/van-pilot/routes/${createdRoute.id}/stops`, { sequence, locationLabel:st.locationLabel, superAgentId:st.superAgentId || undefined });
         }
       }
@@ -600,7 +604,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
             </div>
             {showRunForm && <div style={{ background:'#fff', borderRadius:12, padding:14, marginBottom:12 }}>
               <select style={inp} value={runForm.routeId} onChange={e=>setRunForm(p=>({...p,routeId:e.target.value}))}>
-                <option value="">Choose local-loop route</option>{routes.filter(r=>r.routeType==='local_loop').map(r=><option key={r.id} value={r.id}>#{r.id} {(r.loopStops||[]).join(' → ')}</option>)}
+                <option value="">Choose route</option>{routes.filter(r=>r.routeType==='local_loop'||r.routeType==='intercity').map(r=><option key={r.id} value={r.id}>#{r.id} {r.routeType==='intercity' ? `${r.originCity} → ${r.destinationCity}` : (r.loopStops||[]).join(' → ')}</option>)}
               </select>
               <input type="datetime-local" style={{...inp,marginTop:8}} value={runForm.scheduledDeparture} onChange={e=>setRunForm(p=>({...p,scheduledDeparture:e.target.value}))}/>
               <button disabled={!runForm.routeId||!runForm.scheduledDeparture||runBusy==='create'} onClick={createVanRun} style={{ width:'100%', marginTop:8, padding:10, border:'none', borderRadius:8, background:'#16a34a', color:'#fff', fontWeight:800 }}>Create Run</button>
