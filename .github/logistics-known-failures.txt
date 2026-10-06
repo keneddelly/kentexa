@@ -1,0 +1,22 @@
+# Logistics spec files that were already failing when the audit-driven repair
+# started (6 October 2026). The Production Line CI fails on any failing spec
+# NOT listed here, and also when a listed spec starts passing, so this list
+# can only shrink. One repository-relative path per line.
+#
+# Recorded from the first Production Line CI run on the production line as
+# it stood at bbcb1a9 (run 37486452371): 15 suites, 156 tests.
+src/transport/van-pilot-c8.real-postgres.spec.ts
+src/transport/parcel-run-assignment.real-postgres.spec.ts
+src/transport/transport-assignment-integrity.real-postgres.spec.ts
+src/shipments/shipment-lifecycle.spec.ts
+src/transport/transport-quote-lifecycle.real-postgres.spec.ts
+src/shipments/shipment-capacity.real-postgres.spec.ts
+src/transport/transport-route-price-history.real-postgres.spec.ts
+src/shipments/route-discovery.real-postgres.spec.ts
+src/location-intelligence/place-resolution.real-postgres.spec.ts
+src/shipments/shipment-route-discovery.spec.ts
+src/shipments/shipment-location-snapshot.spec.ts
+src/database/migrations/add-service-business-authority-foundation.spec.ts
+src/database/migrations/add-transport-superagent-business-workspace-binding.spec.ts
+src/transport/transport.legacy-authority.spec.ts
+src/location-intelligence/location-intelligence.service.spec.ts

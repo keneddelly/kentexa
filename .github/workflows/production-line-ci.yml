@@ -1,0 +1,220 @@
+name: Production Line CI
+
+# Release control (logistics repair Gate 0).
+#
+# worktree-service-provider-profiles is the branch Render deploys. Every
+# change to it goes through a pull request, and this workflow is the check
+# that pull request must pass:
+#
+#   backend   - type-check, production build, and a real boot of the built
+#               app against PostgreSQL (catches dependency-injection errors
+#               that a successful compile cannot).
+#   logistics - every logistics spec, including the real-PostgreSQL ones,
+#               compared against a baseline of known failures so that only
+#               NEW failures block (see scripts/ci/jest-baseline.js).
+#   frontend  - tests and the production build of the React app.
+#
+# It also runs on pushes to the branch itself, so the deployed commit
+# always has a recorded result.
+
+on:
+  pull_request:
+    branches:
+      - worktree-service-provider-profiles
+  push:
+    branches:
+      - worktree-service-provider-profiles
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: production-line-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend build and boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kentexa_smoke
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Type-check
+        run: set -o pipefail; npx tsc --noEmit --project tsconfig.build.json 2>&1 | tee -a backend.log
+      - name: Production build
+        run: set -o pipefail; npm run build 2>&1 | tee -a backend.log
+      - name: Boot the built app and read /version
+        env:
+          # development + TYPEORM_SYNCHRONIZE builds the whole schema from the
+          # entities in the empty CI database, so start-up hooks that read
+          # tables (and every entity definition) are exercised for real.
+          NODE_ENV: development
+          TYPEORM_SYNCHRONIZE: 'true'
+          PORT: '3999'
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_USERNAME: postgres
+          DB_PASSWORD: postgres
+          DB_NAME: kentexa_smoke
+          JWT_SECRET: ci-only-not-a-real-secret
+          PAYMENT_EVIDENCE_SEAL_KEY: ci-only-not-a-real-key
+          AT_API_KEY: ci-only
+          AT_USERNAME: sandbox
+          CLOUDINARY_CLOUD_NAME: ci-only
+          CLOUDINARY_API_KEY: ci-only
+          CLOUDINARY_API_SECRET: ci-only
+          STAGE3KR_DISABLE_OUTBOUND_SMS: 'true'
+          RENDER_GIT_COMMIT: ${{ github.sha }}
+          RENDER_GIT_BRANCH: ci
+        run: |
+          node dist/main > boot.log 2>&1 &
+          APP_PID=$!
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:3999/version > version.json 2>/dev/null; then break; fi
+            if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [ ! -s version.json ]; then
+            echo "::error title=Boot smoke::The built app did not answer /version"
+            tail -n 80 boot.log
+            tail -n 80 boot.log >> backend.log
+            exit 1
+          fi
+          cat version.json
+          grep -q "\"commit\":\"${GITHUB_SHA}\"" version.json
+          kill "$APP_PID" || true
+      - name: Post the failure on the pull request
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          { echo '### Backend build and boot failed'; echo; echo '```'; grep -a -E "ERROR|Error|error TS|Exception|not configured|required" backend.log | sed 's/\x1b\[[0-9;]*m//g' | cut -c1-400 | head -n 40; echo '```'; printf '\n_Commit %s_\n' "${{ github.event.pull_request.head.sha }}"; } > fail.md
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file fail.md || true
+
+  logistics:
+    name: Logistics tests (real PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      B5B_TEST_DB_HOST: localhost
+      B5B_TEST_DB_PORT: 5432
+      B5B_TEST_DB_PASSWORD: production_line_ci_only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Create isolated PostgreSQL database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE kentexa_b5b_test_user LOGIN PASSWORD 'production_line_ci_only' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
+          CREATE DATABASE kentexa_b5b_test OWNER kentexa_b5b_test_user;
+          SQL
+      - name: Run logistics specs
+        run: >
+          npx jest --runInBand --json --outputFile=jest-logistics.json
+          version.controller
+          shipments/ transport/ super-agents/ super-agent-commission/
+          parcel-collections/ agents/ location-intelligence/
+          database/migrations/
+          > jest-logistics.log 2>&1 || true
+      - name: Compare with the known-failure baseline
+        id: baseline
+        run: |
+          set +e
+          node scripts/ci/jest-baseline.js jest-logistics.json .github/logistics-known-failures.txt > summary.md
+          STATUS=$?
+          cat summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          if [ ! -s jest-logistics.json ]; then tail -n 60 jest-logistics.log; fi
+          exit $STATUS
+      - name: Post the result on the pull request
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -s summary.md ] || echo "### Logistics tests\n\nNo summary was produced." > summary.md
+          printf '\n\n_Commit %s · run %s_\n' "${{ github.event.pull_request.head.sha }}" "${{ github.run_id }}" >> summary.md
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file summary.md || true
+
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: bishoo-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: bishoo-frontend/package-lock.json
+      - run: npm ci
+      - name: Frontend build
+        run: set -o pipefail; npm run build 2>&1 | tee build.log
+      - name: Frontend tests
+        if: always()
+        run: CI=true npm test -- --watch=false --runInBand --json --outputFile=jest-frontend.json > jest-frontend.log 2>&1 || true
+      - name: Compare with the known-failure baseline
+        if: always()
+        run: |
+          set +e
+          node ../scripts/ci/jest-baseline.js jest-frontend.json ../.github/frontend-known-failures.txt "Frontend tests" > summary.md
+          STATUS=$?
+          cat summary.md
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+          exit $STATUS
+      - name: Post the result on the pull request
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -s summary.md ] || printf '### Frontend tests\n\nNo summary was produced.\n' > summary.md
+          if grep -q -E "Failed to compile|npm ERR|error Command failed" build.log 2>/dev/null; then
+            { echo; echo '**Frontend build failed:**'; echo '```'; grep -v '^$' build.log | tail -n 30; echo '```'; } >> summary.md
+          else
+            printf '\nFrontend production build: completed.\n' >> summary.md
+          fi
+          printf '\n_Commit %s_\n' "${{ github.event.pull_request.head.sha }}" >> summary.md
+          gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file summary.md || true

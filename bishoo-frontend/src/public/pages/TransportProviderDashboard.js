@@ -24,6 +24,7 @@ const getStatusStyle = t => ({
   completed: { bg: '#f8fafc', text: '#64748b', label: t('transport_provider_dashboard.status_completed') },
 });
 
+// eslint-disable-next-line no-unused-vars -- kept for the screen it will serve again; an unused-variable warning must not fail the CI build
 const getAvailStatus = t => ({
   open:      { bg: '#dcfce7', text: '#16a34a', label: t('transport_provider_dashboard.avail_open') },
   full:      { bg: '#fee2e2', text: '#dc2626', label: t('transport_provider_dashboard.avail_full') },
