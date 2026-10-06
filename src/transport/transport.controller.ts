@@ -37,7 +37,7 @@ import { RequireActiveRole } from '../role-context/require-active-role.decorator
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
-import { LogisticsServiceOfferService, DiscoverServiceOffersDto } from './logistics-service-offer.service';
+import { LogisticsServiceOfferService, DiscoverServiceOffersDto, CommitServiceOfferDto } from './logistics-service-offer.service';
 
 @Controller('transport')
 export class TransportController {
@@ -57,6 +57,12 @@ export class TransportController {
   @Post('service-offers/discover')
   discoverServiceOffers(@Body() dto: DiscoverServiceOffersDto) {
     return this.serviceOffers.discover(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('service-offers/commit')
+  commitServiceOffer(@Request() req, @Body() dto: CommitServiceOfferDto) {
+    return this.serviceOffers.commit(req.user.id, dto);
   }
 
   // ── JOURNEY COMPOSITION (L1) ─────────────────────────────────────────────
