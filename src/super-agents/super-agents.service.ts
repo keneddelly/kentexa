@@ -1300,6 +1300,14 @@ export class SuperAgentsService {
       where: { parcel: { id: parcel.id } },
       order: { createdAt: 'DESC' },
     });
+    // L7: custody is the physical truth. Merge append-only custody evidence
+    // into public history so a movement cannot disappear merely because a
+    // legacy ParcelTracking write was missed. Actor/contact/evidence fields
+    // stay private; the public projection exposes only event kind + time.
+    const custody = await this.dataSource.getRepository(ParcelCustodyEvent).find({
+      where: { parcelId: parcel.id },
+      order: { recordedAt: 'DESC', id: 'DESC' },
+    });
 
     // A parcel folded into a Shehena (consolidated) shipment carries its
     // own transport/last-mile info on the BulkShipment, not on itself —
@@ -1341,11 +1349,20 @@ export class SuperAgentsService {
         null,
       dispatchTime: (parcel as any).dispatchTime || bulkShipment?.dispatchTime || null,
       arrivedAtHubTime: (parcel as any).arrivedAtHubTime || null,
-      history: tracking.map((t) => ({
-        status: t.status,
-        city: t.city,
-        createdAt: t.createdAt,
-      })),
+      history: [
+        ...tracking.map((t) => ({
+          status: t.status,
+          city: t.city,
+          createdAt: t.createdAt,
+          source: 'tracking',
+        })),
+        ...custody.map((e) => ({
+          status: e.eventKind,
+          city: null,
+          createdAt: e.recordedAt,
+          source: 'custody',
+        })),
+      ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
     };
   }
 
