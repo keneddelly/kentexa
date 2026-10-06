@@ -15,7 +15,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import {
-  routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody,
+  routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody, isBookableTrip,
   confirmBody, searchOutcome,
 } from '../../api/shipmentRequests';
 
@@ -112,7 +112,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [searched, setSearched] = useState(false);
   const [trips, setTrips] = useState([]);
   const [providers, setProviders] = useState([]);
-  const [selected, setSelected] = useState(() => navParams?.transportProviderId ? { providerId:Number(navParams.transportProviderId), routeId:navParams?.routeId ? Number(navParams.routeId) : undefined, availabilityId:navParams?.availabilityId ? Number(navParams.availabilityId) : undefined, transportRunId:navParams?.transportRunId ? Number(navParams.transportRunId) : undefined } : null);
+  // Entering from a transporter's profile keeps their provider/route, and the
+  // exact trip (Transport Run) when the profile card named one. The trip only
+  // becomes bookable once the search below finds it for these two places.
+  const [selected, setSelected] = useState(() => navParams?.transportProviderId ? { providerId:Number(navParams.transportProviderId), routeId:navParams?.routeId ? Number(navParams.routeId) : undefined } : null);
+  const [travelDate, setTravelDate] = useState('');
 
   // Step 3 — receiver + handoff.
   const [receiverName, setReceiverName] = useState('');
@@ -157,7 +161,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       const res = await api.get('/shipments/routes', {
         params: routeSearchParams({
           origin, destination, originResolved, destinationResolved, weightKg,
-          transportProviderId: navParams?.transportProviderId,
+          transportProviderId: navParams?.transportProviderId, travelDate,
         }),
       });
       setSearchReason(searchOutcome(res.data, null));
@@ -166,8 +170,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       const matchingProviders = (res.data?.providers || []).filter(x => !providerId || Number(x.id) === providerId);
       setTrips(matchingTrips); setProviders(matchingProviders);
       if (providerId) {
-        const requestedTrip = matchingTrips.find(x => (navParams?.availabilityId && Number(x.availabilityId) === Number(navParams.availabilityId)) || (navParams?.routeId && Number(x.routeId) === Number(navParams.routeId)));
-        setSelected(prev => requestedTrip ? { ...requestedTrip, transportRunId:navParams?.transportRunId || prev?.transportRunId } : (prev || { providerId, routeId:navParams?.routeId ? Number(navParams.routeId) : undefined, availabilityId:navParams?.availabilityId ? Number(navParams.availabilityId) : undefined, transportRunId:navParams?.transportRunId ? Number(navParams.transportRunId) : undefined }));
+        // The trip the profile card named, else the earliest trip on the
+        // route it named. Never a trip the search did not return.
+        const requestedTrip =
+          matchingTrips.find(x => navParams?.transportRunId && Number(x.runId) === Number(navParams.transportRunId)) ||
+          matchingTrips.find(x => navParams?.routeId && Number(x.routeId) === Number(navParams.routeId));
+        setSelected(prev => requestedTrip || (prev && !prev.runId ? prev : { providerId, routeId:navParams?.routeId ? Number(navParams.routeId) : undefined }));
       }
     } catch (err) {
       setTrips([]);
@@ -176,7 +184,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     } finally {
       setSearching(false);
     }
-  }, [origin, destination, weightKg, originResolved, destinationResolved, navParams?.transportProviderId, navParams?.routeId, navParams?.availabilityId, navParams?.transportRunId]);
+  }, [origin, destination, weightKg, originResolved, destinationResolved, travelDate, navParams?.transportProviderId, navParams?.routeId, navParams?.transportRunId]);
 
   // A Transporter profile may preselect provider/route/run context, but it
   // must never skip the sender's cargo declaration. "Tuma Mzigo" always
@@ -217,7 +225,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       // A dated trip the server offered: the SERVER composes the journey
       // from the two places and that trip, then prices and freezes it. The
       // form never writes journey legs itself.
-      if (selected?.availabilityId && selected?.providerId && selected?.routeId) {
+      if (isBookableTrip(selected)) {
         const journey = await api.post('/transport/journeys/select-composed', selectJourneyBody(requestState, selected));
         journeySelection = journey.data;
         const offered = await api.post('/transport/quotes', quoteBody(journeySelection, selected, requestState));
@@ -322,6 +330,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <LocationInput label={t('send_shipment.destination_label')} value={destination}
               onChange={setDestination} onResolved={setDestinationResolved} resolved={destinationResolved}
               placeholder={t('send_shipment.destination_placeholder')} />
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: GR, marginBottom: 12 }}>
+              {t('send_shipment.travel_date_label')}
+              <input type="date" value={travelDate} min={new Date().toISOString().slice(0, 10)}
+                onChange={e => setTravelDate(e.target.value)}
+                style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: '11px 12px',
+                  borderRadius: 12, border: '1px solid #E5E7EB', fontSize: 14, fontFamily: 'inherit' }} />
+            </label>
             <button onClick={searchRoutes} disabled={!origin.trim() || !destination.trim() || searching}
               style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
                 borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
@@ -369,11 +384,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                   {t('send_shipment.available_trips_label')}
                 </div>
                 {trips.map(trip => (
-                  <div key={trip.availabilityId}
+                  <div key={trip.runId}
                     onClick={() => { setSelected(trip); setStep(3); }}
                     style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 8,
                       cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      border: selected?.availabilityId === trip.availabilityId ? `2px solid ${B}` : '2px solid transparent' }}>
+                      border: selected?.runId === trip.runId ? `2px solid ${B}` : '2px solid transparent' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
                         backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center',
@@ -390,11 +405,14 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                           )}
                         </div>
                         <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
-                          {new Date(trip.date).toLocaleDateString('sw-TZ')}
+                          {new Date(`${trip.date}T12:00:00`).toLocaleDateString('sw-TZ')}
                           {trip.departureTime ? ` · ${trip.departureTime}` : ''}
-                          {' · '}{t('send_shipment.slots_left', { count: trip.slotsAvailable })}
+                          {trip.slotsAvailable != null ? ` · ${t('send_shipment.slots_left', { count: trip.slotsAvailable })}` : ''}
                           {trip.capacityAvailableKg ? ` · ${t('send_shipment.capacity_available', { kg: fmt(trip.capacityAvailableKg) })}` : ''}
                         </div>
+                        {trip.loadStop && trip.unloadStop && (
+                          <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{trip.loadStop} → {trip.unloadStop}</div>
+                        )}
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 12, fontWeight: 900, color: OR }}>
@@ -418,7 +436,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                     onClick={() => { setSelected({ providerId: p.id }); setStep(3); }}
                     style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 8,
                       cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      border: selected?.providerId === p.id && !selected?.availabilityId ? `2px solid ${B}` : '2px solid transparent' }}>
+                      border: selected?.providerId === p.id && !selected?.runId ? `2px solid ${B}` : '2px solid transparent' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
                         backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center',

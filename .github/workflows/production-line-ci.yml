@@ -128,6 +128,13 @@ jobs:
             "$BASE/shipments/routes?originPlace=tz_seed&destination=Mbagala"
           check "a non-numeric weight is a 400" 400 'weightKg' \
             "$BASE/shipments/routes?origin=Kariakoo&destination=Mbagala&weightKg=heavy"
+          # Gate 2: trips are Transport Runs; a travel day is validated, and the
+          # schema report answers (null here: this database has no ledger).
+          check "a malformed travel day is a 400" 400 'date must be' \
+            "$BASE/shipments/routes?origin=Kariakoo&destination=Mbagala&date=tomorrow"
+          check "a travel day is accepted" 200 '"availableTrips":\[\]' \
+            "$BASE/shipments/routes?origin=Kariakoo&destination=Mbagala&date=2030-01-15"
+          check "the migration ledger report answers" 200 '"shipped":' "$BASE/version/migrations"
           kill "$APP_PID" || true
       - name: Post the failure on the pull request
         if: failure() && github.event_name == 'pull_request'

@@ -95,12 +95,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { TransportRun } from './entities/transport-run.entity';
 import { TransportRunStop } from './entities/transport-run-stop.entity';
 import { Vehicle } from './entities/vehicle.entity';
 import { ParcelRunAssignment, ParcelRunAssignmentStatus } from './entities/parcel-run-assignment.entity';
 import { TransportService } from './transport.service';
+import { runLoad } from './run-supply';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 // A plain TS enum import only -- NOT the Parcel/ParcelTracking entity
 // classes. Mirrors this file's own established "plain parcelId column, raw
@@ -478,30 +479,28 @@ export class ParcelRunAssignmentService {
     if (!vehicle) return; // defensive -- FK guarantees this in practice
     if (vehicle.parcelCapacity == null && vehicle.weightCapacityKg == null) return;
 
-    const activeAssignments = await manager.getRepository(ParcelRunAssignment).find({
-      where: { runId: run.id, status: In(ACTIVE_STATUSES) },
-    });
+    // Gate 2: ONE definition of a Run's load (transport/run-supply.ts) --
+    // Shipments booked on this Run plus active assignments of any other
+    // parcel, each parcel counted once. The parcel being assigned is left
+    // out of the count, so a parcel whose Shipment already holds a place on
+    // this Run takes that place rather than needing a second one, and an
+    // unbooked parcel cannot squeeze out one that was sold a place.
+    const load = await runLoad(manager, run.id, newParcelId);
 
-    if (vehicle.parcelCapacity != null && activeAssignments.length >= vehicle.parcelCapacity) {
+    if (vehicle.parcelCapacity != null && load.parcels >= vehicle.parcelCapacity) {
       throw new ConflictException(
         `This Run's assigned vehicle is at its parcel-count capacity (${vehicle.parcelCapacity})`,
       );
     }
 
     if (vehicle.weightCapacityKg != null) {
-      const parcelIds = activeAssignments.map((a) => a.parcelId);
-      const sumRows = await manager.query(
-        `SELECT COALESCE(SUM("weightKg"), 0) AS total FROM public.parcel WHERE id = ANY($1::int[])`,
-        [parcelIds],
-      );
-      const currentWeight = Number(sumRows[0].total);
       const [newParcelRow] = await manager.query(`SELECT "weightKg" FROM public.parcel WHERE id = $1`, [newParcelId]);
       // An unweighed parcel contributes 0 to the running total -- this
       // dimension genuinely cannot be enforced for it ("do not pretend
       // weight enforcement is exact if Parcel currently lacks trustworthy
       // dimensions"), so it is admitted rather than wrongly blocked.
       const newWeight = Number(newParcelRow?.weightKg ?? 0);
-      if (currentWeight + newWeight > Number(vehicle.weightCapacityKg)) {
+      if (load.kg + newWeight > Number(vehicle.weightCapacityKg)) {
         throw new ConflictException(
           `This Run's assigned vehicle would exceed its weight capacity (${vehicle.weightCapacityKg}kg)`,
         );

@@ -18,6 +18,15 @@ import {
   releaseSlotAtomic,
   reserveSlotAtomic,
 } from './slot-capacity';
+import {
+  BookableRun,
+  RunBookingContext,
+  assertJourneyRunsOperating,
+  assertRunBookable,
+  findBookableRuns,
+  holdRunsForJourney,
+  parseTravelDate,
+} from './run-supply';
 import { cityMatchParams, cityMatchSql, normalizeDiscoveryCity } from './city-match';
 import {
   TransportProvider,
@@ -1000,7 +1009,7 @@ export class TransportService {
     fromCity: string,
     toCity: string,
     weightKg = 0,
-    opts: { allowUnconstrainedSide?: boolean; sortBy?: DiscoverySortBy } = {},
+    opts: { allowUnconstrainedSide?: boolean; sortBy?: DiscoverySortBy; providersOnly?: boolean } = {},
   ): Promise<{
     published: ProviderAvailability[];
     providers: TransportProvider[];
@@ -1109,9 +1118,12 @@ export class TransportService {
         publishedQuery.orderBy('a.date', 'ASC').addOrderBy('a.departureTime', 'ASC');
         break;
     }
-    const published = await publishedQuery
-      .addOrderBy('a.id', 'ASC')
-      .getMany();
+    // Gate 2: senders are no longer offered provider_availability slots (see
+    // discoverSupply). providersOnly skips that table altogether; the slot
+    // query remains only for the legacy Super Agent dispatch screen.
+    const published = opts.providersOnly
+      ? []
+      : await publishedQuery.addOrderBy('a.id', 'ASC').getMany();
 
     // All verified providers covering this route (even without published availability)
     const providersQuery = this.providerRepo
@@ -1156,6 +1168,84 @@ export class TransportService {
     const providers = await providersQuery.orderBy('p.rating', 'DESC').getMany();
 
     return { published, providers };
+  }
+
+  // ── Gate 2: ONE transport supply model ───────────────────────────────────
+  // What a sender can book is an open, future TransportRun -- the same object
+  // the transporter schedules, loads and drives (see run-supply.ts). These
+  // are the only doors Shipment discovery, the Journey composer, quoting and
+  // booking use; none of them reads provider_availability.
+
+  /** Bookable Runs for one origin/destination pair, plus the verified providers covering it. */
+  async discoverSupply(
+    fromCity: string,
+    toCity: string,
+    weightKg = 0,
+    opts: { sortBy?: DiscoverySortBy; providerId?: number; onDate?: string } = {},
+  ): Promise<{ trips: BookableRun[]; providers: TransportProvider[] }> {
+    const from = normalizeDiscoveryCity(fromCity) as string;
+    const to = normalizeDiscoveryCity(toCity) as string;
+    const onDate = opts.onDate ? parseTravelDate(opts.onDate) : undefined;
+    const [{ providers }, trips] = await Promise.all([
+      this.findAvailableForRoute(from, to, weightKg, { providersOnly: true }),
+      findBookableRuns(this.dataSource.manager, { from, to, weightKg, providerId: opts.providerId, onDate }),
+    ]);
+    const price = (t: BookableRun) => Math.max(t.pricePerKg * (weightKg > 0 ? weightKg : 0), t.fixedFee);
+    if (opts.sortBy === 'cheapest') {
+      trips.sort((a, b) => price(a) - price(b) || a.departureAt.getTime() - b.departureAt.getTime() || a.runId - b.runId);
+    } else if (opts.sortBy === 'fastest') {
+      const hours = (t: BookableRun) => t.estimatedHours ?? Number.POSITIVE_INFINITY;
+      trips.sort((a, b) => hours(a) - hours(b) || a.departureAt.getTime() - b.departureAt.getTime() || a.runId - b.runId);
+    }
+    return { trips, providers };
+  }
+
+  /**
+   * The one Run `runId`, if it is bookable AND serves from -> to: returns it
+   * with the stop pair the parcel would load and unload at, or null.
+   */
+  async findBookableRun(runId: number, fromCity: string, toCity: string, weightKg = 0): Promise<BookableRun | null> {
+    const from = normalizeDiscoveryCity(fromCity) as string;
+    const to = normalizeDiscoveryCity(toCity) as string;
+    const [trip] = await findBookableRuns(this.dataSource.manager, { from, to, weightKg, runId, limit: 1 });
+    return trip ?? null;
+  }
+
+  /** Throws unless `runId` is bookable, belongs to ctx's provider/route and serves from -> to. */
+  async assertRunServes(
+    runId: number,
+    fromCity: string,
+    toCity: string,
+    weightKg: number,
+    ctx: RunBookingContext = {},
+  ): Promise<BookableRun> {
+    // First the reasons that have nothing to do with geography (gone, closed,
+    // departed, full, wrong provider) -- each with its own message.
+    await assertRunBookable(this.dataSource.manager, runId, weightKg, ctx);
+    const trip = await this.findBookableRun(runId, fromCity, toCity, weightKg);
+    if (!trip) {
+      throw new BadRequestException('The selected trip does not serve the requested origin/destination');
+    }
+    return trip;
+  }
+
+  /** See run-supply.ts assertRunBookable. */
+  async assertRunBookable(runId: number, weightKg: number, ctx: RunBookingContext = {}, em?: EntityManager): Promise<void> {
+    await assertRunBookable(em ?? this.dataSource.manager, runId, weightKg, ctx);
+  }
+
+  /**
+   * Called inside the transaction that inserts a Shipment for a committed
+   * Journey: locks and re-proves every Run the Journey names. The inserted
+   * Shipment is the reservation -- there is no counter to keep in step.
+   */
+  async holdRunCapacityForJourney(journeySelectionId: number, weightKg: number, em: EntityManager): Promise<number[]> {
+    return holdRunsForJourney(em, journeySelectionId, weightKg);
+  }
+
+  /** A Shipment that already holds its place may be confirmed unless its Run was cancelled or is over. */
+  async assertJourneyRunsOperating(journeySelectionId: number, em?: EntityManager): Promise<void> {
+    await assertJourneyRunsOperating(em ?? this.dataSource.manager, journeySelectionId);
   }
 
   // ── PUBLIC: safe availability discovery ──────────────────────────────────

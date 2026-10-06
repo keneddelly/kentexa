@@ -11,7 +11,8 @@
  *
  * Never invents route/price/capacity data — everything here reads from or
  * writes through the EXISTING supply model (TransportService/TransportRoute/
- * ProviderAvailability); this module owns demand, not supply.
+ * TransportRun -- see transport/run-supply.ts); this module owns demand,
+ * not supply.
  */
 import {
   Injectable,
@@ -288,6 +289,9 @@ export class ShipmentsService {
     destinationSide: DiscoverySideInput,
     weightKg = 0,
     providerId?: number,
+    // Gate 2: an optional Tanzania calendar day ('YYYY-MM-DD'). Without it
+    // the earliest upcoming trips are listed.
+    onDate?: string,
   ) {
     const [origin, destination] = await Promise.all([
       this.resolveDiscoverySide('origin', originSide),
@@ -301,9 +305,12 @@ export class ShipmentsService {
     }
 
     // Sequential index order (origin-major) => deterministic merge order.
+    // Gate 2: a trip is an open, future Transport Run (TransportService.
+    // discoverSupply) -- the Run the transporter scheduled and will drive.
+    const supplyOpts = onDate ? { onDate } : {};
     const results = await Promise.all(
       pairs.map((pair) =>
-        this.transportService.findAvailableForRoute(pair.o.key, pair.d.key, weightKg),
+        this.transportService.discoverSupply(pair.o.key, pair.d.key, weightKg, supplyOpts),
       ),
     );
 
@@ -316,10 +323,12 @@ export class ShipmentsService {
         destinationKey: pairs[i].d.key,
         destinationKind: pairs[i].d.kind,
       };
-      for (const a of result.published) {
-        const seen = trips.get(a.id);
+      // The first (most specific) pair that finds a Run decides which of
+      // its stops the parcel loads and unloads at.
+      for (const a of result.trips) {
+        const seen = trips.get(a.runId);
         if (seen) seen.matchedOn.push(matched);
-        else trips.set(a.id, { row: a, matchedOn: [matched] });
+        else trips.set(a.runId, { row: a, matchedOn: [matched] });
       }
       for (const pr of result.providers) {
         const seen = providers.get(pr.id);
@@ -339,9 +348,8 @@ export class ShipmentsService {
 
     const tripList = [...trips.values()].sort(
       (x, y) =>
-        String(x.row.date).localeCompare(String(y.row.date)) ||
-        String(x.row.departureTime ?? '').localeCompare(String(y.row.departureTime ?? '')) ||
-        x.row.id - y.row.id,
+        new Date(x.row.departureAt).getTime() - new Date(y.row.departureAt).getTime() ||
+        x.row.runId - y.row.runId,
     );
     const providerList = [...providers.values()].sort(
       (x, y) => (Number(y.row.rating) || 0) - (Number(x.row.rating) || 0) || x.row.id - y.row.id,
@@ -356,9 +364,9 @@ export class ShipmentsService {
     else if (marketHadSupply) reason = 'provider_does_not_serve_route';
     else if (weightKg > 0) {
       const unweighted = await Promise.all(
-        pairs.map((pair) => this.transportService.findAvailableForRoute(pair.o.key, pair.d.key, 0)),
+        pairs.map((pair) => this.transportService.discoverSupply(pair.o.key, pair.d.key, 0, supplyOpts)),
       );
-      reason = unweighted.some((r) => r.published.length > 0 || r.providers.length > 0)
+      reason = unweighted.some((r) => r.trips.length > 0 || r.providers.length > 0)
         ? 'no_capacity_for_weight'
         : 'no_route';
     } else reason = 'no_route';
@@ -366,19 +374,26 @@ export class ShipmentsService {
     return {
       availability: { reason, tripCount: tripList.length, providerCount: providerList.length },
       availableTrips: tripList.map(({ row: a, matchedOn }) => ({
-        availabilityId: a.id,
+        // The trip IS the Run. availabilityId stays in the payload, always
+        // null, only so an already-installed app reads "no legacy slot".
+        runId: a.runId,
+        availabilityId: null,
         providerId: a.providerId,
-        providerName: (a as any).provider?.name ?? null,
-        providerLogo: (a as any).provider?.logoUrl ?? null,
-        providerType: (a as any).provider?.type ?? null,
+        providerName: a.providerName,
+        providerLogo: a.providerLogo,
+        providerType: a.providerType,
         routeId: a.routeId,
+        // Tanzania wall-clock day and time, plus the exact instant.
         date: a.date,
         departureTime: a.departureTime,
-        arrivalEstimate: a.arrivalEstimate,
-        slotsAvailable: Math.max(0, a.totalSlots - a.usedSlots),
-        capacityAvailableKg: Math.max(0, Number(a.totalCapacityKg) - Number(a.usedCapacityKg)),
-        pricePerKg: (a as any).route?.pricePerKg ?? null,
-        fixedFee: (a as any).route?.fixedFee ?? null,
+        departureAt: new Date(a.departureAt).toISOString(),
+        loadStop: a.loadLabel,
+        unloadStop: a.unloadLabel,
+        // null = the transporter has not declared that limit for this trip.
+        slotsAvailable: a.slotsAvailable,
+        capacityAvailableKg: a.capacityAvailableKg,
+        pricePerKg: a.pricePerKg,
+        fixedFee: a.fixedFee,
         matchedOn,
       })),
       providers: providerList.map(({ row: p, matchedOn }) => ({
@@ -589,6 +604,14 @@ export class ShipmentsService {
     // write fails the reservation rolls back with it (no leaked slot).
     return this.shipmentRepo.manager.transaction(async (em) => {
       const shipments = em.getRepository(Shipment);
+      // Gate 2: a Journey that names a Transport Run books THAT Run. The Run
+      // row is locked and re-proved open, not departed and not full; the
+      // Shipment inserted below, in this same transaction, is the booking
+      // (see transport/run-supply.ts) -- so it is reserved exactly once, and
+      // a failed insert or a later cancellation leaves nothing behind.
+      if (quote?.journeySelectionId != null) {
+        await this.transportService.holdRunCapacityForJourney(quote.journeySelectionId, weightKg, em);
+      }
       if (effectiveAvailabilityId) {
         await this.transportService.reserveSlot(
           effectiveAvailabilityId,
@@ -870,6 +893,10 @@ export class ShipmentsService {
           await reserveNew();
           if (shipment.availabilityId) await releaseOld();
         }
+      } else if (shipment.journeySelectionId != null && !shipment.availabilityId) {
+        // Booked on a Transport Run at creation: the place is already held
+        // (no capacity change); the Run must still be going to run.
+        await this.transportService.assertJourneyRunsOperating(shipment.journeySelectionId, em);
       } else if (shipment.availabilityId) {
         // Slot attached at create: it must still agree with the provider/
         // route being confirmed. No capacity change.

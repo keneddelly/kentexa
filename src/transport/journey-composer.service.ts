@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CargoRequirements, normalizeCargoRequirements } from './journey/cargo-requirements';
-import { JourneyLegType } from './entities/journey-selection.entity';
+import { JourneyCommitmentLevel, JourneyLegType } from './entities/journey-selection.entity';
+import { parseTravelDate } from './run-supply';
 import { JourneySelectionService } from './journey-selection.service';
 import { TransportService, DiscoverySortBy } from './transport.service';
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
@@ -38,10 +39,14 @@ export interface ComposeJourneyDto {
   // A customer who came from a transporter's profile has already chosen the
   // provider: only that provider's options are composed.
   providerId?: number;
+  // Gate 2: an optional Tanzania calendar day ('YYYY-MM-DD') to look at.
+  date?: string;
 }
 
 export interface SelectComposedJourneyDto extends ComposeJourneyDto {
-  availabilityId: number;
+  // Gate 2: the option the client names is a Transport Run the server
+  // offered. Nothing else about the leg is taken from the request.
+  runId: number;
 }
 
 /** A side after the server has resolved it. `keys` are routing keys, most specific first. */
@@ -146,35 +151,37 @@ export class JourneyComposerService {
     const weightKg = Number(cargo.weightKg) || 0;
 
     // The same discovery every other caller uses, run once per routing-key
-    // pair and de-duplicated by slot id (first, i.e. most specific, pair wins).
-    const slots = new Map<number, any>();
+    // pair and de-duplicated by Run id (first, i.e. most specific, pair wins
+    // and so decides the stops the parcel loads and unloads at).
+    const providerId = dto.providerId != null ? Number(dto.providerId) : undefined;
+    const onDate = dto.date ? parseTravelDate(dto.date) : undefined;
+    const runs = new Map<number, any>();
     for (const pair of this.pairs(origin, destination)) {
-      const { published } = await this.transport.findAvailableForRoute(pair.from, pair.to, weightKg, {
-        sortBy: dto.sortBy,
+      const { trips } = await this.transport.discoverSupply(pair.from, pair.to, weightKg, {
+        sortBy: dto.sortBy, providerId, onDate,
       });
-      for (const slot of published) if (!slots.has(slot.id)) slots.set(slot.id, slot);
+      for (const trip of trips) if (!runs.has(trip.runId)) runs.set(trip.runId, trip);
     }
-    const providerId = dto.providerId != null ? Number(dto.providerId) : null;
     const options = await Promise.all(
-      [...slots.values()]
-        .filter((slot) => slot.routeId != null)
-        .filter((slot) => providerId == null || Number(slot.providerId) === providerId)
-        .map(async (slot) => {
-          const price = await this.transport.getEffectiveRoutePrice(slot.routeId!);
-          const transportBase = Math.max(price.pricePerKg * weightKg, price.fixedFee || 0);
-          return {
-            optionType: 'DIRECT_TRANSPORT' as const,
-            availabilityId: slot.id,
-            providerId: slot.providerId,
-            routeId: slot.routeId,
-            date: slot.date,
-            departureTime: slot.departureTime,
-            arrivalEstimate: slot.arrivalEstimate,
-            transportBase,
-            currency: 'TZS' as const,
-            commitmentLevel: 'service_confirmed' as const,
-          };
-        }),
+      [...runs.values()].map(async (trip) => {
+        const price = await this.transport.getEffectiveRoutePrice(trip.routeId);
+        const transportBase = Math.max(price.pricePerKg * weightKg, price.fixedFee || 0);
+        return {
+          optionType: 'DIRECT_TRANSPORT' as const,
+          runId: trip.runId,
+          providerId: trip.providerId,
+          routeId: trip.routeId,
+          date: trip.date,
+          departureTime: trip.departureTime,
+          departureAt: new Date(trip.departureAt).toISOString(),
+          loadStop: trip.loadLabel,
+          unloadStop: trip.unloadLabel,
+          slotsAvailable: trip.slotsAvailable,
+          transportBase,
+          currency: 'TZS' as const,
+          commitmentLevel: JourneyCommitmentLevel.RUN_CONFIRMED,
+        };
+      }),
     );
     return {
       origin: origin.snapshot,
@@ -186,47 +193,38 @@ export class JourneyComposerService {
   }
 
   async selectComposed(userId: number, dto: SelectComposedJourneyDto) {
-    const availabilityId = Number(dto.availabilityId);
-    if (!Number.isInteger(availabilityId) || availabilityId <= 0) {
-      throw new BadRequestException('A valid availabilityId is required');
+    const runId = Number(dto?.runId);
+    if (!Number.isInteger(runId) || runId <= 0) {
+      // An app installed before Gate 2 names a legacy slot instead. Those
+      // are no longer bookable; a fresh search offers the Run to pick.
+      throw new BadRequestException('Choose a trip from a fresh search: a valid runId is required');
     }
     const cargo = normalizeCargoRequirements(dto.cargoRequirements);
     const origin = await this.resolveSide('Origin', dto.origin, dto.originSnapshot);
     const destination = await this.resolveSide('Destination', dto.destination, dto.destinationSnapshot);
-    const slot = await this.transport.assertAvailabilityIsDiscoverable(
-      availabilityId,
-      Number(cargo.weightKg) || 0,
-    );
-    if (slot.routeId == null) {
-      throw new BadRequestException('This availability cannot be composed into a canonical journey');
-    }
-    if (dto.providerId != null && Number(dto.providerId) !== Number(slot.providerId)) {
-      throw new BadRequestException('That trip does not belong to the selected transport provider');
-    }
-    await this.transport.assertEligibleProvider(slot.providerId);
+    const weightKg = Number(cargo.weightKg) || 0;
+    const ctx = dto.providerId != null ? { providerId: Number(dto.providerId) } : {};
 
-    // The route must serve this journey under at least one pair of the
-    // server-derived routing keys -- the same pairs discovery searched. The
-    // pair that matches is recorded on the leg, so every later re-validation
+    // Gone, closed, departed, full or another provider's: each its own error.
+    await this.transport.assertRunBookable(runId, weightKg, ctx);
+
+    // The Run must serve this journey under at least one pair of the
+    // server-derived routing keys -- the same pairs discovery searched, in
+    // the same order. The pair that matches is recorded on the leg, together
+    // with the stops it matched, so every later re-validation
     // (JourneySelectionService, the quote) checks the exact same thing.
     let matched: { from: string; to: string } | null = null;
-    let lastError: unknown = null;
+    let trip: any = null;
     for (const pair of this.pairs(origin, destination)) {
-      try {
-        await this.transport.assertRouteServesJourney(slot.routeId, pair.from, pair.to);
-        matched = pair;
-        break;
-      } catch (error) {
-        lastError = error;
-      }
+      trip = await this.transport.findBookableRun(runId, pair.from, pair.to, weightKg);
+      if (trip) { matched = pair; break; }
     }
-    if (!matched) {
-      throw lastError instanceof BadRequestException
-        ? lastError
-        : new BadRequestException('The selected route does not serve the requested origin/destination');
+    if (!matched || !trip) {
+      throw new BadRequestException('The selected trip does not serve the requested origin/destination');
     }
-    const fromNode = { ...origin.snapshot, city: matched.from };
-    const toNode = { ...destination.snapshot, city: matched.to };
+    await this.transport.assertEligibleProvider(trip.providerId);
+    const fromNode = { ...origin.snapshot, city: matched.from, stop: trip.loadLabel };
+    const toNode = { ...destination.snapshot, city: matched.to, stop: trip.unloadLabel };
 
     return this.selections.select(userId, {
       originSnapshot: origin.snapshot,
@@ -237,10 +235,19 @@ export class JourneyComposerService {
         type: JourneyLegType.TRANSPORT,
         fromNode,
         toNode,
-        providerId: slot.providerId,
-        routeId: slot.routeId,
-        availabilityId: slot.id,
-        executionRequirements: { composedByServer: true },
+        providerId: trip.providerId,
+        routeId: trip.routeId,
+        runId: trip.runId,
+        loadRouteStopId: trip.loadRouteStopId,
+        unloadRouteStopId: trip.unloadRouteStopId,
+        commitmentLevel: JourneyCommitmentLevel.RUN_CONFIRMED,
+        executionRequirements: {
+          composedByServer: true,
+          // The Run's own immutable stops (Gate 5 tenders the parcel from these).
+          loadRunStopId: trip.loadRunStopId,
+          unloadRunStopId: trip.unloadRunStopId,
+          scheduledDeparture: new Date(trip.departureAt).toISOString(),
+        },
       }],
     });
   }

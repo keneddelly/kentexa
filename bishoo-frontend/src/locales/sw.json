@@ -5512,7 +5512,8 @@
     "search_request_failed": "Hatukuweza kufikia Kentexa kutafuta njia hii. Angalia mtandao wako kisha jaribu tena.",
     "search_invalid_location": "Hatukuweza kusoma moja ya maeneo. Lichague tena kwenye orodha, au andika jina la eneo.",
     "search_retry": "Jaribu tena",
-    "no_open_trip": "Wasafirishaji hawa wanahudumia njia hii lakini hawana safari iliyo wazi leo wala kesho.",
+    "travel_date_label": "Tarehe ya safari (si lazima)",
+    "no_open_trip": "Wasafirishaji hawa wanahudumia njia hii lakini hawana safari iliyo wazi kwa sasa.",
     "provider_does_not_serve_route": "Msafirishaji huyu hahudumii njia hii. Rudi nyuma kuona wengine wanaoihudumia.",
     "hubs_load_failed": "Imeshindwa kupakia hub za Kentexa. Unaweza kuendelea bila hub, au rudi nyuma ujaribu tena."
   },

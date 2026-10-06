@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody,
-  confirmBody, placeRefParam, journeySide, searchOutcome,
+  confirmBody, placeRefParam, journeySide, searchOutcome, isBookableTrip,
 } from './shipmentRequests';
 
 // The contract both test suites share. Read from disk (it lives outside
@@ -39,6 +39,22 @@ describe('send-shipment request contract', () => {
     expect(queryString(routeSearchParams({ ...state, transportProviderId: 31 }))).toBe(
       `${requests.routeSearch.queryString}&providerId=31`,
     );
+  });
+
+  test('a chosen travel day is sent as date=YYYY-MM-DD; no day sends no date', () => {
+    expect(queryString(routeSearchParams({ ...state, travelDate: '2026-10-26' }))).toBe(
+      `${requests.routeSearch.queryString}&date=2026-10-26`,
+    );
+    expect(queryString(routeSearchParams({ ...state, travelDate: '' }))).toBe(requests.routeSearch.queryString);
+  });
+
+  test('a bookable trip is a Transport Run the server offered (Gate 2)', () => {
+    expect(isBookableTrip(selected)).toBe(true);
+    expect(isBookableTrip({ providerId: 31, routeId: 41 })).toBe(false); // a bare transporter, no trip
+    expect(isBookableTrip({ availabilityId: 9, providerId: 31, routeId: 41 })).toBe(false); // a pre-Gate-2 slot
+    expect(isBookableTrip(null)).toBe(false);
+    expect(wire(selectJourneyBody(state, selected, now)).availabilityId).toBeUndefined();
+    expect(wire(quoteBody(journeySelection, selected, state)).availabilityId).toBeUndefined();
   });
 
   test('hub search sends the place as the same canonical string', () => {

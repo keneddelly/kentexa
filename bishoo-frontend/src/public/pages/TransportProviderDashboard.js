@@ -253,7 +253,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
         departureTime:scheduleForm.departureTime,
         daysOfWeek:scheduleForm.scheduleType==='selected_days' ? scheduleForm.daysOfWeek : undefined,
         defaultVehicleId:scheduleForm.defaultVehicleId ? Number(scheduleForm.defaultVehicleId) : undefined,
-        autoOpen:true, horizonDays:14,
+        autoOpen:true, horizonDays:21,
       });
       setShowScheduleForm(false);
       setScheduleForm({ routeId:'', scheduleType:'daily', departureTime:'06:00', daysOfWeek:[], defaultVehicleId:'' });

@@ -45,3 +45,30 @@ listed, and also when a listed spec starts passing, so the list only shrinks.
 
 `GET https://api.kentexa.com/version` returns the commit and branch Render
 built. Before Gate 0 this could only be inferred by probing for routes.
+
+## Which schema is live?
+
+`GET https://api.kentexa.com/version/migrations` compares the migration files
+shipped in the running build with the database's own ledger
+(`typeorm_migrations`) and lists the ones not applied (`pending`).
+
+This matters because production does not run every migration on start. The
+start command in `package.json` (`start:prod`) carries an upper bound,
+`MIGRATION_RUN_UPTO=<timestamp>`, raised by hand one migration at a time.
+Code can therefore be deployed ahead of a table it needs. Before merging a
+change that depends on a migration, check that `pending` does not list it.
+
+`sharedTimestamps` shows, for timestamps used by more than one migration
+file, which names the ledger holds. Two files share `1788288600000`; do not
+rename either until this report shows what production actually recorded.
+
+## Transport supply
+
+A trip a sender can book is an open, future **Transport Run**
+(`src/transport/run-supply.ts`). Route search, the Journey composer, quoting
+and booking read Runs only. `provider_availability` is no longer read by any
+of them; it remains only behind the legacy Super Agent dispatch screen
+(`GET /transport/available`) until that screen is retired.
+
+Recurring schedules are topped up to their horizon hourly and at start-up
+(`TransportRunService.extendScheduleHorizons`).
