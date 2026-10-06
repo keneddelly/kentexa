@@ -123,8 +123,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [receiverPhone, setReceiverPhone] = useState('');
   const [senderName, setSenderName] = useState(currentUser?.name || '');
   const [senderPhone, setSenderPhone] = useState(currentUser?.phone || '');
-  const [pickupOption, setPickupOption] = useState('agent');
-  const [deliveryOption, setDeliveryOption] = useState('agent');
+  // Customer chooses the handoff outcome, never an internal worker role.
+  // `door` means Kentexa arranges collection/delivery; `station` means the
+  // sender/recipient uses a Kentexa Point. Agent assignment stays internal.
+  const [pickupOption, setPickupOption] = useState('door');
+  const [deliveryOption, setDeliveryOption] = useState('door');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -206,12 +209,16 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     finally { setHubsLoading(false); }
   };
 
-  const priceEstimate = (() => {
-    if (!selected) return null;
+  const calculatedTripPrice = (trip) => {
+    if (!trip) return null;
     const w = Number(weightKg) || 0;
-    const byWeight = (selected.pricePerKg || 0) * w;
-    return Math.max(byWeight, selected.fixedFee || 0);
-  })();
+    const perKg = Number(trip.pricePerKg) || 0;
+    const fixed = Number(trip.fixedFee) || 0;
+    if (!perKg && !fixed) return null;
+    return Math.max(perKg * w, fixed);
+  };
+
+  const priceEstimate = calculatedTripPrice(selected);
 
   const canContinueStep1 = itemDescription.trim() && Number(weightKg) > 0;
   const canContinueStep3 = receiverName.trim() && receiverPhone.trim();
@@ -416,7 +423,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 12, fontWeight: 900, color: OR }}>
-                          {trip.pricePerKg ? `TZS ${fmt(trip.pricePerKg)}/kg` : t('send_shipment.price_negotiable')}
+                          {calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable')}
                         </div>
                       </div>
                     </div>
@@ -492,32 +499,34 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               </div>
             </details>
 
-            <div style={{ fontSize: 12, fontWeight: 700, color: GR, marginBottom: 8 }}>
-              {t('send_shipment.pickup_label')}
+            <div style={{ fontSize: 12, fontWeight: 800, color: DK, marginBottom: 8 }}>
+              How should we get the parcel from you?
             </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-              {['door', 'agent', 'station'].map(opt => (
+            <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
+              {[['door', 'Pick up from me', 'Kentexa will arrange pickup from your address'],
+                ['station', "I'll take it to a Kentexa Point", 'Drop it at an available parcel point']].map(([opt, title, hint]) => (
                 <button key={opt} onClick={() => setPickupOption(opt)}
-                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, cursor: 'pointer',
+                  style={{ padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
                     border: `2px solid ${pickupOption === opt ? B : '#E2E8F0'}`,
-                    backgroundColor: pickupOption === opt ? '#EFF6FF' : WH,
-                    fontSize: 12, fontWeight: 700, color: pickupOption === opt ? B : GR }}>
-                  {t(`send_shipment.option_${opt}`)}
+                    backgroundColor: pickupOption === opt ? '#EFF6FF' : WH }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: pickupOption === opt ? B : DK }}>{title}</div>
+                  <div style={{ fontSize: 11, color: GR, marginTop: 3 }}>{hint}</div>
                 </button>
               ))}
             </div>
 
-            <div style={{ fontSize: 12, fontWeight: 700, color: GR, marginBottom: 8 }}>
-              {t('send_shipment.delivery_label')}
+            <div style={{ fontSize: 12, fontWeight: 800, color: DK, marginBottom: 8 }}>
+              How should the recipient receive it?
             </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-              {['door', 'agent', 'station'].map(opt => (
+            <div style={{ display: 'grid', gap: 8, marginBottom: 20 }}>
+              {[['door', 'Deliver to recipient', 'Kentexa will arrange delivery to the recipient'],
+                ['station', 'Recipient will collect', 'Recipient collects from an available Kentexa Point']].map(([opt, title, hint]) => (
                 <button key={opt} onClick={() => setDeliveryOption(opt)}
-                  style={{ flex: 1, padding: '10px 0', borderRadius: 10, cursor: 'pointer',
+                  style={{ padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
                     border: `2px solid ${deliveryOption === opt ? B : '#E2E8F0'}`,
-                    backgroundColor: deliveryOption === opt ? '#EFF6FF' : WH,
-                    fontSize: 12, fontWeight: 700, color: deliveryOption === opt ? B : GR }}>
-                  {t(`send_shipment.option_${opt}`)}
+                    backgroundColor: deliveryOption === opt ? '#EFF6FF' : WH }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: deliveryOption === opt ? B : DK }}>{title}</div>
+                  <div style={{ fontSize: 11, color: GR, marginTop: 3 }}>{hint}</div>
                 </button>
               ))}
             </div>
