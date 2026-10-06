@@ -40,6 +40,8 @@ import { Shipment } from '../shipments/entities/shipment.entity';
 import { IdentityModule } from '../identity/identity.module';
 import { SearchModule } from '../search/search.module';
 import { SuperAgentCommissionModule } from '../super-agent-commission/super-agent-commission.module';
+import { AgentsModule } from '../agents/agents.module';
+import { LogisticsServiceOfferService } from './logistics-service-offer.service';
 
 @Module({
   imports: [
@@ -58,6 +60,7 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
     // Service. One-directional (SuperAgentCommissionModule imports nothing
     // from TransportModule) -- no circularity.
     SuperAgentCommissionModule,
+    AgentsModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
     TypeOrmModule.forFeature([
       TransportProvider,
@@ -92,7 +95,7 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
     ]),
   ],
   controllers: [TransportController, VanPilotController],
-  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService, JourneyComposerService],
+  providers: [TransportService, TransportQuoteService, TransportRunService, ParcelRunAssignmentService, ParcelJourneyService, JourneySelectionService, JourneyComposerService, LogisticsServiceOfferService],
   // Exported now (unused by any other module yet) per Issue #61's own
   // design requirement: a future Super Agent counter or Intent caller
   // should be able to inject these same canonical authorities without a
