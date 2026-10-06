@@ -140,6 +140,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           originPlace: originResolved?.placeRef || undefined,
           destinationPlace: destinationResolved?.placeRef || undefined,
           weightKg: Number(weightKg) || undefined,
+          providerId: navParams?.transportProviderId || undefined,
         },
       });
       const providerId = navParams?.transportProviderId ? Number(navParams.transportProviderId) : null;
