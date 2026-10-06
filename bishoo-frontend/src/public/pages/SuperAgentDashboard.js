@@ -352,7 +352,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const resetBulkForm = () => {
     setBulkDestCity(''); setBulkCandidates([]); setBulkSelected(new Set());
     setBulkHubs([]); setBulkLastMileAgentId(null);
-    setBulkDestLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+    setBulkDestText('');
     setBulkManualContact({ name: '', phone: '', city: '', address: '' });
     setBulkTransport({ transportCompany: '', transportRef: '', totalShippingCost: '' });
     setBulkActiveShipment(null);
@@ -1009,7 +1009,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       alert(`✅ Kimehamishiwa kwa ${res.data.receiverName}. Ujumbe umetumwa kwa mshirika: ${res.data.agentNotifySent ? 'ndiyo' : 'hapana'}, kwa mnunuzi: ${res.data.buyerSmsSent ? 'ndiyo' : 'hapana'}.`);
       setTransferModal(null);
       setTransferForm({ destinationCity: '', destinationSuperAgentId: null, manualContactName: '', manualContactPhone: '', manualContactAddress: '', transportCompany: '', note: '' });
-      setTransferDestLocation({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+      setTransferDestText('');
       setTransferHubs([]);
       fetchAll();
     } catch (e) {
