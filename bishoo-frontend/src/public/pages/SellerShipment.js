@@ -223,6 +223,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, prefill = null, curr
   }, [sellerCity]);
 
 
+  // eslint-disable-next-line no-unused-vars -- kept for the screen it will serve again; an unused-variable warning must not fail the CI build
   const fetchPriceEstimate = async (destCity, destDistrictId, destDistrictName, weightKg) => {
     if (!destCity) return;
     try {

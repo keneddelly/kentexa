@@ -66,7 +66,11 @@ jobs:
         run: set -o pipefail; npm run build 2>&1 | tee -a backend.log
       - name: Boot the built app and read /version
         env:
-          NODE_ENV: test
+          # development + TYPEORM_SYNCHRONIZE builds the whole schema from the
+          # entities in the empty CI database, so start-up hooks that read
+          # tables (and every entity definition) are exercised for real.
+          NODE_ENV: development
+          TYPEORM_SYNCHRONIZE: 'true'
           PORT: '3999'
           DB_HOST: localhost
           DB_PORT: '5432'
@@ -86,7 +90,7 @@ jobs:
         run: |
           node dist/main > boot.log 2>&1 &
           APP_PID=$!
-          for i in $(seq 1 45); do
+          for i in $(seq 1 90); do
             if curl -fsS http://localhost:3999/version > version.json 2>/dev/null; then break; fi
             if ! kill -0 "$APP_PID" 2>/dev/null; then break; fi
             sleep 2
