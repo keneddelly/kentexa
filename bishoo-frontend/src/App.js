@@ -133,6 +133,7 @@ import SuperAgentParcel from './public/pages/SuperAgentParcel';
 import SuperAgentSettings from './public/pages/SuperAgentSettings';
 import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
+import MyShipments from './public/pages/MyShipments';
 import BuyerParcelAction from './public/pages/BuyerParcelAction';
 import StoreSettings from './seller/pages/StoreSettings';
 import BecomeSuperAgentInfo from './public/pages/BecomeSuperAgentInfo';
@@ -812,6 +813,7 @@ function App() {
       case 'SellerOrders':      return requireVerifiedSeller(<SellerOrders {...publicProps} />);
       case 'SellerShipping':    return requireVerifiedSeller(<SellerShipping {...publicProps} />);
       case 'SendShipment':      return requireLogin(<SendShipment {...publicProps} navParams={navParams} />);
+      case 'MyShipments':       return requireLogin(<MyShipments {...publicProps} />);
       case 'SellerInvoices':    return requireVerifiedSeller(<SellerInvoices {...publicProps} preSelected={navParams?.preSelected} />);
       case 'AgentDashboard':    return requireLogin(<AgentDashboard {...publicProps} />);
       case 'AgentOrderDashboard': return requireLogin(<AgentDashboard {...publicProps} />); // merged into unified dashboard
