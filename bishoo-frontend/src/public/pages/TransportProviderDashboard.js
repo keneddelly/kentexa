@@ -95,6 +95,9 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const [vehicles,      setVehicles]      = useState([]);
   const [showRunForm,   setShowRunForm]   = useState(false);
   const [runForm,       setRunForm]       = useState({ routeId:'', scheduledDeparture:'' });
+  const [schedules, setSchedules] = useState([]);
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({ routeId:'', scheduleType:'daily', departureTime:'06:00', daysOfWeek:[], defaultVehicleId:'' });
   const [showVehicleForm,setShowVehicleForm] = useState(false);
   const [routeStops, setRouteStops] = useState({});
   const [stopDraft, setStopDraft] = useState({});
@@ -117,13 +120,14 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const fetchAll = async () => {
     try {
       setLoading(true);
-      const [pRes, rRes, asRes, runRes, tenderRes, vehicleRes] = await Promise.all([
+      const [pRes, rRes, asRes, runRes, tenderRes, vehicleRes, scheduleRes] = await Promise.all([
         api.get('/transport/my-profile'),
         api.get('/transport/routes'),
         api.get('/transport/assignments'),
         api.get('/van-pilot/runs').catch(() => ({ data: [] })),
         api.get('/van-pilot/movement-tenders/open').catch(() => ({ data: [] })),
         api.get('/van-pilot/vehicles').catch(() => ({ data: [] })),
+        api.get('/van-pilot/schedules').catch(() => ({ data: [] })),
       ]);
       setProfile(pRes.data);
       setRoutes(rRes.data || []);
@@ -131,6 +135,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       setVanRuns(runRes.data || []);
       setVanTenders(tenderRes.data || []);
       setVehicles(vehicleRes.data || []);
+      setSchedules(scheduleRes.data || []);
     } catch { /* not registered yet */ }
     finally { setLoading(false); }
   };
@@ -237,6 +242,28 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const deactivateCanonicalStop = async (routeId,stopId) => {
     try { await api.patch(`/van-pilot/routes/${routeId}/stops/${stopId}/deactivate`); await loadRouteStops(routeId); }
     catch(e){ alert(e.response?.data?.message || 'Could not deactivate stop'); }
+  };
+
+  const createRecurringSchedule = async () => {
+    try {
+      setRunBusy('schedule');
+      await api.post('/van-pilot/schedules', {
+        routeId:Number(scheduleForm.routeId), scheduleType:scheduleForm.scheduleType,
+        departureTime:scheduleForm.departureTime,
+        daysOfWeek:scheduleForm.scheduleType==='selected_days' ? scheduleForm.daysOfWeek : undefined,
+        defaultVehicleId:scheduleForm.defaultVehicleId ? Number(scheduleForm.defaultVehicleId) : undefined,
+        autoOpen:true, horizonDays:14,
+      });
+      setShowScheduleForm(false);
+      setScheduleForm({ routeId:'', scheduleType:'daily', departureTime:'06:00', daysOfWeek:[], defaultVehicleId:'' });
+      await fetchAll();
+    } catch(e) { alert(e.response?.data?.message || 'Could not save recurring schedule'); }
+    finally { setRunBusy(null); }
+  };
+
+  const deactivateSchedule = async id => {
+    try { await api.patch(`/van-pilot/schedules/${id}/deactivate`); await fetchAll(); }
+    catch(e){ alert(e.response?.data?.message || 'Could not stop schedule'); }
   };
 
   const createVanRun = async () => {
@@ -599,9 +626,26 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
         {tab === 'van' && (
           <div>
             <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-              <button onClick={() => setShowRunForm(v=>!v)} style={{ flex:1, border:'none', borderRadius:10, padding:12, background:'#1d4ed8', color:'#fff', fontWeight:800 }}>+ Schedule Run</button>
+              <button onClick={() => setShowScheduleForm(v=>!v)} style={{ flex:1, border:'none', borderRadius:10, padding:12, background:'#1d4ed8', color:'#fff', fontWeight:800 }}>+ Daily Schedule</button>
+              <button onClick={() => setShowRunForm(v=>!v)} style={{ flex:1, border:'none', borderRadius:10, padding:12, background:'#475569', color:'#fff', fontWeight:800 }}>+ One-off Run</button>
               <button onClick={() => setShowVehicleForm(v=>!v)} style={{ flex:1, border:'none', borderRadius:10, padding:12, background:'#0f172a', color:'#fff', fontWeight:800 }}>+ Vehicle</button>
             </div>
+            {showScheduleForm && <div style={{background:'#fff',borderRadius:12,padding:14,marginBottom:12}}>
+              <div style={{fontSize:14,fontWeight:900,marginBottom:8}}>Recurring safari</div>
+              <select style={inp} value={scheduleForm.routeId} onChange={e=>setScheduleForm(p=>({...p,routeId:e.target.value}))}>
+                <option value="">Choose route</option>{routes.filter(r=>r.routeType==='local_loop'||r.routeType==='intercity').map(r=><option key={r.id} value={r.id}>#{r.id} {r.routeType==='intercity'? `${r.originCity} → ${r.destinationCity}`:(r.loopStops||[]).join(' → ')}</option>)}
+              </select>
+              <select style={{...inp,marginTop:8}} value={scheduleForm.scheduleType} onChange={e=>setScheduleForm(p=>({...p,scheduleType:e.target.value}))}><option value="daily">Every day</option><option value="selected_days">Selected days</option></select>
+              {scheduleForm.scheduleType==='selected_days' && <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8}}>{['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=><button type="button" key={d} onClick={()=>setScheduleForm(p=>({...p,daysOfWeek:p.daysOfWeek.includes(i)?p.daysOfWeek.filter(x=>x!==i):[...p.daysOfWeek,i]}))} style={{border:'1px solid #cbd5e1',borderRadius:8,padding:'6px 8px',background:scheduleForm.daysOfWeek.includes(i)?'#dbeafe':'#fff',fontWeight:700}}>{d}</button>)}</div>}
+              <input type="time" style={{...inp,marginTop:8}} value={scheduleForm.departureTime} onChange={e=>setScheduleForm(p=>({...p,departureTime:e.target.value}))}/>
+              <select style={{...inp,marginTop:8}} value={scheduleForm.defaultVehicleId} onChange={e=>setScheduleForm(p=>({...p,defaultVehicleId:e.target.value}))}><option value="">No default vehicle</option>{vehicles.filter(v=>v.isActive).map(v=><option key={v.id} value={v.id}>{v.identifier}{v.registrationPlate?` · ${v.registrationPlate}`:''}</option>)}</select>
+              <div style={{fontSize:11,color:'#64748b',marginTop:7}}>Kentexa will keep the next 14 days of Runs ready automatically. You only manage exceptions.</div>
+              <button disabled={!scheduleForm.routeId||!scheduleForm.departureTime||runBusy==='schedule'||(scheduleForm.scheduleType==='selected_days'&&!scheduleForm.daysOfWeek.length)} onClick={createRecurringSchedule} style={{width:'100%',marginTop:8,padding:10,border:'none',borderRadius:8,background:'#16a34a',color:'#fff',fontWeight:800}}>Save recurring schedule</button>
+            </div>}
+            {schedules.filter(s=>s.isActive).length>0 && <div style={{background:'#fff',borderRadius:12,padding:12,marginBottom:12}}>
+              <div style={{fontSize:12,fontWeight:900,marginBottom:6}}>RECURRING SCHEDULES</div>
+              {schedules.filter(s=>s.isActive).map(s=><div key={s.id} style={{padding:'8px 0',borderTop:'1px solid #f1f5f9',fontSize:12}}><strong>{s.originCity || (s.loopStops||[])[0]} → {s.destinationCity || (s.loopStops||[]).slice(-1)[0]}</strong> · {s.scheduleType==='daily'?'Every day':'Selected days'} · {String(s.departureTime).slice(0,5)}{s.defaultVehicleIdentifier?` · ${s.defaultVehicleIdentifier}`:''}<button onClick={()=>deactivateSchedule(s.id)} style={{float:'right',border:'none',background:'none',color:'#b91c1c'}}>Stop</button></div>)}
+            </div>}
             {showRunForm && <div style={{ background:'#fff', borderRadius:12, padding:14, marginBottom:12 }}>
               <select style={inp} value={runForm.routeId} onChange={e=>setRunForm(p=>({...p,routeId:e.target.value}))}>
                 <option value="">Choose route</option>{routes.filter(r=>r.routeType==='local_loop'||r.routeType==='intercity').map(r=><option key={r.id} value={r.id}>#{r.id} {r.routeType==='intercity' ? `${r.originCity} → ${r.destinationCity}` : (r.loopStops||[]).join(' → ')}</option>)}
