@@ -14,6 +14,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
+import {
+  routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody,
+  confirmBody, searchOutcome,
+} from '../../api/shipmentRequests';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -127,22 +131,36 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [originHubId, setOriginHubId] = useState('');
   const [destinationHubId, setDestinationHubId] = useState('');
   const [hubsLoading, setHubsLoading] = useState(false);
+  // Why the last route search came back as it did: a server reason
+  // (available / no_open_trip / no_capacity_for_weight /
+  // provider_does_not_serve_route / no_route) or a client-side failure
+  // (request_failed / invalid_location). A failed request is never shown as
+  // "no transporter".
+  const [searchReason, setSearchReason] = useState(null);
+  const [hubsError, setHubsError] = useState(false);
+
+  // Everything the request builders need, in one object (see
+  // api/shipmentRequests.js -- the request shapes are pinned by a contract
+  // test shared with the backend).
+  const requestState = {
+    itemDescription, weightKg, origin, destination, originResolved, destinationResolved,
+    receiverName, receiverPhone, senderName, senderPhone, pickupOption, deliveryOption,
+    transportProviderId: navParams?.transportProviderId, originHubId, destinationHubId,
+  };
 
   const searchRoutes = useCallback(async () => {
     if (!origin.trim() || !destination.trim()) return;
     setSearching(true);
     setSearched(true);
+    setSearchReason(null);
     try {
       const res = await api.get('/shipments/routes', {
-        params: {
-          origin: originResolved ? undefined : origin.trim(),
-          destination: destinationResolved ? undefined : destination.trim(),
-          originPlace: originResolved?.placeRef || undefined,
-          destinationPlace: destinationResolved?.placeRef || undefined,
-          weightKg: Number(weightKg) || undefined,
-          providerId: navParams?.transportProviderId || undefined,
-        },
+        params: routeSearchParams({
+          origin, destination, originResolved, destinationResolved, weightKg,
+          transportProviderId: navParams?.transportProviderId,
+        }),
       });
+      setSearchReason(searchOutcome(res.data, null));
       const providerId = navParams?.transportProviderId ? Number(navParams.transportProviderId) : null;
       const matchingTrips = (res.data?.availableTrips || []).filter(x => !providerId || Number(x.providerId) === providerId);
       const matchingProviders = (res.data?.providers || []).filter(x => !providerId || Number(x.id) === providerId);
@@ -151,9 +169,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         const requestedTrip = matchingTrips.find(x => (navParams?.availabilityId && Number(x.availabilityId) === Number(navParams.availabilityId)) || (navParams?.routeId && Number(x.routeId) === Number(navParams.routeId)));
         setSelected(prev => requestedTrip ? { ...requestedTrip, transportRunId:navParams?.transportRunId || prev?.transportRunId } : (prev || { providerId, routeId:navParams?.routeId ? Number(navParams.routeId) : undefined, availabilityId:navParams?.availabilityId ? Number(navParams.availabilityId) : undefined, transportRunId:navParams?.transportRunId ? Number(navParams.transportRunId) : undefined }));
       }
-    } catch {
+    } catch (err) {
       setTrips([]);
       setProviders([]);
+      setSearchReason(searchOutcome(null, err));
     } finally {
       setSearching(false);
     }
@@ -168,13 +187,14 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const loadHubChoices = async () => {
     if (!originResolved?.placeRef && !destinationResolved?.placeRef) return;
     setHubsLoading(true);
+    setHubsError(false);
     try {
       const [o,d]=await Promise.all([
-        originResolved?.placeRef ? api.get('/shipments/hubs',{params:{place:originResolved.placeRef,side:'origin'}}) : Promise.resolve({data:{hubs:[]}}),
-        destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:{place:destinationResolved.placeRef,side:'destination'}}) : Promise.resolve({data:{hubs:[]}}),
+        originResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(originResolved,'origin')}) : Promise.resolve({data:{hubs:[]}}),
+        destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(destinationResolved,'destination')}) : Promise.resolve({data:{hubs:[]}}),
       ]);
       setOriginHubs(o.data?.hubs || []); setDestinationHubs(d.data?.hubs || []);
-    } catch { setOriginHubs([]); setDestinationHubs([]); }
+    } catch { setOriginHubs([]); setDestinationHubs([]); setHubsError(true); }
     finally { setHubsLoading(false); }
   };
 
@@ -194,71 +214,20 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     try {
       let acceptedQuote = null;
       let journeySelection = null;
-      if (selected?.providerId && selected?.routeId) {
-        const journey = await api.post('/transport/journeys', {
-          originSnapshot: originResolved || { displayLabel: origin.trim() },
-          destinationSnapshot: destinationResolved || { displayLabel: destination.trim() },
-          cargoRequirements: {
-            description: itemDescription.trim(),
-            cargoClass: 'normal',
-            quantity: 1,
-            weightKg: Number(weightKg) || 0,
-            evidenceLevel: 'declared',
-            capturedAt: new Date().toISOString(),
-          },
-          legs: [{
-            type: 'transport',
-            fromNode: originResolved || { displayLabel: origin.trim() },
-            toNode: destinationResolved || { displayLabel: destination.trim() },
-            providerId: selected.providerId,
-            routeId: selected.routeId,
-            availabilityId: selected.availabilityId || null,
-          }],
-        });
+      // A dated trip the server offered: the SERVER composes the journey
+      // from the two places and that trip, then prices and freezes it. The
+      // form never writes journey legs itself.
+      if (selected?.availabilityId && selected?.providerId && selected?.routeId) {
+        const journey = await api.post('/transport/journeys/select-composed', selectJourneyBody(requestState, selected));
         journeySelection = journey.data;
-
-        const offered = await api.post('/transport/quotes', {
-          journeySelectionId: journeySelection.id,
-          providerId: selected.providerId,
-          routeId: selected.routeId,
-          availabilityId: selected.availabilityId || undefined,
-          originCity: origin.trim(),
-          destinationCity: destination.trim(),
-          weightKg: Number(weightKg) || 0,
-        });
+        const offered = await api.post('/transport/quotes', quoteBody(journeySelection, selected, requestState));
         const accepted = await api.post(`/transport/quotes/${offered.data.id}/accept`);
         acceptedQuote = accepted.data;
         setQuote(acceptedQuote);
       }
-      const res = await api.post('/shipments', {
-        senderName: senderName.trim() || undefined,
-        senderPhone: senderPhone.trim() || undefined,
-        receiverName: receiverName.trim(),
-        receiverPhone: receiverPhone.trim(),
-        originCity: origin.trim(),
-        // Only send structured IDs when the user actually selected a
-        // suggestion — never a stale one left over from a different typed
-        // string (onResolved(null) clears this the moment the text changes).
-        originPlace: originResolved?.placeRef || undefined,
-        destinationCity: destination.trim(),
-        destinationPlace: destinationResolved?.placeRef || undefined,
-        itemDescription: itemDescription.trim(),
-        weightKg: Number(weightKg) || 0,
-        quoteId: acceptedQuote?.id || undefined,
-        journeySelectionId: journeySelection?.id || undefined,
-        routeId: acceptedQuote ? undefined : (selected?.routeId || undefined),
-        availabilityId: acceptedQuote ? undefined : (selected?.availabilityId || undefined),
-        providerId: acceptedQuote ? undefined : (selected?.providerId || undefined),
-        pickupOption,
-        deliveryOption,
-      });
+      const res = await api.post('/shipments', shipmentBody(requestState, selected, acceptedQuote));
       const created=res.data;
-      const final = await api.patch(`/shipments/${created.id}/confirm`, {
-        originHubId: originHubId ? Number(originHubId) : undefined,
-        destinationHubId: destinationHubId ? Number(destinationHubId) : undefined,
-        requestOriginHub: originHubId ? true : undefined,
-        requestDestinationHub: destinationHubId ? true : undefined,
-      });
+      const final = await api.patch(`/shipments/${created.id}/confirm`, confirmBody(requestState));
       setConfirmed({ ...final.data.shipment, parcelTrackingNumber: final.data.parcel?.trackingNumber });
       setStep(5);
     } catch (err) {
@@ -361,11 +330,35 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               {searching ? t('send_shipment.searching') : t('send_shipment.search_routes_button')}
             </button>
 
-            {searched && !searching && trips.length === 0 && providers.length === 0 && (
+            {searched && !searching && (searchReason === 'request_failed' || searchReason === 'invalid_location') && (
+              <div role="alert" style={{ textAlign: 'center', padding: '20px 12px', color: '#B91C1C', fontSize: 13,
+                backgroundColor: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 12, marginBottom: 16 }}>
+                {searchReason === 'invalid_location'
+                  ? t('send_shipment.search_invalid_location')
+                  : t('send_shipment.search_request_failed')}
+                <div style={{ marginTop: 10 }}>
+                  <button onClick={searchRoutes} style={{ border: 'none', background: 'none', color: B, fontWeight: 800, cursor: 'pointer', fontSize: 13 }}>
+                    {t('send_shipment.search_retry')}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {searched && !searching && searchReason !== 'request_failed' && searchReason !== 'invalid_location' &&
+              trips.length === 0 && providers.length === 0 && (
               <div style={{ textAlign: 'center', padding: '30px 0', color: GR, fontSize: 13 }}>
-                {Number(weightKg) > 0
+                {searchReason === 'no_capacity_for_weight'
                   ? t('send_shipment.no_options_found_weight', { weight: weightKg })
-                  : t('send_shipment.no_options_found')}
+                  : searchReason === 'provider_does_not_serve_route'
+                    ? t('send_shipment.provider_does_not_serve_route')
+                    : t('send_shipment.no_options_found')}
+              </div>
+            )}
+
+            {searched && !searching && searchReason === 'no_open_trip' && trips.length === 0 && providers.length > 0 && (
+              <div style={{ padding: '10px 12px', color: '#92400E', fontSize: 12, backgroundColor: '#FFFBEB',
+                border: '1px solid #FDE68A', borderRadius: 12, marginBottom: 12 }}>
+                {t('send_shipment.no_open_trip')}
               </div>
             )}
 
@@ -566,6 +559,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               </select>}
             </div>}
             {hubsLoading && <div style={{fontSize:12,color:GR,marginBottom:10}}>Loading Kentexa hubs…</div>}
+            {hubsError && <div role="alert" style={{fontSize:12,color:'#B91C1C',marginBottom:10}}>{t('send_shipment.hubs_load_failed')}</div>}
 
             {error && (
               <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 12, fontWeight: 600 }}>{error}</div>

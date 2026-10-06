@@ -14,7 +14,6 @@ src/shipments/shipment-capacity.real-postgres.spec.ts
 src/transport/transport-route-price-history.real-postgres.spec.ts
 src/shipments/route-discovery.real-postgres.spec.ts
 src/location-intelligence/place-resolution.real-postgres.spec.ts
-src/shipments/shipment-route-discovery.spec.ts
 src/shipments/shipment-location-snapshot.spec.ts
 src/database/migrations/add-service-business-authority-foundation.spec.ts
 src/database/migrations/add-transport-superagent-business-workspace-binding.spec.ts

@@ -18,7 +18,7 @@ import {
 import { JwtAuthGuard } from '../auth/auth.guard';
 import { ShipmentsService } from './shipments.service';
 import type { ConfirmShipmentDto, CreateShipmentDto, DiscoverySideInput } from './shipments.service';
-import { parsePlaceRefParam } from './logistics-location-context';
+import { readPlaceRefQuery } from './logistics-location-context';
 
 @Controller('shipments')
 export class ShipmentsController {
@@ -31,31 +31,46 @@ export class ShipmentsController {
   findRoutes(
     @Query('origin') origin?: string,
     @Query('destination') destination?: string,
-    @Query('originPlace') originPlace?: string,
-    @Query('destinationPlace') destinationPlace?: string,
+    @Query('originPlace') originPlace?: unknown,
+    @Query('destinationPlace') destinationPlace?: unknown,
     @Query('weightKg') weightKg?: string,
     @Query('providerId') providerId?: string,
+    @Query() query?: Record<string, unknown>,
   ) {
     // Per side: a selected place reference (`<providerKey>:<providerPlaceId>`,
     // split only at the FIRST ':') wins over legacy text; either may be used
     // on either side; neither is a 400. A malformed reference is a 400 -- it
     // is never reinterpreted as text or matched by name.
-    const side = (name: string, place?: string, text?: string): DiscoverySideInput => {
-      if (place !== undefined) {
-        const ref = parsePlaceRefParam(place);
-        if (!ref) throw new BadRequestException(`${name}Place must be <providerKey>:<providerPlaceId>`);
-        return { place: ref };
+    // Gate 1: the place reference is read in every shape a client can send
+    // it (see readPlaceRefQuery) -- the canonical string, or the object the
+    // place search itself returns.
+    const side = (name: string, placeParam: unknown, text?: string): DiscoverySideInput => {
+      const place = readPlaceRefQuery(
+        placeParam !== undefined ? { ...(query ?? {}), [`${name}Place`]: placeParam } : query,
+        `${name}Place`,
+      );
+      if (place.present) {
+        if (!place.ref) throw new BadRequestException(`${name}Place must be <providerKey>:<providerPlaceId>`);
+        return { place: place.ref };
       }
       if (typeof text !== 'string' || !text.trim()) {
         throw new BadRequestException(`${name} (or ${name}Place) is required`);
       }
       return { text };
     };
+    const weight = weightKg === undefined || weightKg === '' ? 0 : Number(weightKg);
+    if (!Number.isFinite(weight) || weight < 0) {
+      throw new BadRequestException('weightKg must be a non-negative number');
+    }
+    const provider = providerId === undefined || providerId === '' ? undefined : Number(providerId);
+    if (provider !== undefined && (!Number.isInteger(provider) || provider <= 0)) {
+      throw new BadRequestException('providerId must be a positive integer');
+    }
     return this.svc.findAvailableRoutesForSides(
       side('origin', originPlace, origin),
       side('destination', destinationPlace, destination),
-      weightKg ? Number(weightKg) : 0,
-      providerId ? Number(providerId) : undefined,
+      weight,
+      provider,
     );
   }
 
@@ -66,10 +81,19 @@ export class ShipmentsController {
   // malformed one is a 400, never reinterpreted as text.
   @Get('hubs')
   @UseGuards(JwtAuthGuard)
-  hubsForPlace(@Query('place') place?: string, @Query('side') side?: string) {
-    const ref = parsePlaceRefParam(place);
-    if (!ref) throw new BadRequestException('place must be <providerKey>:<providerPlaceId>');
-    return this.svc.discoverHubsForPlace(ref, side);
+  hubsForPlace(
+    @Query('place') placeParam?: unknown,
+    @Query('side') side?: string,
+    @Query() query?: Record<string, unknown>,
+  ) {
+    const place = readPlaceRefQuery(
+      placeParam !== undefined ? { ...(query ?? {}), place: placeParam } : query,
+      'place',
+    );
+    if (!place.present || !place.ref) {
+      throw new BadRequestException('place must be <providerKey>:<providerPlaceId>');
+    }
+    return this.svc.discoverHubsForPlace(place.ref, side);
   }
 
   @Post()

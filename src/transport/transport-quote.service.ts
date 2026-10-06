@@ -79,6 +79,12 @@ export class TransportQuoteService {
 
   async createQuote(user: User, dto: CreateQuoteDto): Promise<TransportQuote> {
     let journey: JourneySelection | null = null;
+    // Gate 1: for a Journey-backed quote the origin/destination come from the
+    // Journey leg the SERVER stored, never from the request. The send form
+    // used to pass the place's display label here ("Kariakoo, Ilala, Dar es
+    // Salaam"), which is not what the route was matched on.
+    let journeyOriginCity: string | null = null;
+    let journeyDestinationCity: string | null = null;
     if (dto.journeySelectionId != null) {
       journey = await this.journeyRepo.findOne({ where: { id: dto.journeySelectionId, requestedByUserId: user.id } });
       if (!journey || journey.status === JourneySelectionStatus.SUPERSEDED || journey.status === JourneySelectionStatus.CANCELLED) {
@@ -99,6 +105,12 @@ export class TransportQuoteService {
       if (dto.weightKg != null && Number(dto.weightKg) !== selectedWeight) {
         throw new BadRequestException('Quote weight must match the selected journey cargo');
       }
+      const nodeCity = (node: unknown): string | null => {
+        const value = (node as any)?.city ?? (node as any)?.label;
+        return typeof value === 'string' && value.trim() ? value.trim() : null;
+      };
+      journeyOriginCity = nodeCity(matchingLeg.fromNode);
+      journeyDestinationCity = nodeCity(matchingLeg.toNode);
     }
 
     const provider = await this.transportService.assertEligibleProvider(dto.providerId);
@@ -113,15 +125,17 @@ export class TransportQuoteService {
     if (dto.weightKg != null && (!Number.isFinite(dto.weightKg) || dto.weightKg < 0)) {
       throw new BadRequestException('weightKg must be a non-negative number');
     }
-    const weightKg = dto.weightKg ?? 0;
+    // A Journey-backed quote that omits the weight is priced for the Journey's
+    // own cargo, never for zero.
+    const weightKg = dto.weightKg ?? (journey ? Number(journey.cargoRequirements?.weightKg) || 0 : 0);
 
     // Correction (post-B3 review): the client-supplied origin/destination
     // must actually correspond to the selected route -- reusing the
     // canonical discovery city-matching rule (assertRouteServesJourney),
     // not a second matcher, so a Dar->Mwanza route can never be frozen into
     // a quote labelled as if it were Dar->Arusha.
-    const originCity = dto.originCity?.trim() || route.originCity || '';
-    const destinationCity = dto.destinationCity?.trim() || route.destinationCity || '';
+    const originCity = journeyOriginCity || dto.originCity?.trim() || route.originCity || '';
+    const destinationCity = journeyDestinationCity || dto.destinationCity?.trim() || route.destinationCity || '';
     if (!originCity || !destinationCity) {
       throw new BadRequestException('Origin and destination are required to quote this route');
     }

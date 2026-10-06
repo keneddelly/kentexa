@@ -26,6 +26,7 @@ import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportQuote, TransportQuoteStatus } from '../transport/entities/transport-quote.entity';
+import { JourneySelection } from '../transport/entities/journey-selection.entity';
 import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
@@ -88,6 +89,20 @@ export interface PublicShipmentTracking {
   createdAt: Date;
   parcelTrackingNumber: string | null;
 }
+
+// Gate 1: WHY a discovery came back the way it did, so the send form never
+// has to guess (and never again shows a failed request as "no transporter").
+//   available                      -- at least one bookable trip
+//   no_open_trip                   -- providers cover the route, none has an open trip
+//   no_capacity_for_weight         -- supply exists, but not for this weight
+//   provider_does_not_serve_route  -- supply exists, but not from the chosen provider
+//   no_route                       -- nobody covers this origin/destination
+export type DiscoveryReason =
+  | 'available'
+  | 'no_open_trip'
+  | 'no_capacity_for_weight'
+  | 'provider_does_not_serve_route'
+  | 'no_route';
 
 // One side of a route-discovery request: a selected place reference OR free text.
 export interface DiscoverySideInput {
@@ -313,6 +328,7 @@ export class ShipmentsService {
       }
     });
 
+    const marketHadSupply = trips.size > 0 || providers.size > 0;
     // A customer who entered from a Transport Provider public profile has
     // already chosen the provider. Discovery must answer "can THIS provider
     // serve the journey?", not silently compare the whole market.
@@ -331,7 +347,24 @@ export class ShipmentsService {
       (x, y) => (Number(y.row.rating) || 0) - (Number(x.row.rating) || 0) || x.row.id - y.row.id,
     );
 
+    // Classify the outcome (see DiscoveryReason). The extra unfiltered
+    // lookup runs only when a weight was given and nothing at all was found,
+    // to tell "no capacity for this weight" apart from "no route".
+    let reason: DiscoveryReason;
+    if (tripList.length > 0) reason = 'available';
+    else if (providerList.length > 0) reason = 'no_open_trip';
+    else if (marketHadSupply) reason = 'provider_does_not_serve_route';
+    else if (weightKg > 0) {
+      const unweighted = await Promise.all(
+        pairs.map((pair) => this.transportService.findAvailableForRoute(pair.o.key, pair.d.key, 0)),
+      );
+      reason = unweighted.some((r) => r.published.length > 0 || r.providers.length > 0)
+        ? 'no_capacity_for_weight'
+        : 'no_route';
+    } else reason = 'no_route';
+
     return {
+      availability: { reason, tripCount: tripList.length, providerCount: providerList.length },
       availableTrips: tripList.map(({ row: a, matchedOn }) => ({
         availabilityId: a.id,
         providerId: a.providerId,
@@ -498,7 +531,18 @@ export class ShipmentsService {
       // Shipment. The richer Shipment place/snapshot system itself is
       // untouched -- this only proves the two are compatible before capacity
       // is reserved.
-      await this.transportService.assertRouteServesJourney(quote.routeId, o.city, d.city);
+      if (quote.journeySelectionId != null) {
+        // Gate 1: a Journey-backed quote was already proved to serve its
+        // journey from SERVER-resolved places (JourneyComposerService), on
+        // the specific routing key that matched -- a ward such as Kariakoo,
+        // not the region this Shipment's legacy city column holds. Repeating
+        // the check with the region would wrongly refuse an intracity route
+        // described only by its stops. What must be proved here instead is
+        // that this Shipment declares the SAME two places as that Journey.
+        await this.assertShipmentMatchesJourney(quote.journeySelectionId, userId, dto, origin, destination);
+      } else {
+        await this.transportService.assertRouteServesJourney(quote.routeId, o.city, d.city);
+      }
     }
     const effectiveProviderId = quote ? quote.providerId : dto.providerId;
     const effectiveRouteId = quote ? quote.routeId : dto.routeId;
@@ -596,6 +640,49 @@ export class ShipmentsService {
       saved.trackingNumber = `KTX-SHP-${saved.id}`;
       return shipments.save(saved);
     });
+  }
+
+  // A side of the Shipment corresponds to a side of the Journey when both name
+  // the same selected place, or both carry the same typed text. Anything else
+  // (place on one, text on the other; different places) is a different journey.
+  private async assertShipmentMatchesJourney(
+    journeySelectionId: number,
+    userId: number,
+    dto: CreateShipmentDto,
+    origin: { candidate: LocationCandidate } | null,
+    destination: { candidate: LocationCandidate } | null,
+  ): Promise<void> {
+    const journey = await this.shipmentRepo.manager
+      .getRepository(JourneySelection)
+      .findOne({ where: { id: journeySelectionId, requestedByUserId: userId } });
+    if (!journey) throw new NotFoundException('Journey selection not found');
+    const same = (
+      snapshot: Record<string, any> | null | undefined,
+      resolved: { candidate: LocationCandidate } | null,
+      typed: string | undefined,
+    ): boolean => {
+      const ref = snapshot?.placeRef;
+      if (ref && typeof ref === 'object') {
+        return (
+          !!resolved &&
+          ref.providerKey === resolved.candidate.providerKey &&
+          ref.providerPlaceId === resolved.candidate.providerPlaceId
+        );
+      }
+      if (resolved) return false;
+      const label = snapshot?.label ?? snapshot?.city;
+      return (
+        typeof label === 'string' &&
+        typeof typed === 'string' &&
+        label.trim().toLowerCase() === typed.trim().toLowerCase()
+      );
+    };
+    if (
+      !same(journey.originSnapshot, origin, dto.originCity) ||
+      !same(journey.destinationSnapshot, destination, dto.destinationCity)
+    ) {
+      throw new BadRequestException('This shipment does not match the journey that was priced');
+    }
   }
 
   // One canonical numeric rule for the stored shipment weight: unspecified
