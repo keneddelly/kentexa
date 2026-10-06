@@ -347,6 +347,14 @@ export class SuperAgentsService {
     return agent;
   }
 
+  async updateMyProfile(user: User, dto: { businessName?: string; phone?: string; address?: string }) {
+    const agent = await this.getMyProfile(user);
+    if (typeof dto.businessName === 'string' && dto.businessName.trim()) agent.businessName = dto.businessName.trim().slice(0, 160);
+    if (typeof dto.phone === 'string') agent.phone = dto.phone.trim().slice(0, 40) || null;
+    if (typeof dto.address === 'string') agent.address = dto.address.trim().slice(0, 300) || null;
+    return this.superAgentRepo.save(agent);
+  }
+
   /** Canonical hub-location write: the client selects a place reference only;
    * all geographic facts are re-resolved by Kentexa on the server. */
   async updateMyHubLocation(user: User, selection: { providerKey?: string; providerPlaceId?: string; addressDetail?: string }) {
