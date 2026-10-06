@@ -354,6 +354,13 @@ export class VanPilotController {
     return this.runs.adminGetRunDetail(runId);
   }
 
+  @Get('admin/exceptions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  adminOperationalExceptions() {
+    return this.journey.adminListOperationalExceptions();
+  }
+
   @Get('admin/parcels/blocked')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
