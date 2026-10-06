@@ -139,7 +139,10 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
         const shipRes = await api.get(`/shipments/track/${val}`);
         if (shipRes.data?.parcelTrackingNumber) {
           const res = await api.get(`/super-agents/track/${shipRes.data.parcelTrackingNumber}`);
-          setResult({ ...res.data, _source: 'superagent' });
+          // The Parcel number is an internal/operational child identifier.
+          // A sender or receiver who entered KTX-SHP-* must keep seeing the
+          // SAME customer-facing Shipment number throughout the journey.
+          setResult({ ...res.data, trackingNumber:shipRes.data.trackingNumber, shipmentTrackingNumber:shipRes.data.trackingNumber, _source:'shipment-parcel' });
         } else {
           setResult({ ...shipRes.data, _source: 'shipment' });
         }
