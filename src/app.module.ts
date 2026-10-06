@@ -60,6 +60,7 @@ import { ShareModule } from './share/share.module';
 import { RoleContextModule } from './role-context/role-context.module';
 import { CommunicationFeatureFlagsModule } from './communication/communication-feature-flags.module';
 import { OwnershipFeatureFlagsModule } from './ownership/ownership-feature-flags.module';
+import { VersionController } from './version.controller';
 
 export const allowDevelopmentSchemaSync =
   process.env.NODE_ENV === 'development' &&
@@ -146,6 +147,7 @@ export const allowDevelopmentSchemaSync =
     // their own local guard still applies on top, just tighter.
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
   ],
+  controllers: [VersionController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

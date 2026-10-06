@@ -1,0 +1,4 @@
+# Logistics spec files that were already failing when the audit-driven repair
+# started (6 October 2026). The Production Line CI fails on any failing spec
+# NOT listed here, and also when a listed spec starts passing, so this list
+# can only shrink. One repository-relative path per line.
