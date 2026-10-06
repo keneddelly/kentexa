@@ -55,6 +55,7 @@ import {
   CommerceProfileStatus,
 } from '../commerce-profiles/entities/commerce-profile.entity';
 import { TransportAssignment, AssignmentStatus } from '../transport/entities/transport-assignment.entity';
+import { JourneyLeg, JourneyLegType, JourneySelection, JourneySelectionStatus } from '../transport/entities/journey-selection.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { Payment, PaymentStatus } from '../payments/entities/payment.entity';
@@ -2384,6 +2385,7 @@ export class SuperAgentsService {
         !parcel.destinationSuperAgent?.id) {
       throw new ConflictException('Parcel is not awaiting a verified local-agent handoff');
     }
+    await this.assertJourneyTerminalAuthority(manager, parcel, 'last_mile', Number(parcel.localAgentId));
     const latest = await manager.getRepository(ParcelCustodyEvent).findOne({
       where: { parcelId: parcel.id }, order: { recordedAt: 'DESC', id: 'DESC' },
     });
@@ -2410,7 +2412,8 @@ export class SuperAgentsService {
     const now = new Date();
     await this.dataSource.transaction(async manager => {
       const parcel = await this.lockedAgentHandoffParcel(manager, trackingNumber);
-      if (parcel.destinationSuperAgent?.id !== hub.id) {
+      await this.assertJourneyTerminalAuthority(manager, parcel, 'customer_pickup');
+    if (parcel.destinationSuperAgent?.id !== hub.id) {
         throw new ForbiddenException('Only the holding hub can prepare this handoff');
       }
       const [challenge] = await manager.query(`SELECT "agentHandoffCodeIssuedAt" FROM public.parcel WHERE id=$1`, [parcel.id]);
@@ -5111,6 +5114,37 @@ export class SuperAgentsService {
       if (evidence.applicable && !evidence.sufficient) {
         throw new ConflictException('Order payment evidence is insufficient');
       }
+    }
+  }
+
+  // L6: for new Journey-backed parcels, the terminal leg is authority over
+  // the final physical handoff. Legacy/direct-transport Journeys without a
+  // terminal leg preserve the existing recipient choice flow.
+  private async assertJourneyTerminalAuthority(
+    manager: any,
+    parcel: Parcel,
+    mode: 'customer_pickup' | 'last_mile',
+    agentUserId?: number,
+  ): Promise<void> {
+    if (!parcel.journeySelectionId) return;
+    const selection = await manager.getRepository(JourneySelection).findOne({ where: { id: parcel.journeySelectionId } });
+    if (!selection || selection.status !== JourneySelectionStatus.COMMITTED) {
+      throw new ConflictException('Committed Journey authority is required for final handoff');
+    }
+    const legs = await manager.getRepository(JourneyLeg).find({
+      where: { journeySelectionId: selection.id }, order: { sequence: 'ASC' },
+    });
+    const terminal = [...legs].reverse().find((leg: JourneyLeg) =>
+      leg.type === JourneyLegType.LAST_MILE || leg.type === JourneyLegType.CUSTOMER_PICKUP);
+    if (!terminal) return;
+    if (mode === 'customer_pickup' && terminal.type !== JourneyLegType.CUSTOMER_PICKUP) {
+      throw new ConflictException('Selected Journey requires last-mile delivery');
+    }
+    if (mode === 'last_mile' && terminal.type !== JourneyLegType.LAST_MILE) {
+      throw new ConflictException('Selected Journey requires customer pickup');
+    }
+    if (mode === 'last_mile' && terminal.agentId != null && terminal.agentId !== agentUserId) {
+      throw new ForbiddenException('Selected Journey assigns a different last-mile Agent');
     }
   }
 
