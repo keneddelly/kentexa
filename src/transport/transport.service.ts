@@ -1127,14 +1127,21 @@ export class TransportService {
       });
     if (from !== null) {
       providersQuery.andWhere(
-        // Same last-mile/local-loop coverage extension as publishedQuery above.
-        `(${cityMatch('r.originCity', 'from')} OR ${cityMatch('r.destinationCity', 'from')} OR ${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')})`,
+        `(
+          (r."routeType" = 'intercity' AND ${cityMatch('r.originCity', 'from')})
+          OR (r."routeType" = 'local_loop' AND (${cityMatch('r.loopStops', 'from')} OR ${cityMatch('r.coverageCity', 'from')}))
+          OR (r."routeType" = 'last_mile' AND (${cityMatch('r.coverageWards', 'from')} OR ${cityMatch('r.coverageCity', 'from')}))
+        )`,
         cityMatchParams('from', from),
       );
     }
     if (to !== null) {
       providersQuery.andWhere(
-        `(${cityMatch('r.destinationCity', 'to')} OR ${cityMatch('r.originCity', 'to')} OR ${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')})`,
+        `(
+          (r."routeType" = 'intercity' AND ${cityMatch('r.destinationCity', 'to')})
+          OR (r."routeType" = 'local_loop' AND (${cityMatch('r.loopStops', 'to')} OR ${cityMatch('r.coverageCity', 'to')}))
+          OR (r."routeType" = 'last_mile' AND (${cityMatch('r.coverageWards', 'to')} OR ${cityMatch('r.coverageCity', 'to')}))
+        )`,
         cityMatchParams('to', to),
       );
     }
