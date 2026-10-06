@@ -15,8 +15,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import {
-  routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody, isBookableTrip,
-  canDeliverDirect, isDirectDelivery, directJourneyBody, pickupTaskBody,
+  routeSearchParams, hubSearchParams, quoteBody, shipmentBody, isBookableTrip,
+  canDeliverDirect, isDirectDelivery,
   confirmBody, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
 
@@ -30,13 +30,6 @@ const fmt = n => Number(n || 0).toLocaleString();
 // Matches ProviderType on the backend (transport-provider.entity.ts) —
 // showing a bus icon for every provider regardless of what they actually
 // operate told a shipper nothing true about who they were picking.
-// A UUID for an idempotent request. crypto.randomUUID needs a secure context;
-// the fallback is only ever used on plain-http development hosts.
-const newRequestKey = () => {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random() * 16).toString(16));
-};
-
 const PROVIDER_TYPE_ICON = {
   bus: '🚌', van: '🚐', courier: '📦', truck: '🚛',
   boda: '🏍️', rail: '🚆', air: '✈️', boat: '⛵',
@@ -139,9 +132,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [deliveryOption, setDeliveryOption] = useState('door');
 
   const [submitting, setSubmitting] = useState(false);
-  // One key per visit to this form: a retried confirmation asks for the same
-  // pickup job, never a second one.
-  const [pickupRequestKey] = useState(newRequestKey);
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState(null);
   const [quote, setQuote] = useState(null);
