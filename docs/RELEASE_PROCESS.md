@@ -90,3 +90,24 @@ The customer's tracking number is the Shipment's. A Parcel born from a
 Shipment carries the same number; a parcel numbered before this
 (`KTX-PCL-n`) is still found by the customer's number
 (`src/shipments/customer-tracking.ts`).
+
+## First mile and direct Agent delivery
+
+One pickup infrastructure for Shipments: `parcel_pickup_task`
+(`src/shipments/pickup-tasks.service.ts`).
+
+- Sender: `POST /shipments/:id/pickup-task`, `GET /shipments/:id/pickup-task`,
+  `POST .../handoff-code`.
+- Agent: `GET /pickup-tasks/available` (own city, area only),
+  `GET /pickup-tasks/mine`, `POST /pickup-tasks/:id/claim`, `.../collect`.
+- Hub-routed: `.../handover-request`, then the hub's `.../hub-receive`.
+- Direct delivery: `.../delivery-code` (SMS to the recipient only), then
+  `.../deliver`.
+
+Each physical handover is one custody event, proved by a code only the
+giving or receiving party holds. A direct delivery records sender → Agent →
+recipient and nothing else.
+
+Marketplace Order collections still use `parcel_collection` (`/collections`);
+the Agent sees both in one work list. Moving Order collections onto
+`parcel_pickup_task` is the remaining step.

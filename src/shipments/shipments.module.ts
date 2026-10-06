@@ -17,6 +17,7 @@ import { Parcel } from '../super-agents/entities/parcel.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { PickupTasksService } from './pickup-tasks.service';
 import { PickupTasksController } from './pickup-tasks.controller';
+import { SmsModule } from '../sms/sms.module';
 
 @Module({
   imports: [
@@ -29,6 +30,8 @@ import { PickupTasksController } from './pickup-tasks.controller';
     TzLocationModule,
     // Stage 2D: server-side, exact re-resolution of selected place references.
     LocationIntelligenceModule,
+    // Gate 4: the recipient's delivery code for a direct Agent delivery.
+    SmsModule,
   ],
   controllers: [ShipmentsController, PickupTasksController],
   providers: [ShipmentsService, PickupTasksService],

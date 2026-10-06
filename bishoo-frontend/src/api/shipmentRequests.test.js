@@ -4,6 +4,7 @@ import path from 'path';
 import {
   routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody,
   confirmBody, placeRefParam, journeySide, searchOutcome, isBookableTrip,
+  canDeliverDirect, isDirectDelivery, directJourneyBody, pickupTaskBody,
 } from './shipmentRequests';
 
 // The contract both test suites share. Read from disk (it lives outside
@@ -11,7 +12,7 @@ import {
 const contract = JSON.parse(
   fs.readFileSync(path.resolve(__dirname, '../../../contracts/send-shipment-requests.json'), 'utf8'),
 );
-const { state, selected, journeySelection, acceptedQuote, requests } = contract;
+const { state, selected, journeySelection, acceptedQuote, directJourney, pickupRequestKey, requests } = contract;
 const now = new Date(contract.now);
 
 // What actually goes on the wire: the same serialisation the app's axios
@@ -55,6 +56,41 @@ describe('send-shipment request contract', () => {
     expect(isBookableTrip(null)).toBe(false);
     expect(wire(selectJourneyBody(state, selected, now)).availabilityId).toBeUndefined();
     expect(wire(quoteBody(journeySelection, selected, state)).availabilityId).toBeUndefined();
+  });
+
+  // Gate 4: sender -> Agent -> recipient, no transporter.
+  describe('direct Agent delivery', () => {
+    test('is offered only for two selected places in one region', () => {
+      expect(canDeliverDirect(state)).toBe(true);
+      expect(canDeliverDirect({ ...state, destinationResolved: { ...state.destinationResolved, regionName: 'Mwanza' } })).toBe(false);
+      expect(canDeliverDirect({ ...state, originResolved: null })).toBe(false); // typed text: the server cannot know the region
+      expect(canDeliverDirect({ ...state, destinationResolved: { regionName: 'Dar es Salaam' } })).toBe(false); // no place reference
+      expect(isDirectDelivery({ direct: true })).toBe(true);
+      expect(isDirectDelivery(selected)).toBe(false);
+      expect(isBookableTrip({ direct: true })).toBe(false);
+    });
+
+    test('the journey request names two places and the cargo -- no legs, no trip, no Agent', () => {
+      const body = wire(directJourneyBody(state, now));
+      expect(body).toEqual(requests.selectDirectJourney.body);
+      for (const key of ['legs', 'runId', 'availabilityId', 'providerId', 'agentId']) expect(body[key]).toBeUndefined();
+    });
+
+    test('the shipment is bound by journeySelectionId and names no transporter', () => {
+      const body = wire(shipmentBody(state, { direct: true, providerId: 31, routeId: 41 }, null, directJourney));
+      expect(body).toEqual(requests.directShipment.body);
+      expect(body.providerId).toBeUndefined();
+      expect(body.quoteId).toBeUndefined();
+    });
+
+    test('an accepted quote always wins over a journey id', () => {
+      const body = wire(shipmentBody(state, selected, acceptedQuote, directJourney));
+      expect(body).toEqual(requests.shipment.body);
+    });
+
+    test('the pickup request carries the sender as the pickup contact and a retry-safe key', () => {
+      expect(wire(pickupTaskBody(state, 'direct_delivery', pickupRequestKey))).toEqual(requests.pickupTaskDirect.body);
+    });
   });
 
   test('hub search sends the place as the same canonical string', () => {

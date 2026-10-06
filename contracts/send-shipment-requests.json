@@ -7,7 +7,10 @@
     "origin": "Kariakoo, Ilala, Dar es Salaam",
     "destination": "Mbagala, Temeke, Dar es Salaam",
     "originResolved": {
-      "placeRef": { "providerKey": "tz_seed", "providerPlaceId": "ward:6" },
+      "placeRef": {
+        "providerKey": "tz_seed",
+        "providerPlaceId": "ward:6"
+      },
       "displayLabel": "Kariakoo, Ilala, Dar es Salaam",
       "level": "ward",
       "regionName": "Dar es Salaam",
@@ -15,7 +18,10 @@
       "wardName": "Kariakoo"
     },
     "destinationResolved": {
-      "placeRef": { "providerKey": "tz_seed", "providerPlaceId": "ward:20" },
+      "placeRef": {
+        "providerKey": "tz_seed",
+        "providerPlaceId": "ward:20"
+      },
       "displayLabel": "Mbagala, Temeke, Dar es Salaam",
       "level": "ward",
       "regionName": "Dar es Salaam",
@@ -32,9 +38,17 @@
     "originHubId": "",
     "destinationHubId": ""
   },
-  "selected": { "runId": 501, "providerId": 31, "routeId": 41 },
-  "journeySelection": { "id": 900 },
-  "acceptedQuote": { "id": 700 },
+  "selected": {
+    "runId": 501,
+    "providerId": 31,
+    "routeId": 41
+  },
+  "journeySelection": {
+    "id": 900
+  },
+  "acceptedQuote": {
+    "id": 700
+  },
   "requests": {
     "routeSearch": {
       "method": "GET",
@@ -55,8 +69,18 @@
       "method": "POST",
       "path": "/transport/journeys/select-composed",
       "body": {
-        "origin": { "place": { "providerKey": "tz_seed", "providerPlaceId": "ward:6" } },
-        "destination": { "place": { "providerKey": "tz_seed", "providerPlaceId": "ward:20" } },
+        "origin": {
+          "place": {
+            "providerKey": "tz_seed",
+            "providerPlaceId": "ward:6"
+          }
+        },
+        "destination": {
+          "place": {
+            "providerKey": "tz_seed",
+            "providerPlaceId": "ward:20"
+          }
+        },
         "cargoRequirements": {
           "description": "Nguo za watoto",
           "cargoClass": "normal",
@@ -71,7 +95,12 @@
     "quote": {
       "method": "POST",
       "path": "/transport/quotes",
-      "body": { "journeySelectionId": 900, "providerId": 31, "routeId": 41, "weightKg": 2 }
+      "body": {
+        "journeySelectionId": 900,
+        "providerId": 31,
+        "routeId": 41,
+        "weightKg": 2
+      }
     },
     "shipment": {
       "method": "POST",
@@ -82,9 +111,15 @@
         "receiverName": "Amina Juma",
         "receiverPhone": "0712000001",
         "originCity": "Kariakoo, Ilala, Dar es Salaam",
-        "originPlace": { "providerKey": "tz_seed", "providerPlaceId": "ward:6" },
+        "originPlace": {
+          "providerKey": "tz_seed",
+          "providerPlaceId": "ward:6"
+        },
         "destinationCity": "Mbagala, Temeke, Dar es Salaam",
-        "destinationPlace": { "providerKey": "tz_seed", "providerPlaceId": "ward:20" },
+        "destinationPlace": {
+          "providerKey": "tz_seed",
+          "providerPlaceId": "ward:20"
+        },
         "itemDescription": "Nguo za watoto",
         "weightKg": 2,
         "quoteId": 700,
@@ -96,6 +131,71 @@
       "method": "PATCH",
       "path": "/shipments/:id/confirm",
       "body": {}
+    },
+    "selectDirectJourney": {
+      "method": "POST",
+      "path": "/transport/journeys/select-direct",
+      "body": {
+        "origin": {
+          "place": {
+            "providerKey": "tz_seed",
+            "providerPlaceId": "ward:6"
+          }
+        },
+        "destination": {
+          "place": {
+            "providerKey": "tz_seed",
+            "providerPlaceId": "ward:20"
+          }
+        },
+        "cargoRequirements": {
+          "description": "Nguo za watoto",
+          "cargoClass": "normal",
+          "quantity": 1,
+          "weightKg": 2,
+          "evidenceLevel": "declared",
+          "capturedAt": "2026-10-06T09:00:00.000Z"
+        }
+      }
+    },
+    "directShipment": {
+      "method": "POST",
+      "path": "/shipments",
+      "body": {
+        "senderName": "Baraka",
+        "senderPhone": "0713000002",
+        "receiverName": "Amina Juma",
+        "receiverPhone": "0712000001",
+        "originCity": "Kariakoo, Ilala, Dar es Salaam",
+        "originPlace": {
+          "providerKey": "tz_seed",
+          "providerPlaceId": "ward:6"
+        },
+        "destinationCity": "Mbagala, Temeke, Dar es Salaam",
+        "destinationPlace": {
+          "providerKey": "tz_seed",
+          "providerPlaceId": "ward:20"
+        },
+        "itemDescription": "Nguo za watoto",
+        "weightKg": 2,
+        "journeySelectionId": 901,
+        "pickupOption": "agent",
+        "deliveryOption": "agent"
+      }
+    },
+    "pickupTaskDirect": {
+      "method": "POST",
+      "path": "/shipments/:id/pickup-task",
+      "body": {
+        "requestKey": "40000000-0000-4000-8000-000000000001",
+        "servicePath": "direct_delivery",
+        "pickupContactName": "Baraka",
+        "pickupContactPhone": "0713000002"
+      }
     }
-  }
+  },
+  "directJourney": {
+    "id": 901
+  },
+  "pickupRequestKey": "40000000-0000-4000-8000-000000000001"
 }

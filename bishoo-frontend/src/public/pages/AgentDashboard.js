@@ -23,6 +23,7 @@ import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
+import ShipmentPickupQueue from '../components/ShipmentPickupQueue';
 
 // ── Status colours used across both order and parcel cards ────────────────
 const STATUS_COLOR = {
@@ -225,6 +226,8 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [deliveryCodes, setDeliveryCodes] = useState({});
   const [codCollected, setCodCollected]     = useState({});
   const [workLoading, setWorkLoading]     = useState(false);
+  // Gate 4: Shipment pickup jobs count as work too (reported by the queue itself).
+  const [shipmentPickupCount, setShipmentPickupCount] = useState(0);
 
   // Stats
   const [stats, setStats]               = useState(null);
@@ -517,7 +520,7 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const activeDirectOrders   = myOrders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
   const activeHubParcels     = myParcels.length;
   const totalCollections = availableCollections.length + myCollections.length;
-  const totalWorkItems = pendingDirectOrders + activeDirectOrders + activeHubParcels + totalCollections;
+  const totalWorkItems = pendingDirectOrders + activeDirectOrders + activeHubParcels + totalCollections + shipmentPickupCount;
 
   // ── Render helpers ─────────────────────────────────────────────────────────
   const inputStyle = {
@@ -1001,6 +1004,9 @@ const AgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   </div>
                 )}
               {/* SECTION E: Available collection jobs — new parcels to pick up from sellers */}
+                {/* Gate 4: Shipment pickups and direct deliveries, in the same work list. */}
+                <ShipmentPickupQueue onChanged={() => fetchWork(profile)} onCount={setShipmentPickupCount} />
+
                 {availableCollections.length > 0 && (
                   <div style={{ marginBottom: 20 }}>
                     <div style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
