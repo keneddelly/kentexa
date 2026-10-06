@@ -79,6 +79,21 @@ export class ParcelJourneyService {
   ): Promise<void> {
     if (roleType === 'admin') return;
 
+    // L9: the sender/requester is also a first-class logistics actor. A
+    // shipment owner may inspect the operational journey for their own parcel
+    // without switching into Agent/Super Agent/provider context.
+    if (roleType === 'buyer') {
+      const rows = await this.dataSource.query(
+        `SELECT 1
+           FROM public.parcel p
+           JOIN public.shipment s ON s.id = p."shipmentId"
+          WHERE p.id = $1 AND s."requestedByUserId" = $2
+          LIMIT 1`,
+        [parcelId, userId],
+      );
+      if (rows.length) return;
+    }
+
     if (roleType === 'transport_provider' && roleProfileId != null) {
       const rows = await this.dataSource.query(
         `SELECT 1

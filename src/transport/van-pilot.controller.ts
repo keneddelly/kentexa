@@ -323,7 +323,7 @@ export class VanPilotController {
   // (createAssignment etc.) is still enforced inside those services.
   @Get('parcels/:parcelId/journey')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
-  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.AGENT, AccountRoleType.ADMIN)
+  @RequireActiveRole(AccountRoleType.BUYER, AccountRoleType.TRANSPORT_PROVIDER, AccountRoleType.SUPER_AGENT, AccountRoleType.AGENT, AccountRoleType.ADMIN)
   async getParcelJourney(@CurrentRoleContext() ctx: RoleContext, @Param('parcelId', ParseIntPipe) parcelId: number) {
     await this.journey.assertParcelOperationalVisibility(ctx.userId, ctx.roleType, ctx.profileId ?? null, parcelId);
     return this.journey.resolveJourneyContext(parcelId);
