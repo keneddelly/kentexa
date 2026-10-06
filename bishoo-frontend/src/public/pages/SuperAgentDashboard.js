@@ -37,7 +37,7 @@ import LocationPicker from '../components/LocationPicker';
 // that logic gets more real-world testing — Create Shipment (a separate,
 // already-working action) remains available in the meantime. Flip this
 // back on later; nothing else in this file needs to change.
-const HUB_OPS_ENABLED = false;
+const HUB_OPS_ENABLED = true;
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
