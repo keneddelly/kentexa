@@ -138,6 +138,44 @@ export class SuperAgent {
   address: string | null;
 
 
+  // Hub location fields are excluded from default SELECTs until the additive
+  // production migration is applied; explicit location writes remain available.
+  @Column({ type: 'varchar', length: 200, nullable: true, select: false })
+  locationLabel: string | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true, select: false })
+  latitude: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true, select: false })
+  longitude: number | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true, select: false })
+  locationProviderKey: string | null;
+
+  @Column({ type: 'varchar', length: 80, nullable: true, select: false })
+  locationProviderPlaceId: string | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true, select: false })
+  locationResolutionMethod: string | null;
+
+  @Column({ type: 'int', nullable: true, select: false })
+  regionId: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true, select: false })
+  regionName: string | null;
+
+  @Column({ type: 'int', nullable: true, select: false })
+  districtId: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true, select: false })
+  districtName: string | null;
+
+  @Column({ type: 'int', nullable: true, select: false })
+  wardId: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true, select: false })
+  wardName: string | null;
+
   @Column({ type: 'varchar', nullable: true })
   phone: string | null;
 
