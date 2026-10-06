@@ -19,6 +19,8 @@ import { PickupTasksService } from './pickup-tasks.service';
 import { PickupTasksController } from './pickup-tasks.controller';
 import { SmsModule } from '../sms/sms.module';
 import { ShipmentActivationService } from './shipment-activation.service';
+import { LogisticsDispatchService } from './logistics-dispatch.service';
+import { CommunicationModule } from '../communication/communication.module';
 
 @Module({
   imports: [
@@ -33,9 +35,10 @@ import { ShipmentActivationService } from './shipment-activation.service';
     LocationIntelligenceModule,
     // Gate 4: the recipient's delivery code for a direct Agent delivery.
     SmsModule,
+    CommunicationModule,
   ],
   controllers: [ShipmentsController, PickupTasksController],
-  providers: [ShipmentsService, PickupTasksService, ShipmentActivationService],
+  providers: [ShipmentsService, PickupTasksService, ShipmentActivationService, LogisticsDispatchService],
   exports: [ShipmentsService],
 })
 export class ShipmentsModule {}

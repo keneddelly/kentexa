@@ -4,6 +4,7 @@ import { ShipmentsService } from './shipments.service';
 import type { ConfirmShipmentDto } from './shipments.service';
 import { PickupTasksService } from './pickup-tasks.service';
 import { ShipmentHandoffOption } from './entities/shipment.entity';
+import { LogisticsDispatchService } from './logistics-dispatch.service';
 
 /**
  * Issue #95 orchestration boundary.
@@ -15,6 +16,7 @@ export class ShipmentActivationService {
   constructor(
     private readonly shipments: ShipmentsService,
     private readonly pickupTasks: PickupTasksService,
+    private readonly dispatch: LogisticsDispatchService,
   ) {}
 
   private activationKey(userId: number, shipmentId: number) {
@@ -52,6 +54,11 @@ export class ShipmentActivationService {
       pickupContactPhone: confirmed.shipment.senderPhone || '',
     });
 
+    const dispatch = await this.dispatch.dispatchPickup(task.id, {
+      channels: ['in_app', 'sms', 'call'],
+      callAfterMinutes: 10,
+    });
+
     return {
       ...confirmed,
       nextAction: {
@@ -60,6 +67,7 @@ export class ShipmentActivationService {
         taskId: task.id,
         status: task.status,
         custodyStarted: false,
+        dispatch,
       },
     };
   }

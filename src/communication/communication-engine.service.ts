@@ -95,6 +95,12 @@ const SEED_TEMPLATES: Array<
     bodyTemplate: 'Agizo lako #{orderId} linaandaliwa kutumwa kupitia {courierName}. Nambari ya ufuatiliaji: {trackingNumber}.',
   },
   {
+    eventType: 'LOGISTICS_PICKUP_AVAILABLE',
+    recipientRole: 'agent',
+    titleTemplate: 'Kazi mpya ya kuchukua mzigo 📦',
+    bodyTemplate: 'Mzigo unasubiri kuchukuliwa {originCity} kuelekea {destinationCity}. Fungua Kentexa kuona na kukubali kazi.',
+  },
+  {
     eventType: 'PARCEL_DISPATCHED',
     recipientRole: 'buyer',
     titleTemplate: '📦 Kifurushi Kimetumwa',
