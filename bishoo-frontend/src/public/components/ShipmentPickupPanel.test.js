@@ -31,7 +31,7 @@ describe('ShipmentPickupPanel — the sender', () => {
     api.get.mockResolvedValue({ data: { task: null } });
     api.post.mockResolvedValue({ data: { id: 5, status: 'requested' } });
     render(<ShipmentPickupPanel shipment={direct} />);
-    fireEvent.click(await screen.findByText('Request pickup from me'));
+    fireEvent.click(await screen.findByText('Njoo chukua mzigo'));
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
     const [path, body] = api.post.mock.calls[0];
     expect(path).toBe('/shipments/12/pickup-task');
@@ -45,7 +45,7 @@ describe('ShipmentPickupPanel — the sender', () => {
     render(<ShipmentPickupPanel shipment={direct} />);
     expect(await screen.findByText('Agent Nine')).toBeInTheDocument();
     expect(screen.queryByLabelText('Handover code')).toBeNull();
-    fireEvent.click(screen.getByText('Show handover code'));
+    fireEvent.click(screen.getByText('Onyesha namba ya kukabidhi'));
     expect(await screen.findByLabelText('Handover code')).toHaveTextContent('482913');
     expect(api.post).toHaveBeenCalledWith('/shipments/12/pickup-task/handoff-code');
   });
