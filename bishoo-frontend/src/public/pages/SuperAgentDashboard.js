@@ -29,7 +29,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
-import LocationPicker from '../components/LocationPicker';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
@@ -310,7 +309,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // plainly typed region name ("Arusha"), so a hand-typed guess here
   // never matched and looked like "no parcels for that city" when one
   // genuinely existed. Driven by the same location engine now.
-  const [bulkDestLocation, setBulkDestLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [bulkDestText, setBulkDestText] = useState('');
   const [bulkCandidates, setBulkCandidates] = useState([]);
   const [bulkSelected, setBulkSelected] = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -460,7 +459,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   });
   const [transferHubs, setTransferHubs] = useState([]);
   const [transferHubsLoading, setTransferHubsLoading] = useState(false);
-  const [transferDestLocation, setTransferDestLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [transferDestText, setTransferDestText] = useState('');
 
   const fetchTransferHubs = async (city) => {
     if (!city) { setTransferHubs([]); return; }
@@ -1775,21 +1774,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     <div style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 12, fontWeight: 700, color: '#475569',
                         display: 'block', marginBottom: 4 }}>Mji wa Kuelekea *</label>
-                      <LocationPicker
-                        label=""
-                        value={bulkDestLocation}
-                        onChange={loc => {
-                          setBulkDestLocation(loc);
+                      <IntelligentLocationInput
+                        label="" value={bulkDestText} onTextChange={setBulkDestText}
+                        onResolved={loc => {
+                          if (!loc) return;
                           setBulkLastMileAgentId(null);
-                          // Region, not district — see the walk-in form's
-                          // identical fix above (TANZANIA_CITIES is a
-                          // region list; a district never matches a real
-                          // Super Agent's registered city).
                           const cityStr = loc.regionName || loc.districtName || '';
-                          setBulkDestCity(cityStr);
-                          fetchBulkCandidates(cityStr);
-                          fetchBulkHubs(cityStr);
-                        }}
+                          setBulkDestCity(cityStr); fetchBulkCandidates(cityStr); fetchBulkHubs(cityStr);
+                        }} placeholder="Tafuta eneo la shehena…" required
                       />
                     </div>
 
@@ -2974,17 +2966,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             </div>
 
             <div style={{ marginBottom: 10 }}>
-              <LocationPicker
-                label=""
-                value={transferDestLocation}
-                onChange={loc => {
-                  setTransferDestLocation(loc);
-                  // Region, not district — see the walk-in form's identical
-                  // fix above.
+              <IntelligentLocationInput
+                label="" value={transferDestText} onTextChange={setTransferDestText}
+                onResolved={loc => {
+                  if (!loc) return;
                   const cityStr = loc.regionName || loc.districtName || '';
                   setTransferForm(f => ({ ...f, destinationCity: cityStr, destinationSuperAgentId: null }));
                   fetchTransferHubs(cityStr);
-                }}
+                }} placeholder="Tafuta eneo la Super Agent…" required
               />
             </div>
 
