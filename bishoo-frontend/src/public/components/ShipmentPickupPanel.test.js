@@ -31,7 +31,7 @@ describe('ShipmentPickupPanel — the sender', () => {
     api.get.mockResolvedValue({ data: { task: null } });
     api.post.mockResolvedValue({ data: { id: 5, status: 'requested' } });
     render(<ShipmentPickupPanel shipment={direct} />);
-    fireEvent.click(await screen.findByText('Request Agent pickup'));
+    fireEvent.click(await screen.findByText('Request pickup from me'));
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
     const [path, body] = api.post.mock.calls[0];
     expect(path).toBe('/shipments/12/pickup-task');

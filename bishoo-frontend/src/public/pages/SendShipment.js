@@ -279,8 +279,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         acceptedQuote = accepted.data;
         setQuote(acceptedQuote);
       }
-      // Direct Agent delivery: no trip and no transporter. The server composes
-      // sender -> Agent -> recipient from the two places.
+      // Same-city door to door: no trip and no transporter. The server
+      // composes the journey from the two places.
       const direct = isDirectDelivery(selected);
       if (direct) {
         const journey = await api.post('/transport/journeys/select-direct', directJourneyBody(requestState));
@@ -289,16 +289,23 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       const res = await api.post('/shipments', shipmentBody(requestState, selected, acceptedQuote, direct ? journeySelection : null));
       const created=res.data;
       const final = await api.patch(`/shipments/${created.id}/confirm`, confirmBody(direct ? {} : requestState));
-      // ...and an Agent is asked to come. If that request fails the shipment
-      // still exists; it can be asked for again from My Shipments.
+      // "Pick up from me" is a promise Kentexa has to keep: the collection is
+      // requested here, on the same pickup infrastructure whichever way the
+      // parcel then travels -- straight to the recipient (door to door), or
+      // to the hub its trip leaves from. Who collects is Kentexa's business,
+      // not a choice the customer makes. If the request fails the shipment
+      // still exists and pickup can be asked for again from My Shipments.
+      const confirmedShipment = final.data.shipment;
+      const pickupPath = direct ? 'direct_delivery' : (pickupOption === 'door' && confirmedShipment?.originHubId ? 'hub_routed' : null);
       let pickupRequested = false;
-      if (direct) {
+      if (pickupPath) {
         try {
-          await api.post(`/shipments/${created.id}/pickup-task`, pickupTaskBody(requestState, 'direct_delivery', pickupRequestKey));
+          await api.post(`/shipments/${created.id}/pickup-task`, pickupTaskBody(requestState, pickupPath, pickupRequestKey));
           pickupRequested = true;
         } catch { pickupRequested = false; }
       }
-      setConfirmed({ ...final.data.shipment, parcelTrackingNumber: final.data.parcel?.trackingNumber, direct, pickupRequested });
+      setConfirmed({ ...confirmedShipment, parcelTrackingNumber: final.data.parcel?.trackingNumber, direct, pickupPath, pickupRequested,
+        dropOffHub: !pickupPath && selected?.loadHub ? selected.loadHub : null });
       setStep(5);
     } catch (err) {
       setError(err?.response?.data?.message || t('send_shipment.post_error'));
@@ -447,7 +454,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             )}
 
             {searched && !searching && canDeliverDirect(requestState) && !navParams?.transportProviderId && (
-              <div onClick={() => { setSelected({ direct: true }); setStep(3); }}
+              <div onClick={() => { setSelected({ direct: true }); setPickupOption('door'); setDeliveryOption('door'); setStep(3); }}
                 style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16, cursor: 'pointer',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   border: isDirectDelivery(selected) ? `2px solid ${B}` : '2px solid transparent' }}>
@@ -578,6 +585,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               </div>
             </details>
 
+            {isDirectDelivery(selected) ? (
+              <div style={{ backgroundColor: '#EFF6FF', borderRadius: 12, padding: 12, marginBottom: 20, fontSize: 12, color: '#1E3A8A', lineHeight: 1.5 }}>
+                {t('send_shipment.direct_handoff_note')}
+              </div>
+            ) : (<>
             <div style={{ fontSize: 12, fontWeight: 800, color: DK, marginBottom: 8 }}>
               How should we get the parcel from you?
             </div>
@@ -609,6 +621,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 </button>
               ))}
             </div>
+
+            </>)}
 
             <button onClick={async () => { await loadHubChoices(); setStep(4); }} disabled={!canContinueStep3}
               style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
@@ -657,11 +671,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             {(selected?.loadHub || selected?.unloadHub) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
               <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>{t('send_shipment.trip_hubs_title')}</div>
               {selected?.loadHub && <div style={{fontSize:12,color:DK,marginBottom:6}}>
-                <span style={{color:GR}}>{t('send_shipment.trip_hub_origin')}: </span>
+                <span style={{color:GR}}>{t(pickupOption === 'door' ? 'send_shipment.trip_hub_origin_door' : 'send_shipment.trip_hub_origin')}: </span>
                 <strong>{selected.loadHub.name}</strong>{selected.loadHub.address ? ` · ${selected.loadHub.address}` : (selected.loadHub.city ? ` · ${selected.loadHub.city}` : '')}
               </div>}
               {selected?.unloadHub && <div style={{fontSize:12,color:DK}}>
-                <span style={{color:GR}}>{t('send_shipment.trip_hub_destination')}: </span>
+                <span style={{color:GR}}>{t(deliveryOption === 'door' ? 'send_shipment.trip_hub_destination_door' : 'send_shipment.trip_hub_destination')}: </span>
                 <strong>{selected.unloadHub.name}</strong>{selected.unloadHub.address ? ` · ${selected.unloadHub.address}` : (selected.unloadHub.city ? ` · ${selected.unloadHub.city}` : '')}
               </div>}
               <div style={{fontSize:11,color:GR,marginTop:8}}>{t('send_shipment.trip_hubs_note')}</div>
@@ -706,11 +720,18 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
               Keep this shipment number. Kentexa uses one customer-facing number even after a Parcel is created internally.
             </div>
-            {confirmed.direct && (
+            {confirmed.pickupPath && (
               <div style={{ backgroundColor: confirmed.pickupRequested ? '#ECFDF5' : '#FFFBEB', borderRadius: 12, padding: 12,
                 margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5,
                 color: confirmed.pickupRequested ? '#065F46' : '#92400E' }}>
                 {confirmed.pickupRequested ? t('send_shipment.direct_pickup_requested') : t('send_shipment.direct_pickup_not_requested')}
+              </div>
+            )}
+            {confirmed.dropOffHub && (
+              <div style={{ backgroundColor: '#EFF6FF', borderRadius: 12, padding: 12, margin: '0 auto 18px', maxWidth: 320,
+                fontSize: 12, lineHeight: 1.5, color: '#1E3A8A' }}>
+                {t('send_shipment.drop_off_at')}: <strong>{confirmed.dropOffHub.name}</strong>
+                {confirmed.dropOffHub.address ? ` · ${confirmed.dropOffHub.address}` : ''}
               </div>
             )}
             {quote?.totalAmount != null && (
