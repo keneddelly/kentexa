@@ -30,6 +30,7 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import LocationPicker from '../components/LocationPicker';
+import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import SetupProgressCard from '../../onboarding/SetupProgressCard';
@@ -271,7 +272,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '',
   });
   const [walkRoute, setWalkRoute]       = useState(null);
-  const [walkDestLocation, setWalkDestLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [walkDestText, setWalkDestText] = useState('');
+  const [walkDestLocation, setWalkDestLocation] = useState(null);
   const [walkPriceEstimate, setWalkPriceEstimate] = useState(null);
   const [walkHubs, setWalkHubs] = useState([]);
   const [walkHubsLoading, setWalkHubsLoading] = useState(false);
@@ -1319,46 +1321,38 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     <div data-tour="sa-walkin-destination" style={{ marginBottom: 10 }}>
                       <label style={{ fontSize: 11, fontWeight: 700, color: '#475569',
                         display: 'block', marginBottom: 3 }}>Mji wa Mwisho *</label>
-                      <LocationPicker
+                      <IntelligentLocationInput
                         label=""
-                        value={walkDestLocation}
-                        onChange={async loc => {
+                        value={walkDestText}
+                        onTextChange={text => { setWalkDestText(text); setWalkDestinationHubId(''); setWalkHubs([]); }}
+                        onResolved={async loc => {
                           setWalkDestLocation(loc);
-                          setWalkDestinationHubId(''); setWalkHubs([]);
-                          // Region, not district — Super Agents register
-                          // `city` against the fixed TANZANIA_CITIES region
-                          // list (see super-agent.entity.ts); a district
-                          // name here never matches, so the destination hub
-                          // auto-match inside createOfflineIntercityOrder
-                          // silently found nothing even when a real active
-                          // hub existed for the region.
+                          if (!loc) return;
                           const cityStr = loc.regionName || loc.districtName || '';
-                          setWalkForm(p => ({ ...p, destinationCity: cityStr }));
+                          setWalkForm(p => ({ ...p, destinationCity: cityStr, deliveryAddress: loc.displayLabel || p.deliveryAddress }));
                           if (cityStr) {
                             setWalkHubsLoading(true);
                             try {
-                              const hubs = await api.get(`/super-agents/hubs/${encodeURIComponent(cityStr)}`);
+                              const hubs = await api.get(\`/super-agents/hubs/\${encodeURIComponent(cityStr)}\`);
                               setWalkHubs(hubs.data || []);
                               if (hubs.data?.length === 1) setWalkDestinationHubId(String(hubs.data[0].id));
                             } catch { setWalkHubs([]); }
                             finally { setWalkHubsLoading(false); }
                           }
                           lookupWalkRoute(cityStr);
-                          // Fetch price estimate
                           if (cityStr && profile?.city) {
                             try {
                               const params = new URLSearchParams({
-                                from:   profile.city,
-                                to:     loc.regionName || cityStr,
+                                from: profile.city, to: loc.regionName || cityStr,
                                 weight: String(walkForm.weightKg || 1),
-                                ...(loc.districtId ? { destDistrictId: String(loc.districtId) } : {}),
                                 ...(loc.districtName ? { destDistrict: loc.districtName } : {}),
                               });
-                              const res = await api.get(`/pricing/estimate?${params}`);
+                              const res = await api.get(\`/pricing/estimate?\${params}\`);
                               setWalkPriceEstimate(res.data);
                             } catch { setWalkPriceEstimate(null); }
                           }
                         }}
+                        placeholder="Andika eneo la mpokeaji, mfano Mbezi Mwisho"
                         required
                       />
                     </div>
