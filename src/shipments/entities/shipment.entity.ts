@@ -233,6 +233,12 @@ export class Shipment {
   @Column({ type: 'int', nullable: true })
   orderId: number | null;
 
+  // Gate 3: which door this Shipment came in through. 'self_service' is the
+  // send form; 'walk_in' a Super Agent desk registration; 'seller_shipment'
+  // and 'order' carry a marketplace Order's parcel (see orderId above).
+  @Column({ type: 'varchar', length: 24, default: 'self_service' })
+  intakeChannel: string;
+
   @Column({
     type: 'enum',
     enum: ShipmentStatus,

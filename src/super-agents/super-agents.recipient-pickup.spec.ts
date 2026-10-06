@@ -36,7 +36,14 @@ describe('recipient-held pickup code', () => {
         if (failTracking) throw Error('tracking unavailable'); writes.push('tracking');
       }) }],
     ]);
-    const manager: any = { query: jest.fn(async (sql: string) => sql.includes('parcel_pickup_task') ? [] : sql.includes('pickupCodeHash')
+    // Gate 3: the Shipment is written only by the projector (shipment-projection.ts),
+    // which reads the Shipment, its Parcel and the custody ledger, then updates.
+    const manager: any = { query: jest.fn(async (sql: string) => sql.includes('UPDATE public.shipment')
+      ? (writes.push('shipment'), [{ id: 3 }])
+      : sql.includes('FROM public.shipment WHERE id')
+      ? [{ id: 3, status: 'confirmed', orderId: null, collectedAt: null, deliveredAt: null, completedAt: null }]
+      : sql.includes('FROM public.parcel WHERE "shipmentId"') ? [{ id: parcel.id, status: parcel.status }]
+      : sql.includes('parcel_pickup_task') ? [] : sql.includes('pickupCodeHash')
       ? [{ pickupCodeHash: parcel.pickupCodeHash, pickupCodeExpiresAt: parcel.pickupCodeExpiresAt,
         pickupCodeIssuedAt: parcel.pickupCodeIssuedAt, pickupCodeAttempts: parcel.pickupCodeAttempts }]
       : sql.includes('"codBalanceCollected"') ? [{ codBalanceCollected: false }] : []),

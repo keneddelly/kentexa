@@ -23,6 +23,8 @@ import { ParcelCustodyEvent } from './entities/parcel-custody-event.entity';
 import { ShippingRate } from './entities/shipping-rate.entity';
 import { BulkShipment, BulkShipmentStatus } from './entities/bulk-shipment.entity';
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
+import { projectShipment } from '../shipments/shipment-projection';
+import { linkIntakeShipment, linkIntakeShipmentWithin } from '../shipments/intake-shipment';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Agent, AgentStatus } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
@@ -826,6 +828,18 @@ export class SuperAgentsService {
       handlerLocation: superAgent.address || originCity,
       handlerType: 'super_agent',
     });
+
+    // Gate 3: a parcel registered at the desk converges on the same
+    // lifecycle as one booked through the send form -- Shipment -> Journey
+    // -> Parcel -> custody. The Shipment carries this receipt's own number;
+    // the Journey has one HUB_INTAKE leg naming THIS desk (from the
+    // authenticated role context above), which is also who may collect the
+    // sender's cash. Confined to a savepoint: the desk's receipt never fails
+    // because of it.
+    await linkIntakeShipmentWithin(manager, {
+      parcelId: savedParcel.id, channel: 'walk_in', actorUserId: superAgentUser.id,
+      deskHub: { superAgentId: superAgent.id, paymentMethod: dto.paymentMethod || 'cash' },
+    }, (error) => console.warn('Walk-in Shipment link failed:', (error as any)?.message));
 
     // 6. Receipt — evidence the Super Agent received the sender's cash.
     // Reuses the same transactional receipt-number generator every other
@@ -2694,9 +2708,9 @@ export class SuperAgentsService {
       if (parcel.order?.id) await manager.getRepository(Order).update(parcel.order.id, {
         status: OrderStatus.DELIVERED, deliveredAt: now,
       });
-      if (parcel.shipment?.id) await manager.getRepository(Shipment).update(parcel.shipment.id, {
-        status: ShipmentStatus.DELIVERED,
-      });
+      // Gate 3: the Shipment is never set by hand -- it is derived from the
+      // custody event and Parcel status just written (shipment-projection.ts).
+      if (parcel.shipment?.id) await projectShipment(manager, parcel.shipment.id);
       await manager.getRepository(ParcelTracking).insert({
         parcel, status: ParcelStatus.DELIVERED, city: parcel.destinationCity,
         note: 'Recipient code confirmed delivery from assigned Agent',
@@ -2817,9 +2831,9 @@ export class SuperAgentsService {
         agentDeliveryCodeIssuedAt: null, agentDeliveryAgentUserId: null,
         agentDeliveryRecipientPhone: null, agentDeliveryAttempts: 0,
       });
-      if (parcel.shipment?.id) await manager.getRepository(Shipment).update(parcel.shipment.id, {
-        status: ShipmentStatus.DELIVERED,
-      });
+      // Gate 3: the Shipment is never set by hand -- it is derived from the
+      // custody event and Parcel status just written (shipment-projection.ts).
+      if (parcel.shipment?.id) await projectShipment(manager, parcel.shipment.id);
       await manager.getRepository(ParcelTracking).insert({
         parcel, status: ParcelStatus.DELIVERED, city: parcel.destinationCity,
         note: 'Recipient code confirmed Agent COD delivery',
@@ -4780,6 +4794,16 @@ export class SuperAgentsService {
       dto.trackingEventHandlerInfo ?? { type: 'system' },
     );
 
+    // Gate 3: a seller's parcel uses the same logistics lifecycle and keeps
+    // its commerce context -- its Shipment points back at the Order.
+    await this.dataSource
+      .transaction((manager) => linkIntakeShipment(manager, {
+        parcelId: parcel.id,
+        channel: dto.source === 'seller_shipment' ? 'seller_shipment' : 'order',
+        actorUserId: seller.id,
+      }))
+      .catch((error) => console.warn('Seller Shipment link failed:', error?.message));
+
     await this.auditLog
       .record({
         actorId: seller.id,
@@ -5303,9 +5327,8 @@ export class SuperAgentsService {
         status: OrderStatus.DELIVERED, deliveredAt: new Date(),
       });
     }
-    if (parcel.shipment?.id) {
-      await manager.getRepository(Shipment).update(parcel.shipment.id, { status: ShipmentStatus.DELIVERED });
-    }
+    // Gate 3: derived from the custody event and Parcel status just written.
+    if (parcel.shipment?.id) await projectShipment(manager, parcel.shipment.id);
     if (cash?.agentShare) {
       await manager.getRepository(Parcel).increment({ id: parcel.id }, 'superAgentEarnings', cash.agentShare);
     }

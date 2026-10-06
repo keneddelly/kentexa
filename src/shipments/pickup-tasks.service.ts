@@ -7,6 +7,7 @@ import { DataSource } from 'typeorm';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import type { RoleContext } from '../role-context/role-context.types';
 import { ShipmentHubSource } from './shipment-hub-source';
+import { projectShipment, projectShipmentForParcel } from './shipment-projection';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
 export interface RequestPickupDto {
@@ -309,8 +310,9 @@ export class PickupTasksService {
       await em.query(`UPDATE public.parcel_pickup_task SET status='collected',"collectedAt"=now(),
         "handoffCodeHash"=NULL,"handoffCodeIssuedAt"=NULL,"handoffCodeExpiresAt"=NULL,"handoffAttempts"=0,
         "updatedAt"=now() WHERE id=$1`, [taskId]);
-      // Projection of the proven Parcel event onto the Shipment (CONFIRMED -> COLLECTED only).
-      await em.query(`UPDATE public.shipment SET status='collected',"collectedAt"=now() WHERE id=$1 AND status='confirmed'`, [s.id]);
+      // Gate 3: the Shipment is derived from the custody event and Parcel
+      // status just written, by the ONE projector.
+      await projectShipment(em, s.id);
       await this.recordTracking(em, p.id, 'collected_by_agent', s.originCity,
         'Collected from the sender by the assigned Agent', agent.fullName ?? null, null, null, 'local_agent');
       return { id: taskId, parcelId: p.id, status: 'collected', replay: false };
@@ -382,6 +384,7 @@ export class PickupTasksService {
         role, hubId: hub.id, evidenceRef: `pickup-task:${taskId}`,
       });
       await em.query("UPDATE public.parcel SET status='received_at_hub' WHERE id=$1", [p.id]);
+      await projectShipmentForParcel(em, p.id);
       await em.query(`UPDATE public.parcel_pickup_task SET status='hub_received',"completedAt"=now(),
         "updatedAt"=now() WHERE id=$1`, [taskId]);
       await this.recordTracking(em, p.id, 'received_at_hub', hub.city ?? s.originCity,

@@ -11,7 +11,9 @@ import {
   Query,
   ParseIntPipe,
   Header,
+  UseInterceptors,
 } from '@nestjs/common';
+import { ParcelReferenceInterceptor } from '../shipments/parcel-reference.interceptor';
 import { AgentsService } from '../agents/agents.service';
 import { SuperAgentsService } from './super-agents.service';
 import { JwtAuthGuard } from '../auth/auth.guard';
@@ -29,6 +31,10 @@ import { CurrentRoleContext } from '../role-context/current-role-context.decorat
 import type { RoleContext } from '../role-context/role-context.types';
 import { SellerScopeService } from '../business/seller-scope.service';
 
+// Gate 3: every ':trackingNumber' route below accepts the customer's number
+// (the Shipment's) as well as the Parcel's own, and re-projects the Shipment
+// after a successful change. See ParcelReferenceInterceptor.
+@UseInterceptors(ParcelReferenceInterceptor)
 @Controller('super-agents')
 export class SuperAgentsController {
   constructor(

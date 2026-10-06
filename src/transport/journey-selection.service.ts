@@ -58,6 +58,9 @@ export function assertClientAuthoredJourney(dto: SelectJourneyDto | undefined | 
     }
     // Gate 2: which Run, which of its stops and how firmly it is committed
     // are decided by the server (POST /transport/journeys/select-composed).
+    if (leg.requiredActorCapability != null) {
+      throw new BadRequestException('A journey request cannot assign a role to a leg');
+    }
     if (leg.runId != null || leg.loadRouteStopId != null || leg.unloadRouteStopId != null || leg.commitmentLevel != null) {
       throw new BadRequestException('A trip is selected through journeys/select-composed, not written into a journey request');
     }
@@ -90,6 +93,10 @@ export class JourneySelectionService {
       if (leg.agentId != null) return { type: 'agent', sequence: i + 1 };
       if (leg.superAgentId != null) return { type: 'super_agent', sequence: i + 1 };
       if (leg.providerId != null) return { type: 'transport_provider', sequence: i + 1 };
+      // Gate 3: a server-composed leg for "an Agent, whoever claims it". The
+      // collector is the Agent role at this leg; WHICH Agent is resolved from
+      // the authenticated claim later, never from a request.
+      if (leg.requiredActorCapability === 'local_agent') return { type: 'agent', sequence: i + 1 };
     }
     throw new BadRequestException('Cash journey has no authorized first physical custodian');
   }

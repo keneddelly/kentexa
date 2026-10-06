@@ -179,6 +179,10 @@ describe('structural guards', () => {
     expect(svc).not.toMatch(/city:\s*shipment\.(origin|destination)City/);
   });
 
+  // Gate 3 adds one more file that mentions them: intake-shipment.ts, which
+  // INSERTS a brand-new Shipment for a parcel already registered at a desk,
+  // with its decision (that desk) as part of the row. It never updates an
+  // existing decision; the compare-and-set below is still the only UPDATE.
   it('the decision columns are written ONLY by writeHubDecision, and only as a compare-and-set on NULL sources', () => {
     const offenders: string[] = [];
     for (const f of walk(root)) {
@@ -186,10 +190,14 @@ describe('structural guards', () => {
       if (/(origin|destination)HubSource|hubDecidedAt/.test(src)) {
         const rel = f.slice(root.length + 1).replace(/\\/g, '/');
         if (!['shipments/shipments.service.ts', 'shipments/pickup-tasks.service.ts', 'shipments/entities/shipment.entity.ts', 'shipments/shipment-hub-selection.ts',
+          'shipments/intake-shipment.ts',
           'database/migrations/1788274800000-AddShipmentHubDecision.ts'].includes(rel)) offenders.push(rel);
       }
     }
     expect(offenders).toEqual([]);
+    const intake = strip(readFileSync(join(__dirname, 'intake-shipment.ts'), 'utf8'));
+    expect(intake).toMatch(/INSERT INTO public\.shipment/);
+    expect(intake).not.toMatch(/UPDATE public\.shipment[\s\S]{0,200}(HubSource|HubId|hubDecidedAt)/);
     const svc = strip(readFileSync(join(__dirname, 'shipments.service.ts'), 'utf8'));
     // exactly one statement assigns hubDecidedAt / hub sources, inside writeHubDecision
     expect((svc.match(/hubDecidedAt:/g) || []).length).toBe(1);

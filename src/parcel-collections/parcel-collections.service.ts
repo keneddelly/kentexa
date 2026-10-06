@@ -19,6 +19,7 @@ import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-age
 import { SmsService } from '../sms/sms.service';
 import { RoleContext } from '../role-context/role-context.types';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
+import { linkIntakeShipmentWithin } from '../shipments/intake-shipment';
 
 @Injectable()
 export class ParcelCollectionsService {
@@ -68,6 +69,11 @@ export class ParcelCollectionsService {
             source: 'online_order', status: ParcelStatus.COLLECTION_REQUESTED,
           } as any),
         ) as unknown as Parcel;
+        // Gate 3: same lifecycle as every other parcel, commerce context kept.
+        await linkIntakeShipmentWithin(manager, {
+          parcelId: parcel.id, channel: 'order',
+          actorUserId: Number((order.seller as any)?.id ?? (order as any).createdByUserId ?? 0),
+        }, (error) => console.warn('Collection Shipment link failed:', (error as any)?.message));
       } else if (parcel.status === ParcelStatus.PENDING) {
         await manager.getRepository(Parcel).update(parcel.id, { status: ParcelStatus.COLLECTION_REQUESTED });
       } else if (parcel.status !== ParcelStatus.COLLECTION_REQUESTED) {

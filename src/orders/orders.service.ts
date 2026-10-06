@@ -110,6 +110,7 @@ import { CommerceProfileType } from '../commerce-profiles/entities/commerce-prof
 import { FRONTEND_URL } from '../config/urls.config';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
+import { linkIntakeShipmentWithin } from '../shipments/intake-shipment';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -1351,6 +1352,12 @@ export class OrdersService {
           handlerLocation: superAgentProfile.address || originCity,
         });
       }
+      // Gate 3: an Order's parcel uses the same logistics lifecycle as any
+      // other and keeps its commerce context (shipment."orderId"). No-op for
+      // a parcel that already has its Shipment (e.g. a desk walk-in).
+      await linkIntakeShipmentWithin(manager, {
+        parcelId: savedParcel.id, channel: 'order', actorUserId: superAgent.id,
+      }, (error) => console.warn('Order Shipment link failed:', (error as any)?.message));
     });
 
 
