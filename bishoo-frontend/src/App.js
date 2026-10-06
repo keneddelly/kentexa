@@ -134,7 +134,6 @@ import SuperAgentSettings from './public/pages/SuperAgentSettings';
 import SellerShipment from './public/pages/SellerShipment';
 import SendShipment from './public/pages/SendShipment';
 import BuyerParcelAction from './public/pages/BuyerParcelAction';
-import VanToday from './public/pages/VanToday';
 import StoreSettings from './seller/pages/StoreSettings';
 import BecomeSuperAgentInfo from './public/pages/BecomeSuperAgentInfo';
 import CategoryPage from './public/pages/CategoryPage';
@@ -823,7 +822,6 @@ function App() {
       case 'SuperAgentParcel':       return requireLogin(<SuperAgentParcel {...publicProps} />);
       case 'SuperAgentSettings':     return requireLogin(<SuperAgentSettings {...publicProps} />);
       case 'SellerShipment':         return requireVerifiedSeller(<SellerShipment {...publicProps} prefill={navParams} />);
-      case 'VanToday':             return requireLogin(<VanToday {...publicProps} />);
       case 'Dashboard':   return requireAdmin(<Dashboard activePage={page} {...adminProps} />);
       case 'Products':    return requireAdmin(<Products activePage={page} {...adminProps} />);
       case 'Classifieds': return requireAdmin(<Classifieds activePage={page} {...adminProps} />);
