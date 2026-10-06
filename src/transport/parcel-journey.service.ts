@@ -250,6 +250,30 @@ export class ParcelJourneyService {
     );
   }
 
+  // L10: one admin exception queue over canonical execution truth. This is
+  // deliberately read-only: admin can diagnose, but cannot invent custody or
+  // mutate a committed Journey through a generic override endpoint.
+  async adminListOperationalExceptions() {
+    return this.dataSource.query(
+      `SELECT * FROM (
+         SELECT 'awaiting_hub_receipt'::text AS "exceptionType", p.id AS "parcelId",
+                p."trackingNumber", a.id AS "assignmentId", a."runId",
+                us."superAgentId" AS "responsibleProfileId", a."unloadedAt" AS "sinceAt"
+           FROM public.parcel_run_assignment a
+           JOIN public.transport_run_stop us ON us.id = a."unloadRunStopId"
+           JOIN public.parcel p ON p.id = a."parcelId"
+          WHERE a.status='unloaded' AND us."superAgentId" IS NOT NULL
+         UNION ALL
+         SELECT 'awaiting_last_mile'::text, p.id, p."trackingNumber", NULL::int, NULL::int,
+                p."destinationSuperAgentId", p."arrivedAtHubTime"
+           FROM public.parcel p
+          WHERE p.status IN ('arrived_at_hub','awaiting_buyer')
+       ) x
+       ORDER BY x."sinceAt" ASC NULLS LAST
+       LIMIT 500`,
+    );
+  }
+
   // ── Stage 3S-C8 (C8-F): admin operational visibility ───────────────────────
   // "Parcels blocked awaiting Super Agent receipt" -- exactly
   // ParcelRunAssignmentService's own hasUnconfirmedSuperAgentReceipt
