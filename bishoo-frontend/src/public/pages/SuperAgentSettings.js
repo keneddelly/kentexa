@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
-import LocationPicker from '../components/LocationPicker';
+import IntelligentLocationInput from '../components/IntelligentLocationInput';
 
 const inp = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
@@ -23,7 +23,8 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
   });
   const [loading, setLoading]   = useState(true);
   const [saving, setSaving]     = useState(false);
-  const [location, setLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [locationText, setLocationText] = useState('');
+  const [resolvedLocation, setResolvedLocation] = useState(null);
   const [success, setSuccess]   = useState('');
   const [error, setError]       = useState('');
 
@@ -49,6 +50,7 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
           description:   res.data.description   || '',
           whatsappNumber:res.data.whatsappNumber|| '',
         });
+        setLocationText(res.data.locationLabel || res.data.address || res.data.city || '');
         if (res.data.city) {
           api.get(`/super-agents/rates/${encodeURIComponent(res.data.city)}`)
             .then(r => setRates(r.data?.length ? r.data : [blankRate()]))
@@ -71,7 +73,18 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
   const handleSave = async () => {
     try {
       setSaving(true); setError(''); setSuccess('');
-      await api.patch('/super-agents/my-profile', form);
+      await api.patch('/super-agents/my-profile', {
+        businessName: form.businessName, phone: form.phone, address: form.address,
+      });
+      if (resolvedLocation?.placeRef) {
+        const updated = await api.patch('/super-agents/my-profile/location', {
+          providerKey: resolvedLocation.placeRef.providerKey,
+          providerPlaceId: resolvedLocation.placeRef.providerPlaceId,
+          addressDetail: form.address,
+        });
+        setProfile(updated.data);
+        setForm(p => ({ ...p, city: updated.data.city || p.city, address: updated.data.address || p.address }));
+      }
       setSuccess(t('super_agent_settings.save_success'));
     } catch (err) {
       setError(err?.response?.data?.message || t('super_agent_settings.save_failed'));
@@ -148,25 +161,22 @@ const SuperAgentSettings = ({ onNavigate, isLoggedIn }) => {
               { k: 'phone',          l: t('super_agent_settings.field_phone_label'),                 ph: '0712345678' },
               { k: 'whatsappNumber', l: t('super_agent_settings.field_whatsapp_label'),               ph: '255712345678' },
               { k: '__location_picker__', isCustom: true },
-            { k: 'city',           l: t('super_agent_settings.field_city_label'),                  ph: t('super_agent_settings.field_city_placeholder') },
-              { k: 'region',         l: t('super_agent_settings.field_region_label'),                   ph: t('super_agent_settings.field_region_placeholder') },
-              { k: 'address',        l: t('super_agent_settings.field_address_label'),          ph: t('super_agent_settings.field_address_placeholder') },
+              { k: 'address',        l: 'Maelezo ya eneo / landmark', ph: 'Mfano: karibu na soko, jengo la pili' },
               { k: 'description',    l: t('super_agent_settings.field_description_label'),      ph: t('super_agent_settings.field_description_placeholder') },
             ].map(f => (
               <div key={f.k} style={{ marginBottom: 14 }}>
                 {f.isCustom ? (
-                  <LocationPicker
-                    label={t('super_agent_settings.location_picker_label')}
-                    value={location}
-                    onChange={loc => {
-                      setLocation(loc);
-                      setForm(p => ({
-                        ...p,
-                        city: loc.districtName || p.city,
-                        region: loc.regionName || p.region,
-                      }));
-                    }}
-                  />
+                  <>
+                    <IntelligentLocationInput
+                      label="Eneo la Hub"
+                      value={locationText}
+                      onTextChange={setLocationText}
+                      onResolved={setResolvedLocation}
+                      placeholder="Tafuta eneo, ward au district…"
+                      required
+                    />
+                    {profile?.locationLabel && !resolvedLocation && <div style={{fontSize:11,color:'#16a34a',marginTop:-8}}>📍 {profile.locationLabel}</div>}
+                  </>
                 ) : (
                   <>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 700,
