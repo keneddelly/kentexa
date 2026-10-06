@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { createHash } from 'crypto';
 import { ShipmentsService, ConfirmShipmentDto } from './shipments.service';
 import { PickupTasksService } from './pickup-tasks.service';
 import { ShipmentHandoffOption } from './entities/shipment.entity';
@@ -15,6 +15,13 @@ export class ShipmentActivationService {
     private readonly shipments: ShipmentsService,
     private readonly pickupTasks: PickupTasksService,
   ) {}
+
+  private activationKey(userId: number, shipmentId: number) {
+    const h = createHash('sha256').update(`shipment-first-action:${userId}:${shipmentId}`).digest('hex').slice(0, 32).split('');
+    h[12] = '4'; h[16] = ['8','9','a','b'][parseInt(h[16], 16) % 4];
+    const s = h.join('');
+    return `${s.slice(0,8)}-${s.slice(8,12)}-${s.slice(12,16)}-${s.slice(16,20)}-${s.slice(20)}`;
+  }
 
   async confirmAndActivate(userId: number, shipmentId: number, dto: ConfirmShipmentDto) {
     const confirmed = await this.shipments.confirmShipment(userId, shipmentId, dto);
@@ -38,7 +45,7 @@ export class ShipmentActivationService {
       confirmed.shipment.destinationHubSource === 'not_required';
 
     const task = await this.pickupTasks.requestForShipment(userId, shipmentId, {
-      requestKey: randomUUID(),
+      requestKey: this.activationKey(userId, shipmentId),
       servicePath: isDirect ? 'direct_delivery' : 'hub_routed',
       pickupContactName: confirmed.shipment.senderName || 'Sender',
       pickupContactPhone: confirmed.shipment.senderPhone || '',
