@@ -57,6 +57,7 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
   const [result, setResult]           = useState(null);
   const [error, setError]             = useState('');
   const [routeInfo, setRouteInfo]     = useState(null);
+  const [transportSupply, setTransportSupply] = useState({ published: [], providers: [] });
   const [routeLoading, setRouteLoading] = useState(false);
   const [isSameCity, setIsSameCity]   = useState(false);
   const [destLocation, setDestLocation]     = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
@@ -164,10 +165,12 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
     if (same) { setRouteInfo(null); return; }
     try {
       setRouteLoading(true);
-      const res = await api.get(
-        `/super-agents/route/${encodeURIComponent(sellerCity || 'Dar es Salaam')}/${encodeURIComponent(dest)}`
-      );
-      setRouteInfo(res.data || null);
+      const [routeRes, transportRes] = await Promise.all([
+        api.get(`/super-agents/route/${encodeURIComponent(sellerCity || 'Dar es Salaam')}/${encodeURIComponent(dest)}`).catch(() => ({ data: null })),
+        api.get(`/transport/available?from=${encodeURIComponent(sellerCity || 'Dar es Salaam')}&to=${encodeURIComponent(dest)}`).catch(() => ({ data: { published: [], providers: [] } })),
+      ]);
+      setRouteInfo(routeRes.data || null);
+      setTransportSupply(transportRes.data || { published: [], providers: [] });
     } catch { setRouteInfo(null); }
     finally { setRouteLoading(false); }
   }, [sellerCity]);
@@ -908,7 +911,11 @@ const SellerShipment = ({ onNavigate, isLoggedIn, onLogout, userRole, prefill = 
                 </div>
               ) : (
                 <div style={{ backgroundColor: '#fff7ed', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#c2410c' }}>
-                  {t('seller_shipment.no_route_registered', { city: form.destinationCity })}
+                  {transportSupply.published.length > 0
+                    ? `🚚 ${transportSupply.published.length} transport trip(s) available: ${sellerCity} → ${form.destinationCity}`
+                    : transportSupply.providers.length > 0
+                      ? `🚚 ${transportSupply.providers.length} verified transport provider(s) cover this route`
+                      : t('seller_shipment.no_route_registered', { city: form.destinationCity })}
                 </div>
               )}
             </div>

@@ -13,7 +13,7 @@ import api     from '../../api/api';
 // Registration stays fully open. The operational dashboard (posting routes,
 // availability, accepting assignments) stays disabled at launch while that
 // logic gets more real-world testing. Flip this back on later.
-const TRANSPORT_OPS_ENABLED = false;
+const TRANSPORT_OPS_ENABLED = true;
 
 const getStatusStyle = t => ({
   pending:   { bg: '#fef3c7', text: '#d97706', label: t('transport_provider_dashboard.status_pending') },
