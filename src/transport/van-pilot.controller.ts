@@ -51,7 +51,7 @@ import { CurrentRoleContext } from '../role-context/current-role-context.decorat
 import type { RoleContext } from '../role-context/role-context.types';
 import { TransportRunService } from './transport-run.service';
 import { TransportRunStatus } from './entities/transport-run.entity';
-import type { AddRouteStopDto, UpdateRouteStopDto, CreateRunDto, AddVehicleDto, UpdateVehicleDto } from './transport-run.service';
+import type { AddRouteStopDto, UpdateRouteStopDto, CreateRunDto, UpsertRecurringScheduleDto, AddVehicleDto, UpdateVehicleDto } from './transport-run.service';
 import { ParcelRunAssignmentService } from './parcel-run-assignment.service';
 import type { CreateParcelRunAssignmentDto } from './parcel-run-assignment.service';
 import { ParcelJourneyService } from './parcel-journey.service';
@@ -119,6 +119,31 @@ export class VanPilotController {
     @Param('stopId', ParseIntPipe) stopId: number,
   ) {
     return this.runs.deactivateRouteStop(ctx.userId, routeId, stopId);
+  }
+
+  // ── PROVIDER: recurring schedules ───────────────────────────────────────
+  @Get('schedules')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  listSchedules(@CurrentRoleContext() ctx: RoleContext) { return this.runs.listRecurringSchedules(ctx.userId); }
+
+  @Post('schedules')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  createSchedule(@CurrentRoleContext() ctx: RoleContext, @Body() dto: UpsertRecurringScheduleDto) {
+    return this.runs.createRecurringSchedule(ctx.userId, dto);
+  }
+
+  @Post('schedules/materialize')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  materializeSchedules(@CurrentRoleContext() ctx: RoleContext) { return this.runs.materializeRecurringRuns(ctx.userId); }
+
+  @Patch('schedules/:scheduleId/deactivate')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  deactivateSchedule(@CurrentRoleContext() ctx: RoleContext, @Param('scheduleId', ParseIntPipe) id:number) {
+    return this.runs.deactivateRecurringSchedule(ctx.userId,id);
   }
 
   // ── PROVIDER: Runs ───────────────────────────────────────────────────────
