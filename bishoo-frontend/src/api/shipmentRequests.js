@@ -159,8 +159,8 @@ export const searchOutcome = (response, error) => {
 // not hand-written legs. The server re-discovers fulfillability before
 // freezing a JourneySelection.
 export const serviceOfferCommitBody = (state, selected, direct, now = new Date()) => ({
-  fromCity: state.originResolved?.districtName || state.originResolved?.regionName || (state.origin || '').trim(),
-  toCity: state.destinationResolved?.districtName || state.destinationResolved?.regionName || (state.destination || '').trim(),
+  fromCity: state.originResolved?.regionName || state.originResolved?.districtName || (state.origin || '').trim(),
+  toCity: state.destinationResolved?.regionName || state.destinationResolved?.districtName || (state.destination || '').trim(),
   weightKg: Number(state.weightKg) || 0,
   pickup: state.pickupOption === 'door' ? 'door' : 'point',
   delivery: state.deliveryOption === 'door' ? 'door' : 'collect',
