@@ -137,6 +137,44 @@ export class SuperAgent {
   @Column({ type: 'text', nullable: true })
   address: string | null;
 
+  // Canonical hub location. Written from a server-resolved Location Intelligence
+  // place reference; city/address above remain compatibility/display fields.
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  locationLabel: string | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  latitude: number | null;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  longitude: number | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  locationProviderKey: string | null;
+
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  locationProviderPlaceId: string | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  locationResolutionMethod: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  regionId: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  regionName: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  districtId: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  districtName: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  wardId: number | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  wardName: string | null;
+
   @Column({ type: 'varchar', nullable: true })
   phone: string | null;
 
