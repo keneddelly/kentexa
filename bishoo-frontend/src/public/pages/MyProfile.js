@@ -818,7 +818,25 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
           <>
             <SCard>
               <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
-                {t('my_profile.transport_activity_title')}
+                Usafirishaji wangu
+              </div>
+              {/* Sending is a customer capability, not an operational role.
+                  Every authenticated person must be able to reach their own
+                  shipment history regardless of whether they are also an
+                  Agent, Super Agent or Transport Provider. */}
+              <Row icon="📦" label="Mizigo yangu"
+                sub="Angalia mizigo uliyotuma na hatua ilipofikia"
+                onAction={() => onNavigate('MyShipments')} />
+              <Row icon="➕" label="Tuma mzigo"
+                sub="Anzisha usafirishaji mpya"
+                onAction={() => onNavigate('SendShipment')} />
+              <Row icon="🔎" label="Fuatilia mzigo"
+                sub="Fuatilia mzigo kwa namba yako ya ufuatiliaji"
+                onAction={() => onNavigate('TrackParcel')} />
+            </SCard>
+            {['agent','super_agent','transport_provider'].includes(role) && <SCard>
+              <div style={{ fontSize:13, fontWeight:800, color:DK, marginBottom:14 }}>
+                Kazi za usafirishaji
               </div>
               {role === 'agent' && (
                 <>
@@ -856,20 +874,7 @@ const MyProfile = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, on
                     onAction={() => onNavigate('RouteCoverageMap')} />
                 </>
               )}
-              {!['agent','super_agent','transport_provider'].includes(role) && (
-                <div style={{ textAlign:'center', padding:'24px 0' }}>
-                  <div style={{ fontSize:40, marginBottom:8 }}>🚚</div>
-                  <div style={{ fontSize:13, color:GR, marginBottom:12 }}>
-                    {t('my_profile.no_logistics_role_desc')}
-                  </div>
-                  <button onClick={() => onNavigate('RoleActivation')}
-                    style={{ backgroundColor:B, color:WH, border:'none', borderRadius:10,
-                      padding:'10px 24px', cursor:'pointer', fontSize:13, fontWeight:700 }}>
-                    {t('my_profile.add_role_button')}
-                  </button>
-                </div>
-              )}
-            </SCard>
+            </SCard>}
           </>
         )}
 
