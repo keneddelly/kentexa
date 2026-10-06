@@ -59,8 +59,8 @@ export default function ShipmentPickupPanel({ shipment }) {
         <>
           <div style={small}>
             {path === 'direct_delivery'
-              ? 'Kentexa can collect this parcel from you and deliver it straight to the recipient.'
-              : 'Kentexa can collect this parcel from you and take it to the Kentexa Point for its trip.'}
+              ? 'Kentexa inaweza kuja kuchukua mzigo hapa na kuupeleka moja kwa moja kwa mpokeaji.'
+              : 'Kentexa inaweza kuja kuchukua mzigo hapa na kuupeleka kituoni kwa safari yake.'}
           </div>
           <button style={btn(true)} disabled={busy || !shipment.senderPhone}
             onClick={() => run(() => api.post(`/shipments/${shipment.id}/pickup-task`, {
@@ -68,17 +68,17 @@ export default function ShipmentPickupPanel({ shipment }) {
               pickupContactName: (shipment.senderName || '').trim() || 'Sender',
               pickupContactPhone: (shipment.senderPhone || '').trim(),
             }))}>
-            Request pickup from me
+            Njoo chukua mzigo
           </button>
-          {!shipment.senderPhone && <div style={{ ...small, color: '#B91C1C' }}>A sender phone number is needed so the collector can reach you.</div>}
+          {!shipment.senderPhone && <div style={{ ...small, color: '#B91C1C' }}>Weka namba ya simu ya mtumaji ili anayekuja kuchukua mzigo aweze kuwasiliana nawe.</div>}
         </>
       )}
 
       {task?.status === 'requested' && (
         <>
-          <div style={small}>Finding someone near you to collect this parcel.</div>
+          <div style={small}>Tunatafuta mtu wa Kentexa aliye karibu aje kuchukua mzigo.</div>
           <button style={btn(false)} disabled={busy} onClick={() => run(() => api.post(`/shipments/${shipment.id}/pickup-task/cancel`))}>
-            Cancel pickup request
+            Ghairi ombi
           </button>
         </>
       )}
@@ -86,32 +86,32 @@ export default function ShipmentPickupPanel({ shipment }) {
       {task?.status === 'claimed' && (
         <>
           <div style={small}>
-            Coming to collect: <strong>{task.agent?.name || 'Kentexa'}</strong>
+            Anayekuja kuchukua: <strong>{task.agent?.name || 'Kentexa'}</strong>
             {task.agent?.phone ? <> · <a href={`tel:${task.agent.phone}`}>{task.agent.phone}</a></> : null}
           </div>
-          <div style={small}>When they are with you and take the parcel, give them this code. Do not share it before.</div>
+          <div style={small}>Akifika na kukabidhi mzigo, mpe namba hii. Usimpe kabla hajafika.</div>
           {code ? (
             <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 6, color: '#0f172a', margin: '8px 0' }} aria-label="Handover code">
               {code.value}
-              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0, color: '#64748b' }}>Valid for {Math.round(code.seconds / 60)} minutes</div>
+              <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0, color: '#64748b' }}>Inatumika kwa dakika {Math.round(code.seconds / 60)} </div>
             </div>
           ) : (
             <button style={btn(true)} disabled={busy}
               onClick={() => run(() => api.post(`/shipments/${shipment.id}/pickup-task/handoff-code`),
                 (res) => setCode({ value: res.data.code, seconds: res.data.expiresInSeconds }))}>
-              Show handover code
+              Onyesha namba ya kukabidhi
             </button>
           )}
           <button style={btn(false)} disabled={busy} onClick={() => run(() => api.post(`/shipments/${shipment.id}/pickup-task/cancel`), () => setCode(null))}>
-            Cancel pickup
+            Ghairi
           </button>
         </>
       )}
 
       {(task?.status === 'collected' || task?.status === 'awaiting_hub') && (
         <div style={small}>
-          {task.agent?.name || 'Kentexa'} has your parcel
-          {task.servicePath === 'direct_delivery' ? ' and is taking it to the recipient.' : ' and is taking it to the Kentexa Point.'}
+          {task.agent?.name || 'Kentexa'} ana mzigo wako
+          {task.servicePath === 'direct_delivery' ? ' na anaupeleka kwa mpokeaji.' : ' na anaupeleka kituoni kwa safari yake.'}
         </div>
       )}
 
