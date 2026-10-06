@@ -106,6 +106,12 @@ export class SuperAgentsController {
     return this.service.getMyProfile(req.user);
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Patch('my-profile')
+  updateMyProfile(@Request() req, @Body() dto: any) {
+    return this.service.updateMyProfile(req.user, dto);
+  }
+
   // Set this hub's canonical location from a Kentexa Location Intelligence
   // selection. The server re-resolves the reference; client coordinates/names
   // are never accepted as authority.
