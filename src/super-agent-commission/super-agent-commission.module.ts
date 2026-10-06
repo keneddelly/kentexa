@@ -39,6 +39,7 @@ import { SuperAgentCashRemittanceService } from './super-agent-cash-remittance.s
 import { SuperAgentHandlingEarningPayoutService } from './super-agent-handling-earning-payout.service';
 import { ActivityModule } from '../activity/activity.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { SuperAgentSettlementController } from './super-agent-settlement.controller';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { WalletModule } from '../wallet/wallet.module';
       ParcelCustodyEvent,
     ]),
   ],
+  controllers: [SuperAgentSettlementController],
   providers: [
     SuperAgentHandlingRateService,
     SuperAgentHandlingEarningService,
