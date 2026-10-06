@@ -18,6 +18,7 @@ import { SuperAgent } from '../super-agents/entities/super-agent.entity';
 import { PickupTasksService } from './pickup-tasks.service';
 import { PickupTasksController } from './pickup-tasks.controller';
 import { SmsModule } from '../sms/sms.module';
+import { ShipmentActivationService } from './shipment-activation.service';
 
 @Module({
   imports: [
@@ -34,7 +35,7 @@ import { SmsModule } from '../sms/sms.module';
     SmsModule,
   ],
   controllers: [ShipmentsController, PickupTasksController],
-  providers: [ShipmentsService, PickupTasksService],
+  providers: [ShipmentsService, PickupTasksService, ShipmentActivationService],
   exports: [ShipmentsService],
 })
 export class ShipmentsModule {}
