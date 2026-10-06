@@ -404,7 +404,28 @@ export class PickupTasksService {
       await this.recordTracking(em, p.id, 'received_at_hub', hub.city ?? s.originCity,
         'Received at the origin hub from the collecting Agent', hub.businessName ?? null,
         hub.phone ?? null, hub.address ?? hub.city ?? null, 'super_agent');
-      return { id: taskId, parcelId: p.id, status: 'hub_received', replay: false };
+
+      // Custody is now proven at the origin hub. Derive the next executable
+      // transport leg from the committed journey; notification is only an
+      // operational activation and does not transfer custody.
+      const nextLeg: any[] = s.journeySelectionId ? await em.query(`
+        SELECT l.id,l.sequence,l."providerId",l."runId",tp."userId" AS "providerUserId"
+          FROM public.journey_leg l
+          LEFT JOIN public.transport_provider tp ON tp.id=l."providerId"
+         WHERE l."journeySelectionId"=$1 AND l.type='transport'
+         ORDER BY l.sequence ASC LIMIT 1`, [s.journeySelectionId]) : [];
+      const next = nextLeg[0] ?? null;
+      return {
+        id: taskId, parcelId: p.id, status: 'hub_received', replay: false,
+        nextAction: next ? {
+          type: 'transport_handoff',
+          journeyLegId: Number(next.id),
+          providerId: next.providerId == null ? null : Number(next.providerId),
+          runId: next.runId == null ? null : Number(next.runId),
+          custodyStarted: false,
+          providerUserId: next.providerUserId == null ? null : Number(next.providerUserId),
+        } : { type: 'manual_planning', reason: 'no_committed_transport_leg', custodyStarted: false },
+      };
     });
   }
 
