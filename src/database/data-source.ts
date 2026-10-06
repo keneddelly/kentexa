@@ -33,6 +33,6 @@ export default new DataSource({
   migrationsTableName: 'typeorm_migrations',
   // Timestamp-prefixed files only. This intentionally excludes migration
   // tests that live alongside the migration artifacts.
-  migrations: [join(process.cwd(), 'src/database/migrations/[0-9]*{.ts,.js}')],
+  migrations: [join(__dirname, 'migrations/[0-9]*.js')],
   entities: [],
 });
