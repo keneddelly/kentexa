@@ -31,6 +31,7 @@ import { Sale } from '../sales/entities/sale.entity';
 import { IdentityModule } from '../identity/identity.module';
 import { ActivityModule } from '../activity/activity.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { LocationIntelligenceModule } from '../location-intelligence/location-intelligence.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { WalletModule } from '../wallet/wallet.module';
     ActivityModule,
     WalletModule,
     PaymentCoreModule,
+    LocationIntelligenceModule,
   ],
   controllers: [SuperAgentsController],
   providers: [SuperAgentsService],
