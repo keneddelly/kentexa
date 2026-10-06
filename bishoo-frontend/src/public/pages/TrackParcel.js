@@ -327,17 +327,17 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
                 <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 14,
                   padding: 16, marginBottom: 12 }}>
                   <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>
-                    Your parcel has arrived. Choose how to receive it.
+                    Mzigo wako umefika. Chagua namna ya kuupokea.
                   </div>
                   <button onClick={() => onNavigate(isLoggedIn
                     ? `BuyerParcelAction-${result.trackingNumber}` : 'PublicLogin')}
                     style={{ width: '100%', minHeight: 48, border: 0, borderRadius: 10,
                       background: '#1d4ed8', color: '#fff', fontSize: 16, fontWeight: 800,
                       cursor: 'pointer' }}>
-                    Choose delivery or pickup
+                    Chagua kuletewa au kuchukua
                   </button>
                   <div style={{ fontSize: 13, color: '#475569', marginTop: 8 }}>
-                    Sign in with the recipient account to confirm your choice.
+                    Ingia kwa akaunti ya mpokeaji kuthibitisha chaguo.
                   </div>
                 </div>
               )}
@@ -347,9 +347,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
                 <div>
                   <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('track_parcel.tracking_number_label')}</div>
                   <div style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 900, color: '#1d4ed8' }}>{result.trackingNumber}</div>
-                  {result.trackingRef && result.trackingRef !== result.trackingNumber && (
-                    <div style={{ fontFamily: 'monospace', fontSize: 11, color: '#64748b', marginTop: 2 }}>{t('track_parcel.ref_label', { ref: result.trackingRef })}</div>
-                  )}
+
                 </div>
                 <span style={{
                   fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
