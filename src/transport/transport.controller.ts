@@ -37,6 +37,7 @@ import { RequireActiveRole } from '../role-context/require-active-role.decorator
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
+import { LogisticsServiceOfferService, DiscoverServiceOffersDto } from './logistics-service-offer.service';
 
 @Controller('transport')
 export class TransportController {
@@ -46,7 +47,17 @@ export class TransportController {
     private readonly quotes: TransportQuoteService,
     private readonly journeys: JourneySelectionService,
     private readonly journeyComposer: JourneyComposerService,
+    private readonly serviceOffers: LogisticsServiceOfferService,
   ) {}
+
+  // ── CUSTOMER SERVICE OFFERS (Issue #95) ───────────────────────────────────
+  // Customer asks for an outcome. Kentexa resolves eligible actors and only
+  // advertises services it can actually start fulfilling.
+  @UseGuards(JwtAuthGuard)
+  @Post('service-offers/discover')
+  discoverServiceOffers(@Body() dto: DiscoverServiceOffersDto) {
+    return this.serviceOffers.discover(dto);
+  }
 
   // ── JOURNEY COMPOSITION (L1) ─────────────────────────────────────────────
   @UseGuards(JwtAuthGuard)
