@@ -159,16 +159,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     }
   }, [origin, destination, weightKg, originResolved, destinationResolved, navParams?.transportProviderId, navParams?.routeId, navParams?.availabilityId, navParams?.transportRunId]);
 
-  // If arriving from a Transport Profile's route/trip card, jump straight
-  // to the route step with that context pre-filled (weight isn't known
-  // yet in that case, so the search runs unfiltered until the user sets one).
-  useEffect(() => {
-    if (navParams?.origin && navParams?.destination) {
-      setStep(2);
-      searchRoutes();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // A Transporter profile may preselect provider/route/run context, but it
+  // must never skip the sender's cargo declaration. "Tuma Mzigo" always
+  // starts with what is being sent + weight; those facts drive eligibility,
+  // pricing and the immutable cargo snapshot. Origin/destination supplied by
+  // a route card stay prefilled for Step 2 after Step 1 is completed.
 
   const loadHubChoices = async () => {
     if (!originResolved?.placeRef && !destinationResolved?.placeRef) return;
@@ -592,8 +587,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <div style={{ fontSize: 17, fontWeight: 900, color: DK, marginBottom: 8 }}>
               {t('send_shipment.confirmed_title')}
             </div>
-            <div style={{ fontSize: 13, color: GR, marginBottom: 20 }}>
+            <div style={{ fontSize: 13, color: GR, marginBottom: 8 }}>
               {t('send_shipment.tracking_number_label')}: <strong>{confirmed.trackingNumber}</strong>
+            </div>
+            <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
+              Keep this shipment number. Kentexa uses one customer-facing number even after a Parcel is created internally.
             </div>
             {quote?.totalAmount != null && (
               <div style={{ backgroundColor:'#EFF6FF', borderRadius:12, padding:12, margin:'0 auto 18px', maxWidth:300, color:'#1E3A8A', fontSize:13 }}>
@@ -605,6 +603,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14, fontWeight: 800,
                 marginBottom: 10 }}>
               {t('send_shipment.track_button')}
+            </button>
+            <button onClick={() => onNavigate('MyShipments')}
+              style={{ width: '100%', maxWidth: 300, backgroundColor: WH, color: B,
+                border:'1px solid #BFDBFE', borderRadius:12, padding:'13px 0',
+                cursor:'pointer', fontSize:14, fontWeight:800, marginBottom:10 }}>
+              My Shipments
             </button>
             <button onClick={() => onNavigate('Home')}
               style={{ width: '100%', maxWidth: 300, backgroundColor: WH, color: GR,
