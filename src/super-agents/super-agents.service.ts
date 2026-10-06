@@ -563,6 +563,8 @@ export class SuperAgentsService {
       recipientPhone: string;
       destinationCity: string;
       destinationSuperAgentId?: number;
+      // Explicit execution topology. A destination hub does not imply Van.
+      servicePath?: 'local_agent' | 'van' | 'intercity';
       deliveryAddress: string;
       // Parcel details
       description: string; // what's inside — "nguo", "vifaa vya ujenzi" etc
@@ -609,6 +611,7 @@ export class SuperAgentsService {
       destinationCity: dto.destinationCity,
       destinationSuperAgentId: dto.destinationSuperAgentId == null
         ? null : Number(dto.destinationSuperAgentId),
+      servicePath: dto.servicePath || 'intercity',
       deliveryAddress: dto.deliveryAddress, description: dto.description,
       weightKg: dto.weightKg ?? null, parcelSize: dto.parcelSize ?? null,
       declaredValue, shippingFeeCollected: Number(dto.shippingFeeCollected),
@@ -618,6 +621,9 @@ export class SuperAgentsService {
     const originCity = superAgent.city;
     const destinationCity = dto.destinationCity;
     const weightKg = dto.weightKg || 0.5;
+    const servicePath = dto.servicePath || 'intercity';
+    if (!['local_agent', 'van', 'intercity'].includes(servicePath))
+      throw new BadRequestException('Invalid parcel service path');
 
     const outcome = await this.dataSource.transaction(async (manager) => {
         // Serialize free-order allowance and dashboard totals for this hub.
@@ -701,11 +707,13 @@ export class SuperAgentsService {
     const requestedHubId = dto.destinationSuperAgentId == null ? null : Number(dto.destinationSuperAgentId);
     if (requestedHubId !== null && (!Number.isSafeInteger(requestedHubId) || requestedHubId <= 0))
       throw new BadRequestException('Invalid destination hub');
-    if (destinationHubs.length > 1 && requestedHubId === null)
-      throw new BadRequestException('Choose a destination hub for this city');
-    const destAgent = requestedHubId === null
-      ? destinationHubs[0] || null
-      : destinationHubs.find(hub => hub.id === requestedHubId);
+    if (servicePath !== 'local_agent' && destinationHubs.length > 1 && requestedHubId === null)
+      throw new BadRequestException('Choose a destination hub for this transport path');
+    const destAgent = servicePath === 'local_agent'
+      ? null
+      : requestedHubId === null
+        ? destinationHubs[0] || null
+        : destinationHubs.find(hub => hub.id === requestedHubId);
     if (requestedHubId !== null && !destAgent)
       throw new BadRequestException('Destination hub is not active in the selected city');
 
@@ -740,7 +748,8 @@ export class SuperAgentsService {
       senderPhone: dto.senderPhone,
       superAgent: superAgent,
       destinationSuperAgent: destAgent || null,
-      originCity,
+      transportMethod: servicePath,
+      originCity:
       destinationCity,
       transitCity,
       expectedArrival: expectedArrivalStr,
