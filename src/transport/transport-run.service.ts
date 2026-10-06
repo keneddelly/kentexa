@@ -59,6 +59,16 @@ export interface CreateRunDto {
   scheduledDeparture: string | Date;
 }
 
+export interface UpsertRecurringScheduleDto {
+  routeId: number;
+  scheduleType: 'daily' | 'selected_days';
+  daysOfWeek?: number[];
+  departureTime: string; // HH:mm in Tanzania local time
+  defaultVehicleId?: number | null;
+  autoOpen?: boolean;
+  horizonDays?: number;
+}
+
 export interface AddVehicleDto {
   identifier: string;
   registrationPlate?: string | null;
@@ -258,6 +268,81 @@ export class TransportRunService {
     if (!stop) throw new NotFoundException('Route stop not found');
     stop.isActive = false;
     return this.routeStopRepo.save(stop);
+  }
+
+  // ── Recurring route schedules ─────────────────────────────────────────────
+  async listRecurringSchedules(userId: number) {
+    const provider = await this.transportService.getMyProfile(userId);
+    return this.dataSource.query(
+      `SELECT s.*, r."routeType", r."originCity", r."destinationCity", r."coverageCity", r."loopStops",
+              v.identifier AS "defaultVehicleIdentifier", v."registrationPlate" AS "defaultVehiclePlate"
+         FROM public.transport_route_schedule s
+         JOIN public.transport_route r ON r.id=s."routeId"
+         LEFT JOIN public.vehicle v ON v.id=s."defaultVehicleId"
+        WHERE s."providerId"=$1 ORDER BY s."routeId", s."departureTime"`, [provider.id]);
+  }
+
+  async createRecurringSchedule(userId: number, dto: UpsertRecurringScheduleDto) {
+    const provider = await this.transportService.getMyProfile(userId);
+    const route = await this.routeRepo.findOne({ where: { id:Number(dto.routeId), providerId:provider.id } });
+    if (!route || !route.isActive) throw new NotFoundException('Active route not found');
+    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(dto.departureTime || '')) throw new BadRequestException('departureTime must be HH:mm');
+    if (!['daily','selected_days'].includes(dto.scheduleType)) throw new BadRequestException('Invalid scheduleType');
+    const days = dto.scheduleType === 'selected_days' ? [...new Set(dto.daysOfWeek || [])] : null;
+    if (dto.scheduleType === 'selected_days' && (!days?.length || days.some(d=>!Number.isInteger(d)||d<0||d>6))) throw new BadRequestException('Choose valid operating days');
+    const horizon = Math.min(31, Math.max(1, Number(dto.horizonDays) || 14));
+    let vehicleId:number|null = dto.defaultVehicleId == null ? null : Number(dto.defaultVehicleId);
+    if (vehicleId != null) {
+      const vehicle=await this.requireVehicleRepo().findOne({where:{id:vehicleId,providerId:provider.id}});
+      if(!vehicle || !vehicle.isActive) throw new BadRequestException('Default vehicle is not active');
+    }
+    const rows=await this.dataSource.query(
+      `INSERT INTO public.transport_route_schedule
+       ("providerId","routeId","scheduleType","daysOfWeek","departureTime","defaultVehicleId","autoOpen","isActive","horizonDays","createdByUserId")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,true,$8,$9) RETURNING *`,
+      [provider.id,route.id,dto.scheduleType,days,dto.departureTime,vehicleId,dto.autoOpen!==false,horizon,userId]);
+    await this.materializeRecurringRuns(userId, rows[0].id);
+    return rows[0];
+  }
+
+  async deactivateRecurringSchedule(userId:number, scheduleId:number) {
+    const provider=await this.transportService.getMyProfile(userId);
+    const rows=await this.dataSource.query(
+      `UPDATE public.transport_route_schedule SET "isActive"=false,"updatedAt"=now()
+        WHERE id=$1 AND "providerId"=$2 RETURNING *`,[scheduleId,provider.id]);
+    if(!rows.length) throw new NotFoundException('Schedule not found');
+    return rows[0];
+  }
+
+  async materializeRecurringRuns(userId:number, onlyScheduleId?:number) {
+    const provider=await this.transportService.getMyProfile(userId);
+    const schedules=await this.dataSource.query(
+      `SELECT * FROM public.transport_route_schedule WHERE "providerId"=$1 AND "isActive"=true
+        AND ($2::int IS NULL OR id=$2)`,[provider.id,onlyScheduleId ?? null]);
+    let created=0;
+    for(const s of schedules){
+      const horizon=Math.min(31,Math.max(1,Number(s.horizonDays)||14));
+      for(let offset=0;offset<=horizon;offset++){
+        // Build the Tanzania wall-clock departure explicitly (+03:00), so a
+        // server running UTC never shifts a 06:00 safari to 09:00 or 03:00.
+        const nowTz=new Date(Date.now()+3*3600000);
+        const ymd=new Date(Date.UTC(nowTz.getUTCFullYear(),nowTz.getUTCMonth(),nowTz.getUTCDate()+offset));
+        const dow=ymd.getUTCDay();
+        if(s.scheduleType==='selected_days' && !(s.daysOfWeek||[]).includes(dow)) continue;
+        const date=ymd.toISOString().slice(0,10);
+        const departure=new Date(`${date}T${String(s.departureTime).slice(0,5)}:00+03:00`);
+        if(departure.getTime() < Date.now()-5*60000) continue;
+        const existing=await this.dataSource.query(
+          `SELECT id FROM public.transport_run WHERE "scheduleId"=$1 AND "scheduledDeparture"=$2 LIMIT 1`,[s.id,departure]);
+        if(existing.length) continue;
+        const run=await this.createRun(userId,{routeId:Number(s.routeId),scheduledDeparture:departure});
+        await this.dataSource.query(
+          `UPDATE public.transport_run SET "scheduleId"=$1,"autoGenerated"=true,"vehicleId"=$2,status=$3 WHERE id=$4`,
+          [s.id,s.defaultVehicleId,s.autoOpen?'open':'scheduled',run.id]);
+        created++;
+      }
+    }
+    return {created};
   }
 
   // ── TransportRun creation (immutable itinerary snapshot) ──────────────────
