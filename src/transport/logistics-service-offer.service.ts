@@ -76,7 +76,8 @@ export class LogisticsServiceOfferService {
       }];
     }
 
-    const trips: any[] = await this.transport.findPublicAvailabilityForRoute(from, to, weight);
+    const availability = await this.transport.findPublicAvailabilityForRoute(from, to, weight);
+    const trips: any[] = availability.trips || [];
     const offers: LogisticsServiceOffer[] = [];
     for (const trip of trips.slice(0, 5)) {
       const perKg = Number(trip.pricePerKg) || 0; const fixed = Number(trip.fixedFee) || 0;
