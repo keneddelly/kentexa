@@ -105,7 +105,7 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     // Gate 5: the columns the hub's "expected" list reads about a booked trip.
     await q(`CREATE TABLE public.transport_provider (id integer PRIMARY KEY, name text)`);
     await q(`CREATE TABLE public.transport_run (id integer PRIMARY KEY, "providerId" integer, "scheduledDeparture" timestamp)`);
-    await q(`CREATE TABLE public.journey_leg (id SERIAL PRIMARY KEY, "journeySelectionId" integer, sequence integer, type text, "runId" integer)`);
+    await q(`CREATE TABLE public.journey_leg (id SERIAL PRIMARY KEY, "journeySelectionId" integer, sequence integer, type text, "providerId" integer, "runId" integer)`);
     await q(`INSERT INTO public.transport_provider VALUES (3, 'Kentexa Van')`);
     await q(`INSERT INTO public.transport_run VALUES (30, 3, '2026-10-08 03:00:00')`);
     await q(`INSERT INTO public.journey_leg ("journeySelectionId", sequence, type, "runId") VALUES (800, 1, 'transport', 30)`);
