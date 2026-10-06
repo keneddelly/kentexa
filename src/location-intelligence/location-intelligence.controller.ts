@@ -25,7 +25,7 @@ export const PLACE_SEARCH_DEFAULT_LIMIT = 8;
 export interface PublicPlaceCandidate {
   placeRef: { providerKey: string; providerPlaceId: string };
   displayLabel: string;
-  level: 'ward' | 'district' | 'region';
+  level: 'place' | 'ward' | 'district' | 'region';
   regionName?: string;
   districtName?: string;
   wardName?: string;
@@ -44,7 +44,7 @@ function toPublicCandidate(c: LocationCandidate): PublicPlaceCandidate | null {
   return {
     placeRef: { providerKey: c.providerKey, providerPlaceId: c.providerPlaceId },
     displayLabel: c.displayLabel,
-    level: c.wardName ? 'ward' : c.districtName ? 'district' : 'region',
+    level: c.providerKey === 'google_places' ? 'place' : c.wardName ? 'ward' : c.districtName ? 'district' : 'region',
     regionName: c.regionName,
     districtName: c.districtName,
     wardName: c.wardName,
