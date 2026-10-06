@@ -3,6 +3,7 @@ import { Client } from 'pg';
 import { DataSource } from 'typeorm';
 import { getB5BTestConnectionConfig, resetB5BTestSchema } from '../business/b5b-closure-test-db';
 import { AddParcelCustodyEvent1788278400000 } from '../database/migrations/1788278400000-AddParcelCustodyEvent';
+import { AddParcelPickupChallenge1788279000000 } from '../database/migrations/1788279000000-AddParcelPickupChallenge';
 import { AddParcelPickupTask1788283200000 } from '../database/migrations/1788283200000-AddParcelPickupTask';
 import { AddPickupTaskDirectDelivery1788292800000 } from '../database/migrations/1788292800000-AddPickupTaskDirectDelivery';
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
@@ -114,6 +115,9 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
     const runner = db.createQueryRunner();
     try {
       await new AddParcelCustodyEvent1788278400000().up(runner);
+      // The production ledger shape: this later migration is what allows a
+      // custody event to name "the recipient" (a contact, not an account).
+      await new AddParcelPickupChallenge1788279000000().up(runner);
       await new AddParcelPickupTask1788283200000().up(runner);
       await new AddPickupTaskDirectDelivery1788292800000().up(runner);
       await new AddPickupTaskDirectDelivery1788292800000().up(runner); // idempotent
