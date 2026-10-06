@@ -483,6 +483,40 @@ export class ShipmentsService {
     return Math.max(byWeight, fixedFee || 0);
   }
 
+  async getAdminShipments(filters: { status?: string; q?: string; limit?: number } = {}) {
+    const limit = Math.min(Math.max(Number(filters.limit) || 100, 1), 300);
+    const qb = this.shipmentRepo.createQueryBuilder('s')
+      .leftJoin('user', 'u', 'u.id = s."requestedByUserId"')
+      .select([
+        's.id AS id',
+        's."trackingNumber" AS "trackingNumber"',
+        's.status AS status',
+        's."intakeChannel" AS "intakeChannel"',
+        's."itemDescription" AS "itemDescription"',
+        's."originCity" AS "originCity"',
+        's."destinationCity" AS "destinationCity"',
+        's."senderName" AS "senderName"',
+        's."senderPhone" AS "senderPhone"',
+        's."receiverName" AS "receiverName"',
+        's."receiverPhone" AS "receiverPhone"',
+        's."weightKg" AS "weightKg"',
+        's."priceQuoted" AS "priceQuoted"',
+        's."requestedByUserId" AS "requestedByUserId"',
+        'u.name AS "requesterName"',
+        'u.phone AS "requesterPhone"',
+        's."createdAt" AS "createdAt"',
+        's."updatedAt" AS "updatedAt"',
+      ])
+      .orderBy('s."createdAt"', 'DESC')
+      .limit(limit);
+    if (filters.status?.trim()) qb.andWhere('s.status = :status', { status: filters.status.trim() });
+    if (filters.q?.trim()) {
+      const q = `%${filters.q.trim()}%`;
+      qb.andWhere('(s."trackingNumber" ILIKE :q OR s."senderName" ILIKE :q OR s."senderPhone" ILIKE :q OR s."receiverName" ILIKE :q OR s."receiverPhone" ILIKE :q OR s."itemDescription" ILIKE :q)', { q });
+    }
+    return qb.getRawMany();
+  }
+
   async createShipment(userId: number, dto: CreateShipmentDto): Promise<Shipment> {
     if (!dto.receiverName?.trim() || !dto.receiverPhone?.trim()) {
       throw new BadRequestException('Receiver name and phone are required');
