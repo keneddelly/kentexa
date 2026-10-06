@@ -276,6 +276,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [walkHubs, setWalkHubs] = useState([]);
   const [walkHubsLoading, setWalkHubsLoading] = useState(false);
   const [walkDestinationHubId, setWalkDestinationHubId] = useState('');
+  const [walkServicePath, setWalkServicePath] = useState('local_agent');
   const [confirmSending, setConfirmSending]     = useState({});
   const [walkRouteLoading, setWalkRouteLoading] = useState(false);
   const [walkResult, setWalkResult]     = useState(null);
@@ -581,14 +582,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     if (!walkForm.declaredValue || Number(walkForm.declaredValue) <= 0) {
       setError('Weka thamani ya mzigo (lazima iwe zaidi ya sifuri)'); return;
     }
-    if (walkHubs.length > 1 && !walkDestinationHubId) {
+    if (walkServicePath !== 'local_agent' && walkHubs.length > 1 && !walkDestinationHubId) {
       setError('Chagua hub ya mpokeaji'); return;
     }
     try {
       setActionLoading(true); setError('');
       const payload = {
         ...walkForm,
-        destinationSuperAgentId: walkDestinationHubId ? Number(walkDestinationHubId) : undefined,
+        destinationSuperAgentId: walkServicePath !== 'local_agent' && walkDestinationHubId ? Number(walkDestinationHubId) : undefined,
+        servicePath: walkServicePath,
         originCity: profile?.city,
         weightKg:   walkForm.weightKg ? Number(walkForm.weightKg) : undefined,
         declaredValue: Number(walkForm.declaredValue),
@@ -625,7 +627,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       destinationCity: '', deliveryAddress: '', description: '',
       weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
     setWalkRoute(null); setWalkResult(null);
-    setWalkHubs([]); setWalkDestinationHubId('');
+    setWalkHubs([]); setWalkDestinationHubId(''); setWalkServicePath('local_agent');
     setPokeaMode('list'); fetchAll();
   };
 
@@ -1353,8 +1355,20 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         required
                       />
                     </div>
-                    {walkHubsLoading && <div>Inatafuta hub za mpokeaji...</div>}
-                    {walkHubs.length > 0 && (
+                    {/* Execution path is explicit: a hub is not proof that Van is required. */}
+                    <div style={{ marginBottom: 12 }}>
+                      <label style={{ display:'block', fontSize:12, fontWeight:800, marginBottom:7 }}>Mzigo ufikeje?</label>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                        <button type="button" onClick={()=>{setWalkServicePath('local_agent');setWalkDestinationHubId('');}}
+                          style={{padding:10,borderRadius:9,border:walkServicePath==='local_agent'?'2px solid #16a34a':'1px solid #e2e8f0',background:walkServicePath==='local_agent'?'#f0fdf4':'#fff',fontWeight:800}}>🏍️ Agent delivery</button>
+                        <button type="button" onClick={()=>setWalkServicePath('van')}
+                          style={{padding:10,borderRadius:9,border:walkServicePath==='van'?'2px solid #1d4ed8':'1px solid #e2e8f0',background:walkServicePath==='van'?'#eff6ff':'#fff',fontWeight:800}}>🚐 Kentexa Van</button>
+                      </div>
+                      <button type="button" onClick={()=>setWalkServicePath('intercity')}
+                        style={{width:'100%',marginTop:8,padding:9,borderRadius:9,border:walkServicePath==='intercity'?'2px solid #7c3aed':'1px solid #e2e8f0',background:walkServicePath==='intercity'?'#f5f3ff':'#fff',fontWeight:800}}>🚌 Intercity / Courier</button>
+                    </div>
+                    {walkServicePath !== 'local_agent' && walkHubsLoading && <div>Inatafuta hub za mpokeaji...</div>}
+                    {walkServicePath !== 'local_agent' && walkHubs.length > 0 && (
                       <div style={{ marginBottom: 12 }}>
                         <label style={{ display: 'block', fontSize: 14, fontWeight: 700, marginBottom: 6 }}>
                           Hub ya mpokeaji {walkHubs.length > 1 ? '*' : ''}
