@@ -72,6 +72,8 @@ import {
   RoleProfileType,
 } from '../role-context/entities/account-role.entity';
 import { RoleContext } from '../role-context/role-context.types';
+import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
+import { toValidatedPoint } from '../location-intelligence/location-provider.interface';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -184,6 +186,7 @@ export class SuperAgentsService {
     private activityEvents: ActivityEventService,
     private walletService: WalletService,
     private roleContextService: RoleContextService,
+    private locationIntelligence: LocationIntelligenceService,
     private moneyRouting: MoneyRoutingService,
     private orderRelease: OrderReleaseService,
     private paymentEvidence: PaymentEvidenceService,
@@ -342,6 +345,41 @@ export class SuperAgentsService {
     const agent = await this.resolveActingSuperAgent(user.id);
     if (!agent) throw new NotFoundException('Super agent profile not found');
     return agent;
+  }
+
+  /** Canonical hub-location write: the client selects a place reference only;
+   * all geographic facts are re-resolved by Kentexa on the server. */
+  async updateMyHubLocation(user: User, selection: { providerKey?: string; providerPlaceId?: string; addressDetail?: string }) {
+    const agent = await this.getMyProfile(user);
+    if (!selection?.providerKey || !selection?.providerPlaceId) {
+      throw new BadRequestException('A selected Kentexa place is required');
+    }
+    const place = await this.locationIntelligence.resolve({
+      providerKey: selection.providerKey,
+      providerPlaceId: selection.providerPlaceId,
+    });
+    if (!place) throw new BadRequestException('Selected place could not be resolved');
+    const point = toValidatedPoint(place.latitude, place.longitude);
+    agent.locationLabel = place.displayLabel;
+    agent.latitude = point.latitude ?? null;
+    agent.longitude = point.longitude ?? null;
+    agent.locationProviderKey = place.providerKey;
+    agent.locationProviderPlaceId = place.providerPlaceId ?? null;
+    agent.locationResolutionMethod = place.resolutionMethod;
+    agent.regionId = place.regionId ?? null;
+    agent.regionName = place.regionName ?? null;
+    agent.districtId = place.districtId ?? null;
+    agent.districtName = place.districtName ?? null;
+    agent.wardId = place.wardId ?? null;
+    agent.wardName = place.wardName ?? null;
+    // Compatibility during migration: existing route/hub code keys city by region.
+    if (place.regionName) {
+      agent.city = place.regionName;
+      agent.cityCode = CITY_CODES[place.regionName] || place.regionName.substring(0, 3).toUpperCase();
+    }
+    const detail = typeof selection.addressDetail === 'string' ? selection.addressDetail.trim().slice(0, 300) : '';
+    agent.address = detail || place.displayLabel;
+    return this.superAgentRepo.save(agent);
   }
 
   // ── Public: hub info for CommerceProfile.js — never earnings/rates ───────
