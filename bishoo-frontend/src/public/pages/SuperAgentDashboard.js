@@ -1330,7 +1330,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           if (cityStr) {
                             setWalkHubsLoading(true);
                             try {
-                              const hubs = await api.get(\`/super-agents/hubs/\${encodeURIComponent(cityStr)}\`);
+                              const hubs = await api.get(`/super-agents/hubs/${encodeURIComponent(cityStr)}`);
                               setWalkHubs(hubs.data || []);
                               if (hubs.data?.length === 1) setWalkDestinationHubId(String(hubs.data[0].id));
                             } catch { setWalkHubs([]); }
@@ -1344,7 +1344,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                                 weight: String(walkForm.weightKg || 1),
                                 ...(loc.districtName ? { destDistrict: loc.districtName } : {}),
                               });
-                              const res = await api.get(\`/pricing/estimate?\${params}\`);
+                              const res = await api.get(`/pricing/estimate?${params}`);
                               setWalkPriceEstimate(res.data);
                             } catch { setWalkPriceEstimate(null); }
                           }
