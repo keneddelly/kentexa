@@ -1,0 +1,67 @@
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { AgentsService } from '../agents/agents.service';
+import { TransportService } from './transport.service';
+
+export interface DiscoverServiceOffersDto {
+  fromCity: string; toCity: string; weightKg: number;
+  pickup: 'door' | 'point'; delivery: 'door' | 'collect';
+}
+export interface LogisticsServiceOffer {
+  serviceType: 'direct_delivery' | 'composed_intercity';
+  name: string; price: number; currency: 'TZS'; etaLabel: string;
+  firstAction: { type: 'offer_pickup_task' | 'customer_dropoff'; actorCapability: 'local_agent' | 'kentexa_point'; candidateAgentIds?: number[] };
+  fulfillment: { pickup: 'agent' | 'customer_dropoff'; linehaul: 'none' | 'transport_provider'; delivery: 'agent' | 'customer_collect'; transportOption?: any };
+}
+
+@Injectable()
+export class LogisticsServiceOfferService {
+  constructor(private readonly agents: AgentsService, private readonly transport: TransportService) {}
+
+  async discover(dto: DiscoverServiceOffersDto): Promise<LogisticsServiceOffer[]> {
+    const from = dto?.fromCity?.trim(); const to = dto?.toCity?.trim(); const weight = Number(dto?.weightKg);
+    if (!from || !to || !Number.isFinite(weight) || weight <= 0) throw new BadRequestException('fromCity, toCity and a positive weightKg are required');
+    if (!['door', 'point'].includes(dto.pickup) || !['door', 'collect'].includes(dto.delivery)) throw new BadRequestException('Invalid pickup or delivery outcome');
+
+    const sameCity = from.toLocaleLowerCase('en') === to.toLocaleLowerCase('en');
+    const [originAgents, destinationAgents] = await Promise.all([
+      dto.pickup === 'door' ? this.agents.getAvailableAgents(from, weight) : Promise.resolve([]),
+      dto.delivery === 'door' ? this.agents.getAvailableAgents(to, weight) : Promise.resolve([]),
+    ]);
+    if (dto.pickup === 'door' && originAgents.length === 0) return [];
+    if (dto.delivery === 'door' && destinationAgents.length === 0) return [];
+
+    const pickupAgent: any = originAgents[0]; const deliveryAgent: any = destinationAgents[0];
+    const pickupFee = dto.pickup === 'door' ? Number(pickupAgent.collectionFeeUrban ?? pickupAgent.deliveryFee ?? 0) : 0;
+    const deliveryFee = dto.delivery === 'door' ? Number(deliveryAgent.deliveryFee ?? 0) : 0;
+
+    if (sameCity) {
+      const directAgent: any = dto.pickup === 'door' ? pickupAgent : deliveryAgent;
+      if (!directAgent) return [];
+      return [{
+        serviceType: 'direct_delivery', name: 'Direct Delivery', price: Math.max(pickupFee, deliveryFee), currency: 'TZS',
+        etaLabel: directAgent.deliveryTime ?? 'Same day',
+        firstAction: dto.pickup === 'door'
+          ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
+          : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
+        fulfillment: { pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff', linehaul: 'none', delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect' },
+      }];
+    }
+
+    const trips: any[] = await this.transport.findPublicAvailabilityForRoute(from, to, weight);
+    const offers: LogisticsServiceOffer[] = [];
+    for (const trip of trips.slice(0, 5)) {
+      const perKg = Number(trip.pricePerKg) || 0; const fixed = Number(trip.fixedFee) || 0;
+      const linehaul = Math.max(perKg * weight, fixed); if (!linehaul) continue;
+      offers.push({
+        serviceType: 'composed_intercity', name: trip.providerName ? `${trip.providerName} Delivery` : 'Kentexa Standard',
+        price: linehaul + pickupFee + deliveryFee, currency: 'TZS',
+        etaLabel: trip.departureTime ? `Departs ${trip.departureTime}` : 'Scheduled service',
+        firstAction: dto.pickup === 'door'
+          ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
+          : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
+        fulfillment: { pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff', linehaul: 'transport_provider', delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect', transportOption: trip },
+      });
+    }
+    return offers.sort((a, b) => a.price - b.price);
+  }
+}
