@@ -105,6 +105,7 @@ import Payouts from './admin/pages/Payouts';
 import Invoices from './admin/pages/Invoices';
 import Reports from './admin/pages/Reports';
 import Orders from './admin/pages/Orders';
+import AdminShipments from './admin/pages/AdminShipments';
 import ContactMessages from './admin/pages/ContactMessages';
 import Announcements from './admin/pages/Announcements';
 import Analytics from './admin/pages/Analytics';
@@ -829,6 +830,7 @@ function App() {
       case 'Classifieds': return requireAdmin(<Classifieds activePage={page} {...adminProps} />);
       case 'Users':       return requireAdmin(<Users activePage={page} {...adminProps} />);
       case 'Orders':      return requireAdmin(<Orders activePage={page} {...adminProps} />);
+      case 'AdminShipments': return requireAdmin(<AdminShipments activePage={page} {...adminProps} />);
       case 'Payments':    return requireAdmin(<Payments activePage={page} {...adminProps} />);
       case 'Sellers':     return requireAdmin(<Sellers activePage={page} {...adminProps} />);
       case 'Businesses':  return activeContext?.roleType === 'admin'
