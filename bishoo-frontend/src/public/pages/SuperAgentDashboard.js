@@ -2207,28 +2207,21 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       📤 TAYARI KUTUMA ({toDispatch.length})
                     </div>
                     {toDispatch.map(p => (
-                      <PCard key={p.trackingNumber} p={p} actions={[
+                      <PCard key={p.trackingNumber} p={p} actions={p.transportMethod === 'van' ? [
+                        { label: '🚐 Fungua Van Desk', color: '#1d4ed8', fn: () => { setActiveTab('van'); fetchVanDesk(); } },
+                      ] : p.transportMethod === 'local_agent' ? [
+                        { label: '🏍️ Chagua Agent', color: '#16a34a', fn: (parcel) => {
+                          setDispatchParcel(parcel); setSelectedAgent(null); setDispatchMode('agent');
+                        }},
+                      ] : [
                         { label: '🏢 Hamisha Hub', color: '#7c3aed', fn: (parcel) => setTransferModal(parcel) },
-                        { label: '🚌 Panga Usafiri', color: '#1d4ed8',
-                          fn: (parcel) => openAssignTransport(
-                            parcel.trackingNumber,
-                            parcel.originCity || profile?.city || 'Dar es Salaam',
-                            parcel.destinationCity
-                          )
-                        },
-                        { label: '📤 Tuma', color: '#16a34a',
-                          fn: (parcel) => {
-                            setDispatchParcel(parcel);
-                            setDispatchForm({ transportType: 'bus', busCompany: '',
-                              busTicketNumber: '', busDeparture: '',
-                              courierName: '', courierTrackingRef: '', notes: '',
-                              driverName: '', driverPhone: '', vehicleNumber: '',
-                              departureDate: '', departureTime: '',
-                              expectedArrivalDate: '', expectedArrivalTime: '',
-                              destinationSuperAgentId: null });
-                            setSelectedAgent(null); setDispatchMode('transport');
-                            fetchDestinationHubs(parcel.destinationCity);
-                          }},
+                        { label: '🚌 Panga Usafiri', color: '#1d4ed8', fn: (parcel) => openAssignTransport(
+                          parcel.trackingNumber, parcel.originCity || profile?.city || 'Dar es Salaam', parcel.destinationCity) },
+                        { label: '📤 Tuma', color: '#16a34a', fn: (parcel) => {
+                          setDispatchParcel(parcel);
+                          setDispatchForm({ transportType: 'bus', busCompany: '', busTicketNumber: '', busDeparture: '', courierName: '', courierTrackingRef: '', notes: '', driverName: '', driverPhone: '', vehicleNumber: '', departureDate: '', departureTime: '', expectedArrivalDate: '', expectedArrivalTime: '', destinationSuperAgentId: null });
+                          setSelectedAgent(null); setDispatchMode('transport'); fetchDestinationHubs(parcel.destinationCity);
+                        }},
                       ]} />
                     ))}
                   </>
