@@ -218,7 +218,7 @@ export class ParcelJourneyService {
              WHERE t."parcelId"=p.id AND t.status='open'
                AND (t."expiresAt" IS NULL OR t."expiresAt">now())
           )
-          AND p.status NOT IN ('delivered','cancelled')
+          AND p.status NOT IN ('delivered','returned')
         ORDER BY ce."recordedAt" ASC
         LIMIT 200`,
       [superAgentId],
