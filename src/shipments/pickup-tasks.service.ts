@@ -9,7 +9,6 @@ import type { RoleContext } from '../role-context/role-context.types';
 import { ShipmentHubSource } from './shipment-hub-source';
 import { projectShipment, projectShipmentForParcel } from './shipment-projection';
 import { SmsService } from '../sms/sms.service';
-import { CommunicationEngineService } from '../communication/communication-engine.service';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
 export interface RequestPickupDto {
@@ -47,7 +46,6 @@ export class PickupTasksService {
     // Gate 4: the recipient's delivery code is sent by SMS. Optional only so
     // the existing hand-built instances in specs keep constructing.
     @Optional() private readonly sms?: SmsService,
-    @Optional() private readonly communication?: CommunicationEngineService,
   ) {}
 
   async requestForShipment(userId: number, shipmentId: number, input: RequestPickupDto) {
