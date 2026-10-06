@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
-import LocationPicker from '../components/LocationPicker';
+import IntelligentLocationInput from '../components/IntelligentLocationInput';
 
 const getSizes = (t) => [
   { value: 'small',  label: t('super_agent_parcel.size_small'),  desc: t('super_agent_parcel.size_small_desc') },
@@ -37,7 +37,7 @@ const Field = ({ label, required, children, hint }) => (
 const SuperAgentParcel = ({ onNavigate, currentUser }) => {
   const { t } = useTranslation();
   const SIZES = getSizes(t);
-  const [recipientLocation, setRecipientLocation] = useState({ regionId: null, regionName: '', districtId: null, districtName: '', wardId: null, wardName: '' });
+  const [recipientLocationText, setRecipientLocationText] = useState('');
   React.useEffect(() => {
     if (!currentUser) return;
     setForm(prev => ({
@@ -312,17 +312,15 @@ const SuperAgentParcel = ({ onNavigate, currentUser }) => {
               onChange={e => set('recipientPhone', e.target.value)} style={inputStyle} />
           </Field>
           <Field label={t('super_agent_parcel.destination_city_label')} required>
-            <LocationPicker
-              label={t('super_agent_parcel.location_picker_label')}
-              value={recipientLocation}
-              onChange={loc => {
-                setRecipientLocation(loc);
-                // Region, not district — Super Agents register `city`
-                // against the fixed TANZANIA_CITIES region list (see
-                // super-agent.entity.ts), so a district name here never
-                // matches a real hub's registered city.
-                setForm(f => ({ ...f, destinationCity: loc.regionName || loc.districtName || '' }));
+            <IntelligentLocationInput
+              label={t('super_agent_parcel.field_destination_city')}
+              value={recipientLocationText}
+              onTextChange={setRecipientLocationText}
+              onResolved={loc => {
+                if (!loc) return;
+                setForm(f => ({ ...f, destinationCity: loc.regionName || loc.districtName || '', deliveryAddress: loc.displayLabel || f.deliveryAddress }));
               }}
+              placeholder="Tafuta eneo la mpokeaji…"
               required
             />
           </Field>
