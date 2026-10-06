@@ -37,7 +37,8 @@ import { RequireActiveRole } from '../role-context/require-active-role.decorator
 import { AccountRoleType } from '../role-context/entities/account-role.entity';
 import { CurrentRoleContext } from '../role-context/current-role-context.decorator';
 import type { RoleContext } from '../role-context/role-context.types';
-import { LogisticsServiceOfferService, DiscoverServiceOffersDto, CommitServiceOfferDto } from './logistics-service-offer.service';
+import { LogisticsServiceOfferService } from './logistics-service-offer.service';
+import type { DiscoverServiceOffersDto, CommitServiceOfferDto } from './logistics-service-offer.service';
 
 @Controller('transport')
 export class TransportController {
