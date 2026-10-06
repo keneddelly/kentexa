@@ -153,3 +153,21 @@ export const searchOutcome = (response, error) => {
   }
   return response?.availability?.reason || 'available';
 };
+
+
+// POST /transport/service-offers/commit — the customer commits an outcome,
+// not hand-written legs. The server re-discovers fulfillability before
+// freezing a JourneySelection.
+export const serviceOfferCommitBody = (state, selected, direct, now = new Date()) => ({
+  fromCity: state.originResolved?.regionName || state.originResolved?.districtName || (state.origin || '').trim(),
+  toCity: state.destinationResolved?.regionName || state.destinationResolved?.districtName || (state.destination || '').trim(),
+  weightKg: Number(state.weightKg) || 0,
+  pickup: state.pickupOption === 'door' ? 'door' : 'point',
+  delivery: state.deliveryOption === 'door' ? 'door' : 'collect',
+  origin: journeySide(state.originResolved, state.origin),
+  destination: journeySide(state.destinationResolved, state.destination),
+  serviceType: direct ? 'direct_delivery' : 'composed_intercity',
+  runId: direct ? undefined : Number(selected?.runId),
+  paymentMethod: 'cash',
+  cargoRequirements: cargoRequirements(state, now),
+});

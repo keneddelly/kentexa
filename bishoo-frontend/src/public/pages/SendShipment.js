@@ -17,7 +17,7 @@ import api from '../../api/api';
 import {
   routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody, isBookableTrip,
   canDeliverDirect, isDirectDelivery, directJourneyBody, pickupTaskBody,
-  confirmBody, searchOutcome,
+  confirmBody, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
 
 const B  = '#2563EB';
@@ -272,7 +272,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       // from the two places and that trip, then prices and freezes it. The
       // form never writes journey legs itself.
       if (isBookableTrip(selected)) {
-        const journey = await api.post('/transport/journeys/select-composed', selectJourneyBody(requestState, selected));
+        const journey = await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, selected, false));
         journeySelection = journey.data;
         const offered = await api.post('/transport/quotes', quoteBody(journeySelection, selected, requestState));
         const accepted = await api.post(`/transport/quotes/${offered.data.id}/accept`);
@@ -283,29 +283,22 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       // composes the journey from the two places.
       const direct = isDirectDelivery(selected);
       if (direct) {
-        const journey = await api.post('/transport/journeys/select-direct', directJourneyBody(requestState));
+        const journey = await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, selected, true));
         journeySelection = journey.data;
       }
       const res = await api.post('/shipments', shipmentBody(requestState, selected, acceptedQuote, direct ? journeySelection : null));
       const created=res.data;
-      const final = await api.patch(`/shipments/${created.id}/confirm`, confirmBody(direct ? {} : requestState));
-      // "Pick up from me" is a promise Kentexa has to keep: the collection is
-      // requested here, on the same pickup infrastructure whichever way the
-      // parcel then travels -- straight to the recipient (door to door), or
-      // to the hub its trip leaves from. Who collects is Kentexa's business,
-      // not a choice the customer makes. If the request fails the shipment
-      // still exists and pickup can be asked for again from My Shipments.
+      // One orchestration boundary: confirmation freezes the plan and the
+      // server activates FIRST_ACTION. The browser never creates operational
+      // Agent work separately and never mistakes task assignment for custody.
+      const final = await api.patch(`/shipments/${created.id}/confirm-and-activate`, confirmBody(direct ? {} : requestState));
       const confirmedShipment = final.data.shipment;
-      const pickupPath = direct ? 'direct_delivery' : (pickupOption === 'door' && confirmedShipment?.originHubId ? 'hub_routed' : null);
-      let pickupRequested = false;
-      if (pickupPath) {
-        try {
-          await api.post(`/shipments/${created.id}/pickup-task`, pickupTaskBody(requestState, pickupPath, pickupRequestKey));
-          pickupRequested = true;
-        } catch { pickupRequested = false; }
-      }
-      setConfirmed({ ...confirmedShipment, parcelTrackingNumber: final.data.parcel?.trackingNumber, direct, pickupPath, pickupRequested,
-        dropOffHub: !pickupPath && selected?.loadHub ? selected.loadHub : null });
+      const nextAction = final.data.nextAction || null;
+      setConfirmed({ ...confirmedShipment, parcelTrackingNumber: final.data.parcel?.trackingNumber, direct,
+        pickupPath: nextAction?.type === 'agent_pickup' ? (direct ? 'direct_delivery' : 'hub_routed') : null,
+        pickupRequested: nextAction?.type === 'agent_pickup',
+        nextAction,
+        dropOffHub: nextAction?.type === 'customer_dropoff' && selected?.loadHub ? selected.loadHub : null });
       setStep(5);
     } catch (err) {
       setError(err?.response?.data?.message || t('send_shipment.post_error'));
