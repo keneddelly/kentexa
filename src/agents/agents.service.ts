@@ -557,6 +557,8 @@ export class AgentsService {
         maxWeightKg: Number((a as any).maxWeightKg || 20),
         vehicleDescription: (a as any).vehicleDescription || null,
         deliveryFee: Number(a.deliveryCommission || 1000),
+        collectionFeeUrban: Number(a.collectionFeeUrban || 1500),
+        collectionFeeRural: Number(a.collectionFeeRural || 3000),
         rating: Number(a.rating || 5),
         totalDeliveries: a.totalDeliveriesCompleted || 0,
         isOnline: true,
