@@ -25,6 +25,7 @@ import {
   assertRunBookable,
   findBookableRuns,
   holdRunsForJourney,
+  journeyRunStopHubs,
   parseTravelDate,
 } from './run-supply';
 import { projectShipmentForParcel } from '../shipments/shipment-projection';
@@ -1242,6 +1243,11 @@ export class TransportService {
    */
   async holdRunCapacityForJourney(journeySelectionId: number, weightKg: number, em: EntityManager): Promise<number[]> {
     return holdRunsForJourney(em, journeySelectionId, weightKg);
+  }
+
+  /** Gate 5: the hubs a Journey's Run stops are bound to (see run-supply.ts). */
+  async journeyRunStopHubs(journeySelectionId: number, em?: EntityManager) {
+    return journeyRunStopHubs(em ?? this.dataSource.manager, journeySelectionId);
   }
 
   /** A Shipment that already holds its place may be confirmed unless its Run was cancelled or is over. */

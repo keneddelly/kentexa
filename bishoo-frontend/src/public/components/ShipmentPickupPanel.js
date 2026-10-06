@@ -59,8 +59,8 @@ export default function ShipmentPickupPanel({ shipment }) {
         <>
           <div style={small}>
             {path === 'direct_delivery'
-              ? 'An Agent can collect this parcel from you and deliver it straight to the recipient.'
-              : 'An Agent can collect this parcel from you and take it to your chosen Kentexa hub.'}
+              ? 'Kentexa can collect this parcel from you and deliver it straight to the recipient.'
+              : 'Kentexa can collect this parcel from you and take it to the Kentexa Point for its trip.'}
           </div>
           <button style={btn(true)} disabled={busy || !shipment.senderPhone}
             onClick={() => run(() => api.post(`/shipments/${shipment.id}/pickup-task`, {
@@ -68,15 +68,15 @@ export default function ShipmentPickupPanel({ shipment }) {
               pickupContactName: (shipment.senderName || '').trim() || 'Sender',
               pickupContactPhone: (shipment.senderPhone || '').trim(),
             }))}>
-            Request Agent pickup
+            Request pickup from me
           </button>
-          {!shipment.senderPhone && <div style={{ ...small, color: '#B91C1C' }}>A sender phone number is needed so the Agent can reach you.</div>}
+          {!shipment.senderPhone && <div style={{ ...small, color: '#B91C1C' }}>A sender phone number is needed so the collector can reach you.</div>}
         </>
       )}
 
       {task?.status === 'requested' && (
         <>
-          <div style={small}>Waiting for an Agent near you to accept this pickup.</div>
+          <div style={small}>Finding someone near you to collect this parcel.</div>
           <button style={btn(false)} disabled={busy} onClick={() => run(() => api.post(`/shipments/${shipment.id}/pickup-task/cancel`))}>
             Cancel pickup request
           </button>
@@ -86,10 +86,10 @@ export default function ShipmentPickupPanel({ shipment }) {
       {task?.status === 'claimed' && (
         <>
           <div style={small}>
-            Agent coming: <strong>{task.agent?.name || 'Kentexa Agent'}</strong>
+            Coming to collect: <strong>{task.agent?.name || 'Kentexa'}</strong>
             {task.agent?.phone ? <> · <a href={`tel:${task.agent.phone}`}>{task.agent.phone}</a></> : null}
           </div>
-          <div style={small}>When the Agent is with you and takes the parcel, give them this code. Do not share it before.</div>
+          <div style={small}>When they are with you and take the parcel, give them this code. Do not share it before.</div>
           {code ? (
             <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: 6, color: '#0f172a', margin: '8px 0' }} aria-label="Handover code">
               {code.value}
@@ -110,8 +110,8 @@ export default function ShipmentPickupPanel({ shipment }) {
 
       {(task?.status === 'collected' || task?.status === 'awaiting_hub') && (
         <div style={small}>
-          The Agent{task.agent?.name ? ` (${task.agent.name})` : ''} has your parcel
-          {task.servicePath === 'direct_delivery' ? ' and is taking it to the recipient.' : ' and is taking it to the hub.'}
+          {task.agent?.name || 'Kentexa'} has your parcel
+          {task.servicePath === 'direct_delivery' ? ' and is taking it to the recipient.' : ' and is taking it to the Kentexa Point.'}
         </div>
       )}
 

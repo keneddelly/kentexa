@@ -37,7 +37,7 @@ import { ShipmentHolder, projectShipment } from './shipment-projection';
 import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
-import { SuperAgent } from '../super-agents/entities/super-agent.entity';
+import { SuperAgent, SuperAgentStatus } from '../super-agents/entities/super-agent.entity';
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
 import { LocationCandidate } from '../location-intelligence/location-provider.interface';
 import { ShipmentHubSource } from './shipment-hub-source';
@@ -407,6 +407,10 @@ export class ShipmentsService {
         departureAt: new Date(a.departureAt).toISOString(),
         loadStop: a.loadLabel,
         unloadStop: a.unloadLabel,
+        // Gate 5: the Kentexa hubs this trip loads at and unloads at, when
+        // its stops are bound to one. Booking it means using these hubs.
+        loadHub: a.loadHub ?? null,
+        unloadHub: a.unloadHub ?? null,
         // null = the transporter has not declared that limit for this trip.
         slotsAvailable: a.slotsAvailable,
         capacityAvailableKg: a.capacityAvailableKg,
@@ -1129,8 +1133,33 @@ export class ShipmentsService {
     shipment: Shipment,
     inputs: Record<HubSide, HubSelectionInput>,
   ): Promise<Record<HubSide, HubDecision>> {
+    // Gate 5: a Shipment booked on a Transport Run uses the hubs that Run's
+    // own stops are bound to -- the parcel must be where the vehicle will
+    // actually stop. That is decided by the server from the committed
+    // Journey, never by the request: a request naming a different hub for
+    // such a side is refused, and one naming none gets the trip's hub.
+    const tripHubs = shipment.journeySelectionId != null
+      ? await this.transportService.journeyRunStopHubs(shipment.journeySelectionId, em)
+      : { origin: null, destination: null };
     const decideSide = async (side: HubSide): Promise<HubDecision> => {
       const input = inputs[side];
+      const tripHubId = tripHubs[side];
+      if (tripHubId != null) {
+        if (input.hubId !== undefined && input.hubId !== tripHubId) {
+          throw new ConflictException(`This trip uses a different ${side} hub; the hub cannot be changed for a booked trip`);
+        }
+        // Read FOR SHARE like every other candidate: a hub suspended while
+        // this confirmation is in flight fails it, rather than slipping through.
+        const hub = await hubRepoOf(em)
+          .createQueryBuilder('hub')
+          .select(['hub.id'])
+          .where('hub.id = :id', { id: tripHubId })
+          .andWhere('hub.status = :active', { active: SuperAgentStatus.ACTIVE })
+          .setLock('pessimistic_read')
+          .getOne();
+        if (!hub) throw new ConflictException(`The ${side} hub of this trip is not available right now`);
+        return { source: ShipmentHubSource.SENDER_SELECTED, hubId: tripHubId };
+      }
       if (!input.requested) return decideHubForSide(side, input, null, []);
       const keys = storedSideHubKeys(readStoredSnapshotSide(shipment, side));
       const candidates = await discoverHubCandidates(hubRepoOf(em), keys, true);

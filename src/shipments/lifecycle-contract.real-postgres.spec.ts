@@ -17,6 +17,8 @@ import { ProviderAvailability } from '../transport/entities/provider-availabilit
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportProvider } from '../transport/entities/transport-provider.entity';
 import { TransportRun } from '../transport/entities/transport-run.entity';
+import { TransportRunStop } from '../transport/entities/transport-run-stop.entity';
+import { RouteStop } from '../transport/entities/route-stop.entity';
 import { Vehicle } from '../transport/entities/vehicle.entity';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { Parcel } from '../super-agents/entities/parcel.entity';
@@ -145,7 +147,7 @@ suite('Gate 3 — one lifecycle contract, real PostgreSQL', () => {
     ds = new DataSource({
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 20 },
-      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, TransportRun, Vehicle, Shipment,
+      entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, RouteStop, TransportRun, TransportRunStop, Vehicle, Shipment,
         TransportQuote, JourneySelection, JourneyLeg, ParcelCustodyEvent],
     });
     await ds.initialize();

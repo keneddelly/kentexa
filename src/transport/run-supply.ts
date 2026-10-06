@@ -75,6 +75,13 @@ export interface BookableRun {
   unloadRouteStopId: number | null;
   unloadLabel: string;
   unloadSuperAgentId: number | null;
+  /**
+   * Gate 5: the Kentexa hub a stop is bound to, when it is. A parcel booked
+   * on this Run is dropped at (or brought to) `loadHub` and collected from
+   * `unloadHub`. Public hub details only.
+   */
+  loadHub: RunStopHub | null;
+  unloadHub: RunStopHub | null;
   /** null = the Run has no vehicle, or the vehicle does not declare this limit. */
   parcelCapacity: number | null;
   weightCapacityKg: number | null;
@@ -82,6 +89,13 @@ export interface BookableRun {
   bookedKg: number;
   slotsAvailable: number | null;
   capacityAvailableKg: number | null;
+}
+
+export interface RunStopHub {
+  id: number;
+  name: string | null;
+  address: string | null;
+  city: string | null;
 }
 
 export interface RunSearch {
@@ -184,6 +198,8 @@ export async function findBookableRuns(manager: EntityManager, search: RunSearch
             ls."locationLabel" AS "loadLabel", ls."superAgentId" AS "loadSuperAgentId",
             us.id AS "unloadRunStopId", us."sourceRouteStopId" AS "unloadRouteStopId",
             us."locationLabel" AS "unloadLabel", us."superAgentId" AS "unloadSuperAgentId",
+            lh."businessName" AS "loadHubName", lh.address AS "loadHubAddress", lh.city AS "loadHubCity",
+            uh."businessName" AS "unloadHubName", uh.address AS "unloadHubAddress", uh.city AS "unloadHubCity",
             v."parcelCapacity", v."weightCapacityKg", load.parcels AS "bookedParcels", load.kg AS "bookedKg"
        FROM public.transport_run r
        JOIN public.transport_provider p ON p.id = r."providerId" AND p.status IN ('verified', 'active')
@@ -205,6 +221,8 @@ export async function findBookableRuns(manager: EntityManager, search: RunSearch
                      AND ${match('rt."destinationCity"', search.to)}))
           ORDER BY s.sequence ASC LIMIT 1
        ) us ON true
+       LEFT JOIN public.super_agent lh ON lh.id = ls."superAgentId"
+       LEFT JOIN public.super_agent uh ON uh.id = us."superAgentId"
        LEFT JOIN LATERAL (${loadSql('r.id')}) load ON true
       WHERE ${where.join(' AND ')}
         AND (v."parcelCapacity" IS NULL OR load.parcels < v."parcelCapacity")
@@ -239,6 +257,12 @@ export async function findBookableRuns(manager: EntityManager, search: RunSearch
       unloadRouteStopId: row.unloadRouteStopId == null ? null : Number(row.unloadRouteStopId),
       unloadLabel: row.unloadLabel,
       unloadSuperAgentId: row.unloadSuperAgentId == null ? null : Number(row.unloadSuperAgentId),
+      loadHub: row.loadSuperAgentId == null ? null : {
+        id: Number(row.loadSuperAgentId), name: row.loadHubName ?? null, address: row.loadHubAddress ?? null, city: row.loadHubCity ?? null,
+      },
+      unloadHub: row.unloadSuperAgentId == null ? null : {
+        id: Number(row.unloadSuperAgentId), name: row.unloadHubName ?? null, address: row.unloadHubAddress ?? null, city: row.unloadHubCity ?? null,
+      },
       parcelCapacity: row.parcelCapacity == null ? null : Number(row.parcelCapacity),
       weightCapacityKg: row.weightCapacityKg == null ? null : Number(row.weightCapacityKg),
       bookedParcels,
@@ -355,4 +379,115 @@ export async function assertJourneyRunsOperating(manager: EntityManager, journey
   if (rows.length) {
     throw new ConflictException('The trip booked for this shipment is no longer running');
   }
+}
+
+
+// ── Gate 5: a booked Shipment's way onto its Run ─────────────────────────────
+
+// The Run stop ids the server wrote onto the Journey leg when it was composed.
+const LEG_LOAD_STOP = `NULLIF(l."executionRequirements"->>'loadRunStopId', '')::int`;
+const LEG_UNLOAD_STOP = `NULLIF(l."executionRequirements"->>'unloadRunStopId', '')::int`;
+
+/**
+ * The hubs a Journey's own Run stops are bound to: where its first transport
+ * leg loads, and where its last one unloads. null = that stop is not bound to
+ * a hub. This is what decides a Run-booked Shipment's origin and destination
+ * hub -- the parcel has to be where the vehicle will actually stop.
+ */
+export async function journeyRunStopHubs(
+  manager: EntityManager,
+  journeySelectionId: number,
+): Promise<{ origin: number | null; destination: number | null }> {
+  const rows: any[] = await manager.query(
+    `SELECT ls."superAgentId" AS "loadHub", us."superAgentId" AS "unloadHub"
+       FROM public.journey_leg l
+       LEFT JOIN public.transport_run_stop ls ON ls.id = ${LEG_LOAD_STOP} AND ls."runId" = l."runId"
+       LEFT JOIN public.transport_run_stop us ON us.id = ${LEG_UNLOAD_STOP} AND us."runId" = l."runId"
+      WHERE l."journeySelectionId" = $1 AND l.type = 'transport' AND l."runId" IS NOT NULL
+      ORDER BY l.sequence ASC`,
+    [journeySelectionId],
+  );
+  if (!rows.length) return { origin: null, destination: null };
+  const origin = rows[0].loadHub;
+  const destination = rows[rows.length - 1].unloadHub;
+  return { origin: origin == null ? null : Number(origin), destination: destination == null ? null : Number(destination) };
+}
+
+/**
+ * Where one booked parcel stands on its way onto the Run:
+ *   not_confirmed    the sender has not confirmed the Shipment (no parcel yet)
+ *   awaiting_parcel  confirmed, but the parcel is not yet at the load hub
+ *   ready_to_assign  at the load hub (or the stop has no hub): can be accepted
+ *   assigned / loaded / unloaded / received   the Run assignment's own state
+ */
+export type RunBookingState =
+  | 'not_confirmed' | 'awaiting_parcel' | 'ready_to_assign' | 'assigned' | 'loaded' | 'unloaded' | 'received';
+
+export interface RunBooking {
+  shipmentId: number;
+  trackingNumber: string | null;
+  itemDescription: string | null;
+  weightKg: number;
+  parcelId: number | null;
+  loadRunStopId: number | null;
+  unloadRunStopId: number | null;
+  loadStop: string | null;
+  unloadStop: string | null;
+  assignmentId: number | null;
+  state: RunBookingState;
+}
+
+/**
+ * The Shipments booked on a Run, each with the stops the server committed it
+ * to and where it stands. This is what "the transporter sees the parcels
+ * booked for their Run" reads. No phone numbers, no names.
+ */
+export async function listRunBookings(manager: EntityManager, runId: number, parcelId?: number): Promise<RunBooking[]> {
+  const rows: any[] = await manager.query(
+    `SELECT s.id AS "shipmentId", s."trackingNumber", s."itemDescription", s."weightKg",
+            p.id AS "parcelId", ${LEG_LOAD_STOP} AS "loadRunStopId", ${LEG_UNLOAD_STOP} AS "unloadRunStopId",
+            ls."locationLabel" AS "loadStop", ls."superAgentId" AS "loadHubId", us."locationLabel" AS "unloadStop",
+            a.id AS "assignmentId", a.status AS "assignmentStatus",
+            c."toCustodianType" AS "holderType", c."toCustodianId" AS "holderId"
+       FROM public.journey_leg l
+       JOIN public.shipment s ON s."journeySelectionId" = l."journeySelectionId"
+       LEFT JOIN public.parcel p ON p."shipmentId" = s.id
+       LEFT JOIN public.transport_run_stop ls ON ls.id = ${LEG_LOAD_STOP} AND ls."runId" = l."runId"
+       LEFT JOIN public.transport_run_stop us ON us.id = ${LEG_UNLOAD_STOP} AND us."runId" = l."runId"
+       LEFT JOIN LATERAL (
+         SELECT x.id, x.status FROM public.parcel_run_assignment x
+          WHERE x."runId" = l."runId" AND x."parcelId" = p.id AND x.status <> 'cancelled'
+          ORDER BY x.id DESC LIMIT 1) a ON true
+       LEFT JOIN LATERAL (
+         SELECT e."toCustodianType", e."toCustodianId" FROM public.parcel_custody_event e
+          WHERE e."parcelId" = p.id ORDER BY e."recordedAt" DESC, e.id DESC LIMIT 1) c ON true
+      WHERE l."runId" = $1 AND l.type = 'transport' AND s.status <> 'cancelled'
+        AND ($2::int IS NULL OR p.id = $2)
+      ORDER BY s.id ASC`,
+    [runId, parcelId ?? null],
+  );
+  return rows.map((row) => {
+    let state: RunBookingState;
+    if (row.parcelId == null) state = 'not_confirmed';
+    else if (row.assignmentStatus === 'scheduled') state = 'assigned';
+    else if (['loaded', 'unloaded', 'received'].includes(row.assignmentStatus)) state = row.assignmentStatus;
+    else if (row.loadHubId == null) state = 'ready_to_assign';
+    else {
+      state = row.holderType === 'super_agent' && Number(row.holderId) === Number(row.loadHubId)
+        ? 'ready_to_assign' : 'awaiting_parcel';
+    }
+    return {
+      shipmentId: Number(row.shipmentId),
+      trackingNumber: row.trackingNumber ?? null,
+      itemDescription: row.itemDescription ?? null,
+      weightKg: Number(row.weightKg) || 0,
+      parcelId: row.parcelId == null ? null : Number(row.parcelId),
+      loadRunStopId: row.loadRunStopId == null ? null : Number(row.loadRunStopId),
+      unloadRunStopId: row.unloadRunStopId == null ? null : Number(row.unloadRunStopId),
+      loadStop: row.loadStop ?? null,
+      unloadStop: row.unloadStop ?? null,
+      assignmentId: row.assignmentId == null ? null : Number(row.assignmentId),
+      state,
+    };
+  });
 }

@@ -101,7 +101,7 @@ import { TransportRunStop } from './entities/transport-run-stop.entity';
 import { Vehicle } from './entities/vehicle.entity';
 import { ParcelRunAssignment, ParcelRunAssignmentStatus } from './entities/parcel-run-assignment.entity';
 import { TransportService } from './transport.service';
-import { runLoad } from './run-supply';
+import { RunBooking, listRunBookings, runLoad } from './run-supply';
 import { projectShipmentForParcel } from '../shipments/shipment-projection';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 // A plain TS enum import only -- NOT the Parcel/ParcelTracking entity
@@ -333,6 +333,42 @@ export class ParcelRunAssignmentService {
         ORDER BY r."scheduledDeparture" ASC, t.id ASC`,
       [provider.id],
     );
+  }
+
+  // ── Gate 5: booked Shipments onto their Run ───────────────────────────────
+
+  /**
+   * "The transporter sees the parcels booked for their Run": every Shipment
+   * whose committed Journey names this Run, with the stops the server
+   * committed it to and where the parcel stands. Owner-only.
+   */
+  async listBookingsForRun(userId: number, runId: number): Promise<RunBooking[]> {
+    const provider = await this.transportService.getMyProfile(userId);
+    const run = await this.runRepo.findOne({ where: { id: runId, providerId: provider.id } });
+    if (!run) throw new NotFoundException('Run not found');
+    return listRunBookings(this.dataSource.manager, runId);
+  }
+
+  /**
+   * Accepts one booked parcel onto the Run it was booked on. The request
+   * names only the parcel: the Run is the one in the URL the provider owns,
+   * and the load/unload stops are the ones the server wrote onto the
+   * committed Journey leg -- never values from the request. Everything else
+   * (the Journey check, the booking tender, hub custody at the load stop,
+   * capacity, idempotency) is createAssignment's, unchanged.
+   */
+  async assignBooking(userId: number, runId: number, parcelId: number): Promise<ParcelRunAssignment> {
+    const provider = await this.transportService.getMyProfile(userId);
+    const run = await this.runRepo.findOne({ where: { id: runId, providerId: provider.id } });
+    if (!run) throw new NotFoundException('Run not found');
+    const [booking] = await listRunBookings(this.dataSource.manager, runId, parcelId);
+    if (!booking || booking.parcelId !== parcelId) throw new NotFoundException('That parcel is not booked on this Run');
+    if (booking.loadRunStopId == null || booking.unloadRunStopId == null) {
+      throw new ConflictException('This booking has no committed stops; it cannot be accepted onto the Run');
+    }
+    return this.createAssignment(userId, {
+      runId, parcelId, loadRunStopId: booking.loadRunStopId, unloadRunStopId: booking.unloadRunStopId,
+    });
   }
 
   async createAssignment(userId: number, dto: CreateParcelRunAssignmentDto): Promise<ParcelRunAssignment> {
