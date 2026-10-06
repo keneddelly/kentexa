@@ -23,6 +23,7 @@ import {
   PlaceSearchResult,
 } from './location-provider.interface';
 import { TzSeedLocationProvider } from './providers/tz-seed-location.provider';
+import { GooglePlacesLocationProvider } from './providers/google-places-location.provider';
 
 @Injectable()
 export class LocationIntelligenceService {
@@ -32,8 +33,9 @@ export class LocationIntelligenceService {
   // of it) without any interface or consumer change.
   private readonly providers: LocationProvider[];
 
-  constructor(tzSeedProvider: TzSeedLocationProvider) {
-    this.providers = [tzSeedProvider];
+  constructor(tzSeedProvider: TzSeedLocationProvider, googlePlacesProvider: GooglePlacesLocationProvider) {
+    // Prefer street/place precision when Google is configured; tz_seed remains a zero-cost fallback.
+    this.providers = [googlePlacesProvider, tzSeedProvider];
   }
 
   /**
