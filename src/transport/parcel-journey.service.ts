@@ -207,7 +207,8 @@ export class ParcelJourneyService {
                  a.status IN ('scheduled','loaded')
                  OR (a.status='unloaded' AND NOT EXISTS (
                    SELECT 1 FROM public.parcel_custody_event rce
-                    WHERE rce."parcelRunAssignmentId"=a.id
+                    WHERE rce."assignmentId"=a.id
+                      AND rce."assignmentType"='parcel_run_assignment'
                       AND rce."toCustodianType"='super_agent'
                  ))
                )
