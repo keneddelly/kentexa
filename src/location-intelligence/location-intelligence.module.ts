@@ -13,11 +13,12 @@ import { TzLocationModule } from '../tz-location/tz-location.module';
 import { LocationIntelligenceController } from './location-intelligence.controller';
 import { LocationIntelligenceService } from './location-intelligence.service';
 import { TzSeedLocationProvider } from './providers/tz-seed-location.provider';
+import { GooglePlacesLocationProvider } from './providers/google-places-location.provider';
 
 @Module({
   imports: [TzLocationModule],
   controllers: [LocationIntelligenceController],
-  providers: [TzSeedLocationProvider, LocationIntelligenceService],
+  providers: [TzSeedLocationProvider, GooglePlacesLocationProvider, LocationIntelligenceService],
   exports: [LocationIntelligenceService],
 })
 export class LocationIntelligenceModule {}
