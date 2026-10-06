@@ -353,6 +353,40 @@ export class ParcelRunAssignmentService {
       throw new BadRequestException('loadRunStopId must come before unloadRunStopId on this Run');
     }
 
+    // L5 Journey -> movement authority. For Journey-backed parcels, the
+    // committed TRANSPORT leg is the commercial promise. A provider cannot
+    // substitute a different provider/route/run after quote + shipment
+    // commitment. Legacy parcels without a JourneySelection retain the
+    // existing movement-tender authority path.
+    const journeyRows = await this.dataSource.query(
+      `SELECT p."journeySelectionId", j.status
+         FROM public.parcel p
+         LEFT JOIN public.journey_selection j ON j.id=p."journeySelectionId"
+        WHERE p.id=$1`,
+      [dto.parcelId],
+    );
+    const journeyId = journeyRows[0]?.journeySelectionId ?? null;
+    if (journeyId != null) {
+      if (journeyRows[0]?.status !== 'committed') {
+        throw new ConflictException('Parcel journey is not commercially committed');
+      }
+      const legs = await this.dataSource.query(
+        `SELECT "providerId","routeId","runId","loadRouteStopId","unloadRouteStopId"
+           FROM public.journey_leg
+          WHERE "journeySelectionId"=$1 AND type='transport'
+          ORDER BY sequence ASC`,
+        [journeyId],
+      );
+      const matchingLeg = legs.find((leg: any) =>
+        Number(leg.providerId) === Number(provider.id) &&
+        Number(leg.routeId) === Number(run.routeId) &&
+        (leg.runId == null || Number(leg.runId) === Number(run.id))
+      );
+      if (!matchingLeg) {
+        throw new ForbiddenException('Run is not authorized by the committed parcel journey');
+      }
+    }
+
     // 3S-B1's own established pattern (createAssignment): lock the parcel
     // row first, so two concurrent requests for the SAME parcel fully
     // serialize against each other and against the idempotent-reuse check
