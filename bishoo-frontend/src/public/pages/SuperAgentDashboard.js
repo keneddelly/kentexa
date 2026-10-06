@@ -520,6 +520,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const parcels       = dashData?.parcels || [];
   const atHub         = parcels.filter(p => ['received_at_hub','verified','ready_for_dispatch'].includes(p.status));
   const incoming      = parcels.filter(p => ['dispatched','in_transit','arrived_at_hub'].includes(p.status) && p.myRole === 'destination');
+  const isDirectLocalParcel = p => p.transportMethod === 'local_agent' || (!p.transportMethod && String(p.originCity || '').trim().toLowerCase() === String(p.destinationCity || '').trim().toLowerCase());
   const toDispatch    = parcels.filter(p => ['received_at_hub','ready_for_dispatch'].includes(p.status) && p.myRole !== 'destination');
   const inTransit     = parcels.filter(p => ['dispatched','in_transit'].includes(p.status) && p.myRole !== 'destination');
   const awaitingBuyer = parcels.filter(p => ['awaiting_buyer','out_for_delivery'].includes(p.status) && p.myRole !== 'origin');
@@ -2209,7 +2210,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {toDispatch.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={p.transportMethod === 'van' ? [
                         { label: '🚐 Fungua Van Desk', color: '#1d4ed8', fn: () => { setActiveTab('van'); fetchVanDesk(); } },
-                      ] : p.transportMethod === 'local_agent' ? [
+                      ] : isDirectLocalParcel(p) ? [
                         { label: '🏍️ Chagua Agent', color: '#16a34a', fn: (parcel) => {
                           setDispatchParcel(parcel); setSelectedAgent(null); setDispatchMode('agent');
                         }},
