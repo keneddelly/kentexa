@@ -784,7 +784,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
               </div>
             </div>
             {!isOwnProfile && (
-              <button onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin')}
+              <button onClick={() => onNavigate(isLoggedIn ? 'SendShipment' : 'PublicLogin', isLoggedIn ? { transportProviderId: publicTransportData.id, transportProviderName: publicTransportData.name, transportProfileId: activeProfile.id } : undefined)}
                 style={{ width:'100%', backgroundColor:B, color:WH, border:'none', borderRadius:12,
                   padding:'13px 16px', cursor:'pointer', fontSize:15, fontWeight:900 }}>
                 📦 Tuma Mzigo
@@ -1363,6 +1363,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         <div key={run.id}
                           onClick={() => onNavigate('SendShipment', {
                             origin:first, destination:last, routeId:run.routeId, transportRunId:run.id,
+                            transportProviderId: publicTransportData.id, transportProviderName: publicTransportData.name, transportProfileId: activeProfile.id,
                           })}
                           style={{ padding:'12px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
                           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -1399,6 +1400,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                         onClick={() => onNavigate('SendShipment', {
                           origin: trip.fromCity, destination: trip.toCity,
                           availabilityId: trip.availabilityId, routeId: trip.routeId,
+                          transportProviderId: publicTransportData.id, transportProviderName: publicTransportData.name, transportProfileId: activeProfile.id,
                         })}
                         style={{ display:'flex', alignItems:'center', gap:10,
                           padding:'10px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
@@ -1429,6 +1431,7 @@ const CommerceProfile = ({ onNavigate, isLoggedIn, userRole,
                       <div key={r.id}
                         onClick={() => onNavigate('SendShipment', {
                           origin: r.originCity, destination: r.destinationCity, routeId: r.id,
+                          transportProviderId: publicTransportData.id, transportProviderName: publicTransportData.name, transportProfileId: activeProfile.id,
                         })}
                         style={{ display:'flex', alignItems:'center', gap:10,
                           padding:'10px 0', borderBottom:'1px solid #F1F5F9', cursor:'pointer' }}>
