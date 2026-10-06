@@ -23,7 +23,7 @@ import { UserRole } from '../users/entities/user.entity';
 import { TransportService, DiscoverySortBy, DISCOVERY_SORT_VALUES } from './transport.service';
 import { TransportQuoteService } from './transport-quote.service';
 import type { CreateQuoteDto } from './transport-quote.service';
-import { JourneySelectionService } from './journey-selection.service';
+import { JourneySelectionService, assertClientAuthoredJourney } from './journey-selection.service';
 import type { SelectJourneyDto } from './journey-selection.service';
 import { JourneyComposerService } from './journey-composer.service';
 import type { ComposeJourneyDto, SelectComposedJourneyDto } from './journey-composer.service';
@@ -65,6 +65,7 @@ export class TransportController {
   @UseGuards(JwtAuthGuard)
   @Post('journeys')
   selectJourney(@Request() req, @Body() dto: SelectJourneyDto) {
+    assertClientAuthoredJourney(dto);
     return this.journeys.select(req.user.id, dto);
   }
 
@@ -77,6 +78,7 @@ export class TransportController {
   @UseGuards(JwtAuthGuard)
   @Post('journeys/:id/replan')
   replanJourney(@Request() req, @Param('id', ParseIntPipe) id: number, @Body() dto: SelectJourneyDto) {
+    assertClientAuthoredJourney(dto);
     return this.journeys.replan(req.user.id, id, dto);
   }
 

@@ -59,6 +59,17 @@ export interface CreateRunDto {
   scheduledDeparture: string | Date;
 }
 
+// Gate 1: 24-hour wall-clock HH:mm, e.g. 06:00, 18:30, 23:59. The original
+// inline pattern doubled its backslashes inside a regex LITERAL, so it
+// looked for a real backslash followed by "d" and rejected every valid
+// time -- no recurring schedule could ever be saved. Exported and unit
+// tested so that cannot regress silently. A browser <input type="time">
+// may also send seconds (06:00:00); those are accepted and ignored.
+const DEPARTURE_TIME = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
+export function isValidDepartureTime(value: unknown): value is string {
+  return typeof value === 'string' && DEPARTURE_TIME.test(value);
+}
+
 export interface UpsertRecurringScheduleDto {
   routeId: number;
   scheduleType: 'daily' | 'selected_days';
@@ -286,7 +297,7 @@ export class TransportRunService {
     const provider = await this.transportService.getMyProfile(userId);
     const route = await this.routeRepo.findOne({ where: { id:Number(dto.routeId), providerId:provider.id } });
     if (!route || !route.isActive) throw new NotFoundException('Active route not found');
-    if (!/^([01]\\d|2[0-3]):[0-5]\\d$/.test(dto.departureTime || '')) throw new BadRequestException('departureTime must be HH:mm');
+    if (!isValidDepartureTime(dto.departureTime)) throw new BadRequestException('departureTime must be HH:mm');
     if (!['daily','selected_days'].includes(dto.scheduleType)) throw new BadRequestException('Invalid scheduleType');
     const days = dto.scheduleType === 'selected_days' ? [...new Set(dto.daysOfWeek || [])] : null;
     if (dto.scheduleType === 'selected_days' && (!days?.length || days.some(d=>!Number.isInteger(d)||d<0||d>6))) throw new BadRequestException('Choose valid operating days');
@@ -295,6 +306,16 @@ export class TransportRunService {
     if (vehicleId != null) {
       const vehicle=await this.requireVehicleRepo().findOne({where:{id:vehicleId,providerId:provider.id}});
       if(!vehicle || !vehicle.isActive) throw new BadRequestException('Default vehicle is not active');
+    }
+    // Gate 1: a Run needs at least two active stops (createRun enforces it).
+    // Checked BEFORE the insert: the schedule row and its first Runs are not
+    // one transaction, so a route with no stop plan used to leave a saved
+    // schedule behind an error response, and a retry saved a second one.
+    const activeStops = await this.routeStopRepo.count({ where: { routeId: route.id, isActive: true } });
+    if (activeStops < 2) {
+      throw new ConflictException(
+        'That route does not have a valid stop plan yet -- add at least 2 active stops before scheduling it',
+      );
     }
     const rows=await this.dataSource.query(
       `INSERT INTO public.transport_route_schedule

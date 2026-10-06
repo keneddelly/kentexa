@@ -5578,7 +5578,13 @@
     "confirmed_title": "Shipment Requested!",
     "tracking_number_label": "Tracking Number",
     "track_button": "Track This Shipment",
-    "done_button": "Done"
+    "done_button": "Done",
+    "search_request_failed": "We could not reach Kentexa to search this route. Check your connection and try again.",
+    "search_invalid_location": "We could not read one of the locations. Pick it again from the list, or type the area name.",
+    "search_retry": "Try again",
+    "no_open_trip": "These transporters cover this route but have no open trip today or tomorrow.",
+    "provider_does_not_serve_route": "This transporter does not serve this route. Go back to see others that do.",
+    "hubs_load_failed": "Could not load Kentexa hubs. You can continue without one, or go back and try again."
   },
   "verify_identity": {
     "title": "Verify Your Identity to Sell on Kentexa",

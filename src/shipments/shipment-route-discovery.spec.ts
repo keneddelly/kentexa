@@ -121,7 +121,9 @@ describe('ShipmentsService.findAvailableRoutesForSides — candidates, never a d
       const r = await service.findAvailableRoutesForSides(place('ward:56'), place('region:9'));
       expect(r.availableTrips).toHaveLength(count);
       expect(r.providers).toHaveLength(count);
-      expect(Object.keys(r).sort()).toEqual(['availableTrips', 'destination', 'origin', 'providers']);
+      // `availability` (Gate 1) explains the outcome; it is a reason, never a selection.
+      expect(Object.keys(r).sort()).toEqual(['availability', 'availableTrips', 'destination', 'origin', 'providers']);
+      expect(r.availability.reason).toBe(count > 0 ? 'available' : 'no_route');
       const json = JSON.stringify(r);
       for (const decision of ['"selected"', '"chosen"', '"recommended"', '"best"', '"default"']) expect(json).not.toContain(decision);
     });
@@ -223,8 +225,66 @@ describe('ShipmentsController GET /shipments/routes — parameter contract', () 
     expect(svc.findAvailableRoutesForSides).not.toHaveBeenCalled();
   });
 
-  it('is public and additive: the four query parameters are the only new surface', () => {
+  it('is public; its surface is origin/destination (text or place), weightKg and providerId', () => {
     expect(Reflect.getMetadata('__guards__', ShipmentsController.prototype.findRoutes)).toBeUndefined();
-    expect(ShipmentsController.prototype.findRoutes.length).toBe(5);
+    expect(ShipmentsController.prototype.findRoutes.length).toBe(7);
+  });
+
+  // Gate 1: the send form hands the place object from the place search
+  // straight to its HTTP client, which serialises it with brackets. Express 5
+  // (the "simple" parser) leaves those as literal keys; the qs "extended"
+  // parser turns them into an object. Both must mean the same place.
+  describe('a place reference sent as an object (what the send form sends)', () => {
+    const ref = { providerKey: 'tz_seed', providerPlaceId: 'ward:6' };
+    it('bracket keys, as Express 5 parses them', () => {
+      controller.findRoutes(undefined, 'Mbagala', undefined, undefined, '2', undefined, {
+        'originPlace[providerKey]': 'tz_seed', 'originPlace[providerPlaceId]': 'ward:6', destination: 'Mbagala', weightKg: '2',
+      });
+      expect(sides()).toEqual([{ place: ref }, { text: 'Mbagala' }, 2, undefined]);
+    });
+    it('a nested object, as the extended parser produces', () => {
+      controller.findRoutes(undefined, undefined, ref, { providerKey: 'tz_seed', providerPlaceId: 'region:2' });
+      expect(sides()[0]).toEqual({ place: ref });
+      expect(sides()[1]).toEqual({ place: { providerKey: 'tz_seed', providerPlaceId: 'region:2' } });
+    });
+    it.each([
+      [{ providerKey: 'tz_seed' }],
+      [{ providerKey: 'Tz_Seed', providerPlaceId: 'ward:6' }],
+      [{ providerKey: 'tz_seed', providerPlaceId: 6 }],
+    ])('a malformed object %p is a 400, never text', (bad) => {
+      expect(() => controller.findRoutes('Kariakoo', 'Mbagala', bad as any)).toThrow(BadRequestException);
+    });
+    it('half a bracket pair is a 400', () => {
+      expect(() => controller.findRoutes('Kariakoo', 'Mbagala', undefined, undefined, undefined, undefined, {
+        'originPlace[providerKey]': 'tz_seed',
+      })).toThrow(BadRequestException);
+    });
+  });
+
+  it.each([['-1'], ['abc'], ['Infinity']])('weightKg %p is a 400', (w) => {
+    expect(() => controller.findRoutes('Kariakoo', 'Mbagala', undefined, undefined, w)).toThrow(BadRequestException);
+  });
+  it.each([['0'], ['1.5'], ['x']])('providerId %p is a 400', (p) => {
+    expect(() => controller.findRoutes('Kariakoo', 'Mbagala', undefined, undefined, undefined, p)).toThrow(BadRequestException);
+  });
+
+  describe('GET /shipments/hubs accepts the same place shapes', () => {
+    beforeEach(() => { svc.discoverHubsForPlace = jest.fn(async () => ({ hubs: [] })); });
+    const ref = { providerKey: 'tz_seed', providerPlaceId: 'ward:6' };
+    it('canonical string', () => {
+      controller.hubsForPlace('tz_seed:ward:6', 'origin');
+      expect(svc.discoverHubsForPlace).toHaveBeenCalledWith(ref, 'origin');
+    });
+    it('nested object', () => {
+      controller.hubsForPlace(ref, 'destination');
+      expect(svc.discoverHubsForPlace).toHaveBeenCalledWith(ref, 'destination');
+    });
+    it('bracket keys', () => {
+      controller.hubsForPlace(undefined, 'origin', { 'place[providerKey]': 'tz_seed', 'place[providerPlaceId]': 'ward:6', side: 'origin' });
+      expect(svc.discoverHubsForPlace).toHaveBeenCalledWith(ref, 'origin');
+    });
+    it.each([[undefined], [''], ['tz_seed'], [{ providerKey: 'tz_seed' }]])('missing or malformed %p is a 400', (bad) => {
+      expect(() => controller.hubsForPlace(bad as any, 'origin')).toThrow(BadRequestException);
+    });
   });
 });

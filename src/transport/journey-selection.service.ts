@@ -29,6 +29,35 @@ export interface SelectJourneyDto {
   paymentMethod?: 'cash' | 'prepaid';
 }
 
+/**
+ * Gate 1 (audit finding 13). POST /transport/journeys and .../replan take
+ * legs written by the client. select() below only re-validates TRANSPORT
+ * legs (provider eligible, route serves the journey, slot discoverable); an
+ * agentId or superAgentId on any leg was stored as given, and cashCollector()
+ * then derived the AUTHORIZED cash collector from it. A caller could
+ * therefore name any Agent or Super Agent as the party entitled to collect
+ * money for their parcel.
+ *
+ * Until first-mile, hub and last-mile legs are composed and validated by the
+ * server, a client-written journey may contain transport legs only, and may
+ * not name an Agent or a Super Agent. Server-side callers (the composer)
+ * call select() directly and are unaffected.
+ */
+export function assertClientAuthoredJourney(dto: SelectJourneyDto | undefined | null): void {
+  if (!dto || typeof dto !== 'object') throw new BadRequestException('A journey is required');
+  if (!Array.isArray(dto.legs) || dto.legs.length === 0) {
+    throw new BadRequestException('A journey must contain at least one leg');
+  }
+  for (const leg of dto.legs) {
+    if (!leg || typeof leg !== 'object' || leg.type !== JourneyLegType.TRANSPORT) {
+      throw new BadRequestException('Only transport legs can be selected directly; other legs are composed by Kentexa');
+    }
+    if (leg.agentId != null || leg.superAgentId != null) {
+      throw new BadRequestException('A journey request cannot name an Agent or a Super Agent');
+    }
+  }
+}
+
 @Injectable()
 export class JourneySelectionService {
   constructor(
@@ -98,7 +127,13 @@ export class JourneySelectionService {
   }
 
   async select(requestedByUserId: number, dto: SelectJourneyDto): Promise<JourneySelection> {
-    if (!dto.legs?.length) throw new BadRequestException('A journey must contain at least one leg');
+    if (!dto || !Array.isArray(dto.legs) || !dto.legs.length) {
+      throw new BadRequestException('A journey must contain at least one leg');
+    }
+    if (!dto.originSnapshot || typeof dto.originSnapshot !== 'object' ||
+        !dto.destinationSnapshot || typeof dto.destinationSnapshot !== 'object') {
+      throw new BadRequestException('A journey needs an origin and a destination');
+    }
     const cargo = normalizeCargoRequirements(dto.cargoRequirements);
     await this.revalidateLegs(dto.legs, cargo);
     const collector = this.cashCollector(dto.legs, dto.paymentMethod);
@@ -138,6 +173,9 @@ export class JourneySelectionService {
       if (!previous || previous.requestedByUserId !== userId) throw new NotFoundException('Journey selection not found');
       if (previous.status === JourneySelectionStatus.COMMITTED) throw new BadRequestException('Committed journey requires an execution exception flow');
       if (previous.status === JourneySelectionStatus.SUPERSEDED) throw new BadRequestException('Journey is already superseded');
+      if (!dto || !Array.isArray(dto.legs) || !dto.legs.length) {
+        throw new BadRequestException('A journey must contain at least one leg');
+      }
       const cargo = normalizeCargoRequirements(dto.cargoRequirements);
       await this.revalidateLegs(dto.legs, cargo);
       const collector = this.cashCollector(dto.legs, dto.paymentMethod);

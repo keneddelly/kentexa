@@ -103,13 +103,38 @@ jobs:
           fi
           cat version.json
           grep -q "\"commit\":\"${GITHUB_SHA}\"" version.json
+
+          # Real HTTP through the real Express query parser (Gate 1). The CI
+          # database has no location seed, so a place reference that is READ
+          # correctly resolves to nothing: "Unknown origin place selection".
+          # A reference the server failed to read says "must be <providerKey>".
+          check() { # name, expected status, expected text, url
+            code=$(curl -s -o body.json -w '%{http_code}' "$4")
+            if [ "$code" != "$2" ] || ! grep -q "$3" body.json; then
+              echo "::error title=HTTP contract::$1: expected $2 containing '$3', got $code: $(head -c 300 body.json)"
+              echo "$1: expected $2 containing '$3', got $code: $(head -c 300 body.json)" >> backend.log
+              exit 1
+            fi
+            echo "ok: $1"
+          }
+          BASE=http://localhost:3999
+          check "typed search answers with a reason" 200 '"reason":"no_route"' \
+            "$BASE/shipments/routes?origin=Kariakoo&destination=Mbagala&weightKg=2"
+          check "canonical place string is read as a place" 400 'Unknown origin place selection' \
+            "$BASE/shipments/routes?originPlace=tz_seed:ward:6&destination=Mbagala"
+          check "bracketed place object is read as a place" 400 'Unknown origin place selection' \
+            "$BASE/shipments/routes?originPlace%5BproviderKey%5D=tz_seed&originPlace%5BproviderPlaceId%5D=ward:6&destination=Mbagala"
+          check "a malformed place is refused as malformed" 400 'originPlace must be' \
+            "$BASE/shipments/routes?originPlace=tz_seed&destination=Mbagala"
+          check "a non-numeric weight is a 400" 400 'weightKg' \
+            "$BASE/shipments/routes?origin=Kariakoo&destination=Mbagala&weightKg=heavy"
           kill "$APP_PID" || true
       - name: Post the failure on the pull request
         if: failure() && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          { echo '### Backend build and boot failed'; echo; echo '```'; grep -a -E "ERROR|Error|error TS|Exception|not configured|required" backend.log | sed 's/\x1b\[[0-9;]*m//g' | cut -c1-400 | head -n 40; echo '```'; printf '\n_Commit %s_\n' "${{ github.event.pull_request.head.sha }}"; } > fail.md
+          { echo '### Backend build and boot failed'; echo; echo '```'; grep -a -E "ERROR|Error|error TS|Exception|not configured|required|expected [0-9]" backend.log | sed 's/\x1b\[[0-9;]*m//g' | cut -c1-400 | head -n 40; echo '```'; printf '\n_Commit %s_\n' "${{ github.event.pull_request.head.sha }}"; } > fail.md
           gh pr comment "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --body-file fail.md || true
 
   logistics:

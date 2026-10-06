@@ -7,8 +7,13 @@ pushed straight to the deployed branch in one afternoon.
 ## One deployable branch
 
 `worktree-service-provider-profiles` is the production line. Render deploys
-it. It is the GitHub default branch, so a new pull request targets it unless
-someone deliberately chooses otherwise.
+it. It should also be the GitHub default branch, so that a new pull request
+targets it unless someone deliberately chooses otherwise, and it should be
+protected (pull request required, the three Production Line CI checks
+required, no force push). Both are repository settings that only the owner
+can change: Settings -> General -> Default branch, and Settings -> Branches.
+Until they are set, `master` remains the default and nothing stops a direct
+push.
 
 `master` is frozen at `77d2cb5` (the 1 September code plus #83-#85) and is
 not the deployable branch. Nothing new is merged into it. Its three fixes

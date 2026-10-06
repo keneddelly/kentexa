@@ -32,6 +32,7 @@ import { VanPilotController } from './van-pilot.controller';
 import { ReputationModule } from '../reputation/reputation.module';
 import { CommerceProfilesModule } from '../commerce-profiles/commerce-profiles.module';
 import { TzLocationModule } from '../tz-location/tz-location.module';
+import { LocationIntelligenceModule } from '../location-intelligence/location-intelligence.module';
 import { Parcel, ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
@@ -45,6 +46,10 @@ import { SuperAgentCommissionModule } from '../super-agent-commission/super-agen
     ReputationModule,
     CommerceProfilesModule,
     TzLocationModule,
+    // Gate 1: JourneyComposerService re-resolves the places a client selects
+    // (exactly as Shipment creation does). One-directional -- this module
+    // imports only TzLocationModule itself.
+    LocationIntelligenceModule,
     IdentityModule,
     SearchModule,
     // Stage 3S-C6: ParcelRunAssignmentService.confirmReceipt() writes a

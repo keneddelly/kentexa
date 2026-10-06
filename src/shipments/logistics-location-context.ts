@@ -126,6 +126,44 @@ export interface ParsedPlaceRef {
   providerPlaceId: string;
 }
 
+/**
+ * Gate 1: reads a place reference from a parsed query string in ANY of the
+ * shapes a client can produce for `{ providerKey, providerPlaceId }`:
+ *
+ *   place=tz_seed:ward:6                                (canonical)
+ *   place[providerKey]=tz_seed&place[providerPlaceId]=ward:6
+ *       -> { place: { providerKey, providerPlaceId } }   (qs "extended" parser)
+ *       -> { 'place[providerKey]': ..., 'place[providerPlaceId]': ... }
+ *                                                        (Express 5 "simple" parser)
+ *
+ * The bracket form is what an HTTP client emits when handed the object
+ * straight from GET /location-intelligence/places -- exactly what the send
+ * form did, which the API answered with 400 and the form showed as "no
+ * transporter". The canonical string stays the documented contract; the
+ * other shapes are accepted so an already-installed app keeps working.
+ *
+ * Returns { present: false } when the parameter is absent in every shape,
+ * and { present: true, ref: null } when it is present but malformed -- a
+ * malformed reference is never reinterpreted as text.
+ */
+export function readPlaceRefQuery(
+  query: Record<string, unknown> | undefined | null,
+  name: string,
+): { present: boolean; ref: ParsedPlaceRef | null } {
+  const q = query ?? {};
+  const direct = q[name];
+  const bracketKey = q[`${name}[providerKey]`];
+  const bracketId = q[`${name}[providerPlaceId]`];
+  if (direct === undefined && bracketKey === undefined && bracketId === undefined) {
+    return { present: false, ref: null };
+  }
+  if (typeof direct === 'string') return { present: true, ref: parsePlaceRefParam(direct) };
+  const key = direct && typeof direct === 'object' ? (direct as any).providerKey : bracketKey;
+  const id = direct && typeof direct === 'object' ? (direct as any).providerPlaceId : bracketId;
+  if (typeof key !== 'string' || typeof id !== 'string') return { present: true, ref: null };
+  return { present: true, ref: parsePlaceRefParam(`${key}:${id}`) };
+}
+
 /** Returns null for anything that is not exactly one well-formed reference. */
 export function parsePlaceRefParam(raw: unknown): ParsedPlaceRef | null {
   if (typeof raw !== 'string') return null; // absent, repeated (array) or object params
