@@ -36,6 +36,7 @@ export interface ParcelJourneySummary {
   shipmentId: number | null;
   superAgentId: number | null;
   destinationSuperAgentId: number | null;
+  transportMethod: string | null;
 }
 
 export interface ParcelJourneyContext {
@@ -63,7 +64,7 @@ export class ParcelJourneyService {
   private async getParcelSummary(parcelId: number): Promise<ParcelJourneySummary> {
     const rows = await this.dataSource.query(
       `SELECT id, "trackingNumber", status, "originCity", "destinationCity", "weightKg",
-              "orderId", "shipmentId", "superAgentId", "destinationSuperAgentId"
+              "orderId", "shipmentId", "superAgentId", "destinationSuperAgentId", "transportMethod"
          FROM public.parcel WHERE id = $1`,
       [parcelId],
     );
@@ -157,6 +158,9 @@ export class ParcelJourneyService {
   // produces no candidates for that Run -- never a false positive.
   async findEligibleRuns(parcelId: number): Promise<EligibleRunCandidate[]> {
     const parcel = await this.getParcelSummary(parcelId);
+    // A Run is an explicit service choice. Direct intracity parcels must never
+    // leak into Van discovery merely because they are physically at a hub.
+    if (parcel.transportMethod !== 'van') return [];
     const latest = await this.dataSource.getRepository(ParcelCustodyEvent).findOne({
       where: { parcelId },
       order: { recordedAt: 'DESC', id: 'DESC' },
@@ -190,7 +194,7 @@ export class ParcelJourneyService {
   async listHubReadyForMovement(superAgentId: number) {
     return this.dataSource.query(
       `SELECT p.id, p."trackingNumber", p.status, p.description, p."weightKg",
-              p."originCity", p."destinationCity", p."destinationSuperAgentId",
+              p."originCity", p."destinationCity", p."destinationSuperAgentId", p."transportMethod",
               ce."recordedAt" AS "custodySince"
          FROM public.parcel p
          JOIN LATERAL (
@@ -219,6 +223,7 @@ export class ParcelJourneyService {
                AND (t."expiresAt" IS NULL OR t."expiresAt">now())
           )
           AND p.status NOT IN ('delivered','returned')
+          AND p."transportMethod" = 'van'
         ORDER BY ce."recordedAt" ASC
         LIMIT 200`,
       [superAgentId],
