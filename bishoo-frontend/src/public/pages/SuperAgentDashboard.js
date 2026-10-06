@@ -34,6 +34,7 @@ import FeatureTour from '../../onboarding/FeatureTour';
 import TourTrigger from '../../onboarding/TourTrigger';
 import SetupProgressCard from '../../onboarding/SetupProgressCard';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
+import HubExpectedShipments from '../components/HubExpectedShipments';
 
 const pendingWalkInRequests = new Map();
 
@@ -1155,6 +1156,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               <>
                 <SetupProgressCard journeyKey="super_agent"
                   context={{ profileStatus, dashData }} onNavigate={onNavigate} />
+
+                {/* Gate 5: booked Shipments this hub is waiting to receive. */}
+                <HubExpectedShipments onReceived={fetchAll} />
 
                 {/* Four action buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 20 }}>

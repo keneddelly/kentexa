@@ -111,3 +111,18 @@ recipient and nothing else.
 Marketplace Order collections still use `parcel_collection` (`/collections`);
 the Agent sees both in one work list. Moving Order collections onto
 `parcel_pickup_task` is the remaining step.
+
+## Shipment → hub → Run
+
+- A trip's hubs are the hubs its Run stops are bound to. The route search
+  shows them (`loadHub`, `unloadHub`); at confirmation the server writes them
+  as the Shipment's origin and destination hub. A request cannot choose a
+  different hub for a booked trip.
+- The desk sees what it is waiting for (`GET /pickup-tasks/hub/expected`) and
+  receives a dropped-off parcel by the customer's Shipment number
+  (`PATCH /super-agents/parcels/:number/status`), or confirms the Agent who
+  brought it (`POST /pickup-tasks/:id/hub-receive`).
+- The transporter sees what is booked on a Run
+  (`GET /van-pilot/runs/:runId/bookings`) and accepts a parcel that has
+  reached the load hub (`POST /van-pilot/runs/:runId/bookings/:parcelId/assign`).
+  The Run and stops come from the committed Journey leg, never the request.

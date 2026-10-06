@@ -26,6 +26,12 @@ import { Vehicle } from '../transport/entities/vehicle.entity';
 import { ParcelRunAssignment } from '../transport/entities/parcel-run-assignment.entity';
 import { ensureRouteStopDeferrableSequenceConstraint } from '../transport/route-stop-schema';
 import { eatDateTime, runLoad } from '../transport/run-supply';
+import { ParcelRunAssignmentService } from '../transport/parcel-run-assignment.service';
+import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
+import { AddParcelMovementTender1788288600000 } from '../database/migrations/1788288600000-AddParcelMovementTender';
+import { MakeShipmentProviderTenderGenerationSafe1788289200000 } from '../database/migrations/1788289200000-MakeShipmentProviderTenderGenerationSafe';
+import { projectShipmentForParcel } from './shipment-projection';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AddTransportRecurringSchedule1788291600000 } from '../database/migrations/1788291600000-AddTransportRecurringSchedule';
 import { Parcel } from '../super-agents/entities/parcel.entity';
 import { SuperAgent } from '../super-agents/entities/super-agent.entity';
@@ -110,6 +116,7 @@ suite('Gates 1-2 — booking contract on Transport Runs, real PostgreSQL', () =>
   let composer: JourneyComposerService;
   let journeys: JourneySelectionService;
   let quotes: TransportQuoteService;
+  let pra: ParcelRunAssignmentService;
   let provider: TransportProvider;
   let providerUserId: number;
   let route: TransportRoute;
@@ -133,9 +140,11 @@ suite('Gates 1-2 — booking contract on Transport Runs, real PostgreSQL', () =>
         return value;
       }
       const rows = await manager.query(
-        `INSERT INTO public.parcel ("shipmentId", "journeySelectionId", status, "originCity", "destinationCity", "weightKg", source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [value.shipment.id, value.journeySelectionId ?? null, value.status, value.originCity, value.destinationCity, value.weightKg, value.source],
+        `INSERT INTO public.parcel ("shipmentId", "journeySelectionId", status, "originCity", "destinationCity", "weightKg", source,
+           "superAgentId", "destinationSuperAgentId")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+        [value.shipment.id, value.journeySelectionId ?? null, value.status, value.originCity, value.destinationCity, value.weightKg, value.source,
+          value.superAgent?.id ?? null, value.destinationSuperAgent?.id ?? null],
       );
       return { ...value, ...rows[0] };
     },
@@ -187,7 +196,7 @@ suite('Gates 1-2 — booking contract on Transport Runs, real PostgreSQL', () =>
       type: 'postgres', host: config!.host, port: config!.port, username: config!.user, password: config!.password,
       database: config!.database, synchronize: true, extra: { max: 30 },
       entities: [...B5B_BASE_ENTITIES, ProviderAvailability, TransportRoute, TransportRoutePriceHistory,
-        RouteStop, TransportRun, TransportRunStop, Vehicle, ParcelRunAssignment,
+        RouteStop, TransportRun, TransportRunStop, Vehicle, ParcelRunAssignment, ParcelCustodyEvent,
         Shipment, TransportQuote, JourneySelection, JourneyLeg],
     });
     await ds.initialize();
@@ -198,8 +207,18 @@ suite('Gates 1-2 — booking contract on Transport Runs, real PostgreSQL', () =>
     await ds.query(`CREATE TABLE public.parcel (
       id SERIAL PRIMARY KEY, "shipmentId" integer UNIQUE, "journeySelectionId" integer,
       "trackingNumber" varchar, status varchar, "originCity" varchar, "destinationCity" varchar,
-      "weightKg" decimal(8,2), source varchar
+      "weightKg" decimal(8,2), source varchar,
+      "superAgentId" integer, "destinationSuperAgentId" integer, "arrivedAtHubTime" timestamp
     )`);
+    await ds.query(`CREATE TABLE public.parcel_tracking (id SERIAL PRIMARY KEY, "parcelId" integer NOT NULL, status text NOT NULL,
+      city text, note text, "updatedBy" text, "handlerPhone" text, "handlerLocation" text, "handlerType" text,
+      "createdAt" timestamp NOT NULL DEFAULT now())`);
+    // Gate 5: the real movement-tender table and its generation trigger.
+    const tenderRunner = ds.createQueryRunner();
+    try {
+      await new AddParcelMovementTender1788288600000().up(tenderRunner);
+      await new MakeShipmentProviderTenderGenerationSafe1788289200000().up(tenderRunner);
+    } finally { await tenderRunner.release(); }
 
     const providers = ds.getRepository(TransportProvider);
     const routes = ds.getRepository(TransportRoute);
@@ -237,12 +256,21 @@ suite('Gates 1-2 — booking contract on Transport Runs, real PostgreSQL', () =>
       transport, { search: async () => [] } as any, locations, ds.getRepository(TransportQuote),
     );
     controller = new ShipmentsController(shipments);
+    // The real Run assignment service. Only the Super Agent commission
+    // obligation it records on receipt is a stand-in (Gate 6's subject).
+    pra = new ParcelRunAssignmentService(
+      ds.getRepository(ParcelRunAssignment), ds.getRepository(TransportRun), ds.getRepository(TransportRunStop),
+      transport, ds, { createObligation: async () => ({ id: 1 }), attemptResolve: async () => undefined } as any,
+    );
   });
 
   afterAll(async () => { if (ds) await ds.destroy().catch(() => {}); });
 
   beforeEach(async () => {
+    await ds.query('DELETE FROM public.parcel_movement_tender');
     await ds.query('DELETE FROM public.parcel_run_assignment');
+    await ds.query('DELETE FROM public.parcel_custody_event');
+    await ds.query('DELETE FROM public.parcel_tracking');
     await ds.query('DELETE FROM public.parcel');
     await ds.query('DELETE FROM public.shipment');
     await ds.query('DELETE FROM public.transport_quote');
@@ -655,6 +683,202 @@ suite('Gates 1-2 — booking contract on Transport Runs, real PostgreSQL', () =>
       const journey = await composer.selectComposed(SENDER, selectJourneyBody());
       await expect(quotes.createQuote(user, { ...quoteBody(journey.id), providerId: provider.id + 1 }))
         .rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  // ── Gate 5: Shipment -> hub -> Run ──────────────────────────────────────
+  describe('a booked Shipment reaches its Run through the hubs the Run stops at (Gate 5)', () => {
+    let originHub: { id: number; userId: number };
+    let destinationHub: { id: number; userId: number };
+    const providerCtx = () => ({ userId: providerUserId, accountRoleId: 501, roleType: 'transport_provider', workspaceId: null } as any);
+    const hubCtx = (hub: { id: number; userId: number }) =>
+      ({ userId: hub.userId, profileId: hub.id, accountRoleId: 600 + hub.id, roleType: 'super_agent', workspaceId: null } as any);
+    const mkHub = async (name: string) => {
+      const u = await ds.getRepository(User).save(ds.getRepository(User).create({
+        email: `hub-${++userSeq}@gate5.local`, phone: `+2558${String(userSeq).padStart(8, '0')}`, password: 'x', name,
+      } as any));
+      const hub: any = await ds.getRepository(SuperAgent).save(ds.getRepository(SuperAgent).create({
+        userId: (u as any).id, businessName: name, city: 'Dar es Salaam', address: `${name} Street`, status: 'active',
+      } as any) as any);
+      return { id: hub.id as number, userId: (u as any).id as number };
+    };
+    /** What the desk does when the parcel is put on its counter (SuperAgentsService writes exactly this). */
+    const deskReceive = async (parcelId: number, hub: { id: number; userId: number }) => {
+      await ds.getRepository(ParcelCustodyEvent).insert({
+        parcelId, eventKind: 'origin_hub_received', operationKey: `origin-hub-received:${hub.id}`,
+        fromCustodianType: null, fromCustodianId: null, toCustodianType: 'super_agent', toCustodianId: hub.id,
+        actorSource: 'account_role', actorUserId: hub.userId, actorAccountRoleId: 600 + hub.id, actorRoleType: 'super_agent', hubId: hub.id,
+      } as any);
+      await ds.query(`UPDATE public.parcel SET status = 'received_at_hub' WHERE id = $1`, [parcelId]);
+      await projectShipmentForParcel(ds.manager, parcelId);
+    };
+    const shipmentRow = async (id: number) => (await ds.getRepository(Shipment).findOneBy({ id }))!;
+    const custodyKinds = async (parcelId: number) =>
+      (await ds.query('SELECT "eventKind" FROM public.parcel_custody_event WHERE "parcelId" = $1 ORDER BY "recordedAt", id', [parcelId]))
+        .map((r: any) => r.eventKind);
+
+    // The transporter binds the route's stops to Kentexa hubs and reschedules:
+    // every Run from then on loads at one hub and unloads at the other.
+    beforeEach(async () => {
+      originHub = await mkHub('Kariakoo Hub');
+      destinationHub = await mkHub('Mbagala Hub');
+      const stops = await runService.listRouteStops(providerUserId, route.id);
+      await runService.updateRouteStop(providerUserId, route.id, stops[0].id, { superAgentId: originHub.id });
+      await runService.updateRouteStop(providerUserId, route.id, stops[1].id, { superAgentId: destinationHub.id });
+      await runService.deactivateRecurringSchedule(providerUserId, scheduleId);
+      await ds.query('TRUNCATE TABLE public.transport_run_stop RESTART IDENTITY CASCADE');
+      await ds.query('TRUNCATE TABLE public.transport_run RESTART IDENTITY CASCADE');
+      const schedule = await runService.createRecurringSchedule(providerUserId, {
+        routeId: route.id, scheduleType: 'daily', departureTime: '06:00', defaultVehicleId: vehicle.id,
+      } as any);
+      scheduleId = schedule.id;
+      const future = (await runs()).filter((r) => new Date(r.scheduledDeparture).getTime() > Date.now() + 60000);
+      run = { id: future[0].id, scheduledDeparture: new Date(future[0].scheduledDeparture) };
+    });
+    afterEach(async () => {
+      await ds.query('DELETE FROM public.parcel_movement_tender');
+      await ds.query('DELETE FROM public.parcel_run_assignment');
+      await ds.query('DELETE FROM public.parcel');
+      await ds.query('DELETE FROM public.shipment');
+      await ds.query('DELETE FROM public.transport_route_schedule');
+      await ds.query('TRUNCATE TABLE public.transport_run_stop RESTART IDENTITY CASCADE');
+      await ds.query('TRUNCATE TABLE public.transport_run RESTART IDENTITY CASCADE');
+      await ds.query('DELETE FROM public.route_stop');
+      await ds.query('DELETE FROM public.super_agent');
+    });
+
+    it('the search shows which hubs the trip uses', async () => {
+      const trip = (await search(requests.routeSearch.queryString)).availableTrips[0];
+      expect(trip).toMatchObject({
+        runId: run.id,
+        loadHub: { id: originHub.id, name: 'Kariakoo Hub', address: 'Kariakoo Hub Street', city: 'Dar es Salaam' },
+        unloadHub: { id: destinationHub.id, name: 'Mbagala Hub' },
+      });
+    });
+
+    it('sender -> origin hub -> transporter -> Run -> destination hub -> recipient: one story, one place on the Run', async () => {
+      // Booking with the form's (empty) confirmation: the hubs are the trip's, decided by the server.
+      const { shipment, parcel, journey } = await book();
+      expect(shipment).toMatchObject({
+        status: ShipmentStatus.CONFIRMED, originHubId: originHub.id, originHubSource: 'sender_selected',
+        destinationHubId: destinationHub.id, destinationHubSource: 'sender_selected',
+      });
+      const parcelRow = async () => (await ds.query('SELECT * FROM public.parcel WHERE id = $1', [parcel.id]))[0];
+      expect(await parcelRow()).toMatchObject({ superAgentId: originHub.id, destinationSuperAgentId: destinationHub.id });
+      // One customer number for all of it.
+      expect((await parcelRow()).trackingNumber).toBe(shipment.trackingNumber);
+
+      // The transporter sees it booked on their Run -- not yet at the hub.
+      const stops = await ds.getRepository(TransportRunStop).find({ where: { runId: run.id }, order: { sequence: 'ASC' } });
+      expect(await pra.listBookingsForRun(providerUserId, run.id)).toEqual([{
+        shipmentId: shipment.id, trackingNumber: shipment.trackingNumber, itemDescription: 'Nguo za watoto', weightKg: 2,
+        parcelId: parcel.id, loadRunStopId: stops[0].id, unloadRunStopId: stops[1].id, loadStop: 'Kariakoo', unloadStop: 'Mbagala',
+        assignmentId: null, state: 'awaiting_parcel',
+      }]);
+      // It cannot be put on the manifest while the hub does not hold it.
+      await expect(pra.assignBooking(providerUserId, run.id, parcel.id)).rejects.toBeInstanceOf(ForbiddenException);
+
+      // The sender drops it at the trip's origin hub; the desk receives it.
+      await deskReceive(parcel.id, originHub);
+      expect((await shipmentRow(shipment.id)).status).toBe(ShipmentStatus.COLLECTED);
+      expect((await pra.listBookingsForRun(providerUserId, run.id))[0].state).toBe('ready_to_assign');
+
+      // The transporter accepts it: onto THIS Run, at the committed stops, under the booking's own tender.
+      const assignment = await pra.assignBooking(providerUserId, run.id, parcel.id);
+      expect(assignment).toMatchObject({
+        runId: run.id, parcelId: parcel.id, loadRunStopId: stops[0].id, unloadRunStopId: stops[1].id, status: 'scheduled',
+      });
+      const tenders = await ds.query('SELECT source, status, "runId", "consumedByParcelRunAssignmentId" FROM public.parcel_movement_tender WHERE "parcelId" = $1', [parcel.id]);
+      expect(tenders).toEqual([{ source: 'shipment_provider_booking', status: 'consumed', runId: run.id, consumedByParcelRunAssignmentId: assignment.id }]);
+      // A second tap is the same assignment; and the booking still holds ONE place, not two.
+      expect((await pra.assignBooking(providerUserId, run.id, parcel.id)).id).toBe(assignment.id);
+      expect(await runLoad(ds.manager, run.id)).toEqual({ parcels: 1, kg: 2 });
+      expect((await pra.listBookingsForRun(providerUserId, run.id))[0]).toMatchObject({ state: 'assigned', assignmentId: assignment.id });
+
+      // Loaded: custody passes hub -> transporter; the Shipment is in transit.
+      await pra.markLoaded(providerCtx(), assignment.id);
+      expect((await shipmentRow(shipment.id)).status).toBe(ShipmentStatus.IN_TRANSIT);
+      expect(await shipments.trackShipment(shipment.trackingNumber!)).toMatchObject({ status: 'in_transit', holder: 'carrier', location: null });
+
+      // Off-loaded, then the destination hub confirms receipt.
+      await pra.markUnloaded(providerCtx(), assignment.id);
+      await expect(pra.confirmReceipt(hubCtx(originHub), assignment.id)).rejects.toBeInstanceOf(ForbiddenException);
+      await pra.confirmReceipt(hubCtx(destinationHub), assignment.id);
+      expect((await parcelRow()).status).toBe('arrived_at_hub');
+      expect(await shipments.trackShipment(shipment.trackingNumber!)).toMatchObject({
+        status: 'in_transit', holder: 'hub', location: { name: 'Mbagala Hub', city: 'Dar es Salaam' },
+      });
+      expect((await pra.listBookingsForRun(providerUserId, run.id))[0].state).toBe('received');
+
+      // The recipient collects (the desk's verified handover writes exactly this).
+      await ds.getRepository(ParcelCustodyEvent).insert({
+        parcelId: parcel.id, eventKind: 'recipient_self_pickup', operationKey: `recipient-self-pickup:${destinationHub.id}`,
+        fromCustodianType: 'super_agent', fromCustodianId: destinationHub.id, toCustodianType: 'recipient_contact', toCustodianId: null,
+        actorSource: 'account_role', actorUserId: destinationHub.userId, actorAccountRoleId: 600 + destinationHub.id, actorRoleType: 'super_agent',
+        hubId: destinationHub.id,
+      } as any);
+      await ds.query(`UPDATE public.parcel SET status = 'self_pickup' WHERE id = $1`, [parcel.id]);
+      await projectShipmentForParcel(ds.manager, parcel.id);
+
+      // The same story for everyone: the ledger, the Shipment, the Run.
+      expect(await custodyKinds(parcel.id)).toEqual([
+        'origin_hub_received', 'parcel_run_loaded', 'parcel_run_unloaded', 'parcel_run_received',
+        'destination_hub_received', 'recipient_self_pickup',
+      ]);
+      const done = await shipmentRow(shipment.id);
+      expect(done.status).toBe(ShipmentStatus.COMPLETED);
+      expect(done.collectedAt).toBeInstanceOf(Date);
+      expect(done.deliveredAt).toBeInstanceOf(Date);
+      expect(done.completedAt).toBeInstanceOf(Date);
+      expect((await ds.getRepository(JourneySelection).findOneBy({ id: journey.id }))!.status).toBe(JourneySelectionStatus.COMMITTED);
+      expect(await ds.query('SELECT count(*)::int AS n FROM public.parcel_run_assignment WHERE "parcelId" = $1', [parcel.id])).toEqual([{ n: 1 }]);
+    });
+
+    it('the hubs are the trip\'s: a different hub is refused, and a suspended trip hub stops the confirmation', async () => {
+      const other = await mkHub('Other Hub');
+      const first = await price();
+      const created = await shipments.createShipment(SENDER, shipmentBody(first.accepted.id) as any);
+      await expect(shipments.confirmShipment(SENDER, created.id, { originHubId: other.id, requestOriginHub: true }))
+        .rejects.toBeInstanceOf(ConflictException);
+      expect((await shipmentRow(created.id)).status).toBe(ShipmentStatus.PENDING);
+
+      await ds.query(`UPDATE public.super_agent SET status = 'suspended' WHERE id = $1`, [destinationHub.id]);
+      await expect(shipments.confirmShipment(SENDER, created.id, requests.confirm.body)).rejects.toBeInstanceOf(ConflictException);
+      expect((await shipmentRow(created.id)).status).toBe(ShipmentStatus.PENDING);
+      expect(await parcelsOf(created.id)).toHaveLength(0);
+
+      // Naming the trip's own hub is the same as naming none.
+      await ds.query(`UPDATE public.super_agent SET status = 'active' WHERE id = $1`, [destinationHub.id]);
+      const confirmed = await shipments.confirmShipment(SENDER, created.id, { originHubId: originHub.id, requestOriginHub: true });
+      expect(confirmed.shipment).toMatchObject({ originHubId: originHub.id, destinationHubId: destinationHub.id });
+    });
+
+    it('a booking is accepted only by its own transporter, onto its own Run', async () => {
+      const { parcel } = await book();
+      await deskReceive(parcel.id, originHub);
+      const other = await runOn(eatDay(3));
+
+      // Someone else's account sees nothing of this Run.
+      await expect(pra.listBookingsForRun(providerUserId + 9999, run.id)).rejects.toBeInstanceOf(NotFoundException);
+      // Not booked on that other trip: nothing to accept there...
+      await expect(pra.assignBooking(providerUserId, other.id, parcel.id)).rejects.toBeInstanceOf(NotFoundException);
+      // ...and the raw assignment door refuses a Run the Journey did not commit to.
+      const otherStops = await ds.getRepository(TransportRunStop).find({ where: { runId: other.id }, order: { sequence: 'ASC' } });
+      await expect(pra.createAssignment(providerUserId, {
+        runId: other.id, parcelId: parcel.id, loadRunStopId: otherStops[0].id, unloadRunStopId: otherStops[1].id,
+      })).rejects.toBeInstanceOf(ForbiddenException);
+      expect(await ds.query('SELECT count(*)::int AS n FROM public.parcel_run_assignment')).toEqual([{ n: 0 }]);
+      expect(await pra.listBookingsForRun(providerUserId, other.id)).toEqual([]);
+    });
+
+    it('an unconfirmed booking is shown as such and cannot be accepted', async () => {
+      const { accepted } = await price();
+      const created = await shipments.createShipment(SENDER, shipmentBody(accepted.id) as any);
+      expect(await pra.listBookingsForRun(providerUserId, run.id)).toMatchObject([
+        { shipmentId: created.id, parcelId: null, state: 'not_confirmed' },
+      ]);
+      await shipments.cancelShipment(SENDER, created.id);
+      expect(await pra.listBookingsForRun(providerUserId, run.id)).toEqual([]);
     });
   });
 

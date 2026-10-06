@@ -93,14 +93,22 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       password: config!.password, database: config!.database, synchronize: false, entities: [], extra: { max: 20 } });
     await db.initialize();
     await q(`DROP TABLE IF EXISTS public.parcel_pickup_task, public.parcel_tracking, public.parcel_custody_event,
-      public.parcel_collection, public.parcel, public.shipment, public.agent, public.super_agent CASCADE`);
+      public.parcel_collection, public.parcel, public.shipment, public.agent, public.super_agent,
+      public.journey_leg, public.transport_run, public.transport_provider CASCADE`);
     await q(`CREATE TABLE public.shipment (id integer PRIMARY KEY, "requestedByUserId" integer NOT NULL, status text NOT NULL,
       "originCity" text NOT NULL, "destinationCity" text NOT NULL, "originHubSource" text, "destinationHubSource" text,
       "originHubId" integer, "originProviderKey" text, "originResolutionMethod" text, "originLocationLabel" text,
       "originLatitude" double precision, "originLongitude" double precision, "originRegionName" text, "originDistrictName" text,
       "destinationLocationLabel" text, "receiverName" text, "receiverPhone" text, "itemDescription" text, "weightKg" numeric,
       "trackingNumber" text, "orderId" integer, "collectedAt" timestamp, "deliveredAt" timestamp, "completedAt" timestamp,
-      "updatedAt" timestamp)`);
+      "updatedAt" timestamp, "journeySelectionId" integer, "senderName" text, "senderPhone" text)`);
+    // Gate 5: the columns the hub's "expected" list reads about a booked trip.
+    await q(`CREATE TABLE public.transport_provider (id integer PRIMARY KEY, name text)`);
+    await q(`CREATE TABLE public.transport_run (id integer PRIMARY KEY, "providerId" integer, "scheduledDeparture" timestamp)`);
+    await q(`CREATE TABLE public.journey_leg (id SERIAL PRIMARY KEY, "journeySelectionId" integer, sequence integer, type text, "runId" integer)`);
+    await q(`INSERT INTO public.transport_provider VALUES (3, 'Kentexa Van')`);
+    await q(`INSERT INTO public.transport_run VALUES (30, 3, '2026-10-08 03:00:00')`);
+    await q(`INSERT INTO public.journey_leg ("journeySelectionId", sequence, type, "runId") VALUES (800, 1, 'transport', 30)`);
     await q(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "shipmentId" integer, "orderId" integer, status text NOT NULL,
       "superAgentId" integer, "trackingNumber" text, "deliveredTime" timestamp, "buyerConfirmed" boolean NOT NULL DEFAULT false)`);
     await q(`CREATE TABLE public.super_agent (id integer PRIMARY KEY, "userId" integer, status text NOT NULL, "workspaceId" integer,
@@ -310,5 +318,54 @@ suite('Gate 4 — first mile and direct Agent delivery, real PostgreSQL', () => 
       "deliveryCodeExpiresAt"=now() WHERE id=$1`, [t.id])).rejects.toThrow('CHK_pickup_task_delivery_code');
     await expect(q(`UPDATE public.parcel_pickup_task SET "deliveryAttempts"=-1 WHERE id=$1`, [t.id]))
       .rejects.toThrow('CHK_pickup_task_delivery_attempts');
+  });
+
+  // ── Gate 5: what the hub desk is waiting for ─────────────────────────────
+  describe('the hub\'s expected shipments (Gate 5)', () => {
+    const expectedFor = async (parcelId: number) =>
+      (await svc.listHubExpected(70, hubRole(7))).find((r) => r.parcelId === parcelId);
+
+    it('a booked parcel is expected at its hub; the desk is told how it is arriving', async () => {
+      const s = await mkShipment(7);
+      await q(`UPDATE public.shipment SET "journeySelectionId" = 800, "senderName" = 'Baraka', "senderPhone" = '+255713000002' WHERE id = $1`, [s]);
+
+      // Nobody is bringing it: the sender drops it off, the desk receives it by its number.
+      expect(await expectedFor(s)).toEqual({
+        parcelId: s, trackingNumber: `KTX-SHP-${s}`, itemDescription: 'Nguo za watoto', weightKg: 2, destinationCity: 'Mwanza',
+        sender: { name: 'Baraka', phone: '+255713000002' },
+        bookedTrip: { departureAt: expect.any(Date), providerName: 'Kentexa Van' },
+        pickupTask: null, nextAction: 'receive_from_sender',
+      });
+
+      // An Agent pickup is requested and claimed: the desk must wait for that Agent.
+      const t = await request(s, 'hub_routed');
+      expect(await expectedFor(s)).toMatchObject({ nextAction: 'agent_on_the_way', pickupTask: { id: t.id, status: 'requested', agentName: null } });
+      await svc.claim(t.id, 9, agentRole(9));
+      const { code } = await svc.issueHandoffCode(SENDER, s);
+      await svc.collect(t.id, 9, agentRole(9), code);
+      expect(await expectedFor(s)).toMatchObject({ nextAction: 'agent_on_the_way', pickupTask: { status: 'collected', agentName: 'Agent Nine' } });
+
+      // The Agent arrives and asks: now the desk confirms that Agent's handover.
+      await svc.requestHubHandover(t.id, 9, agentRole(9));
+      expect(await expectedFor(s)).toMatchObject({ nextAction: 'confirm_agent_handover', pickupTask: { id: t.id, status: 'awaiting_hub' } });
+      await svc.hubReceive(t.id, 70, hubRole(7));
+      // Received: it is no longer expected.
+      expect(await expectedFor(s)).toBeUndefined();
+      expect((await parcel(s)).status).toBe('received_at_hub');
+      expect((await shipment(s)).status).toBe('collected');
+    });
+
+    it('lists only this hub\'s parcels, to this hub\'s own operator', async () => {
+      const mine = await mkShipment(7);
+      const direct = await mkShipment(); // no hub at all
+      const ids = (await svc.listHubExpected(70, hubRole(7))).map((r) => r.parcelId);
+      expect(ids).toContain(mine);
+      expect(ids).not.toContain(direct);
+      await expect(svc.listHubExpected(9, agentRole(9))).rejects.toThrow('Active Super Agent context required');
+      await expect(svc.listHubExpected(71, { ...hubRole(7), userId: 71 })).rejects.toThrow('active receiving hub');
+      await q(`UPDATE public.super_agent SET status = 'suspended' WHERE id = 7`);
+      await expect(svc.listHubExpected(70, hubRole(7))).rejects.toThrow('active receiving hub');
+      await q(`UPDATE public.super_agent SET status = 'active' WHERE id = 7`);
+    });
   });
 });

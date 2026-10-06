@@ -70,6 +70,14 @@ export class PickupTasksController {
     return this.tasks.listMine(req.user.id, role);
   }
 
+  // Gate 5: the desk's list of Shipments it is waiting to receive.
+  @Get('pickup-tasks/hub/expected')
+  @UseGuards(RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.SUPER_AGENT)
+  hubExpected(@Request() req, @CurrentRoleContext() role: RoleContext) {
+    return this.tasks.listHubExpected(req.user.id, role);
+  }
+
   @Get('shipments/:id/pickup-task')
   forShipment(@Request() req, @Param('id', ParseIntPipe) id: number) {
     return this.tasks.getForShipment(req.user.id, id);

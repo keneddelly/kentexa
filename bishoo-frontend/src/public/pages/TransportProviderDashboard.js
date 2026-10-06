@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api     from '../../api/api';
+import RunBookings from '../components/RunBookings';
 
 // ── Launch scope ──────────────────────────────────────────────────────────
 // Operational dashboard (posting routes, availability, accepting
@@ -708,6 +709,8 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                       {next === 'open' ? 'Open Run' : next === 'close' ? 'Close Loading' : next === 'start' ? 'Start Van' : 'Complete Run'}
                     </button>}
                   </div>
+                  {/* Gate 5: what senders booked on this trip, and one-tap acceptance. */}
+                  <RunBookings runId={run.id} onAssigned={() => loadManifest(run.id)} />
                   {manifest && (
                     <div>
                       {manifest.length === 0 ? <div style={{ fontSize:12, color:'#94a3b8' }}>No parcels assigned to this Run yet.</div> :

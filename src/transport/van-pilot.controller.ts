@@ -273,6 +273,25 @@ export class VanPilotController {
     return this.assignments.listOpenTendersForProvider(ctx.userId);
   }
 
+  // ── Gate 5: Shipments booked on a Run ───────────────────────────────────
+  @Get('runs/:runId/bookings')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  listRunBookings(@CurrentRoleContext() ctx: RoleContext, @Param('runId', ParseIntPipe) runId: number) {
+    return this.assignments.listBookingsForRun(ctx.userId, runId);
+  }
+
+  @Post('runs/:runId/bookings/:parcelId/assign')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  assignRunBooking(
+    @CurrentRoleContext() ctx: RoleContext,
+    @Param('runId', ParseIntPipe) runId: number,
+    @Param('parcelId', ParseIntPipe) parcelId: number,
+  ) {
+    return this.assignments.assignBooking(ctx.userId, runId, parcelId);
+  }
+
   @Post('assignments')
   @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
   @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)

@@ -125,6 +125,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // becomes bookable once the search below finds it for these two places.
   const [selected, setSelected] = useState(() => navParams?.transportProviderId ? { providerId:Number(navParams.transportProviderId), routeId:navParams?.routeId ? Number(navParams.routeId) : undefined } : null);
   const [travelDate, setTravelDate] = useState('');
+  const [tripContextLost, setTripContextLost] = useState(false);
 
   // Step 3 — receiver + handoff.
   const [receiverName, setReceiverName] = useState('');
@@ -190,6 +191,9 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           matchingTrips.find(x => navParams?.transportRunId && Number(x.runId) === Number(navParams.transportRunId)) ||
           matchingTrips.find(x => navParams?.routeId && Number(x.routeId) === Number(navParams.routeId));
         setSelected(prev => requestedTrip || (prev && !prev.runId ? prev : { providerId, routeId:navParams?.routeId ? Number(navParams.routeId) : undefined }));
+        // The profile card named one exact trip. If it can no longer be
+        // booked for these places, say so -- never quietly continue without it.
+        setTripContextLost(Boolean(navParams?.transportRunId) && !(requestedTrip && Number(requestedTrip.runId) === Number(navParams.transportRunId)));
       }
     } catch (err) {
       setTrips([]);
@@ -199,6 +203,16 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       setSearching(false);
     }
   }, [origin, destination, weightKg, originResolved, destinationResolved, travelDate, navParams?.transportProviderId, navParams?.routeId, navParams?.transportRunId]);
+
+  // Entering from a transporter's trip card: the places are already known,
+  // so the search runs by itself when the sender reaches this step and the
+  // trip they came for is found and selected -- provider, route and Run are
+  // carried through, not re-chosen from a generic list.
+  useEffect(() => {
+    if (step === 2 && navParams?.transportProviderId && !searched && !searching && origin.trim() && destination.trim()) {
+      searchRoutes();
+    }
+  }, [step, navParams?.transportProviderId, searched, searching, origin, destination, searchRoutes]);
 
   // A Transporter profile may preselect provider/route/run context, but it
   // must never skip the sender's cargo declaration. "Tuma Mzigo" always
@@ -212,13 +226,22 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId(''); setHubsError(false);
       return;
     }
-    if (!originResolved?.placeRef && !destinationResolved?.placeRef) return;
+    // A booked trip uses the hubs its own stops are bound to (the server
+    // decides that at confirmation). Those sides have nothing to choose.
+    const originFixed = Boolean(selected?.loadHub);
+    const destinationFixed = Boolean(selected?.unloadHub);
+    if (originFixed) setOriginHubId('');
+    if (destinationFixed) setDestinationHubId('');
+    if ((originFixed || !originResolved?.placeRef) && (destinationFixed || !destinationResolved?.placeRef)) {
+      setOriginHubs([]); setDestinationHubs([]); setHubsError(false);
+      return;
+    }
     setHubsLoading(true);
     setHubsError(false);
     try {
       const [o,d]=await Promise.all([
-        originResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(originResolved,'origin')}) : Promise.resolve({data:{hubs:[]}}),
-        destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(destinationResolved,'destination')}) : Promise.resolve({data:{hubs:[]}}),
+        !originFixed && originResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(originResolved,'origin')}) : Promise.resolve({data:{hubs:[]}}),
+        !destinationFixed && destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(destinationResolved,'destination')}) : Promise.resolve({data:{hubs:[]}}),
       ]);
       setOriginHubs(o.data?.hubs || []); setDestinationHubs(d.data?.hubs || []);
     } catch { setOriginHubs([]); setDestinationHubs([]); setHubsError(true); }
@@ -406,6 +429,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                   : searchReason === 'provider_does_not_serve_route'
                     ? t('send_shipment.provider_does_not_serve_route')
                     : t('send_shipment.no_options_found')}
+              </div>
+            )}
+
+            {searched && !searching && tripContextLost && (
+              <div role="alert" style={{ padding: '10px 12px', color: '#92400E', fontSize: 12, backgroundColor: '#FFFBEB',
+                border: '1px solid #FDE68A', borderRadius: 12, marginBottom: 12 }}>
+                {t('send_shipment.trip_context_lost')}
               </div>
             )}
 
@@ -623,6 +653,19 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 </div>
               )}
             </div>
+
+            {(selected?.loadHub || selected?.unloadHub) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>{t('send_shipment.trip_hubs_title')}</div>
+              {selected?.loadHub && <div style={{fontSize:12,color:DK,marginBottom:6}}>
+                <span style={{color:GR}}>{t('send_shipment.trip_hub_origin')}: </span>
+                <strong>{selected.loadHub.name}</strong>{selected.loadHub.address ? ` · ${selected.loadHub.address}` : (selected.loadHub.city ? ` · ${selected.loadHub.city}` : '')}
+              </div>}
+              {selected?.unloadHub && <div style={{fontSize:12,color:DK}}>
+                <span style={{color:GR}}>{t('send_shipment.trip_hub_destination')}: </span>
+                <strong>{selected.unloadHub.name}</strong>{selected.unloadHub.address ? ` · ${selected.unloadHub.address}` : (selected.unloadHub.city ? ` · ${selected.unloadHub.city}` : '')}
+              </div>}
+              <div style={{fontSize:11,color:GR,marginTop:8}}>{t('send_shipment.trip_hubs_note')}</div>
+            </div>}
 
             {(originHubs.length>0 || destinationHubs.length>0) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
               <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Kentexa Hub</div>

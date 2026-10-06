@@ -609,6 +609,63 @@ export class PickupTasksService {
     });
   }
 
+  /**
+   * Gate 5: what a hub desk is waiting for -- Shipments that chose this hub
+   * as their origin and whose parcel has not been received here yet. Either
+   * the sender drops it off (the desk receives it by the customer's Shipment
+   * number) or an Agent brings it (the desk confirms that Agent's handover).
+   * `nextAction` says which, so the desk never has to guess.
+   */
+  async listHubExpected(userId: number, role: RoleContext) {
+    if (!role || role.userId !== userId || role.roleType !== AccountRoleType.SUPER_AGENT) {
+      throw new ForbiddenException('Active Super Agent context required');
+    }
+    const [hub] = await this.db.query(
+      'SELECT id, status, "userId", "workspaceId" FROM public.super_agent WHERE id=$1', [role.profileId]);
+    if (!hub || hub.userId !== userId || hub.status !== 'active' ||
+        (hub.workspaceId != null && hub.workspaceId !== role.workspaceId)) {
+      throw new ForbiddenException('An active receiving hub is required');
+    }
+    const rows: any[] = await this.db.query(
+      `SELECT p.id AS "parcelId", COALESCE(s."trackingNumber", p."trackingNumber") AS "trackingNumber",
+              p.status AS "parcelStatus", s."senderName", s."senderPhone", s."itemDescription", s."weightKg",
+              s."destinationCity", t.id AS "taskId", t.status AS "taskStatus", a."fullName" AS "agentName",
+              trip."scheduledDeparture", trip."providerName"
+         FROM public.parcel p
+         JOIN public.shipment s ON s.id = p."shipmentId"
+         LEFT JOIN LATERAL (
+           SELECT x.id, x.status, x."agentProfileId" FROM public.parcel_pickup_task x
+            WHERE x."parcelId" = p.id AND x.status IN ('requested','claimed','collected','awaiting_hub')
+            ORDER BY x.id DESC LIMIT 1) t ON true
+         LEFT JOIN public.agent a ON a.id = t."agentProfileId"
+         LEFT JOIN LATERAL (
+           SELECT r."scheduledDeparture", tp.name AS "providerName"
+             FROM public.journey_leg l
+             JOIN public.transport_run r ON r.id = l."runId"
+             JOIN public.transport_provider tp ON tp.id = r."providerId"
+            WHERE l."journeySelectionId" = s."journeySelectionId" AND l.type = 'transport'
+            ORDER BY l.sequence ASC LIMIT 1) trip ON true
+        WHERE p."superAgentId" = $1 AND p.status IN ('pending','collected_by_agent')
+          AND s.status IN ('confirmed','collected')
+        ORDER BY trip."scheduledDeparture" ASC NULLS LAST, p.id ASC LIMIT 100`,
+      [hub.id],
+    );
+    return rows.map((r) => ({
+      parcelId: r.parcelId,
+      trackingNumber: r.trackingNumber,
+      itemDescription: r.itemDescription,
+      weightKg: Number(r.weightKg) || 0,
+      destinationCity: r.destinationCity,
+      sender: { name: r.senderName ?? null, phone: r.senderPhone ?? null },
+      bookedTrip: r.scheduledDeparture ? { departureAt: r.scheduledDeparture, providerName: r.providerName ?? null } : null,
+      pickupTask: r.taskId ? { id: r.taskId, status: r.taskStatus, agentName: r.agentName ?? null } : null,
+      nextAction:
+        r.taskStatus === 'awaiting_hub' ? 'confirm_agent_handover'
+        : r.taskId ? 'agent_on_the_way'
+        : 'receive_from_sender',
+    }));
+  }
+
   /** The sender's view of their Shipment's pickup: its state and, once claimed, who is coming. */
   async getForShipment(userId: number, shipmentId: number) {
     const [s] = await this.db.query('SELECT id, "requestedByUserId" FROM public.shipment WHERE id=$1', [shipmentId]);
