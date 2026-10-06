@@ -27,6 +27,7 @@ import {
   holdRunsForJourney,
   parseTravelDate,
 } from './run-supply';
+import { projectShipmentForParcel } from '../shipments/shipment-projection';
 import { cityMatchParams, cityMatchSql, normalizeDiscoveryCity } from './city-match';
 import {
   TransportProvider,
@@ -1485,16 +1486,6 @@ export class TransportService {
   // originated from — so a shipment requester sees real progress without
   // needing to know their parcel is also, internally, a Parcel. Never
   // blocks the transport-status update itself if it fails.
-  private static readonly SHIPMENT_SYNC: Partial<
-    Record<ParcelStatus, ShipmentStatus>
-  > = {
-    [ParcelStatus.DISPATCHED]: ShipmentStatus.COLLECTED,
-    [ParcelStatus.IN_TRANSIT]: ShipmentStatus.IN_TRANSIT,
-    [ParcelStatus.ARRIVED_AT_HUB]: ShipmentStatus.IN_TRANSIT,
-    [ParcelStatus.DELIVERED]: ShipmentStatus.DELIVERED,
-    [ParcelStatus.SELF_PICKUP]: ShipmentStatus.DELIVERED,
-  };
-
   private async syncParcelFromAssignment(
     a: TransportAssignment,
     newStatus: AssignmentStatus,
@@ -1529,11 +1520,9 @@ export class TransportService {
         } as any),
       );
 
-      const shipmentId = a.shipmentRefId || (parcel as any).shipmentId;
-      const shipmentStatus = TransportService.SHIPMENT_SYNC[targetParcelStatus];
-      if (shipmentId && shipmentStatus) {
-        await this.shipmentRepo.update(shipmentId, { status: shipmentStatus });
-      }
+      // Gate 3: the Shipment follows from the Parcel and custody truth
+      // through the ONE projector -- it is never set from an assignment.
+      await projectShipmentForParcel(this.dataSource.manager, parcel.id);
     } catch {
       /* non-fatal — the transport status update itself already succeeded */
     }

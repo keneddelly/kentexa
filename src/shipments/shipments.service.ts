@@ -27,7 +27,13 @@ import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportQuote, TransportQuoteStatus } from '../transport/entities/transport-quote.entity';
-import { JourneySelection } from '../transport/entities/journey-selection.entity';
+import {
+  JourneyLeg,
+  JourneyLegType,
+  JourneySelection,
+  JourneySelectionStatus,
+} from '../transport/entities/journey-selection.entity';
+import { ShipmentHolder, projectShipment } from './shipment-projection';
 import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
@@ -89,6 +95,12 @@ export interface PublicShipmentTracking {
   completedAt: Date | null;
   createdAt: Date;
   parcelTrackingNumber: string | null;
+  // Gate 3: where the parcel is, derived from the custody ledger. `holder`
+  // is a role, never a person; `location` is a hub's public name and city,
+  // and only when a hub holds the parcel.
+  parcelStatus: string | null;
+  holder: ShipmentHolder;
+  location: { name: string; city: string } | null;
 }
 
 // Gate 1: WHY a discovery came back the way it did, so the send form never
@@ -160,6 +172,12 @@ export interface CreateShipmentDto {
   // in a different price after acceptance). See createShipment()'s own
   // comment for the exact precedence.
   quoteId?: number;
+  // Gate 3: a server-composed Journey that has NO transport leg (an Agent
+  // carries the parcel from sender to recipient directly). Such a Journey
+  // has no carrier to quote, so it is bound here by id; a Journey WITH a
+  // transport leg is bound only through its accepted quote above. Ignored
+  // when quoteId is given.
+  journeySelectionId?: number;
   pickupOption?: ShipmentHandoffOption;
   deliveryOption?: ShipmentHandoffOption;
 }
@@ -559,9 +577,26 @@ export class ShipmentsService {
         await this.transportService.assertRouteServesJourney(quote.routeId, o.city, d.city);
       }
     }
-    const effectiveProviderId = quote ? quote.providerId : dto.providerId;
-    const effectiveRouteId = quote ? quote.routeId : dto.routeId;
-    const effectiveAvailabilityId = quote ? (quote.availabilityId ?? undefined) : dto.availabilityId;
+    // Gate 3: a Journey with zero transport legs. Zero transport legs is a
+    // valid Journey; it simply has no provider, route or slot to carry over,
+    // so any the request names are ignored rather than mixed in.
+    let directJourneyId: number | null = null;
+    if (!quote && dto.journeySelectionId != null) {
+      directJourneyId = Number(dto.journeySelectionId);
+      if (!Number.isInteger(directJourneyId) || directJourneyId <= 0) {
+        throw new BadRequestException('journeySelectionId must be a positive integer');
+      }
+      // Ownership and "same two places" first (404 / 400), then its shape.
+      await this.assertShipmentMatchesJourney(directJourneyId, userId, dto, origin, destination);
+      if (!(await this.isTransportFreeJourney(directJourneyId))) {
+        throw new BadRequestException('That journey includes transport: accept its quote and send quoteId instead');
+      }
+    }
+    const effectiveProviderId = quote ? quote.providerId : directJourneyId ? undefined : dto.providerId;
+    const effectiveRouteId = quote ? quote.routeId : directJourneyId ? undefined : dto.routeId;
+    const effectiveAvailabilityId = quote
+      ? (quote.availabilityId ?? undefined)
+      : directJourneyId ? undefined : dto.availabilityId;
 
     // A providerId on create is only a stored SELECTION -- it never confirms
     // anything (see status below). Still validated here with the canonical
@@ -612,6 +647,7 @@ export class ShipmentsService {
       if (quote?.journeySelectionId != null) {
         await this.transportService.holdRunCapacityForJourney(quote.journeySelectionId, weightKg, em);
       }
+      if (directJourneyId != null) await this.commitTransportFreeJourney(em, directJourneyId, userId);
       if (effectiveAvailabilityId) {
         await this.transportService.reserveSlot(
           effectiveAvailabilityId,
@@ -645,7 +681,7 @@ export class ShipmentsService {
           providerId: effectiveProviderId || null,
           quoteId: quote?.id ?? null,
           // Journey authority comes from the accepted quote, never a parallel client assertion.
-          journeySelectionId: quote?.journeySelectionId ?? null,
+          journeySelectionId: quote?.journeySelectionId ?? directJourneyId ?? null,
           pickupOption: dto.pickupOption || ShipmentHandoffOption.AGENT,
           deliveryOption: dto.deliveryOption || ShipmentHandoffOption.AGENT,
           priceQuoted,
@@ -708,6 +744,43 @@ export class ShipmentsService {
     }
   }
 
+  // Gate 3. True only for a Journey that exists and has no TRANSPORT leg.
+  private async isTransportFreeJourney(journeySelectionId: number | null | undefined): Promise<boolean> {
+    if (journeySelectionId == null) return false;
+    const manager = this.shipmentRepo.manager;
+    const journey = await manager.getRepository(JourneySelection).findOne({ where: { id: journeySelectionId } });
+    if (!journey) return false;
+    const transportLegs = await manager
+      .getRepository(JourneyLeg)
+      .count({ where: { journeySelectionId, type: JourneyLegType.TRANSPORT } });
+    return transportLegs === 0;
+  }
+
+  // A transport-free Journey has no quote to accept, so binding it to its
+  // Shipment is what commits it. Row-locked: one Journey, one live Shipment.
+  private async commitTransportFreeJourney(em: EntityManager, journeySelectionId: number, userId: number): Promise<void> {
+    const journeys = em.getRepository(JourneySelection);
+    const journey = await journeys.findOne({
+      where: { id: journeySelectionId, requestedByUserId: userId },
+      lock: { mode: 'pessimistic_write' },
+    });
+    if (!journey) throw new NotFoundException('Journey selection not found');
+    if (
+      journey.status === JourneySelectionStatus.SUPERSEDED ||
+      journey.status === JourneySelectionStatus.CANCELLED
+    ) {
+      throw new ConflictException('That journey is no longer available');
+    }
+    const inUse = await em.getRepository(Shipment).count({ where: { journeySelectionId } });
+    const cancelled = await em
+      .getRepository(Shipment)
+      .count({ where: { journeySelectionId, status: ShipmentStatus.CANCELLED } });
+    if (inUse - cancelled > 0) throw new ConflictException('That journey already has a shipment');
+    if (journey.status !== JourneySelectionStatus.COMMITTED) {
+      await journeys.update(journey.id, { status: JourneySelectionStatus.COMMITTED });
+    }
+  }
+
   // One canonical numeric rule for the stored shipment weight: unspecified
   // stays 0 (as before), anything non-finite or negative is rejected.
   private normalizeWeightKg(raw: unknown): number {
@@ -719,11 +792,36 @@ export class ShipmentsService {
     return n;
   }
 
+  // What the sender booked themselves. A parcel a Super Agent registered at
+  // the desk for a walk-in customer has a Shipment too (Gate 3), but it is
+  // the desk's work, not one of the desk operator's own shipments.
   async getMyShipments(userId: number): Promise<Shipment[]> {
-    return this.shipmentRepo.find({
-      where: { requestedByUserId: userId },
-      order: { createdAt: 'DESC' },
-    });
+    const mine = (
+      await this.shipmentRepo.find({
+        where: { requestedByUserId: userId },
+        order: { createdAt: 'DESC' },
+      })
+    ).filter((s) => s.intakeChannel !== 'walk_in');
+    // Read-side safety net for the ONE projector: anything still open is
+    // re-derived from parcel/custody truth before it is shown, so a list can
+    // never be staler than the ledger.
+    const open = mine
+      .filter((s) => [ShipmentStatus.CONFIRMED, ShipmentStatus.COLLECTED, ShipmentStatus.IN_TRANSIT, ShipmentStatus.DELIVERED].includes(s.status))
+      .slice(0, 50);
+    for (const s of open) {
+      try {
+        const projected = await projectShipment(this.shipmentRepo.manager, s.id);
+        if (projected?.changed) {
+          s.status = projected.status as ShipmentStatus;
+          s.collectedAt = projected.collectedAt;
+          s.deliveredAt = projected.deliveredAt;
+          s.completedAt = projected.completedAt;
+        }
+      } catch {
+        /* shown as stored; projected again on the next read */
+      }
+    }
+    return mine;
   }
 
   // Public, unauthenticated — a receiver who never created a Kentexa
@@ -733,9 +831,47 @@ export class ShipmentsService {
   // the raw Shipment entity. Once a Parcel exists, the frontend re-fetches
   // /super-agents/track/:parcelTrackingNumber for the richer, already-curated
   // Parcel view — this method never grows to replicate that shape itself.
+  // Gate 3: ONE customer tracking number. The number may be the Shipment's
+  // (what the customer was given) or, for a parcel created before Gate 3,
+  // the parcel's own internal number -- both find the same Shipment.
   async trackShipment(trackingNumber: string): Promise<PublicShipmentTracking> {
-    const s = await this.shipmentRepo.findOne({ where: { trackingNumber } });
+    let s = await this.shipmentRepo.findOne({ where: { trackingNumber } });
+    if (!s) {
+      const viaParcel = await this.parcelRepo.findOne({
+        where: { trackingNumber },
+        relations: { shipment: true },
+      } as any);
+      if (viaParcel?.shipment?.id) s = await this.shipmentRepo.findOne({ where: { id: viaParcel.shipment.id } });
+    }
     if (!s) throw new NotFoundException('Shipment not found');
+
+    // Derived from parcel/custody truth at read time as well as at write
+    // time, so this answer cannot be staler than the ledger.
+    let holder: ShipmentHolder = 'sender';
+    let holderHubId: number | null = null;
+    let parcelStatus: string | null = null;
+    try {
+      const projected = await projectShipment(this.shipmentRepo.manager, s.id);
+      if (projected) {
+        holder = projected.holder;
+        holderHubId = projected.holderHubId;
+        parcelStatus = projected.parcelStatus;
+        if (projected.changed) {
+          s.status = projected.status as ShipmentStatus;
+          s.collectedAt = projected.collectedAt;
+          s.deliveredAt = projected.deliveredAt;
+          s.completedAt = projected.completedAt;
+        }
+      }
+    } catch {
+      /* answered from the stored row */
+    }
+    let location: { name: string; city: string } | null = null;
+    if (holder === 'hub' && holderHubId != null) {
+      const hub = await this.superAgentRepo.findOne({ where: { id: holderHubId } }).catch(() => null);
+      if (hub) location = { name: hub.businessName, city: hub.city };
+    }
+
     const parcel = await this.parcelRepo.findOne({
       where: { shipment: { id: s.id } },
     });
@@ -754,6 +890,9 @@ export class ShipmentsService {
       completedAt: s.completedAt,
       createdAt: s.createdAt,
       parcelTrackingNumber: parcel?.trackingNumber || null,
+      parcelStatus: parcelStatus ?? parcel?.status ?? null,
+      holder,
+      location,
     };
   }
 
@@ -823,17 +962,21 @@ export class ShipmentsService {
     const providerId = shipment.journeySelectionId != null
       ? shipment.providerId
       : (dto.providerId ?? shipment.providerId);
-    if (!providerId) {
+    // Gate 3: a transporter is required exactly when the Journey has a
+    // transport leg. A committed Journey with none (sender -> Agent ->
+    // recipient) is confirmed without one; a Shipment with no Journey at all
+    // still has to name its provider, as before.
+    if (!providerId && !(await this.isTransportFreeJourney(shipment.journeySelectionId))) {
       throw new BadRequestException('Select a provider before confirming');
     }
     // Delegated to the transport domain's own provider policy — never
     // redefined here. A nonexistent/unverified/suspended provider fails
     // closed with the same error createAssignment() already gives.
-    await this.transportService.assertEligibleProvider(providerId);
+    if (providerId) await this.transportService.assertEligibleProvider(providerId);
 
     const updates: Partial<Shipment> = {
       status: ShipmentStatus.CONFIRMED,
-      providerId,
+      providerId: providerId ?? null,
     };
     const switchesSlot =
       shipment.journeySelectionId == null &&
@@ -940,10 +1083,10 @@ export class ShipmentsService {
     shipment: Shipment,
     hubInputs: Record<HubSide, HubSelectionInput> = NO_HUB_INPUT,
   ): Promise<{ shipment: Shipment; parcel: Parcel }> {
-    if (!shipment.providerId) {
+    if (!shipment.providerId && !(await this.isTransportFreeJourney(shipment.journeySelectionId))) {
       throw new BadRequestException('Select a provider before confirming');
     }
-    await this.transportService.assertEligibleProvider(shipment.providerId);
+    if (shipment.providerId) await this.transportService.assertEligibleProvider(shipment.providerId);
 
     let current = shipment;
     const existing = await this.parcelRepo.findOne({
@@ -1118,6 +1261,12 @@ export class ShipmentsService {
     if (preliminary.requestedByUserId !== userId) {
       throw new ForbiddenException('Not your shipment');
     }
+    // Gate 3: a Shipment that carries a desk walk-in or an Order's parcel is
+    // not the requester's to cancel here -- its parcel is already in the
+    // network and its Order has its own cancellation rules.
+    if (preliminary.intakeChannel && preliminary.intakeChannel !== 'self_service') {
+      throw new BadRequestException('This shipment is managed through its desk receipt or order');
+    }
 
     // Transition + release are ONE transaction on a row-locked re-read, so a
     // concurrent or retried cancel (or a racing confirm) sees the committed
@@ -1213,7 +1362,16 @@ export class ShipmentsService {
     // Concurrent confirmations take the Shipment lock in order, so only the
     // first caller inserts. Keep the unique index as a database backstop.
     const saved = await parcels.save(created);
-    saved.trackingNumber = `KTX-PCL-${saved.id}`;
+    // Gate 3: ONE customer tracking number. The Parcel carries the Shipment's
+    // own number, so the desk, the Agent, the carrier and every SMS use the
+    // reference the sender was given. Only if some older parcel already holds
+    // that exact string (legacy data) does this one fall back to an internal
+    // number -- which the customer's number still resolves to
+    // (customer-tracking.ts).
+    const taken = shipment.trackingNumber
+      ? await parcels.findOne({ where: { trackingNumber: shipment.trackingNumber } })
+      : saved;
+    saved.trackingNumber = taken ? `KTX-PCL-${saved.id}` : shipment.trackingNumber;
     return parcels.save(saved);
   }
 }

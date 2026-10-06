@@ -239,6 +239,10 @@ describe('ShipmentsService', () => {
           'completedAt',
           'createdAt',
           'parcelTrackingNumber',
+          // Gate 3: where the parcel is -- a role and a hub's public name, never a person or an id.
+          'parcelStatus',
+          'holder',
+          'location',
         ].sort(),
       );
       expect(result).not.toHaveProperty('id');

@@ -72,3 +72,21 @@ of them; it remains only behind the legacy Super Agent dispatch screen
 
 Recurring schedules are topped up to their horizon hourly and at start-up
 (`TransportRunService.extendScheduleHorizons`).
+
+## Shipment lifecycle
+
+A Shipment's operational status (`collected`, `in_transit`, `delivered`,
+`completed`) and its three timestamps are derived, never set by hand, by the
+one projector in `src/shipments/shipment-projection.ts`. It reads the custody
+ledger and the Parcel's status, only moves forward, and is run when a parcel
+moves and again whenever a Shipment is read. `pending`, `confirmed` and
+`cancelled` remain the customer's own decisions in `ShipmentsService`.
+
+Every intake creates or links a Shipment (`src/shipments/intake-shipment.ts`):
+the send form, a Super Agent desk walk-in, a seller shipment and an Order
+received at a hub. `shipment."intakeChannel"` says which.
+
+The customer's tracking number is the Shipment's. A Parcel born from a
+Shipment carries the same number; a parcel numbered before this
+(`KTX-PCL-n`) is still found by the customer's number
+(`src/shipments/customer-tracking.ts`).

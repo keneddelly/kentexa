@@ -321,7 +321,7 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
         {/* Result */}
         {result && (
           <>
-            {result._source === 'superagent' &&
+            {['superagent', 'shipment-parcel'].includes(result._source) &&
               ['arrived_at_hub', 'awaiting_buyer'].includes(result.status) &&
               result.buyerRequestedDelivery == null && (
                 <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 14,

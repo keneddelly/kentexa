@@ -102,6 +102,7 @@ import { Vehicle } from './entities/vehicle.entity';
 import { ParcelRunAssignment, ParcelRunAssignmentStatus } from './entities/parcel-run-assignment.entity';
 import { TransportService } from './transport.service';
 import { runLoad } from './run-supply';
+import { projectShipmentForParcel } from '../shipments/shipment-projection';
 import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-event.entity';
 // A plain TS enum import only -- NOT the Parcel/ParcelTracking entity
 // classes. Mirrors this file's own established "plain parcelId column, raw
@@ -383,7 +384,12 @@ export class ParcelRunAssignmentService {
         Number(leg.routeId) === Number(run.routeId) &&
         (leg.runId == null || Number(leg.runId) === Number(run.id))
       );
-      if (!matchingLeg) {
+      // Gate 3: a committed Journey with NO transport leg made no promise
+      // about a carrier -- a parcel registered at a desk, whose movement the
+      // desk decides. There the holder's explicit release tender (checked
+      // below, in resolveMovementTender) is the authority. A Journey that
+      // DID name a carrier still admits only that carrier's leg.
+      if (legs.length > 0 && !matchingLeg) {
         throw new ForbiddenException('Run is not authorized by the committed parcel journey');
       }
     }
@@ -621,6 +627,9 @@ export class ParcelRunAssignmentService {
           `On board -- departed ${loadRunStop?.locationLabel ?? 'the load stop'}`, loadRunStop?.locationLabel ?? null,
         ],
       );
+      // Gate 3: a booked Shipment follows its parcel on board (derived from
+      // the custody event above; no-op for a parcel with no Shipment).
+      await projectShipmentForParcel(manager, assignment.parcelId);
       assignment.status = ParcelRunAssignmentStatus.LOADED;
       assignment.loadedAt = new Date();
       return repo.save(assignment);
@@ -683,6 +692,7 @@ export class ParcelRunAssignmentService {
           unloadRunStop?.locationLabel ?? null,
         ],
       );
+      await projectShipmentForParcel(manager, assignment.parcelId); // Gate 3
       assignment.status = ParcelRunAssignmentStatus.UNLOADED;
       assignment.unloadedAt = new Date();
       return repo.save(assignment);
@@ -861,6 +871,7 @@ export class ParcelRunAssignmentService {
         );
       }
 
+      await projectShipmentForParcel(manager, assignment.parcelId); // Gate 3
       assignment.status = ParcelRunAssignmentStatus.RECEIVED;
       assignment.receivedAt = new Date();
       const saved = await repo.save(assignment);

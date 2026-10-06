@@ -135,6 +135,14 @@ jobs:
           check "a travel day is accepted" 200 '"availableTrips":\[\]' \
             "$BASE/shipments/routes?origin=Kariakoo&destination=Mbagala&date=2030-01-15"
           check "the migration ledger report answers" 200 '"shipped":' "$BASE/version/migrations"
+          # Gate 3: one customer tracking number. Both public tracking doors
+          # answer a number nobody holds with their own 404 -- through the real
+          # interceptor, resolver and projector wiring.
+          check "shipment tracking answers 404 for an unknown number" 404 'Shipment not found' \
+            "$BASE/shipments/track/KTX-SHP-999999"
+          check "parcel tracking resolves a customer number before its own 404" 404 'statusCode' \
+            "$BASE/super-agents/track/KTX-SHP-999999"
+          check "public API tracking does the same" 404 'statusCode' "$BASE/api/v1/track/KTX-SHP-999999"
           kill "$APP_PID" || true
       - name: Post the failure on the pull request
         if: failure() && github.event_name == 'pull_request'

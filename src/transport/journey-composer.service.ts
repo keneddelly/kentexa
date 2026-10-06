@@ -251,4 +251,48 @@ export class JourneyComposerService {
       }],
     });
   }
+
+  /**
+   * Gate 3: a Journey with ZERO transport legs -- an Agent collects from the
+   * sender and delivers to the recipient directly, inside one region.
+   *
+   * Composed entirely by the server: two legs for "an Agent" (the role, not
+   * a person -- the Agent who later claims the work is resolved from their
+   * own authenticated session), from and to the two server-resolved places.
+   * Both sides must be places the sender selected, because "the same region"
+   * has to be something the server knows, not something typed.
+   */
+  async selectDirectDelivery(userId: number, dto: ComposeJourneyDto) {
+    const cargo = normalizeCargoRequirements(dto.cargoRequirements);
+    const origin = await this.resolveSide('Origin', dto.origin, dto.originSnapshot);
+    const destination = await this.resolveSide('Destination', dto.destination, dto.destinationSnapshot);
+    const region = (side: ResolvedJourneySide) =>
+      side.snapshot.source === 'place' && typeof side.snapshot.regionName === 'string'
+        ? side.snapshot.regionName.trim().toLowerCase()
+        : '';
+    if (!region(origin) || !region(destination)) {
+      throw new BadRequestException('Choose both places from the list to use direct Agent delivery');
+    }
+    if (region(origin) !== region(destination)) {
+      throw new BadRequestException('Direct Agent delivery is available within one region only');
+    }
+    const agent = { kind: 'agent', role: 'local_agent' };
+    const requirements = { composedByServer: true, servicePath: 'direct_delivery' };
+    return this.selections.select(userId, {
+      originSnapshot: origin.snapshot,
+      destinationSnapshot: destination.snapshot,
+      cargoRequirements: cargo,
+      paymentMethod: dto.paymentMethod,
+      legs: [
+        {
+          type: JourneyLegType.FIRST_MILE, fromNode: origin.snapshot, toNode: agent,
+          requiredActorCapability: 'local_agent', executionRequirements: requirements,
+        },
+        {
+          type: JourneyLegType.LAST_MILE, fromNode: agent, toNode: destination.snapshot,
+          requiredActorCapability: 'local_agent', executionRequirements: requirements,
+        },
+      ],
+    });
+  }
 }

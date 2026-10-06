@@ -9,6 +9,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  UseInterceptors,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,6 +18,8 @@ import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
 import { ParcelTracking } from '../super-agents/entities/parcel.entity';
 import { SmsService } from '../sms/sms.service';
 import { FRONTEND_URL } from '../config/urls.config';
+import { ParcelReferenceInterceptor } from '../shipments/parcel-reference.interceptor';
+import { projectShipmentForParcelSafely } from '../shipments/shipment-projection';
 
 /**
  * WebhookController — KenteXa's public API for transport companies.
@@ -96,6 +99,8 @@ export class WebhookController {
       } as any),
     );
     await this.parcelRepo.update((parcel as any).id, { status });
+    // Gate 3: a booked Shipment follows from the Parcel through the ONE projector.
+    await projectShipmentForParcelSafely(this.parcelRepo.manager, (parcel as any).id);
 
     // Update provider stats
     await this.providerRepo.update(provider.id, {
@@ -264,6 +269,8 @@ export class WebhookController {
   // Anyone (bus company websites, sellers, buyers) can query this.
   // Returns the same data as the tracking page but in JSON.
 
+  // Gate 3: the customer's own number (the Shipment's) finds the parcel too.
+  @UseInterceptors(ParcelReferenceInterceptor)
   @Get('track/:trackingNumber')
   async publicTrack(@Param('trackingNumber') trackingNumber: string) {
     const parcel = await this.parcelRepo.findOne({

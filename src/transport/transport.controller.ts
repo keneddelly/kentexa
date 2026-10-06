@@ -61,6 +61,14 @@ export class TransportController {
     return this.journeyComposer.selectComposed(req.user.id, dto);
   }
 
+  // Gate 3: a Journey with no transport leg (sender -> Agent -> recipient).
+  // The server writes every leg; the request names the two places and the cargo.
+  @UseGuards(JwtAuthGuard)
+  @Post('journeys/select-direct')
+  selectDirectJourney(@Request() req, @Body() dto: ComposeJourneyDto) {
+    return this.journeyComposer.selectDirectDelivery(req.user.id, dto);
+  }
+
   // ── JOURNEY SELECTION (L1) ───────────────────────────────────────────────
   @UseGuards(JwtAuthGuard)
   @Post('journeys')
