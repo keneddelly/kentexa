@@ -20,10 +20,11 @@ import { JwtAuthGuard } from '../auth/auth.guard';
 import { ShipmentsService } from './shipments.service';
 import type { ConfirmShipmentDto, CreateShipmentDto, DiscoverySideInput } from './shipments.service';
 import { readPlaceRefQuery } from './logistics-location-context';
+import { ShipmentActivationService } from './shipment-activation.service';
 
 @Controller('shipments')
 export class ShipmentsController {
-  constructor(private readonly svc: ShipmentsService) {}
+  constructor(private readonly svc: ShipmentsService, private readonly activation: ShipmentActivationService) {}
 
   // Public — any user browsing "send something" needs this before logging
   // in to see what's even possible on their route. weightKg (optional)
@@ -122,6 +123,16 @@ export class ShipmentsController {
     @Body() dto: ConfirmShipmentDto,
   ) {
     return this.svc.confirmShipment(req.user.id, id, dto);
+  }
+
+  @Patch(':id/confirm-and-activate')
+  @UseGuards(JwtAuthGuard)
+  confirmAndActivate(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ConfirmShipmentDto,
+  ) {
+    return this.activation.confirmAndActivate(req.user.id, id, dto);
   }
 
   @Patch(':id/cancel')
