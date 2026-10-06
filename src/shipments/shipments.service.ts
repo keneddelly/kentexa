@@ -272,6 +272,7 @@ export class ShipmentsService {
     originSide: DiscoverySideInput,
     destinationSide: DiscoverySideInput,
     weightKg = 0,
+    providerId?: number,
   ) {
     const [origin, destination] = await Promise.all([
       this.resolveDiscoverySide('origin', originSide),
@@ -311,6 +312,14 @@ export class ShipmentsService {
         else providers.set(pr.id, { row: pr, matchedOn: [matched] });
       }
     });
+
+    // A customer who entered from a Transport Provider public profile has
+    // already chosen the provider. Discovery must answer "can THIS provider
+    // serve the journey?", not silently compare the whole market.
+    if (providerId != null && Number.isFinite(providerId)) {
+      for (const [id] of trips) if (Number(trips.get(id)?.row?.providerId) !== providerId) trips.delete(id);
+      for (const [id] of providers) if (Number(id) !== providerId) providers.delete(id);
+    }
 
     const tripList = [...trips.values()].sort(
       (x, y) =>
