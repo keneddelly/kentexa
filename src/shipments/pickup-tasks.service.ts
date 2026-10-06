@@ -415,16 +415,52 @@ export class PickupTasksService {
          WHERE l."journeySelectionId"=$1 AND l.type='transport'
          ORDER BY l.sequence ASC LIMIT 1`, [s.journeySelectionId]) : [];
       const next = nextLeg[0] ?? null;
+      let transportTender: any = null;
+      if (next?.providerId != null && next?.runId != null) {
+        // Activate the transport action, not merely describe it. Resolve the
+        // immutable Run stop that represents THIS physical hub and create a
+        // one-use movement authority for the committed provider/run. The
+        // provider can then accept the booked parcel through the existing
+        // ParcelRunAssignment flow. This tender does not transfer custody.
+        const stops: any[] = await em.query(`
+          SELECT rs.id,rs.sequence,rs."superAgentId",rs."sourceRouteStopId"
+            FROM public.transport_run_stop rs
+           WHERE rs."runId"=$1
+           ORDER BY rs.sequence ASC`, [next.runId]);
+        const load = stops.find((rs: any) => Number(rs.superAgentId) === Number(hub.id));
+        const legDetails: any[] = await em.query(
+          'SELECT "loadRouteStopId","unloadRouteStopId" FROM public.journey_leg WHERE id=$1',
+          [next.id],
+        );
+        const committed = legDetails[0] ?? {};
+        const unload = stops.find((rs: any) =>
+          committed.unloadRouteStopId != null &&
+          Number(rs.sourceRouteStopId) === Number(committed.unloadRouteStopId));
+        if (load && unload && Number(load.sequence) < Number(unload.sequence)) {
+          const tenderKey = `journey-leg:${next.id}:parcel:${p.id}:hub:${hub.id}`;
+          const tenderRows: any[] = await em.query(`
+            INSERT INTO public.parcel_movement_tender
+              ("parcelId","transportProviderId","runId","loadRunStopId","releasingSuperAgentId",
+               "source","status","issuedByUserId","issuedByRoleType","idempotencyKey")
+            VALUES ($1,$2,$3,$4,$5,'journey_next_action','open',$6,'super_agent',$7)
+            ON CONFLICT ("idempotencyKey") DO UPDATE
+              SET "idempotencyKey"=EXCLUDED."idempotencyKey"
+            RETURNING id,status,"runId","loadRunStopId","transportProviderId"`,
+            [p.id,next.providerId,next.runId,load.id,hub.id,userId,tenderKey]);
+          transportTender = tenderRows[0] ?? null;
+        }
+      }
       return {
         id: taskId, parcelId: p.id, status: 'hub_received', replay: false,
-        nextAction: next ? {
+        nextAction: next && transportTender ? {
           type: 'transport_handoff',
           journeyLegId: Number(next.id),
-          providerId: next.providerId == null ? null : Number(next.providerId),
-          runId: next.runId == null ? null : Number(next.runId),
+          providerId: Number(next.providerId),
+          runId: Number(next.runId),
+          tenderId: Number(transportTender.id),
           custodyStarted: false,
           providerUserId: next.providerUserId == null ? null : Number(next.providerUserId),
-        } : { type: 'manual_planning', reason: 'no_committed_transport_leg', custodyStarted: false },
+        } : { type: 'manual_planning', reason: next ? 'committed_transport_leg_not_executable' : 'no_committed_transport_leg', custodyStarted: false },
       };
     });
   }
