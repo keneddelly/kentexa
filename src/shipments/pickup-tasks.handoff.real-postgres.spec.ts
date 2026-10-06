@@ -78,7 +78,9 @@ suite('Stage 3S-A first-mile handoff: real PostgreSQL', () => {
       "originCity" text NOT NULL, "destinationCity" text NOT NULL, "originHubSource" text, "destinationHubSource" text,
       "originHubId" integer, "originProviderKey" text, "originResolutionMethod" text, "originLocationLabel" text,
       "originLatitude" double precision, "originLongitude" double precision, "originRegionName" text, "originDistrictName" text,
-      "collectedAt" timestamp)`);
+      "collectedAt" timestamp,
+      -- Gate 3: the columns the ONE Shipment projector reads and writes.
+      "orderId" integer, "deliveredAt" timestamp, "completedAt" timestamp, "updatedAt" timestamp)`);
     await q(`CREATE TABLE public.parcel (id integer PRIMARY KEY, "shipmentId" integer, "orderId" integer, status text NOT NULL, "superAgentId" integer)`);
     await q(`CREATE TABLE public.super_agent (id integer PRIMARY KEY, "userId" integer, status text NOT NULL, "workspaceId" integer,
       city text, "businessName" text, phone text, address text)`);

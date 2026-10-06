@@ -154,7 +154,10 @@ suite('Shipment hub decision — real PostgreSQL', () => {
     parcels = []; parcelSaveFailures = 0;
     const parcelRepo: any = {
       create: (v: any) => ({ ...v }),
-      findOne: async ({ where }: any) => parcels.find((x) => x.shipment?.id === where.shipment.id) ?? null,
+      // Gate 3: the service also asks whether a tracking number is already taken.
+      findOne: async ({ where }: any) => (where.trackingNumber !== undefined
+        ? parcels.find((x) => x.trackingNumber === where.trackingNumber)
+        : parcels.find((x) => x.shipment?.id === where.shipment.id)) ?? null,
       save: async (v: any) => {
         if (v.id) return v;
         if (parcelSaveFailures > 0) { parcelSaveFailures--; throw new Error('connection terminated unexpectedly'); }

@@ -24,6 +24,7 @@
  */
 import { EntityManager } from 'typeorm';
 import { projectShipment } from './shipment-projection';
+import { ShipmentHubSource } from './shipment-hub-source';
 
 export type IntakeChannel = 'walk_in' | 'seller_shipment' | 'order';
 
@@ -143,8 +144,10 @@ export async function linkIntakeShipment(
       text(parcel.recipientName, 'Recipient'), text(parcel.buyerPhone, '-'),
       originCity, destinationCity, description, weightKg,
       fee == null ? null : Number(fee), parcel.orderId ?? null, journeySelectionId, input.channel,
-      originHubId, originHubId == null ? 'not_required' : 'sender_selected',
-      destinationHubId, destinationHubId == null ? 'not_required' : 'sender_selected', now,
+      // The hub decision of a NEW row, written once at insert: the desk the
+      // parcel is physically at / addressed to, or none.
+      originHubId, originHubId == null ? ShipmentHubSource.NOT_REQUIRED : ShipmentHubSource.SENDER_SELECTED,
+      destinationHubId, destinationHubId == null ? ShipmentHubSource.NOT_REQUIRED : ShipmentHubSource.SENDER_SELECTED, now,
       clash ? null : parcel.trackingNumber ?? null,
     ],
   );
