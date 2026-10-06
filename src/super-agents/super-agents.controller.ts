@@ -102,8 +102,18 @@ export class SuperAgentsController {
   // Get my super agent profile
   @UseGuards(JwtAuthGuard)
   @Get('my-profile')
-  getMyProfile(@Request() req) {
-    return this.service.getMyProfile(req.user);
+  async getMyProfile(@Request() req) {
+    const profile: any = await this.service.getMyProfile(req.user);
+    const hubLocationComplete = Boolean(profile.locationProviderKey && profile.locationProviderPlaceId && profile.latitude != null && profile.longitude != null);
+    return {
+      ...profile,
+      hubLocationComplete,
+      hubLocationPrompt: hubLocationComplete ? null : {
+        required: true,
+        title: 'Weka eneo halisi la kituo chako',
+        message: 'Tafuta mtaa, eneo au landmark ya kituo chako. Mkoa pekee hautoshi kwa pickup, delivery na Van routing.',
+      },
+    };
   }
 
   @UseGuards(JwtAuthGuard)
