@@ -56,9 +56,54 @@ export class SuperAgentCashCollectionService {
     return rows[0];
   }
 
-  private async assertParcelExists(parcelId: number): Promise<void> {
-    const rows = await this.dataSource.query('SELECT id FROM public.parcel WHERE id = $1', [parcelId]);
+  private async assertParcelExists(parcelId: number): Promise<{ journeySelectionId: number | null }> {
+    const rows = await this.dataSource.query(
+      'SELECT id, "journeySelectionId" FROM public.parcel WHERE id = $1',
+      [parcelId],
+    );
     if (!rows.length) throw new BadRequestException('parcelId does not reference an existing Parcel');
+    return rows[0];
+  }
+
+  /**
+   * L4 custody/payment authority. Journey-backed cash is collected by the
+   * first physical custodian chosen when the JourneySelection was frozen.
+   * This Super Agent cash desk may collect only when that frozen collector is
+   * this exact Super Agent. A prior collection for the parcel is payment
+   * evidence and blocks downstream re-collection under another key.
+   *
+   * Legacy parcels with no JourneySelection keep the C5 behaviour until their
+   * creation paths are migrated; we do not invent Journey authority for them.
+   */
+  private async assertJourneyCashAuthority(
+    parcel: { journeySelectionId: number | null },
+    dto: CollectCashDto,
+  ): Promise<void> {
+    if (parcel.journeySelectionId == null) return;
+    const [journey] = await this.dataSource.query(
+      `SELECT status, "expectedCashCollectorType", "expectedCashCollectionLegSequence"
+         FROM public.journey_selection WHERE id = $1`,
+      [parcel.journeySelectionId],
+    );
+    if (!journey || journey.status !== 'committed') {
+      throw new ConflictException('Parcel journey is not commercially committed');
+    }
+    if (journey.expectedCashCollectorType !== 'super_agent' ||
+        journey.expectedCashCollectionLegSequence == null) {
+      throw new ConflictException('This Super Agent is not the authorized cash collector for this journey');
+    }
+    const [leg] = await this.dataSource.query(
+      `SELECT "superAgentId" FROM public.journey_leg
+        WHERE "journeySelectionId" = $1 AND sequence = $2`,
+      [parcel.journeySelectionId, journey.expectedCashCollectionLegSequence],
+    );
+    if (!leg || Number(leg.superAgentId) !== dto.superAgentId) {
+      throw new ConflictException('This Super Agent is not the authorized cash collector for this journey');
+    }
+    const prior = await this.collectionRepo.findOne({ where: { parcelId: dto.parcelId } });
+    if (prior && prior.idempotencyKey !== dto.idempotencyKey) {
+      throw new ConflictException('Logistics cash has already been collected for this parcel');
+    }
   }
 
   // "Authority" here means the one relationship this data model can
@@ -105,8 +150,9 @@ export class SuperAgentCashCollectionService {
       throw new BadRequestException('priceContextAmount cannot be negative');
     }
     const superAgent = await this.assertSuperAgentExists(dto.superAgentId);
-    await this.assertParcelExists(dto.parcelId);
+    const parcel = await this.assertParcelExists(dto.parcelId);
     await this.assertActorAuthority(dto.actorUserId, superAgent);
+    await this.assertJourneyCashAuthority(parcel, dto);
 
     const row = this.collectionRepo.create({
       parcelId: dto.parcelId,

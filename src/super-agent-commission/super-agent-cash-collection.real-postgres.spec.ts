@@ -50,7 +50,7 @@ suite('Stage 3S-C5 — Super Agent cash-desk collection, real PostgreSQL', () =>
     await ds.initialize();
     await ensureSuperAgentEconomicLedgersImmutable((sql) => ds.query(sql));
     // Bare stub table -- see the commission spec's own identical comment for why.
-    await ds.query('CREATE TABLE public.parcel (id integer PRIMARY KEY)');
+    await ds.query('CREATE TABLE public.parcel (id integer PRIMARY KEY, "journeySelectionId" integer NULL)');
     await ds.query('INSERT INTO public.parcel VALUES (1)');
 
     collectionRepo = ds.getRepository(SuperAgentCashCollection);
@@ -65,6 +65,9 @@ suite('Stage 3S-C5 — Super Agent cash-desk collection, real PostgreSQL', () =>
     // test-harness-only technique, never used by any production code path.
     await ds.query(`TRUNCATE TABLE public.super_agent_cash_collection RESTART IDENTITY CASCADE`);
     await ds.query(`DELETE FROM public.super_agent`);
+    await ds.query(`UPDATE public.parcel SET "journeySelectionId" = NULL`);
+    await ds.query(`DROP TABLE IF EXISTS public.journey_leg`);
+    await ds.query(`DROP TABLE IF EXISTS public.journey_selection`);
   });
 
   it('records a cash collection retaining the accepted price context, independent of the actual collected amount', async () => {
@@ -77,6 +80,53 @@ suite('Stage 3S-C5 — Super Agent cash-desk collection, real PostgreSQL', () =>
     expect(row.priceContextCurrency).toBe('TZS');
     expect(Number(row.collectedAmount)).toBe(5000);
     expect(row.reconciliationStatus).toBe('pending');
+  });
+
+  it('journey-backed cash can be collected only by the frozen first Super Agent custodian, once', async () => {
+    const hub = await mkSuperAgent();
+    await ds.query(`CREATE TABLE public.journey_selection (
+      id integer PRIMARY KEY, status varchar(24), "expectedCashCollectorType" varchar(32),
+      "expectedCashCollectionLegSequence" integer)`);
+    await ds.query(`CREATE TABLE public.journey_leg (
+      id serial PRIMARY KEY, "journeySelectionId" integer, sequence integer, "superAgentId" integer)`);
+    await ds.query(`INSERT INTO public.journey_selection
+      (id,status,"expectedCashCollectorType","expectedCashCollectionLegSequence")
+      VALUES (10,'committed','super_agent',1)`);
+    await ds.query(`INSERT INTO public.journey_leg ("journeySelectionId",sequence,"superAgentId")
+      VALUES (10,1,$1)`, [hub.id]);
+    await ds.query(`UPDATE public.parcel SET "journeySelectionId"=10 WHERE id=1`);
+
+    const dto = {
+      parcelId: 1, superAgentId: hub.id, priceContextAmount: 5000, collectedAmount: 5000,
+      paymentMethod: 'cash', actorUserId: hub.userId, idempotencyKey: 'journey-once',
+    };
+    const first = await collectionService.collectCash(dto);
+    expect(first.id).toBeDefined();
+    await expect(collectionService.collectCash({ ...dto, idempotencyKey: 'journey-second-charge' }))
+      .rejects.toThrow(ConflictException);
+    expect(await collectionRepo.count()).toBe(1);
+  });
+
+  it('rejects a Super Agent that is not the journey-selected cash custodian', async () => {
+    const selectedHub = await mkSuperAgent();
+    const downstreamHub = await mkSuperAgent();
+    await ds.query(`CREATE TABLE public.journey_selection (
+      id integer PRIMARY KEY, status varchar(24), "expectedCashCollectorType" varchar(32),
+      "expectedCashCollectionLegSequence" integer)`);
+    await ds.query(`CREATE TABLE public.journey_leg (
+      id serial PRIMARY KEY, "journeySelectionId" integer, sequence integer, "superAgentId" integer)`);
+    await ds.query(`INSERT INTO public.journey_selection
+      (id,status,"expectedCashCollectorType","expectedCashCollectionLegSequence")
+      VALUES (11,'committed','super_agent',1)`);
+    await ds.query(`INSERT INTO public.journey_leg ("journeySelectionId",sequence,"superAgentId")
+      VALUES (11,1,$1)`, [selectedHub.id]);
+    await ds.query(`UPDATE public.parcel SET "journeySelectionId"=11 WHERE id=1`);
+
+    await expect(collectionService.collectCash({
+      parcelId: 1, superAgentId: downstreamHub.id, priceContextAmount: 5000, collectedAmount: 5000,
+      paymentMethod: 'cash', actorUserId: downstreamHub.userId, idempotencyKey: 'wrong-hub',
+    })).rejects.toThrow(ConflictException);
+    expect(await collectionRepo.count()).toBe(0);
   });
 
   it('rejects an unsupported payment method', async () => {
