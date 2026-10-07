@@ -61,14 +61,18 @@ describe('JourneyComposerService', () => {
       originSnapshot: { city: 'Dar es Salaam' },
       destinationSnapshot: { city: 'Mwanza' },
       cargoRequirements: { description: 'Box', quantity: 1, weightKg: 2 } as any,
-      paymentMethod: 'cash',
+      paymentMethod: 'cash', pickup: 'door', delivery: 'door',
     });
     expect(selections.select).toHaveBeenCalledWith(9, expect.objectContaining({
-      legs: [expect.objectContaining({
-        type: 'transport', providerId: 2, routeId: 3, runId: null,
-        commitmentLevel: 'service_confirmed',
-        executionRequirements: expect.objectContaining({ runResolutionRequired: true }),
-      })],
+      legs: [
+        expect.objectContaining({ type: 'first_mile', requiredActorCapability: 'local_agent' }),
+        expect.objectContaining({
+          type: 'transport', providerId: 2, routeId: 3, runId: null,
+          commitmentLevel: 'service_confirmed',
+          executionRequirements: expect.objectContaining({ runResolutionRequired: true }),
+        }),
+        expect.objectContaining({ type: 'last_mile', requiredActorCapability: 'local_agent' }),
+      ],
     }));
     expect(transport.assertRunBookable).not.toHaveBeenCalled();
   });
