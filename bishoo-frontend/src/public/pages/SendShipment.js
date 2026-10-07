@@ -178,6 +178,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           ? { place: { providerKey: destinationResolved.placeRef.providerKey, providerPlaceId: destinationResolved.placeRef.providerPlaceId } }
           : { text: destination.trim() },
         providerId: navParams?.transportProviderId ? Number(navParams.transportProviderId) : undefined,
+        // Step 2 asks only which linehaul services cover the route. Door
+        // pickup/delivery is chosen later and is revalidated fail-closed at
+        // service commitment.
+        discoveryOnly: true,
       });
       const offers = Array.isArray(res.data) ? res.data : [];
       const serviceOptions = offers

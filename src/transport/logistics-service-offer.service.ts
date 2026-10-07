@@ -8,6 +8,7 @@ export interface DiscoverServiceOffersDto {
   pickup: 'door' | 'point'; delivery: 'door' | 'collect';
   origin?: any; destination?: any;
   providerId?: number;
+  discoveryOnly?: boolean;
 }
 export interface CommitServiceOfferDto extends DiscoverServiceOffersDto { serviceType: 'direct_delivery' | 'composed_intercity'; routeId?: number; runId?: number; paymentMethod?: 'cash' | 'prepaid'; }
 
@@ -78,12 +79,16 @@ export class LogisticsServiceOfferService {
       dto.pickup === 'door' ? this.agents.getAvailableAgents(from, weight) : Promise.resolve([]),
       dto.delivery === 'door' ? this.agents.getAvailableAgents(to, weight) : Promise.resolve([]),
     ]);
-    if (dto.pickup === 'door' && originAgents.length === 0) return [];
-    if (dto.delivery === 'door' && destinationAgents.length === 0) return [];
+    // Service discovery and fulfillment availability are separate concerns.
+    // The route marketplace must still show a valid linehaul service when a
+    // first/last-mile Agent is unavailable. At COMMIT time (discoveryOnly is
+    // false/absent), requested door outcomes remain fail-closed.
+    if (!dto.discoveryOnly && dto.pickup === 'door' && originAgents.length === 0) return [];
+    if (!dto.discoveryOnly && dto.delivery === 'door' && destinationAgents.length === 0) return [];
 
     const pickupAgent: any = originAgents[0]; const deliveryAgent: any = destinationAgents[0];
-    const pickupFee = dto.pickup === 'door' ? Number(pickupAgent.collectionFeeUrban ?? pickupAgent.deliveryFee ?? 0) : 0;
-    const deliveryFee = dto.delivery === 'door' ? Number(deliveryAgent.deliveryFee ?? 0) : 0;
+    const pickupFee = dto.pickup === 'door' && pickupAgent ? Number(pickupAgent.collectionFeeUrban ?? pickupAgent.deliveryFee ?? 0) : 0;
+    const deliveryFee = dto.delivery === 'door' && deliveryAgent ? Number(deliveryAgent.deliveryFee ?? 0) : 0;
 
     if (sameCity) {
       const directAgent: any = dto.pickup === 'door' ? pickupAgent : deliveryAgent;
@@ -91,7 +96,7 @@ export class LogisticsServiceOfferService {
       return [{
         serviceType: 'direct_delivery', name: 'Direct Delivery', price: Math.max(pickupFee, deliveryFee), currency: 'TZS',
         etaLabel: directAgent.deliveryTime ?? 'Same day',
-        firstAction: dto.pickup === 'door'
+        firstAction: dto.pickup === 'door' && originAgents.length > 0
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
           : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
         fulfillment: { pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff', linehaul: 'none', delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect' },
