@@ -1346,7 +1346,7 @@ export class TransportService {
 
     for (const route of routes) {
       const provider = route.provider;
-      if (!provider || provider.status !== TransportProviderStatus.VERIFIED) continue;
+      if (!provider || provider.status !== ProviderStatus.VERIFIED) continue;
       if (providerId && provider.id !== Number(providerId)) continue;
       try {
           await this.assertRouteServesJourney(route.id, from, to);
