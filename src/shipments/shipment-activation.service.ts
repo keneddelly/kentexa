@@ -51,6 +51,26 @@ export class ShipmentActivationService {
       confirmed.shipment['origin' + 'Hub' + 'Source'] === 'not_required' &&
       confirmed.shipment['destination' + 'Hub' + 'Source'] === 'not_required';
 
+    // A committed intercity transport service may be sellable before an
+    // origin Kentexa Point / carrier handoff location has been configured.
+    // Confirmation must not fail after the commercial commitment has already
+    // been frozen. In that case keep the parcel pending and surface an
+    // operations-planning action; create an Agent pickup only once there is a
+    // concrete place for that Agent to hand the parcel over.
+    const originHubId = confirmed.shipment['origin' + 'Hub' + 'Id'] ?? null;
+    if (!isDirect && !originHubId) {
+      return {
+        ...confirmed,
+        nextAction: {
+          type: 'fulfillment_setup_pending',
+          actor: 'kentexa_operations',
+          status: 'awaiting_handoff_point',
+          reason: 'origin_handoff_point_not_configured',
+          custodyStarted: false,
+        },
+      };
+    }
+
     const task = await this.pickupTasks.requestForShipment(userId, shipmentId, {
       requestKey: this.activationKey(userId, shipmentId),
       servicePath: isDirect ? 'direct_delivery' : 'hub_routed',
