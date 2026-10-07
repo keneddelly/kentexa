@@ -240,7 +240,7 @@ export class JourneyComposerService {
         scheduledDeparture: new Date(trip.departureAt).toISOString(),
       },
     };
-    const terminalLeg = dto.deliveryOutcome === 'collect'
+    const terminalLeg = dto.deliveryOutcome == null ? null : dto.deliveryOutcome === 'collect'
       ? {
           type: JourneyLegType.CUSTOMER_PICKUP,
           fromNode: { kind: 'destination_point', city: matched.to },
@@ -261,7 +261,7 @@ export class JourneyComposerService {
       destinationSnapshot: destination.snapshot,
       cargoRequirements: cargo,
       paymentMethod: dto.paymentMethod,
-      legs: [transportLeg, terminalLeg],
+      legs: terminalLeg ? [transportLeg, terminalLeg] : [transportLeg],
     });
   }
 
