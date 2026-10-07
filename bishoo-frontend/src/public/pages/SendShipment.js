@@ -294,8 +294,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       const confirmedShipment = final.data.shipment;
       const nextAction = final.data.nextAction || null;
       setConfirmed({ ...confirmedShipment, parcelTrackingNumber: final.data.parcel?.trackingNumber, direct,
-        pickupPath: nextAction?.type === 'agent_pickup' ? (direct ? 'direct_delivery' : 'hub_routed') : null,
-        pickupRequested: nextAction?.type === 'agent_pickup',
+        pickupPath: ['agent_pickup','agent_pickup_pending'].includes(nextAction?.type) ? (direct ? 'direct_delivery' : 'journey_first_mile') : null,
+        pickupRequested: ['agent_pickup','agent_pickup_pending'].includes(nextAction?.type),
         nextAction,
         dropOffHub: nextAction?.type === 'customer_dropoff' && selected?.loadHub ? selected.loadHub : null });
       setStep(5);
@@ -685,6 +685,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
               Keep this shipment number. Kentexa uses one customer-facing number even after a Parcel is created internally.
             </div>
+            {['fulfillment_setup_pending','agent_pickup_pending','customer_dropoff_pending','transport_planning'].includes(confirmed.nextAction?.type) && (
+              <div style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
+                margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5, color: '#92400E' }}>
+                Shipment confirmed. Kentexa is arranging the next fulfillment step from your selected delivery plan. Pending pickup/delivery fees are not charged until that service is assigned.
+              </div>
+            )}
             {confirmed.pickupPath && (
               <div style={{ backgroundColor: confirmed.pickupRequested ? '#ECFDF5' : '#FFFBEB', borderRadius: 12, padding: 12,
                 margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5,

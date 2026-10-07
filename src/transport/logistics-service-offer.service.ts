@@ -67,7 +67,7 @@ export class LogisticsServiceOfferService {
       originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
       destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
       cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
-      paymentMethod: dto.paymentMethod, providerId, routeId,
+      paymentMethod: dto.paymentMethod, providerId, routeId, pickup: dto.pickup, delivery: dto.delivery,
     } as any);
   }
 

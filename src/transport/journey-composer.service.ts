@@ -204,7 +204,7 @@ export class JourneyComposerService {
    * implied here; execution must later bind a real TransportRun and re-check
    * run capacity/status before linehaul starts.
    */
-  async selectService(userId: number, dto: SelectServiceJourneyDto) {
+  async selectService(userId: number, dto: SelectServiceJourneyDto & { pickup?: 'door' | 'point'; delivery?: 'door' | 'collect' }) {
     const providerId = Number(dto?.providerId);
     const routeId = Number(dto?.routeId);
     if (!Number.isInteger(providerId) || providerId <= 0 || !Number.isInteger(routeId) || routeId <= 0) {
@@ -227,25 +227,66 @@ export class JourneyComposerService {
       throw new BadRequestException('That transport service no longer serves this shipment');
     }
 
+    const transportFrom = { ...origin.snapshot, city: matched.from };
+    const transportTo = { ...destination.snapshot, city: matched.to };
+    const legs: any[] = [];
+    // The committed Journey is the fulfillment authority. Door/point choices
+    // are materialized here instead of being re-inferred later by the legacy
+    // Shipment hub/direct-delivery state machine.
+    if (dto.pickup === 'door') {
+      legs.push({
+        type: JourneyLegType.FIRST_MILE,
+        fromNode: origin.snapshot,
+        toNode: transportFrom,
+        requiredActorCapability: 'local_agent',
+        commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
+        executionRequirements: { composedByServer: true, servicePath: 'door_to_transport', handoffResolutionRequired: true },
+      });
+    } else {
+      legs.push({
+        type: JourneyLegType.HUB_INTAKE,
+        fromNode: origin.snapshot,
+        toNode: transportFrom,
+        requiredActorCapability: 'kentexa_point',
+        commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
+        executionRequirements: { composedByServer: true, servicePath: 'customer_dropoff', handoffResolutionRequired: true },
+      });
+    }
+    legs.push({
+      type: JourneyLegType.TRANSPORT,
+      fromNode: transportFrom,
+      toNode: transportTo,
+      providerId,
+      routeId,
+      runId: null,
+      commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
+      executionRequirements: { composedByServer: true, servicePath: 'route_service', runResolutionRequired: true },
+    });
+    if (dto.delivery === 'door') {
+      legs.push({
+        type: JourneyLegType.LAST_MILE,
+        fromNode: transportTo,
+        toNode: destination.snapshot,
+        requiredActorCapability: 'local_agent',
+        commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
+        executionRequirements: { composedByServer: true, servicePath: 'transport_to_door', handoffResolutionRequired: true },
+      });
+    } else {
+      legs.push({
+        type: JourneyLegType.CUSTOMER_PICKUP,
+        fromNode: transportTo,
+        toNode: destination.snapshot,
+        requiredActorCapability: 'kentexa_point',
+        commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
+        executionRequirements: { composedByServer: true, servicePath: 'customer_collect', handoffResolutionRequired: true },
+      });
+    }
     return this.selections.select(userId, {
       originSnapshot: origin.snapshot,
       destinationSnapshot: destination.snapshot,
       cargoRequirements: cargo,
       paymentMethod: dto.paymentMethod,
-      legs: [{
-        type: JourneyLegType.TRANSPORT,
-        fromNode: { ...origin.snapshot, city: matched.from },
-        toNode: { ...destination.snapshot, city: matched.to },
-        providerId,
-        routeId,
-        runId: null,
-        commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
-        executionRequirements: {
-          composedByServer: true,
-          servicePath: 'route_service',
-          runResolutionRequired: true,
-        },
-      }],
+      legs,
     });
   }
 

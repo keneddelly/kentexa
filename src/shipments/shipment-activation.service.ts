@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { ShipmentsService } from './shipments.service';
 import type { ConfirmShipmentDto } from './shipments.service';
 import { PickupTasksService } from './pickup-tasks.service';
 import { ShipmentHandoffOption } from './entities/shipment.entity';
 import { LogisticsDispatchService } from './logistics-dispatch.service';
+import { DataSource } from 'typeorm';
+import { JourneyLeg, JourneyLegType } from '../transport/entities/journey-selection.entity';
 
 /**
  * Issue #95 orchestration boundary.
@@ -17,6 +19,7 @@ export class ShipmentActivationService {
     private readonly shipments: ShipmentsService,
     private readonly pickupTasks: PickupTasksService,
     private readonly dispatch: LogisticsDispatchService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private activationKey(userId: number, shipmentId: number) {
@@ -50,6 +53,39 @@ export class ShipmentActivationService {
     const isDirect = !confirmed.shipment.journeySelectionId &&
       confirmed.shipment['origin' + 'Hub' + 'Source'] === 'not_required' &&
       confirmed.shipment['destination' + 'Hub' + 'Source'] === 'not_required';
+
+    // Journey-backed shipments are executed from the server-composed Journey.
+    // Legacy Shipment hub/direct-delivery flags must not re-plan them.
+    if (confirmed.shipment.journeySelectionId) {
+      const legs = await this.dataSource.getRepository(JourneyLeg).find({
+        where: { journeySelectionId: confirmed.shipment.journeySelectionId },
+        order: { sequence: 'ASC' },
+      });
+      const first = legs[0];
+      if (!first) throw new BadRequestException('Committed journey has no fulfillment legs');
+      if (first.type === JourneyLegType.FIRST_MILE) {
+        return { ...confirmed, nextAction: {
+          type: 'agent_pickup_pending', actor: 'agent', journeyLegId: first.id,
+          requiredActorCapability: first.requiredActorCapability || 'local_agent',
+          status: 'awaiting_assignment', custodyStarted: false,
+        } };
+      }
+      if (first.type === JourneyLegType.HUB_INTAKE) {
+        return { ...confirmed, nextAction: {
+          type: 'customer_dropoff_pending', actor: 'sender', journeyLegId: first.id,
+          requiredActorCapability: first.requiredActorCapability || 'kentexa_point',
+          status: 'awaiting_handoff_point', custodyStarted: false,
+        } };
+      }
+      if (first.type === JourneyLegType.TRANSPORT) {
+        return { ...confirmed, nextAction: {
+          type: 'transport_planning', actor: 'transport_provider', journeyLegId: first.id,
+          providerId: first.providerId, routeId: first.routeId,
+          status: 'awaiting_run_resolution', custodyStarted: false,
+        } };
+      }
+      throw new BadRequestException('Journey first leg is not executable');
+    }
 
     const task = await this.pickupTasks.requestForShipment(userId, shipmentId, {
       requestKey: this.activationKey(userId, shipmentId),
