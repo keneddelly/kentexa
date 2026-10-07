@@ -239,8 +239,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const confirmVanReceipt = async assignmentId => {
     try {
       setActionLoading(true); setError('');
-      await api.patch(`/van-pilot/assignments/${assignmentId}/confirm-receipt`);
-      setSuccess('✅ Mzigo umepokelewa na custody imehamia kwenye hub yako.');
+      const receipt = await api.patch(`/van-pilot/assignments/${assignmentId}/confirm-receipt`);
+      const next = receipt.data?.nextAction;
+      setSuccess(next?.status === 'agent_assigned'
+        ? '✅ Mzigo umepokelewa. Kentexa imempangia Agent wa kupeleka kwa mpokeaji.'
+        : next?.type === 'customer_pickup'
+          ? '✅ Mzigo umepokelewa. Mpokeaji atauchukua hapa kituoni.'
+          : '✅ Mzigo umepokelewa. Hatua inayofuata inaandaliwa.');
       await fetchVanDesk();
       fetchAll();
     } catch (err) {
@@ -2585,7 +2590,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO HUBUNI · {vanReady.length}</div>
                 {vanReady.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12 }}>Hakuna mzigo wa Van unaosubiri pickup/delivery.</div> :
                   vanReady.map(p => <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8, display:'flex', justifyContent:'space-between', gap:10 }}>
-                    <div><div style={{ fontWeight:900, fontSize:13 }}>{p.trackingNumber}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
+                    <div><div style={{ fontWeight:900, fontSize:13 }}>{p.trackingNumber}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>{p.buyerRequestedDelivery === true ? `Agent: ${p.localAgentName || 'amepangwa'} · subiri makabidhiano` : p.buyerRequestedDelivery === false ? 'Mpokeaji atachukua hapa kituoni' : 'Hatua inayofuata inaandaliwa'}</div></div>
                     <SBadge status={p.status} />
                   </div>)}
               </>
