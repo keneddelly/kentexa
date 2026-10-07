@@ -1339,7 +1339,7 @@ export class TransportService {
     // updating its old city list) and must not hide a valid route.
     const routes = await this.routeRepo.find({
       where: { isActive: true },
-      relations: ['provider'],
+      relations: { provider: true },
       order: { id: 'ASC' },
     });
     const services: Array<any> = [];
