@@ -467,7 +467,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                   {t('send_shipment.available_trips_label')}
                 </div>
                 {trips.map(trip => (
-                  <div key={trip.runId || `${trip.providerId}-${trip.routeId}`}
+                  <div key={trip.runId || `${trip.providerId}-${trip.routeId}`} 
                     onClick={() => { setSelected(trip); setStep(3); }}
                     style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 8,
                       cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
