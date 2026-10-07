@@ -188,6 +188,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         .map(o => ({
           ...o.fulfillment.transportOption,
           servicePrice: o.price,
+          pricingMode: o.pricingMode || (o.price == null ? 'quote_required' : 'instant'),
           etaLabel: o.etaLabel,
           serviceName: o.name,
         }));
@@ -493,7 +494,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 12, fontWeight: 900, color: OR }}>
-                          {trip.servicePrice != null ? `TZS ${fmt(trip.servicePrice)}` : (calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable'))}
+                          {trip.pricingMode === 'quote_required' ? 'Request quote' : (trip.servicePrice != null ? `TZS ${fmt(trip.servicePrice)}` : (calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable')))}
                         </div>
                       </div>
                     </div>
