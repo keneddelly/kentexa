@@ -44,6 +44,7 @@ export interface ComposeJourneyDto {
 }
 
 export interface SelectComposedJourneyDto extends ComposeJourneyDto {
+  deliveryOutcome?: 'door' | 'collect';
   // Gate 2: the option the client names is a Transport Run the server
   // offered. Nothing else about the leg is taken from the request.
   runId: number;
