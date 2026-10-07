@@ -189,6 +189,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           pricingMode: o.pricingMode || (o.price == null ? 'quote_required' : 'instant'),
           etaLabel: o.etaLabel,
           serviceName: o.name,
+          fulfillmentStatus: o.fulfillmentStatus,
         }));
       setTrips(serviceOptions);
       setSearchReason(serviceOptions.length || offers.some(o => o.serviceType === 'direct_delivery') ? 'available' : 'no_route');
@@ -487,6 +488,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                         </div>
                         {trip.loadStop && trip.unloadStop && (
                           <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{trip.loadStop} → {trip.unloadStop}</div>
+                        )}
+                        {trip.fulfillmentStatus?.pickup === 'pending' && (
+                          <div style={{ fontSize: 11, color: OR, marginTop: 3, fontWeight: 700 }}>Pickup fee pending · transport fare shown separately</div>
+                        )}
+                        {trip.fulfillmentStatus?.delivery === 'pending' && (
+                          <div style={{ fontSize: 11, color: OR, marginTop: 2, fontWeight: 700 }}>Delivery fee pending · transport fare shown separately</div>
                         )}
                       </div>
                       <div style={{ textAlign: 'right' }}>
