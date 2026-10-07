@@ -6,6 +6,7 @@ import { JourneyComposerService } from './journey-composer.service';
 describe('JourneyComposerService', () => {
   const transport: any = {
     discoverSupply: jest.fn(),
+    discoverServiceRoutes: jest.fn(),
     findBookableRun: jest.fn(),
     assertRunBookable: jest.fn(),
     getEffectiveRoutePrice: jest.fn(),
@@ -47,6 +48,29 @@ describe('JourneyComposerService', () => {
     });
     expect(result.options).toEqual([]);
     expect(result.requiresManualPlanning).toBe(true);
+  });
+
+  it('freezes a route service at SERVICE_CONFIRMED without requiring a TransportRun', async () => {
+    transport.discoverServiceRoutes.mockResolvedValue([{
+      providerId: 2, routeId: 3, providerName: 'Abood', providerType: 'bus',
+      providerLogo: null, estimatedHours: 8, pricePerKg: 1000, fixedFee: 5000,
+    }]);
+    selections.select.mockResolvedValue({ id: 12 });
+    await service.selectService(9, {
+      providerId: 2, routeId: 3,
+      originSnapshot: { city: 'Dar es Salaam' },
+      destinationSnapshot: { city: 'Mwanza' },
+      cargoRequirements: { description: 'Box', quantity: 1, weightKg: 2 } as any,
+      paymentMethod: 'cash',
+    });
+    expect(selections.select).toHaveBeenCalledWith(9, expect.objectContaining({
+      legs: [expect.objectContaining({
+        type: 'transport', providerId: 2, routeId: 3, runId: null,
+        commitmentLevel: 'service_confirmed',
+        executionRequirements: expect.objectContaining({ runResolutionRequired: true }),
+      })],
+    }));
+    expect(transport.assertRunBookable).not.toHaveBeenCalled();
   });
 
   it('re-proves the selected Run on the server and writes the leg itself', async () => {

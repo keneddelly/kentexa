@@ -1305,6 +1305,67 @@ export class TransportService {
     };
   }
 
+  /**
+   * Customer-facing service discovery. Unlike discoverSupply(), this answers
+   * "who promises to serve this route?" rather than "which concrete vehicle
+   * run is open right now?". A TransportRun is execution supply and is bound
+   * later; normal Tuma Mzigo must not disappear merely because today's run
+   * has not been generated/opened yet.
+   */
+  async discoverServiceRoutes(
+    fromCity: string,
+    toCity: string,
+    weightKg = 0,
+    providerId?: number,
+  ): Promise<Array<{
+    providerId: number;
+    providerName: string;
+    providerType: string;
+    providerLogo: string | null;
+    routeId: number;
+    estimatedHours: number | null;
+    pricePerKg: number;
+    fixedFee: number;
+  }>> {
+    const from = normalizeDiscoveryCity(fromCity);
+    const to = normalizeDiscoveryCity(toCity);
+    if (from === null || to === null) {
+      throw new BadRequestException('Both cities are required to discover transport services');
+    }
+
+    const { providers } = await this.findAvailableForRoute(from, to, weightKg, { providersOnly: true });
+    const eligible = providerId
+      ? providers.filter((p) => p.id === Number(providerId))
+      : providers;
+    const services: Array<any> = [];
+
+    for (const provider of eligible) {
+      const routes = await this.routeRepo.find({
+        where: { providerId: provider.id, isActive: true },
+        order: { id: 'ASC' },
+      });
+      for (const route of routes) {
+        try {
+          await this.assertRouteServesJourney(route.id, from, to);
+        } catch {
+          continue;
+        }
+        const price = await this.getEffectiveRoutePrice(route.id);
+        services.push({
+          providerId: provider.id,
+          providerName: provider.name,
+          providerType: provider.type,
+          providerLogo: provider.logoUrl ?? null,
+          routeId: route.id,
+          estimatedHours: route.estimatedHours ?? null,
+          pricePerKg: price.pricePerKg,
+          fixedFee: price.fixedFee,
+        });
+      }
+    }
+    return services;
+  }
+
   // ── PUBLIC CONSUMER SEARCH ───────────────────────────────────────────────
   // Unlike findAvailableForRoute (super-agent dispatch — internal slot/
   // capacity data), this returns a lean, consumer-safe card shape for the

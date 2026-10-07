@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   routeSearchParams, hubSearchParams, selectJourneyBody, quoteBody, shipmentBody,
-  confirmBody, placeRefParam, journeySide, searchOutcome, isBookableTrip,
+  confirmBody, placeRefParam, journeySide, searchOutcome, isBookableTrip, isTransportService, serviceOfferCommitBody,
   canDeliverDirect, isDirectDelivery, directJourneyBody, pickupTaskBody,
 } from './shipmentRequests';
 
@@ -56,6 +56,17 @@ describe('send-shipment request contract', () => {
     expect(isBookableTrip(null)).toBe(false);
     expect(wire(selectJourneyBody(state, selected, now)).availabilityId).toBeUndefined();
     expect(wire(quoteBody(journeySelection, selected, state)).availabilityId).toBeUndefined();
+  });
+
+  test('normal Tuma Mzigo can commit a provider route without a run', () => {
+    const service = { providerId: 31, routeId: 41 };
+    expect(isTransportService(service)).toBe(true);
+    expect(isBookableTrip(service)).toBe(false);
+    const body = wire(serviceOfferCommitBody(state, service, false, now));
+    expect(body.providerId).toBe(31);
+    expect(body.routeId).toBe(41);
+    expect(body.runId).toBeUndefined();
+    expect(body.serviceType).toBe('composed_intercity');
   });
 
   // Gate 4: sender -> Agent -> recipient, no transporter.

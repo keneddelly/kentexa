@@ -64,6 +64,11 @@ export const cargoRequirements = ({ itemDescription, weightKg }, now = new Date(
 export const isBookableTrip = (selected) =>
   Boolean(selected && positiveNumber(selected.runId) && selected.providerId && selected.routeId);
 
+// Normal shipment booking selects a transport SERVICE. A concrete run is an
+// execution detail and may legitimately be absent at customer commitment.
+export const isTransportService = (selected) =>
+  Boolean(selected && positiveNumber(selected.providerId) && positiveNumber(selected.routeId));
+
 // POST /transport/journeys/select-composed -- the client names the trip the
 // server offered (runId); the server composes the legs.
 export const selectJourneyBody = (state, selected, now = new Date()) => ({
@@ -167,7 +172,9 @@ export const serviceOfferCommitBody = (state, selected, direct, now = new Date()
   origin: journeySide(state.originResolved, state.origin),
   destination: journeySide(state.destinationResolved, state.destination),
   serviceType: direct ? 'direct_delivery' : 'composed_intercity',
-  runId: direct ? undefined : Number(selected?.runId),
+  providerId: direct ? undefined : positiveNumber(selected?.providerId),
+  routeId: direct ? undefined : positiveNumber(selected?.routeId),
+  runId: direct ? undefined : positiveNumber(selected?.runId),
   paymentMethod: 'cash',
   cargoRequirements: cargoRequirements(state, now),
 });
