@@ -93,6 +93,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
@@ -115,6 +116,7 @@ import { ParcelCustodyEvent } from '../super-agents/entities/parcel-custody-even
 import { ParcelStatus } from '../super-agents/entities/parcel.entity';
 import { RoleContext } from '../role-context/role-context.types';
 import { SuperAgentHandlingEarningObligationService } from '../super-agent-commission/super-agent-handling-earning-obligation.service';
+import { AgentsService } from '../agents/agents.service';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -136,6 +138,7 @@ export class ParcelRunAssignmentService {
     private readonly transportService: TransportService,
     private readonly dataSource: DataSource,
     private readonly obligationService: SuperAgentHandlingEarningObligationService,
+    @Optional() private readonly agentsService?: AgentsService,
   ) {}
 
   // Stage 3S-C6 second correction: ONE shared lock ordering across every
