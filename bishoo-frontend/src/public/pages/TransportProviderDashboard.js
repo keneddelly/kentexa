@@ -210,23 +210,23 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
 
 
   const editRoute = async route => {
-    const fixedFee = prompt('Bei ya chini kwa mzigo huu (TZS)', String(route.fixedFee || ''));
-    if (fixedFee === null) return;
-    const pricePerKg = prompt('Bei kwa kilo (TZS) — acha 0 kama hutumii kilo', String(route.pricePerKg || '0'));
-    if (pricePerKg === null) return;
+    const fields = [
+      ['priceSmall','Mdogo'], ['priceStandard','Wa kawaida'],
+      ['priceLarge','Mkubwa'], ['priceSpecial','Mzito / Maalum'],
+    ];
+    const patch = {};
+    for (const [key,label] of fields) {
+      const value = prompt(`Bei ya ${label} (TZS). Acha tupu kama route haibebi aina hii.`, route[key] ?? '');
+      if (value === null) return;
+      patch[key] = value === '' ? null : Number(value);
+      if (patch[key] !== null && (!Number.isFinite(patch[key]) || patch[key] < 0)) return alert('Weka bei halali.');
+    }
+    if (!Object.values(patch).some(v=>Number(v)>0)) return alert('Weka bei angalau kwa aina moja ya mzigo.');
     const estimatedHours = prompt('Muda wa safari (saa)', String(route.estimatedHours || ''));
     if (estimatedHours === null) return;
-    const fixed = Number(fixedFee || 0); const perKg = Number(pricePerKg || 0);
-    if ((!Number.isFinite(fixed) || fixed < 0) || (!Number.isFinite(perKg) || perKg < 0) || (fixed <= 0 && perKg <= 0)) {
-      return alert('Weka bei halali ya route: bei ya chini au bei kwa kilo.');
-    }
-    try {
-      await api.patch(`/transport/routes/${route.id}`, {
-        fixedFee: fixed, pricePerKg: perKg,
-        estimatedHours: estimatedHours ? Number(estimatedHours) : undefined,
-      });
-      await fetchAll();
-    } catch (e) { alert(e.response?.data?.message || 'Imeshindwa kubadilisha route'); }
+    patch.estimatedHours = estimatedHours ? Number(estimatedHours) : undefined;
+    try { await api.patch(`/transport/routes/${route.id}`, patch); await fetchAll(); }
+    catch (e) { alert(e.response?.data?.message || 'Imeshindwa kubadilisha route'); }
   };
 
   const deleteRoute = async route => {
