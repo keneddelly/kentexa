@@ -42,6 +42,7 @@ import { SearchModule } from '../search/search.module';
 import { SuperAgentCommissionModule } from '../super-agent-commission/super-agent-commission.module';
 import { AgentsModule } from '../agents/agents.module';
 import { LogisticsServiceOfferService } from './logistics-service-offer.service';
+import { LogisticsAgentPricing } from './entities/logistics-agent-pricing.entity';
 
 @Module({
   imports: [
@@ -92,6 +93,7 @@ import { LogisticsServiceOfferService } from './logistics-service-offer.service'
       ParcelCustodyEvent,
       SuperAgent,
       Shipment,
+      LogisticsAgentPricing,
     ]),
   ],
   controllers: [TransportController, VanPilotController],
