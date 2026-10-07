@@ -15,7 +15,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import {
-  routeSearchParams, hubSearchParams, quoteBody, shipmentBody, isBookableTrip,
+  routeSearchParams, hubSearchParams, quoteBody, shipmentBody, isBookableTrip, isTransportService,
   canDeliverDirect, isDirectDelivery,
   confirmBody, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
@@ -117,7 +117,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // exact trip (Transport Run) when the profile card named one. The trip only
   // becomes bookable once the search below finds it for these two places.
   const [selected, setSelected] = useState(() => navParams?.transportProviderId ? { providerId:Number(navParams.transportProviderId), routeId:navParams?.routeId ? Number(navParams.routeId) : undefined } : null);
-  const [travelDate, setTravelDate] = useState('');
   const [tripContextLost, setTripContextLost] = useState(false);
 
   // Step 3 — receiver + handoff.
@@ -163,27 +162,42 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     setSearched(true);
     setSearchReason(null);
     try {
-      const res = await api.get('/shipments/routes', {
-        params: routeSearchParams({
-          origin, destination, originResolved, destinationResolved, weightKg,
-          transportProviderId: navParams?.transportProviderId, travelDate,
-        }),
+      // Normal Tuma Mzigo discovers transport SERVICES, not today's
+      // TransportRun. A provider's active route remains bookable even before
+      // an execution run is generated.
+      const fromCity = originResolved?.regionName || originResolved?.districtName || origin.trim();
+      const toCity = destinationResolved?.regionName || destinationResolved?.districtName || destination.trim();
+      const res = await api.post('/transport/service-offers/discover', {
+        fromCity, toCity, weightKg: Number(weightKg) || 0,
+        pickup: pickupOption === 'door' ? 'door' : 'point',
+        delivery: deliveryOption === 'door' ? 'door' : 'collect',
+        origin: originResolved?.placeRef
+          ? { place: { providerKey: originResolved.placeRef.providerKey, providerPlaceId: originResolved.placeRef.providerPlaceId } }
+          : { text: origin.trim() },
+        destination: destinationResolved?.placeRef
+          ? { place: { providerKey: destinationResolved.placeRef.providerKey, providerPlaceId: destinationResolved.placeRef.providerPlaceId } }
+          : { text: destination.trim() },
+        providerId: navParams?.transportProviderId ? Number(navParams.transportProviderId) : undefined,
       });
-      setSearchReason(searchOutcome(res.data, null));
+      const offers = Array.isArray(res.data) ? res.data : [];
+      const serviceOptions = offers
+        .filter(o => o.serviceType === 'composed_intercity' && o.fulfillment?.transportOption)
+        .map(o => ({
+          ...o.fulfillment.transportOption,
+          servicePrice: o.price,
+          etaLabel: o.etaLabel,
+          serviceName: o.name,
+        }));
+      setTrips(serviceOptions);
+      setProviders([]);
+      setSearchReason(serviceOptions.length || offers.some(o => o.serviceType === 'direct_delivery') ? 'available' : 'no_route');
+
       const providerId = navParams?.transportProviderId ? Number(navParams.transportProviderId) : null;
-      const matchingTrips = (res.data?.availableTrips || []).filter(x => !providerId || Number(x.providerId) === providerId);
-      const matchingProviders = (res.data?.providers || []).filter(x => !providerId || Number(x.id) === providerId);
-      setTrips(matchingTrips); setProviders(matchingProviders);
       if (providerId) {
-        // The trip the profile card named, else the earliest trip on the
-        // route it named. Never a trip the search did not return.
-        const requestedTrip =
-          matchingTrips.find(x => navParams?.transportRunId && Number(x.runId) === Number(navParams.transportRunId)) ||
-          matchingTrips.find(x => navParams?.routeId && Number(x.routeId) === Number(navParams.routeId));
-        setSelected(prev => requestedTrip || (prev && !prev.runId ? prev : { providerId, routeId:navParams?.routeId ? Number(navParams.routeId) : undefined }));
-        // The profile card named one exact trip. If it can no longer be
-        // booked for these places, say so -- never quietly continue without it.
-        setTripContextLost(Boolean(navParams?.transportRunId) && !(requestedTrip && Number(requestedTrip.runId) === Number(navParams.transportRunId)));
+        const requested = serviceOptions.find(x => navParams?.routeId && Number(x.routeId) === Number(navParams.routeId))
+          || serviceOptions.find(x => Number(x.providerId) === providerId);
+        setSelected(requested || { providerId, routeId: navParams?.routeId ? Number(navParams.routeId) : undefined });
+        setTripContextLost(Boolean(navParams?.routeId) && !requested);
       }
     } catch (err) {
       setTrips([]);
@@ -192,7 +206,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     } finally {
       setSearching(false);
     }
-  }, [origin, destination, weightKg, originResolved, destinationResolved, travelDate, navParams?.transportProviderId, navParams?.routeId, navParams?.transportRunId]);
+  }, [origin, destination, weightKg, originResolved, destinationResolved, pickupOption, deliveryOption, navParams?.transportProviderId, navParams?.routeId]);
 
   // Entering from a transporter's trip card: the places are already known,
   // so the search runs by itself when the sender reaches this step and the
@@ -261,7 +275,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       // A dated trip the server offered: the SERVER composes the journey
       // from the two places and that trip, then prices and freezes it. The
       // form never writes journey legs itself.
-      if (isBookableTrip(selected)) {
+      if (isTransportService(selected)) {
         const journey = await api.post('/transport/service-offers/commit', serviceOfferCommitBody(requestState, selected, false));
         journeySelection = journey.data;
         const offered = await api.post('/transport/quotes', quoteBody(journeySelection, selected, requestState));
@@ -382,13 +396,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <LocationInput label={t('send_shipment.destination_label')} value={destination}
               onChange={setDestination} onResolved={setDestinationResolved} resolved={destinationResolved}
               placeholder={t('send_shipment.destination_placeholder')} />
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: GR, marginBottom: 12 }}>
-              {t('send_shipment.travel_date_label')}
-              <input type="date" value={travelDate} min={new Date().toISOString().slice(0, 10)}
-                onChange={e => setTravelDate(e.target.value)}
-                style={{ display: 'block', width: '100%', boxSizing: 'border-box', marginTop: 6, padding: '11px 12px',
-                  borderRadius: 12, border: '1px solid #E5E7EB', fontSize: 14, fontFamily: 'inherit' }} />
-            </label>
             <button onClick={searchRoutes} disabled={!origin.trim() || !destination.trim() || searching}
               style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
                 borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
@@ -460,11 +467,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                   {t('send_shipment.available_trips_label')}
                 </div>
                 {trips.map(trip => (
-                  <div key={trip.runId}
+                  <div key={trip.runId || `${trip.providerId}-${trip.routeId}`}
                     onClick={() => { setSelected(trip); setStep(3); }}
                     style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 8,
                       cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      border: selected?.runId === trip.runId ? `2px solid ${B}` : '2px solid transparent' }}>
+                      border: selected?.providerId === trip.providerId && selected?.routeId === trip.routeId ? `2px solid ${B}` : '2px solid transparent' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
                         backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center',
@@ -481,10 +488,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                           )}
                         </div>
                         <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>
-                          {new Date(`${trip.date}T12:00:00`).toLocaleDateString('sw-TZ')}
-                          {trip.departureTime ? ` · ${trip.departureTime}` : ''}
-                          {trip.slotsAvailable != null ? ` · ${t('send_shipment.slots_left', { count: trip.slotsAvailable })}` : ''}
-                          {trip.capacityAvailableKg ? ` · ${t('send_shipment.capacity_available', { kg: fmt(trip.capacityAvailableKg) })}` : ''}
+                          {trip.etaLabel || t('send_shipment.available_service_label', { defaultValue: 'Huduma inapatikana' })}
                         </div>
                         {trip.loadStop && trip.unloadStop && (
                           <div style={{ fontSize: 11, color: GR, marginTop: 2 }}>{trip.loadStop} → {trip.unloadStop}</div>
@@ -492,7 +496,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 12, fontWeight: 900, color: OR }}>
-                          {calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable')}
+                          {trip.servicePrice != null ? `TZS ${fmt(trip.servicePrice)}` : (calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable'))}
                         </div>
                       </div>
                     </div>
