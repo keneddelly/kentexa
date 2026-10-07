@@ -1342,6 +1342,8 @@ export class TransportService {
     return {
       trips: published.map((a) => ({
         availabilityId: a.id,
+        routeId: a.routeId ?? (a as any).route?.id ?? null,
+        providerName: (a as any).provider?.name ?? null,
         provider: this.toSafeProvider((a as any).provider),
         fromCity: a.fromCity || (a as any).route?.originCity || null,
         toCity: a.toCity || (a as any).route?.destinationCity || null,
@@ -1355,6 +1357,10 @@ export class TransportService {
         ),
         pricePerKg: (a as any).route?.pricePerKg ?? null,
         fixedFee: (a as any).route?.fixedFee ?? null,
+        priceSmall: (a as any).route?.priceSmall ?? null,
+        priceStandard: (a as any).route?.priceStandard ?? null,
+        priceLarge: (a as any).route?.priceLarge ?? null,
+        priceSpecial: (a as any).route?.priceSpecial ?? null,
         // Canonical journey duration (Stage 3S-B2) — the same TransportRoute
         // field 'fastest' sorts by; null when no route is linked (a
         // manually-published slot has no journey-time data to report).
