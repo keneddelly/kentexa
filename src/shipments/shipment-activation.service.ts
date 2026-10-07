@@ -43,7 +43,11 @@ export class ShipmentActivationService {
       };
     }
 
-    const isDirect =
+    // Direct Agent delivery is only the no-linehaul same-city product. An
+    // intercity Journey can legitimately have no customer-facing hub selected:
+    // the Agent pickup still feeds the committed transport service. Do not
+    // classify that as direct_delivery merely from null/not-required hubs.
+    const isDirect = !confirmed.shipment.journeySelectionId &&
       confirmed.shipment['origin' + 'Hub' + 'Source'] === 'not_required' &&
       confirmed.shipment['destination' + 'Hub' + 'Source'] === 'not_required';
 
