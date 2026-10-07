@@ -794,6 +794,10 @@ export class TransportService {
       priceStandard?: number;
       priceLarge?: number;
       priceSpecial?: number;
+      pickupPricingMode?: 'kentexa' | 'free' | 'fixed';
+      pickupFee?: number;
+      deliveryPricingMode?: 'kentexa' | 'free' | 'fixed';
+      deliveryFee?: number;
       estimatedHours?: number;
       notes?: string;
     },
@@ -832,6 +836,10 @@ export class TransportService {
         priceStandard: dto.priceStandard || null,
         priceLarge: dto.priceLarge || null,
         priceSpecial: dto.priceSpecial || null,
+        pickupPricingMode: dto.pickupPricingMode || 'kentexa',
+        pickupFee: dto.pickupPricingMode === 'fixed' ? Number(dto.pickupFee || 0) : null,
+        deliveryPricingMode: dto.deliveryPricingMode || 'kentexa',
+        deliveryFee: dto.deliveryPricingMode === 'fixed' ? Number(dto.deliveryFee || 0) : null,
         estimatedHours: dto.estimatedHours || null,
         notes: dto.notes || null,
         isActive: true,
@@ -895,6 +903,7 @@ export class TransportService {
       'coverageWards',
       'coverageCity',
       'priceSmall', 'priceStandard', 'priceLarge', 'priceSpecial',
+      'pickupPricingMode', 'pickupFee', 'deliveryPricingMode', 'deliveryFee',
       'estimatedHours',
       'isActive',
       'notes',
@@ -944,7 +953,7 @@ export class TransportService {
     if (!route) throw new NotFoundException('Njia haijapatikana');
     const editable = [
       'routeType', 'originCity', 'destinationCity', 'transitCities', 'loopStops',
-      'coverageWards', 'coverageCity', 'priceSmall', 'priceStandard', 'priceLarge', 'priceSpecial', 'estimatedHours', 'isActive', 'notes',
+      'coverageWards', 'coverageCity', 'priceSmall', 'priceStandard', 'priceLarge', 'priceSpecial', 'pickupPricingMode', 'pickupFee', 'deliveryPricingMode', 'deliveryFee', 'estimatedHours', 'isActive', 'notes',
     ];
     for (const key of editable) if (dto[key] !== undefined) (route as any)[key] = dto[key];
     if (dto.pricePerKg !== undefined) {
@@ -1370,6 +1379,10 @@ export class TransportService {
         priceStandard: (a as any).route?.priceStandard ?? null,
         priceLarge: (a as any).route?.priceLarge ?? null,
         priceSpecial: (a as any).route?.priceSpecial ?? null,
+        pickupPricingMode: (a as any).route?.pickupPricingMode ?? 'kentexa',
+        pickupFee: (a as any).route?.pickupFee ?? null,
+        deliveryPricingMode: (a as any).route?.deliveryPricingMode ?? 'kentexa',
+        deliveryFee: (a as any).route?.deliveryFee ?? null,
         // Canonical journey duration (Stage 3S-B2) — the same TransportRoute
         // field 'fastest' sorts by; null when no route is linked (a
         // manually-published slot has no journey-time data to report).
