@@ -1333,25 +1333,28 @@ export class TransportService {
       throw new BadRequestException('Both cities are required to discover transport services');
     }
 
-    const { providers } = await this.findAvailableForRoute(from, to, weightKg, { providersOnly: true });
-    const eligible = providerId
-      ? providers.filter((p) => p.id === Number(providerId))
-      : providers;
+    // Active TransportRoute is the canonical service-coverage authority.
+    // Do NOT pre-filter through provider.cities: that legacy profile field can
+    // be stale (for example a provider can add a Dar→Mbeya route without
+    // updating its old city list) and must not hide a valid route.
+    const routes = await this.routeRepo.find({
+      where: { isActive: true },
+      relations: ['provider'],
+      order: { id: 'ASC' },
+    });
     const services: Array<any> = [];
 
-    for (const provider of eligible) {
-      const routes = await this.routeRepo.find({
-        where: { providerId: provider.id, isActive: true },
-        order: { id: 'ASC' },
-      });
-      for (const route of routes) {
-        try {
+    for (const route of routes) {
+      const provider = route.provider;
+      if (!provider || provider.status !== TransportProviderStatus.VERIFIED) continue;
+      if (providerId && provider.id !== Number(providerId)) continue;
+      try {
           await this.assertRouteServesJourney(route.id, from, to);
-        } catch {
-          continue;
-        }
-        const price = await this.getEffectiveRoutePrice(route.id);
-        services.push({
+      } catch {
+        continue;
+      }
+      const price = await this.getEffectiveRoutePrice(route.id);
+      services.push({
           providerId: provider.id,
           providerName: provider.name,
           providerType: provider.type,
@@ -1360,8 +1363,7 @@ export class TransportService {
           estimatedHours: route.estimatedHours ?? null,
           pricePerKg: price.pricePerKg,
           fixedFee: price.fixedFee,
-        });
-      }
+      });
     }
     return services;
   }
