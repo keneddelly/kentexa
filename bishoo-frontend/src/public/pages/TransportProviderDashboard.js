@@ -113,7 +113,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     routeType: 'intercity',
     originCity: '', destinationCity: '',
     loopStops: '', coverageCity: '', coverageWards: '',
-    priceSmall: '', priceStandard: '', priceLarge: '', priceSpecial: '', priceSmall: '', priceStandard: '', priceLarge: '', priceSpecial: '', pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '',
+    priceSmall: '', priceStandard: '', priceLarge: '', priceSpecial: '', priceSmall: '', priceStandard: '', priceLarge: '', priceSpecial: '', pickupPricingMode: 'kentexa', pickupFee: '', deliveryPricingMode: 'kentexa', deliveryFee: '', pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '',
   });
   const [savingRoute, setSavingRoute] = useState(false);
 
@@ -173,6 +173,10 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
         priceStandard: routeForm.priceStandard ? Number(routeForm.priceStandard) : undefined,
         priceLarge: routeForm.priceLarge ? Number(routeForm.priceLarge) : undefined,
         priceSpecial: routeForm.priceSpecial ? Number(routeForm.priceSpecial) : undefined,
+        pickupPricingMode: routeForm.pickupPricingMode,
+        pickupFee: routeForm.pickupPricingMode === 'fixed' ? Number(routeForm.pickupFee || 0) : undefined,
+        deliveryPricingMode: routeForm.deliveryPricingMode,
+        deliveryFee: routeForm.deliveryPricingMode === 'fixed' ? Number(routeForm.deliveryFee || 0) : undefined,
         pricePerKg: routeForm.pricePerKg ? Number(routeForm.pricePerKg) : undefined,
         fixedFee: routeForm.fixedFee ? Number(routeForm.fixedFee) : undefined,
         estimatedHours: routeForm.estimatedHours ? Number(routeForm.estimatedHours) : undefined,
@@ -833,6 +837,21 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                     </div>
                   </div>
                 )}
+
+                <div style={{fontSize:12,fontWeight:900,color:'#334155',margin:'12px 0 7px'}}>Pickup & delivery ya route hii</div>
+                {[['pickup','Pickup kutoka kwa mtumaji'],['delivery','Delivery kwa mpokeaji']].map(([side,label])=>{
+                  const modeKey=side+'PricingMode', feeKey=side+'Fee';
+                  return <div key={side} style={{background:'#f8fafc',borderRadius:10,padding:10,marginBottom:8}}>
+                    <div style={{fontSize:12,fontWeight:800,marginBottom:6}}>{label}</div>
+                    <select style={inp} value={routeForm[modeKey]} onChange={e=>setRouteForm(p=>({...p,[modeKey]:e.target.value}))}>
+                      <option value="kentexa">Tumia bei ya Kentexa Agent</option>
+                      <option value="free">BURE — imejumuishwa na sisi</option>
+                      <option value="fixed">Bei yetu maalum</option>
+                    </select>
+                    {routeForm[modeKey]==='fixed' && <input type="number" style={{...inp,marginTop:7}} placeholder="TZS" value={routeForm[feeKey]} onChange={e=>setRouteForm(p=>({...p,[feeKey]:e.target.value}))}/>}
+                  </div>;
+                })}
+                <div style={{fontSize:11,color:'#64748b',marginBottom:12}}>Ukichagua BURE, Kentexa itaonyesha pickup/delivery hiyo kama imejumuishwa kwenye huduma yako na haitoongeza Agent fallback fee.</div>
 
                 <div style={{fontSize:12,fontWeight:800,color:'#334155',margin:'12px 0 6px'}}>Bei rahisi kwa ukubwa wa mzigo</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
