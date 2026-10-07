@@ -612,10 +612,18 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 Kentexa will confirm the final transport price securely when you send. Your accepted price is then frozen for this shipment.
               </div>
               {priceEstimate != null && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12 }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>{t('send_shipment.review_price')}</span>
-                  <span style={{ fontSize: 16, fontWeight: 900, color: OR }}>TZS {fmt(priceEstimate)}</span>
-                </div>
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: DK }}>Transport fare</span>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: OR }}>TZS {fmt(priceEstimate)}</span>
+                  </div>
+                  {pickupOption === 'door' && selected?.fulfillmentStatus?.pickup === 'pending' && (
+                    <div style={{ fontSize: 11, color: OR, paddingTop: 6, fontWeight: 700 }}>Pickup fee: pending · not included above</div>
+                  )}
+                  {deliveryOption === 'door' && selected?.fulfillmentStatus?.delivery === 'pending' && (
+                    <div style={{ fontSize: 11, color: OR, paddingTop: 3, fontWeight: 700 }}>Delivery fee: pending · not included above</div>
+                  )}
+                </>
               )}
               {priceEstimate == null && (
                 <div style={{ fontSize: 12, color: GR, paddingTop: 10, fontStyle: 'italic' }}>
