@@ -16,6 +16,7 @@ export interface LogisticsServiceOffer {
   serviceType: 'direct_delivery' | 'composed_intercity';
   name: string; price: number | null; currency: 'TZS'; etaLabel: string;
   pricingMode?: 'instant' | 'quote_required';
+  fulfillmentStatus?: { pickup: 'included' | 'priced' | 'pending'; delivery: 'included' | 'priced' | 'pending' };
   firstAction: { type: 'offer_pickup_task' | 'customer_dropoff'; actorCapability: 'local_agent' | 'kentexa_point'; candidateAgentIds?: number[] };
   fulfillment: { pickup: 'agent' | 'customer_dropoff'; linehaul: 'none' | 'transport_provider'; delivery: 'agent' | 'customer_collect'; transportOption?: any };
 }
@@ -80,12 +81,11 @@ export class LogisticsServiceOfferService {
       dto.pickup === 'door' ? this.agents.getAvailableAgents(from, weight) : Promise.resolve([]),
       dto.delivery === 'door' ? this.agents.getAvailableAgents(to, weight) : Promise.resolve([]),
     ]);
-    // Service discovery and fulfillment availability are separate concerns.
-    // The route marketplace must still show a valid linehaul service when a
-    // first/last-mile Agent is unavailable. At COMMIT time (discoveryOnly is
-    // false/absent), requested door outcomes remain fail-closed.
-    if (!dto.discoveryOnly && dto.pickup === 'door' && originAgents.length === 0) return [];
-    if (!dto.discoveryOnly && dto.delivery === 'door' && destinationAgents.length === 0) return [];
+    // Route coverage and first/last-mile Agent supply are separate facts.
+    // Never make a valid linehaul service disappear merely because Agent
+    // pricing/supply has not been configured yet. The offer reports the
+    // unresolved door component explicitly so the UI cannot pretend the
+    // linehaul fare is an all-in Door-to-Door total.
 
     const pickupAgent: any = originAgents[0]; const deliveryAgent: any = destinationAgents[0];
     const pickupFee = dto.pickup === 'door' && pickupAgent ? Number(pickupAgent.collectionFeeUrban ?? pickupAgent.deliveryFee ?? 0) : 0;
@@ -115,6 +115,10 @@ export class LogisticsServiceOfferService {
         price: hasInstantPrice ? linehaul + pickupFee + deliveryFee : null,
         pricingMode: hasInstantPrice ? 'instant' : 'quote_required',
         currency: 'TZS',
+        fulfillmentStatus: {
+          pickup: dto.pickup === 'door' ? (pickupAgent ? 'priced' : 'pending') : 'included',
+          delivery: dto.delivery === 'door' ? (deliveryAgent ? 'priced' : 'pending') : 'included',
+        },
         etaLabel: service.estimatedHours ? `About ${service.estimatedHours} hours linehaul` : 'Scheduled service',
         firstAction: dto.pickup === 'door'
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
