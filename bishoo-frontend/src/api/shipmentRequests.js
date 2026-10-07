@@ -135,11 +135,13 @@ export const shipmentBody = (state, selected, acceptedQuote, directJourney = nul
 });
 
 // PATCH /shipments/:id/confirm
-export const confirmBody = ({ originHubId, destinationHubId }) => ({
-  originHubId: originHubId ? Number(originHubId) : undefined,
-  destinationHubId: destinationHubId ? Number(destinationHubId) : undefined,
-  requestOriginHub: originHubId ? true : undefined,
-  requestDestinationHub: destinationHubId ? true : undefined,
+export const confirmBody = ({ originHubId, destinationHubId, pickupOption, deliveryOption }) => ({
+  // A hub id is customer authority only when the customer chose to interact
+  // with a point. Door service never leaks or submits operational run hubs.
+  originHubId: pickupOption !== 'door' && originHubId ? Number(originHubId) : undefined,
+  destinationHubId: deliveryOption !== 'door' && destinationHubId ? Number(destinationHubId) : undefined,
+  requestOriginHub: pickupOption !== 'door' ? true : undefined,
+  requestDestinationHub: deliveryOption !== 'door' ? true : undefined,
 });
 
 // What the server said about a route search, as a message key for the form.
