@@ -3,13 +3,11 @@
  * request a shipment, independent of being a seller, a business, or a
  * Transport Provider. Place at: src/public/pages/SendShipment.js
  *
- * Flow: what + how much (weight known FIRST, so route search can exclude
- * anything that structurally can't carry it — a 20ft container should
- * never surface a boda or courier) -> origin/destination, selected from
- * the real location engine (not just typed text) -> real available
- * routes/providers filtered by that weight (never invented) -> receiver +
- * pickup/delivery -> review (price from the selected route, never
- * guessed) -> confirm.
+ * Multi-step outcome-first flow:
+ * parcel -> from/to -> available delivery services -> receiver/handoff ->
+ * review -> confirm. A normal sender never chooses a transporter before
+ * describing the shipment. Provider identity is shown only as part of a
+ * concrete priced service option after Kentexa has matched the route.
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -112,7 +110,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [trips, setTrips] = useState([]);
-  const [providers, setProviders] = useState([]);
+  // Transport providers are never a standalone choice in normal Tuma Mzigo.
+  // They only appear inside a concrete route service returned by Kentexa.
   // Entering from a transporter's profile keeps their provider/route, and the
   // exact trip (Transport Run) when the profile card named one. The trip only
   // becomes bookable once the search below finds it for these two places.
@@ -193,7 +192,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           serviceName: o.name,
         }));
       setTrips(serviceOptions);
-      setProviders([]);
       setSearchReason(serviceOptions.length || offers.some(o => o.serviceType === 'direct_delivery') ? 'available' : 'no_route');
 
       const providerId = navParams?.transportProviderId ? Number(navParams.transportProviderId) : null;
@@ -205,7 +203,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       }
     } catch (err) {
       setTrips([]);
-      setProviders([]);
       setSearchReason(searchOutcome(null, err));
     } finally {
       setSearching(false);
@@ -347,6 +344,14 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         <div style={{ fontSize: 15, fontWeight: 900, color: DK }}>
           🚚 {t('send_shipment.title')}
         </div>
+      {step < 5 && (
+        <div style={{ padding: '12px 16px 0', maxWidth: 640, margin: '0 auto' }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+            {[1,2,3,4].map(n => <div key={n} style={{ height: 4, flex: 1, borderRadius: 4, backgroundColor: n <= step ? B : '#E2E8F0' }} />)}
+          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: GR }}>Step {step} of 4</div>
+        </div>
+      )}
       </div>
 
       <div style={{ padding: 16, maxWidth: 520, margin: '0 auto' }}>
@@ -405,7 +410,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 borderRadius: 12, padding: '13px 0', cursor: 'pointer', fontSize: 14,
                 fontWeight: 800, marginBottom: 20,
                 opacity: (!origin.trim() || !destination.trim()) ? 0.5 : 1 }}>
-              {searching ? t('send_shipment.searching') : t('send_shipment.search_routes_button')}
+              {searching ? t('send_shipment.searching') : 'Find Delivery Options'}
             </button>
 
             {searched && !searching && (searchReason === 'request_failed' || searchReason === 'invalid_location') && (
@@ -423,7 +428,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             )}
 
             {searched && !searching && searchReason !== 'request_failed' && searchReason !== 'invalid_location' &&
-              trips.length === 0 && providers.length === 0 && (
+              trips.length === 0 && (
               <div style={{ textAlign: 'center', padding: '30px 0', color: GR, fontSize: 13 }}>
                 {searchReason === 'no_capacity_for_weight'
                   ? t('send_shipment.no_options_found_weight', { weight: weightKg })
@@ -468,7 +473,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: GR, textTransform: 'uppercase',
                   letterSpacing: 0.4, marginBottom: 8 }}>
-                  {t('send_shipment.available_trips_label')}
+                  Available delivery options
                 </div>
                 {trips.map(trip => (
                   <div key={trip.runId || `${trip.providerId}-${trip.routeId}`} 
@@ -503,39 +508,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                           {trip.servicePrice != null ? `TZS ${fmt(trip.servicePrice)}` : (calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable'))}
                         </div>
                       </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {providers.length > 0 && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 800, color: GR, textTransform: 'uppercase',
-                  letterSpacing: 0.4, marginBottom: 8 }}>
-                  {t('send_shipment.other_providers_label')}
-                </div>
-                {providers.map(p => (
-                  <div key={p.id}
-                    onClick={() => { setSelected({ providerId: p.id }); setStep(3); }}
-                    style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 8,
-                      cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      border: selected?.providerId === p.id && !selected?.runId ? `2px solid ${B}` : '2px solid transparent' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, overflow: 'hidden',
-                        backgroundColor: '#FFF7ED', display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                        {p.logoUrl
-                          ? <img src={p.logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          : (PROVIDER_TYPE_ICON[p.type] || '🚚')}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: DK }}>{p.name}</div>
-                        <div style={{ fontSize: 11, color: GR, marginTop: 2, textTransform: 'capitalize' }}>
-                          {p.type}{p.rating > 0 ? ` · ⭐ ${p.rating.toFixed(1)}` : ''}
-                        </div>
-                      </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: OR }}>{t('send_shipment.select_button')}</span>
                     </div>
                   </div>
                 ))}
