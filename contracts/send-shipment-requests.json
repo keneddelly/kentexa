@@ -36,7 +36,8 @@
     "deliveryOption": "agent",
     "transportProviderId": null,
     "originHubId": "",
-    "destinationHubId": ""
+    "destinationHubId": "",
+    "parcelSize": "small"
   },
   "selected": {
     "runId": 501,
@@ -191,6 +192,40 @@
         "servicePath": "direct_delivery",
         "pickupContactName": "Baraka",
         "pickupContactPhone": "0713000002"
+      }
+    },
+    "serviceOfferCommit": {
+      "method": "POST",
+      "path": "/transport/service-offers/commit",
+      "body": {
+        "fromCity": "Dar es Salaam",
+        "toCity": "Dar es Salaam",
+        "parcelSize": "small",
+        "weightKg": 2,
+        "pickup": "door",
+        "delivery": "door",
+        "origin": {
+          "place": {
+            "providerKey": "tz_seed",
+            "providerPlaceId": "ward:6"
+          }
+        },
+        "destination": {
+          "place": {
+            "providerKey": "tz_seed",
+            "providerPlaceId": "ward:20"
+          }
+        },
+        "serviceType": "direct_delivery",
+        "paymentMethod": "cash",
+        "cargoRequirements": {
+          "description": "Nguo za watoto",
+          "cargoClass": "normal",
+          "quantity": 1,
+          "weightKg": 2,
+          "evidenceLevel": "declared",
+          "capturedAt": "2026-10-06T09:00:00.000Z"
+        }
       }
     }
   },
