@@ -113,7 +113,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     routeType: 'intercity',
     originCity: '', destinationCity: '',
     loopStops: '', coverageCity: '', coverageWards: '',
-    pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '',
+    priceSmall: '', priceStandard: '', priceLarge: '', priceSpecial: '', priceSmall: '', priceStandard: '', priceLarge: '', priceSpecial: '', pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '',
   });
   const [savingRoute, setSavingRoute] = useState(false);
 
@@ -165,9 +165,14 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     try {
       setSavingRoute(true);
       const fixed = Number(routeForm.fixedFee || 0); const perKg = Number(routeForm.pricePerKg || 0);
-      if (fixed <= 0 && perKg <= 0) throw new Error('Weka bei ya route kabla ya kuiweka hewani');
+      const humanPrices = [routeForm.priceSmall, routeForm.priceStandard, routeForm.priceLarge, routeForm.priceSpecial].map(Number).filter(n=>Number.isFinite(n)&&n>0);
+      if (fixed <= 0 && perKg <= 0 && humanPrices.length===0) throw new Error('Weka bei ya route kabla ya kuiweka hewani');
       const dto = {
         routeType: routeForm.routeType,
+        priceSmall: routeForm.priceSmall ? Number(routeForm.priceSmall) : undefined,
+        priceStandard: routeForm.priceStandard ? Number(routeForm.priceStandard) : undefined,
+        priceLarge: routeForm.priceLarge ? Number(routeForm.priceLarge) : undefined,
+        priceSpecial: routeForm.priceSpecial ? Number(routeForm.priceSpecial) : undefined,
         pricePerKg: routeForm.pricePerKg ? Number(routeForm.pricePerKg) : undefined,
         fixedFee: routeForm.fixedFee ? Number(routeForm.fixedFee) : undefined,
         estimatedHours: routeForm.estimatedHours ? Number(routeForm.estimatedHours) : undefined,
@@ -828,6 +833,17 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                     </div>
                   </div>
                 )}
+
+                <div style={{fontSize:12,fontWeight:800,color:'#334155',margin:'12px 0 6px'}}>Bei rahisi kwa ukubwa wa mzigo</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                  {[['priceSmall','Mdogo'],['priceStandard','Wa kawaida'],['priceLarge','Mkubwa'],['priceSpecial','Mzito / Maalum']].map(([key,label])=>(
+                    <div key={key}>
+                      <label style={{fontSize:12,fontWeight:700,color:'#64748b',display:'block',marginBottom:4}}>{label} (TZS)</label>
+                      <input type="number" style={inp} value={routeForm[key]} onChange={e=>setRouteForm(p=>({...p,[key]:e.target.value}))}/>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontSize:11,color:'#64748b',marginBottom:10}}>Weka bei kwa aina unazoweza kubeba. Mzigo usio na bei hautaonekana kama huduma inayoweza ku-bookiwa.</div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
