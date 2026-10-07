@@ -214,29 +214,32 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // a route card stay prefilled for Step 2 after Step 1 is completed.
 
   const loadHubChoices = async () => {
-    // Direct Agent delivery uses no hub: nothing to choose, and nothing may be chosen.
-    if (isDirectDelivery(selected)) {
-      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId(''); setHubsError(false);
-      return;
+    // Hubs used by a Transport Run are operational infrastructure. They are
+    // NEVER a sender choice for door pickup / door delivery.
+    const needsOriginPoint = pickupOption !== 'door';
+    const needsDestinationPoint = deliveryOption !== 'door';
+    if (isDirectDelivery(selected) || (!needsOriginPoint && !needsDestinationPoint)) {
+      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId('');
+      setHubsError(false); return;
     }
-    // A booked trip uses the hubs its own stops are bound to (the server
-    // decides that at confirmation). Those sides have nothing to choose.
     const originFixed = Boolean(selected?.loadHub);
     const destinationFixed = Boolean(selected?.unloadHub);
-    if (originFixed) setOriginHubId('');
-    if (destinationFixed) setDestinationHubId('');
-    if ((originFixed || !originResolved?.placeRef) && (destinationFixed || !destinationResolved?.placeRef)) {
-      setOriginHubs([]); setDestinationHubs([]); setHubsError(false);
-      return;
-    }
-    setHubsLoading(true);
-    setHubsError(false);
+    // A run-bound stop is auto-selected only when the customer explicitly
+    // chose drop-off/collection; otherwise it stays completely invisible.
+    if (needsOriginPoint && originFixed) setOriginHubId(String(selected.loadHub.id || selected.loadHub.hubId || ''));
+    else setOriginHubId('');
+    if (needsDestinationPoint && destinationFixed) setDestinationHubId(String(selected.unloadHub.id || selected.unloadHub.hubId || ''));
+    else setDestinationHubId('');
+    setHubsLoading(true); setHubsError(false);
     try {
       const [o,d]=await Promise.all([
-        !originFixed && originResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(originResolved,'origin')}) : Promise.resolve({data:{hubs:[]}}),
-        !destinationFixed && destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(destinationResolved,'destination')}) : Promise.resolve({data:{hubs:[]}}),
+        needsOriginPoint && !originFixed && originResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(originResolved,'origin')}) : Promise.resolve({data:{hubs:[]}}),
+        needsDestinationPoint && !destinationFixed && destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(destinationResolved,'destination')}) : Promise.resolve({data:{hubs:[]}}),
       ]);
-      setOriginHubs(o.data?.hubs || []); setDestinationHubs(d.data?.hubs || []);
+      const os=o.data?.hubs||[], ds=d.data?.hubs||[];
+      setOriginHubs(os); setDestinationHubs(ds);
+      if (needsOriginPoint && !originFixed && os.length===1) setOriginHubId(String(os[0].hubId));
+      if (needsDestinationPoint && !destinationFixed && ds.length===1) setDestinationHubId(String(ds[0].hubId));
     } catch { setOriginHubs([]); setDestinationHubs([]); setHubsError(true); }
     finally { setHubsLoading(false); }
   };
@@ -676,13 +679,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{fontSize:11,color:GR,marginTop:8}}>{t('send_shipment.trip_hubs_note')}</div>
             </div>}
 
-            {(originHubs.length>0 || destinationHubs.length>0) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
-              <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Kentexa Hub</div>
-              <div style={{fontSize:11,color:GR,marginBottom:10}}>Choose a hub only when you want to drop off or collect through a Kentexa Super Agent.</div>
-              {originHubs.length>0 && <select value={originHubId} onChange={e=>setOriginHubId(e.target.value)} style={inputSt}>
+            {((pickupOption !== 'door' && originHubs.length>1) || (deliveryOption !== 'door' && destinationHubs.length>1)) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Chagua sehemu ya kukabidhi / kuchukulia</div>
+              <div style={{fontSize:11,color:GR,marginBottom:10}}>Hii inaonekana kwa sababu umechagua kupeleka au kuchukua mzigo mwenyewe.</div>
+              {pickupOption !== 'door' && originHubs.length>1 && <select value={originHubId} onChange={e=>setOriginHubId(e.target.value)} style={inputSt}>
                 <option value="">Origin: no hub</option>{originHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name} · {h.address || h.city}</option>)}
               </select>}
-              {destinationHubs.length>0 && <select value={destinationHubId} onChange={e=>setDestinationHubId(e.target.value)} style={inputSt}>
+              {deliveryOption !== 'door' && destinationHubs.length>1 && <select value={destinationHubId} onChange={e=>setDestinationHubId(e.target.value)} style={inputSt}>
                 <option value="">Destination: no hub</option>{destinationHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name} · {h.address || h.city}</option>)}
               </select>}
             </div>}
