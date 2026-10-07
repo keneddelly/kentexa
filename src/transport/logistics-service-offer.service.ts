@@ -14,7 +14,8 @@ export interface CommitServiceOfferDto extends DiscoverServiceOffersDto { servic
 
 export interface LogisticsServiceOffer {
   serviceType: 'direct_delivery' | 'composed_intercity';
-  name: string; price: number; currency: 'TZS'; etaLabel: string;
+  name: string; price: number | null; currency: 'TZS'; etaLabel: string;
+  pricingMode?: 'instant' | 'quote_required';
   firstAction: { type: 'offer_pickup_task' | 'customer_dropoff'; actorCapability: 'local_agent' | 'kentexa_point'; candidateAgentIds?: number[] };
   fulfillment: { pickup: 'agent' | 'customer_dropoff'; linehaul: 'none' | 'transport_provider'; delivery: 'agent' | 'customer_collect'; transportOption?: any };
 }
@@ -107,11 +108,12 @@ export class LogisticsServiceOfferService {
     const offers: LogisticsServiceOffer[] = [];
     for (const service of services.slice(0, 8)) {
       const linehaul = Math.max(Number(service.pricePerKg) * weight, Number(service.fixedFee) || 0);
-      if (!linehaul) continue;
+      const hasInstantPrice = linehaul > 0;
       offers.push({
         serviceType: 'composed_intercity',
         name: service.providerName ? `${service.providerName} Delivery` : 'Kentexa Standard',
-        price: linehaul + pickupFee + deliveryFee,
+        price: hasInstantPrice ? linehaul + pickupFee + deliveryFee : null,
+        pricingMode: hasInstantPrice ? 'instant' : 'quote_required',
         currency: 'TZS',
         etaLabel: service.estimatedHours ? `About ${service.estimatedHours} hours linehaul` : 'Scheduled service',
         firstAction: dto.pickup === 'door'
@@ -125,6 +127,14 @@ export class LogisticsServiceOfferService {
         },
       });
     }
-    return offers.sort((a, b) => a.price - b.price);
+    // Instant-price services rank first by price. Quote-required providers
+    // remain visible instead of disappearing merely because pricing has not
+    // been configured yet.
+    return offers.sort((a, b) => {
+      if (a.price == null && b.price == null) return a.name.localeCompare(b.name);
+      if (a.price == null) return 1;
+      if (b.price == null) return -1;
+      return a.price - b.price;
+    });
   }
 }

@@ -13,7 +13,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import {
-  hubSearchParams, quoteBody, shipmentBody, isTransportService,
+  quoteBody, shipmentBody, isTransportService,
   canDeliverDirect, isDirectDelivery,
   confirmBody, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
@@ -137,14 +137,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [destinationHubs, setDestinationHubs] = useState([]);
   const [originHubId, setOriginHubId] = useState('');
   const [destinationHubId, setDestinationHubId] = useState('');
-  const [hubsLoading, setHubsLoading] = useState(false);
   // Why the last route search came back as it did: a server reason
   // (available / no_open_trip / no_capacity_for_weight /
   // provider_does_not_serve_route / no_route) or a client-side failure
   // (request_failed / invalid_location). A failed request is never shown as
   // "no transporter".
   const [searchReason, setSearchReason] = useState(null);
-  const [hubsError, setHubsError] = useState(false);
 
   // Everything the request builders need, in one object (see
   // api/shipmentRequests.js -- the request shapes are pinned by a contract
@@ -188,6 +186,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         .map(o => ({
           ...o.fulfillment.transportOption,
           servicePrice: o.price,
+          pricingMode: o.pricingMode || (o.price == null ? 'quote_required' : 'instant'),
           etaLabel: o.etaLabel,
           serviceName: o.name,
         }));
@@ -226,31 +225,20 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // a route card stay prefilled for Step 2 after Step 1 is completed.
 
   const loadHubChoices = async () => {
-    // Direct Agent delivery uses no hub: nothing to choose, and nothing may be chosen.
+    // Point choice belongs to the SELECTED transport service. Never ask the
+    // city-wide Super Agent directory which desk happens to be nearby: that
+    // cannot prove the desk can hand this parcel to the chosen provider.
     if (isDirectDelivery(selected)) {
-      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId(''); setHubsError(false);
+      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId('');
       return;
     }
-    // A booked trip uses the hubs its own stops are bound to (the server
-    // decides that at confirmation). Those sides have nothing to choose.
-    const originFixed = Boolean(selected?.loadHub);
-    const destinationFixed = Boolean(selected?.unloadHub);
-    if (originFixed) setOriginHubId('');
-    if (destinationFixed) setDestinationHubId('');
-    if ((originFixed || !originResolved?.placeRef) && (destinationFixed || !destinationResolved?.placeRef)) {
-      setOriginHubs([]); setDestinationHubs([]); setHubsError(false);
-      return;
-    }
-    setHubsLoading(true);
-    setHubsError(false);
-    try {
-      const [o,d]=await Promise.all([
-        !originFixed && originResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(originResolved,'origin')}) : Promise.resolve({data:{hubs:[]}}),
-        !destinationFixed && destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(destinationResolved,'destination')}) : Promise.resolve({data:{hubs:[]}}),
-      ]);
-      setOriginHubs(o.data?.hubs || []); setDestinationHubs(d.data?.hubs || []);
-    } catch { setOriginHubs([]); setDestinationHubs([]); setHubsError(true); }
-    finally { setHubsLoading(false); }
+    const originPoints = pickupOption === 'station' ? (selected?.originPoints || []) : [];
+    const destinationPoints = deliveryOption === 'station' ? (selected?.destinationPoints || []) : [];
+    setOriginHubs(originPoints);
+    setDestinationHubs(destinationPoints);
+    setOriginHubId(originPoints.length === 1 ? String(originPoints[0].hubId) : '');
+    setDestinationHubId(destinationPoints.length === 1 ? String(destinationPoints[0].hubId) : '');
+   
   };
 
   const calculatedTripPrice = (trip) => {
@@ -265,7 +253,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const priceEstimate = calculatedTripPrice(selected);
 
   const canContinueStep1 = itemDescription.trim() && Number(weightKg) > 0;
+  const stationOriginReady = pickupOption !== 'station' || originHubs.length > 0;
+  const stationDestinationReady = deliveryOption !== 'station' || destinationHubs.length > 0;
   const canContinueStep3 = receiverName.trim() && receiverPhone.trim();
+  const canConfirmPlan = stationOriginReady && stationDestinationReady &&
+    (pickupOption !== 'station' || Boolean(originHubId)) &&
+    (deliveryOption !== 'station' || Boolean(destinationHubId));
 
   const handleConfirm = async () => {
     setSubmitting(true);
@@ -498,7 +491,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 12, fontWeight: 900, color: OR }}>
-                          {trip.servicePrice != null ? `TZS ${fmt(trip.servicePrice)}` : (calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable'))}
+                          {trip.pricingMode === 'quote_required' ? 'Request quote' : (trip.servicePrice != null ? `TZS ${fmt(trip.servicePrice)}` : (calculatedTripPrice(trip) != null ? `TZS ${fmt(calculatedTripPrice(trip))}` : t('send_shipment.price_negotiable')))}
                         </div>
                       </div>
                     </div>
@@ -637,27 +630,28 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{fontSize:11,color:GR,marginTop:8}}>{t('send_shipment.trip_hubs_note')}</div>
             </div>}
 
-            {(originHubs.length>0 || destinationHubs.length>0) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
-              <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Kentexa Hub</div>
-              <div style={{fontSize:11,color:GR,marginBottom:10}}>Choose a hub only when you want to drop off or collect through a Kentexa Super Agent.</div>
-              {originHubs.length>0 && <select value={originHubId} onChange={e=>setOriginHubId(e.target.value)} style={inputSt}>
-                <option value="">Origin: no hub</option>{originHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name} · {h.address || h.city}</option>)}
-              </select>}
-              {destinationHubs.length>0 && <select value={destinationHubId} onChange={e=>setDestinationHubId(e.target.value)} style={inputSt}>
-                <option value="">Destination: no hub</option>{destinationHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name} · {h.address || h.city}</option>)}
-              </select>}
-            </div>}
-            {hubsLoading && <div style={{fontSize:12,color:GR,marginBottom:10}}>Loading Kentexa hubs…</div>}
-            {hubsError && <div role="alert" style={{fontSize:12,color:'#B91C1C',marginBottom:10}}>{t('send_shipment.hubs_load_failed')}</div>}
-
+            {((pickupOption === 'station') || (deliveryOption === 'station')) && !isDirectDelivery(selected) && (
+              <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
+                <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Kentexa Points for this service</div>
+                <div style={{fontSize:11,color:GR,marginBottom:10}}>Only points connected to {selected?.providerName || 'the selected transport service'} are shown.</div>
+                {pickupOption === 'station' && originHubs.length > 0 && <select value={originHubId} onChange={e=>setOriginHubId(e.target.value)} style={inputSt}>
+                  <option value="">Choose drop-off point</option>{originHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name || 'Kentexa Point'} · {h.address || h.city}</option>)}
+                </select>}
+                {deliveryOption === 'station' && destinationHubs.length > 0 && <select value={destinationHubId} onChange={e=>setDestinationHubId(e.target.value)} style={inputSt}>
+                  <option value="">Choose collection point</option>{destinationHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name || 'Kentexa Point'} · {h.address || h.city}</option>)}
+                </select>}
+                {pickupOption === 'station' && originHubs.length === 0 && <div role="alert" style={{fontSize:12,color:'#92400E',marginBottom:8}}>This service has no verified drop-off point at the origin yet. Choose “Pick up from me” or another delivery service.</div>}
+                {deliveryOption === 'station' && destinationHubs.length === 0 && <div role="alert" style={{fontSize:12,color:'#92400E'}}>This service has no verified collection point at the destination yet. Choose “Deliver to recipient” or another delivery service.</div>}
+              </div>
+            )}
             {error && (
               <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 12, fontWeight: 600 }}>{error}</div>
             )}
 
-            <button onClick={handleConfirm} disabled={submitting}
+            <button onClick={handleConfirm} disabled={submitting || !canConfirmPlan}
               style={{ width: '100%', background: 'linear-gradient(135deg,#EA580C,#DC2626)',
                 color: WH, border: 'none', borderRadius: 12, padding: '14px 0',
-                cursor: submitting ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800 }}>
+                cursor: (submitting || !canConfirmPlan) ? 'not-allowed' : 'pointer', opacity: canConfirmPlan ? 1 : 0.5, fontSize: 15, fontWeight: 800 }}>
               {submitting ? t('send_shipment.confirming') : t('send_shipment.confirm_button')}
             </button>
           </div>
