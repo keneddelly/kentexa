@@ -36,6 +36,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
   const [rejectReason, setRejectReason] = useState('');
   const [showReject,   setShowReject]   = useState(false);
   const [routes, setRoutes] = useState([]);
+  const [pricing, setPricing] = useState([]);
 
   const fetchProviders = async () => {
     try {
@@ -47,7 +48,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchProviders(); setSelected(null); }, [filter]); // eslint-disable-line
+  useEffect(() => { fetchProviders(); setSelected(null); api.get('/transport/admin/logistics-pricing').then(r=>setPricing(r.data||[])).catch(()=>setPricing([])); }, [filter]); // eslint-disable-line
 
   const fetchRoutes = async providerId => {
     if (!providerId) { setRoutes([]); return; }
@@ -74,6 +75,21 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
     if (!window.confirm('Ondoa route hii? Historia ya shipments/runs haitafutwa.')) return;
     try { await api.delete(`/transport/admin/routes/${route.id}`); await fetchRoutes(selected?.id); }
     catch (e) { alert(e.response?.data?.message || 'Imeshindwa kuondoa route'); }
+  };
+
+  const editPricing = async row => {
+    const pickup = prompt('Pickup fee (TZS). Acha tupu ikiwa haijawekwa.', row.pickupFee ?? '');
+    if (pickup === null) return;
+    const delivery = prompt('Delivery fee (TZS). Acha tupu ikiwa haijawekwa.', row.deliveryFee ?? '');
+    if (delivery === null) return;
+    try {
+      const res=await api.patch(`/transport/admin/logistics-pricing/${row.sizeClass}`, {
+        pickupFee: pickup==='' ? null : Number(pickup),
+        deliveryFee: delivery==='' ? null : Number(delivery),
+        requiresManualQuote: row.sizeClass==='special' ? row.requiresManualQuote : false,
+      });
+      setPricing(p=>p.map(x=>x.sizeClass===row.sizeClass?res.data:x));
+    } catch(e){ alert(e.response?.data?.message || 'Imeshindwa kuhifadhi bei'); }
   };
 
   const handleVerify = async (approve) => {
@@ -112,6 +128,18 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
         }
       `}</style>
       <div className="admin-content" style={{ flex: 1, padding: 24, overflow: 'auto', marginLeft: 250, boxSizing: 'border-box' }}>
+
+        <div style={{background:'#fff',borderRadius:14,padding:14,marginBottom:16,boxShadow:'0 2px 8px rgba(0,0,0,.06)'}}>
+          <div style={{fontSize:14,fontWeight:900,color:'#1e293b',marginBottom:4}}>💰 Bei za Agent — Pickup & Delivery</div>
+          <div style={{fontSize:11,color:'#64748b',marginBottom:10}}>Admin ndiye authority ya bei hizi. Transporter anaweka bei yake ya route; Kentexa hujumlisha bei ya mwisho kwa mteja.</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:8}}>
+            {pricing.map(p=><div key={p.sizeClass} style={{border:'1px solid #e2e8f0',borderRadius:10,padding:10}}>
+              <div style={{fontSize:12,fontWeight:900,textTransform:'capitalize'}}>{({small:'Mdogo',standard:'Wa kawaida',large:'Mkubwa',special:'Mzito / Maalum'})[p.sizeClass]||p.sizeClass}</div>
+              <div style={{fontSize:11,color:'#64748b',margin:'5px 0'}}>Pickup: {p.pickupFee==null?'Haijawekwa':`TZS ${Number(p.pickupFee).toLocaleString()}`}<br/>Delivery: {p.deliveryFee==null?'Haijawekwa':`TZS ${Number(p.deliveryFee).toLocaleString()}`}</div>
+              <button onClick={()=>editPricing(p)} style={{border:'none',borderRadius:7,padding:'6px 9px',fontWeight:800,cursor:'pointer'}}>Hariri bei</button>
+            </div>)}
+          </div>
+        </div>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between',
