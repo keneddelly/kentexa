@@ -40,8 +40,8 @@ export class LogisticsServiceOfferService {
     // lets execution resolve a run later.
     const runId = Number(dto.runId);
     if (Number.isInteger(runId) && runId > 0) {
-      const chosenRun = offers.find(o => o.serviceType === 'composed_intercity' && Number((o.fulfillment.transportOption as any)?.runId) === runId);
-      if (!chosenRun) throw new BadRequestException('That shipping service is no longer available; choose a fresh offer');
+      // selectComposed performs the authoritative run/status/capacity/route
+      // revalidation; service discovery intentionally does not depend on runs.
       return this.journeys.selectComposed(userId, {
         origin: dto.origin, destination: dto.destination,
         originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
