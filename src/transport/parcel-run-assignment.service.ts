@@ -753,6 +753,53 @@ export class ParcelRunAssignmentService {
     return rows[0];
   }
 
+  private async activateDestinationNextAction(parcelId: number): Promise<any> {
+    try {
+      const [parcel] = await this.dataSource.query(
+        `SELECT p.id, p."trackingNumber", p."destinationCity", p."weightKg",
+                p."journeySelectionId", p."buyerRequestedDelivery", p."localAgentId"
+           FROM public.parcel p WHERE p.id=$1`,
+        [parcelId],
+      );
+      if (!parcel?.journeySelectionId || parcel.buyerRequestedDelivery != null) return null;
+      const [terminal] = await this.dataSource.query(
+        `SELECT type FROM public.journey_leg
+          WHERE "journeySelectionId"=$1 AND type IN ('last_mile','customer_pickup')
+          ORDER BY sequence DESC LIMIT 1`,
+        [parcel.journeySelectionId],
+      );
+      if (!terminal) return null;
+      if (terminal.type === 'customer_pickup') {
+        await this.dataSource.query(
+          `UPDATE public.parcel SET "buyerRequestedDelivery"=false WHERE id=$1 AND "buyerRequestedDelivery" IS NULL`,
+          [parcelId],
+        );
+        return { type: 'customer_pickup', status: 'ready_at_hub' };
+      }
+      if (!this.agentsService) return { type: 'last_mile', status: 'awaiting_supply' };
+      const agents = await this.agentsService.getAvailableAgents(parcel.destinationCity, Number(parcel.weightKg) || 0);
+      const agent = agents.find((a: any) => Number.isInteger(Number(a.userId)) && Number(a.userId) > 0);
+      if (!agent) return { type: 'last_mile', status: 'awaiting_supply' };
+      const changed = await this.dataSource.query(
+        `UPDATE public.parcel
+            SET "buyerRequestedDelivery"=true, "localAgentId"=$2, "localAgentName"=$3,
+                "agreedDeliveryFee"=$4, "claimedAt"=COALESCE("claimedAt", now())
+          WHERE id=$1 AND "buyerRequestedDelivery" IS NULL
+          RETURNING id`,
+        [parcelId, String(agent.userId), agent.fullName, Number(agent.deliveryFee) || 0],
+      );
+      return {
+        type: 'last_mile',
+        status: changed.length ? 'agent_assigned' : 'already_activated',
+        agentUserId: changed.length ? Number(agent.userId) : undefined,
+      };
+    } catch {
+      // Receipt/custody is the primary physical fact. A resolver outage must
+      // not roll it back; the desk queue keeps the parcel visible for retry.
+      return { type: 'destination_action', status: 'activation_pending' };
+    }
+  }
+
   // Stage 3S-C6: the RECEIVING Super Agent's own confirmation -- the real
   // qualifying event, independent of the provider's own markUnloaded claim.
   // Only reachable from UNLOADED, and only when the unload stop names a real
@@ -925,6 +972,8 @@ export class ParcelRunAssignmentService {
       // sweep (SuperAgentHandlingEarningObligationService.processPending()).
       await this.obligationService.attemptResolve(result.obligationId, { userId: context.userId });
     }
+    const nextAction = await this.activateDestinationNextAction(result.assignment.parcelId);
+    if (nextAction) (result.assignment as any).nextAction = nextAction;
     return result.assignment;
   }
 
