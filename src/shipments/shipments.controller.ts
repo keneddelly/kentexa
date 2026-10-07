@@ -17,6 +17,9 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 import { ShipmentsService } from './shipments.service';
 import type { ConfirmShipmentDto, CreateShipmentDto, DiscoverySideInput } from './shipments.service';
 import { readPlaceRefQuery } from './logistics-location-context';
@@ -113,6 +116,20 @@ export class ShipmentsController {
   @UseGuards(JwtAuthGuard)
   mine(@Request() req) {
     return this.svc.getMyShipments(req.user.id);
+  }
+
+  // Admin operations ledger — all shipment requests regardless of intake
+  // channel. This is deliberately separate from /mine (ownership) and public
+  // tracking. Admin authority comes from the CURRENT active role.
+  @Get('admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MANAGER, UserRole.CUSTOMER_CARE)
+  adminList(
+    @Query('status') status?: string,
+    @Query('q') q?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.svc.getAdminShipments({ status, q, limit: limit ? Number(limit) : undefined });
   }
 
   @Patch(':id/confirm')

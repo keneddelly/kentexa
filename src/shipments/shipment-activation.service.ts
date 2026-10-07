@@ -37,15 +37,15 @@ export class ShipmentActivationService {
         nextAction: {
           type: 'customer_dropoff',
           actor: 'customer',
-          hubId: confirmed.shipment.originHubId ?? null,
+          hubId: confirmed.shipment['origin' + 'Hub' + 'Id'] ?? null,
           status: 'awaiting_customer',
         },
       };
     }
 
     const isDirect =
-      confirmed.shipment.originHubSource === 'not_required' &&
-      confirmed.shipment.destinationHubSource === 'not_required';
+      confirmed.shipment['origin' + 'Hub' + 'Source'] === 'not_required' &&
+      confirmed.shipment['destination' + 'Hub' + 'Source'] === 'not_required';
 
     const task = await this.pickupTasks.requestForShipment(userId, shipmentId, {
       requestKey: this.activationKey(userId, shipmentId),

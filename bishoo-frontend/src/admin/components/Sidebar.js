@@ -53,6 +53,7 @@ const Sidebar = ({ activePage, onNavigate, onLogout }) => {
     { icon: '🔧', label: 'Services',          page: 'AdminServices' },
     { icon: '📋', label: 'Classifieds',       page: 'Classifieds' },
     { icon: '🛒', label: 'Orders',            page: 'Orders' },
+    { icon: '📦', label: 'Shipments',         page: 'AdminShipments' },
     // Was only reachable via a one-off Dashboard.js shortcut card, unlike
     // every other admin surface — no persistent nav entry at all.
     { icon: '🚌', label: 'Transport Providers', page: 'TransportAdmin' },
