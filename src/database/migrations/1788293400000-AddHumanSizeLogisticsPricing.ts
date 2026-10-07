@@ -10,10 +10,18 @@ export class AddHumanSizeLogisticsPricing1788293400000 implements MigrationInter
     await q.query(`ALTER TABLE "transport_route" ADD "priceStandard" numeric(12,2)`);
     await q.query(`ALTER TABLE "transport_route" ADD "priceLarge" numeric(12,2)`);
     await q.query(`ALTER TABLE "transport_route" ADD "priceSpecial" numeric(12,2)`);
+    await q.query(`ALTER TABLE "transport_route" ADD "pickupPricingMode" varchar(20) NOT NULL DEFAULT 'kentexa'`);
+    await q.query(`ALTER TABLE "transport_route" ADD "pickupFee" numeric(12,2)`);
+    await q.query(`ALTER TABLE "transport_route" ADD "deliveryPricingMode" varchar(20) NOT NULL DEFAULT 'kentexa'`);
+    await q.query(`ALTER TABLE "transport_route" ADD "deliveryFee" numeric(12,2)`);
     await q.query(`INSERT INTO "logistics_agent_pricing" ("sizeClass","pickupFee","deliveryFee","requiresManualQuote") VALUES ('small',2000,2000,false),('standard',NULL,NULL,false),('large',NULL,NULL,false),('special',NULL,NULL,true)`);
   }
 
   public async down(q: QueryRunner): Promise<void> {
+    await q.query(`ALTER TABLE "transport_route" DROP COLUMN "deliveryFee"`);
+    await q.query(`ALTER TABLE "transport_route" DROP COLUMN "deliveryPricingMode"`);
+    await q.query(`ALTER TABLE "transport_route" DROP COLUMN "pickupFee"`);
+    await q.query(`ALTER TABLE "transport_route" DROP COLUMN "pickupPricingMode"`);
     await q.query(`ALTER TABLE "transport_route" DROP COLUMN "priceSpecial"`);
     await q.query(`ALTER TABLE "transport_route" DROP COLUMN "priceLarge"`);
     await q.query(`ALTER TABLE "transport_route" DROP COLUMN "priceStandard"`);
