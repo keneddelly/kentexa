@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { ShipmentsService } from './shipments.service';
 import type { ConfirmShipmentDto } from './shipments.service';
 import { PickupTasksService } from './pickup-tasks.service';
 import { ShipmentHandoffOption } from './entities/shipment.entity';
 import { LogisticsDispatchService } from './logistics-dispatch.service';
+import { DataSource } from 'typeorm';
+import { JourneyLeg, JourneyLegType } from '../transport/entities/journey-selection.entity';
 
 /**
  * Issue #95 orchestration boundary.
@@ -17,6 +19,7 @@ export class ShipmentActivationService {
     private readonly shipments: ShipmentsService,
     private readonly pickupTasks: PickupTasksService,
     private readonly dispatch: LogisticsDispatchService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private activationKey(userId: number, shipmentId: number) {
