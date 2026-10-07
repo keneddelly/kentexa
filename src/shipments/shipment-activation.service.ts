@@ -51,24 +51,37 @@ export class ShipmentActivationService {
       confirmed.shipment['origin' + 'Hub' + 'Source'] === 'not_required' &&
       confirmed.shipment['destination' + 'Hub' + 'Source'] === 'not_required';
 
-    // A committed intercity transport service may be sellable before an
-    // origin Kentexa Point / carrier handoff location has been configured.
-    // Confirmation must not fail after the commercial commitment has already
-    // been frozen. In that case keep the parcel pending and surface an
-    // operations-planning action; create an Agent pickup only once there is a
-    // concrete place for that Agent to hand the parcel over.
-    const originHubId = confirmed.shipment['origin' + 'Hub' + 'Id'] ?? null;
-    if (!isDirect && !originHubId) {
-      return {
-        ...confirmed,
-        nextAction: {
-          type: 'fulfillment_setup_pending',
-          actor: 'kentexa_operations',
-          status: 'awaiting_handoff_point',
-          reason: 'origin_handoff_point_not_configured',
-          custodyStarted: false,
-        },
-      };
+    // Journey-backed shipments are executed from the server-composed Journey.
+    // Legacy Shipment hub/direct-delivery flags must not re-plan them.
+    if (confirmed.shipment.journeySelectionId) {
+      const legs = await this.dataSource.getRepository(JourneyLeg).find({
+        where: { journeySelectionId: confirmed.shipment.journeySelectionId },
+        order: { sequence: 'ASC' },
+      });
+      const first = legs[0];
+      if (!first) throw new BadRequestException('Committed journey has no fulfillment legs');
+      if (first.type === JourneyLegType.FIRST_MILE) {
+        return { ...confirmed, nextAction: {
+          type: 'agent_pickup_pending', actor: 'agent', journeyLegId: first.id,
+          requiredActorCapability: first.requiredActorCapability || 'local_agent',
+          status: 'awaiting_assignment', custodyStarted: false,
+        } };
+      }
+      if (first.type === JourneyLegType.HUB_INTAKE) {
+        return { ...confirmed, nextAction: {
+          type: 'customer_dropoff_pending', actor: 'sender', journeyLegId: first.id,
+          requiredActorCapability: first.requiredActorCapability || 'kentexa_point',
+          status: 'awaiting_handoff_point', custodyStarted: false,
+        } };
+      }
+      if (first.type === JourneyLegType.TRANSPORT) {
+        return { ...confirmed, nextAction: {
+          type: 'transport_planning', actor: 'transport_provider', journeyLegId: first.id,
+          providerId: first.providerId, routeId: first.routeId,
+          status: 'awaiting_run_resolution', custodyStarted: false,
+        } };
+      }
+      throw new BadRequestException('Journey first leg is not executable');
     }
 
     const task = await this.pickupTasks.requestForShipment(userId, shipmentId, {
