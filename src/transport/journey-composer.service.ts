@@ -43,6 +43,11 @@ export interface ComposeJourneyDto {
   date?: string;
 }
 
+export interface SelectServiceJourneyDto extends ComposeJourneyDto {
+  providerId: number;
+  routeId: number;
+}
+
 export interface SelectComposedJourneyDto extends ComposeJourneyDto {
   // Gate 2: the option the client names is a Transport Run the server
   // offered. Nothing else about the leg is taken from the request.
@@ -190,6 +195,58 @@ export class JourneyComposerService {
       options,
       requiresManualPlanning: options.length === 0,
     };
+  }
+
+  /**
+   * Freeze a customer's chosen transport SERVICE before a concrete run exists.
+   * The server re-discovers the provider/route against its own routing keys,
+   * then stores a SERVICE_CONFIRMED transport leg. No capacity or custody is
+   * implied here; execution must later bind a real TransportRun and re-check
+   * run capacity/status before linehaul starts.
+   */
+  async selectService(userId: number, dto: SelectServiceJourneyDto) {
+    const providerId = Number(dto?.providerId);
+    const routeId = Number(dto?.routeId);
+    if (!Number.isInteger(providerId) || providerId <= 0 || !Number.isInteger(routeId) || routeId <= 0) {
+      throw new BadRequestException('A valid providerId and routeId are required');
+    }
+    const cargo = normalizeCargoRequirements(dto.cargoRequirements);
+    const origin = await this.resolveSide('Origin', dto.origin, dto.originSnapshot);
+    const destination = await this.resolveSide('Destination', dto.destination, dto.destinationSnapshot);
+    const weightKg = Number(cargo.weightKg) || 0;
+
+    let matched: { from: string; to: string } | null = null;
+    for (const pair of this.pairs(origin, destination)) {
+      const services = await this.transport.discoverServiceRoutes(pair.from, pair.to, weightKg, providerId);
+      if (services.some((s) => s.providerId === providerId && s.routeId === routeId)) {
+        matched = pair;
+        break;
+      }
+    }
+    if (!matched) {
+      throw new BadRequestException('That transport service no longer serves this shipment');
+    }
+
+    return this.selections.select(userId, {
+      originSnapshot: origin.snapshot,
+      destinationSnapshot: destination.snapshot,
+      cargoRequirements: cargo,
+      paymentMethod: dto.paymentMethod,
+      legs: [{
+        type: JourneyLegType.TRANSPORT,
+        fromNode: { ...origin.snapshot, city: matched.from },
+        toNode: { ...destination.snapshot, city: matched.to },
+        providerId,
+        routeId,
+        runId: null,
+        commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
+        executionRequirements: {
+          composedByServer: true,
+          servicePath: 'route_service',
+          runResolutionRequired: true,
+        },
+      }],
+    });
   }
 
   async selectComposed(userId: number, dto: SelectComposedJourneyDto) {
