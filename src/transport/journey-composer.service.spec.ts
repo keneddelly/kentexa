@@ -76,6 +76,27 @@ describe('JourneyComposerService', () => {
     expect(leg.superAgentId).toBeUndefined();
   });
 
+  it.each([
+    ['door', 'last_mile', 'local_agent'],
+    ['collect', 'customer_pickup', undefined],
+  ])('commits %s as the terminal Journey action', async (deliveryOutcome, type, capability) => {
+    transport.assertRunBookable.mockResolvedValue(undefined);
+    transport.findBookableRun.mockResolvedValue(run());
+    transport.assertEligibleProvider.mockResolvedValue({ id: 2 });
+    selections.select.mockResolvedValue({ id: 12 });
+    await service.selectComposed(9, {
+      runId: 7,
+      originSnapshot: { city: 'Kariakoo' },
+      destinationSnapshot: { city: 'Bunju' },
+      cargoRequirements: { description: 'Box', quantity: 1, weightKg: 2 } as any,
+      deliveryOutcome: deliveryOutcome as 'door' | 'collect',
+    });
+    const legs = selections.select.mock.calls[0][1].legs;
+    expect(legs).toHaveLength(2);
+    expect(legs[1]).toMatchObject({ type });
+    if (capability) expect(legs[1].requiredActorCapability).toBe(capability);
+  });
+
   it('a Run that does not serve the journey is a 400 and nothing is selected', async () => {
     transport.assertRunBookable.mockResolvedValue(undefined);
     transport.findBookableRun.mockResolvedValue(null);
