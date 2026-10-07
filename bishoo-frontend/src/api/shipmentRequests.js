@@ -161,7 +161,8 @@ export const searchOutcome = (response, error) => {
 export const serviceOfferCommitBody = (state, selected, direct, now = new Date()) => ({
   fromCity: state.originResolved?.regionName || state.originResolved?.districtName || (state.origin || '').trim(),
   toCity: state.destinationResolved?.regionName || state.destinationResolved?.districtName || (state.destination || '').trim(),
-  weightKg: Number(state.weightKg) || 0,
+  parcelSize: state.parcelSize || 'small',
+  weightKg: Number(state.weightKg) || undefined,
   pickup: state.pickupOption === 'door' ? 'door' : 'point',
   delivery: state.deliveryOption === 'door' ? 'door' : 'collect',
   origin: journeySide(state.originResolved, state.origin),
