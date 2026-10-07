@@ -15,7 +15,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import {
-  routeSearchParams, hubSearchParams, quoteBody, shipmentBody, isBookableTrip, isTransportService,
+  hubSearchParams, quoteBody, shipmentBody, isTransportService,
   canDeliverDirect, isDirectDelivery,
   confirmBody, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
