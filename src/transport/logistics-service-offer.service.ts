@@ -151,15 +151,22 @@ export class LogisticsServiceOfferService {
     for (const trip of (availability.trips || []).slice(0, 5)) {
       const linehaul = this.routePrice(trip, size, Number(dto.weightKg) > 0 ? Number(dto.weightKg) : undefined);
       if (linehaul <= 0) continue; // no provider price => not bookable
+      const providerPickup = trip.pickupPricingMode === 'free' ? 0
+        : trip.pickupPricingMode === 'fixed' ? Number(trip.pickupFee) : pickupFee;
+      const providerDelivery = trip.deliveryPricingMode === 'free' ? 0
+        : trip.deliveryPricingMode === 'fixed' ? Number(trip.deliveryFee) : deliveryFee;
+      if ((dto.pickup === 'door' && !Number.isFinite(providerPickup)) || (dto.delivery === 'door' && !Number.isFinite(providerDelivery))) continue;
+      const finalPickup = dto.pickup === 'door' ? providerPickup : 0;
+      const finalDelivery = dto.delivery === 'door' ? providerDelivery : 0;
       offers.push({
         serviceType: 'composed_intercity', name: trip.providerName ? `${trip.providerName} Delivery` : 'Kentexa Standard',
-        price: linehaul + pickupFee + deliveryFee, currency: 'TZS', parcelSize: size,
-        priceBreakdown: { pickup: pickupFee, transport: linehaul, delivery: deliveryFee },
+        price: linehaul + finalPickup + finalDelivery, currency: 'TZS', parcelSize: size,
+        priceBreakdown: { pickup: finalPickup, transport: linehaul, delivery: finalDelivery },
         etaLabel: trip.departureTime ? `Departs ${trip.departureTime}` : 'Scheduled service',
         firstAction: dto.pickup === 'door'
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
           : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
-        fulfillment: { pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff', linehaul: 'transport_provider', delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect', transportOption: trip },
+        fulfillment: { pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff', linehaul: 'transport_provider', delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect', transportOption: { ...trip, pickupIncluded: dto.pickup === 'door' && trip.pickupPricingMode === 'free', deliveryIncluded: dto.delivery === 'door' && trip.deliveryPricingMode === 'free' } },
       });
     }
     return offers.sort((a, b) => a.price - b.price);
