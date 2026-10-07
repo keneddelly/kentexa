@@ -164,6 +164,8 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const handleAddRoute = async () => {
     try {
       setSavingRoute(true);
+      const fixed = Number(routeForm.fixedFee || 0); const perKg = Number(routeForm.pricePerKg || 0);
+      if (fixed <= 0 && perKg <= 0) throw new Error('Weka bei ya route kabla ya kuiweka hewani');
       const dto = {
         routeType: routeForm.routeType,
         pricePerKg: routeForm.pricePerKg ? Number(routeForm.pricePerKg) : undefined,
@@ -201,6 +203,32 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     finally { setSavingRoute(false); }
   };
 
+
+  const editRoute = async route => {
+    const fixedFee = prompt('Bei ya chini kwa mzigo huu (TZS)', String(route.fixedFee || ''));
+    if (fixedFee === null) return;
+    const pricePerKg = prompt('Bei kwa kilo (TZS) — acha 0 kama hutumii kilo', String(route.pricePerKg || '0'));
+    if (pricePerKg === null) return;
+    const estimatedHours = prompt('Muda wa safari (saa)', String(route.estimatedHours || ''));
+    if (estimatedHours === null) return;
+    const fixed = Number(fixedFee || 0); const perKg = Number(pricePerKg || 0);
+    if ((!Number.isFinite(fixed) || fixed < 0) || (!Number.isFinite(perKg) || perKg < 0) || (fixed <= 0 && perKg <= 0)) {
+      return alert('Weka bei halali ya route: bei ya chini au bei kwa kilo.');
+    }
+    try {
+      await api.patch(`/transport/routes/${route.id}`, {
+        fixedFee: fixed, pricePerKg: perKg,
+        estimatedHours: estimatedHours ? Number(estimatedHours) : undefined,
+      });
+      await fetchAll();
+    } catch (e) { alert(e.response?.data?.message || 'Imeshindwa kubadilisha route'); }
+  };
+
+  const deleteRoute = async route => {
+    if (!window.confirm('Ondoa route hii? Historia ya mizigo na safari itahifadhiwa.')) return;
+    try { await api.delete(`/transport/routes/${route.id}`); await fetchAll(); }
+    catch (e) { alert(e.response?.data?.message || 'Imeshindwa kuondoa route'); }
+  };
 
   const loadRouteStops = async routeId => {
     try { const res=await api.get(`/van-pilot/routes/${routeId}/stops`); setRouteStops(p=>({...p,[routeId]:res.data||[]})); }
@@ -871,6 +899,10 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                     </div>
                   </div>}
                 </div>}
+                <div style={{display:'flex',gap:8,marginTop:10,marginBottom:8}}>
+                  <button onClick={()=>editRoute(r)} style={{border:'none',borderRadius:8,padding:'7px 11px',background:'#eff6ff',color:'#1d4ed8',fontSize:12,fontWeight:800,cursor:'pointer'}}>Hariri route / bei</button>
+                  <button onClick={()=>deleteRoute(r)} style={{border:'none',borderRadius:8,padding:'7px 11px',background:'#fee2e2',color:'#b91c1c',fontSize:12,fontWeight:800,cursor:'pointer'}}>Ondoa route</button>
+                </div>
                 <button onClick={() => onOpenMoment?.('selling', {
                     type: 'route', id: r.id, title: routeLabel || t('transport_provider_dashboard.my_route_fallback'), image: null,
                   })}
