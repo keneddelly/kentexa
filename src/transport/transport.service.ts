@@ -790,6 +790,14 @@ export class TransportService {
       coverageCity?: string;
       pricePerKg?: number;
       fixedFee?: number;
+      priceSmall?: number;
+      priceStandard?: number;
+      priceLarge?: number;
+      priceSpecial?: number;
+      pickupPricingMode?: 'kentexa' | 'free' | 'fixed';
+      pickupFee?: number;
+      deliveryPricingMode?: 'kentexa' | 'free' | 'fixed';
+      deliveryFee?: number;
       estimatedHours?: number;
       notes?: string;
     },
@@ -824,6 +832,14 @@ export class TransportService {
         coverageCity: dto.coverageCity || null,
         pricePerKg: dto.pricePerKg || 0,
         fixedFee: dto.fixedFee || 0,
+        priceSmall: dto.priceSmall || null,
+        priceStandard: dto.priceStandard || null,
+        priceLarge: dto.priceLarge || null,
+        priceSpecial: dto.priceSpecial || null,
+        pickupPricingMode: dto.pickupPricingMode || 'kentexa',
+        pickupFee: dto.pickupPricingMode === 'fixed' ? Number(dto.pickupFee || 0) : null,
+        deliveryPricingMode: dto.deliveryPricingMode || 'kentexa',
+        deliveryFee: dto.deliveryPricingMode === 'fixed' ? Number(dto.deliveryFee || 0) : null,
         estimatedHours: dto.estimatedHours || null,
         notes: dto.notes || null,
         isActive: true,
@@ -886,12 +902,22 @@ export class TransportService {
       'loopStops',
       'coverageWards',
       'coverageCity',
+      'priceSmall', 'priceStandard', 'priceLarge', 'priceSpecial',
+      'pickupPricingMode', 'pickupFee', 'deliveryPricingMode', 'deliveryFee',
       'estimatedHours',
       'isActive',
       'notes',
     ];
     for (const key of editable) {
       if (dto[key] !== undefined) (route as any)[key] = dto[key];
+    }
+    for (const side of ['pickup', 'delivery'] as const) {
+      const mode = (route as any)[side + 'PricingMode'];
+      if (!['kentexa','free','fixed'].includes(mode)) throw new BadRequestException(`${side}PricingMode is invalid`);
+      if (mode === 'fixed') {
+        const fee = Number((route as any)[side + 'Fee']);
+        if (!Number.isFinite(fee) || fee < 0) throw new BadRequestException(`${side}Fee must be non-negative`);
+      } else (route as any)[side + 'Fee'] = null;
     }
     const saved = await this.routeRepo.save(route);
     if (saved.isActive) this.indexRoute(saved).catch(() => {});
@@ -905,6 +931,73 @@ export class TransportService {
       });
     }
     return saved;
+  }
+
+  async deactivateOwnRoute(userId: number, routeId: number): Promise<{ id: number; isActive: false }> {
+    const p = await this.getMyProfile(userId);
+    const route = await this.routeRepo.findOne({ where: { id: routeId, providerId: p.id } });
+    if (!route) throw new NotFoundException('Njia haijapatikana');
+    // Route deletion is deliberately a soft-delete. Runs, quotes, shipments and
+    // custody history may already reference this route and must remain auditable.
+    route.isActive = false;
+    await this.routeRepo.save(route);
+    await this.searchIndex.remove('transport_route', route.id).catch(() => {});
+    return { id: route.id, isActive: false };
+  }
+
+  async adminGetRoutes(providerId?: number): Promise<TransportRoute[]> {
+    if (providerId !== undefined && (!Number.isInteger(providerId) || providerId <= 0)) {
+      throw new BadRequestException('providerId must be a positive integer');
+    }
+    return this.routeRepo.find({
+      where: providerId ? { providerId } : {},
+      relations: { provider: true },
+      order: { updatedAt: 'DESC' },
+    });
+  }
+
+  async adminUpdateRoute(routeId: number, dto: any): Promise<TransportRoute> {
+    const route = await this.routeRepo.findOne({ where: { id: routeId } });
+    if (!route) throw new NotFoundException('Njia haijapatikana');
+    const editable = [
+      'routeType', 'originCity', 'destinationCity', 'transitCities', 'loopStops',
+      'coverageWards', 'coverageCity', 'priceSmall', 'priceStandard', 'priceLarge', 'priceSpecial', 'pickupPricingMode', 'pickupFee', 'deliveryPricingMode', 'deliveryFee', 'estimatedHours', 'isActive', 'notes',
+    ];
+    for (const key of editable) if (dto[key] !== undefined) (route as any)[key] = dto[key];
+    for (const side of ['pickup', 'delivery'] as const) {
+      const mode = (route as any)[side + 'PricingMode'];
+      if (!['kentexa','free','fixed'].includes(mode)) throw new BadRequestException(`${side}PricingMode is invalid`);
+      if (mode === 'fixed') {
+        const fee = Number((route as any)[side + 'Fee']);
+        if (!Number.isFinite(fee) || fee < 0) throw new BadRequestException(`${side}Fee must be non-negative`);
+      } else (route as any)[side + 'Fee'] = null;
+    }
+    if (dto.pricePerKg !== undefined) {
+      const n = Number(dto.pricePerKg);
+      if (!Number.isFinite(n) || n < 0) throw new BadRequestException('pricePerKg must be non-negative');
+      route.pricePerKg = n;
+    }
+    if (dto.fixedFee !== undefined) {
+      const n = Number(dto.fixedFee);
+      if (!Number.isFinite(n) || n < 0) throw new BadRequestException('fixedFee must be non-negative');
+      route.fixedFee = n;
+    }
+    if (route.isActive && Number(route.pricePerKg || 0) <= 0 && Number(route.fixedFee || 0) <= 0) {
+      throw new BadRequestException('An active transport route must have a price');
+    }
+    const saved = await this.routeRepo.save(route);
+    if (saved.isActive) this.indexRoute(saved).catch(() => {});
+    else this.searchIndex.remove('transport_route', saved.id).catch(() => {});
+    return saved;
+  }
+
+  async adminDeactivateRoute(routeId: number): Promise<{ id: number; isActive: false }> {
+    const route = await this.routeRepo.findOne({ where: { id: routeId } });
+    if (!route) throw new NotFoundException('Njia haijapatikana');
+    route.isActive = false;
+    await this.routeRepo.save(route);
+    await this.searchIndex.remove('transport_route', route.id).catch(() => {});
+    return { id: route.id, isActive: false };
   }
 
   private async indexRoute(route: TransportRoute): Promise<void> {
@@ -1283,6 +1376,8 @@ export class TransportService {
     return {
       trips: published.map((a) => ({
         availabilityId: a.id,
+        routeId: a.routeId ?? (a as any).route?.id ?? null,
+        providerName: (a as any).provider?.name ?? null,
         provider: this.toSafeProvider((a as any).provider),
         fromCity: a.fromCity || (a as any).route?.originCity || null,
         toCity: a.toCity || (a as any).route?.destinationCity || null,
@@ -1296,6 +1391,14 @@ export class TransportService {
         ),
         pricePerKg: (a as any).route?.pricePerKg ?? null,
         fixedFee: (a as any).route?.fixedFee ?? null,
+        priceSmall: (a as any).route?.priceSmall ?? null,
+        priceStandard: (a as any).route?.priceStandard ?? null,
+        priceLarge: (a as any).route?.priceLarge ?? null,
+        priceSpecial: (a as any).route?.priceSpecial ?? null,
+        pickupPricingMode: (a as any).route?.pickupPricingMode ?? 'kentexa',
+        pickupFee: (a as any).route?.pickupFee ?? null,
+        deliveryPricingMode: (a as any).route?.deliveryPricingMode ?? 'kentexa',
+        deliveryFee: (a as any).route?.deliveryFee ?? null,
         // Canonical journey duration (Stage 3S-B2) — the same TransportRoute
         // field 'fastest' sorts by; null when no route is linked (a
         // manually-published slot has no journey-time data to report).

@@ -7,6 +7,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -39,6 +40,7 @@ import { CurrentRoleContext } from '../role-context/current-role-context.decorat
 import type { RoleContext } from '../role-context/role-context.types';
 import { LogisticsServiceOfferService } from './logistics-service-offer.service';
 import type { DiscoverServiceOffersDto, CommitServiceOfferDto } from './logistics-service-offer.service';
+import { ParcelSizeClass } from './entities/logistics-agent-pricing.entity';
 
 @Controller('transport')
 export class TransportController {
@@ -191,6 +193,13 @@ export class TransportController {
     @Body() dto: any,
   ) {
     return this.svc.updateRoute(req.user.id, id, dto);
+  }
+
+  @Delete('routes/:id')
+  @UseGuards(JwtAuthGuard, RoleContextGuard, ActiveRoleGuard)
+  @RequireActiveRole(AccountRoleType.TRANSPORT_PROVIDER)
+  deleteOwnRoute(@Request() req, @Param('id', ParseIntPipe) id: number) {
+    return this.svc.deactivateOwnRoute(req.user.id, id);
   }
 
   // ── AVAILABILITY ─────────────────────────────────────────────────────────
@@ -346,6 +355,44 @@ export class TransportController {
     @Body() dto: { approve: boolean; reason?: string },
   ) {
     return this.svc.adminVerify(id, dto.approve, dto.reason);
+  }
+
+  @Get('admin/logistics-pricing')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  adminLogisticsPricing() {
+    return this.serviceOffers.getAdminPricing();
+  }
+
+  @Patch('admin/logistics-pricing/:sizeClass')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  adminSetLogisticsPricing(
+    @Param('sizeClass') sizeClass: ParcelSizeClass,
+    @Body() dto: { pickupFee?: number | null; deliveryFee?: number | null; requiresManualQuote?: boolean },
+  ) {
+    return this.serviceOffers.setAdminPricing(sizeClass, dto);
+  }
+
+  @Get('admin/routes')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  adminRoutes(@Query('providerId') providerId?: string) {
+    return this.svc.adminGetRoutes(providerId ? Number(providerId) : undefined);
+  }
+
+  @Patch('admin/routes/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  adminUpdateRoute(@Param('id', ParseIntPipe) id: number, @Body() dto: any) {
+    return this.svc.adminUpdateRoute(id, dto);
+  }
+
+  @Delete('admin/routes/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  adminDeleteRoute(@Param('id', ParseIntPipe) id: number) {
+    return this.svc.adminDeactivateRoute(id);
   }
 
   @Get('admin/assignments')

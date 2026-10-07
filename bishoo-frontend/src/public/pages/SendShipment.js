@@ -102,7 +102,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // Step 1 — what & how much. Captured first so the route search (step 2)
   // can exclude anything that can't actually carry it.
   const [itemDescription, setItemDescription] = useState('');
-  const [weightKg, setWeightKg] = useState('');
+  const [parcelSize, setParcelSize] = useState('small');
+  // Internal capacity estimate only; ordinary customers choose a human size class.
+  const SIZE_WEIGHT = { small: 5, standard: 25, large: 150, special: 0 };
+  const weightKg = SIZE_WEIGHT[parcelSize] || 0;
 
   // Step 2 — origin/destination, ideally SELECTED (structured), not just typed.
   const [origin, setOrigin] = useState(navParams?.origin || '');
@@ -152,7 +155,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // api/shipmentRequests.js -- the request shapes are pinned by a contract
   // test shared with the backend).
   const requestState = {
-    itemDescription, weightKg, origin, destination, originResolved, destinationResolved,
+    itemDescription, parcelSize, weightKg, origin, destination, originResolved, destinationResolved,
     receiverName, receiverPhone, senderName, senderPhone, pickupOption, deliveryOption,
     transportProviderId: navParams?.transportProviderId, originHubId, destinationHubId,
   };
@@ -211,35 +214,40 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   // a route card stay prefilled for Step 2 after Step 1 is completed.
 
   const loadHubChoices = async () => {
-    // Direct Agent delivery uses no hub: nothing to choose, and nothing may be chosen.
-    if (isDirectDelivery(selected)) {
-      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId(''); setHubsError(false);
-      return;
+    // Hubs used by a Transport Run are operational infrastructure. They are
+    // NEVER a sender choice for door pickup / door delivery.
+    const needsOriginPoint = pickupOption !== 'door';
+    const needsDestinationPoint = deliveryOption !== 'door';
+    if (isDirectDelivery(selected) || (!needsOriginPoint && !needsDestinationPoint)) {
+      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId('');
+      setHubsError(false); return;
     }
-    // A booked trip uses the hubs its own stops are bound to (the server
-    // decides that at confirmation). Those sides have nothing to choose.
     const originFixed = Boolean(selected?.loadHub);
     const destinationFixed = Boolean(selected?.unloadHub);
-    if (originFixed) setOriginHubId('');
-    if (destinationFixed) setDestinationHubId('');
-    if ((originFixed || !originResolved?.placeRef) && (destinationFixed || !destinationResolved?.placeRef)) {
-      setOriginHubs([]); setDestinationHubs([]); setHubsError(false);
-      return;
-    }
-    setHubsLoading(true);
-    setHubsError(false);
+    // A run-bound stop is auto-selected only when the customer explicitly
+    // chose drop-off/collection; otherwise it stays completely invisible.
+    if (needsOriginPoint && originFixed) setOriginHubId(String(selected.loadHub.id || selected.loadHub.hubId || ''));
+    else setOriginHubId('');
+    if (needsDestinationPoint && destinationFixed) setDestinationHubId(String(selected.unloadHub.id || selected.unloadHub.hubId || ''));
+    else setDestinationHubId('');
+    setHubsLoading(true); setHubsError(false);
     try {
       const [o,d]=await Promise.all([
-        !originFixed && originResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(originResolved,'origin')}) : Promise.resolve({data:{hubs:[]}}),
-        !destinationFixed && destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(destinationResolved,'destination')}) : Promise.resolve({data:{hubs:[]}}),
+        needsOriginPoint && !originFixed && originResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(originResolved,'origin')}) : Promise.resolve({data:{hubs:[]}}),
+        needsDestinationPoint && !destinationFixed && destinationResolved?.placeRef ? api.get('/shipments/hubs',{params:hubSearchParams(destinationResolved,'destination')}) : Promise.resolve({data:{hubs:[]}}),
       ]);
-      setOriginHubs(o.data?.hubs || []); setDestinationHubs(d.data?.hubs || []);
+      const os=o.data?.hubs||[], ds=d.data?.hubs||[];
+      setOriginHubs(os); setDestinationHubs(ds);
+      if (needsOriginPoint && !originFixed && os.length===1) setOriginHubId(String(os[0].hubId));
+      if (needsDestinationPoint && !destinationFixed && ds.length===1) setDestinationHubId(String(ds[0].hubId));
     } catch { setOriginHubs([]); setDestinationHubs([]); setHubsError(true); }
     finally { setHubsLoading(false); }
   };
 
   const calculatedTripPrice = (trip) => {
     if (!trip) return null;
+    const sizePrice = Number(trip?.[{small:'priceSmall',standard:'priceStandard',large:'priceLarge',special:'priceSpecial'}[parcelSize]]) || 0;
+    if (sizePrice > 0) return sizePrice;
     const w = Number(weightKg) || 0;
     const perKg = Number(trip.pricePerKg) || 0;
     const fixed = Number(trip.fixedFee) || 0;
@@ -249,7 +257,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
 
   const priceEstimate = calculatedTripPrice(selected);
 
-  const canContinueStep1 = itemDescription.trim() && Number(weightKg) > 0;
+  const canContinueStep1 = itemDescription.trim() && Boolean(parcelSize);
   const canContinueStep3 = receiverName.trim() && receiverPhone.trim();
 
   const handleConfirm = async () => {
@@ -348,15 +356,22 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               placeholder={t('send_shipment.item_description_placeholder')}
               style={{ ...inputSt, minHeight: 70, resize: 'vertical' }} />
 
-            <label style={{ fontSize: 12, fontWeight: 700, color: GR, display: 'block', marginBottom: 6 }}>
-              {t('send_shipment.weight_label')}
-            </label>
-            <input type="number" min="0" step="0.1" value={weightKg}
-              onChange={e => setWeightKg(e.target.value)}
-              placeholder={t('send_shipment.weight_placeholder')} style={inputSt} />
-            <div style={{ fontSize: 11, color: GR, marginTop: -6, marginBottom: 16 }}>
-              {t('send_shipment.weight_hint')}
+            <label style={{fontSize:12,fontWeight:800,color:GR,display:'block',marginBottom:8}}>Mzigo wako una ukubwa gani?</label>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:9,marginBottom:16}}>
+              {[
+                ['small','Mdogo','Unaweza kubebwa kwa mkono'],
+                ['standard','Wa kawaida','Carton au bidhaa ya kawaida'],
+                ['large','Mkubwa','Unahitaji gari au nafasi zaidi'],
+                ['special','Mzito / Maalum','Mashine, pallet au mzigo maalum'],
+              ].map(([key,label,hint])=>(
+                <button key={key} type="button" onClick={()=>setParcelSize(key)}
+                  style={{textAlign:'left',padding:'12px',borderRadius:12,border:parcelSize===key?'2px solid #2563EB':'1px solid #E2E8F0',background:parcelSize===key?'#EFF6FF':'#fff',cursor:'pointer'}}>
+                  <div style={{fontSize:14,fontWeight:900,color:DK}}>{label}</div>
+                  <div style={{fontSize:11,color:GR,marginTop:3,lineHeight:1.35}}>{hint}</div>
+                </button>
+              ))}
             </div>
+            {parcelSize==='special' && <div style={{fontSize:12,color:'#92400E',background:'#FFFBEB',border:'1px solid #FDE68A',borderRadius:10,padding:10,marginBottom:14}}>Kentexa itatafuta usafiri unaofaa. Mizigo maalum inaweza kuhitaji bei maalum badala ya bei ya kawaida.</div>}
 
             <button onClick={() => setStep(2)} disabled={!canContinueStep1}
               style={{ width: '100%', backgroundColor: B, color: WH, border: 'none',
@@ -373,7 +388,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
           <div>
             <div style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)', fontSize: 13, fontWeight: 700, color: DK }}>
-              📦 {itemDescription} · {weightKg} kg
+              📦 {itemDescription} · {{small:'Mdogo',standard:'Wa kawaida',large:'Mkubwa',special:'Mzito / Maalum'}[parcelSize]}
             </div>
 
             <LocationInput label={t('send_shipment.origin_label')} value={origin}
@@ -664,13 +679,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{fontSize:11,color:GR,marginTop:8}}>{t('send_shipment.trip_hubs_note')}</div>
             </div>}
 
-            {(originHubs.length>0 || destinationHubs.length>0) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
-              <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Kentexa Hub</div>
-              <div style={{fontSize:11,color:GR,marginBottom:10}}>Choose a hub only when you want to drop off or collect through a Kentexa Super Agent.</div>
-              {originHubs.length>0 && <select value={originHubId} onChange={e=>setOriginHubId(e.target.value)} style={inputSt}>
+            {((pickupOption !== 'door' && originHubs.length>1) || (deliveryOption !== 'door' && destinationHubs.length>1)) && <div style={{backgroundColor:WH,borderRadius:16,padding:16,marginBottom:16}}>
+              <div style={{fontSize:13,fontWeight:900,color:DK,marginBottom:8}}>Chagua sehemu ya kukabidhi / kuchukulia</div>
+              <div style={{fontSize:11,color:GR,marginBottom:10}}>Hii inaonekana kwa sababu umechagua kupeleka au kuchukua mzigo mwenyewe.</div>
+              {pickupOption !== 'door' && originHubs.length>1 && <select value={originHubId} onChange={e=>setOriginHubId(e.target.value)} style={inputSt}>
                 <option value="">Origin: no hub</option>{originHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name} · {h.address || h.city}</option>)}
               </select>}
-              {destinationHubs.length>0 && <select value={destinationHubId} onChange={e=>setDestinationHubId(e.target.value)} style={inputSt}>
+              {deliveryOption !== 'door' && destinationHubs.length>1 && <select value={destinationHubId} onChange={e=>setDestinationHubId(e.target.value)} style={inputSt}>
                 <option value="">Destination: no hub</option>{destinationHubs.map(h=><option key={h.hubId} value={h.hubId}>{h.name} · {h.address || h.city}</option>)}
               </select>}
             </div>}

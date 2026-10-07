@@ -122,9 +122,10 @@ describe('send-shipment request contract', () => {
     expect(body.quoteId).toBeUndefined();
   });
 
-  test('confirm body: no hub chosen sends nothing; a chosen hub is requested explicitly', () => {
-    expect(wire(confirmBody(state))).toEqual(requests.confirm.body);
-    expect(wire(confirmBody({ originHubId: '4', destinationHubId: '' }))).toEqual({ originHubId: 4, requestOriginHub: true });
+  test('door service never submits operational hubs; point handoff explicitly requests customer points', () => {
+    expect(wire(confirmBody({ ...state, pickupOption: 'door', deliveryOption: 'door', originHubId: '4', destinationHubId: '5' }))).toEqual({});
+    expect(wire(confirmBody({ ...state, pickupOption: 'station', deliveryOption: 'door', originHubId: '4' }))).toEqual({ originHubId: 4, requestOriginHub: true });
+    expect(wire(confirmBody({ ...state, pickupOption: 'door', deliveryOption: 'station', destinationHubId: '5' }))).toEqual({ destinationHubId: 5, requestDestinationHub: true });
   });
 
   test('placeRefParam is undefined for anything incomplete', () => {

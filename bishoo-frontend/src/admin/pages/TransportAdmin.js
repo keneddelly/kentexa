@@ -35,6 +35,8 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
   const [saving,    setSaving]    = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [showReject,   setShowReject]   = useState(false);
+  const [routes, setRoutes] = useState([]);
+  const [pricing, setPricing] = useState([]);
 
   const fetchProviders = async () => {
     try {
@@ -46,7 +48,49 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchProviders(); setSelected(null); }, [filter]); // eslint-disable-line
+  useEffect(() => { fetchProviders(); setSelected(null); api.get('/transport/admin/logistics-pricing').then(r=>setPricing(r.data||[])).catch(()=>setPricing([])); }, [filter]); // eslint-disable-line
+
+  const fetchRoutes = async providerId => {
+    if (!providerId) { setRoutes([]); return; }
+    try { const res = await api.get('/transport/admin/routes', { params: { providerId } }); setRoutes(res.data || []); }
+    catch { setRoutes([]); }
+  };
+
+  const selectProvider = p => { setSelected(p); fetchRoutes(p.id); };
+
+  const editRoute = async route => {
+    const fixedFee = prompt('Bei ya chini (TZS)', String(route.fixedFee || ''));
+    if (fixedFee === null) return;
+    const pricePerKg = prompt('Bei kwa kilo (TZS), 0 kama haitumiki', String(route.pricePerKg || '0'));
+    if (pricePerKg === null) return;
+    const fixed = Number(fixedFee || 0); const perKg = Number(pricePerKg || 0);
+    if (fixed <= 0 && perKg <= 0) return alert('Route haiwezi kuwa active bila bei.');
+    try {
+      await api.patch(`/transport/admin/routes/${route.id}`, { fixedFee: fixed, pricePerKg: perKg });
+      await fetchRoutes(selected?.id);
+    } catch (e) { alert(e.response?.data?.message || 'Imeshindwa kuhariri route'); }
+  };
+
+  const deleteRoute = async route => {
+    if (!window.confirm('Ondoa route hii? Historia ya shipments/runs haitafutwa.')) return;
+    try { await api.delete(`/transport/admin/routes/${route.id}`); await fetchRoutes(selected?.id); }
+    catch (e) { alert(e.response?.data?.message || 'Imeshindwa kuondoa route'); }
+  };
+
+  const editPricing = async row => {
+    const pickup = prompt('Pickup fee (TZS). Acha tupu ikiwa haijawekwa.', row.pickupFee ?? '');
+    if (pickup === null) return;
+    const delivery = prompt('Delivery fee (TZS). Acha tupu ikiwa haijawekwa.', row.deliveryFee ?? '');
+    if (delivery === null) return;
+    try {
+      const res=await api.patch(`/transport/admin/logistics-pricing/${row.sizeClass}`, {
+        pickupFee: pickup==='' ? null : Number(pickup),
+        deliveryFee: delivery==='' ? null : Number(delivery),
+        requiresManualQuote: row.sizeClass==='special' ? row.requiresManualQuote : false,
+      });
+      setPricing(p=>p.map(x=>x.sizeClass===row.sizeClass?res.data:x));
+    } catch(e){ alert(e.response?.data?.message || 'Imeshindwa kuhifadhi bei'); }
+  };
 
   const handleVerify = async (approve) => {
     if (!selected) return;
@@ -84,6 +128,18 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
         }
       `}</style>
       <div className="admin-content" style={{ flex: 1, padding: 24, overflow: 'auto', marginLeft: 250, boxSizing: 'border-box' }}>
+
+        <div style={{background:'#fff',borderRadius:14,padding:14,marginBottom:16,boxShadow:'0 2px 8px rgba(0,0,0,.06)'}}>
+          <div style={{fontSize:14,fontWeight:900,color:'#1e293b',marginBottom:4}}>💰 Bei za Agent — Pickup & Delivery</div>
+          <div style={{fontSize:11,color:'#64748b',marginBottom:10}}>Admin ndiye authority ya bei hizi. Transporter anaweka bei yake ya route; Kentexa hujumlisha bei ya mwisho kwa mteja.</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(170px,1fr))',gap:8}}>
+            {pricing.map(p=><div key={p.sizeClass} style={{border:'1px solid #e2e8f0',borderRadius:10,padding:10}}>
+              <div style={{fontSize:12,fontWeight:900,textTransform:'capitalize'}}>{({small:'Mdogo',standard:'Wa kawaida',large:'Mkubwa',special:'Mzito / Maalum'})[p.sizeClass]||p.sizeClass}</div>
+              <div style={{fontSize:11,color:'#64748b',margin:'5px 0'}}>Pickup: {p.pickupFee==null?'Haijawekwa':`TZS ${Number(p.pickupFee).toLocaleString()}`}<br/>Delivery: {p.deliveryFee==null?'Haijawekwa':`TZS ${Number(p.deliveryFee).toLocaleString()}`}</div>
+              <button onClick={()=>editPricing(p)} style={{border:'none',borderRadius:7,padding:'6px 9px',fontWeight:800,cursor:'pointer'}}>Hariri bei</button>
+            </div>)}
+          </div>
+        </div>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between',
@@ -128,7 +184,7 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
               // instead of showing what it actually is.
               const sc = STATUS[p.status] || { bg: '#f1f5f9', text: '#64748b', label: p.status };
               return (
-                <div key={p.id} onClick={() => setSelected(p)}
+                <div key={p.id} onClick={() => selectProvider(p)}
                   style={{ backgroundColor: '#fff', borderRadius: 14, padding: 16,
                     marginBottom: 10, cursor: 'pointer',
                     border: selected?.id === p.id ? '2px solid #1d4ed8' : '2px solid transparent',
@@ -239,6 +295,20 @@ const TransportAdmin = ({ onNavigate, activePage }) => {
                     <div>{selected.rejectionReason}</div>
                   </div>
                 )}
+
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:12,fontWeight:800,color:'#475569',marginBottom:7}}>🛣️ Routes & Bei</div>
+                  {routes.length===0 ? <div style={{fontSize:12,color:'#94a3b8'}}>Hakuna route.</div> : routes.map(r=>(
+                    <div key={r.id} style={{padding:'9px 10px',border:'1px solid #e2e8f0',borderRadius:9,marginBottom:7,opacity:r.isActive===false?.6:1}}>
+                      <div style={{fontSize:12,fontWeight:800,color:'#1e293b'}}>{r.originCity || r.coverageCity || 'Route'} → {r.destinationCity || (r.loopStops||[]).slice(-1)[0] || 'Coverage'}</div>
+                      <div style={{fontSize:11,color:'#64748b',margin:'3px 0 7px'}}>Min TZS {Number(r.fixedFee||0).toLocaleString()} · {Number(r.pricePerKg||0).toLocaleString()}/kg · {r.isActive===false?'Inactive':'Active'}</div>
+                      {r.isActive!==false && <div style={{display:'flex',gap:6}}>
+                        <button onClick={()=>editRoute(r)} style={{border:'none',borderRadius:7,padding:'5px 8px',fontWeight:700,cursor:'pointer'}}>Hariri</button>
+                        <button onClick={()=>deleteRoute(r)} style={{border:'none',borderRadius:7,padding:'5px 8px',fontWeight:700,color:'#b91c1c',background:'#fee2e2',cursor:'pointer'}}>Ondoa</button>
+                      </div>}
+                    </div>
+                  ))}
+                </div>
 
                 {/* Action buttons */}
                 {selected.status === 'pending' && (

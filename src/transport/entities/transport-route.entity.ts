@@ -76,6 +76,36 @@ export class TransportRoute {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   fixedFee: number; // minimum fee per parcel
 
+  // Human-size pricing shown to ordinary senders. Providers set route prices
+  // by simple parcel class; legacy per-kg/minimum pricing remains available
+  // for measured/freight integrations.
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  priceSmall: number | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  priceStandard: number | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  priceLarge: number | null;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  priceSpecial: number | null;
+
+  // A transporter may compete by including first/last mile in the route.
+  // kentexa = use Admin Agent tariff, free = provider includes it, fixed =
+  // provider advertises an explicit route-side fee.
+  @Column({ type: 'varchar', length: 20, default: 'kentexa' })
+  pickupPricingMode: 'kentexa' | 'free' | 'fixed';
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  pickupFee: number | null;
+
+  @Column({ type: 'varchar', length: 20, default: 'kentexa' })
+  deliveryPricingMode: 'kentexa' | 'free' | 'fixed';
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  deliveryFee: number | null;
+
   @Column({ type: 'int', nullable: true })
   estimatedHours: number | null; // journey time
 

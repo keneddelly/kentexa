@@ -113,7 +113,7 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     routeType: 'intercity',
     originCity: '', destinationCity: '',
     loopStops: '', coverageCity: '', coverageWards: '',
-    pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '',
+    priceSmall: '', priceStandard: '', priceLarge: '', priceSpecial: '', priceSmall: '', priceStandard: '', priceLarge: '', priceSpecial: '', pickupPricingMode: 'kentexa', pickupFee: '', deliveryPricingMode: 'kentexa', deliveryFee: '', pricePerKg: '', fixedFee: '', estimatedHours: '', notes: '',
   });
   const [savingRoute, setSavingRoute] = useState(false);
 
@@ -164,8 +164,19 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
   const handleAddRoute = async () => {
     try {
       setSavingRoute(true);
+      const fixed = Number(routeForm.fixedFee || 0); const perKg = Number(routeForm.pricePerKg || 0);
+      const humanPrices = [routeForm.priceSmall, routeForm.priceStandard, routeForm.priceLarge, routeForm.priceSpecial].map(Number).filter(n=>Number.isFinite(n)&&n>0);
+      if (fixed <= 0 && perKg <= 0 && humanPrices.length===0) throw new Error('Weka bei ya route kabla ya kuiweka hewani');
       const dto = {
         routeType: routeForm.routeType,
+        priceSmall: routeForm.priceSmall ? Number(routeForm.priceSmall) : undefined,
+        priceStandard: routeForm.priceStandard ? Number(routeForm.priceStandard) : undefined,
+        priceLarge: routeForm.priceLarge ? Number(routeForm.priceLarge) : undefined,
+        priceSpecial: routeForm.priceSpecial ? Number(routeForm.priceSpecial) : undefined,
+        pickupPricingMode: routeForm.pickupPricingMode,
+        pickupFee: routeForm.pickupPricingMode === 'fixed' ? Number(routeForm.pickupFee || 0) : undefined,
+        deliveryPricingMode: routeForm.deliveryPricingMode,
+        deliveryFee: routeForm.deliveryPricingMode === 'fixed' ? Number(routeForm.deliveryFee || 0) : undefined,
         pricePerKg: routeForm.pricePerKg ? Number(routeForm.pricePerKg) : undefined,
         fixedFee: routeForm.fixedFee ? Number(routeForm.fixedFee) : undefined,
         estimatedHours: routeForm.estimatedHours ? Number(routeForm.estimatedHours) : undefined,
@@ -201,6 +212,42 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
     finally { setSavingRoute(false); }
   };
 
+
+  const editRoute = async route => {
+    const fields = [
+      ['priceSmall','Mdogo'], ['priceStandard','Wa kawaida'],
+      ['priceLarge','Mkubwa'], ['priceSpecial','Mzito / Maalum'],
+    ];
+    const patch = {};
+    for (const [key,label] of fields) {
+      const value = prompt(`Bei ya ${label} (TZS). Acha tupu kama route haibebi aina hii.`, route[key] ?? '');
+      if (value === null) return;
+      patch[key] = value === '' ? null : Number(value);
+      if (patch[key] !== null && (!Number.isFinite(patch[key]) || patch[key] < 0)) return alert('Weka bei halali.');
+    }
+    if (!Object.values(patch).some(v=>Number(v)>0)) return alert('Weka bei angalau kwa aina moja ya mzigo.');
+    const pickupMode = prompt('Pickup: andika kentexa, free, au fixed', route.pickupPricingMode || 'kentexa');
+    if (pickupMode === null) return;
+    if (!['kentexa','free','fixed'].includes(pickupMode)) return alert('Pickup mode lazima iwe kentexa, free au fixed.');
+    patch.pickupPricingMode = pickupMode;
+    if (pickupMode === 'fixed') { const v=prompt('Pickup fee (TZS)', route.pickupFee ?? ''); if(v===null)return; patch.pickupFee=Number(v); }
+    const deliveryMode = prompt('Delivery: andika kentexa, free, au fixed', route.deliveryPricingMode || 'kentexa');
+    if (deliveryMode === null) return;
+    if (!['kentexa','free','fixed'].includes(deliveryMode)) return alert('Delivery mode lazima iwe kentexa, free au fixed.');
+    patch.deliveryPricingMode = deliveryMode;
+    if (deliveryMode === 'fixed') { const v=prompt('Delivery fee (TZS)', route.deliveryFee ?? ''); if(v===null)return; patch.deliveryFee=Number(v); }
+    const estimatedHours = prompt('Muda wa safari (saa)', String(route.estimatedHours || ''));
+    if (estimatedHours === null) return;
+    patch.estimatedHours = estimatedHours ? Number(estimatedHours) : undefined;
+    try { await api.patch(`/transport/routes/${route.id}`, patch); await fetchAll(); }
+    catch (e) { alert(e.response?.data?.message || 'Imeshindwa kubadilisha route'); }
+  };
+
+  const deleteRoute = async route => {
+    if (!window.confirm('Ondoa route hii? Historia ya mizigo na safari itahifadhiwa.')) return;
+    try { await api.delete(`/transport/routes/${route.id}`); await fetchAll(); }
+    catch (e) { alert(e.response?.data?.message || 'Imeshindwa kuondoa route'); }
+  };
 
   const loadRouteStops = async routeId => {
     try { const res=await api.get(`/van-pilot/routes/${routeId}/stops`); setRouteStops(p=>({...p,[routeId]:res.data||[]})); }
@@ -801,6 +848,32 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                   </div>
                 )}
 
+                <div style={{fontSize:12,fontWeight:900,color:'#334155',margin:'12px 0 7px'}}>Pickup & delivery ya route hii</div>
+                {[['pickup','Pickup kutoka kwa mtumaji'],['delivery','Delivery kwa mpokeaji']].map(([side,label])=>{
+                  const modeKey=side+'PricingMode', feeKey=side+'Fee';
+                  return <div key={side} style={{background:'#f8fafc',borderRadius:10,padding:10,marginBottom:8}}>
+                    <div style={{fontSize:12,fontWeight:800,marginBottom:6}}>{label}</div>
+                    <select style={inp} value={routeForm[modeKey]} onChange={e=>setRouteForm(p=>({...p,[modeKey]:e.target.value}))}>
+                      <option value="kentexa">Tumia bei ya Kentexa Agent</option>
+                      <option value="free">BURE — imejumuishwa na sisi</option>
+                      <option value="fixed">Bei yetu maalum</option>
+                    </select>
+                    {routeForm[modeKey]==='fixed' && <input type="number" style={{...inp,marginTop:7}} placeholder="TZS" value={routeForm[feeKey]} onChange={e=>setRouteForm(p=>({...p,[feeKey]:e.target.value}))}/>}
+                  </div>;
+                })}
+                <div style={{fontSize:11,color:'#64748b',marginBottom:12}}>Ukichagua BURE, Kentexa itaonyesha pickup/delivery hiyo kama imejumuishwa kwenye huduma yako na haitoongeza Agent fallback fee.</div>
+
+                <div style={{fontSize:12,fontWeight:800,color:'#334155',margin:'12px 0 6px'}}>Bei rahisi kwa ukubwa wa mzigo</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                  {[['priceSmall','Mdogo'],['priceStandard','Wa kawaida'],['priceLarge','Mkubwa'],['priceSpecial','Mzito / Maalum']].map(([key,label])=>(
+                    <div key={key}>
+                      <label style={{fontSize:12,fontWeight:700,color:'#64748b',display:'block',marginBottom:4}}>{label} (TZS)</label>
+                      <input type="number" style={inp} value={routeForm[key]} onChange={e=>setRouteForm(p=>({...p,[key]:e.target.value}))}/>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontSize:11,color:'#64748b',marginBottom:10}}>Weka bei kwa aina unazoweza kubeba. Mzigo usio na bei hautaonekana kama huduma inayoweza ku-bookiwa.</div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                   <div>
                     <label style={{ fontSize: 12, fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 4 }}>{t('transport_provider_dashboard.field_price_per_kg')}</label>
@@ -871,6 +944,10 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
                     </div>
                   </div>}
                 </div>}
+                <div style={{display:'flex',gap:8,marginTop:10,marginBottom:8}}>
+                  <button onClick={()=>editRoute(r)} style={{border:'none',borderRadius:8,padding:'7px 11px',background:'#eff6ff',color:'#1d4ed8',fontSize:12,fontWeight:800,cursor:'pointer'}}>Hariri route / bei</button>
+                  <button onClick={()=>deleteRoute(r)} style={{border:'none',borderRadius:8,padding:'7px 11px',background:'#fee2e2',color:'#b91c1c',fontSize:12,fontWeight:800,cursor:'pointer'}}>Ondoa route</button>
+                </div>
                 <button onClick={() => onOpenMoment?.('selling', {
                     type: 'route', id: r.id, title: routeLabel || t('transport_provider_dashboard.my_route_fallback'), image: null,
                   })}
