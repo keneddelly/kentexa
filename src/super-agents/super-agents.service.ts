@@ -1419,6 +1419,11 @@ export class SuperAgentsService {
         null,
       dispatchTime: (parcel as any).dispatchTime || bulkShipment?.dispatchTime || null,
       arrivedAtHubTime: (parcel as any).arrivedAtHubTime || null,
+      nextAction: (parcel as any).buyerRequestedDelivery === true
+        ? 'last_mile_delivery'
+        : (parcel as any).buyerRequestedDelivery === false
+          ? 'customer_pickup'
+          : null,
       history: [
         ...tracking.map((t) => ({
           status: t.status,

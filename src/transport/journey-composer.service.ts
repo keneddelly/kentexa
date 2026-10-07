@@ -44,6 +44,7 @@ export interface ComposeJourneyDto {
 }
 
 export interface SelectComposedJourneyDto extends ComposeJourneyDto {
+  deliveryOutcome?: 'door' | 'collect';
   // Gate 2: the option the client names is a Transport Run the server
   // offered. Nothing else about the leg is taken from the request.
   runId: number;
@@ -226,29 +227,41 @@ export class JourneyComposerService {
     const fromNode = { ...origin.snapshot, city: matched.from, stop: trip.loadLabel };
     const toNode = { ...destination.snapshot, city: matched.to, stop: trip.unloadLabel };
 
+    const transportLeg = {
+      type: JourneyLegType.TRANSPORT,
+      fromNode, toNode,
+      providerId: trip.providerId, routeId: trip.routeId, runId: trip.runId,
+      loadRouteStopId: trip.loadRouteStopId, unloadRouteStopId: trip.unloadRouteStopId,
+      commitmentLevel: JourneyCommitmentLevel.RUN_CONFIRMED,
+      executionRequirements: {
+        composedByServer: true,
+        loadRunStopId: trip.loadRunStopId,
+        unloadRunStopId: trip.unloadRunStopId,
+        scheduledDeparture: new Date(trip.departureAt).toISOString(),
+      },
+    };
+    const terminalLeg = dto.deliveryOutcome == null ? null : dto.deliveryOutcome === 'collect'
+      ? {
+          type: JourneyLegType.CUSTOMER_PICKUP,
+          fromNode: { kind: 'destination_point', city: matched.to },
+          toNode: destination.snapshot,
+          commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
+          executionRequirements: { composedByServer: true, terminalOutcome: 'customer_pickup' },
+        }
+      : {
+          type: JourneyLegType.LAST_MILE,
+          fromNode: { kind: 'destination_hub', city: matched.to },
+          toNode: destination.snapshot,
+          requiredActorCapability: 'local_agent',
+          commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
+          executionRequirements: { composedByServer: true, terminalOutcome: 'door_delivery' },
+        };
     return this.selections.select(userId, {
       originSnapshot: origin.snapshot,
       destinationSnapshot: destination.snapshot,
       cargoRequirements: cargo,
       paymentMethod: dto.paymentMethod,
-      legs: [{
-        type: JourneyLegType.TRANSPORT,
-        fromNode,
-        toNode,
-        providerId: trip.providerId,
-        routeId: trip.routeId,
-        runId: trip.runId,
-        loadRouteStopId: trip.loadRouteStopId,
-        unloadRouteStopId: trip.unloadRouteStopId,
-        commitmentLevel: JourneyCommitmentLevel.RUN_CONFIRMED,
-        executionRequirements: {
-          composedByServer: true,
-          // The Run's own immutable stops (Gate 5 tenders the parcel from these).
-          loadRunStopId: trip.loadRunStopId,
-          unloadRunStopId: trip.unloadRunStopId,
-          scheduledDeparture: new Date(trip.departureAt).toISOString(),
-        },
-      }],
+      legs: terminalLeg ? [transportLeg, terminalLeg] : [transportLeg],
     });
   }
 

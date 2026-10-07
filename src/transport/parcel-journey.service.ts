@@ -246,7 +246,8 @@ export class ParcelJourneyService {
 
   async listHubAwaitingCompletion(superAgentId: number) {
     return this.dataSource.query(
-      `SELECT id, "trackingNumber", status, "arrivedAtHubTime"
+      `SELECT id, "trackingNumber", status, "arrivedAtHubTime",
+              "buyerRequestedDelivery", "localAgentId", "localAgentName"
          FROM public.parcel
         WHERE "destinationSuperAgentId" = $1
           AND status IN ('arrived_at_hub', 'awaiting_buyer')

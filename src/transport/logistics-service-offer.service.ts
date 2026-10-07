@@ -42,7 +42,7 @@ export class LogisticsServiceOfferService {
       originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
       destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
       cargoRequirements: { weightKg: dto.weightKg },
-      paymentMethod: dto.paymentMethod, runId,
+      paymentMethod: dto.paymentMethod, runId, deliveryOutcome: dto.delivery,
     } as any);
   }
 
