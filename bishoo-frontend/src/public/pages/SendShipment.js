@@ -685,6 +685,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
               Keep this shipment number. Kentexa uses one customer-facing number even after a Parcel is created internally.
             </div>
+            {confirmed.nextAction?.type === 'fulfillment_setup_pending' && (
+              <div style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
+                margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5, color: '#92400E' }}>
+                Shipment confirmed. Kentexa is arranging the pickup handoff point before assigning an Agent. No pickup fee has been charged yet.
+              </div>
+            )}
             {confirmed.pickupPath && (
               <div style={{ backgroundColor: confirmed.pickupRequested ? '#ECFDF5' : '#FFFBEB', borderRadius: 12, padding: 12,
                 margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5,
