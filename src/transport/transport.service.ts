@@ -790,6 +790,10 @@ export class TransportService {
       coverageCity?: string;
       pricePerKg?: number;
       fixedFee?: number;
+      priceSmall?: number;
+      priceStandard?: number;
+      priceLarge?: number;
+      priceSpecial?: number;
       estimatedHours?: number;
       notes?: string;
     },
@@ -824,6 +828,10 @@ export class TransportService {
         coverageCity: dto.coverageCity || null,
         pricePerKg: dto.pricePerKg || 0,
         fixedFee: dto.fixedFee || 0,
+        priceSmall: dto.priceSmall || null,
+        priceStandard: dto.priceStandard || null,
+        priceLarge: dto.priceLarge || null,
+        priceSpecial: dto.priceSpecial || null,
         estimatedHours: dto.estimatedHours || null,
         notes: dto.notes || null,
         isActive: true,
@@ -886,6 +894,7 @@ export class TransportService {
       'loopStops',
       'coverageWards',
       'coverageCity',
+      'priceSmall', 'priceStandard', 'priceLarge', 'priceSpecial',
       'estimatedHours',
       'isActive',
       'notes',
@@ -935,7 +944,7 @@ export class TransportService {
     if (!route) throw new NotFoundException('Njia haijapatikana');
     const editable = [
       'routeType', 'originCity', 'destinationCity', 'transitCities', 'loopStops',
-      'coverageWards', 'coverageCity', 'estimatedHours', 'isActive', 'notes',
+      'coverageWards', 'coverageCity', 'priceSmall', 'priceStandard', 'priceLarge', 'priceSpecial', 'estimatedHours', 'isActive', 'notes',
     ];
     for (const key of editable) if (dto[key] !== undefined) (route as any)[key] = dto[key];
     if (dto.pricePerKg !== undefined) {
