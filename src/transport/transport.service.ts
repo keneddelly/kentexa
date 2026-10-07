@@ -911,6 +911,14 @@ export class TransportService {
     for (const key of editable) {
       if (dto[key] !== undefined) (route as any)[key] = dto[key];
     }
+    for (const side of ['pickup', 'delivery'] as const) {
+      const mode = (route as any)[side + 'PricingMode'];
+      if (!['kentexa','free','fixed'].includes(mode)) throw new BadRequestException(`${side}PricingMode is invalid`);
+      if (mode === 'fixed') {
+        const fee = Number((route as any)[side + 'Fee']);
+        if (!Number.isFinite(fee) || fee < 0) throw new BadRequestException(`${side}Fee must be non-negative`);
+      } else (route as any)[side + 'Fee'] = null;
+    }
     const saved = await this.routeRepo.save(route);
     if (saved.isActive) this.indexRoute(saved).catch(() => {});
     else this.searchIndex.remove('transport_route', saved.id).catch(() => {});
@@ -956,6 +964,14 @@ export class TransportService {
       'coverageWards', 'coverageCity', 'priceSmall', 'priceStandard', 'priceLarge', 'priceSpecial', 'pickupPricingMode', 'pickupFee', 'deliveryPricingMode', 'deliveryFee', 'estimatedHours', 'isActive', 'notes',
     ];
     for (const key of editable) if (dto[key] !== undefined) (route as any)[key] = dto[key];
+    for (const side of ['pickup', 'delivery'] as const) {
+      const mode = (route as any)[side + 'PricingMode'];
+      if (!['kentexa','free','fixed'].includes(mode)) throw new BadRequestException(`${side}PricingMode is invalid`);
+      if (mode === 'fixed') {
+        const fee = Number((route as any)[side + 'Fee']);
+        if (!Number.isFinite(fee) || fee < 0) throw new BadRequestException(`${side}Fee must be non-negative`);
+      } else (route as any)[side + 'Fee'] = null;
+    }
     if (dto.pricePerKg !== undefined) {
       const n = Number(dto.pricePerKg);
       if (!Number.isFinite(n) || n < 0) throw new BadRequestException('pricePerKg must be non-negative');
