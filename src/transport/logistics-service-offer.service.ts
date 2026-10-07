@@ -10,7 +10,7 @@ export interface DiscoverServiceOffersDto {
   providerId?: number;
   discoveryOnly?: boolean;
 }
-export interface CommitServiceOfferDto extends DiscoverServiceOffersDto { serviceType: 'direct_delivery' | 'composed_intercity'; routeId?: number; runId?: number; paymentMethod?: 'cash' | 'prepaid'; }
+export interface CommitServiceOfferDto extends DiscoverServiceOffersDto { serviceType: 'direct_delivery' | 'composed_intercity'; routeId?: number; runId?: number; paymentMethod?: 'cash' | 'prepaid'; cargoRequirements?: any; }
 
 export interface LogisticsServiceOffer {
   serviceType: 'direct_delivery' | 'composed_intercity';
@@ -34,7 +34,7 @@ export class LogisticsServiceOfferService {
         origin: dto.origin, destination: dto.destination,
         originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
         destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
-        cargoRequirements: { weightKg: dto.weightKg },
+        cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
         paymentMethod: dto.paymentMethod,
       } as any);
     }
@@ -49,7 +49,7 @@ export class LogisticsServiceOfferService {
         origin: dto.origin, destination: dto.destination,
         originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
         destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
-        cargoRequirements: { weightKg: dto.weightKg },
+        cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
         paymentMethod: dto.paymentMethod, runId,
       } as any);
     }
@@ -66,7 +66,7 @@ export class LogisticsServiceOfferService {
       origin: dto.origin, destination: dto.destination,
       originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
       destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
-      cargoRequirements: { weightKg: dto.weightKg },
+      cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
       paymentMethod: dto.paymentMethod, providerId, routeId,
     } as any);
   }
