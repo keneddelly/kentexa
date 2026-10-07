@@ -226,6 +226,16 @@ const TransportProviderDashboard = ({ onNavigate, onOpenMoment, inboxUnread }) =
       if (patch[key] !== null && (!Number.isFinite(patch[key]) || patch[key] < 0)) return alert('Weka bei halali.');
     }
     if (!Object.values(patch).some(v=>Number(v)>0)) return alert('Weka bei angalau kwa aina moja ya mzigo.');
+    const pickupMode = prompt('Pickup: andika kentexa, free, au fixed', route.pickupPricingMode || 'kentexa');
+    if (pickupMode === null) return;
+    if (!['kentexa','free','fixed'].includes(pickupMode)) return alert('Pickup mode lazima iwe kentexa, free au fixed.');
+    patch.pickupPricingMode = pickupMode;
+    if (pickupMode === 'fixed') { const v=prompt('Pickup fee (TZS)', route.pickupFee ?? ''); if(v===null)return; patch.pickupFee=Number(v); }
+    const deliveryMode = prompt('Delivery: andika kentexa, free, au fixed', route.deliveryPricingMode || 'kentexa');
+    if (deliveryMode === null) return;
+    if (!['kentexa','free','fixed'].includes(deliveryMode)) return alert('Delivery mode lazima iwe kentexa, free au fixed.');
+    patch.deliveryPricingMode = deliveryMode;
+    if (deliveryMode === 'fixed') { const v=prompt('Delivery fee (TZS)', route.deliveryFee ?? ''); if(v===null)return; patch.deliveryFee=Number(v); }
     const estimatedHours = prompt('Muda wa safari (saa)', String(route.estimatedHours || ''));
     if (estimatedHours === null) return;
     patch.estimatedHours = estimatedHours ? Number(estimatedHours) : undefined;
