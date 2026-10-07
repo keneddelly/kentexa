@@ -907,6 +907,65 @@ export class TransportService {
     return saved;
   }
 
+  async deactivateOwnRoute(userId: number, routeId: number): Promise<{ id: number; isActive: false }> {
+    const p = await this.getMyProfile(userId);
+    const route = await this.routeRepo.findOne({ where: { id: routeId, providerId: p.id } });
+    if (!route) throw new NotFoundException('Njia haijapatikana');
+    // Route deletion is deliberately a soft-delete. Runs, quotes, shipments and
+    // custody history may already reference this route and must remain auditable.
+    route.isActive = false;
+    await this.routeRepo.save(route);
+    await this.searchIndex.remove('transport_route', route.id).catch(() => {});
+    return { id: route.id, isActive: false };
+  }
+
+  async adminGetRoutes(providerId?: number): Promise<TransportRoute[]> {
+    if (providerId !== undefined && (!Number.isInteger(providerId) || providerId <= 0)) {
+      throw new BadRequestException('providerId must be a positive integer');
+    }
+    return this.routeRepo.find({
+      where: providerId ? { providerId } : {},
+      relations: { provider: true },
+      order: { updatedAt: 'DESC' },
+    });
+  }
+
+  async adminUpdateRoute(routeId: number, dto: any): Promise<TransportRoute> {
+    const route = await this.routeRepo.findOne({ where: { id: routeId } });
+    if (!route) throw new NotFoundException('Njia haijapatikana');
+    const editable = [
+      'routeType', 'originCity', 'destinationCity', 'transitCities', 'loopStops',
+      'coverageWards', 'coverageCity', 'estimatedHours', 'isActive', 'notes',
+    ];
+    for (const key of editable) if (dto[key] !== undefined) (route as any)[key] = dto[key];
+    if (dto.pricePerKg !== undefined) {
+      const n = Number(dto.pricePerKg);
+      if (!Number.isFinite(n) || n < 0) throw new BadRequestException('pricePerKg must be non-negative');
+      route.pricePerKg = n;
+    }
+    if (dto.fixedFee !== undefined) {
+      const n = Number(dto.fixedFee);
+      if (!Number.isFinite(n) || n < 0) throw new BadRequestException('fixedFee must be non-negative');
+      route.fixedFee = n;
+    }
+    if (route.isActive && Number(route.pricePerKg || 0) <= 0 && Number(route.fixedFee || 0) <= 0) {
+      throw new BadRequestException('An active transport route must have a price');
+    }
+    const saved = await this.routeRepo.save(route);
+    if (saved.isActive) this.indexRoute(saved).catch(() => {});
+    else this.searchIndex.remove('transport_route', saved.id).catch(() => {});
+    return saved;
+  }
+
+  async adminDeactivateRoute(routeId: number): Promise<{ id: number; isActive: false }> {
+    const route = await this.routeRepo.findOne({ where: { id: routeId } });
+    if (!route) throw new NotFoundException('Njia haijapatikana');
+    route.isActive = false;
+    await this.routeRepo.save(route);
+    await this.searchIndex.remove('transport_route', route.id).catch(() => {});
+    return { id: route.id, isActive: false };
+  }
+
   private async indexRoute(route: TransportRoute): Promise<void> {
     const text = [route.routeType, route.originCity, route.destinationCity, ...(route.transitCities || []), ...(route.loopStops || []), ...(route.coverageWards || []), route.coverageCity, route.notes].filter(Boolean).join(' \n ');
     await this.searchIndex.upsert('transport_route', route.id, text);
