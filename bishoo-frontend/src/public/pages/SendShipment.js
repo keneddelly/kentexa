@@ -445,13 +445,6 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               </div>
             )}
 
-            {searched && !searching && searchReason === 'no_open_trip' && trips.length === 0 && providers.length > 0 && (
-              <div style={{ padding: '10px 12px', color: '#92400E', fontSize: 12, backgroundColor: '#FFFBEB',
-                border: '1px solid #FDE68A', borderRadius: 12, marginBottom: 12 }}>
-                {t('send_shipment.no_open_trip')}
-              </div>
-            )}
-
             {searched && !searching && canDeliverDirect(requestState) && !navParams?.transportProviderId && (
               <div onClick={() => { setSelected({ direct: true }); setPickupOption('door'); setDeliveryOption('door'); setStep(3); }}
                 style={{ backgroundColor: WH, borderRadius: 14, padding: 14, marginBottom: 16, cursor: 'pointer',
