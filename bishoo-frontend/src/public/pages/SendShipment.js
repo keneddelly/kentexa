@@ -255,7 +255,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const priceEstimate = calculatedTripPrice(selected);
 
   const canContinueStep1 = itemDescription.trim() && Number(weightKg) > 0;
+  const stationOriginReady = pickupOption !== 'station' || originHubs.length > 0;
+  const stationDestinationReady = deliveryOption !== 'station' || destinationHubs.length > 0;
   const canContinueStep3 = receiverName.trim() && receiverPhone.trim();
+  const canConfirmPlan = stationOriginReady && stationDestinationReady &&
+    (pickupOption !== 'station' || Boolean(originHubId)) &&
+    (deliveryOption !== 'station' || Boolean(destinationHubId));
 
   const handleConfirm = async () => {
     setSubmitting(true);
@@ -645,10 +650,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 12, fontWeight: 600 }}>{error}</div>
             )}
 
-            <button onClick={handleConfirm} disabled={submitting}
+            <button onClick={handleConfirm} disabled={submitting || !canConfirmPlan}
               style={{ width: '100%', background: 'linear-gradient(135deg,#EA580C,#DC2626)',
                 color: WH, border: 'none', borderRadius: 12, padding: '14px 0',
-                cursor: submitting ? 'not-allowed' : 'pointer', fontSize: 15, fontWeight: 800 }}>
+                cursor: (submitting || !canConfirmPlan) ? 'not-allowed' : 'pointer', opacity: canConfirmPlan ? 1 : 0.5, fontSize: 15, fontWeight: 800 }}>
               {submitting ? t('send_shipment.confirming') : t('send_shipment.confirm_button')}
             </button>
           </div>
