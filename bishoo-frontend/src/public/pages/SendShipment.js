@@ -137,14 +137,12 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
   const [destinationHubs, setDestinationHubs] = useState([]);
   const [originHubId, setOriginHubId] = useState('');
   const [destinationHubId, setDestinationHubId] = useState('');
-  const [hubsLoading, setHubsLoading] = useState(false);
   // Why the last route search came back as it did: a server reason
   // (available / no_open_trip / no_capacity_for_weight /
   // provider_does_not_serve_route / no_route) or a client-side failure
   // (request_failed / invalid_location). A failed request is never shown as
   // "no transporter".
   const [searchReason, setSearchReason] = useState(null);
-  const [hubsError, setHubsError] = useState(false);
 
   // Everything the request builders need, in one object (see
   // api/shipmentRequests.js -- the request shapes are pinned by a contract
@@ -231,7 +229,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     // city-wide Super Agent directory which desk happens to be nearby: that
     // cannot prove the desk can hand this parcel to the chosen provider.
     if (isDirectDelivery(selected)) {
-      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId(''); setHubsError(false);
+      setOriginHubs([]); setDestinationHubs([]); setOriginHubId(''); setDestinationHubId('');
       return;
     }
     const originPoints = pickupOption === 'station' ? (selected?.originPoints || []) : [];
@@ -240,8 +238,7 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
     setDestinationHubs(destinationPoints);
     setOriginHubId(originPoints.length === 1 ? String(originPoints[0].hubId) : '');
     setDestinationHubId(destinationPoints.length === 1 ? String(destinationPoints[0].hubId) : '');
-    setHubsLoading(false);
-    setHubsError(false);
+   
   };
 
   const calculatedTripPrice = (trip) => {
