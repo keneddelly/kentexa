@@ -58,7 +58,18 @@ describe('send-shipment request contract', () => {
     expect(wire(quoteBody(journeySelection, selected, state)).availabilityId).toBeUndefined();
   });
 
-  test('normal Tuma Mzigo commits the concrete Transport Run returned by supply discovery', () => {
+  test('normal Tuma Mzigo can commit a route service before a Transport Run exists', () => {
+    const service = { providerId: 31, routeId: 41 };
+    expect(isTransportService(service)).toBe(true);
+    expect(isBookableTrip(service)).toBe(false);
+    const body = wire(serviceOfferCommitBody(state, service, false, now));
+    expect(body.providerId).toBe(31);
+    expect(body.routeId).toBe(41);
+    expect(body.runId).toBeUndefined();
+    expect(body.serviceType).toBe('composed_intercity');
+  });
+
+  test('when supply has a concrete Transport Run, Tuma Mzigo carries it for immediate execution binding', () => {
     const service = { runId: 501, providerId: 31, routeId: 41 };
     expect(isTransportService(service)).toBe(true);
     expect(isBookableTrip(service)).toBe(true);
