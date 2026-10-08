@@ -20,7 +20,10 @@ import api from '../../api/api';
 // role's own apply/register/post-ad flow. 'business' is excluded: it's a
 // tier upgrade for an ALREADY-active seller (who cleared this gate to
 // become a seller in the first place), not a fresh operational role.
-const OPERATIONAL_ROLE_KEYS = ['seller', 'agent', 'super_agent', 'transport_provider', 'service_provider'];
+// Super Agent follows the logistics operating model: registration creates an
+// active hub immediately. Identity verification is not a prerequisite for
+// opening the hub; operational logistics controls apply inside the hub flow.
+const OPERATIONAL_ROLE_KEYS = ['seller', 'agent', 'transport_provider', 'service_provider'];
 
 const B = '#2563EB';
 
