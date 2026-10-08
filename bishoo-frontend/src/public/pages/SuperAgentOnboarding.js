@@ -6,7 +6,7 @@ import api from '../../api/api';
 export default function SuperAgentOnboarding() {
   const [applications, setApplications] = useState([]);
   const [officers, setOfficers] = useState(null);
-  const [officerUserId, setOfficerUserId] = useState('');
+  const [officerUser, setOfficerUser] = useState(null);\n  const [userQuery, setUserQuery] = useState('');\n  const [userResults, setUserResults] = useState([]);\n  const [searchingUsers, setSearchingUsers] = useState(false);
   const [notes, setNotes] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -79,15 +79,39 @@ export default function SuperAgentOnboarding() {
         )}>Angalia maafisa</button>
         {officers !== null && <>
           <label style={{ display: 'block', marginTop: 12 }}>
-            Namba ya mtumiaji (User ID)
-            <input type="number" min="1" value={officerUserId}
-              onChange={e => setOfficerUserId(e.target.value)} />
+            Tafuta mfanyakazi wa Kentexa
+            <input type="search" value={userQuery}
+              onChange={async e => {
+                const value = e.target.value;
+                setUserQuery(value);
+                setOfficerUser(null);
+                if (value.trim().length < 2) { setUserResults([]); return; }
+                setSearchingUsers(true);
+                try {
+                  const result = await api.get('/users/admin/lookup', { params: { q: value.trim() } });
+                  setUserResults(Array.isArray(result.data) ? result.data : []);
+                } catch { setUserResults([]); }
+                finally { setSearchingUsers(false); }
+              }}
+              placeholder="Jina, simu au email" />
           </label>
-          <button type="button" disabled={busy || !Number.isSafeInteger(Number(officerUserId)) || Number(officerUserId) <= 0}
-            onClick={() => perform(
-              () => api.patch(`/super-agents/onboarding/officers/${officerUserId}`, { enabled: true }),
-              'Ruhusa imetolewa.'
-            )}>Mpe ruhusa</button>
+          {searchingUsers && <p>Inatafuta...</p>}
+          {userResults.map(user => (
+            <button key={user.id} type="button"
+              onClick={() => { setOfficerUser(user); setUserResults([]); setUserQuery(user.name || user.email || user.phone || ''); }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 6, padding: 10 }}>
+              <strong>{user.name || 'Mtumiaji'}</strong><br />
+              <span>{user.phone || user.email || `User #${user.id}`}</span>
+            </button>
+          ))}
+          {officerUser && <p>
+            Atapewa uwezo: <strong>{officerUser.name || officerUser.email || `User #${officerUser.id}`}</strong>
+            {' '}<button type="button" disabled={busy}
+              onClick={() => perform(
+                () => api.patch(`/super-agents/onboarding/officers/${officerUser.id}`, { enabled: true }),
+                'Uwezo wa kuanzisha Super Agent umetolewa.'
+              )}>Mpe uwezo wa ku-activate Super Agent</button>
+          </p>}
           {officers.map(officer => (
             <p key={officer.userId}>
               User #{officer.userId} — {officer.revokedAt ? 'Ruhusa imeondolewa' : 'Ana ruhusa'}
