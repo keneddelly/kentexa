@@ -1293,6 +1293,19 @@ export class SuperAgentsService {
     }));
   }
 
+  async getOnboardingAudit(actorId: number, superAgentId: number) {
+    await this.requireOnboardingAuthority(actorId);
+    if (!Number.isSafeInteger(superAgentId) || superAgentId <= 0)
+      throw new BadRequestException('Invalid Super Agent');
+    return this.dataSource.query(
+      `SELECT id, "actorUserId", "subjectUserId", "superAgentId",
+              action, note, "createdAt"
+         FROM public.super_agent_onboarding_audit
+        WHERE "superAgentId" = $1 ORDER BY "createdAt" DESC LIMIT 100`,
+      [superAgentId],
+    );
+  }
+
   async listOnboardingOfficers(adminId: number) {
     await this.requireAdminForOnboarding(adminId);
     return this.dataSource.query(
@@ -1360,6 +1373,7 @@ export class SuperAgentsService {
     if (agent.status !== SuperAgentStatus.ACTIVE)
       throw new ConflictException('Training completion requires an active Super Agent');
     const cleanNote = typeof note === 'string' ? note.trim().slice(0, 2000) : '';
+    if (cleanNote.length < 10) throw new BadRequestException('Training summary must contain at least 10 characters');
     await this.dataSource.query(
       `INSERT INTO public.super_agent_onboarding_audit
          ("actorUserId", "subjectUserId", "superAgentId", action, note)
