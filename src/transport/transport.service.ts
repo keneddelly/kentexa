@@ -1305,95 +1305,10 @@ export class TransportService {
     };
   }
 
-  /**
-   * Customer-facing service discovery. Unlike discoverSupply(), this answers
-   * "who promises to serve this route?" rather than "which concrete vehicle
-   * run is open right now?". A TransportRun is execution supply and is bound
-   * later; normal Tuma Mzigo must not disappear merely because today's run
-   * has not been generated/opened yet.
-   */
-  async discoverServiceRoutes(
-    fromCity: string,
-    toCity: string,
-    weightKg = 0,
-    providerId?: number,
-  ): Promise<Array<{
-    providerId: number;
-    providerName: string;
-    providerType: string;
-    providerLogo: string | null;
-    routeId: number;
-    estimatedHours: number | null;
-    pricePerKg: number;
-    fixedFee: number;
-    // Route-bound customer handoff capabilities. These are service facts,
-    // never generic city hubs. A point is exposed only when the route stop
-    // explicitly binds a Super Agent and allows the requested operation.
-    originPoints: Array<{ hubId: number; name: string | null; city: string; address: string | null }>;
-    destinationPoints: Array<{ hubId: number; name: string | null; city: string; address: string | null }>;
-  }>> {
-    const from = normalizeDiscoveryCity(fromCity);
-    const to = normalizeDiscoveryCity(toCity);
-    if (from === null || to === null) {
-      throw new BadRequestException('Both cities are required to discover transport services');
-    }
-
-    // Active TransportRoute is the canonical service-coverage authority.
-    // Do NOT pre-filter through provider.cities: that legacy profile field can
-    // be stale (for example a provider can add a Dar→Mbeya route without
-    // updating its old city list) and must not hide a valid route.
-    const routes = await this.routeRepo.find({
-      where: { isActive: true },
-      relations: { provider: true },
-      order: { id: 'ASC' },
-    });
-    const services: Array<any> = [];
-
-    for (const route of routes) {
-      const provider = route.provider;
-      if (!provider || provider.status !== ProviderStatus.VERIFIED) continue;
-      if (providerId && provider.id !== Number(providerId)) continue;
-      try {
-          await this.assertRouteServesJourney(route.id, from, to);
-      } catch {
-        continue;
-      }
-      const price = await this.getEffectiveRoutePrice(route.id);
-      // A generic Super Agent in the same city is NOT automatically compatible
-      // with this provider. Route stops are the service contract: only an
-      // explicitly bound active hub with the relevant handoff capability is
-      // safe to show to a sender.
-      const pointRows: any[] = await this.dataSource.query(
-        `SELECT rs.sequence, rs."parcelAcceptanceAllowed", rs."customerCollectionAllowed",
-                sa.id AS "hubId", sa."businessName" AS name, sa.city, sa.address
-           FROM public.route_stop rs
-           JOIN public.super_agent sa ON sa.id = rs."superAgentId" AND sa.status = 'active'
-          WHERE rs."routeId" = $1 AND rs."isActive" = true AND rs."superAgentId" IS NOT NULL
-          ORDER BY rs.sequence ASC, sa.id ASC`,
-        [route.id],
-      );
-      const originPoints = pointRows
-        .filter((p) => p.parcelAcceptanceAllowed === true)
-        .map((p) => ({ hubId: Number(p.hubId), name: p.name ?? null, city: p.city, address: p.address ?? null }));
-      const destinationPoints = pointRows
-        .filter((p) => p.customerCollectionAllowed === true)
-        .map((p) => ({ hubId: Number(p.hubId), name: p.name ?? null, city: p.city, address: p.address ?? null }));
-      services.push({
-          providerId: provider.id,
-          providerName: provider.name,
-          providerType: provider.type,
-          providerLogo: provider.logoUrl ?? null,
-          routeId: route.id,
-          estimatedHours: route.estimatedHours ?? null,
-          pricePerKg: price.pricePerKg,
-          fixedFee: price.fixedFee,
-          originPoints,
-          destinationPoints,
-      });
-    }
-    return services;
-  }
-
+  // Customer-facing transport discovery is intentionally Run-only.
+  // Route coverage without a concrete open Run is not bookable supply.
+  // The retired route-only discoverServiceRoutes() path is deliberately absent.
+  
   // ── PUBLIC CONSUMER SEARCH ───────────────────────────────────────────────
   // Unlike findAvailableForRoute (super-agent dispatch — internal slot/
   // capacity data), this returns a lean, consumer-safe card shape for the
