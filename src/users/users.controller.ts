@@ -42,7 +42,15 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
-  // Admin-only lightweight lookup for assigning delegated operational permissions.\n  @Get('admin/lookup')\n  @UseGuards(RolesGuard)\n  @Roles(UserRole.ADMIN)\n  lookup(@Request() req) {\n    return this.usersService.adminLookup(req.query?.q);\n  }\n\n  // Full user record — same owner-or-admin boundary as update() below.
+  // Admin-only lightweight lookup for assigning delegated operational permissions.
+  @Get('admin/lookup')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  lookup(@Request() req) {
+    return this.usersService.adminLookup(req.query?.q);
+  }
+
+  // Full user record — same owner-or-admin boundary as update() below.
   // (Anyone needing another user's public-facing info should go through a
   // dedicated public-profile endpoint, not this one.)
   // Security closure pass: the admin bypass previously read
