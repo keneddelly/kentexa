@@ -1253,6 +1253,96 @@ export class SuperAgentsService {
     return this.superAgentRepo.find({ order: { createdAt: 'DESC' } });
   }
 
+  // Delegated onboarding is deliberately separate from the ADMIN role.
+  // Permissions are checked against the database on every request, so
+  // revocation takes effect immediately even with an existing JWT.
+  private async requireOnboardingAuthority(actorId: number): Promise<void> {
+    const [actor] = await this.dataSource.query(
+      `SELECT role FROM public."user" WHERE id = $1`, [actorId],
+    );
+    if (actor?.role === UserRole.ADMIN) return;
+    const [officer] = await this.dataSource.query(
+      `SELECT "userId" FROM public.super_agent_onboarding_officer
+         WHERE "userId" = $1 AND "revokedAt" IS NULL`, [actorId],
+    );
+    if (!officer) throw new ForbiddenException('Super Agent onboarding permission required');
+  }
+
+  private async requireAdminForOnboarding(actorId: number): Promise<void> {
+    const [actor] = await this.dataSource.query(
+      `SELECT role FROM public."user" WHERE id = $1`, [actorId],
+    );
+    if (actor?.role !== UserRole.ADMIN) throw new ForbiddenException('Admin permission required');
+  }
+
+  async setOnboardingOfficer(adminId: number, userId: number, enabled: boolean) {
+    await this.requireAdminForOnboarding(adminId);
+    if (!Number.isSafeInteger(userId) || userId <= 0 || userId === adminId)
+      throw new BadRequestException('Invalid officer user');
+    const [user] = await this.dataSource.query(
+      `SELECT id FROM public."user" WHERE id = $1`, [userId],
+    );
+    if (!user) throw new NotFoundException('User not found');
+    await this.dataSource.transaction(async manager => {
+      if (enabled) {
+        await manager.query(
+          `INSERT INTO public.super_agent_onboarding_officer
+             ("userId", "grantedByUserId", "revokedAt")
+           VALUES ($1, $2, NULL)
+           ON CONFLICT ("userId") DO UPDATE SET
+             "grantedByUserId" = EXCLUDED."grantedByUserId",
+             "grantedAt" = now(), "revokedAt" = NULL`, [userId, adminId],
+        );
+      } else {
+        await manager.query(
+          `UPDATE public.super_agent_onboarding_officer
+             SET "revokedAt" = now() WHERE "userId" = $1 AND "revokedAt" IS NULL`, [userId],
+        );
+      }
+      await manager.query(
+        `INSERT INTO public.super_agent_onboarding_audit
+           ("actorUserId", "subjectUserId", action)
+         VALUES ($1, $2, $3)`,
+        [adminId, userId, enabled ? 'officer_granted' : 'officer_revoked'],
+      );
+    });
+    return { userId, enabled };
+  }
+
+  async approveByOnboardingOfficer(actorId: number, id: number) {
+    await this.requireOnboardingAuthority(actorId);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new BadRequestException('Invalid Super Agent');
+    const agent = await this.superAgentRepo.findOne({ where: { id }, relations: ['user'] });
+    if (!agent) throw new NotFoundException('Super Agent not found');
+    if (agent.status !== SuperAgentStatus.PENDING)
+      throw new ConflictException('Only pending applications may be approved');
+    const saved = await this.approve(id);
+    await this.dataSource.query(
+      `INSERT INTO public.super_agent_onboarding_audit
+         ("actorUserId", "subjectUserId", "superAgentId", action)
+       VALUES ($1, $2, $3, 'approved')`,
+      [actorId, agent.user?.id ?? null, id],
+    );
+    return saved;
+  }
+
+  async recordOnboardingTraining(actorId: number, id: number, note: string) {
+    await this.requireOnboardingAuthority(actorId);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new BadRequestException('Invalid Super Agent');
+    const agent = await this.superAgentRepo.findOne({ where: { id }, relations: ['user'] });
+    if (!agent) throw new NotFoundException('Super Agent not found');
+    if (agent.status !== SuperAgentStatus.ACTIVE)
+      throw new ConflictException('Training completion requires an active Super Agent');
+    const cleanNote = typeof note === 'string' ? note.trim().slice(0, 2000) : '';
+    await this.dataSource.query(
+      `INSERT INTO public.super_agent_onboarding_audit
+         ("actorUserId", "subjectUserId", "superAgentId", action, note)
+       VALUES ($1, $2, $3, 'training_completed', $4)`,
+      [actorId, agent.user?.id ?? null, id, cleanNote || null],
+    );
+    return { superAgentId: id, trainingCompleted: true };
+  }
+
   async approve(id: number) {
     const agent = await this.superAgentRepo.findOne({ where: { id } });
     if (!agent) throw new NotFoundException('Super agent not found');
