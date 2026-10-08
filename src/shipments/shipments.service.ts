@@ -698,6 +698,8 @@ export class ShipmentsService {
       const saved = await shipments.save(
         shipments.create({
           requestedByUserId: userId,
+          // Authenticated sender is verified by the JWT guard; a typed phone is not.
+          senderUserId: userId,
           senderName: dto.senderName?.trim() || null,
           senderPhone: dto.senderPhone?.trim() || null,
           receiverName: dto.receiverName.trim(),
