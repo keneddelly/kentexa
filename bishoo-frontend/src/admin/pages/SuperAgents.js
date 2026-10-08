@@ -3,11 +3,6 @@ import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
 
 const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
-  const [onboardingOfficers, setOnboardingOfficers] = useState([]);
-  const [officerQuery, setOfficerQuery] = useState('');
-  const [officerResults, setOfficerResults] = useState([]);
-  const [selectedOfficer, setSelectedOfficer] = useState(null);
-  const [officerLoading, setOfficerLoading] = useState(false);
   const [agents, setAgents]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -27,52 +22,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
   const [applicantIdentity, setApplicantIdentity] = useState(null);
   const [agentReferrals, setAgentReferrals] = useState([]);
 
-  useEffect(() => { fetchAgents(); fetchOnboardingOfficers(); }, []);
-
-  const fetchOnboardingOfficers = async () => {
-    try {
-      const res = await api.get('/super-agents/onboarding/officers');
-      setOnboardingOfficers(Array.isArray(res.data) ? res.data : []);
-    } catch { setOnboardingOfficers([]); }
-  };
-
-  const searchOnboardingUsers = async (value) => {
-    setOfficerQuery(value);
-    setSelectedOfficer(null);
-    if (value.trim().length < 2) { setOfficerResults([]); return; }
-    setOfficerLoading(true);
-    try {
-      const res = await api.get('/users/admin/lookup', { params: { q: value.trim() } });
-      setOfficerResults(Array.isArray(res.data) ? res.data : []);
-    } catch { setOfficerResults([]); }
-    finally { setOfficerLoading(false); }
-  };
-
-  const grantOnboardingOfficer = async () => {
-    if (!selectedOfficer) return;
-    try {
-      setActionLoading(true);
-      await api.patch(`/super-agents/onboarding/officers/${selectedOfficer.id}`, { enabled: true });
-      setMessage(`${selectedOfficer.name || selectedOfficer.phone || 'User'} amepewa uwezo wa ku-activate Super Agent.`);
-      setSelectedOfficer(null);
-      setOfficerQuery('');
-      setOfficerResults([]);
-      await fetchOnboardingOfficers();
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindikana kutoa uwezo.');
-    } finally { setActionLoading(false); }
-  };
-
-  const revokeOnboardingOfficer = async (userId) => {
-    try {
-      setActionLoading(true);
-      await api.patch(`/super-agents/onboarding/officers/${userId}`, { enabled: false });
-      setMessage('Uwezo wa onboarding umeondolewa.');
-      await fetchOnboardingOfficers();
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Imeshindikana kuondoa uwezo.');
-    } finally { setActionLoading(false); }
-  };
+  useEffect(() => { fetchAgents(); }, []);
 
   useEffect(() => {
     if (detailAgent) {
@@ -196,41 +146,6 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
-        <section style={{ background: '#fff', borderRadius: 12, padding: 20, marginBottom: 24, border: '1px solid #e2e8f0' }}>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: '#0f172a' }}>👥 Super Agent Onboarding Officers</h2>
-          <p style={{ color: '#64748b', fontSize: 14, margin: '6px 0 16px', lineHeight: 1.5 }}>
-            Mpe mfanyakazi wa Kentexa aliye na Super Agent role uwezo wa ziada wa ku-activate Super Agent. Hii haimpi Admin au ruhusa za fedha.
-          </p>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 280 }}>
-              <input type="search" value={officerQuery} onChange={e => searchOnboardingUsers(e.target.value)}
-                placeholder="Tafuta mtumiaji kwa jina, simu au email"
-                style={{ width: '100%', boxSizing: 'border-box', padding: 12, border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 16 }} />
-              {officerLoading && <div style={{ marginTop: 8, color: '#64748b', fontSize: 13 }}>Inatafuta...</div>}
-              {officerResults.map(user => (
-                <button key={user.id} type="button" onClick={() => { setSelectedOfficer(user); setOfficerResults([]); setOfficerQuery(user.name || user.phone || user.email || ''); }}
-                  style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 6, padding: 12, border: '1px solid #e2e8f0', borderRadius: 8, background: '#f8fafc', cursor: 'pointer' }}>
-                  <strong>{user.name || 'Mtumiaji'}</strong><div style={{ fontSize: 13, color: '#64748b' }}>{user.phone || user.email || ('User #' + user.id)}</div>
-                </button>
-              ))}
-            </div>
-            <button type="button" disabled={!selectedOfficer || actionLoading} onClick={grantOnboardingOfficer}
-              style={{ background: '#1d4ed8', color: '#fff', border: 0, borderRadius: 10, padding: '12px 16px', fontSize: 15, fontWeight: 800, cursor: selectedOfficer ? 'pointer' : 'not-allowed' }}>
-              Mpe uwezo wa ku-activate
-            </button>
-          </div>
-          {selectedOfficer && <div style={{ marginTop: 10, fontSize: 14, color: '#0f172a' }}>Aliyechaguliwa: <strong>{selectedOfficer.name || selectedOfficer.phone || selectedOfficer.email}</strong></div>}
-          <div style={{ marginTop: 18 }}>
-            <strong style={{ fontSize: 14 }}>Wenye uwezo sasa</strong>
-            {onboardingOfficers.length === 0 ? <div style={{ color: '#94a3b8', fontSize: 13, marginTop: 8 }}>Hakuna onboarding officer aliyepewa uwezo.</div> : onboardingOfficers.map(officer => (
-              <div key={officer.userId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '10px 0', borderTop: '1px solid #f1f5f9' }}>
-                <div><strong>User #{officer.userId}</strong><div style={{ fontSize: 12, color: '#64748b' }}>{officer.revokedAt ? 'Ruhusa imeondolewa' : 'Ana ruhusa ya ku-activate Super Agent'}</div></div>
-                {!officer.revokedAt && <button type="button" disabled={actionLoading} onClick={() => revokeOnboardingOfficer(officer.userId)} style={{ border: '1px solid #ef4444', color: '#dc2626', background: '#fff', borderRadius: 8, padding: '8px 12px', fontWeight: 700 }}>Ondoa uwezo</button>}
-              </div>
-            ))}
-          </div>
-        </section>
-
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
             <h1 style={{ fontSize: 24, fontWeight: 900, color: '#0f172a', margin: 0, fontFamily: 'Manrope,sans-serif' }}>🏢 Super Agents</h1>
