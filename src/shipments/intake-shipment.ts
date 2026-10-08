@@ -31,7 +31,7 @@ export type IntakeChannel = 'walk_in' | 'seller_shipment' | 'order';
 export interface IntakeShipmentInput {
   parcelId: number;
   channel: IntakeChannel;
-  /** The authenticated user performing the intake; the fallback "requester". */
+  /** Authenticated intake operator. Walk-in customers are NOT authenticated by this identity. */
   actorUserId: number;
   /** Walk-in only: the desk that received the parcel and the sender's cash. */
   deskHub?: { superAgentId: number; paymentMethod?: string | null };
@@ -75,6 +75,10 @@ export async function linkIntakeShipment(
     };
   }
 
+  // A desk operator is the operational actor, not the walk-in sender.
+  // Shipment.requestedByUserId remains a required column; keep the intake
+  // operator for audit provenance, but never interpret it as customer ownership
+  // in /shipments/mine. Customer claiming requires a separate verified link.
   const requestedByUserId = Number(parcel.sellerId ?? parcel.orderSellerId ?? input.actorUserId);
   const originCity = text(parcel.originCity, 'Tanzania');
   const destinationCity = text(parcel.destinationCity, 'Tanzania');
