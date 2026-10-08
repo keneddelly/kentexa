@@ -6,7 +6,6 @@ import { JourneyComposerService } from './journey-composer.service';
 describe('JourneyComposerService', () => {
   const transport: any = {
     discoverSupply: jest.fn(),
-    discoverServiceRoutes: jest.fn(),
     findBookableRun: jest.fn(),
     assertRunBookable: jest.fn(),
     assertRunServes: jest.fn(),
@@ -52,10 +51,6 @@ describe('JourneyComposerService', () => {
   });
 
   it('binds a selected Transport Run while preserving first/last-mile outcomes', async () => {
-    transport.discoverServiceRoutes.mockResolvedValue([{
-      providerId: 2, routeId: 3, providerName: 'Abood', providerType: 'bus',
-      providerLogo: null, estimatedHours: 8, pricePerKg: 1000, fixedFee: 5000,
-    }]);
     transport.assertRunServes.mockResolvedValue(run());
     selections.select.mockResolvedValue({ id: 12 });
     await service.selectService(9, {
@@ -68,6 +63,7 @@ describe('JourneyComposerService', () => {
     expect(transport.assertRunServes).toHaveBeenCalledWith(
       7, 'Dar es Salaam', 'Mwanza', 2, { providerId: 2, routeId: 3 },
     );
+    expect(transport.discoverServiceRoutes).toBeUndefined();
     expect(selections.select).toHaveBeenCalledWith(9, expect.objectContaining({
       legs: [
         expect.objectContaining({ type: 'first_mile', requiredActorCapability: 'local_agent' }),
@@ -84,6 +80,17 @@ describe('JourneyComposerService', () => {
         expect.objectContaining({ type: 'last_mile', requiredActorCapability: 'local_agent' }),
       ],
     }));
+  });
+
+  it.each([[undefined], [0], ['x'], [1.5]])('selectService rejects missing/invalid runId %p instead of falling back to route discovery', async (runId) => {
+    await expect(service.selectService(9, {
+      providerId: 2, routeId: 3, runId,
+      originSnapshot: { city: 'Dar es Salaam' },
+      destinationSnapshot: { city: 'Mwanza' },
+      cargoRequirements: { description: 'Box', quantity: 1, weightKg: 2 } as any,
+      paymentMethod: 'cash', pickup: 'point', delivery: 'collect',
+    } as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(transport.assertRunServes).not.toHaveBeenCalled();
   });
 
   it('re-proves the selected Run on the server and writes the leg itself', async () => {
