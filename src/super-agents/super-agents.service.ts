@@ -1278,7 +1278,7 @@ export class SuperAgentsService {
   async listOnboardingApplications(actorId: number) {
     await this.requireOnboardingAuthority(actorId);
     const agents = await this.superAgentRepo.find({
-      where: { status: SuperAgentStatus.PENDING },
+      where: { status: In([SuperAgentStatus.PENDING, SuperAgentStatus.ACTIVE]) },
       relations: { user: true },
       order: { id: 'DESC' },
       take: 100,
