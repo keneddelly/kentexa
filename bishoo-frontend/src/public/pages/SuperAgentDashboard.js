@@ -1104,6 +1104,24 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             ))}
           </div>
 
+          {canOnboard && (
+            <button
+              type="button"
+              onClick={() => { setActiveTab('onboarding'); setPokeaMode('list'); }}
+              style={{
+                width: '100%', marginBottom: 10, padding: '13px 16px',
+                border: 'none', borderRadius: 10, cursor: 'pointer',
+                backgroundColor: '#1d4ed8', color: '#fff',
+                fontSize: 14, fontWeight: 900, textAlign: 'left',
+              }}
+            >
+              👥 Super Agent Onboarding
+              <span style={{ display: 'block', fontSize: 11, fontWeight: 600, opacity: 0.9, marginTop: 3 }}>
+                Wasaidie waombaji wapya na wa-activate Super Agent
+              </span>
+            </button>
+          )}
+
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 4 }}>
             {[
@@ -1113,7 +1131,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               { key: 'mapato',  label: '💰 MAPATO'  },
               { key: 'bei',     label: '📋 BEI'     },
               ...(isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
-              ...(canOnboard ? [{ key: 'onboarding', label: '👥 ONBOARDING' }] : []),
             ].map(t => (
               <button key={t.key} data-tour={`sa-tab-${t.key}`}
                 onClick={() => { setActiveTab(t.key); setPokeaMode('list'); if (t.key === 'van') fetchVanDesk(); }}
