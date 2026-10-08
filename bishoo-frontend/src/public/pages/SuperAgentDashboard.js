@@ -30,9 +30,6 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
-import FeatureTour from '../../onboarding/FeatureTour';
-import TourTrigger from '../../onboarding/TourTrigger';
-import SetupProgressCard from '../../onboarding/SetupProgressCard';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
 import SuperAgentOnboarding from './SuperAgentOnboarding';
@@ -997,15 +994,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
   // ── Main dashboard ────────────────────────────────────────────────────────
 
-  // Lets the generic FeatureTour engine drive this page's own tab/mode
-  // state before it measures a step's target — the engine itself knows
-  // nothing about "pokea"/"tuma"/pokeaMode, it just calls this with
-  // whatever a tour step's `requiresState` declares.
-  const handleTourStepChange = (requiredState) => {
-    if (requiredState.activeTab) setActiveTab(requiredState.activeTab);
-    if (requiredState.pokeaMode) setPokeaMode(requiredState.pokeaMode);
-  };
-
   const handleTransferHub = async (trackingNumber, form) => {
     if (!form.destinationSuperAgentId && !form.manualContactName) {
       alert('Chagua Super Agent aliyesajiliwa au jaza jina la mshirika'); return;
@@ -1145,14 +1133,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         </div>
       </div>
 
-      {/* Onboarding: first-parcel coach-mark tour (auto-launches once) +
-          a small badge to replay it anytime. FeatureTour renders nothing
-          when inactive, so this is always safe to mount. */}
-      <div style={{ position: 'fixed', top: 8, right: 12, zIndex: 500 }}>
-        <TourTrigger tourKey="super_agent_first_parcel" />
-      </div>
-      <FeatureTour tourKey="super_agent_first_parcel" onStepChange={handleTourStepChange} autoStart />
-
       {/* ── Content ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto',
         width: '100%', boxSizing: 'border-box', paddingBottom: 80 }}>
@@ -1186,9 +1166,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             {/* Sub-mode selector */}
             {pokeaMode === 'list' && (
               <>
-                <SetupProgressCard journeyKey="super_agent"
-                  context={{ profileStatus, dashData }} onNavigate={onNavigate} />
-
                 {/* Gate 5: booked Shipments this hub is waiting to receive. */}
                 <HubExpectedShipments onReceived={fetchAll} />
 
