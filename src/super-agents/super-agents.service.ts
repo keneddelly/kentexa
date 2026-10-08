@@ -898,7 +898,7 @@ export class SuperAgentsService {
       message: 'Kifurushi hiki tayari kimesajiliwa. Tumia risiti ileile; angalia SMS kabla ya kuituma tena.',
     };
     const { savedParcel, trackingNumber, platformFeeCharged, platformFeeWaived, invoice,
-      receipt } = outcome;
+      receipt, shipmentClaim } = outcome;
 
     // Who declared the value and when — reuses the existing generic audit
     // log rather than building a second history mechanism. There is no
@@ -962,6 +962,7 @@ export class SuperAgentsService {
 
     return {
       ...receipt,
+      shipmentClaim,
       senderSmsSent,
       message: senderSmsSent
         ? `Kifurushi kimesajiliwa. SMS ya malipo imetumwa kwa ${dto.senderPhone}.`
