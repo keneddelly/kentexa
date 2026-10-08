@@ -40,6 +40,15 @@ export async function finalizeWalkInClaim(
     if (shipment.senderUserId != null) {
       throw new ConflictException('Shipment already claimed');
     }
+    const [receipt] = await tx.query(
+      `SELECT "receiptSecretDigest" FROM public.shipment_claim_receipt
+        WHERE "shipmentId" = $1 AND "consumedAt" IS NULL
+          AND "expiresAt" > now() FOR UPDATE`,
+      [input.shipmentId],
+    );
+    if (!receipt || !matchesClaimDigest(receipt.receiptSecretDigest, receiptDigest)) {
+      throw new BadRequestException('Invalid or expired claim credentials');
+    }
     const [challenge] = await tx.query(
       `SELECT id, "receiptSecretDigest", "otpDigest", "otpExpiresAt",
               "attemptCount", "maxAttempts"
@@ -76,6 +85,11 @@ export async function finalizeWalkInClaim(
     await tx.query(
       `UPDATE public.shipment_claim_challenge
           SET "consumedAt" = now() WHERE "shipmentId" = $1 AND "consumedAt" IS NULL`,
+      [input.shipmentId],
+    );
+    await tx.query(
+      `UPDATE public.shipment_claim_receipt SET "consumedAt" = now()
+        WHERE "shipmentId" = $1 AND "consumedAt" IS NULL`,
       [input.shipmentId],
     );
     return { shipmentId: input.shipmentId };
