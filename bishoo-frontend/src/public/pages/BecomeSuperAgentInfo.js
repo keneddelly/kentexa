@@ -21,6 +21,7 @@ const inputStyle = {
 
 const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, onRefreshContext }) => {
   const { t } = useTranslation();
+  const step = 'info';
   const [existingProfile, setExistingProfile] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [loading, setLoading]             = useState(false);
