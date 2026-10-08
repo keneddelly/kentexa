@@ -353,7 +353,7 @@ export class SuperAgentsService {
         usernameSeed: saved.businessName,
         photoUrl: user.avatarUrl,
         location: saved.city,
-        status: CommerceProfileStatus.PENDING,
+        status: CommerceProfileStatus.ACTIVE,
         superAgentId: saved.id,
       });
     } catch {}
