@@ -25,6 +25,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, IsNull, Repository } from 'typeorm';
 import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
+import { finalizeWalkInClaim } from './shipment-claim-finalize';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportQuote, TransportQuoteStatus } from '../transport/entities/transport-quote.entity';
 import {
@@ -835,6 +836,26 @@ export class ShipmentsService {
   // What the sender booked themselves. A parcel a Super Agent registered at
   // the desk for a walk-in customer has a Shipment too (Gate 3), but it is
   // the desk's work, not one of the desk operator's own shipments.
+  /**
+   * Requires a separately issued receipt secret and sender-phone OTP.
+   * This endpoint cannot infer sender ownership from the intake operator.
+   */
+  async claimWalkInShipment(
+    userId: number,
+    shipmentId: number,
+    receiptSecret: string,
+    otp: string,
+  ): Promise<{ shipmentId: number }> {
+    const hmacKey = process.env.SHIPMENT_CLAIM_HMAC_KEY ?? '';
+    return finalizeWalkInClaim(this.shipmentRepo.manager, {
+      claimantUserId: userId,
+      shipmentId,
+      receiptSecret,
+      otp,
+      hmacKey,
+    });
+  }
+
   async getMyShipments(userId: number): Promise<Shipment[]> {
     // Only the authenticated requester's own self-service/commerce records.
     // A walk-in's requestedByUserId currently identifies the desk operator,
