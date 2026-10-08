@@ -22,6 +22,12 @@ describe('walk-in claim credentials', () => {
     expect(matchesClaimDigest(digest, claimDigest(key, 'receipt', 10, 'wrong'))).toBe(false);
   });
 
+  it('rejects attempts to reuse the same code against a different shipment', () => {
+    const code = '123456';
+    const expected = claimDigest(key, 'otp', 101, code);
+    expect(matchesClaimDigest(expected, claimDigest(key, 'otp', 102, code))).toBe(false);
+  });
+
   it('rejects weak keys and malformed digests', () => {
     expect(() => claimDigest('short', 'otp', 1, '123456')).toThrow();
     expect(matchesClaimDigest('invalid', 'invalid')).toBe(false);
