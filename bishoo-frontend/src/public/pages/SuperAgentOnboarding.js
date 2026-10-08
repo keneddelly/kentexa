@@ -3,14 +3,18 @@ import api from '../../api/api';
 
 // Delegated Super Agent onboarding. The server validates permissions on every
 // request; this page never treats a client-side role flag as authorization.
-export default function SuperAgentOnboarding() {
+export default function SuperAgentOnboarding({ embedded = false }) {
   const [applications, setApplications] = useState([]);
   const [officers, setOfficers] = useState(null);
-  const [officerUserId, setOfficerUserId] = useState('');
+  const [officerUser, setOfficerUser] = useState(null);
+  const [userQuery, setUserQuery] = useState('');
+  const [userResults, setUserResults] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
   const [notes, setNotes] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const load = async () => {
     const { data } = await api.get('/super-agents/onboarding/applications');
@@ -26,11 +30,28 @@ export default function SuperAgentOnboarding() {
 
   useEffect(() => {
     let active = true;
+    Promise.all([
+      api.get('/super-agents/onboarding/applications'),
+      api.get('/super-agents/onboarding/access'),
+    ])
+      .then(([applicationsResult, accessResult]) => {
+        if (!active) return;
+        setApplications(Array.isArray(applicationsResult.data) ? applicationsResult.data : []);
+        setIsAdmin(Boolean(accessResult.data?.isAdmin));
+      })
+      .catch(() => { if (active) setError('Huna ruhusa ya kusimamia maombi haya.'); });
+    return () => { active = false; };
+  }, []);
+
+  /*
+  useEffect(() => {
+    let active = true;
     api.get('/super-agents/onboarding/applications')
       .then(({ data }) => { if (active) setApplications(Array.isArray(data) ? data : []); })
       .catch(() => { if (active) setError('Huna ruhusa ya kusimamia maombi haya.'); });
     return () => { active = false; };
   }, []);
+  */
 
   const perform = async (action, success) => {
     setBusy(true); setError(''); setMessage('');
@@ -40,9 +61,9 @@ export default function SuperAgentOnboarding() {
   };
 
   return (
-    <main style={{ maxWidth: 800, margin: '0 auto', padding: 20, fontSize: 16 }}>
-      <h1>Usajili wa Super Agent</h1>
-      <p>Hakiki maombi, idhinisha Super Agent na rekodi mafunzo yaliyokamilika.</p>
+    <main style={{ maxWidth: 800, margin: '0 auto', padding: embedded ? 0 : 20, fontSize: 16 }}>
+      <h1>👥 Onboarding ya Super Agent</h1>
+      <p>Wasaidie waombaji kuelewa Kentexa, kisha wa-activate wanapokuwa tayari.</p>
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
       {applications.map(item => (
@@ -51,8 +72,8 @@ export default function SuperAgentOnboarding() {
           <p>{item.city || 'Eneo halijawekwa'} · {item.status}</p>
           <button type="button" disabled={busy || item.status !== 'pending'} onClick={() => perform(
             () => api.patch(`/super-agents/onboarding/applications/${item.id}/approve`),
-            'Super Agent ameidhinishwa.'
-          )}>Idhinisha</button>
+            'Super Agent ame-activate na yuko tayari kutumia dashboard.'
+          )}>Activate Super Agent</button>
           <label style={{ display: 'block', marginTop: 14 }}>
             Muhtasari wa mafunzo
             <textarea style={{ display: 'block', width: '100%', minHeight: 80, fontSize: 16 }}
@@ -68,7 +89,7 @@ export default function SuperAgentOnboarding() {
         </section>
       ))}
       {!error && applications.length === 0 && <p>Hakuna maombi yanayosubiri kwa sasa.</p>}
-      <section style={{ marginTop: 24 }}>
+      {isAdmin && <section style={{ marginTop: 24 }}>
         <h2>Ruhusa za maafisa</h2>
         <p>Sehemu hii inapatikana kwa Admin pekee.</p>
         <button type="button" disabled={busy} onClick={() => perform(
@@ -79,15 +100,39 @@ export default function SuperAgentOnboarding() {
         )}>Angalia maafisa</button>
         {officers !== null && <>
           <label style={{ display: 'block', marginTop: 12 }}>
-            Namba ya mtumiaji (User ID)
-            <input type="number" min="1" value={officerUserId}
-              onChange={e => setOfficerUserId(e.target.value)} />
+            Tafuta mfanyakazi wa Kentexa
+            <input type="search" value={userQuery}
+              onChange={async e => {
+                const value = e.target.value;
+                setUserQuery(value);
+                setOfficerUser(null);
+                if (value.trim().length < 2) { setUserResults([]); return; }
+                setSearchingUsers(true);
+                try {
+                  const result = await api.get('/users/admin/lookup', { params: { q: value.trim() } });
+                  setUserResults(Array.isArray(result.data) ? result.data : []);
+                } catch { setUserResults([]); }
+                finally { setSearchingUsers(false); }
+              }}
+              placeholder="Jina, simu au email" />
           </label>
-          <button type="button" disabled={busy || !Number.isSafeInteger(Number(officerUserId)) || Number(officerUserId) <= 0}
-            onClick={() => perform(
-              () => api.patch(`/super-agents/onboarding/officers/${officerUserId}`, { enabled: true }),
-              'Ruhusa imetolewa.'
-            )}>Mpe ruhusa</button>
+          {searchingUsers && <p>Inatafuta...</p>}
+          {userResults.map(user => (
+            <button key={user.id} type="button"
+              onClick={() => { setOfficerUser(user); setUserResults([]); setUserQuery(user.name || user.email || user.phone || ''); }}
+              style={{ display: 'block', width: '100%', textAlign: 'left', marginTop: 6, padding: 10 }}>
+              <strong>{user.name || 'Mtumiaji'}</strong><br />
+              <span>{user.phone || user.email || `User #${user.id}`}</span>
+            </button>
+          ))}
+          {officerUser && <p>
+            Atapewa uwezo: <strong>{officerUser.name || officerUser.email || `User #${officerUser.id}`}</strong>
+            {' '}<button type="button" disabled={busy}
+              onClick={() => perform(
+                () => api.patch(`/super-agents/onboarding/officers/${officerUser.id}`, { enabled: true }),
+                'Uwezo wa kuanzisha Super Agent umetolewa.'
+              )}>Mpe uwezo wa ku-activate Super Agent</button>
+          </p>}
           {officers.map(officer => (
             <p key={officer.userId}>
               User #{officer.userId} — {officer.revokedAt ? 'Ruhusa imeondolewa' : 'Ana ruhusa'}
@@ -99,7 +144,7 @@ export default function SuperAgentOnboarding() {
             </p>
           ))}
         </>}
-      </section>
+      </section>}
     </main>
   );
 }

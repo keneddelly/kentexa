@@ -30,11 +30,9 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
-import FeatureTour from '../../onboarding/FeatureTour';
-import TourTrigger from '../../onboarding/TourTrigger';
-import SetupProgressCard from '../../onboarding/SetupProgressCard';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
+import SuperAgentOnboarding from './SuperAgentOnboarding';
 
 const pendingWalkInRequests = new Map();
 
@@ -194,6 +192,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [eligibleRuns, setEligibleRuns] = useState({});
   const [selectedRun, setSelectedRun] = useState({});
   const [vanDeskLoading, setVanDeskLoading] = useState(false);
+  const [canOnboard, setCanOnboard] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/super-agents/onboarding/access')
+      .then(({ data }) => { if (active) setCanOnboard(Boolean(data?.canOnboard)); })
+      .catch(() => { if (active) setCanOnboard(false); });
+    return () => { active = false; };
+  }, []);
 
   const fetchVanDesk = async () => {
     try {
@@ -987,15 +994,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
 
   // ── Main dashboard ────────────────────────────────────────────────────────
 
-  // Lets the generic FeatureTour engine drive this page's own tab/mode
-  // state before it measures a step's target — the engine itself knows
-  // nothing about "pokea"/"tuma"/pokeaMode, it just calls this with
-  // whatever a tour step's `requiresState` declares.
-  const handleTourStepChange = (requiredState) => {
-    if (requiredState.activeTab) setActiveTab(requiredState.activeTab);
-    if (requiredState.pokeaMode) setPokeaMode(requiredState.pokeaMode);
-  };
-
   const handleTransferHub = async (trackingNumber, form) => {
     if (!form.destinationSuperAgentId && !form.manualContactName) {
       alert('Chagua Super Agent aliyesajiliwa au jaza jina la mshirika'); return;
@@ -1094,6 +1092,24 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             ))}
           </div>
 
+          {canOnboard && (
+            <button
+              type="button"
+              onClick={() => { setActiveTab('onboarding'); setPokeaMode('list'); }}
+              style={{
+                width: '100%', marginBottom: 10, padding: '13px 16px',
+                border: 'none', borderRadius: 10, cursor: 'pointer',
+                backgroundColor: '#1d4ed8', color: '#fff',
+                fontSize: 14, fontWeight: 900, textAlign: 'left',
+              }}
+            >
+              👥 Super Agent Onboarding
+              <span style={{ display: 'block', fontSize: 11, fontWeight: 600, opacity: 0.9, marginTop: 3 }}>
+                Wasaidie waombaji wapya na wa-activate Super Agent
+              </span>
+            </button>
+          )}
+
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 4 }}>
             {[
@@ -1117,14 +1133,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         </div>
       </div>
 
-      {/* Onboarding: first-parcel coach-mark tour (auto-launches once) +
-          a small badge to replay it anytime. FeatureTour renders nothing
-          when inactive, so this is always safe to mount. */}
-      <div style={{ position: 'fixed', top: 8, right: 12, zIndex: 500 }}>
-        <TourTrigger tourKey="super_agent_first_parcel" />
-      </div>
-      <FeatureTour tourKey="super_agent_first_parcel" onStepChange={handleTourStepChange} autoStart />
-
       {/* ── Content ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, padding: 16, maxWidth: 560, margin: '0 auto',
         width: '100%', boxSizing: 'border-box', paddingBottom: 80 }}>
@@ -1146,6 +1154,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           </div>
         )}
 
+        {activeTab === 'onboarding' && canOnboard && (
+          <SuperAgentOnboarding embedded />
+        )}
+
         {/* ════════════════════════════════════════════════════════════════
             📥 POKEA TAB
             ════════════════════════════════════════════════════════════════ */}
@@ -1154,9 +1166,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             {/* Sub-mode selector */}
             {pokeaMode === 'list' && (
               <>
-                <SetupProgressCard journeyKey="super_agent"
-                  context={{ profileStatus, dashData }} onNavigate={onNavigate} />
-
                 {/* Gate 5: booked Shipments this hub is waiting to receive. */}
                 <HubExpectedShipments onReceived={fetchAll} />
 

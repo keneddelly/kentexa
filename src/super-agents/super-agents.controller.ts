@@ -471,6 +471,13 @@ export class SuperAgentsController {
   // Dedicated onboarding authority: JWT identity + database permission.
   // No ADMIN role is granted to officers and financial routes remain admin-only.
   @UseGuards(JwtAuthGuard)
+  @Get('onboarding/access')
+  getOnboardingAccess(@Request() req) {
+    return this.service.getOnboardingAccess(req.user.id);
+  }
+
+
+  @UseGuards(JwtAuthGuard)
   @Get('onboarding/applications')
   listOnboardingApplications(@Request() req) {
     return this.service.listOnboardingApplications(req.user.id);
