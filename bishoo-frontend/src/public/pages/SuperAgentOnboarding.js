@@ -49,7 +49,7 @@ export default function SuperAgentOnboarding() {
         <section key={item.id} style={{ border: '1px solid #ccd5e2', borderRadius: 12, padding: 16, marginBottom: 16 }}>
           <h2>{item.businessName || 'Super Agent'} — #{item.id}</h2>
           <p>{item.city || 'Eneo halijawekwa'} · {item.status}</p>
-          <button type="button" disabled={busy} onClick={() => perform(
+          <button type="button" disabled={busy || item.status !== 'pending'} onClick={() => perform(
             () => api.patch(`/super-agents/onboarding/applications/${item.id}/approve`),
             'Super Agent ameidhinishwa.'
           )}>Idhinisha</button>
@@ -60,7 +60,7 @@ export default function SuperAgentOnboarding() {
               onChange={e => setNotes(previous => ({ ...previous, [item.id]: e.target.value }))}
               placeholder="Eleza mafunzo ya usajili wa mizigo, risiti, malipo na ufuatiliaji." />
           </label>
-          <button type="button" disabled={busy || (notes[item.id] || '').trim().length < 10}
+          <button type="button" disabled={busy || item.status !== 'active' || (notes[item.id] || '').trim().length < 10}
             onClick={() => perform(
               () => api.post(`/super-agents/onboarding/applications/${item.id}/training`, { note: notes[item.id] }),
               'Mafunzo yamerekodiwa.'
