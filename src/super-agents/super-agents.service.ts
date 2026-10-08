@@ -845,12 +845,19 @@ export class SuperAgentsService {
     // returned only in this intake response. It must not enter the persistent
     // invoice/receipt snapshot, logs, or public tracking.
     let shipmentClaim: { shipmentId: number; receiptSecret: string } | null = null;
-    if (linkedShipment?.created && process.env.SHIPMENT_CLAIM_HMAC_KEY) {
-      shipmentClaim = await issueWalkInClaimReceipt(manager, {
-        shipmentId: linkedShipment.shipmentId,
-        deskActorUserId: superAgentUser.id,
-        hmacKey: process.env.SHIPMENT_CLAIM_HMAC_KEY,
-      });
+    if (linkedShipment?.created) {
+      const claimKey = process.env.SHIPMENT_CLAIM_HMAC_KEY;
+      if (!claimKey || claimKey.length < 32) {
+        // Keep desk intake available, but report a configuration failure:
+        // silently omitting credentials would strand the customer's parcel.
+        console.error('Walk-in claim receipt unavailable: SHIPMENT_CLAIM_HMAC_KEY not configured');
+      } else {
+        shipmentClaim = await issueWalkInClaimReceipt(manager, {
+          shipmentId: linkedShipment.shipmentId,
+          deskActorUserId: superAgentUser.id,
+          hmacKey: claimKey,
+        });
+      }
     }
 
     // 6. Receipt — evidence the Super Agent received the sender's cash.
