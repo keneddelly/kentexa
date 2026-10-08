@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../../services/api';
+import api from '../../api/api';
 
 // Delegated Super Agent onboarding. The server validates permissions on every
 // request; this page never treats a client-side role flag as authorization.
