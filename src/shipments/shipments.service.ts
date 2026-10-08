@@ -834,12 +834,16 @@ export class ShipmentsService {
   // the desk for a walk-in customer has a Shipment too (Gate 3), but it is
   // the desk's work, not one of the desk operator's own shipments.
   async getMyShipments(userId: number): Promise<Shipment[]> {
-    const mine = (
-      await this.shipmentRepo.find({
-        where: { requestedByUserId: userId },
-        order: { createdAt: 'DESC' },
-      })
-    ).filter((s) => s.intakeChannel !== 'walk_in');
+    // Only the authenticated requester's own self-service/commerce records.
+    // A walk-in's requestedByUserId currently identifies the desk operator,
+    // not the sender. Filter at the database boundary so operator-owned
+    // desk records never enter the customer's read-side projection.
+    const mine = await this.shipmentRepo
+      .createQueryBuilder('shipment')
+      .where('shipment.requestedByUserId = :userId', { userId })
+      .andWhere('shipment.intakeChannel != :walkIn', { walkIn: 'walk_in' })
+      .orderBy('shipment.createdAt', 'DESC')
+      .getMany();
     // Read-side safety net for the ONE projector: anything still open is
     // re-derived from parcel/custody truth before it is shown, so a list can
     // never be staler than the ledger.
