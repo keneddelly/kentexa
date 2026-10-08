@@ -58,6 +58,12 @@ export class Shipment {
   @Column({ type: 'int' })
   requestedByUserId: number;
 
+  // Verified customer owner, separate from the authenticated desk operator.
+  // Never populate this from an unverified sender phone or intake actor.
+  // Null until an authenticated self-service creation or verified claim.
+  @Column({ type: 'int', nullable: true })
+  senderUserId: number | null;
+
   // Defaults to the requester's own name/phone but editable — e.g.
   // sending on someone else's behalf.
   @Column({ type: 'varchar', nullable: true })

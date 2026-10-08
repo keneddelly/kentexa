@@ -1,5 +1,6 @@
 import {
   Controller,
+  BadRequestException,
   Get,
   Post,
   Patch,
@@ -465,6 +466,61 @@ export class SuperAgentsController {
     @CurrentRoleContext() roleContext: RoleContext,
   ) {
     return this.service.dispatchBulkShipment(req.user, Number(id), dto, roleContext);
+  }
+
+  // Dedicated onboarding authority: JWT identity + database permission.
+  // No ADMIN role is granted to officers and financial routes remain admin-only.
+  @UseGuards(JwtAuthGuard)
+  @Get('onboarding/applications')
+  listOnboardingApplications(@Request() req) {
+    return this.service.listOnboardingApplications(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('onboarding/applications/:id/audit')
+  getOnboardingAudit(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.service.getOnboardingAudit(req.user.id, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('onboarding/officers')
+  listOnboardingOfficers(@Request() req) {
+    return this.service.listOnboardingOfficers(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('onboarding/officers/:userId')
+  setOnboardingOfficer(
+    @Request() req,
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body('enabled') enabled: boolean,
+  ) {
+    if (typeof enabled !== 'boolean') {
+      throw new BadRequestException('enabled must be a boolean');
+    }
+    return this.service.setOnboardingOfficer(req.user.id, userId, enabled);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('onboarding/applications/:id/approve')
+  approveAsOnboardingOfficer(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.service.approveByOnboardingOfficer(req.user.id, id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('onboarding/applications/:id/training')
+  completeOnboardingTraining(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body('note') note: string,
+  ) {
+    return this.service.recordOnboardingTraining(req.user.id, id, note);
   }
 
   // ── Admin ─────────────────────────────────────────────────────────────────

@@ -57,6 +57,26 @@ describe('ShipmentsService', () => {
     );
   });
 
+  describe('getMyShipments — verified sender ownership', () => {
+    it('restricts legacy requester fallback to unclaimed non-walk-in shipments', async () => {
+      const where = jest.fn().mockReturnThis();
+      const orWhere = jest.fn().mockReturnThis();
+      const orderBy = jest.fn().mockReturnThis();
+      const getMany = jest.fn().mockResolvedValue([]);
+      shipmentRepo.createQueryBuilder = jest.fn(() => ({ where, orWhere, orderBy, getMany }));
+
+      await expect(service.getMyShipments(42)).resolves.toEqual([]);
+
+      expect(where).toHaveBeenCalledWith('shipment.senderUserId = :userId', { userId: 42 });
+      expect(orWhere).toHaveBeenCalledWith(
+        expect.stringContaining('shipment.senderUserId IS NULL AND shipment.requestedByUserId = :userId'),
+        { userId: 42, walkIn: 'walk_in' },
+      );
+      expect(orWhere.mock.calls[0][0]).toContain('shipment.intakeChannel != :walkIn');
+      expect(getMany).toHaveBeenCalledTimes(1);
+    });
+  });
+
   // ── Provider validation ────────────────────────────────────────────────
   describe('confirmShipment — provider validation', () => {
     const baseShipment = {

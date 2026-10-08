@@ -25,6 +25,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, IsNull, Repository } from 'typeorm';
 import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
+import { finalizeWalkInClaim } from './shipment-claim-finalize';
+import { startWalkInClaim } from './shipment-claim-start';
+import { SmsService } from '../sms/sms.service';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportQuote, TransportQuoteStatus } from '../transport/entities/transport-quote.entity';
 import {
@@ -237,6 +240,7 @@ export class ShipmentsService {
     // injects the real repository regardless of this TS-level optionality;
     // only a caller that actually sets dto.quoteId ever touches it.
     @InjectRepository(TransportQuote) private quoteRepo?: Repository<TransportQuote>,
+    private readonly claimSms?: SmsService,
   ) {}
 
   // Re-resolves a client-selected place reference EXACTLY (no name search, no
@@ -698,6 +702,8 @@ export class ShipmentsService {
       const saved = await shipments.save(
         shipments.create({
           requestedByUserId: userId,
+          // Authenticated sender is verified by the JWT guard; a typed phone is not.
+          senderUserId: userId,
           senderName: dto.senderName?.trim() || null,
           senderPhone: dto.senderPhone?.trim() || null,
           receiverName: dto.receiverName.trim(),
@@ -830,16 +836,57 @@ export class ShipmentsService {
     return n;
   }
 
+  /**
+   * Requires a separately issued receipt secret and sender-phone OTP.
+   * This endpoint cannot infer sender ownership from the intake operator.
+   */
+  async startWalkInShipmentClaim(
+    userId: number,
+    shipmentId: number,
+    receiptSecret: string,
+  ): Promise<{ sent: true }> {
+    if (!this.claimSms) throw new BadRequestException('Shipment verification is unavailable');
+    return startWalkInClaim(this.shipmentRepo.manager, this.claimSms, {
+      claimantUserId: userId,
+      shipmentId,
+      receiptSecret,
+      hmacKey: process.env.SHIPMENT_CLAIM_HMAC_KEY ?? '',
+    });
+  }
+
+  async claimWalkInShipment(
+    userId: number,
+    shipmentId: number,
+    receiptSecret: string,
+    otp: string,
+  ): Promise<{ shipmentId: number }> {
+    const hmacKey = process.env.SHIPMENT_CLAIM_HMAC_KEY ?? '';
+    return finalizeWalkInClaim(this.shipmentRepo.manager, {
+      claimantUserId: userId,
+      shipmentId,
+      receiptSecret,
+      otp,
+      hmacKey,
+    });
+  }
+
   // What the sender booked themselves. A parcel a Super Agent registered at
   // the desk for a walk-in customer has a Shipment too (Gate 3), but it is
   // the desk's work, not one of the desk operator's own shipments.
   async getMyShipments(userId: number): Promise<Shipment[]> {
-    const mine = (
-      await this.shipmentRepo.find({
-        where: { requestedByUserId: userId },
-        order: { createdAt: 'DESC' },
-      })
-    ).filter((s) => s.intakeChannel !== 'walk_in');
+    // Only the authenticated requester's own self-service/commerce records.
+    // A walk-in's requestedByUserId currently identifies the desk operator,
+    // not the sender. Filter at the database boundary so operator-owned
+    // desk records never enter the customer's read-side projection.
+    const mine = await this.shipmentRepo
+      .createQueryBuilder('shipment')
+      .where('shipment.senderUserId = :userId', { userId })
+      .orWhere(
+        '(shipment.senderUserId IS NULL AND shipment.requestedByUserId = :userId AND (shipment.intakeChannel IS NULL OR shipment.intakeChannel != :walkIn))',
+        { userId, walkIn: 'walk_in' },
+      )
+      .orderBy('shipment.createdAt', 'DESC')
+      .getMany();
     // Read-side safety net for the ONE projector: anything still open is
     // re-derived from parcel/custody truth before it is shown, so a list can
     // never be staler than the ledger.

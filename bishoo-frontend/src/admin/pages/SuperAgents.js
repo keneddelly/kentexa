@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import api from '../../api/api';
+import SuperAgentOnboarding from '../../public/pages/SuperAgentOnboarding';
 
 const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [agents, setAgents]     = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
@@ -146,6 +148,12 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
       <Sidebar activePage={activePage} onNavigate={onNavigate} onLogout={onLogout} />
       <main style={{ marginLeft: 250, flex: 1, padding: 32 }}>
+        <button type="button" onClick={() => setShowOnboarding(value => !value)}
+          style={{ background: '#1358c8', color: 'white', border: 0, borderRadius: 8, padding: 12, fontSize: 16, cursor: 'pointer', marginBottom: 16 }}>
+          {showOnboarding ? 'Close onboarding' : 'Manage onboarding officers & training'}
+        </button>
+        {showOnboarding && <SuperAgentOnboarding />}
+
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
