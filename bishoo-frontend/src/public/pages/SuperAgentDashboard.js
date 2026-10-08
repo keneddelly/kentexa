@@ -35,6 +35,7 @@ import TourTrigger from '../../onboarding/TourTrigger';
 import SetupProgressCard from '../../onboarding/SetupProgressCard';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
+import SuperAgentOnboarding from './SuperAgentOnboarding';
 
 const pendingWalkInRequests = new Map();
 
@@ -194,6 +195,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [eligibleRuns, setEligibleRuns] = useState({});
   const [selectedRun, setSelectedRun] = useState({});
   const [vanDeskLoading, setVanDeskLoading] = useState(false);
+  const [canOnboard, setCanOnboard] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api.get('/super-agents/onboarding/access')
+      .then(({ data }) => { if (active) setCanOnboard(Boolean(data?.canOnboard)); })
+      .catch(() => { if (active) setCanOnboard(false); });
+    return () => { active = false; };
+  }, []);
 
   const fetchVanDesk = async () => {
     try {
@@ -1103,6 +1113,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
               { key: 'mapato',  label: '💰 MAPATO'  },
               { key: 'bei',     label: '📋 BEI'     },
               ...(isDar ? [{ key: 'van', label: '🚐 VAN' }] : []),
+              ...(canOnboard ? [{ key: 'onboarding', label: '👥 ONBOARDING' }] : []),
             ].map(t => (
               <button key={t.key} data-tour={`sa-tab-${t.key}`}
                 onClick={() => { setActiveTab(t.key); setPokeaMode('list'); if (t.key === 'van') fetchVanDesk(); }}
@@ -1144,6 +1155,10 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             <button onClick={() => setSuccess('')}
               style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer' }}>×</button>
           </div>
+        )}
+
+        {activeTab === 'onboarding' && canOnboard && (
+          <SuperAgentOnboarding embedded />
         )}
 
         {/* ════════════════════════════════════════════════════════════════
