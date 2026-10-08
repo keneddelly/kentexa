@@ -40,6 +40,26 @@ export async function startWalkInClaim(
     if (!receipt || !matchesClaimDigest(receipt.receiptSecretDigest, digest)) {
       throw new BadRequestException('Invalid claim credentials');
     }
+    // Limit re-sends per claimant and parcel using durable database history.
+    // An attacker cannot bypass this by requesting a fresh OTP repeatedly.
+    const [recent] = await tx.query(
+      `SELECT count(*)::int AS count FROM public.shipment_claim_challenge
+        WHERE "shipmentId" = $1 AND "claimantUserId" = $2
+          AND "createdAt" > now() - interval '1 hour'`,
+      [input.shipmentId, input.claimantUserId],
+    );
+    if (Number(recent?.count ?? 0) >= 3) {
+      throw new BadRequestException('Too many verification requests. Try again later.');
+    }
+    const [last] = await tx.query(
+      `SELECT "createdAt" FROM public.shipment_claim_challenge
+        WHERE "shipmentId" = $1 AND "claimantUserId" = $2
+        ORDER BY "createdAt" DESC LIMIT 1`,
+      [input.shipmentId, input.claimantUserId],
+    );
+    if (last && Date.now() - new Date(last.createdAt).getTime() < 60_000) {
+      throw new BadRequestException('Please wait before requesting another code.');
+    }
     // Invalidate the previous challenge for this claimant, including
     // expired rows still covered by the partial unique index.
     await tx.query(
