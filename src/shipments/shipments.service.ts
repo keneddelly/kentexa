@@ -833,9 +833,6 @@ export class ShipmentsService {
     return n;
   }
 
-  // What the sender booked themselves. A parcel a Super Agent registered at
-  // the desk for a walk-in customer has a Shipment too (Gate 3), but it is
-  // the desk's work, not one of the desk operator's own shipments.
   /**
    * Requires a separately issued receipt secret and sender-phone OTP.
    * This endpoint cannot infer sender ownership from the intake operator.
@@ -856,6 +853,9 @@ export class ShipmentsService {
     });
   }
 
+  // What the sender booked themselves. A parcel a Super Agent registered at
+  // the desk for a walk-in customer has a Shipment too (Gate 3), but it is
+  // the desk's work, not one of the desk operator's own shipments.
   async getMyShipments(userId: number): Promise<Shipment[]> {
     // Only the authenticated requester's own self-service/commerce records.
     // A walk-in's requestedByUserId currently identifies the desk operator,
