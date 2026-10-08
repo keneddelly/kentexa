@@ -25,6 +25,7 @@ import { BulkShipment, BulkShipmentStatus } from './entities/bulk-shipment.entit
 import { Shipment, ShipmentStatus } from '../shipments/entities/shipment.entity';
 import { projectShipment } from '../shipments/shipment-projection';
 import { linkIntakeShipment, linkIntakeShipmentWithin } from '../shipments/intake-shipment';
+import { issueWalkInClaimReceipt } from '../shipments/shipment-claim-receipt';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Agent, AgentStatus } from '../agents/entities/agent.entity';
 import { AgentTransaction } from '../agents/entities/agent-transaction.entity';
@@ -836,10 +837,21 @@ export class SuperAgentsService {
     // authenticated role context above), which is also who may collect the
     // sender's cash. Confined to a savepoint: the desk's receipt never fails
     // because of it.
-    await linkIntakeShipmentWithin(manager, {
+    const linkedShipment = await linkIntakeShipmentWithin(manager, {
       parcelId: savedParcel.id, channel: 'walk_in', actorUserId: superAgentUser.id,
       deskHub: { superAgentId: superAgent.id, paymentMethod: dto.paymentMethod || 'cash' },
     }, (error) => console.warn('Walk-in Shipment link failed:', (error as any)?.message));
+    // The receipt credential is issued once, at the authorized desk, and
+    // returned only in this intake response. It must not enter the persistent
+    // invoice/receipt snapshot, logs, or public tracking.
+    let shipmentClaim: { shipmentId: number; receiptSecret: string } | null = null;
+    if (linkedShipment?.created && process.env.SHIPMENT_CLAIM_HMAC_KEY) {
+      shipmentClaim = await issueWalkInClaimReceipt(manager, {
+        shipmentId: linkedShipment.shipmentId,
+        deskActorUserId: superAgentUser.id,
+        hmacKey: process.env.SHIPMENT_CLAIM_HMAC_KEY,
+      });
+    }
 
     // 6. Receipt — evidence the Super Agent received the sender's cash.
     // Reuses the same transactional receipt-number generator every other
@@ -878,7 +890,8 @@ export class SuperAgentsService {
     await manager.getRepository(Order).update(savedOrder.id, { offlineReceiptSnapshot: receipt });
 
     return { replayed: false as const, savedOrder, savedParcel, trackingNumber,
-      platformFeeCharged, platformFeeWaived, invoice, receipt };
+      platformFeeCharged, platformFeeWaived, invoice, receipt,
+      shipmentClaim };
     });
     if (outcome.replayed) return {
       ...outcome.receipt, replayed: true, senderSmsSent: false,
