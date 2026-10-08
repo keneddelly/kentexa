@@ -200,17 +200,17 @@ export class JourneyComposerService {
   }
 
   /**
-   * Freeze a customer's chosen transport SERVICE before a concrete run exists.
-   * The server re-discovers the provider/route against its own routing keys,
-   * then stores a SERVICE_CONFIRMED transport leg. No capacity or custody is
-   * implied here; execution must later bind a real TransportRun and re-check
-   * run capacity/status before linehaul starts.
+   * Freeze the concrete Transport Run selected from canonical transport supply.
+   * There is no route-only booking path here: provider/route/run/geography and
+   * capacity are all proved against the same bookable Run before the Journey
+   * exists.
    */
   async selectService(userId: number, dto: SelectServiceJourneyDto & { pickup?: 'door' | 'point'; delivery?: 'door' | 'collect' }) {
     const providerId = Number(dto?.providerId);
     const routeId = Number(dto?.routeId);
-    if (!Number.isInteger(providerId) || providerId <= 0 || !Number.isInteger(routeId) || routeId <= 0) {
-      throw new BadRequestException('A valid providerId and routeId are required');
+    const runId = Number(dto?.runId);
+    if (!Number.isInteger(providerId) || providerId <= 0 || !Number.isInteger(routeId) || routeId <= 0 || !Number.isInteger(runId) || runId <= 0) {
+      throw new BadRequestException('A valid providerId, routeId and runId are required');
     }
     const cargo = normalizeCargoRequirements(dto.cargoRequirements);
     const origin = await this.resolveSide('Origin', dto.origin, dto.originSnapshot);
@@ -218,32 +218,26 @@ export class JourneyComposerService {
     const weightKg = Number(cargo.weightKg) || 0;
 
     let matched: { from: string; to: string } | null = null;
+    let selectedRun: any = null;
     for (const pair of this.pairs(origin, destination)) {
-      const services = await this.transport.discoverServiceRoutes(pair.from, pair.to, weightKg, providerId);
-      if (services.some((s) => s.providerId === providerId && s.routeId === routeId)) {
+      try {
+        selectedRun = await this.transport.assertRunServes(
+          runId,
+          pair.from,
+          pair.to,
+          weightKg,
+          { providerId, routeId },
+        );
         matched = pair;
         break;
+      } catch {
+        // A selected place may resolve to several routing-key pairs.
       }
     }
-    if (!matched) {
-      throw new BadRequestException('That transport service no longer serves this shipment');
+    if (!matched || !selectedRun) {
+      throw new BadRequestException('That transport trip no longer serves this shipment');
     }
 
-    let selectedRun: any = null;
-    const requestedRunId = Number(dto.runId);
-    if (Number.isInteger(requestedRunId) && requestedRunId > 0) {
-      // A sender may only commit a Run that was actually offered for this
-      // provider/route and exact origin/destination. This keeps the Journey
-      // and the Transporter's execution Run connected from the moment the
-      // Shipment is created.
-      selectedRun = await this.transport.assertRunServes(
-        requestedRunId,
-        matched.from,
-        matched.to,
-        weightKg,
-        { providerId, routeId },
-      );
-    }
     const transportFrom = { ...origin.snapshot, city: matched.from, ...(selectedRun ? { stop: selectedRun.loadLabel } : {}) };
     const transportTo = { ...destination.snapshot, city: matched.to, ...(selectedRun ? { stop: selectedRun.unloadLabel } : {}) };
     const legs: any[] = [];
