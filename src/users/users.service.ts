@@ -47,7 +47,28 @@ export class UsersService {
     return this.exclude(saved);
   }
 
-  async adminLookup(query?: string) {\n    const q = String(query || '').trim();\n    if (q.length < 2) return [];\n    const users = await this.userRepo\n      .createQueryBuilder('user')\n      .where('LOWER(user.name) LIKE LOWER(:q)', { q: `%\${q}%` })\n      .orWhere('user.phone LIKE :phone', { phone: `%\${q}%` })\n      .orWhere('LOWER(user.email) LIKE LOWER(:email)', { email: `%\${q}%` })\n      .orderBy('user.name', 'ASC')\n      .take(20)\n      .getMany();\n    return users.map((user) => ({ id: user.id, name: user.name, phone: user.phone, email: user.email, isVerified: user.isVerified, role: user.role }));\n  }\n\n  async findAll() {
+  async adminLookup(query?: string) {
+    const q = String(query || '').trim();
+    if (q.length < 2) return [];
+    const users = await this.userRepo
+      .createQueryBuilder('user')
+      .where('LOWER(user.name) LIKE LOWER(:q)', { q: `%\${q}%` })
+      .orWhere('user.phone LIKE :phone', { phone: `%\${q}%` })
+      .orWhere('LOWER(user.email) LIKE LOWER(:email)', { email: `%\${q}%` })
+      .orderBy('user.name', 'ASC')
+      .take(20)
+      .getMany();
+    return users.map((user) => ({
+      id: user.id,
+      name: user.name,
+      phone: user.phone,
+      email: user.email,
+      isVerified: user.isVerified,
+      role: user.role,
+    }));
+  }
+
+  async findAll() {
     const users = await this.userRepo.find();
     return users.map((u) => this.exclude(u));
   }
