@@ -46,6 +46,8 @@ export interface ComposeJourneyDto {
 export interface SelectServiceJourneyDto extends ComposeJourneyDto {
   providerId: number;
   routeId: number;
+  /** Optional concrete Run selected from bookable transport supply. */
+  runId?: number;
 }
 
 export interface SelectComposedJourneyDto extends ComposeJourneyDto {
@@ -227,8 +229,23 @@ export class JourneyComposerService {
       throw new BadRequestException('That transport service no longer serves this shipment');
     }
 
-    const transportFrom = { ...origin.snapshot, city: matched.from };
-    const transportTo = { ...destination.snapshot, city: matched.to };
+    let selectedRun: any = null;
+    const requestedRunId = Number(dto.runId);
+    if (Number.isInteger(requestedRunId) && requestedRunId > 0) {
+      // A sender may only commit a Run that was actually offered for this
+      // provider/route and exact origin/destination. This keeps the Journey
+      // and the Transporter's execution Run connected from the moment the
+      // Shipment is created.
+      selectedRun = await this.transport.assertRunServes(
+        requestedRunId,
+        matched.from,
+        matched.to,
+        weightKg,
+        { providerId, routeId },
+      );
+    }
+    const transportFrom = { ...origin.snapshot, city: matched.from, ...(selectedRun ? { stop: selectedRun.loadLabel } : {}) };
+    const transportTo = { ...destination.snapshot, city: matched.to, ...(selectedRun ? { stop: selectedRun.unloadLabel } : {}) };
     const legs: any[] = [];
     // The committed Journey is the fulfillment authority. Door/point choices
     // are materialized here instead of being re-inferred later by the legacy
@@ -258,9 +275,20 @@ export class JourneyComposerService {
       toNode: transportTo,
       providerId,
       routeId,
-      runId: null,
-      commitmentLevel: JourneyCommitmentLevel.SERVICE_CONFIRMED,
-      executionRequirements: { composedByServer: true, servicePath: 'route_service', runResolutionRequired: true },
+      runId: selectedRun?.runId ?? null,
+      loadRouteStopId: selectedRun?.loadRouteStopId ?? null,
+      unloadRouteStopId: selectedRun?.unloadRouteStopId ?? null,
+      commitmentLevel: selectedRun ? JourneyCommitmentLevel.RUN_CONFIRMED : JourneyCommitmentLevel.SERVICE_CONFIRMED,
+      executionRequirements: selectedRun
+        ? {
+            composedByServer: true,
+            servicePath: 'route_service',
+            runResolutionRequired: false,
+            loadRunStopId: selectedRun.loadRunStopId,
+            unloadRunStopId: selectedRun.unloadRunStopId,
+            scheduledDeparture: new Date(selectedRun.departureAt).toISOString(),
+          }
+        : { composedByServer: true, servicePath: 'route_service', runResolutionRequired: true },
     });
     if (dto.delivery === 'door') {
       legs.push({
