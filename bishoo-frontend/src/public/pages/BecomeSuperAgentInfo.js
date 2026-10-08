@@ -21,7 +21,6 @@ const inputStyle = {
 
 const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, onRefreshContext }) => {
   const { t } = useTranslation();
-  const [step, setStep]                   = useState('info');  // 'info' | 'form' | 'done'
   const [existingProfile, setExistingProfile] = useState(null);
   const [checkingStatus, setCheckingStatus] = useState(true);
   const [loading, setLoading]             = useState(false);
