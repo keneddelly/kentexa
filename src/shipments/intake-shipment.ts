@@ -79,7 +79,9 @@ export async function linkIntakeShipment(
   // Shipment.requestedByUserId remains a required column; keep the intake
   // operator for audit provenance, but never interpret it as customer ownership
   // in /shipments/mine. Customer claiming requires a separate verified link.
-  const requestedByUserId = Number(parcel.sellerId ?? parcel.orderSellerId ?? input.actorUserId);
+  const requestedByUserId = input.channel === 'walk_in'
+    ? input.actorUserId
+    : Number(parcel.sellerId ?? parcel.orderSellerId ?? input.actorUserId);
   const originCity = text(parcel.originCity, 'Tanzania');
   const destinationCity = text(parcel.destinationCity, 'Tanzania');
   const description = text(parcel.description, 'Parcel');
