@@ -19,7 +19,7 @@ const inputStyle = {
   boxSizing: 'border-box', outline: 'none', fontFamily: 'inherit',
 };
 
-const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole }) => {
+const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, userRole, onRefreshContext }) => {
   const { t } = useTranslation();
   const [step, setStep]                   = useState('info');  // 'info' | 'form' | 'done'
   const [existingProfile, setExistingProfile] = useState(null);
@@ -72,7 +72,11 @@ const BecomeSuperAgentInfo = ({ onNavigate, isLoggedIn, currentUser, onLogout, u
     try {
       setLoading(true); setError('');
       await api.post('/super-agents/apply', form);
-      setStep('done');
+      // Match the logistics role pattern: the server creates the active
+      // Super Agent role, then the client refreshes authoritative RoleContext
+      // before entering the operational dashboard.
+      await onRefreshContext?.();
+      onNavigate('SuperAgentDashboard');
     } catch (err) {
       setError(err?.response?.data?.message || t('become_super_agent_info.submit_failed'));
     } finally { setLoading(false); }
