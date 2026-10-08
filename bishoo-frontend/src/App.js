@@ -601,7 +601,7 @@ function App() {
     const token = getAccessToken();
     if (!token) return loginPage;
     const role = activeContext?.roleType;
-    if (role === 'admin' || role === 'manager') return component;
+    if (role === 'admin' || role === 'manager' || role === 'super_agent') return component;
     if (identityStatus === null) return null; // brief post-login load; avoid flashing either state
     if (identityStatus.level === 0) {
       return (
