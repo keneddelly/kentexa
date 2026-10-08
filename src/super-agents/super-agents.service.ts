@@ -295,7 +295,7 @@ export class SuperAgentsService {
       city: string;
       address: string;
       phone: string;
-      governmentId: string;
+      governmentId?: string;
       governmentIdImage?: string;
     },
   ) {
@@ -321,12 +321,29 @@ export class SuperAgentsService {
       phone: dto.phone,
       governmentId: dto.governmentId,
       governmentIdImage: dto.governmentIdImage || null,
-      status: SuperAgentStatus.PENDING,
+      status: SuperAgentStatus.ACTIVE,
       commissionRate: 10,
       shippingRates: {},
     });
 
     const saved = await this.superAgentRepo.save(agent);
+
+    // Super Agent registration is immediately active. There is no Admin
+    // approval or onboarding activation gate.
+    await this.userRepo.update(user.id, {
+      role: UserRole.SUPER_AGENT,
+      activeRoles: mergeActiveRole(user.activeRoles, 'super_agent'),
+    });
+    await this.roleContextService.syncOperationalRole({
+      userId: user.id,
+      roleType: AccountRoleType.SUPER_AGENT,
+      status: AccountRoleStatus.ACTIVE,
+      profileType: RoleProfileType.SUPER_AGENT,
+      profileId: saved.id,
+    });
+    await this.commerceProfiles
+      .syncStatusByLink('superAgentId', saved.id, CommerceProfileStatus.ACTIVE)
+      .catch(() => {});
 
     try {
       await this.commerceProfiles.createProfile({
@@ -1251,151 +1268,6 @@ export class SuperAgentsService {
 
   async findAll() {
     return this.superAgentRepo.find({ order: { createdAt: 'DESC' } });
-  }
-
-  // Delegated onboarding is deliberately separate from the ADMIN role.
-  // Permissions are checked against the database on every request, so
-  // revocation takes effect immediately even with an existing JWT.
-  private async requireOnboardingAuthority(actorId: number): Promise<void> {
-    const [actor] = await this.dataSource.query(
-      `SELECT role FROM public."user" WHERE id = $1`, [actorId],
-    );
-    if (actor?.role === UserRole.ADMIN) return;
-    const [officer] = await this.dataSource.query(
-      `SELECT "userId" FROM public.super_agent_onboarding_officer
-         WHERE "userId" = $1 AND "revokedAt" IS NULL`, [actorId],
-    );
-    if (!officer) throw new ForbiddenException('Super Agent onboarding permission required');
-  }
-
-  private async requireAdminForOnboarding(actorId: number): Promise<void> {
-    const [actor] = await this.dataSource.query(
-      `SELECT role FROM public."user" WHERE id = $1`, [actorId],
-    );
-    if (actor?.role !== UserRole.ADMIN) throw new ForbiddenException('Admin permission required');
-  }
-
-  async getOnboardingAccess(actorId: number) {
-    const [actor] = await this.dataSource.query(
-      `SELECT role FROM public."user" WHERE id = $1`, [actorId],
-    );
-    if (actor?.role === UserRole.ADMIN) {
-      return { canOnboard: true, isAdmin: true };
-    }
-    const [officer] = await this.dataSource.query(
-      `SELECT "userId" FROM public.super_agent_onboarding_officer
-         WHERE "userId" = $1 AND "revokedAt" IS NULL`, [actorId],
-    );
-    return { canOnboard: Boolean(officer), isAdmin: false };
-  }
-
-
-  async listOnboardingApplications(actorId: number) {
-    await this.requireOnboardingAuthority(actorId);
-    const agents = await this.superAgentRepo.find({
-      where: { status: In([SuperAgentStatus.PENDING, SuperAgentStatus.ACTIVE]) },
-      relations: { user: true },
-      order: { id: 'DESC' },
-      take: 100,
-    });
-    // Return application information only, not unrelated User credentials.
-    return agents.map(agent => ({
-      id: agent.id,
-      status: agent.status,
-      businessName: agent.businessName,
-      city: agent.city,
-      applicantUserId: agent.user?.id ?? null,
-    }));
-  }
-
-  async getOnboardingAudit(actorId: number, superAgentId: number) {
-    await this.requireOnboardingAuthority(actorId);
-    if (!Number.isSafeInteger(superAgentId) || superAgentId <= 0)
-      throw new BadRequestException('Invalid Super Agent');
-    return this.dataSource.query(
-      `SELECT id, "actorUserId", "subjectUserId", "superAgentId",
-              action, note, "createdAt"
-         FROM public.super_agent_onboarding_audit
-        WHERE "superAgentId" = $1 ORDER BY "createdAt" DESC LIMIT 100`,
-      [superAgentId],
-    );
-  }
-
-  async listOnboardingOfficers(adminId: number) {
-    await this.requireAdminForOnboarding(adminId);
-    return this.dataSource.query(
-      `SELECT "userId", "grantedByUserId", "grantedAt", "revokedAt"
-         FROM public.super_agent_onboarding_officer ORDER BY "grantedAt" DESC`,
-    );
-  }
-
-  async setOnboardingOfficer(adminId: number, userId: number, enabled: boolean) {
-    await this.requireAdminForOnboarding(adminId);
-    if (!Number.isSafeInteger(userId) || userId <= 0 || userId === adminId)
-      throw new BadRequestException('Invalid officer user');
-    const [user] = await this.dataSource.query(
-      `SELECT id FROM public."user" WHERE id = $1`, [userId],
-    );
-    if (!user) throw new NotFoundException('User not found');
-    await this.dataSource.transaction(async manager => {
-      if (enabled) {
-        await manager.query(
-          `INSERT INTO public.super_agent_onboarding_officer
-             ("userId", "grantedByUserId", "revokedAt")
-           VALUES ($1, $2, NULL)
-           ON CONFLICT ("userId") DO UPDATE SET
-             "grantedByUserId" = EXCLUDED."grantedByUserId",
-             "grantedAt" = now(), "revokedAt" = NULL`, [userId, adminId],
-        );
-      } else {
-        await manager.query(
-          `UPDATE public.super_agent_onboarding_officer
-             SET "revokedAt" = now() WHERE "userId" = $1 AND "revokedAt" IS NULL`, [userId],
-        );
-      }
-      await manager.query(
-        `INSERT INTO public.super_agent_onboarding_audit
-           ("actorUserId", "subjectUserId", action)
-         VALUES ($1, $2, $3)`,
-        [adminId, userId, enabled ? 'officer_granted' : 'officer_revoked'],
-      );
-    });
-    return { userId, enabled };
-  }
-
-  async approveByOnboardingOfficer(actorId: number, id: number) {
-    await this.requireOnboardingAuthority(actorId);
-    if (!Number.isSafeInteger(id) || id <= 0) throw new BadRequestException('Invalid Super Agent');
-    const agent = await this.superAgentRepo.findOne({ where: { id }, relations: { user: true } });
-    if (!agent) throw new NotFoundException('Super Agent not found');
-    if (agent.status !== SuperAgentStatus.PENDING)
-      throw new ConflictException('Only pending applications may be approved');
-    const saved = await this.approve(id);
-    await this.dataSource.query(
-      `INSERT INTO public.super_agent_onboarding_audit
-         ("actorUserId", "subjectUserId", "superAgentId", action)
-       VALUES ($1, $2, $3, 'approved')`,
-      [actorId, agent.user?.id ?? null, id],
-    );
-    return saved;
-  }
-
-  async recordOnboardingTraining(actorId: number, id: number, note: string) {
-    await this.requireOnboardingAuthority(actorId);
-    if (!Number.isSafeInteger(id) || id <= 0) throw new BadRequestException('Invalid Super Agent');
-    const agent = await this.superAgentRepo.findOne({ where: { id }, relations: { user: true } });
-    if (!agent) throw new NotFoundException('Super Agent not found');
-    if (agent.status !== SuperAgentStatus.ACTIVE)
-      throw new ConflictException('Training completion requires an active Super Agent');
-    const cleanNote = typeof note === 'string' ? note.trim().slice(0, 2000) : '';
-    if (cleanNote.length < 10) throw new BadRequestException('Training summary must contain at least 10 characters');
-    await this.dataSource.query(
-      `INSERT INTO public.super_agent_onboarding_audit
-         ("actorUserId", "subjectUserId", "superAgentId", action, note)
-       VALUES ($1, $2, $3, 'training_completed', $4)`,
-      [actorId, agent.user?.id ?? null, id, cleanNote || null],
-    );
-    return { superAgentId: id, trainingCompleted: true };
   }
 
   async approve(id: number) {
