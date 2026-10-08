@@ -844,7 +844,7 @@ export class ShipmentsService {
       .createQueryBuilder('shipment')
       .where('shipment.senderUserId = :userId', { userId })
       .orWhere(
-        '(shipment.requestedByUserId = :userId AND (shipment.intakeChannel IS NULL OR shipment.intakeChannel != :walkIn))',
+        '(shipment.senderUserId IS NULL AND shipment.requestedByUserId = :userId AND (shipment.intakeChannel IS NULL OR shipment.intakeChannel != :walkIn))',
         { userId, walkIn: 'walk_in' },
       )
       .orderBy('shipment.createdAt', 'DESC')
