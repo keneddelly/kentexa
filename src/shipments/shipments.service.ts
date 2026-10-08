@@ -841,7 +841,7 @@ export class ShipmentsService {
     const mine = await this.shipmentRepo
       .createQueryBuilder('shipment')
       .where('shipment.requestedByUserId = :userId', { userId })
-      .andWhere('shipment.intakeChannel != :walkIn', { walkIn: 'walk_in' })
+      .andWhere('(shipment.intakeChannel IS NULL OR shipment.intakeChannel != :walkIn)', { walkIn: 'walk_in' })
       .orderBy('shipment.createdAt', 'DESC')
       .getMany();
     // Read-side safety net for the ONE projector: anything still open is
