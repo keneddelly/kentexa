@@ -52,9 +52,9 @@ export class UsersService {
     if (q.length < 2) return [];
     const users = await this.userRepo
       .createQueryBuilder('user')
-      .where('LOWER(user.name) LIKE LOWER(:q)', { q: `%\${q}%` })
-      .orWhere('user.phone LIKE :phone', { phone: `%\${q}%` })
-      .orWhere('LOWER(user.email) LIKE LOWER(:email)', { email: `%\${q}%` })
+      .where('LOWER(user.name) LIKE LOWER(:q)', { q: `%${q}%` })
+      .orWhere('user.phone LIKE :phone', { phone: `%${q}%` })
+      .orWhere('LOWER(user.email) LIKE LOWER(:email)', { email: `%${q}%` })
       .orderBy('user.name', 'ASC')
       .take(20)
       .getMany();
