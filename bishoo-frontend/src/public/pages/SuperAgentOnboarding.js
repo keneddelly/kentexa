@@ -14,6 +14,7 @@ export default function SuperAgentOnboarding({ embedded = false }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const load = async () => {
     const { data } = await api.get('/super-agents/onboarding/applications');
@@ -29,11 +30,28 @@ export default function SuperAgentOnboarding({ embedded = false }) {
 
   useEffect(() => {
     let active = true;
+    Promise.all([
+      api.get('/super-agents/onboarding/applications'),
+      api.get('/super-agents/onboarding/access'),
+    ])
+      .then(([applicationsResult, accessResult]) => {
+        if (!active) return;
+        setApplications(Array.isArray(applicationsResult.data) ? applicationsResult.data : []);
+        setIsAdmin(Boolean(accessResult.data?.isAdmin));
+      })
+      .catch(() => { if (active) setError('Huna ruhusa ya kusimamia maombi haya.'); });
+    return () => { active = false; };
+  }, []);
+
+  /*
+  useEffect(() => {
+    let active = true;
     api.get('/super-agents/onboarding/applications')
       .then(({ data }) => { if (active) setApplications(Array.isArray(data) ? data : []); })
       .catch(() => { if (active) setError('Huna ruhusa ya kusimamia maombi haya.'); });
     return () => { active = false; };
   }, []);
+  */
 
   const perform = async (action, success) => {
     setBusy(true); setError(''); setMessage('');
@@ -71,7 +89,7 @@ export default function SuperAgentOnboarding({ embedded = false }) {
         </section>
       ))}
       {!error && applications.length === 0 && <p>Hakuna maombi yanayosubiri kwa sasa.</p>}
-      <section style={{ marginTop: 24 }}>
+      {isAdmin && <section style={{ marginTop: 24 }}>
         <h2>Ruhusa za maafisa</h2>
         <p>Sehemu hii inapatikana kwa Admin pekee.</p>
         <button type="button" disabled={busy} onClick={() => perform(
@@ -126,7 +144,7 @@ export default function SuperAgentOnboarding({ embedded = false }) {
             </p>
           ))}
         </>}
-      </section>
+      </section>}
     </main>
   );
 }
