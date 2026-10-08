@@ -32,7 +32,6 @@ import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
-import SuperAgentOnboarding from './SuperAgentOnboarding';
 
 const pendingWalkInRequests = new Map();
 
@@ -192,16 +191,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [eligibleRuns, setEligibleRuns] = useState({});
   const [selectedRun, setSelectedRun] = useState({});
   const [vanDeskLoading, setVanDeskLoading] = useState(false);
-  const [canOnboard, setCanOnboard] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    api.get('/super-agents/onboarding/access')
-      .then(({ data }) => { if (active) setCanOnboard(Boolean(data?.canOnboard)); })
-      .catch(() => { if (active) setCanOnboard(false); });
-    return () => { active = false; };
-  }, []);
-
   const fetchVanDesk = async () => {
     try {
       setVanDeskLoading(true);
@@ -1092,23 +1081,6 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             ))}
           </div>
 
-          {canOnboard && (
-            <button
-              type="button"
-              onClick={() => { setActiveTab('onboarding'); setPokeaMode('list'); }}
-              style={{
-                width: '100%', marginBottom: 10, padding: '13px 16px',
-                border: 'none', borderRadius: 10, cursor: 'pointer',
-                backgroundColor: '#1d4ed8', color: '#fff',
-                fontSize: 14, fontWeight: 900, textAlign: 'left',
-              }}
-            >
-              👥 Super Agent Onboarding
-              <span style={{ display: 'block', fontSize: 11, fontWeight: 600, opacity: 0.9, marginTop: 3 }}>
-                Wasaidie waombaji wapya na wa-activate Super Agent
-              </span>
-            </button>
-          )}
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: 4 }}>
@@ -1154,9 +1126,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           </div>
         )}
 
-        {activeTab === 'onboarding' && canOnboard && (
-          <SuperAgentOnboarding embedded />
-        )}
+
 
         {/* ════════════════════════════════════════════════════════════════
             📥 POKEA TAB
