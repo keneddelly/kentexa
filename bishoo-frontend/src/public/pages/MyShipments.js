@@ -27,9 +27,10 @@ export default function MyShipments({onNavigate}){
         const payload=r.data;
         const items=Array.isArray(payload)?payload:(Array.isArray(payload?.shipments)?payload.shipments:null);
         if(!items)throw new Error('Majibu ya mizigo si sahihi. Tafadhali jaribu tena.');
+        setError('');
         setRows(items);
       })
-      .catch(e=>{if(active)setError(e.response?.data?.message||e.message||'Imeshindikana kupakia mizigo yako');})
+      .catch(e=>{if(active){setRows([]);setError(e.response?.data?.message||e.message||'Imeshindikana kupakia mizigo yako');}})
       .finally(()=>{if(active)setLoading(false);});
     return ()=>{active=false;};
   },[reload]);
