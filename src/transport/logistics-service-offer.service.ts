@@ -109,23 +109,43 @@ export class LogisticsServiceOfferService {
       }];
     }
 
-    // Canonical launch supply: a bookable transport option IS an open,
-    // future Transport Run. The old route-only discovery created Shipments
-    // with runId=null, which left the new Shipment invisible to the Run
-    // manifest and therefore disconnected from the transporter and the
-    // Run's Super Agent load/unload hubs.
+    // Customer-facing discovery is route coverage, not today's schedule.
+    // A verified transporter that actively serves the requested route remains
+    // visible even when no TransportRun has been published for that date.
+    // This is deliberately display/discovery only: the commit path below is
+    // unchanged and still requires a concrete Run, so this patch cannot create
+    // a shipment that is detached from a transporter manifest or Run hubs.
+    const routeServices = await this.transport.discoverServiceRoutes(
+      from,
+      to,
+      weight,
+      dto.providerId ? Number(dto.providerId) : undefined,
+    );
     const { trips } = await this.transport.discoverSupply(from, to, weight, {
       providerId: dto.providerId ? Number(dto.providerId) : undefined,
     });
+    const tripsByRoute = new Map<number, any[]>();
+    for (const trip of trips) {
+      const routeId = Number(trip.routeId);
+      const list = tripsByRoute.get(routeId) ?? [];
+      list.push(trip);
+      tripsByRoute.set(routeId, list);
+    }
+
     const offers: LogisticsServiceOffer[] = [];
-    for (const trip of trips.slice(0, 8)) {
-      const linehaul = Math.max(Number(trip.pricePerKg) * weight, Number(trip.fixedFee) || 0);
+    for (const service of routeServices.slice(0, 8)) {
+      const trip = (tripsByRoute.get(Number(service.routeId)) ?? [])[0] ?? null;
+      const linehaul = Math.max(
+        Number(service.pricePerKg) * weight,
+        Number(service.fixedFee) || 0,
+      );
       const hasInstantPrice = linehaul > 0;
       const pickupReady = dto.pickup !== 'door' || originAgents.length > 0;
       const deliveryReady = dto.delivery !== 'door' || destinationAgents.length > 0;
+
       offers.push({
         serviceType: 'composed_intercity',
-        name: trip.providerName ? trip.providerName + ' Delivery' : 'Kentexa Standard',
+        name: service.providerName ? service.providerName + ' Delivery' : 'Kentexa Standard',
         price: hasInstantPrice ? linehaul + pickupFee + deliveryFee : null,
         pricingMode: hasInstantPrice ? 'instant' : 'quote_required',
         currency: 'TZS',
@@ -133,7 +153,11 @@ export class LogisticsServiceOfferService {
           pickup: dto.pickup === 'door' ? (pickupReady ? 'priced' : 'pending') : 'included',
           delivery: dto.delivery === 'door' ? (deliveryReady ? 'priced' : 'pending') : 'included',
         },
-        etaLabel: trip.estimatedHours ? 'About ' + trip.estimatedHours + ' hours linehaul' : trip.date + ' ' + trip.departureTime,
+        etaLabel: trip?.estimatedHours
+          ? 'About ' + trip.estimatedHours + ' hours linehaul'
+          : service.estimatedHours
+            ? 'About ' + service.estimatedHours + ' hours linehaul'
+            : 'Route service',
         firstAction: dto.pickup === 'door'
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
           : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
@@ -141,13 +165,25 @@ export class LogisticsServiceOfferService {
           pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff',
           linehaul: 'transport_provider',
           delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect',
-          transportOption: {
-            ...trip,
-            commitmentLevel: 'run_confirmed',
-            runId: trip.runId,
-            loadRunStopId: trip.loadRunStopId,
-            unloadRunStopId: trip.unloadRunStopId,
-          },
+          transportOption: trip
+            ? {
+                ...trip,
+                commitmentLevel: 'run_confirmed',
+                runId: trip.runId,
+                loadRunStopId: trip.loadRunStopId,
+                unloadRunStopId: trip.unloadRunStopId,
+              }
+            : {
+                providerId: service.providerId,
+                providerName: service.providerName,
+                routeId: service.routeId,
+                pricePerKg: service.pricePerKg,
+                fixedFee: service.fixedFee,
+                estimatedHours: service.estimatedHours,
+                commitmentLevel: 'service_discovered',
+                runId: null,
+                runResolutionRequired: true,
+              },
         },
       });
     }
