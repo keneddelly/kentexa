@@ -42,8 +42,28 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
     if (value.trim().length < 2) { setOfficerResults([]); return; }
     setOfficerLoading(true);
     try {
-      const res = await api.get('/users/admin/lookup', { params: { q: value.trim() } });
-      setOfficerResults(Array.isArray(res.data) ? res.data : []);
+      const q = value.trim().toLowerCase();
+      // Onboarding officers must already be registered Super Agents.
+      // Use the Admin Super Agent list as the source of truth so ordinary
+      // users can never be selected for this capability.
+      const results = (Array.isArray(agents) ? agents : [])
+        .filter(agent => agent?.user?.id)
+        .filter(agent => {
+          const user = agent.user;
+          return [user.name, user.phone, user.email, agent.businessName, agent.agentCode]
+            .filter(Boolean)
+            .some(v => String(v).toLowerCase().includes(q));
+        })
+        .map(agent => ({
+          id: agent.user.id,
+          name: agent.user.name,
+          phone: agent.user.phone,
+          email: agent.user.email,
+          superAgentId: agent.id,
+          superAgentStatus: agent.status,
+          businessName: agent.businessName,
+        }));
+      setOfficerResults(results);
     } catch { setOfficerResults([]); }
     finally { setOfficerLoading(false); }
   };
@@ -204,7 +224,7 @@ const SuperAgents = ({ activePage, onNavigate, onLogout }) => {
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 280 }}>
               <input type="search" value={officerQuery} onChange={e => searchOnboardingUsers(e.target.value)}
-                placeholder="Tafuta mtumiaji kwa jina, simu au email"
+                placeholder="Tafuta Super Agent kwa jina, simu, email au code"
                 style={{ width: '100%', boxSizing: 'border-box', padding: 12, border: '1px solid #cbd5e1', borderRadius: 10, fontSize: 16 }} />
               {officerLoading && <div style={{ marginTop: 8, color: '#64748b', fontSize: 13 }}>Inatafuta...</div>}
               {officerResults.map(user => (
