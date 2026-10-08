@@ -1,9 +1,9 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import MyShipments from './MyShipments';
 import api from '../../api/api';
 
-jest.mock('../../api/api', () => ({ get: jest.fn() }));
+jest.mock('../../api/api', () => ({ get: jest.fn(), post: jest.fn() }));
 jest.mock('../components/ShipmentPickupPanel', () => () => null);
 
 beforeEach(() => jest.clearAllMocks());
@@ -61,4 +61,32 @@ test('shows missing tracking number without advertising a broken tracking action
   const card = (await screen.findByText('Mfuko')).parentElement.parentElement;
   expect(screen.getByText('Inasubiri namba ya ufuatiliaji')).toBeInTheDocument();
   expect(card).not.toHaveAttribute('role', 'button');
+});
+
+test('claims a desk shipment only after SMS verification and refreshes the list', async () => {
+  api.get.mockResolvedValue({ data: [] });
+  api.post.mockResolvedValueOnce({ data: { sent: true } })
+    .mockResolvedValueOnce({ data: { shipmentId: 123 } });
+  render(<MyShipments onNavigate={jest.fn()} />);
+  fireEvent.click(screen.getByText('Ongeza mzigo wa dawati'));
+  fireEvent.change(screen.getByPlaceholderText('Mfano: 123'), { target: { value: '123' } });
+  const secret = 'a'.repeat(36);
+  fireEvent.change(screen.getByPlaceholderText('Msimbo uliochapishwa kwenye risiti'), { target: { value: secret } });
+  fireEvent.click(screen.getByText('Tuma SMS ya uthibitisho'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/shipments/123/claim/start', { receiptSecret: secret }));
+  fireEvent.change(await screen.findByPlaceholderText('Namba 6 za SMS'), { target: { value: '012345' } });
+  fireEvent.click(screen.getByText('Thibitisha na ongeza mzigo'));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/shipments/123/claim', { receiptSecret: secret, otp: '012345' }));
+  await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+});
+
+test('does not request OTP for invalid shipment id', async () => {
+  api.get.mockResolvedValue({ data: [] });
+  render(<MyShipments onNavigate={jest.fn()} />);
+  fireEvent.click(screen.getByText('Ongeza mzigo wa dawati'));
+  fireEvent.change(screen.getByPlaceholderText('Mfano: 123'), { target: { value: '0' } });
+  fireEvent.change(screen.getByPlaceholderText('Msimbo uliochapishwa kwenye risiti'), { target: { value: 'a'.repeat(36) } });
+  fireEvent.click(screen.getByText('Tuma SMS ya uthibitisho'));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Weka namba sahihi');
+  expect(api.post).not.toHaveBeenCalled();
 });
