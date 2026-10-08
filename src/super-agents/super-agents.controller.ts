@@ -96,9 +96,7 @@ export class SuperAgentsController {
 
   // ── Authenticated ─────────────────────────────────────────────────────────
 
-  // Apply to become super agent — requires Level 1 identity verification
-  // first (spec: "Do not allow an unverified identity to become an active
-  // Super Agent"), same gate pattern as classifieds.controller.ts's create().
+  // Apply to become a Super Agent. Registration activates immediately.
   @UseGuards(JwtAuthGuard)
   @Post('apply')
   async apply(@Request() req, @Body() dto: any) {
