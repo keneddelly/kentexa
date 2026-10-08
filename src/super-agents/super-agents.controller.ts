@@ -476,11 +476,6 @@ export class SuperAgentsController {
     return this.service.getOnboardingAccess(req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Get('onboarding/access')
-  getOnboardingAccess(@Request() req) {
-    return this.service.getOnboardingAccess(req.user.id);
-  }
 
   @UseGuards(JwtAuthGuard)
   @Get('onboarding/applications')
