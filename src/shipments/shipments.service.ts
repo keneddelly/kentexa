@@ -26,6 +26,8 @@ import { EntityManager, IsNull, Repository } from 'typeorm';
 import { capacityWeightKg } from '../transport/slot-capacity';
 import { Shipment, ShipmentStatus, ShipmentHandoffOption } from './entities/shipment.entity';
 import { finalizeWalkInClaim } from './shipment-claim-finalize';
+import { startWalkInClaim } from './shipment-claim-start';
+import { SmsService } from '../sms/sms.service';
 import { TransportRoute } from '../transport/entities/transport-route.entity';
 import { TransportQuote, TransportQuoteStatus } from '../transport/entities/transport-quote.entity';
 import {
@@ -238,6 +240,7 @@ export class ShipmentsService {
     // injects the real repository regardless of this TS-level optionality;
     // only a caller that actually sets dto.quoteId ever touches it.
     @InjectRepository(TransportQuote) private quoteRepo?: Repository<TransportQuote>,
+    private readonly claimSms?: SmsService,
   ) {}
 
   // Re-resolves a client-selected place reference EXACTLY (no name search, no
@@ -837,6 +840,20 @@ export class ShipmentsService {
    * Requires a separately issued receipt secret and sender-phone OTP.
    * This endpoint cannot infer sender ownership from the intake operator.
    */
+  async startWalkInShipmentClaim(
+    userId: number,
+    shipmentId: number,
+    receiptSecret: string,
+  ): Promise<{ sent: true }> {
+    if (!this.claimSms) throw new BadRequestException('Shipment verification is unavailable');
+    return startWalkInClaim(this.shipmentRepo.manager, this.claimSms, {
+      claimantUserId: userId,
+      shipmentId,
+      receiptSecret,
+      hmacKey: process.env.SHIPMENT_CLAIM_HMAC_KEY ?? '',
+    });
+  }
+
   async claimWalkInShipment(
     userId: number,
     shipmentId: number,
