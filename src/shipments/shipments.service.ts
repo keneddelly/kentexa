@@ -840,8 +840,11 @@ export class ShipmentsService {
     // desk records never enter the customer's read-side projection.
     const mine = await this.shipmentRepo
       .createQueryBuilder('shipment')
-      .where('shipment.requestedByUserId = :userId', { userId })
-      .andWhere('(shipment.intakeChannel IS NULL OR shipment.intakeChannel != :walkIn)', { walkIn: 'walk_in' })
+      .where('shipment.senderUserId = :userId', { userId })
+      .orWhere(
+        '(shipment.requestedByUserId = :userId AND (shipment.intakeChannel IS NULL OR shipment.intakeChannel != :walkIn))',
+        { userId, walkIn: 'walk_in' },
+      )
       .orderBy('shipment.createdAt', 'DESC')
       .getMany();
     // Read-side safety net for the ONE projector: anything still open is
