@@ -31,6 +31,15 @@ export async function startWalkInClaim(
         shipment.intakeChannel !== 'walk_in' || !shipment.senderPhone) {
       throw new BadRequestException('Invalid claim credentials');
     }
+    // Only an already verified Kentexa account may claim ownership.
+    // This is independent of possession of the paper receipt and SMS OTP.
+    const [claimant] = await tx.query(
+      `SELECT id, "isVerified" FROM public."user" WHERE id = $1`,
+      [input.claimantUserId],
+    );
+    if (!claimant || claimant.isVerified !== true) {
+      throw new BadRequestException('Verify your Kentexa account before claiming a shipment');
+    }
     const [receipt] = await tx.query(
       `SELECT "receiptSecretDigest" FROM public.shipment_claim_receipt
         WHERE "shipmentId" = $1 AND "consumedAt" IS NULL AND "expiresAt" > now()
