@@ -121,6 +121,19 @@ export class ShipmentsController {
   // Authenticated customer only. Possessing a tracking number is never
   // sufficient: the claim finalizer also requires the desk receipt secret
   // and an unexpired OTP delivered to the recorded sender phone.
+  @Post(':id/claim/start')
+  @UseGuards(JwtAuthGuard)
+  startWalkInClaim(
+    @Request() req,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: { receiptSecret?: string },
+  ) {
+    if (typeof body?.receiptSecret !== 'string') {
+      throw new BadRequestException('Invalid claim credentials');
+    }
+    return this.svc.startWalkInShipmentClaim(req.user.id, id, body.receiptSecret);
+  }
+
   @Post(':id/claim')
   @UseGuards(JwtAuthGuard)
   claimWalkIn(
