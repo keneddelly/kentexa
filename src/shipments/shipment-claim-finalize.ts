@@ -40,6 +40,15 @@ export async function finalizeWalkInClaim(
     if (shipment.senderUserId != null) {
       throw new ConflictException('Shipment already claimed');
     }
+    // Re-check verification at completion; account status may have changed
+    // after the OTP was issued.
+    const [claimant] = await tx.query(
+      `SELECT id, "isVerified" FROM public."user" WHERE id = $1`,
+      [input.claimantUserId],
+    );
+    if (!claimant || claimant.isVerified !== true) {
+      throw new BadRequestException('Verify your Kentexa account before claiming a shipment');
+    }
     const [receipt] = await tx.query(
       `SELECT "receiptSecretDigest" FROM public.shipment_claim_receipt
         WHERE "shipmentId" = $1 AND "consumedAt" IS NULL
