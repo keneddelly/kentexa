@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import MyShipments from './MyShipments';
 import api from '../../api/api';
 
@@ -39,4 +39,26 @@ test('does not open an invalid tracking reference', async () => {
   render(<MyShipments onNavigate={onNavigate} />);
   fireEvent.click(await screen.findByText('Mzigo'));
   expect(onNavigate).not.toHaveBeenCalled();
+});
+
+test('keyboard opens tracking only from the shipment card, not nested actions', async () => {
+  api.get.mockResolvedValue({ data: [{ id: 7, trackingNumber: 'KTX-SHP-777', itemDescription: 'Sanduku', originCity: 'Dar', destinationCity: 'Mwanza', status: 'pending' }] });
+  const onNavigate = jest.fn();
+  render(<MyShipments onNavigate={onNavigate} />);
+  const card = (await screen.findByText('Sanduku')).closest('[role="button"]');
+  fireEvent.keyDown(card, { key: ' ', code: 'Space' });
+  expect(onNavigate).toHaveBeenCalledWith('TrackParcel-KTX-SHP-777');
+  onNavigate.mockClear();
+  const nested = document.createElement('button');
+  card.appendChild(nested);
+  fireEvent.keyDown(nested, { key: 'Enter', code: 'Enter' });
+  expect(onNavigate).not.toHaveBeenCalled();
+});
+
+test('shows missing tracking number without advertising a broken tracking action', async () => {
+  api.get.mockResolvedValue({ data: [{ id: 8, itemDescription: 'Mfuko', status: 'pending' }] });
+  render(<MyShipments onNavigate={jest.fn()} />);
+  const card = (await screen.findByText('Mfuko')).parentElement.parentElement;
+  expect(screen.getByText('Inasubiri namba ya ufuatiliaji')).toBeInTheDocument();
+  expect(card).not.toHaveAttribute('role', 'button');
 });
