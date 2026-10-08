@@ -3,10 +3,13 @@ import api from '../../api/api';
 
 // Delegated Super Agent onboarding. The server validates permissions on every
 // request; this page never treats a client-side role flag as authorization.
-export default function SuperAgentOnboarding() {
+export default function SuperAgentOnboarding({ embedded = false }) {
   const [applications, setApplications] = useState([]);
   const [officers, setOfficers] = useState(null);
-  const [officerUser, setOfficerUser] = useState(null);\n  const [userQuery, setUserQuery] = useState('');\n  const [userResults, setUserResults] = useState([]);\n  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [officerUser, setOfficerUser] = useState(null);
+  const [userQuery, setUserQuery] = useState('');
+  const [userResults, setUserResults] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
   const [notes, setNotes] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -40,9 +43,9 @@ export default function SuperAgentOnboarding() {
   };
 
   return (
-    <main style={{ maxWidth: 800, margin: '0 auto', padding: 20, fontSize: 16 }}>
-      <h1>Usajili wa Super Agent</h1>
-      <p>Hakiki maombi, idhinisha Super Agent na rekodi mafunzo yaliyokamilika.</p>
+    <main style={{ maxWidth: 800, margin: '0 auto', padding: embedded ? 0 : 20, fontSize: 16 }}>
+      <h1>👥 Onboarding ya Super Agent</h1>
+      <p>Wasaidie waombaji kuelewa Kentexa, kisha wa-activate wanapokuwa tayari.</p>
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
       {applications.map(item => (
@@ -51,8 +54,8 @@ export default function SuperAgentOnboarding() {
           <p>{item.city || 'Eneo halijawekwa'} · {item.status}</p>
           <button type="button" disabled={busy || item.status !== 'pending'} onClick={() => perform(
             () => api.patch(`/super-agents/onboarding/applications/${item.id}/approve`),
-            'Super Agent ameidhinishwa.'
-          )}>Idhinisha</button>
+            'Super Agent ame-activate na yuko tayari kutumia dashboard.'
+          )}>Activate Super Agent</button>
           <label style={{ display: 'block', marginTop: 14 }}>
             Muhtasari wa mafunzo
             <textarea style={{ display: 'block', width: '100%', minHeight: 80, fontSize: 16 }}
