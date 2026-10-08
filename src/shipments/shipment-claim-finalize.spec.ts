@@ -16,6 +16,8 @@ describe('finalizeWalkInClaim', () => {
   it('atomically assigns ownership and consumes every active challenge', async () => {
     query
       .mockResolvedValueOnce([{ id: 10, senderUserId: null, intakeChannel: 'walk_in' }])
+      .mockResolvedValueOnce([{ id: 25, isVerified: true }])
+      .mockResolvedValueOnce([{ receiptSecretDigest: claimDigest(key, 'receipt', 10, receiptSecret) }])
       .mockResolvedValueOnce([{
         id: 7, receiptSecretDigest: claimDigest(key, 'receipt', 10, receiptSecret),
         otpDigest: claimDigest(key, 'otp', 10, input.otp),
@@ -23,17 +25,20 @@ describe('finalizeWalkInClaim', () => {
         attemptCount: 0, maxAttempts: 5,
       }])
       .mockResolvedValueOnce([{ id: 10 }])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
     await expect(finalizeWalkInClaim(manager, input)).resolves.toEqual({ shipmentId: 10 });
-    expect(query).toHaveBeenCalledTimes(4);
-    expect(query.mock.calls[2][0]).toContain('"senderUserId" IS NULL');
-    expect(query.mock.calls[2][1]).toEqual([10, 25]);
-    expect(query.mock.calls[3][0]).toContain('"consumedAt" = now()');
+    expect(query).toHaveBeenCalledTimes(7);
+    expect(query.mock.calls[4][0]).toContain('"senderUserId" IS NULL');
+    expect(query.mock.calls[4][1]).toEqual([10, 25]);
+    expect(query.mock.calls[5][0]).toContain('"consumedAt" = now()');
   });
 
   it('persists failed attempts without rolling back the transaction', async () => {
     query
       .mockResolvedValueOnce([{ id: 10, senderUserId: null, intakeChannel: 'walk_in' }])
+      .mockResolvedValueOnce([{ id: 25, isVerified: true }])
+      .mockResolvedValueOnce([{ receiptSecretDigest: claimDigest(key, 'receipt', 10, receiptSecret) }])
       .mockResolvedValueOnce([{
         id: 7, receiptSecretDigest: claimDigest(key, 'receipt', 10, receiptSecret),
         otpDigest: claimDigest(key, 'otp', 10, '999999'),
@@ -42,9 +47,9 @@ describe('finalizeWalkInClaim', () => {
       }])
       .mockResolvedValueOnce([]);
     await expect(finalizeWalkInClaim(manager, input)).rejects.toThrow(BadRequestException);
-    expect(query).toHaveBeenCalledTimes(3);
-    expect(query.mock.calls[2][0]).toContain('"attemptCount" = "attemptCount" + 1');
-    expect(query.mock.calls[2][1]).toEqual([7]);
+    expect(query).toHaveBeenCalledTimes(5);
+    expect(query.mock.calls[4][0]).toContain('"attemptCount" = "attemptCount" + 1');
+    expect(query.mock.calls[4][1]).toEqual([7]);
   });
 
   it('rejects already owned shipments before looking up credentials', async () => {
