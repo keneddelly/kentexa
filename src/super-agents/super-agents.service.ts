@@ -1279,7 +1279,7 @@ export class SuperAgentsService {
     await this.requireOnboardingAuthority(actorId);
     const agents = await this.superAgentRepo.find({
       where: { status: SuperAgentStatus.PENDING },
-      relations: ['user'],
+      relations: { user: true },
       order: { id: 'DESC' },
       take: 100,
     });
@@ -1338,7 +1338,7 @@ export class SuperAgentsService {
   async approveByOnboardingOfficer(actorId: number, id: number) {
     await this.requireOnboardingAuthority(actorId);
     if (!Number.isSafeInteger(id) || id <= 0) throw new BadRequestException('Invalid Super Agent');
-    const agent = await this.superAgentRepo.findOne({ where: { id }, relations: ['user'] });
+    const agent = await this.superAgentRepo.findOne({ where: { id }, relations: { user: true } });
     if (!agent) throw new NotFoundException('Super Agent not found');
     if (agent.status !== SuperAgentStatus.PENDING)
       throw new ConflictException('Only pending applications may be approved');
@@ -1355,7 +1355,7 @@ export class SuperAgentsService {
   async recordOnboardingTraining(actorId: number, id: number, note: string) {
     await this.requireOnboardingAuthority(actorId);
     if (!Number.isSafeInteger(id) || id <= 0) throw new BadRequestException('Invalid Super Agent');
-    const agent = await this.superAgentRepo.findOne({ where: { id }, relations: ['user'] });
+    const agent = await this.superAgentRepo.findOne({ where: { id }, relations: { user: true } });
     if (!agent) throw new NotFoundException('Super Agent not found');
     if (agent.status !== SuperAgentStatus.ACTIVE)
       throw new ConflictException('Training completion requires an active Super Agent');
