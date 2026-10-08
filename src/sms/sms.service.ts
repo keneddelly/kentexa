@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomInt } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- no type declarations published for this package
 const AfricasTalking = require('africastalking');
@@ -51,7 +52,7 @@ export class SmsService {
 
   // ── Generate 6-digit OTP ──────────────────────────────────────────────
   generateOtp(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 1_000_000).toString();
   }
 
   // ── Send SMS ──────────────────────────────────────────────────────────
