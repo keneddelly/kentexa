@@ -38,41 +38,47 @@ export class LogisticsServiceOfferService {
         paymentMethod: dto.paymentMethod,
       } as any);
     }
-    // A discovered intercity offer is a concrete Transport Run. Preserve
-    // pickup/delivery outcomes while binding the transport leg to that Run;
-    // this is what connects the new Shipment to the transporter's manifest
-    // and to the Run's Super Agent load/unload hubs.
-    const runId = Number(dto.runId);
-    if (!Number.isInteger(runId) || runId <= 0) {
-      throw new BadRequestException('Choose a trip from fresh transport supply');
+    const providerId = Number(dto.providerId);
+    const routeId = Number(dto.routeId);
+    if (!Number.isInteger(providerId) || providerId <= 0 ||
+        !Number.isInteger(routeId) || routeId <= 0) {
+      throw new BadRequestException('A valid transport provider and route are required');
     }
+
+    const chosen = offers.find(o => {
+      const option: any = o.fulfillment.transportOption;
+      return o.serviceType === 'composed_intercity' &&
+        Number(option?.providerId) === providerId &&
+        Number(option?.routeId) === routeId;
+    });
+    if (!chosen) {
+      throw new BadRequestException('That shipping service is no longer available; choose a fresh offer');
+    }
+
+    // A Run is optional at customer commitment. If a fresh bookable Run is
+    // available, bind it now so the Shipment enters the transporter's
+    // manifest and the Run's Super Agent stop relationship immediately.
+    // If no Run exists yet, keep the route service confirmed; execution must
+    // resolve a real Run before linehaul starts.
+    const selectedRunId = Number(dto.runId);
+    const option: any = chosen.fulfillment.transportOption;
+    const runId = Number.isInteger(selectedRunId) && selectedRunId > 0
+      ? selectedRunId
+      : (Number.isInteger(Number(option?.runId)) && Number(option?.runId) > 0
+        ? Number(option.runId)
+        : undefined);
+
     return this.journeys.selectService(userId, {
       origin: dto.origin, destination: dto.destination,
       originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
       destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
       cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
       paymentMethod: dto.paymentMethod,
-      providerId: Number(dto.providerId),
-      routeId: Number(dto.routeId),
+      providerId,
+      routeId,
       runId,
       pickup: dto.pickup,
       delivery: dto.delivery,
-    } as any);
-
-    const routeId = Number(dto.routeId);
-    const providerId = Number(dto.providerId);
-    const chosen = offers.find(o => {
-      const option: any = o.fulfillment.transportOption;
-      return o.serviceType === 'composed_intercity' &&
-        Number(option?.routeId) === routeId && Number(option?.providerId) === providerId;
-    });
-    if (!chosen) throw new BadRequestException('That shipping service is no longer available; choose a fresh offer');
-    return this.journeys.selectService(userId, {
-      origin: dto.origin, destination: dto.destination,
-      originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
-      destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
-      cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
-      paymentMethod: dto.paymentMethod, providerId, routeId, pickup: dto.pickup, delivery: dto.delivery,
     } as any);
   }
 
@@ -109,23 +115,61 @@ export class LogisticsServiceOfferService {
       }];
     }
 
-    // Canonical launch supply: a bookable transport option IS an open,
-    // future Transport Run. The old route-only discovery created Shipments
-    // with runId=null, which left the new Shipment invisible to the Run
-    // manifest and therefore disconnected from the transporter and the
-    // Run's Super Agent load/unload hubs.
-    const { trips } = await this.transport.discoverSupply(from, to, weight, {
-      providerId: dto.providerId ? Number(dto.providerId) : undefined,
-    });
+    // Customer discovery is route-first. A TransportRoute is the service
+    // coverage authority; an open TransportRun is optional execution supply.
+    // When a Run exists, attach it so the Shipment can immediately enter the
+    // transporter's manifest and the Run's Super Agent load/unload hubs.
+    // When no Run exists, the valid route remains visible and execution can
+    // resolve a Run later.
+    const [services, supply] = await Promise.all([
+      this.transport.discoverServiceRoutes(
+        from,
+        to,
+        weight,
+        dto.providerId ? Number(dto.providerId) : undefined,
+      ),
+      this.transport.discoverSupply(from, to, weight, {
+        providerId: dto.providerId ? Number(dto.providerId) : undefined,
+      }),
+    ]);
+    const tripsByRoute = new Map<string, any>();
+    for (const trip of supply.trips) {
+      const key = `${Number(trip.providerId)}:${Number(trip.routeId)}`;
+      const existing = tripsByRoute.get(key);
+      if (!existing || new Date(trip.departureAt).getTime() < new Date(existing.departureAt).getTime()) {
+        tripsByRoute.set(key, trip);
+      }
+    }
+
     const offers: LogisticsServiceOffer[] = [];
-    for (const trip of trips.slice(0, 8)) {
-      const linehaul = Math.max(Number(trip.pricePerKg) * weight, Number(trip.fixedFee) || 0);
+    for (const service of services.slice(0, 8)) {
+      const key = `${Number(service.providerId)}:${Number(service.routeId)}`;
+      const trip = tripsByRoute.get(key);
+      const linehaul = Math.max(Number(service.pricePerKg) * weight, Number(service.fixedFee) || 0);
       const hasInstantPrice = linehaul > 0;
       const pickupReady = dto.pickup !== 'door' || originAgents.length > 0;
       const deliveryReady = dto.delivery !== 'door' || destinationAgents.length > 0;
+      const option: any = {
+        ...service,
+        ...(trip ? {
+          runId: trip.runId,
+          date: trip.date,
+          departureTime: trip.departureTime,
+          departureAt: trip.departureAt,
+          loadLabel: trip.loadLabel,
+          unloadLabel: trip.unloadLabel,
+          slotsAvailable: trip.slotsAvailable,
+          loadRunStopId: trip.loadRunStopId,
+          unloadRunStopId: trip.unloadRunStopId,
+          commitmentLevel: 'run_confirmed',
+        } : {
+          runId: null,
+          commitmentLevel: 'service_confirmed',
+        }),
+      };
       offers.push({
         serviceType: 'composed_intercity',
-        name: trip.providerName ? trip.providerName + ' Delivery' : 'Kentexa Standard',
+        name: service.providerName ? `${service.providerName} Delivery` : 'Kentexa Standard',
         price: hasInstantPrice ? linehaul + pickupFee + deliveryFee : null,
         pricingMode: hasInstantPrice ? 'instant' : 'quote_required',
         currency: 'TZS',
@@ -133,7 +177,9 @@ export class LogisticsServiceOfferService {
           pickup: dto.pickup === 'door' ? (pickupReady ? 'priced' : 'pending') : 'included',
           delivery: dto.delivery === 'door' ? (deliveryReady ? 'priced' : 'pending') : 'included',
         },
-        etaLabel: trip.estimatedHours ? 'About ' + trip.estimatedHours + ' hours linehaul' : trip.date + ' ' + trip.departureTime,
+        etaLabel: trip
+          ? (trip.estimatedHours ? `About ${trip.estimatedHours} hours linehaul` : `${trip.date} ${trip.departureTime}`)
+          : (service.estimatedHours ? `About ${service.estimatedHours} hours linehaul` : 'Scheduled service'),
         firstAction: dto.pickup === 'door'
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
           : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
@@ -141,13 +187,7 @@ export class LogisticsServiceOfferService {
           pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff',
           linehaul: 'transport_provider',
           delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect',
-          transportOption: {
-            ...trip,
-            commitmentLevel: 'run_confirmed',
-            runId: trip.runId,
-            loadRunStopId: trip.loadRunStopId,
-            unloadRunStopId: trip.unloadRunStopId,
-          },
+          transportOption: option,
         },
       });
     }
