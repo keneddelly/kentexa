@@ -38,21 +38,26 @@ export class LogisticsServiceOfferService {
         paymentMethod: dto.paymentMethod,
       } as any);
     }
-    // Exact-trip entry remains supported when a caller deliberately chose a
-    // concrete TransportRun. Normal Tuma Mzigo commits the route service and
-    // lets execution resolve a run later.
+    // A discovered intercity offer is a concrete Transport Run. Preserve
+    // pickup/delivery outcomes while binding the transport leg to that Run;
+    // this is what connects the new Shipment to the transporter's manifest
+    // and to the Run's Super Agent load/unload hubs.
     const runId = Number(dto.runId);
-    if (Number.isInteger(runId) && runId > 0) {
-      // selectComposed performs the authoritative run/status/capacity/route
-      // revalidation; service discovery intentionally does not depend on runs.
-      return this.journeys.selectComposed(userId, {
-        origin: dto.origin, destination: dto.destination,
-        originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
-        destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
-        cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
-        paymentMethod: dto.paymentMethod, runId,
-      } as any);
+    if (!Number.isInteger(runId) || runId <= 0) {
+      throw new BadRequestException('Choose a trip from fresh transport supply');
     }
+    return this.journeys.selectService(userId, {
+      origin: dto.origin, destination: dto.destination,
+      originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
+      destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
+      cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
+      paymentMethod: dto.paymentMethod,
+      providerId: Number(dto.providerId),
+      routeId: Number(dto.routeId),
+      runId,
+      pickup: dto.pickup,
+      delivery: dto.delivery,
+    } as any);
 
     const routeId = Number(dto.routeId);
     const providerId = Number(dto.providerId);
@@ -104,22 +109,31 @@ export class LogisticsServiceOfferService {
       }];
     }
 
-    const services = await this.transport.discoverServiceRoutes(from, to, weight, dto.providerId);
+    // Canonical launch supply: a bookable transport option IS an open,
+    // future Transport Run. The old route-only discovery created Shipments
+    // with runId=null, which left the new Shipment invisible to the Run
+    // manifest and therefore disconnected from the transporter and the
+    // Run's Super Agent load/unload hubs.
+    const { trips } = await this.transport.discoverSupply(from, to, weight, {
+      providerId: dto.providerId ? Number(dto.providerId) : undefined,
+    });
     const offers: LogisticsServiceOffer[] = [];
-    for (const service of services.slice(0, 8)) {
-      const linehaul = Math.max(Number(service.pricePerKg) * weight, Number(service.fixedFee) || 0);
+    for (const trip of trips.slice(0, 8)) {
+      const linehaul = Math.max(Number(trip.pricePerKg) * weight, Number(trip.fixedFee) || 0);
       const hasInstantPrice = linehaul > 0;
+      const pickupReady = dto.pickup !== 'door' || originAgents.length > 0;
+      const deliveryReady = dto.delivery !== 'door' || destinationAgents.length > 0;
       offers.push({
         serviceType: 'composed_intercity',
-        name: service.providerName ? `${service.providerName} Delivery` : 'Kentexa Standard',
+        name: trip.providerName ? trip.providerName + ' Delivery' : 'Kentexa Standard',
         price: hasInstantPrice ? linehaul + pickupFee + deliveryFee : null,
         pricingMode: hasInstantPrice ? 'instant' : 'quote_required',
         currency: 'TZS',
         fulfillmentStatus: {
-          pickup: dto.pickup === 'door' ? (pickupAgent ? 'priced' : 'pending') : 'included',
-          delivery: dto.delivery === 'door' ? (deliveryAgent ? 'priced' : 'pending') : 'included',
+          pickup: dto.pickup === 'door' ? (pickupReady ? 'priced' : 'pending') : 'included',
+          delivery: dto.delivery === 'door' ? (deliveryReady ? 'priced' : 'pending') : 'included',
         },
-        etaLabel: service.estimatedHours ? `About ${service.estimatedHours} hours linehaul` : 'Scheduled service',
+        etaLabel: trip.estimatedHours ? 'About ' + trip.estimatedHours + ' hours linehaul' : trip.date + ' ' + trip.departureTime,
         firstAction: dto.pickup === 'door'
           ? { type: 'offer_pickup_task', actorCapability: 'local_agent', candidateAgentIds: originAgents.map((a: any) => a.id) }
           : { type: 'customer_dropoff', actorCapability: 'kentexa_point' },
@@ -127,7 +141,13 @@ export class LogisticsServiceOfferService {
           pickup: dto.pickup === 'door' ? 'agent' : 'customer_dropoff',
           linehaul: 'transport_provider',
           delivery: dto.delivery === 'door' ? 'agent' : 'customer_collect',
-          transportOption: { ...service, commitmentLevel: 'service_confirmed', runId: null },
+          transportOption: {
+            ...trip,
+            commitmentLevel: 'run_confirmed',
+            runId: trip.runId,
+            loadRunStopId: trip.loadRunStopId,
+            unloadRunStopId: trip.unloadRunStopId,
+          },
         },
       });
     }

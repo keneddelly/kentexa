@@ -9,6 +9,7 @@ describe('JourneyComposerService', () => {
     discoverServiceRoutes: jest.fn(),
     findBookableRun: jest.fn(),
     assertRunBookable: jest.fn(),
+    assertRunServes: jest.fn(),
     getEffectiveRoutePrice: jest.fn(),
     assertEligibleProvider: jest.fn(),
   };
@@ -50,31 +51,39 @@ describe('JourneyComposerService', () => {
     expect(result.requiresManualPlanning).toBe(true);
   });
 
-  it('freezes a route service at SERVICE_CONFIRMED without requiring a TransportRun', async () => {
+  it('binds a selected Transport Run while preserving first/last-mile outcomes', async () => {
     transport.discoverServiceRoutes.mockResolvedValue([{
       providerId: 2, routeId: 3, providerName: 'Abood', providerType: 'bus',
       providerLogo: null, estimatedHours: 8, pricePerKg: 1000, fixedFee: 5000,
     }]);
+    transport.assertRunServes.mockResolvedValue(run());
     selections.select.mockResolvedValue({ id: 12 });
     await service.selectService(9, {
-      providerId: 2, routeId: 3,
+      providerId: 2, routeId: 3, runId: 7,
       originSnapshot: { city: 'Dar es Salaam' },
       destinationSnapshot: { city: 'Mwanza' },
       cargoRequirements: { description: 'Box', quantity: 1, weightKg: 2 } as any,
       paymentMethod: 'cash', pickup: 'door', delivery: 'door',
     });
+    expect(transport.assertRunServes).toHaveBeenCalledWith(
+      7, 'Dar es Salaam', 'Mwanza', 2, { providerId: 2, routeId: 3 },
+    );
     expect(selections.select).toHaveBeenCalledWith(9, expect.objectContaining({
       legs: [
         expect.objectContaining({ type: 'first_mile', requiredActorCapability: 'local_agent' }),
         expect.objectContaining({
-          type: 'transport', providerId: 2, routeId: 3, runId: null,
-          commitmentLevel: 'service_confirmed',
-          executionRequirements: expect.objectContaining({ runResolutionRequired: true }),
+          type: 'transport', providerId: 2, routeId: 3, runId: 7,
+          loadRouteStopId: 30, unloadRouteStopId: 31,
+          commitmentLevel: 'run_confirmed',
+          executionRequirements: expect.objectContaining({
+            runResolutionRequired: false,
+            loadRunStopId: 70,
+            unloadRunStopId: 71,
+          }),
         }),
         expect.objectContaining({ type: 'last_mile', requiredActorCapability: 'local_agent' }),
       ],
     }));
-    expect(transport.assertRunBookable).not.toHaveBeenCalled();
   });
 
   it('re-proves the selected Run on the server and writes the leg itself', async () => {

@@ -58,14 +58,14 @@ describe('send-shipment request contract', () => {
     expect(wire(quoteBody(journeySelection, selected, state)).availabilityId).toBeUndefined();
   });
 
-  test('normal Tuma Mzigo can commit a provider route without a run', () => {
-    const service = { providerId: 31, routeId: 41 };
+  test('normal Tuma Mzigo commits the concrete Transport Run returned by supply discovery', () => {
+    const service = { runId: 501, providerId: 31, routeId: 41 };
     expect(isTransportService(service)).toBe(true);
-    expect(isBookableTrip(service)).toBe(false);
+    expect(isBookableTrip(service)).toBe(true);
     const body = wire(serviceOfferCommitBody(state, service, false, now));
     expect(body.providerId).toBe(31);
     expect(body.routeId).toBe(41);
-    expect(body.runId).toBeUndefined();
+    expect(body.runId).toBe(501);
     expect(body.serviceType).toBe('composed_intercity');
   });
 
