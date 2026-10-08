@@ -1275,6 +1275,20 @@ export class SuperAgentsService {
     if (actor?.role !== UserRole.ADMIN) throw new ForbiddenException('Admin permission required');
   }
 
+  async getOnboardingAccess(actorId: number) {
+    const [actor] = await this.dataSource.query(
+      `SELECT role FROM public."user" WHERE id = $1`, [actorId],
+    );
+    if (actor?.role === UserRole.ADMIN) {
+      return { canOnboard: true, isAdmin: true };
+    }
+    const [officer] = await this.dataSource.query(
+      `SELECT "userId" FROM public.super_agent_onboarding_officer
+         WHERE "userId" = $1 AND "revokedAt" IS NULL`, [actorId],
+    );
+    return { canOnboard: Boolean(officer), isAdmin: false };
+  }
+
   async listOnboardingApplications(actorId: number) {
     await this.requireOnboardingAuthority(actorId);
     const agents = await this.superAgentRepo.find({
