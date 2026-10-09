@@ -59,21 +59,6 @@ export class LogisticsServiceOfferService {
       delivery: dto.delivery,
     } as any);
 
-    const routeId = Number(dto.routeId);
-    const providerId = Number(dto.providerId);
-    const chosen = offers.find(o => {
-      const option: any = o.fulfillment.transportOption;
-      return o.serviceType === 'composed_intercity' &&
-        Number(option?.routeId) === routeId && Number(option?.providerId) === providerId;
-    });
-    if (!chosen) throw new BadRequestException('That shipping service is no longer available; choose a fresh offer');
-    return this.journeys.selectService(userId, {
-      origin: dto.origin, destination: dto.destination,
-      originSnapshot: dto.origin ? undefined : { city: dto.fromCity },
-      destinationSnapshot: dto.destination ? undefined : { city: dto.toCity },
-      cargoRequirements: dto.cargoRequirements ?? { weightKg: dto.weightKg },
-      paymentMethod: dto.paymentMethod, providerId, routeId, pickup: dto.pickup, delivery: dto.delivery,
-    } as any);
   }
 
   async discover(dto: DiscoverServiceOffersDto): Promise<LogisticsServiceOffer[]> {
