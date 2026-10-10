@@ -492,13 +492,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                         {/* The price on the right is the transport fare only -- the same
                             number the quote confirms. Door legs are never inside it. */}
                         {trip.fulfillmentStatus?.pickup === 'separate' && (
-                          <div style={{ fontSize: 11, color: GR, marginTop: 3, fontWeight: 700 }}>Pickup fee: charged separately · not in this price</div>
+                          <div style={{ fontSize: 11, color: GR, marginTop: 3, fontWeight: 700 }}>Pickup fee: agreed with the agent, not in this price</div>
                         )}
                         {trip.fulfillmentStatus?.pickup === 'pending' && (
                           <div style={{ fontSize: 11, color: OR, marginTop: 3, fontWeight: 700 }}>Pickup fee: pending · not in this price</div>
                         )}
                         {trip.fulfillmentStatus?.delivery === 'separate' && (
-                          <div style={{ fontSize: 11, color: GR, marginTop: 2, fontWeight: 700 }}>Delivery fee: charged separately · not in this price</div>
+                          <div style={{ fontSize: 11, color: GR, marginTop: 2, fontWeight: 700 }}>Delivery fee: agreed with the agent, not in this price</div>
                         )}
                         {trip.fulfillmentStatus?.delivery === 'pending' && (
                           <div style={{ fontSize: 11, color: OR, marginTop: 2, fontWeight: 700 }}>Delivery fee: pending · not in this price</div>
@@ -626,13 +626,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                     <span style={{ fontSize: 16, fontWeight: 900, color: OR }}>TZS {fmt(priceEstimate)}</span>
                   </div>
                   {pickupOption === 'door' && selected?.fulfillmentStatus?.pickup === 'separate' && (
-                    <div style={{ fontSize: 11, color: GR, paddingTop: 6, fontWeight: 700 }}>Pickup fee: charged separately · not included above</div>
+                    <div style={{ fontSize: 11, color: GR, paddingTop: 6, fontWeight: 700 }}>Pickup fee: agreed with the agent, not in this price</div>
                   )}
                   {pickupOption === 'door' && selected?.fulfillmentStatus?.pickup === 'pending' && (
                     <div style={{ fontSize: 11, color: OR, paddingTop: 6, fontWeight: 700 }}>Pickup fee: pending · not included above</div>
                   )}
                   {deliveryOption === 'door' && selected?.fulfillmentStatus?.delivery === 'separate' && (
-                    <div style={{ fontSize: 11, color: GR, paddingTop: 3, fontWeight: 700 }}>Delivery fee: charged separately · not included above</div>
+                    <div style={{ fontSize: 11, color: GR, paddingTop: 3, fontWeight: 700 }}>Delivery fee: agreed with the agent, not in this price</div>
                   )}
                   {deliveryOption === 'door' && selected?.fulfillmentStatus?.delivery === 'pending' && (
                     <div style={{ fontSize: 11, color: OR, paddingTop: 3, fontWeight: 700 }}>Delivery fee: pending · not included above</div>
