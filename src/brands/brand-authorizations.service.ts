@@ -402,21 +402,31 @@ export class BrandAuthorizationsService {
       where: { status: BrandAuthorizationStatus.APPROVED, expiresAt: LessThan(new Date()) },
       relations: { brand: true },
     });
+    let expired = 0;
     for (const row of overdue) {
       const previousStatus = row.status;
+      // Change the row ONLY if it is still APPROVED. If another run (a second
+      // server, or the old duplicate scheduler -- KNOWN_FAULTS.md #10) or an
+      // admin already changed it, 0 rows change and this run records nothing
+      // and notifies no one, so the owner never gets the same SMS twice.
+      const result = await this.repo.update(
+        { id: row.id, status: BrandAuthorizationStatus.APPROVED },
+        { status: BrandAuthorizationStatus.EXPIRED },
+      );
+      if (!result.affected) continue;
       row.status = BrandAuthorizationStatus.EXPIRED;
-      const saved = await this.repo.save(row);
-      await this.recordTransition(saved, previousStatus, null, 'auto-expired');
+      expired++;
+      await this.recordTransition(row, previousStatus, null, 'auto-expired');
       await this.notifyOwner(
-        saved.commerceProfileId,
-        saved.brand?.name || 'the brand',
+        row.commerceProfileId,
+        row.brand?.name || 'the brand',
         'Brand authorization expired',
-        `Your ${saved.brand?.name || 'brand'} authorization has expired.`,
+        `Your ${row.brand?.name || 'brand'} authorization has expired.`,
         'brand_authorization_expired',
       ).catch(() => {});
     }
-    if (overdue.length) {
-      this.logger.log(`Auto-expired ${overdue.length} brand authorization(s)`);
+    if (expired) {
+      this.logger.log(`Auto-expired ${expired} brand authorization(s)`);
     }
 
     // A day-wide window, not "less than N days away" — this cron runs
