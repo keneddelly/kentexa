@@ -1320,6 +1320,9 @@ export class TransportService {
   ): Promise<Array<{
     providerId: number;
     providerName: string;
+    // The linked Business's trading/legal name, for a provider row whose own
+    // name is blank. Never a Kentexa-branded placeholder.
+    providerBusinessName: string | null;
     providerType: string;
     providerLogo: string | null;
     routeId: number;
@@ -1344,7 +1347,7 @@ export class TransportService {
     // updating its old city list) and must not hide a valid route.
     const routes = await this.routeRepo.find({
       where: { isActive: true },
-      relations: { provider: true },
+      relations: { provider: { business: true } },
       order: { id: 'ASC' },
     });
     const services: Array<any> = [];
@@ -1381,6 +1384,7 @@ export class TransportService {
       services.push({
           providerId: provider.id,
           providerName: provider.name,
+          providerBusinessName: provider.business?.tradingName?.trim() || provider.business?.legalName?.trim() || null,
           providerType: provider.type,
           providerLogo: provider.logoUrl ?? null,
           routeId: route.id,

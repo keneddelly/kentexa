@@ -16,7 +16,11 @@ export interface LogisticsServiceOffer {
   serviceType: 'direct_delivery' | 'composed_intercity';
   name: string; price: number | null; currency: 'TZS'; etaLabel: string;
   pricingMode?: 'instant' | 'quote_required';
-  fulfillmentStatus?: { pickup: 'included' | 'priced' | 'pending'; delivery: 'included' | 'priced' | 'pending' };
+  // For an intercity offer `price` is the transport fare only -- the same
+  // number POST /transport/quotes freezes. Door pickup/delivery is never
+  // inside it: 'separate' means an Agent covers that city and charges on top,
+  // 'pending' means no Agent covers it yet, 'included' means no door leg.
+  fulfillmentStatus?: { pickup: 'included' | 'separate' | 'pending'; delivery: 'included' | 'separate' | 'pending' };
   firstAction: { type: 'offer_pickup_task' | 'customer_dropoff'; actorCapability: 'local_agent' | 'kentexa_point'; candidateAgentIds?: number[] };
   fulfillment: { pickup: 'agent' | 'customer_dropoff'; linehaul: 'none' | 'transport_provider'; delivery: 'agent' | 'customer_collect'; transportOption?: any };
 }
@@ -133,8 +137,10 @@ export class LogisticsServiceOfferService {
     }
 
     const offers: LogisticsServiceOffer[] = [];
-    for (const service of routeServices.slice(0, 8)) {
+    for (const service of routeServices) {
       const trip = (tripsByRoute.get(Number(service.routeId)) ?? [])[0] ?? null;
+      // Same formula as TransportQuoteService.computeTransportBase, so the
+      // card price and the confirmed quote are the same number.
       const linehaul = Math.max(
         Number(service.pricePerKg) * weight,
         Number(service.fixedFee) || 0,
@@ -142,16 +148,19 @@ export class LogisticsServiceOfferService {
       const hasInstantPrice = linehaul > 0;
       const pickupReady = dto.pickup !== 'door' || originAgents.length > 0;
       const deliveryReady = dto.delivery !== 'door' || destinationAgents.length > 0;
+      // Kentexa carries nothing, so an offer is always named after the
+      // transporter that actually runs it.
+      const providerName = service.providerName?.trim() || service.providerBusinessName || 'Transport provider';
 
       offers.push({
         serviceType: 'composed_intercity',
-        name: service.providerName ? service.providerName + ' Delivery' : 'Kentexa Standard',
-        price: hasInstantPrice ? linehaul + pickupFee + deliveryFee : null,
+        name: providerName,
+        price: hasInstantPrice ? linehaul : null,
         pricingMode: hasInstantPrice ? 'instant' : 'quote_required',
         currency: 'TZS',
         fulfillmentStatus: {
-          pickup: dto.pickup === 'door' ? (pickupReady ? 'priced' : 'pending') : 'included',
-          delivery: dto.delivery === 'door' ? (deliveryReady ? 'priced' : 'pending') : 'included',
+          pickup: dto.pickup === 'door' ? (pickupReady ? 'separate' : 'pending') : 'included',
+          delivery: dto.delivery === 'door' ? (deliveryReady ? 'separate' : 'pending') : 'included',
         },
         etaLabel: trip?.estimatedHours
           ? 'About ' + trip.estimatedHours + ' hours linehaul'
@@ -168,6 +177,7 @@ export class LogisticsServiceOfferService {
           transportOption: trip
             ? {
                 ...trip,
+                providerName,
                 commitmentLevel: 'run_confirmed',
                 runId: trip.runId,
                 loadRunStopId: trip.loadRunStopId,
@@ -175,7 +185,7 @@ export class LogisticsServiceOfferService {
               }
             : {
                 providerId: service.providerId,
-                providerName: service.providerName,
+                providerName,
                 routeId: service.routeId,
                 pricePerKg: service.pricePerKg,
                 fixedFee: service.fixedFee,
@@ -189,12 +199,13 @@ export class LogisticsServiceOfferService {
     }
     // Instant-price services rank first by price. Quote-required providers
     // remain visible instead of disappearing merely because pricing has not
-    // been configured yet.
+    // been configured yet. Sort the whole list BEFORE keeping the top 8, so
+    // the cheapest services are never dropped for older route ids.
     return offers.sort((a, b) => {
       if (a.price == null && b.price == null) return a.name.localeCompare(b.name);
       if (a.price == null) return 1;
       if (b.price == null) return -1;
       return a.price - b.price;
-    });
+    }).slice(0, 8);
   }
 }
