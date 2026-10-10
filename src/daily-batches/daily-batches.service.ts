@@ -1298,8 +1298,9 @@ export class DailyBatchesService {
           // S0 x I2G integration gate: OrderReleaseService itself now independently re-checks
           // PaymentEvidence before routing/committing — the standalone check this cron used to do
           // inline is superseded by that shared choke point (same predicate, one fewer copy of it).
+          let release: { alreadyReleased: boolean };
           try {
-            await this.orderRelease.releaseSellerProceeds({
+            release = await this.orderRelease.releaseSellerProceeds({
               orderId: order.id,
               source: 'AUTO_RELEASE',
               orderUpdate: {
@@ -1315,6 +1316,10 @@ export class DailyBatchesService {
             }
             throw releaseErr;
           }
+          // Released earlier (another run, a buyer confirmation, an admin):
+          // no money moved now, so send nothing -- the seller and buyer were
+          // already told when it really happened.
+          if (release.alreadyReleased) continue;
 
           // Notify both parties via notifications service
           await this.notificationsService
