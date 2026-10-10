@@ -259,6 +259,8 @@ describe('ShipmentsService', () => {
           'completedAt',
           'createdAt',
           'parcelTrackingNumber',
+          // Step 2: the parcel's waybill is the public parcel number.
+          'waybillNumber',
           // Gate 3: where the parcel is -- a role and a hub's public name, never a person or an id.
           'parcelStatus',
           'holder',

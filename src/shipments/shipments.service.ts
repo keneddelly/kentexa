@@ -37,6 +37,7 @@ import {
   JourneySelectionStatus,
 } from '../transport/entities/journey-selection.entity';
 import { ShipmentHolder, projectShipment } from './shipment-projection';
+import { normalizeWaybill } from './waybill';
 import { TransportService } from '../transport/transport.service';
 import { TzLocationService } from '../tz-location/tz-location.service';
 import { Parcel, ParcelStatus } from '../super-agents/entities/parcel.entity';
@@ -98,6 +99,8 @@ export interface PublicShipmentTracking {
   completedAt: Date | null;
   createdAt: Date;
   parcelTrackingNumber: string | null;
+  // Step 2: the parcel's waybill (null for parcels created before it existed).
+  waybillNumber: string | null;
   // Gate 3: where the parcel is, derived from the custody ledger. `holder`
   // is a role, never a person; `location` is a hub's public name and city,
   // and only when a hub holds the parcel.
@@ -510,13 +513,16 @@ export class ShipmentsService {
         'u.phone AS "requesterPhone"',
         's."createdAt" AS "createdAt"',
         's."updatedAt" AS "updatedAt"',
+        `(SELECT p."waybillNumber" FROM public.parcel p WHERE p."shipmentId" = s.id ORDER BY p.id ASC LIMIT 1) AS "waybillNumber"`,
       ])
       .orderBy('s."createdAt"', 'DESC')
       .limit(limit);
     if (filters.status?.trim()) qb.andWhere('s.status = :status', { status: filters.status.trim() });
     if (filters.q?.trim()) {
       const q = `%${filters.q.trim()}%`;
-      qb.andWhere('(s."trackingNumber" ILIKE :q OR s."senderName" ILIKE :q OR s."senderPhone" ILIKE :q OR s."receiverName" ILIKE :q OR s."receiverPhone" ILIKE :q OR s."itemDescription" ILIKE :q)', { q });
+      const waybillQ = `%${filters.q.trim().toUpperCase().replace(/[\s-]/g, '')}%`;
+      qb.andWhere('(s."trackingNumber" ILIKE :q OR s."senderName" ILIKE :q OR s."senderPhone" ILIKE :q OR s."receiverName" ILIKE :q OR s."receiverPhone" ILIKE :q OR s."itemDescription" ILIKE :q' +
+        ' OR EXISTS (SELECT 1 FROM public.parcel p WHERE p."shipmentId" = s.id AND p."waybillNumber" ILIKE :waybillQ))', { q, waybillQ });
     }
     return qb.getRawMany();
   }
@@ -906,6 +912,17 @@ export class ShipmentsService {
         /* shown as stored; projected again on the next read */
       }
     }
+    // Step 2: each Shipment shows its parcel's waybill (null when the parcel
+    // predates waybills or does not exist yet).
+    if (mine.length) {
+      const rows: Array<{ shipmentId: number; waybillNumber: string | null }> = await this.shipmentRepo.manager.query(
+        `SELECT DISTINCT ON ("shipmentId") "shipmentId", "waybillNumber" FROM public.parcel
+          WHERE "shipmentId" = ANY($1) ORDER BY "shipmentId", id ASC`,
+        [mine.map((s) => s.id)],
+      );
+      const byShipment = new Map(rows.map((r) => [Number(r.shipmentId), r.waybillNumber]));
+      for (const s of mine) (s as any).waybillNumber = byShipment.get(s.id) ?? null;
+    }
     return mine;
   }
 
@@ -927,6 +944,16 @@ export class ShipmentsService {
         relations: { shipment: true },
       } as any);
       if (viaParcel?.shipment?.id) s = await this.shipmentRepo.findOne({ where: { id: viaParcel.shipment.id } });
+    }
+    // Step 2: the parcel's waybill finds its Shipment too. Old numbers are
+    // tried first above, so they behave exactly as before.
+    const waybill = s ? null : normalizeWaybill(trackingNumber);
+    if (waybill) {
+      const viaWaybill = await this.parcelRepo.findOne({
+        where: { waybillNumber: waybill },
+        relations: { shipment: true },
+      } as any);
+      if (viaWaybill?.shipment?.id) s = await this.shipmentRepo.findOne({ where: { id: viaWaybill.shipment.id } });
     }
     if (!s) throw new NotFoundException('Shipment not found');
 
@@ -975,6 +1002,7 @@ export class ShipmentsService {
       completedAt: s.completedAt,
       createdAt: s.createdAt,
       parcelTrackingNumber: parcel?.trackingNumber || null,
+      waybillNumber: parcel?.waybillNumber ?? null,
       parcelStatus: parcelStatus ?? parcel?.status ?? null,
       holder,
       location,

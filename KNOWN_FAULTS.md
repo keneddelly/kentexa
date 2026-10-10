@@ -77,3 +77,18 @@ Found in the local browser test on 2026-10-10 (test shipment KTX-SHP-1, Dar es S
   to the recipient", "Kentexa Point", "Kentexa will confirm the final transport price" and the success
   screen says "Kentexa is arranging the next fulfillment step". This conflicts with "KenteXa carries
   nothing; providers do the work".
+
+## 7. Five more old test files fail in src/database (found 2026-10-10)
+
+Same failures with and without the step 2 change (not caused by it, not yet analysed):
+`backfill-conversation-classification.spec.ts`, `complete-ambiguous-buyer-participants.spec.ts`,
+`migrations/add-service-business-authority-foundation.spec.ts`,
+`migrations/add-service-business-authority-foundation.real-postgres.spec.ts`,
+`migrations/add-transport-superagent-business-workspace-binding.spec.ts`.
+Together with section 4: 9 failing suites, 55 failing tests in transport/shipments/orders/super-agents/database.
+
+## 8. Two old frontend test files fail (found 2026-10-10)
+
+`bishoo-frontend/src/public/pages/SellerInbox.context.test.js` and
+`bishoo-frontend/src/navigation/navigationRegistry.test.js`: 4 tests fail with and without step 2.
+Not analysed yet.

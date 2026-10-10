@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { buildBuyerInquiryMessage, KENTEXA_SUPPORT as KENTEXA_SUPPORT_WHATSAPP } from '../utils/whatsapp-link';
 import { hasAnyRole } from '../utils/roles';
+import { normalizeWaybill, formatWaybill } from '../../utils/waybill';
 
 const CITY_TRANSIT_DAYS = {
   'dar-mbeya': 1, 'dar-mwanza': 1, 'dar-arusha': 1, 'dar-dodoma': 1,
@@ -91,6 +92,16 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
     setLoading(true); setError(''); setResult(null);
 
     try {
+      // 0. Waybill (KTX + 10 digits, spaces allowed, check digit valid).
+      // Checked before "pure number" so the 10 digits alone are not read as
+      // an order ID. The server turns it into the parcel's own number.
+      const waybill = normalizeWaybill(String(raw || ''));
+      if (waybill) {
+        const res = await api.get(`/super-agents/track/${waybill}`);
+        setResult({ ...res.data, _source: 'superagent' });
+        return;
+      }
+
       // 1. Pure number → order ID
       if (/^\d+$/.test(val)) {
         const res = await api.get(`/super-agents/track-order/${val}`);
@@ -346,7 +357,10 @@ const TrackParcel = ({ onNavigate, isLoggedIn, onLogout, userRole, currentUser, 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
                 <div>
                   <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{t('track_parcel.tracking_number_label')}</div>
-                  <div style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 900, color: '#1d4ed8' }}>{result.trackingNumber}</div>
+                  <div style={{ fontFamily: 'monospace', fontSize: 16, fontWeight: 900, color: '#1d4ed8' }}>{result.waybillNumber ? formatWaybill(result.waybillNumber) : result.trackingNumber}</div>
+                  {result.waybillNumber && result.trackingNumber && (
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{result.trackingNumber}</div>
+                  )}
 
                 </div>
                 <span style={{

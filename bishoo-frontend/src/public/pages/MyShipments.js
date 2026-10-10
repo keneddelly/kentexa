@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from 'react';
 import api from '../../api/api';
 import ShipmentPickupPanel from '../components/ShipmentPickupPanel';
+import { formatWaybill } from '../../utils/waybill';
 
 const STATUS={
   pending:'Ombi limeundwa',
@@ -92,6 +93,7 @@ export default function MyShipments({onNavigate}){
       {!loading&&!error&&rows.map(s=><div key={s.id} role={s.trackingNumber?'button':undefined} tabIndex={s.trackingNumber?0:undefined} onClick={()=>s.trackingNumber&&onNavigate(`TrackParcel-${s.trackingNumber}`)} onKeyDown={e=>{if(e.target!==e.currentTarget||!s.trackingNumber)return;if(e.key==='Enter'||e.key===' '){e.preventDefault();onNavigate(`TrackParcel-${s.trackingNumber}`);}}} style={{display:'block',width:'100%',boxSizing:'border-box',textAlign:'left',cursor:s.trackingNumber?'pointer':'default',background:'#fff',borderRadius:14,padding:16,marginBottom:10,boxShadow:'0 2px 8px rgba(0,0,0,.05)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10}}><strong style={{fontSize:16,color:'#0f172a'}}>{s.itemDescription||'Mzigo'}</strong><span style={{fontSize:12,fontWeight:900,color:'#2563eb',textAlign:'right'}}>{statusLabel(s.status)}</span></div>
         <div style={{fontSize:14,color:'#475569',marginTop:8,fontWeight:700}}>{s.originCity} → {s.destinationCity}</div>
+        {s.waybillNumber&&<div style={{fontSize:13,color:'#64748b',marginTop:6}}>Namba ya mzigo (waybill): <strong style={{color:'#0f172a',fontFamily:'monospace'}}>{formatWaybill(s.waybillNumber)}</strong></div>}
         <div style={{fontSize:13,color:'#64748b',marginTop:6}}>Namba ya ufuatiliaji: <strong style={{color:'#0f172a'}}>{s.trackingNumber||'Inasubiri namba ya ufuatiliaji'}</strong>{Number(s.weightKg)>0?` · ${s.weightKg} kg`:''}</div>
         {['confirmed','collected'].includes(s.status) && <ShipmentPickupPanel shipment={s} />}
       </div>)}

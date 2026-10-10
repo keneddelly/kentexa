@@ -17,6 +17,7 @@ import {
   canDeliverDirect, isDirectDelivery,
   confirmBody, searchOutcome, serviceOfferCommitBody,
 } from '../../api/shipmentRequests';
+import { formatWaybill } from '../../utils/waybill';
 
 const B  = '#2563EB';
 const DK = '#0F172A';
@@ -293,7 +294,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       const final = await api.patch(`/shipments/${created.id}/confirm-and-activate`, confirmBody(direct ? {} : requestState));
       const confirmedShipment = final.data.shipment;
       const nextAction = final.data.nextAction || null;
-      setConfirmed({ ...confirmedShipment, parcelTrackingNumber: final.data.parcel?.trackingNumber, direct,
+      setConfirmed({ ...confirmedShipment, parcelTrackingNumber: final.data.parcel?.trackingNumber,
+        waybillNumber: final.data.parcel?.waybillNumber || null, direct,
         pickupPath: ['agent_pickup','agent_pickup_pending'].includes(nextAction?.type) ? (direct ? 'direct_delivery' : 'journey_first_mile') : null,
         pickupRequested: ['agent_pickup','agent_pickup_pending'].includes(nextAction?.type),
         nextAction,
@@ -693,12 +695,28 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             <div style={{ fontSize: 17, fontWeight: 900, color: DK, marginBottom: 8 }}>
               {t('send_shipment.confirmed_title')}
             </div>
-            <div style={{ fontSize: 13, color: GR, marginBottom: 8 }}>
-              {t('send_shipment.tracking_number_label')}: <strong>{confirmed.trackingNumber}</strong>
-            </div>
-            <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
-              Keep this shipment number. Kentexa uses one customer-facing number even after a Parcel is created internally.
-            </div>
+            {confirmed.waybillNumber ? (
+              <>
+                <div style={{ fontSize: 13, color: GR, marginBottom: 4 }}>
+                  Waybill number: <strong style={{ fontFamily: 'monospace', fontSize: 15, color: DK }}>{formatWaybill(confirmed.waybillNumber)}</strong>
+                </div>
+                <div style={{ fontSize: 11, color: GR, marginBottom: 8 }}>
+                  {t('send_shipment.tracking_number_label')}: {confirmed.trackingNumber}
+                </div>
+                <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
+                  Keep the waybill number. It stays the same from pickup to delivery, and both numbers can be used to track.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, color: GR, marginBottom: 8 }}>
+                  {t('send_shipment.tracking_number_label')}: <strong>{confirmed.trackingNumber}</strong>
+                </div>
+                <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
+                  Keep this shipment number. Kentexa uses one customer-facing number even after a Parcel is created internally.
+                </div>
+              </>
+            )}
             {['fulfillment_setup_pending','agent_pickup_pending','customer_dropoff_pending','transport_planning'].includes(confirmed.nextAction?.type) && (
               <div style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
                 margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5, color: '#92400E' }}>

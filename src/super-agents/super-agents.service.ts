@@ -1435,6 +1435,7 @@ export class SuperAgentsService {
     // seller WhatsApp, handler contacts, or free-form operational notes here.
     return {
       trackingNumber: parcel.trackingNumber,
+      waybillNumber: parcel.waybillNumber ?? null, // step 2: display only
       status: parcel.status,
       originCity: (parcel as any).originCity,
       destinationCity: (parcel as any).destinationCity,

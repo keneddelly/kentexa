@@ -111,6 +111,7 @@ import { FRONTEND_URL } from '../config/urls.config';
 import { CommunicationEngineService } from '../communication/communication-engine.service';
 import { PaymentEvidenceService } from '../payments/payment-evidence.service';
 import { linkIntakeShipmentWithin } from '../shipments/intake-shipment';
+import { normalizeWaybill } from '../shipments/waybill';
 
 const calcCommission = (baseAmount: number, category: string) => {
   const TRACKING_FEE = 1000; // TZS 1,000 flat per order — same fee as offline tracking
@@ -3307,15 +3308,17 @@ export class OrdersService {
 
   // ── Find order by tracking number (for boda/personal old format) ─────────
   async findByTrackingNumber(trackingNumber: string) {
-    const order = await this.repo.findOne({
-      where: { trackingNumber },
-      select: {
-        id: true,
-        trackingNumber: true,
-        shippingMethod: true,
-        status: true,
-      },
-    });
+    const select = { id: true, trackingNumber: true, shippingMethod: true, status: true };
+    let order = await this.repo.findOne({ where: { trackingNumber }, select });
+    // Step 2: a parcel's waybill finds its order too. The old number is
+    // always tried first, so it behaves exactly as before.
+    const waybill = order ? null : normalizeWaybill(trackingNumber);
+    if (waybill) {
+      const rows: Array<{ orderId: number | null }> = await this.repo.manager.query(
+        `SELECT "orderId" FROM public.parcel WHERE "waybillNumber" = $1 LIMIT 1`, [waybill],
+      );
+      if (rows[0]?.orderId) order = await this.repo.findOne({ where: { id: rows[0].orderId }, select });
+    }
     if (!order)
       throw new NotFoundException(
         `Tracking number ${trackingNumber} not found`,
