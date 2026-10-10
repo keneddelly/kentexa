@@ -5596,6 +5596,12 @@
     "direct_subtitle": "Kentexa collects from you and delivers straight to the recipient. No drop-off needed.",
     "direct_pickup_requested": "Pickup has been requested. Open My Shipments to see who is coming and to get the code you give them at handover.",
     "direct_pickup_not_requested": "Your shipment is saved, but the pickup request did not go through. Open My Shipments and request pickup again.",
+    "pickup_not_assigned_title": "No one has been assigned to pick up your parcel yet.",
+    "pickup_call_office": "Please call the sending office, {{name}}, to arrange pickup: {{phone}}",
+    "pickup_call_office_no_phone": "Please contact the sending office, {{name}}, to arrange pickup. No phone number is saved for this office.",
+    "pickup_call_transporter": "Please call {{name}} to arrange pickup: {{phone}}",
+    "pickup_call_transporter_no_phone": "Please contact {{name}} to arrange pickup. No phone number is saved for this transporter.",
+    "pickup_no_contact": "No office or phone number is saved for this trip. Please take the parcel to the transporter yourself, or choose another option.",
     "no_open_trip": "These transporters cover this route but have no open trip to book right now.",
     "provider_does_not_serve_route": "This transporter does not serve this route. Go back to see others that do.",
     "hubs_load_failed": "Could not load Kentexa hubs. You can continue without one, or go back and try again."

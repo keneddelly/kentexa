@@ -92,3 +92,26 @@ Together with section 4: 9 failing suites, 55 failing tests in transport/shipmen
 `bishoo-frontend/src/public/pages/SellerInbox.context.test.js` and
 `bishoo-frontend/src/navigation/navigationRegistry.test.js`: 4 tests fail with and without step 2.
 Not analysed yet.
+
+## 9. Existing timed jobs set no time zone, so 8 am jobs probably run at 11:00 Tanzania time
+
+Found 2026-10-10. No `@Cron(...)` in the code passes a `timeZone`, and `render.yaml` sets no `TZ`.
+Render servers run on UTC unless `TZ` is set in the dashboard (please check). Tanzania is UTC+3,
+so a job written for "8 am" runs at 11:00 Tanzania time, "midnight" at 03:00, "2 am" at 05:00.
+**Not changed now** — changing the time of money/escrow jobs needs its own decision.
+
+| Job (file) | Schedule in code | Real time in Tanzania (if server is UTC) | What it does |
+|---|---|---|---|
+| `checkStaleEscrow` (`daily-batches.service.ts:1150`) | `0 8 * * *` | 11:00 | Flags escrow payments that should have been released, logs for the operator |
+| `autoReleaseEscrow` (`daily-batches.service.ts:1270`) | `0 8 * * *` | 11:00 | Releases escrow to the seller when a delivered order was never confirmed by the buyer (3 days local, 5 days intercity) |
+| `autoConfirmDeliveredOrders` (`orders.service.ts:2404`) | `0 8 * * *` | 11:00 | Auto-confirms delivered orders after 3 days (local) / 5 days (intercity) |
+| `autoCompleteDelivered` (`shipping.service.ts:267`) | every day at midnight | 03:00 | Marks delivered orders completed after 7 days |
+| `expireOverdueAuthorizations` (`brand-authorizations.service.ts:399`) | `0 2 * * *` | 05:00 | Expires brand authorizations past their end date and notifies |
+| `expireOverdueRegistrations` (`warranty.service.ts:276`) | `0 3 * * *` | 06:00 | Expires overdue warranty registrations |
+| `autoCutoffCheck` (`daily-batches.service.ts:1124`) | every 10 minutes | not affected by time zone | Marks daily batch cut-off as passed (its comment wrongly says "every 15 min") |
+| `expireInvoices` (`invoices.service.ts:460`) | every hour | not affected | Expires unpaid invoices past their expiry |
+| `expireOffers` (`offers.service.ts:32`) | every hour | not affected | Expires buyer offers nobody answered |
+| `retryDue` (`money-routing.service.ts:304`) | every minute | not affected | Retries pending money-routing entries whose wait time has passed |
+| `extendScheduleHorizons` (`transport-run.service.ts:373`) | minute 15 of every hour | not affected | Creates future transport trips from recurring schedules |
+
+The new evening-reminder job (item 5) will set `timeZone: 'Africa/Dar_es_Salaam'` itself.

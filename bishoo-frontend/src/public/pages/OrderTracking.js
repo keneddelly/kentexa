@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/api';
 import { getAccessToken } from '../../api/tokenStore';
 import { buildBuyerInquiryMessage } from '../utils/whatsapp-link';
+import { API_BASE_URL } from '../../api/baseUrl';
 
 const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) => {
   const { t, i18n } = useTranslation();
@@ -181,7 +182,7 @@ const OrderTracking = ({ onNavigate, isLoggedIn, onLogout, userRole, orderId }) 
   const currentIdx   = getCurrentIndex(currentSteps);
   const payment      = paymentBadge(order?.paymentStatus);
 
-  const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
+  const API_URL = API_BASE_URL;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc' }}>

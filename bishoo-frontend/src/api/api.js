@@ -1,8 +1,9 @@
 import axios from 'axios';
 import { getTokenSnapshot, setAccessToken } from './tokenStore';
+import { API_BASE_URL } from './baseUrl';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://api.kentexa.com',
+  baseURL: API_BASE_URL,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',

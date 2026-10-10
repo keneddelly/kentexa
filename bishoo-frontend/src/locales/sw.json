@@ -5526,6 +5526,12 @@
     "direct_subtitle": "Kentexa inachukua kwako na kupeleka moja kwa moja kwa mpokeaji. Huhitaji kupeleka kituoni.",
     "direct_pickup_requested": "Ombi la kuchukuliwa limetumwa. Fungua Mizigo Yangu kuona nani anakuja na kupata namba ya kumpa wakati wa kukabidhi.",
     "direct_pickup_not_requested": "Mzigo wako umehifadhiwa, lakini ombi la kuchukuliwa halikufanikiwa. Fungua Mizigo Yangu uombe tena.",
+    "pickup_not_assigned_title": "Bado hakuna aliyepangwa kuja kuchukua mzigo wako.",
+    "pickup_call_office": "Tafadhali piga simu ofisi ya kutuma mzigo, {{name}}, kupanga uchukuaji: {{phone}}",
+    "pickup_call_office_no_phone": "Tafadhali wasiliana na ofisi ya kutuma mzigo, {{name}}, kupanga uchukuaji. Ofisi hii haina namba ya simu iliyohifadhiwa.",
+    "pickup_call_transporter": "Tafadhali piga simu {{name}} kupanga uchukuaji: {{phone}}",
+    "pickup_call_transporter_no_phone": "Tafadhali wasiliana na {{name}} kupanga uchukuaji. Msafirishaji huyu hana namba ya simu iliyohifadhiwa.",
+    "pickup_no_contact": "Safari hii haina ofisi wala namba ya simu iliyohifadhiwa. Tafadhali peleka mzigo kwa msafirishaji mwenyewe, au chagua njia nyingine.",
     "no_open_trip": "Wasafirishaji hawa wanahudumia njia hii lakini hawana safari iliyo wazi kwa sasa.",
     "provider_does_not_serve_route": "Msafirishaji huyu hahudumii njia hii. Rudi nyuma kuona wengine wanaoihudumia.",
     "hubs_load_failed": "Imeshindwa kupakia hub za Kentexa. Unaweza kuendelea bila hub, au rudi nyuma ujaribu tena."

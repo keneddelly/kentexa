@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import api from '../../api/api';
+import { API_BASE_URL } from '../../api/baseUrl';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
+const API_URL = API_BASE_URL;
 
 const MyOrders = ({ onNavigate, isLoggedIn, onLogout, userRole, highlightOrderId }) => {
   const { t } = useTranslation();

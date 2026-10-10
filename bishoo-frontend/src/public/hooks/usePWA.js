@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAccessToken } from '../../api/tokenStore';
 import api from '../../api/api';
+import { API_BASE_URL } from '../../api/baseUrl';
 
 
 // ── Push notification subscription ────────────────────────────────────────
@@ -71,7 +72,7 @@ export const enablePushNotifications = async (publicKey) => {
   const permission = Notification.permission === 'default'
     ? await Notification.requestPermission() : Notification.permission;
   if (permission !== 'granted') return 'denied';
-  return await subscribeToPush(process.env.REACT_APP_API_URL || 'https://api.kentexa.com')
+  return await subscribeToPush(API_BASE_URL)
     ? 'enabled' : 'unavailable';
 };
 

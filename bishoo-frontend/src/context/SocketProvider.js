@@ -2,8 +2,9 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { io } from 'socket.io-client';
 import { useRoleContext } from './RoleContext';
 import { getAccessToken } from '../api/tokenStore';
+import { API_BASE_URL } from '../api/baseUrl';
 
-const SOCKET_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
+const SOCKET_URL = API_BASE_URL;
 
 const SocketState = createContext({ socket: null, connected: false });
 

@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import BackBar from '../components/BackBar';
 import LocationPicker from '../components/LocationPicker';
 import api from '../../api/api';
+import { API_BASE_URL } from '../../api/baseUrl';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://api.kentexa.com';
+const API_URL = API_BASE_URL;
 
 const SellerInvoices = ({ onNavigate, currentUser, isLoggedIn, preSelected, activeProfileId }) => {
   const { t } = useTranslation();

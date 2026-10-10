@@ -297,7 +297,10 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
       setConfirmed({ ...confirmedShipment, parcelTrackingNumber: final.data.parcel?.trackingNumber,
         waybillNumber: final.data.parcel?.waybillNumber || null, direct,
         pickupPath: ['agent_pickup','agent_pickup_pending'].includes(nextAction?.type) ? (direct ? 'direct_delivery' : 'journey_first_mile') : null,
-        pickupRequested: ['agent_pickup','agent_pickup_pending'].includes(nextAction?.type),
+        // Only a real pickup task counts as "requested". agent_pickup_pending
+        // means nobody has been told yet (KNOWN_FAULTS.md #5).
+        pickupRequested: nextAction?.type === 'agent_pickup',
+        pickupContact: nextAction?.type === 'agent_pickup_pending' ? (nextAction.contact || { kind: 'none' }) : null,
         nextAction,
         dropOffHub: nextAction?.type === 'customer_dropoff' && selected?.loadHub ? selected.loadHub : null });
       setStep(5);
@@ -717,13 +720,35 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
                 </div>
               </>
             )}
-            {['fulfillment_setup_pending','agent_pickup_pending','customer_dropoff_pending','transport_planning'].includes(confirmed.nextAction?.type) && (
+            {['fulfillment_setup_pending','customer_dropoff_pending','transport_planning'].includes(confirmed.nextAction?.type) && (
               <div style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
                 margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5, color: '#92400E' }}>
                 Shipment confirmed. Kentexa is arranging the next fulfillment step from your selected delivery plan. Pending pickup/delivery fees are not charged until that service is assigned.
               </div>
             )}
-            {confirmed.pickupPath && (
+            {confirmed.pickupContact && (
+              <div role="alert" style={{ backgroundColor: '#FFFBEB', borderRadius: 12, padding: 12,
+                margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5, color: '#92400E', textAlign: 'left' }}>
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>{t('send_shipment.pickup_not_assigned_title')}</div>
+                {(() => {
+                  const c = confirmed.pickupContact;
+                  const name = c.name || (c.kind === 'origin_office' ? 'Super Agent' : t('send_shipment.provider_fallback'));
+                  const phone = c.phone ? <a href={`tel:${c.phone}`} style={{ color: '#92400E', fontWeight: 800 }}>{c.phone}</a> : null;
+                  if (c.kind === 'origin_office') {
+                    return phone
+                      ? <>{t('send_shipment.pickup_call_office', { name, phone: '' })}{phone}</>
+                      : t('send_shipment.pickup_call_office_no_phone', { name });
+                  }
+                  if (c.kind === 'transporter') {
+                    return phone
+                      ? <>{t('send_shipment.pickup_call_transporter', { name, phone: '' })}{phone}</>
+                      : t('send_shipment.pickup_call_transporter_no_phone', { name });
+                  }
+                  return t('send_shipment.pickup_no_contact');
+                })()}
+              </div>
+            )}
+            {confirmed.pickupPath && !confirmed.pickupContact && (
               <div style={{ backgroundColor: confirmed.pickupRequested ? '#ECFDF5' : '#FFFBEB', borderRadius: 12, padding: 12,
                 margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5,
                 color: confirmed.pickupRequested ? '#065F46' : '#92400E' }}>

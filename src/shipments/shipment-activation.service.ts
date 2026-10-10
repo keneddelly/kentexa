@@ -72,10 +72,15 @@ export class ShipmentActivationService {
       const first = legs[0];
       if (!first) throw new BadRequestException('Committed journey has no fulfillment legs');
       if (first.type === JourneyLegType.FIRST_MILE) {
+        // No pickup task is created on this path (KNOWN_FAULTS.md #5), so
+        // nobody has been told. Give the sender someone real to call instead.
+        const transportLeg = legs.find((l) => l.type === JourneyLegType.TRANSPORT) ?? null;
         return { ...confirmed, nextAction: {
           type: 'agent_pickup_pending', actor: 'agent', journeyLegId: first.id,
           requiredActorCapability: first.requiredActorCapability || 'local_agent',
           status: 'awaiting_assignment', custodyStarted: false,
+          pickupTaskCreated: false,
+          contact: await this.pickupContactFor(transportLeg),
         } };
       }
       if (first.type === JourneyLegType.HUB_INTAKE) {
@@ -118,5 +123,37 @@ export class ShipmentActivationService {
         dispatch,
       },
     };
+  }
+
+  /**
+   * Who the sender should call when no pickup task exists. The origin Super
+   * Agent office of the chosen trip comes first (a bus company does not come
+   * to the door); the transporter only when the trip names no office.
+   */
+  private async pickupContactFor(transportLeg: JourneyLeg | null): Promise<{
+    kind: 'origin_office' | 'transporter' | 'none'; name: string | null; phone: string | null;
+  }> {
+    if (!transportLeg) return { kind: 'none', name: null, phone: null };
+    const loadRunStopId = Number(transportLeg.executionRequirements?.loadRunStopId) || null;
+    const offices: Array<{ name: string | null; phone: string | null }> = await this.dataSource.query(
+      `SELECT sa."businessName" AS name, sa.phone
+         FROM public.super_agent sa
+        WHERE sa.status = 'active' AND sa.id = COALESCE(
+          (SELECT rs."superAgentId" FROM public.transport_run_stop rs WHERE rs.id = $1),
+          (SELECT rs."superAgentId" FROM public.route_stop rs WHERE rs.id = $2))`,
+      [loadRunStopId, transportLeg.loadRouteStopId ?? null],
+    );
+    if (offices[0]) return { kind: 'origin_office', name: offices[0].name, phone: offices[0].phone || null };
+    if (transportLeg.providerId) {
+      const providers: Array<{ name: string | null; phone: string | null }> = await this.dataSource.query(
+        `SELECT COALESCE(NULLIF(btrim(p.name), ''), NULLIF(btrim(b."tradingName"), ''), NULLIF(btrim(b."legalName"), '')) AS name,
+                p."contactPhone" AS phone
+           FROM public.transport_provider p LEFT JOIN public.business b ON b.id = p."businessId"
+          WHERE p.id = $1`,
+        [transportLeg.providerId],
+      );
+      if (providers[0]) return { kind: 'transporter', name: providers[0].name, phone: providers[0].phone || null };
+    }
+    return { kind: 'none', name: null, phone: null };
   }
 }
