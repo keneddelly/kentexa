@@ -50,6 +50,7 @@ import { EarlyAccessModule } from './early-access/early-access.module';
 import { SearchModule } from './search/search.module';
 import { ShipmentsModule } from './shipments/shipments.module';
 import { DispatchRemindersModule } from './dispatch-reminders/dispatch-reminders.module';
+import { SchedulingCheckModule } from './scheduling/scheduling-check.module';
 import { BrandsModule } from './brands/brands.module';
 import { WarrantyModule } from './warranty/warranty.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
@@ -70,7 +71,12 @@ export const allowDevelopmentSchemaSync =
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // The ONLY scheduler set-up in the application (global). Never add another
+    // ScheduleModule.forRoot() in a feature module: each extra one runs every
+    // @Cron job again (KNOWN_FAULTS.md #10). Checked by schedule-setup.spec.ts
+    // and, at start-up, by SchedulingCheckModule.
     ScheduleModule.forRoot(),
+    SchedulingCheckModule,
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',

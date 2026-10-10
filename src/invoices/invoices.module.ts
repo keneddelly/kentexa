@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ScheduleModule } from '@nestjs/schedule';
 import { Invoice } from './entities/invoice.entity';
 import { InvoiceCounter } from './entities/invoice-counter.entity';
 import { ReceiptCounter } from './entities/receipt-counter.entity';
@@ -17,7 +16,9 @@ import { PaymentCoreModule } from '../payments/payment-core.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Invoice, InvoiceCounter, ReceiptCounter, Order, Payment]),
-    ScheduleModule.forRoot(),
+    // No ScheduleModule.forRoot() here: AppModule's single, global set-up runs
+    // this module's @Cron jobs. A second set-up runs every job a second time
+    // (KNOWN_FAULTS.md #10; guarded by src/scheduling/schedule-setup.spec.ts).
     ActivityModule,
     CommerceProfilesModule,
     WalletModule,

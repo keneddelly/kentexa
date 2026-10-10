@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
@@ -68,7 +67,8 @@ import { PaymentCoreModule } from '../payments/payment-core.module';
     ReputationModule,
     WalletModule,
     CommerceProfilesModule,
-    ScheduleModule.forRoot(),
+    // No ScheduleModule.forRoot() here: AppModule's single, global set-up runs
+    // this module's @Cron jobs (KNOWN_FAULTS.md #10).
     ActivityModule,
     IdentityModule,
     CodModule,

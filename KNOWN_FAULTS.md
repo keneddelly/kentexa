@@ -102,13 +102,13 @@ so a job written for "8 am" runs at 11:00 Tanzania time, "midnight" at 03:00, "2
 
 | Job (file) | Schedule in code | Real time in Tanzania (server is UTC, confirmed) | What it does |
 |---|---|---|---|
-| `checkStaleEscrow` (`daily-batches.service.ts:1150`) | `0 8 * * *` | 11:00 | Flags escrow payments that should have been released, logs for the operator |
-| `autoReleaseEscrow` (`daily-batches.service.ts:1270`) | `0 8 * * *` | 11:00 | Releases escrow to the seller when a delivered order was never confirmed by the buyer (3 days local, 5 days intercity) |
+| `checkStaleEscrow` (`daily-batches.service.ts:1150`) — **never runs on live, see #11** | `0 8 * * *` | 11:00 | Flags escrow payments that should have been released, logs for the operator |
+| `autoReleaseEscrow` (`daily-batches.service.ts:1270`) — **never runs on live, see #11** | `0 8 * * *` | 11:00 | Releases escrow to the seller when a delivered order was never confirmed by the buyer (3 days local, 5 days intercity) |
 | `autoConfirmDeliveredOrders` (`orders.service.ts:2404`) | `0 8 * * *` | 11:00 | Auto-confirms delivered orders after 3 days (local) / 5 days (intercity) |
 | `autoCompleteDelivered` (`shipping.service.ts:267`) | every day at midnight | 03:00 | Marks delivered orders completed after 7 days |
 | `expireOverdueAuthorizations` (`brand-authorizations.service.ts:399`) | `0 2 * * *` | 05:00 | Expires brand authorizations past their end date and notifies |
 | `expireOverdueRegistrations` (`warranty.service.ts:276`) | `0 3 * * *` | 06:00 | Expires overdue warranty registrations |
-| `autoCutoffCheck` (`daily-batches.service.ts:1124`) | every 10 minutes | not affected by time zone | Marks daily batch cut-off as passed (its comment wrongly says "every 15 min") |
+| `autoCutoffCheck` (`daily-batches.service.ts:1124`) — **never runs on live, see #11** | every 10 minutes | not affected by time zone | Marks daily batch cut-off as passed (its comment wrongly says "every 15 min") |
 | `expireInvoices` (`invoices.service.ts:460`) | every hour | not affected | Expires unpaid invoices past their expiry |
 | `expireOffers` (`offers.service.ts:32`) | every hour | not affected | Expires buyer offers nobody answered |
 | `retryDue` (`money-routing.service.ts:304`) | every minute | not affected | Retries pending money-routing entries whose wait time has passed |
@@ -116,7 +116,7 @@ so a job written for "8 am" runs at 11:00 Tanzania time, "midnight" at 03:00, "2
 
 The new evening-reminder job (item 5) will set `timeZone: 'Africa/Dar_es_Salaam'` itself.
 
-## 10. Every timed job probably runs THREE times at once (found 2026-10-10) — important
+## 10. Every timed job runs THREE times at once (found 2026-10-10) — FIXED on marketplace-basic, not yet live
 
 Seen in the local test of the new nightly reminder: each 5-minute tick wrote its log line **three
 times in the same second** (19:35, 19:40, 19:45). The scheduler is set up three times:
@@ -134,3 +134,46 @@ one should be checked before changing anything. Why it matters:
 The new nightly reminder is safe against this: one database row per office per day, and the single
 retry only on a later tick. **Not changed now.** Likely fix (needs its own yes and a test): keep
 `ScheduleModule.forRoot()` only in `app.module.ts` and remove it from the invoices and orders modules.
+
+**Update 2026-10-10 (evening):**
+- Proven, not just probable: a test app with the project's own library versions ran a job 5 times with
+  one scheduler set-up and 15 times with three. Live uses the same versions and the same three set-ups.
+- The real app on the local test database, old code: start-up check logged
+  `Timed jobs registered 27 times for 9 job(s) ... by 3 scheduler set-up(s)`; fixed code:
+  `Timed jobs: 9 registered, each once`, and one log line per reminder tick instead of three.
+- Correction: live has **8** timed jobs, not 11 — the three daily-batches jobs never run (#11).
+  So the "order completed" emails and the stale-escrow alert were never sent three times on live.
+- Owner ran Q1–Q7 read-only on live: Q1 = both money guards exist; Q2–Q7 = 0 rows.
+  No money was paid twice. (Q6/Q7 empty may only mean no brand authorization has expired yet.)
+- Fix on marketplace-basic: `ScheduleModule.forRoot()` only in `app.module.ts`; a test fails if a
+  second one is added (`src/scheduling/schedule-setup.spec.ts`); a start-up check logs an ERROR if
+  jobs are ever registered more than once (`src/scheduling/scheduled-jobs.check.ts`).
+- Safety fixes: brand expiry changes a row only if still APPROVED (no repeat SMS even with two
+  servers); autoReleaseEscrow sends emails only when it really released the money.
+
+## 11. DailyBatchesModule is never loaded — its 3 timed jobs and its API never run (found 2026-10-10)
+
+- `src/daily-batches/daily-batches.module.ts` is not imported by `AppModule` or any other module, on
+  live (`4d692ee`) or ever in `app.module.ts`'s history.
+- So these never run on live: `autoReleaseEscrow` (escrow release for delivered, unconfirmed orders),
+  `checkStaleEscrow` (admin alert), `autoCutoffCheck` (daily batch cut-off). Escrow is still released
+  by `OrdersService.autoConfirmDeliveredOrders` and `ShippingService.autoCompleteDelivered`, which do run.
+- The `DailyBatchesController` endpoints are not served either (requests to them return 404).
+- **Not changed.** Loading the module is a product decision: it would START an extra escrow-release job
+  and the daily-batch API. Decide first whether daily batches are still wanted.
+## 12. Whole backend suite: 28 old test files fail (found 2026-10-10)
+
+Running ALL backend tests (`npx jest`) on commit 9b564a4, before the scheduler fix: 28 test files /
+98 tests fail; exactly the same 28 / 98 fail with the scheduler and safety fixes (they only add 10
+passing tests). Sections 4 and 7 list 9 of them; the other 19 are not analysed yet:
+- `src/business/`: b5b-closure-postgres-regression-proof, b5c-profile-business-workspace-integrity,
+  b6b-service-business-authority, b6d-p0-service-public-identity,
+  b7c-capability-verification-and-superagent-city, i2-legacy-business-transition,
+  i2-selling-identity-invariant, i2c-canonical-business-capability-activation,
+  i2e-canonical-business-write-authority, i2f-commerce-scope-isolation, seller-admin-approval-bridge
+- `src/commerce-profiles/personal-business-identity-integrity`, `src/feed/i2b-public-actor`,
+  `src/location-intelligence/location-intelligence.service`,
+  `src/role-context/i2a-canonical-active-context-identity`, `src/role-context/role-context.service`
+- `src/money-routing/`: i2g-money-routing.real-postgres, order-release.real-postgres,
+  release-writers.real-postgres — **these test the money guards**; they probably need a test-database
+  setting on this PC. Worth getting green before the next money-related change.

@@ -15,7 +15,7 @@ code second. A migration that only adds things is safe to apply before the code;
 A push to that branch can start a deploy. Do not push there until step 6.
 
 1. **Choose a quiet time.** Not during busy counter hours and not near 18:00 (evening reminders).
-2. **Back up the live database** (Render dashboard → the database → Backups, or `pg_dump` with the
+2. **Back up the live database** (Render dashboard → the database → Backups, if your plan has them; or `pg_dump` **version 18** — see "PostgreSQL versions" below — with the
    external connection string). Keep the file until the deploy has been fine for a week.
 3. **See what is pending.** On the live database run:
    `SELECT name FROM typeorm_migrations ORDER BY timestamp DESC LIMIT 10;`
@@ -27,7 +27,8 @@ A push to that branch can start a deploy. Do not push there until step 6.
    `MIGRATION_RUN_CONFIRM=RUN_REAL_MIGRATIONS MIGRATION_RUN_UPTO=<that migration's 13-digit number> node dist/database/run-migrations-direct.js`
    Start the new code against the copy and check: old tracking numbers work, a new parcel works.
    (The PostgreSQL-16 test runner in the developer's scratch folder is for local tests only —
-   live is PostgreSQL 17 and must use the normal runner above.)
+   live is **PostgreSQL 18.6** and must use the normal runner above. The rehearsal copy must also
+   run on PostgreSQL 18 — see "PostgreSQL versions" below.)
 5. **Apply on live, one migration at a time**, oldest first, with the same command and
    `DB_SSL=true`, pointing at the live database. After each one, check directly in the database —
    not through the app. For the waybill migration:
@@ -46,6 +47,26 @@ A push to that branch can start a deploy. Do not push there until step 6.
    That is safe because the migration only added things. Do **not** run a migration's `down()` on
    live unless a developer has checked it first — it can delete data (for the waybill: every
    waybill number already given to customers).
+
+### PostgreSQL versions (live is 18.6) — what it changes
+
+Live runs **PostgreSQL 18.6**. This PC has **PostgreSQL 16**; all local tests so far ran on 16.
+
+- **The new migrations are fine on 18.** `1791600000000` (waybill) and `1791700000000` (reminders)
+  use only long-standing features: PL/pgSQL functions, `gen_random_uuid()` (built in since 13),
+  `md5()`, `CREATE INDEX ... WHERE`, `CHECK` and `UNIQUE` constraints. Nothing in them was removed or
+  changed in 17 or 18. Still, a test on 18 is better than a reasoned guess — see the next points.
+- **Backups need version-18 tools.** `pg_dump` refuses to dump a server newer than itself, so the
+  `pg_dump` 16 on this PC **cannot** back up the live database. Install the PostgreSQL 18 client tools
+  (or full PostgreSQL 18) before deploy day, or use Render's own backups if the plan includes them.
+  (`render.yaml` still says `plan: free` for kentexa-db; Render's free Postgres has no backups —
+  check the real plan in the dashboard.)
+- **The rehearsal copy (step 4) must run on PostgreSQL 18.** A dump from 18 does not reliably load
+  into 16. Install PostgreSQL 18 locally next to 16 (a different port, e.g. 5433) or use a Render copy.
+  Then rehearse with the normal migration runner (no test-only shims needed on 18; pgvector must be
+  installed there too, because live uses it).
+- **psql 16 for read-only queries is OK.** It prints a warning that the server is newer; simple
+  queries such as Q1–Q7 work. Path on this PC: `C:\Program Files\PostgreSQL\16\bin\psql.exe`.
 
 Rules for every future migration:
 - Only add things (tables, nullable columns, indexes, defaults) in the same release as new code.
