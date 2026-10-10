@@ -32,6 +32,7 @@ import api from '../../api/api';
 import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
+import StaleParcelsNotice from '../components/StaleParcelsNotice';
 
 const pendingWalkInRequests = new Map();
 
@@ -1126,6 +1127,11 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           </div>
         )}
 
+        {/* Red notice: received but no dispatch information (separate, never blocks the counter).
+            "Add to shehena" opens the existing shehena screen, unchanged. */}
+        <StaleParcelsNotice onAddToShehena={() => {
+          setActiveTab('pokea'); setPokeaMode('consolidated'); setBulkStep('open'); fetchOpenShipments();
+        }} />
 
 
         {/* ════════════════════════════════════════════════════════════════

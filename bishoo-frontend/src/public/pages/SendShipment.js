@@ -701,13 +701,13 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
             {confirmed.waybillNumber ? (
               <>
                 <div style={{ fontSize: 13, color: GR, marginBottom: 4 }}>
-                  Waybill number: <strong style={{ fontFamily: 'monospace', fontSize: 15, color: DK }}>{formatWaybill(confirmed.waybillNumber)}</strong>
+                  {t('send_shipment.waybill_label')}: <strong style={{ fontFamily: 'monospace', fontSize: 15, color: DK }}>{formatWaybill(confirmed.waybillNumber)}</strong>
                 </div>
                 <div style={{ fontSize: 11, color: GR, marginBottom: 8 }}>
                   {t('send_shipment.tracking_number_label')}: {confirmed.trackingNumber}
                 </div>
                 <div style={{ fontSize: 11, color: GR, marginBottom: 20 }}>
-                  Keep the waybill number. It stays the same from pickup to delivery, and both numbers can be used to track.
+                  {t('send_shipment.waybill_keep_hint')}
                 </div>
               </>
             ) : (

@@ -96,3 +96,27 @@ The live server runs migrations only up to `MIGRATION_RUN_UPTO=1788292800000` at
 - Intercity "Pick up from me": no pickup job is created (KNOWN_FAULTS.md #5) — build-order step 8.
 - Send-form success screen must tell the truth when no pickup job exists — plan given, waiting for yes.
 - Frontend default API address must not be the live site — plan given, waiting for yes.
+
+## 4. Nightly "received but not dispatched" reminder — deploy notes
+
+- Migration `1791700000000-AddDispatchReminders` (two new tables + one index). Apply it with the
+  steps in "How to deploy safely", after `1791600000000` (waybill).
+- If the code goes out before this migration, the counter still works; only the red notice stays
+  hidden and the nightly job logs errors. Still: database first.
+- Settings on Render (optional — these are the defaults):
+  `DISPATCH_REMINDER_STALE_HOURS=6`, `DISPATCH_REMINDER_SMS_TIME=22:00`, `DISPATCH_REMINDER_LATEST_TIME=23:30`.
+- Each office needs `super_agent.phone` filled in, or it gets only the in-app notice
+  (admins see "Hakuna simu ya ofisi" on the Dispatch reminders page).
+- Cost: at most one SMS per office per night, plus one retry if the first fails.
+
+## 5. Change the local PostgreSQL password (the owner will do it later)
+
+The old local password was in the public repository (removed in commit 44e35af, still in Git history).
+The live database is NOT affected (checked: Render's DB_PASSWORD is different).
+1. In psql: `\password postgres` (type the new password twice; it is not shown).
+2. Run the helper script from the 2026-10-10 session (update-local-db-password.ps1). It updates the
+   password line in the 7 local `.env` files (main bishoo-backend, marketplace-basic, 5 worktrees)
+   without printing it, and keeps backups in `C:\Users\BISHOO GROUP\env-backups-before-password-change`.
+   If that script is gone: change `DB_PASSWORD=` by hand in those 7 files.
+3. Update the saved password in pgAdmin, if used.
+4. Check each project still connects, then delete the backup folder.

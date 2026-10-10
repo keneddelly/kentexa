@@ -5532,6 +5532,8 @@
     "pickup_call_transporter": "Tafadhali piga simu {{name}} kupanga uchukuaji: {{phone}}",
     "pickup_call_transporter_no_phone": "Tafadhali wasiliana na {{name}} kupanga uchukuaji. Msafirishaji huyu hana namba ya simu iliyohifadhiwa.",
     "pickup_no_contact": "Safari hii haina ofisi wala namba ya simu iliyohifadhiwa. Tafadhali peleka mzigo kwa msafirishaji mwenyewe, au chagua njia nyingine.",
+    "waybill_label": "Namba ya mzigo (waybill)",
+    "waybill_keep_hint": "Hifadhi namba hii ya mzigo. Haibadiliki tangu mzigo unapochukuliwa hadi unapofikishwa, na namba zote mbili zinaweza kutumika kufuatilia.",
     "no_open_trip": "Wasafirishaji hawa wanahudumia njia hii lakini hawana safari iliyo wazi kwa sasa.",
     "provider_does_not_serve_route": "Msafirishaji huyu hahudumii njia hii. Rudi nyuma kuona wengine wanaoihudumia.",
     "hubs_load_failed": "Imeshindwa kupakia hub za Kentexa. Unaweza kuendelea bila hub, au rudi nyuma ujaribu tena."

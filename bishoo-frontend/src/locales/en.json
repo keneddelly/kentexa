@@ -5602,6 +5602,8 @@
     "pickup_call_transporter": "Please call {{name}} to arrange pickup: {{phone}}",
     "pickup_call_transporter_no_phone": "Please contact {{name}} to arrange pickup. No phone number is saved for this transporter.",
     "pickup_no_contact": "No office or phone number is saved for this trip. Please take the parcel to the transporter yourself, or choose another option.",
+    "waybill_label": "Waybill number",
+    "waybill_keep_hint": "Keep the waybill number. It stays the same from pickup to delivery, and both numbers can be used to track.",
     "no_open_trip": "These transporters cover this route but have no open trip to book right now.",
     "provider_does_not_serve_route": "This transporter does not serve this route. Go back to see others that do.",
     "hubs_load_failed": "Could not load Kentexa hubs. You can continue without one, or go back and try again."

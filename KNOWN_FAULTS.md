@@ -93,14 +93,14 @@ Together with section 4: 9 failing suites, 55 failing tests in transport/shipmen
 `bishoo-frontend/src/navigation/navigationRegistry.test.js`: 4 tests fail with and without step 2.
 Not analysed yet.
 
-## 9. Existing timed jobs set no time zone, so 8 am jobs probably run at 11:00 Tanzania time
+## 9. Existing timed jobs set no time zone, so 8 am jobs run at 11:00 Tanzania time (confirmed)
 
 Found 2026-10-10. No `@Cron(...)` in the code passes a `timeZone`, and `render.yaml` sets no `TZ`.
-Render servers run on UTC unless `TZ` is set in the dashboard (please check). Tanzania is UTC+3,
+**Confirmed 2026-10-10: Render has NO `TZ` setting; the live server runs on UTC.** Tanzania is UTC+3,
 so a job written for "8 am" runs at 11:00 Tanzania time, "midnight" at 03:00, "2 am" at 05:00.
 **Not changed now** — changing the time of money/escrow jobs needs its own decision.
 
-| Job (file) | Schedule in code | Real time in Tanzania (if server is UTC) | What it does |
+| Job (file) | Schedule in code | Real time in Tanzania (server is UTC, confirmed) | What it does |
 |---|---|---|---|
 | `checkStaleEscrow` (`daily-batches.service.ts:1150`) | `0 8 * * *` | 11:00 | Flags escrow payments that should have been released, logs for the operator |
 | `autoReleaseEscrow` (`daily-batches.service.ts:1270`) | `0 8 * * *` | 11:00 | Releases escrow to the seller when a delivered order was never confirmed by the buyer (3 days local, 5 days intercity) |
@@ -115,3 +115,22 @@ so a job written for "8 am" runs at 11:00 Tanzania time, "midnight" at 03:00, "2
 | `extendScheduleHorizons` (`transport-run.service.ts:373`) | minute 15 of every hour | not affected | Creates future transport trips from recurring schedules |
 
 The new evening-reminder job (item 5) will set `timeZone: 'Africa/Dar_es_Salaam'` itself.
+
+## 10. Every timed job probably runs THREE times at once (found 2026-10-10) — important
+
+Seen in the local test of the new nightly reminder: each 5-minute tick wrote its log line **three
+times in the same second** (19:35, 19:40, 19:45). The scheduler is set up three times:
+`ScheduleModule.forRoot()` in `src/app.module.ts:73`, `src/invoices/invoices.module.ts:20` and
+`src/orders/orders.module.ts:71` (@nestjs/schedule 6.1.3). Three set-ups = three copies of every
+`@Cron` job (see section 9 for the list).
+
+Proven for the new reminder job (log lines). For the older jobs the cause is the same, but each
+one should be checked before changing anything. Why it matters:
+- `retryDue` (money routing, every minute) — three copies retry the same money entries at the
+  same moment. If a retry is not fully idempotent, money could be routed twice. **Check first.**
+- `autoReleaseEscrow`, `autoConfirmDeliveredOrders`, `checkStaleEscrow` — three copies at 11:00.
+- `expireInvoices`, `expireOffers`, `extendScheduleHorizons` — likely harmless (status flips / locked).
+
+The new nightly reminder is safe against this: one database row per office per day, and the single
+retry only on a later tick. **Not changed now.** Likely fix (needs its own yes and a test): keep
+`ScheduleModule.forRoot()` only in `app.module.ts` and remove it from the invoices and orders modules.

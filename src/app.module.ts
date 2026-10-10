@@ -49,6 +49,7 @@ import { ServiceProvidersModule } from './service-providers/service-providers.mo
 import { EarlyAccessModule } from './early-access/early-access.module';
 import { SearchModule } from './search/search.module';
 import { ShipmentsModule } from './shipments/shipments.module';
+import { DispatchRemindersModule } from './dispatch-reminders/dispatch-reminders.module';
 import { BrandsModule } from './brands/brands.module';
 import { WarrantyModule } from './warranty/warranty.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
@@ -131,6 +132,7 @@ export const allowDevelopmentSchemaSync =
     EarlyAccessModule,
     SearchModule,
     ShipmentsModule,
+    DispatchRemindersModule,
     AuditLogModule,
     ActivityModule,
     AdminIntelligenceModule,
