@@ -177,3 +177,28 @@ passing tests). Sections 4 and 7 list 9 of them; the other 19 are not analysed y
 - `src/money-routing/`: i2g-money-routing.real-postgres, order-release.real-postgres,
   release-writers.real-postgres — **these test the money guards**; they probably need a test-database
   setting on this PC. Worth getting green before the next money-related change.
+
+## 13. LIVE OUTAGE since 2026-10-08: five migrations never applied (confirmed on live 2026-10-11)
+
+- Live database: newest recorded migration `1788292800000`; 1791504000000, 1791507600000,
+  1791511200000, 1791514800000, 1791514900000 are NOT applied (owner's read-only check).
+- Live code `4d692ee` (server started 2026-10-08T15:31:06Z per /version) expects them.
+- Owner's public check: `GET https://api.kentexa.com/shipments/track/KTX-SHP-999999` answers with a
+  server error (5xx) instead of 404 "Shipment not found".
+- Reproduced locally (live code on a database with exactly live's structure): send form, My Shipments,
+  KTX-SHP tracking, counter single dispatch, recipient pickup at office (code/confirm/COD), agent
+  delivery (code/confirm/COD), transport assignment and walk-in claim all fail; walk-in receive,
+  receipts, shehena work. Applying the five fixes every one of them.
+- Fix: Release A (RELEASE_A_CHECKLIST.md) — apply the five with the current code; no deploy needed.
+
+## 14. "Mizigo Yangu" (My Shipments) sends a logged-in user to the homepage (live, 2026-10-11)
+
+- Seen on live by the owner: tapping "Mizigo yangu" opens the homepage and calls no API.
+- Cause (code, same on live 4d692ee and on marketplace-basic): the page exists (`App.js`, case
+  'MyShipments') and the profile row navigates to it (`MyProfile.js:829`), but `'MyShipments'` is
+  **missing from the destination list** `bishoo-frontend/src/navigation/destinationRegistry.js`.
+  `navigationPolicy.js:8` sends every unknown destination to the role's home page.
+- Same path from the send form's success screen ("My Shipments" button, `SendShipment.js`).
+- Likely one-line fix: add 'MyShipments' to the account pages in destinationRegistry.js (and a test).
+  Not done — needs its own yes. Note: even with that fix, My Shipments stays broken on live until
+  Release A (#13), because the API behind it fails too.
