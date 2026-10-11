@@ -214,6 +214,18 @@ export class SuperAgentsController {
     return this.service.createOfflineIntercityOrder(req.user, dto, roleContext);
   }
 
+  // Re-open the saved walk-in receipt (read-only; print again from the desk).
+  @UseGuards(JwtAuthGuard, RoleContextGuard, RolesGuard)
+  @Roles(UserRole.SUPER_AGENT, UserRole.ADMIN)
+  @Get('parcels/:trackingNumber/receipt')
+  getParcelReceipt(
+    @Request() req,
+    @Param('trackingNumber') tn: string,
+    @CurrentRoleContext() roleContext: RoleContext,
+  ) {
+    return this.service.getParcelReceipt(req.user, tn, roleContext);
+  }
+
   // Resend the sender's payment-received SMS — never invalidates the
   // underlying payment/receipt, just retries the notification.
   @UseGuards(JwtAuthGuard, RolesGuard)

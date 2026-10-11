@@ -2101,6 +2101,31 @@ export class SuperAgentsService {
     }
   }
 
+  // Re-open a walk-in receipt after the desk screen was closed or reloaded.
+  // Read-only: returns the snapshot saved at intake, never creates a parcel,
+  // invoice or charge. The claim secret was never in the snapshot, so it
+  // cannot leak here. Only the hub that registered the parcel (or an admin).
+  async getParcelReceipt(
+    user: User,
+    trackingNumber: string,
+    roleContext?: RoleContext,
+  ) {
+    const parcel = await this.parcelRepo.findOne({
+      where: { trackingNumber },
+      relations: { order: true, superAgent: true },
+    });
+    if (!parcel) throw new NotFoundException('Parcel not found');
+    await this.assertOwnsParcel(user, parcel, roleContext);
+    const snapshot = parcel.order?.offlineReceiptSnapshot as Record<string, any> | null | undefined;
+    if (!snapshot) {
+      throw new NotFoundException(
+        'Hakuna risiti ya kaunta kwa kifurushi hiki (si mzigo wa walk-in).',
+      );
+    }
+    const { shipmentClaim: _never, ...receipt } = snapshot;
+    return { ...receipt, waybillNumber: parcel.waybillNumber ?? null, reopened: true };
+  }
+
   // "SMS failure must never invalidate a successful transaction... allow
   // retry" — these two re-run the exact same message a second (or third)
   // time without touching parcel status or re-charging/re-counting

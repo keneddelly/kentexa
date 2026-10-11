@@ -239,7 +239,7 @@ Line numbers are from the LIVE code `4d692ee`, file
   request returns the saved receipt instead of a new parcel).
 - **Not recoverable later:** the walk-in *claim* code (secret) is stored only as a fingerprint, so it
   can never be shown again — by design. Only the receipt itself can be re-shown.
-- **Fix plan:** NEXT_STEPS.md section 10. Status: not fixed.
+- **Fixed on marketplace-basic 2026-10-11** (NEXT_STEPS.md section 10), browser-tested locally; goes live with Release B.
 
 ## 16. Delivery method at walk-in intake is not automatic
 
@@ -270,7 +270,22 @@ List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new en
 - **How the office reaches it today:** only by tapping a button called "Sasisha" (atHub list, 1209; in-transit list, 2223)
   or "Sasisha Hali" (⏳ ZINASUBIRI MTEJA list, 1241). Nothing says "hand over". Opening the sheet
   with "✅ Pokea" (incoming list, 1225) shows it only after the parcel was received.
-- **Fix plan:** NEXT_STEPS.md section 10. Status: not fixed.
+- **Fixed on marketplace-basic 2026-10-11** (NEXT_STEPS.md section 10), browser-tested locally; goes live with Release B.
+
+## 20. Walk-in customers cannot claim online; the claim code is never shown or printed
+
+- Found 2026-10-11 while building the receipt reopen (#15).
+- The backend makes a claim code for every walk-in (`issueWalkInClaimReceipt`,
+  `super-agents.service.ts` ~866-878, only when `SHIPMENT_CLAIM_HMAC_KEY` is set — it is on live since
+  2026-10-11) and returns it ONCE in the intake answer (`shipmentClaim.receiptSecret`).
+- The counter screen (`SuperAgentDashboard.js`) never shows it, and the printed receipt
+  (`handlePrintReceipt(walkResult.receipt)`) does not contain it. It is stored only as a fingerprint,
+  so it can never be shown later.
+- Mizigo Yangu asks the customer for "Msimbo uliochapishwa kwenye risiti" (`MyShipments.js:81`),
+  which the customer never received. So no walk-in customer can claim their parcel online today.
+- **Not in Release B (owner's decision 2026-10-11).** The receipt screen and the 🧾 Risiti window say
+  "Namba ya siri ya mteja ya kudai mzigo haiwezi kuonyeshwa tena." Plan for Release C: NEXT_STEPS.md
+  section 15.
 
 ---
 
@@ -286,5 +301,6 @@ List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new en
 | 28 old failing backend test files; 3 test money guards | #12 | get the 3 green before next money change |
 | Local PostgreSQL password public in Git history | NEXT_STEPS 5 | owner, later |
 | Same-city Direct Delivery takes its price from the first agent | #1 | later |
-| Lost receipt | #15 | NEXT_STEPS 10 |
+| Lost receipt | #15 | fixed on marketplace-basic, goes live with Release B |
+| Walk-in customers cannot claim online (claim code never shown) | #20 | Release C, NEXT_STEPS 15 |
 | Desk faults: delivery method, wakala wa mtaa, van name, hidden handover | #16-#19 | NEXT_STEPS 9, 10 |

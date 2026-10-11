@@ -33,6 +33,10 @@ import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
 import StaleParcelsNotice from '../components/StaleParcelsNotice';
+import {
+  CLAIM_CODE_NOTE, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
+  canHandOverToRecipient, canReopenReceipt, historiaMatches,
+} from '../../utils/counterReceipt';
 
 const pendingWalkInRequests = new Map();
 
@@ -176,6 +180,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [activeTab, setActiveTab]       = useState('pokea');
   const [historiaSearch, setHistoriaSearch] = useState('');
   const [historyModal, setHistoryModal] = useState(null); // { trackingNumber, loading, data, error }
+  const [receiptModal, setReceiptModal] = useState(null); // { trackingNumber, loading, data, error }
   const [resendLoading, setResendLoading] = useState(''); // 'sender' | 'receiver' | ''
   const [resendMsg, setResendMsg] = useState('');
   const [error, setError]               = useState('');
@@ -513,6 +518,14 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     fetchAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A walk-in receipt stays reachable after a reload or a wrong tap, until
+  // the office presses "Mzigo mpya" (KNOWN_FAULTS #15).
+  useEffect(() => {
+    if (!profile?.id || walkResult) return;
+    const last = loadLastWalkResult(profile.id);
+    if (last) setWalkResult(last);
+  }, [profile?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Parcel grouping ───────────────────────────────────────────────────────
 
   const parcels       = dashData?.parcels || [];
@@ -530,12 +543,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // list at all, only counted toward a bare summary number.
   const historiaList = [...parcels]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .filter(p => {
-      if (!historiaSearch.trim()) return true;
-      const q = historiaSearch.trim().toLowerCase();
-      return [p.trackingNumber, p.senderName, p.recipientName, p.senderPhone, p.buyerPhone]
-        .filter(Boolean).some(v => String(v).toLowerCase().includes(q));
-    });
+    .filter(p => historiaMatches(p, historiaSearch));
 
   // Earnings
   const cashToday     = parcels.filter(p => {
@@ -610,6 +618,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       try { sessionStorage.setItem(storageKey, JSON.stringify({ fingerprint, requestKey })); } catch { /* storage unavailable */ }
       const res = await api.post('/super-agents/offline-intercity', { ...payload, requestKey });
       setWalkResult(res.data);
+      saveLastWalkResult(profile?.id, res.data);
       pendingWalkInRequests.delete(storageKey);
       try { sessionStorage.removeItem(storageKey); } catch { /* storage unavailable */ }
       // Refresh dashboard data in the background so the new parcel shows up
@@ -625,7 +634,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     setWalkForm({ senderName: '', senderPhone: '', recipientName: '', recipientPhone: '',
       destinationCity: '', deliveryAddress: '', description: '',
       weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
-    setWalkRoute(null); setWalkResult(null);
+    setWalkRoute(null); setWalkResult(null); clearLastWalkResult(profile?.id);
     setWalkHubs([]); setWalkDestinationHubId(''); setWalkServicePath('local_agent');
     setPokeaMode('list'); fetchAll();
   };
@@ -784,13 +793,31 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
     }
   };
 
-  const handleResendSms = async (which) => {
-    if (!historyModal?.trackingNumber) return;
+  // Handover to the recipient as its own row button (KNOWN_FAULTS #19). Opens
+  // the status sheet, whose first block is the pickup-code handover.
+  const handoverAction = { label: '🤝 Kabidhi kwa mpokeaji', color: '#16a34a',
+    fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } };
+
+  // Re-open a saved walk-in receipt. Read-only: never creates or charges.
+  const openReceipt = async (trackingNumber) => {
+    setReceiptModal({ trackingNumber, loading: true, data: null, error: '' });
+    setResendMsg('');
+    try {
+      const res = await api.get(`/super-agents/parcels/${encodeURIComponent(trackingNumber)}/receipt`);
+      setReceiptModal({ trackingNumber, loading: false, data: res.data, error: '' });
+    } catch (err) {
+      setReceiptModal({ trackingNumber, loading: false, data: null,
+        error: err?.response?.data?.message || 'Imeshindwa kupata risiti' });
+    }
+  };
+
+  const handleResendSms = async (which, trackingNumber = historyModal?.trackingNumber) => {
+    if (!trackingNumber) return;
     try {
       setResendLoading(which);
       setResendMsg('');
       const path = which === 'sender' ? 'resend-sender-sms' : 'resend-receiver-sms';
-      const res = await api.post(`/super-agents/parcels/${historyModal.trackingNumber}/${path}`);
+      const res = await api.post(`/super-agents/parcels/${trackingNumber}/${path}`);
       const sent = which === 'sender' ? res.data?.senderSmsSent : res.data?.receiverSmsSent;
       setResendMsg(sent ? '✅ SMS imetumwa upya' : '⚠️ SMS haikuweza kutumwa');
     } catch (err) {
@@ -1142,6 +1169,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             {/* Sub-mode selector */}
             {pokeaMode === 'list' && (
               <>
+                {/* The last walk-in receipt is kept until "Mzigo mpya" — one tap back to it. */}
+                {walkResult && (
+                  <button onClick={() => setPokeaMode('walk_in')}
+                    style={{ width: '100%', marginBottom: 14, padding: '12px 14px', borderRadius: 12,
+                      border: '2px solid #1d4ed8', backgroundColor: '#eff6ff', color: '#1d4ed8',
+                      cursor: 'pointer', fontSize: 13, fontWeight: 800, textAlign: 'left' }}>
+                    🧾 Risiti ya mwisho: <span style={{ fontFamily: 'monospace' }}>{walkResult.trackingNumber}</span> — Fungua
+                  </button>
+                )}
+
                 {/* Gate 5: booked Shipments this hub is waiting to receive. */}
                 <HubExpectedShipments onReceived={fetchAll} />
 
@@ -1230,6 +1267,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       <PCard key={p.trackingNumber} p={p} actions={[
                         { label: '✅ Pokea', color: '#7c3aed',
                           fn: (parcel) => { setStatusParcel(parcel); setNewStatus('received_at_hub'); setPickupCode(''); setCodBalanceAmount(''); } },
+                        ...(canHandOverToRecipient(p) ? [handoverAction] : []),
                       ]} />
                     ))}
                   </>
@@ -1244,6 +1282,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </div>
                     {awaitingBuyer.map(p => (
                       <PCard key={p.trackingNumber} p={p} actions={[
+                        ...(canHandOverToRecipient(p) ? [handoverAction] : []),
                         { label: 'Sasisha Hali', color: '#7c3aed',
                           fn: (parcel) => { setStatusParcel(parcel); setNewStatus(''); setPickupCode(''); setCodBalanceAmount(''); } },
                       ]} />
@@ -1269,9 +1308,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>
                     👤 Mteja wa Walk-In
                   </div>
-                  <button onClick={() => setPokeaMode('list')}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 20, color: '#64748b' }}>×</button>
+                  {/* On the receipt screen the only way out is "Mzigo mpya". */}
+                  {!walkResult && (
+                    <button onClick={() => setPokeaMode('list')}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 20, color: '#64748b' }}>×</button>
+                  )}
                 </div>
 
                 {!walkResult ? (
@@ -1486,9 +1528,17 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       color: '#1d4ed8', marginBottom: 6 }}>
                       {walkResult.trackingNumber}
                     </div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
-                      SMS imetumwa kwa mpokeaji
-                    </div>
+                    {/* The walk-in SMS goes to the SENDER (payment received), never to the recipient. */}
+                    {walkResult.senderSmsSent === true && (
+                      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
+                        SMS ya malipo imetumwa kwa mtumaji
+                      </div>
+                    )}
+                    {walkResult.senderSmsSent === false && (
+                      <div style={{ fontSize: 12, color: '#b45309', marginBottom: 8 }}>
+                        ⚠️ SMS kwa mtumaji haikutumwa — tuma tena: 🕘 Historia → 🧾 Risiti → 📲 SMS tena
+                      </div>
+                    )}
                     {walkResult.billing && (
                       <div style={{ fontSize: 12, color: walkResult.billing.isFreeOrder ? '#16a34a' : '#64748b',
                         marginBottom: 20 }}>
@@ -1497,21 +1547,28 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           : `Ada ya Kentexa TZS ${Number(walkResult.billing.platformFeeCharged).toLocaleString()} imeongezwa kwenye deni lako`}
                       </div>
                     )}
-                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                    {/* Wraps to two rows on a narrow phone instead of squeezing the labels. */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
                       {walkResult.receipt && (
                         <button onClick={() => handlePrintReceipt(walkResult.receipt)}
-                          style={{ backgroundColor: '#fff', color: '#1d4ed8',
-                            border: '2px solid #1d4ed8', padding: '12px 20px', borderRadius: 10,
-                            cursor: 'pointer', fontSize: 14, fontWeight: 800 }}>
+                          style={{ flex: '1 1 150px', backgroundColor: '#fff', color: '#1d4ed8',
+                            border: '2px solid #1d4ed8', padding: '12px 16px', borderRadius: 10,
+                            cursor: 'pointer', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' }}>
                           🖨️ Chapisha Risiti
                         </button>
                       )}
                       <button onClick={resetWalk}
-                        style={{ backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
-                          padding: '12px 24px', borderRadius: 10, cursor: 'pointer',
-                          fontSize: 14, fontWeight: 800 }}>
-                        + Mteja Mwingine
+                        style={{ flex: '1 1 150px', backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
+                          padding: '12px 16px', borderRadius: 10, cursor: 'pointer',
+                          fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' }}>
+                        + Mzigo mpya
                       </button>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 14 }}>
+                      ⚠️ {CLAIM_CODE_NOTE}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                      Risiti hii inapatikana tena kwenye 🕘 Historia → 🧾 Risiti.
                     </div>
                   </div>
                 )}
@@ -2266,6 +2323,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
             ) : (
               historiaList.map(p => (
                 <PCard key={p.trackingNumber} p={p} actions={[
+                  ...(canReopenReceipt(p) ? [{ label: '🧾 Risiti', color: '#1d4ed8',
+                    fn: (parcel) => openReceipt(parcel.trackingNumber) }] : []),
                   { label: '🕘 Historia Kamili', color: '#7c3aed',
                     fn: (parcel) => openParcelHistory(parcel.trackingNumber) },
                 ]} />
@@ -2578,6 +2637,84 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
           </div>
         )}
       </div>
+      {/* ── Receipt window — re-open, print again, SMS again (never a new parcel or charge) ── */}
+      {receiptModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+          <div style={{ backgroundColor: '#fff', borderRadius: '20px 20px 0 0',
+            padding: 24, width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', marginBottom: 4 }}>
+              <div style={{ fontSize: 15, fontWeight: 900, color: '#1e293b' }}>🧾 Risiti</div>
+              <button onClick={() => setReceiptModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 20, color: '#64748b' }}>×</button>
+            </div>
+            <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8', marginBottom: 14 }}>
+              {receiptModal.trackingNumber}
+              {receiptModal.data?.waybillNumber ? ` · ${receiptModal.data.waybillNumber}` : ''}
+            </div>
+
+            {receiptModal.loading && (
+              <div style={{ textAlign: 'center', padding: 20, color: '#94a3b8' }}>⏳ Inapakia...</div>
+            )}
+            {receiptModal.error && (
+              <div style={{ backgroundColor: '#fef2f2', color: '#b91c1c', borderRadius: 8,
+                padding: 12, fontSize: 12, marginBottom: 14 }}>{receiptModal.error}</div>
+            )}
+            {receiptModal.data?.receipt && (
+              <>
+                <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 12, marginBottom: 14 }}>
+                  {[
+                    ['Namba ya risiti', receiptModal.data.receipt.receiptNumber],
+                    ['Mtumaji', [receiptModal.data.receipt.senderName, receiptModal.data.receipt.senderPhone].filter(Boolean).join(' · ')],
+                    ['Mpokeaji', [receiptModal.data.receipt.receiverName, receiptModal.data.receipt.receiverPhone].filter(Boolean).join(' · ')],
+                    ['Njia', [receiptModal.data.originCity, receiptModal.data.destinationCity].filter(Boolean).join(' → ')],
+                    ['Thamani ya mzigo', receiptModal.data.receipt.declaredValue != null ? `TZS ${Number(receiptModal.data.receipt.declaredValue).toLocaleString()}` : null],
+                    ['Kiasi kilicholipwa', receiptModal.data.receipt.amountPaid != null ? `TZS ${Number(receiptModal.data.receipt.amountPaid).toLocaleString()}` : null],
+                    ['Imelipwa', receiptModal.data.receipt.paidAt ? new Date(receiptModal.data.receipt.paidAt).toLocaleString('sw-TZ') : null],
+                  ].filter(([, v]) => v).map(([l, v]) => (
+                    <div key={l} style={{ display: 'flex', justifyContent: 'space-between',
+                      fontSize: 12, padding: '4px 0' }}>
+                      <span style={{ color: '#64748b' }}>{l}</span>
+                      <span style={{ fontWeight: 700, color: '#1e293b', textAlign: 'right', marginLeft: 10 }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => handlePrintReceipt(receiptModal.data.receipt)}
+                  style={{ width: '100%', backgroundColor: '#1d4ed8', color: '#fff', border: 'none',
+                    padding: 12, borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 800,
+                    marginBottom: 10 }}>
+                  🖨️ Chapisha tena
+                </button>
+              </>
+            )}
+            {!receiptModal.loading && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <button onClick={() => handleResendSms('sender', receiptModal.trackingNumber)} disabled={resendLoading !== ''}
+                  style={{ flex: 1, backgroundColor: '#eff6ff', color: '#1d4ed8', border: 'none',
+                    padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
+                    fontSize: 11.5, fontWeight: 700 }}>
+                  {resendLoading === 'sender' ? '⏳...' : '📲 SMS tena — Mtumaji'}
+                </button>
+                <button onClick={() => handleResendSms('receiver', receiptModal.trackingNumber)} disabled={resendLoading !== ''}
+                  style={{ flex: 1, backgroundColor: '#f0fdf4', color: '#16a34a', border: 'none',
+                    padding: '9px 10px', borderRadius: 8, cursor: resendLoading ? 'not-allowed' : 'pointer',
+                    fontSize: 11.5, fontWeight: 700 }}>
+                  {resendLoading === 'receiver' ? '⏳...' : '📲 SMS tena — Mpokeaji'}
+                </button>
+              </div>
+            )}
+            {resendMsg && (
+              <div style={{ fontSize: 12, marginBottom: 10, color: resendMsg.startsWith('✅') ? '#16a34a' : '#b91c1c' }}>
+                {resendMsg}
+              </div>
+            )}
+            <div style={{ fontSize: 11, color: '#64748b' }}>⚠️ {CLAIM_CODE_NOTE}</div>
+          </div>
+        </div>
+      )}
+
       {/* ── Parcel history modal — full tracking timeline + all details ────── */}
       {historyModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)',
