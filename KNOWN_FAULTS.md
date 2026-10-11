@@ -180,6 +180,11 @@ passing tests). Sections 4 and 7 list 9 of them; the other 19 are not analysed y
 
 ## 13. LIVE OUTAGE since 2026-10-08: five migrations never applied — FIXED 2026-10-11 12:26 (Release A, see NEXT_STEPS.md)
 
+Confirmed by the owner on live after Release A: tracking an unknown number gives 404; single-parcel
+dispatch works at the counter. Not yet tested: recipient pickup with a code (needs a receiving office
+with an arrived parcel).
+
+
 - Live database: newest recorded migration `1788292800000`; 1791504000000, 1791507600000,
   1791511200000, 1791514800000, 1791514900000 are NOT applied (owner's read-only check).
 - Live code `4d692ee` (server started 2026-10-08T15:31:06Z per /version) expects them.
@@ -202,3 +207,84 @@ passing tests). Sections 4 and 7 list 9 of them; the other 19 are not analysed y
 - Likely one-line fix: add 'MyShipments' to the account pages in destinationRegistry.js (and a test).
   Not done — needs its own yes. Note: even with that fix, My Shipments stays broken on live until
   Release A (#13), because the API behind it fails too.
+- **Update 2026-10-11:** FIXED on marketplace-basic (commit aa515ec), not yet live — goes out with
+  Release B. The API behind it works on live since Release A.
+
+---
+
+# Faults found at the Super Agent desk on live, 2026-10-11
+
+Line numbers are from the LIVE code `4d692ee`, file
+`bishoo-frontend/src/public/pages/SuperAgentDashboard.js` unless another file is named.
+(On marketplace-basic the same lines are about 6 lower in the file, after line 1126.)
+
+## 15. IMPORTANT — a walk-in receipt can be lost and cannot be opened again
+
+- **What the owner saw:** after creating a walk-in receipt, one wrong tap and the receipt is gone;
+  the customer leaves with no receipt.
+- **Where the receipt screen is built:** lines 1475-1510 (shown when `walkResult` is set; "🖨️ Chapisha
+  Risiti" at 1500, "+ Mteja Mwingine" at 1507). Print window: `handlePrintReceipt`, line 641.
+- **Why it is lost:** the receipt lives ONLY in the page's memory (`walkResult`, set at line 611).
+  - "+ Mteja Mwingine" (1507) calls `resetWalk` (623-630), which wipes it on purpose.
+  - The × at the top of the form (1266) and the tab buttons (1096) leave the walk-in screen.
+  - A page reload or a closed browser loses it too.
+  - There is **no way back**: the backend DOES keep a copy of every walk-in receipt
+    (`order.offlineReceiptSnapshot`, written in `src/super-agents/super-agents.service.ts:914`), but
+    no endpoint returns it, and no Historia or search row has a "receipt" button. Historia rows have only
+    "🕘 Historia Kamili" (2261-2265). The "send SMS again" buttons exist (endpoints
+    `resend-sender-sms` / `resend-receiver-sms`, controller lines 221/233) but are hidden inside the
+    "Historia Kamili" window (2623/2629).
+- **Safe against a second parcel/charge today?** Yes for re-sending SMS (it only sends). Creating the
+  same walk-in twice by a double tap is already guarded (`requestKey`, service lines 650-660: the same
+  request returns the saved receipt instead of a new parcel).
+- **Not recoverable later:** the walk-in *claim* code (secret) is stored only as a fingerprint, so it
+  can never be shown again — by design. Only the receipt itself can be re-shown.
+- **Fix plan:** NEXT_STEPS.md section 10. Status: not fixed.
+
+## 16. Delivery method at walk-in intake is not automatic
+
+Dar → Katavi shows three choices (agent delivery, "KenteXa van", intercity) and defaults to agent
+delivery (line 276); such a parcel is saved with NO receiving office. Details and fix: NEXT_STEPS.md
+section 9, "Fault 1". Status: not fixed.
+
+## 17. "Wakala wa mtaa" offered when sending an intercity parcel
+
+In the 📤 Tuma panel (2001-2015) it lists the ORIGIN city's agents and marks the parcel dispatched
+with no bus/courier at all; the backend checks nothing (service 1790-1886). Details and fix:
+NEXT_STEPS.md section 9, "Fault 2". Status: not fixed.
+
+## 18. "KenteXa van" label — KenteXa owns no vans
+
+Hard-coded on the desk (line 1349), the seller dashboard, en/sw/fr language files and two backend
+texts. Must show the van business's own name, or hide the van choice where none serves the city.
+List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new endpoint).
+
+## 19. Handover to the recipient is hidden inside "Sasisha" (status update)
+
+- **Where:** the handover (send pickup code, type the 6-digit code, "✅ Nimekabidhi kwa mpokeaji")
+  is inside the status-update sheet, lines 2679-2708. Agent handover ("Toa namba ya makabidhiano")
+  2710-2720.
+- **What decides it today:** the block shows only when the sheet is opened for a parcel with status
+  `arrived_at_hub` or `awaiting_buyer`, `myRole` not `origin`, and the buyer did not ask for door
+  delivery (2679-2681).
+- **How the office reaches it today:** only by tapping a button called "Sasisha" (atHub list, 1209; in-transit list, 2223)
+  or "Sasisha Hali" (⏳ ZINASUBIRI MTEJA list, 1241). Nothing says "hand over". Opening the sheet
+  with "✅ Pokea" (incoming list, 1225) shows it only after the parcel was received.
+- **Fix plan:** NEXT_STEPS.md section 10. Status: not fixed.
+
+---
+
+# Still open — short list (owner's status update, 2026-10-11)
+
+| Fault | Where | Plan |
+|---|---|---|
+| Live server has no TZ; timed jobs run in UTC, 3 hours late | #9 | own decision (money jobs) |
+| Intercity "Pick up from me" creates no pickup job, alerts nobody | #5 | honest message in Release B; real fix build-order step 8 |
+| A pickup can be claimed by an agent with no link to the chosen hub | #2 | step 8 |
+| render.yaml says `plan: free` + linked DB settings; real plan paid, settings typed by hand | NEXT_STEPS 6, 7 | its own day |
+| DailyBatchesModule not loaded on live | #11 | product decision |
+| 28 old failing backend test files; 3 test money guards | #12 | get the 3 green before next money change |
+| Local PostgreSQL password public in Git history | NEXT_STEPS 5 | owner, later |
+| Same-city Direct Delivery takes its price from the first agent | #1 | later |
+| Lost receipt | #15 | NEXT_STEPS 10 |
+| Desk faults: delivery method, wakala wa mtaa, van name, hidden handover | #16-#19 | NEXT_STEPS 9, 10 |

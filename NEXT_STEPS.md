@@ -1,5 +1,27 @@
 # Next steps — not built yet
 
+## Working rules (owner, 2026-10-11)
+
+- Only Claude changes code, and only on `marketplace-basic`. ChatGPT reviews only.
+- No code change, commit, push, deploy or live-database step without the owner's "yes".
+- Every new migration and environment variable is listed in this file. Nothing deploys until the
+  migrations are on live.
+- Claude does the engineering work; the owner's part is the fewest clicks and one line to paste.
+  Claude does not sign in to Render databases.
+- Explain in simple English; give honest advice.
+
+## Status on live — 2026-10-11 (owner)
+
+- Release A done (below). Tracking an unknown number gives 404; single-parcel dispatch works.
+- New database credential made; `DB_USERNAME` and `DB_PASSWORD` updated by hand on bishoo-backend
+  (section 7 — done).
+- `SHIPMENT_CLAIM_HMAC_KEY` added on bishoo-backend (section 8 — done).
+- `/version` still shows `4d692ee`. Backups: export made 2026-10-11 + 3 days of Point-in-Time Recovery.
+  Live database: PostgreSQL 18.6, paid plan.
+- The folder `C:\Users\BISHOO GROUP\release-a` is gone (checked by Claude, 2026-10-11).
+- **Not tested yet:** recipient pickup with a code (needs a receiving office with an arrived parcel).
+- Next: Release B — see `RELEASE_B_CHECKLIST.md`.
+
 ## DONE 2026-10-11 — Release A applied on live
 
 - 12:24–12:26 (Tanzania time): the five migrations 1791504000000, 1791507600000, 1791511200000,
@@ -132,6 +154,9 @@ SELECT "timestamp", name FROM typeorm_migrations ORDER BY "timestamp" DESC LIMIT
    code. Do not run their `down()` without a developer. Last resort: Point-in-Time Recovery (below).
 
 ### Release B — the new code (later, separate day)
+
+**The full, current step list is `RELEASE_B_CHECKLIST.md`** (guarded script, one line to paste).
+The outline below is the first plan, kept for reference.
 
 1. **Rehearse on a Render copy** exactly as in Release A step 1, but run **B1 → B2** (from the
    marketplace-basic folder), then start the new code against the copy with all outgoing messages off
@@ -298,7 +323,7 @@ REACT_APP_API_URL). Anything changed in the dashboard since would be overwritten
 4. On the Blueprint page, review the pending changes, then click **Manual Sync** at a quiet time.
 5. Optional: turn Auto Sync back on.
 
-## 7. Change the live database password (credential rotation) — owner, on Render
+## 7. Change the live database password (credential rotation) — owner, on Render — DONE 2026-10-11
 
 **Why manual:** on bishoo-backend, `DB_PASSWORD` (and `DB_USERNAME`) are **typed by hand** in the
 Environment tab, not linked to the database (render.yaml says `fromDatabase`, the dashboard does
@@ -329,7 +354,7 @@ never leaves the app without a working password. Only bishoo-backend uses these 
 8. Later, when render.yaml is corrected (section 6): decide whether DB_* should become `fromDatabase`
    again. If yes, a Blueprint sync will set them to the default credential's values.
 
-## 8. SHIPMENT_CLAIM_HMAC_KEY (walk-in claim receipts) — check, owner
+## 8. SHIPMENT_CLAIM_HMAC_KEY (walk-in claim receipts) — check, owner — DONE 2026-10-11 (added)
 
 - Used by walk-in claim receipts (`super-agents.service.ts:866`, `shipment-claim-crypto.ts:17`).
   It must be at least 32 characters. If it is missing, walk-in receive still works but no claim
@@ -342,3 +367,195 @@ never leaves the app without a working password. Only bishoo-backend uses these 
   Add it as `SHIPMENT_CLAIM_HMAC_KEY` (paste), save, wait for Live, then clear the clipboard:
   `Set-Clipboard -Value ' '` (and remove it from Windows clipboard history, Win+V, if that is on).
   Keep a copy only in a password manager.
+## 9. Super Agent dashboard redesign — desk faults found on live 2026-10-11 (PLAN ONLY)
+
+Line numbers below are from the LIVE code `4d692ee`
+(`bishoo-frontend/src/public/pages/SuperAgentDashboard.js`, `src/super-agents/super-agents.service.ts`).
+
+### Fault 1 — delivery method at walk-in intake is not automatic
+- **Where:** SuperAgentDashboard.js:1342-1353 ("Mzigo ufikeje?"): three buttons — 🏍️ Agent delivery
+  (`local_agent`), 🚐 Kentexa Van (`van`), 🚌 Intercity / Courier (`intercity`). They are ALWAYS shown;
+  nothing compares origin and destination. Default is `local_agent` (line 276), reset to it after
+  each parcel (line 628).
+- **Backend:** super-agents.service.ts:644-645 accepts any of the three; it never checks it against
+  the cities. With `local_agent` it sets NO destination office (lines 732-735).
+- **Consequence:** a Dar → Katavi parcel left on the default is saved as "agent delivery" with no
+  receiving office in Katavi — nobody there is told it is coming.
+- **Wanted:** destination in another region → intercity chosen automatically; same region → only the
+  local choices (agent, van); the office can still override by hand.
+- **Smallest safe fix (frontend only, small):** when the destination place is picked (it already gives
+  `regionName`, line ~1320), compare it with the office's region (`profile.city`, offices register a
+  region): different → set `intercity` and show the local buttons only under "Badilisha kwa mkono";
+  same → default `local_agent`, intercity only under the override. No backend change, so nothing
+  that works today is refused. Optional later: the backend warns (does not refuse) on a mismatch.
+- **What could break:** a wrong match if a city/region name is spelled differently (e.g. "Dar" vs
+  "Dar es Salaam"); the override covers that. Test: unit test of the decision helper (same region,
+  other region, unknown destination), plus local click-through: Dar→Katavi shows intercity selected;
+  Dar→Dar shows agent/van only.
+
+### Fault 2 — "Wakala wa Mtaa" offered when sending an intercity parcel
+- **Where:** SuperAgentDashboard.js:2001-2015 (mode toggle "🚌 Basi / Courier" | "🏍️ Wakala wa Mtaa")
+  in the 📤 Tuma panel, opened for intercity parcels by the "📤 Tuma" button (lines 2204-2207);
+  agent list at 2139-2170.
+- **Which agents it lists:** `localAgents`, loaded ONCE for the office's OWN city
+  (line 493: `/agents/nearby?region=<office city>`). So for Dar → Katavi it lists **Dar** agents,
+  while the text says "Chagua wakala wa mtaa … katika Katavi" (line 2142-2143) — misleading.
+- **What it means / does:** choosing one sends `localAgentId` (line 818). The backend
+  (super-agents.service.ts:1879-1886) records that agent with NO city check and marks the parcel
+  **DISPATCHED** with the note "Imepewa wakala wa mtaa kwa uwasilishaji" — no bus, no courier.
+  It is not door delivery at the destination, nor a collection point: it hands an intercity parcel
+  to an origin-city agent as if that were the transport.
+- **No agents in that city:** the panel says "Hakuna mawakala walioidhinishwa katika Katavi", but the
+  "📤 Tuma Sasa" button still works: the backend has NO check that any transport detail was given
+  (lines 1790-1878), so the parcel becomes DISPATCHED with only the note "Imetumwa".
+- **Wanted:** offer an agent only when there are agents in the DESTINATION city and only for door
+  delivery there; otherwise not shown — the recipient collects at the office or from a typed contact.
+- **Honest advice:** door delivery at the destination is done by the DESTINATION office when the parcel
+  arrives (it can see its own city's agents). The origin office should not pick it at dispatch. So:
+  record "door delivery wanted" at intake, and let the destination office assign the agent.
+- **Smallest safe fix (small):** in the intercity 📤 Tuma panel, remove the "Wakala wa Mtaa" toggle
+  (keep it for same-city parcels — the "🏍️ Chagua Agent" path, lines 2196-2199, which correctly uses
+  the office's own city). Backend guard (also small): for a parcel whose destination city differs from
+  its origin, refuse `localAgentId`, and require a bus company, courier, or assigned transporter
+  before marking it DISPATCHED.
+- **What could break:** offices that use the agent option today as a workaround (e.g. a boda taking
+  the parcel to the bus stand). Check first, read-only, on live:
+  `SELECT count(*) FROM parcel WHERE status IN ('dispatched','in_transit','arrived_at_hub','delivered')
+     AND lower(trim("originCity")) <> lower(trim("destinationCity")) AND "localAgentId" IS NOT NULL;`
+  Test: unit tests for the backend guard (intercity + agent → refused; intercity + bus → OK; same city
+  + agent → OK); local click-through of both panels.
+
+### "KenteXa van" must become the van business's own name
+The van is run by a transport provider with a local-loop route (van-pilot module); its own name is
+`transport_provider.name`. Places that show "KenteXa Van" today:
+- SuperAgentDashboard.js:1349 (walk-in button "🚐 Kentexa Van", hard-coded).
+- SellerDashboard.js:513 (`seller_dashboard.kentexa_van`).
+- Language files en/sw (fr only `kentexa_van`): `van_title` ("KenteXa Van — Dar es Salaam"),
+  `van_status_title`, `van_today`, `kentexa_van`, `method_van` ("KenteXa Van Delivery"),
+  `van_chosen_note`, `method_name_van_dar` (en.json lines 1394, 3143, 4308, 4337, 4694, 4729, 4756;
+  sw.json 1173, 2922, 4087, 4116, 4473, 4508, 4535).
+- Backend texts shown to sellers/buyers: orders.service.ts:3100 and daily-batches.service.ts:1054
+  ("Van ya KenteXa inakuja … kila siku").
+- Internal only (no change needed): VanToday.js:7 comment, migration 1788287400000 description,
+  super-agent-cash-collection comments.
+- Plan: one small backend endpoint "van operators serving this city" (active local-loop route,
+  verified provider) → show the provider's name; if none, HIDE the van choice (capability-based,
+  as CLAUDE.md asks). Texts take the name as a parameter, e.g. "🚐 {{vanName}}".
+
+### Other places where the desk asks for something the system could work out itself
+1. **Delivery method** — fault 1 above.
+2. **Sender** (lines 1276-1287): name and phone typed every time; no lookup of a returning sender by
+   phone (previous walk-ins or a registered user).
+3. **Price** (line 1432 "Ada Uliyokusanya"): typed by hand although the estimate is already shown
+   (lines 1368-1395, `/pricing/estimate`); it could be pre-filled from the estimate (editable).
+4. **Recipient address asked twice:** the destination place (line ~1338 "Andika eneo la mpokeaji")
+   and again "Anwani ya Mpokeaji *" (line 1418).
+5. **Destination office:** chosen at intake (lines 1355-1364; auto only when there is exactly one),
+   then offered AGAIN in the Tuma panel (`fetchDestinationHubs`, line 2207, form reset to
+   `destinationSuperAgentId: null` at 2206) although the parcel already has one.
+6. **Bus company and ticket** (lines 2034-2043): free text, although "🚌 Panga Usafiri" (2202-2203)
+   already knows registered transporters/runs for the route; dispatch could pre-fill from an
+   accepted assignment.
+7. **Expected arrival date/time** (lines 2126-2135): typed, although the route has `estimatedDays`
+   (intake already computes `expectedArrival`, super-agents.service.ts ~745-748).
+8. **Bus vs courier** (2019-2032): defaults to bus every time, even when a courier/transporter is
+   assigned.
+
+### Before the redesign?
+- **Fault 1 — yes**, small and frontend-only; prevents parcels being saved without a receiving office.
+- **Fault 2 — yes** (hide the toggle for intercity), small; the backend guard is a small second step.
+- "KenteXa van" name, and items 2–8 — leave for the redesign (they need new data/endpoints).
+- **Handover to the recipient (KNOWN_FAULTS #19) — yes**, small and frontend-only; see section 10.
+
+## 10. Receipt can always be opened again + visible handover (PLAN ONLY, KNOWN_FAULTS #15 and #19)
+
+**Wanted (owner):** every parcel can be opened again at any time after creation, from the search box
+(waybill, old number, phone, name) and from Historia, with: show receipt, print again, send the SMS
+again. Re-printing or re-sending never creates a second parcel or a second charge. After creating a
+receipt the screen stays on it until the office leaves with a clear "Mzigo mpya" button.
+
+**Backend (small, read-only, no migration, no new setting):**
+- New `GET /super-agents/parcels/:trackingNumber/receipt` in `super-agents.controller.ts`. The
+  controller already runs `ParcelReferenceInterceptor` (line 38), so a waybill, `KTX-ORD-…` or old
+  number all work.
+- Returns the saved `order.offlineReceiptSnapshot` (already written for every walk-in since before
+  4d692ee, `super-agents.service.ts` ~914). Only for the office that RECEIVED the parcel (its
+  origin office); anyone else gets 403. No snapshot (online orders, seller drop-offs) → 404 with a
+  clear Swahili message. It only reads: it cannot create a parcel, an invoice or a charge.
+- Tests: own office gets the receipt; other office 403; no snapshot 404; lookup by waybill works.
+
+**Frontend (small, `SuperAgentDashboard.js`):**
+1. After a walk-in is created, the result screen stays until **"Mzigo mpya"** (today "+ Mteja
+   Mwingine", line 1507). The × (1266) is not shown on the result screen; switching tabs and coming back
+   shows it again; the last result is kept in the browser's session storage (per office) so a reload
+   brings it back. Only "Mzigo mpya" clears it.
+2. Historia rows (2261-2265) get two more buttons: **🧾 Risiti** (opens the saved receipt, with
+   "🖨️ Chapisha tena" using the existing `handlePrintReceipt`) and **📲 SMS tena** (the existing
+   `resend-sender-sms` / `resend-receiver-sms`, today hidden inside "Historia Kamili"). The Historia
+   search (lines 530-536) also matches the waybill number.
+3. Re-printing and re-sending call only these read/send endpoints, never `offline-intercity`.
+   (A double tap on "create" is already safe: `requestKey`, service 650-660.)
+- Cannot be re-shown: the walk-in claim secret (stored only as a fingerprint, by design).
+
+**Handover (KNOWN_FAULTS #19), frontend only:** parcel rows that are ready for the recipient
+(`arrived_at_hub` / `awaiting_buyer`, this office is not the origin, no door delivery requested — the
+same rule as lines 2679-2681) get their own button **"🤝 Kabidhi kwa mpokeaji"**. It opens the same
+sheet with the handover part on top. The ⏳ ZINASUBIRI MTEJA count already exists (line 1073).
+No backend change: the same `pickup-code` / `confirm-pickup` calls as today.
+
+**Size:** backend ~1 endpoint + 4 tests; frontend ~100 lines + tests; local click-through.
+About half a day to one day. No migration, no environment variable.
+
+## 11. Nightly reminder off-switch (PROPOSAL — needs a yes)
+
+On the first night after Release B, at 22:00, every office with a parcel received 6+ hours ago and
+not dispatched gets one SMS. That is the feature, but there is no way to stop it without a code
+deploy. Proposal: a setting `DISPATCH_REMINDER_ENABLED` (default `true`; `false` = no SMS and no
+red notice, the job only logs "off"). Changing it on Render restarts the app with the same code.
+New environment variable → if built, it is listed here and in RELEASE_B_CHECKLIST.md.
+
+## 12. Business rules decided (owner, 2026-10-11)
+
+- KenteXa owns only technology. No hubs, vans, buses. Holds no money.
+- Super Agents are the main offer. Each sets its own route price and HOW it charges: percent of goods
+  value (often 10%, may be 5%), per kg, minimum charge, or a mix. KenteXa shows the rule and
+  calculates the total for the customer's parcel.
+- Each offer says pickup: no / free / priced, and door delivery: no / free / priced. Admin sets a
+  maximum for pickup and delivery only.
+- The customer books the Super Agent, not a bus trip. The Super Agent picks the bus later, in the shehena.
+- Sender must enter goods value; locked at creation; it is the most paid if the parcel is lost.
+  The last holder is responsible.
+- Kg and size are mainly for matching the right provider and vehicle.
+- One invoice: pickup, transportation, delivery, total. Free is shown as "free". The same numbers on
+  offer, confirmation and invoice.
+- Payment for now: cash to the agent at pickup (the office confirms parcel and money together), or
+  mobile money to the office, confirmed by a phone call and marked paid by the office.
+- Free pickup is mostly done by the Super Agent's own agents.
+- Bus companies must not be shown in a way that hurts the Super Agents who feed them cargo.
+- Super Agents said they would pay for KenteXa. Pricing not decided (per waybill or monthly).
+  **Count waybills per office from now on.**
+- Growth beyond Tanzania later: new records carry a country and a currency, default Tanzania and TZS.
+  Never hard-code them.
+
+## 13. Design decisions — not built yet (owner, 2026-10-11)
+
+1. **Super Agent dashboard: two big buttons, POKEA and TUMA, and one search box.** "Simple door,
+   complex engine."
+   - POKEA: Walk-in; Kutoka KenteXa (orders and shipments are ONE line — the backend knows the
+     difference, the office is never asked); Shehena kutoka ofisi nyingine.
+   - TUMA: Kwa usafiri (mzigo mmoja, shehena); Kwa mpokeaji (handover with code); Kwa wakala wa mtaa.
+   - Menu for the rest: Historia, Mapato, Bei, Van; later Washirika and Ofisi yangu.
+   - Each line shows a count. Each parcel row shows ONE next action.
+   - The system fills in what it already knows: destination office, bus company used last time, price
+     from the office's rule, known sender by phone number (see section 9, "Other places").
+   - Official KenteXa colours from Theme.js. Swahili first. Works on a phone and a slow connection.
+     Never fails silently.
+   - The old layout stays available during a trial.
+2. **Pickup request alert, loud:** screen card with sound and Accept / Cannot; SMS at 2 min; automatic
+   call at 5 min; tell the sender and show the office phone at 10 min. Times are settings. Office
+   working hours respected.
+3. **Partner invitations use no KenteXa SMS.** The Super Agent shares a personal link from their own
+   WhatsApp or SMS. Final only after the Super Agent confirms the person. States: invited, opened,
+   joined, confirmed.
+4. **Longer direction, not now:** one consented Connection between profiles; a directory by capability
+   and place; then an intent record and a server-side coordinator for "send a parcel".
