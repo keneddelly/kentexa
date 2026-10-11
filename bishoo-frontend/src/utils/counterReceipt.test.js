@@ -1,5 +1,5 @@
 import {
-  CLAIM_CODE_NOTE, storableWalkResult, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
+  CLAIM_CODE_NOTE, SHOW_CLAIM_CODE_NOTE, storableWalkResult, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
   walkResultStorageKey, canHandOverToRecipient, canReopenReceipt, historiaMatches,
 } from './counterReceipt';
 
@@ -35,7 +35,8 @@ describe('last walk-in receipt kept in the browser', () => {
     expect(sessionStorage.length).toBe(0);
   });
 
-  test('the claim-code note is Swahili and short', () => {
+  test('the claim-code note is kept for Release C but hidden until then', () => {
+    expect(SHOW_CLAIM_CODE_NOTE).toBe(false);
     expect(CLAIM_CODE_NOTE).toBe('Namba ya siri ya mteja ya kudai mzigo haiwezi kuonyeshwa tena.');
   });
 });

@@ -34,7 +34,7 @@ import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
 import StaleParcelsNotice from '../components/StaleParcelsNotice';
 import {
-  CLAIM_CODE_NOTE, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
+  CLAIM_CODE_NOTE, SHOW_CLAIM_CODE_NOTE, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
   canHandOverToRecipient, canReopenReceipt, historiaMatches,
 } from '../../utils/counterReceipt';
 
@@ -1564,10 +1564,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         + Mzigo mpya
                       </button>
                     </div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 14 }}>
-                      ⚠️ {CLAIM_CODE_NOTE}
-                    </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                    {SHOW_CLAIM_CODE_NOTE && (
+                      <div style={{ fontSize: 11, color: '#64748b', marginTop: 14 }}>
+                        ⚠️ {CLAIM_CODE_NOTE}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 14 }}>
                       Risiti hii inapatikana tena kwenye 🕘 Historia → 🧾 Risiti.
                     </div>
                   </div>
@@ -2710,7 +2712,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 {resendMsg}
               </div>
             )}
-            <div style={{ fontSize: 11, color: '#64748b' }}>⚠️ {CLAIM_CODE_NOTE}</div>
+            {SHOW_CLAIM_CODE_NOTE && <div style={{ fontSize: 11, color: '#64748b' }}>⚠️ {CLAIM_CODE_NOTE}</div>}
           </div>
         </div>
       )}

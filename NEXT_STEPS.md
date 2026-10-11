@@ -10,6 +10,14 @@
   Claude does not sign in to Render databases.
 - Explain in simple English; give honest advice.
 
+## Next after Release B — FIRST step once Release B is stable (owner, 2026-10-11)
+
+**Waybill on the counter receipt and the sender SMS.** The customer must end up with ONE number.
+Today (live, and after Release B) the printed receipt and the sender SMS show only `KTX-ORD-…`; the
+waybill exists in the database and is searchable, but the customer never sees it. Plan details:
+section 1 below ("Waybill on the Super Agent counter"). Old numbers must keep working everywhere.
+Then Release C: desk faults C1/C2 (section 9) and the walk-in claim code, option (a) (section 15).
+
 ## Status on live — 2026-10-11 (owner)
 
 - Release A done (below). Tracking an unknown number gives 404; single-parcel dispatch works.

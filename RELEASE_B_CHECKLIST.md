@@ -6,6 +6,18 @@ job runs once, the two safety fixes, and the send-form wording.
 Plus (owner yes 2026-10-11): receipt reopen + visible handover (NEXT_STEPS section 10) and the
 reminder off-switch (section 11).
 
+**Decisions (owner, 2026-10-11):**
+- **Day:** Monday 2026-10-12, start 06:15 Tanzania time.
+- **The nightly reminder starts OFF:** `DISPATCH_REMINDER_ENABLED=false` is added on bishoo-backend
+  BEFORE the push (step 4). The owner switches it on (deletes the setting, or sets `true`) only after the
+  offices are told about the 22:00 SMS.
+- **Not in Release B:** the walk-in claim code (KNOWN_FAULTS #20) → Release C, option (a): show it once
+  and print it on the first receipt. Until then the counter does not mention a claim code at all.
+- **Left for the dashboard redesign:** the English "Booked shipments coming to this hub" block on POKEA,
+  and the title "Sasisha Hali" on the handover sheet.
+- **After Release B is stable, first step:** waybill on the counter receipt and the sender SMS
+  (NEXT_STEPS "Next after Release B").
+
 **The rule of this release: the database first, the code second.** The two migrations only ADD
 things and the current live code (`4d692ee`) ignores them, so they can go on live while the old code
 runs. The new code needs them, so it must not start before them.
@@ -94,6 +106,10 @@ How it works: Render builds bishoo-backend and bishoo-frontend from the GitHub b
 marketplace-basic is built on top of it, so the update is a plain fast-forward.
 
 - [ ] Owner has confirmed `REACT_APP_API_URL` on bishoo-frontend (step 0). **No push without it.**
+- [ ] **Before the push — owner:** bishoo-backend → **Environment** → add `DISPATCH_REMINDER_ENABLED`
+      = `false` → **Save**. This restarts the CURRENT live code (`4d692ee`) once with the same code —
+      harmless, the old code does not read it. Wait for **Live**. Then the new code starts with the
+      nightly SMS and the red notice already off.
 - [ ] Owner says "push". Claude checks the branch is still `4d692ee`, then runs
       `git push original marketplace-basic:worktree-service-provider-profiles`.
       (Or, if you prefer a pull request on GitHub: Claude opens it, you click **Merge** — one click more.)
@@ -117,21 +133,24 @@ marketplace-basic is built on top of it, so the update is a plain fast-forward.
 4. **Waybill:** receive one walk-in parcel at a counter (or a real one) → in Admin → Shipments / the
    parcel, it has a number like `KTX` + 10 digits; searching that waybill at the counter finds the parcel.
    (The counter receipt and SMS still show `KTX-ORD-…` — by design, NEXT_STEPS section 1.)
-5. **Red notice:** the counter page opens and shows no error. If an office has a parcel received 6+
-   hours ago and not dispatched, the red notice shows it; "Still here" hides it until the next day.
-   Admin → **Dispatch reminders** page opens.
+5. **Red notice (starts OFF):** the counter page opens and shows no error and NO red notice (the
+   off-switch is set). Admin → **Dispatch reminders** page opens. Later, after the offices are told and
+   the setting is removed: a parcel received 6+ hours ago and not dispatched shows in the red notice;
+   "Still here" hides it until the next day.
 6. **Honest pickup message:** send form, intercity, "Pick up from me" → the success screen does NOT say
    "Pickup has been requested"; it says no one is assigned yet and shows who to call. (Use a test
    account; cancel the test shipment after.)
 7. **Mizigo Yangu:** profile → "Mizigo yangu" opens My Shipments (not the homepage).
-8. **Receipt reopen + handover — only if included:** create a walk-in, tap away, come back → the
-   receipt is still there until "Mzigo mpya"; Historia → 🧾 Risiti → print again → the parcel count and
+8. **Receipt reopen + handover:** create a walk-in, tap away, come back → the
+   receipt is still there until "Mzigo mpya"; no line about a claim code is shown; Historia → 🧾 Risiti → print again → the parcel count and
    money did NOT change; 📲 SMS tena sends one SMS. A parcel waiting for the recipient shows
    "🤝 Kabidhi kwa mpokeaji".
 9. **Recipient pickup with code** (still untested since Release A): ask a receiving office with an
    arrived parcel to try it.
-10. **The first night, 22:00–23:30 Tanzania time:** Render logs show
-    `Nightly dispatch reminder <date>: ... sent ..., failed ...` (one line per tick, not three).
+10. **The first night, 22:00–23:30 Tanzania time (switch OFF):** Render logs show ONE line
+    `Nightly dispatch reminder <date>: off (DISPATCH_REMINDER_ENABLED), nothing sent`, and no office
+    gets an SMS. After it is switched on: `Nightly dispatch reminder <date>: ... sent ..., failed ...`
+    (one line per tick, not three).
 
 ## 6. If something goes wrong
 
