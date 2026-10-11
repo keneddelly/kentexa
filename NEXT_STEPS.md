@@ -12,7 +12,7 @@
   (was 5xx). `/version` unchanged (4d692ee, started 2026-10-08T15:31:06Z): no deploy, no restart.
 - Still to do: check Render logs for `senderUserId` / `shipment_claim` (expect none after 12:26);
   track one real KTX-SHP number (expect HTTP 200); delete `kentexa-db-rehearsal`; delete the folder
-  `C:\Users\BISHOO GROUP\release-a`; change kentexa-db's password on Render.
+  `C:\Users\BISHOO GROUP\release-a`; rotate the live database credential (section 7 below — DB_PASSWORD on bishoo-backend is typed by hand, so it does NOT follow automatically).
 - Release B (B1 1791600000000, B2 1791700000000 + the marketplace-basic code) is still pending.
 ## How to deploy safely
 
@@ -297,3 +297,48 @@ REACT_APP_API_URL). Anything changed in the dashboard since would be overwritten
 3. Commit and push the corrected file.
 4. On the Blueprint page, review the pending changes, then click **Manual Sync** at a quiet time.
 5. Optional: turn Auto Sync back on.
+
+## 7. Change the live database password (credential rotation) — owner, on Render
+
+**Why manual:** on bishoo-backend, `DB_PASSWORD` (and `DB_USERNAME`) are **typed by hand** in the
+Environment tab, not linked to the database (render.yaml says `fromDatabase`, the dashboard does
+not — another file/dashboard difference, see section 6). So a new credential is **not** picked up
+by itself. Render keeps every existing credential valid until you delete it, so the order below
+never leaves the app without a working password. Only bishoo-backend uses these settings.
+
+1. **Quiet time**, not near 22:00. Have the Render dashboard open on both kentexa-db and bishoo-backend.
+2. **New credential:** kentexa-db → **Info** → **Credentials** → **+ New default credential**.
+   Leave the username empty (Render makes one) → **Create Credential**. Note the new **username**
+   and copy the new **password** (do not paste them anywhere else).
+   The old credential keeps working; nothing changes for the app yet.
+3. **Update the app:** bishoo-backend → **Environment** → edit `DB_USERNAME` (the new username) and
+   `DB_PASSWORD` (the new password). Leave `DB_HOST`, `DB_PORT`, `DB_NAME` unchanged.
+   Click **Save** (Render offers "Save and deploy" / "Save, rebuild, and deploy" — either is fine).
+   This redeploys the SAME code; the start-up migration step finds nothing to do.
+4. **Wait for "Live"** on the bishoo-backend Events page.
+5. **Test:**
+   - `curl.exe -s https://api.kentexa.com/version` → answers, with a new `startedAt` time.
+   - `curl.exe -s -w "\nHTTP %{http_code}\n" https://api.kentexa.com/shipments/track/KTX-SHP-999999`
+     → HTTP 404 "Shipment not found" (proves the database login works).
+   - Render logs: no `password authentication failed` lines.
+   If anything fails: put the OLD username/password back in the Environment tab, save, wait for
+   Live — the old credential still works because it is not deleted yet.
+6. **Only now delete the old credential:** kentexa-db → **Info** → **Credentials** → trashcan next to
+   the OLD user → confirm. (If it is the original user, Render deactivates it instead of deleting it.)
+7. Repeat test 5 once more after the deletion.
+8. Later, when render.yaml is corrected (section 6): decide whether DB_* should become `fromDatabase`
+   again. If yes, a Blueprint sync will set them to the default credential's values.
+
+## 8. SHIPMENT_CLAIM_HMAC_KEY (walk-in claim receipts) — check, owner
+
+- Used by walk-in claim receipts (`super-agents.service.ts:866`, `shipment-claim-crypto.ts:17`).
+  It must be at least 32 characters. If it is missing, walk-in receive still works but no claim
+  receipt is issued, and the log says
+  `Walk-in claim receipt unavailable: SHIPMENT_CLAIM_HMAC_KEY not configured`.
+- Not in render.yaml. Check bishoo-backend → Environment. If it exists: do not change it — a new
+  value makes every receipt already handed out unusable.
+- If missing: make a key on this PC straight into the clipboard (PowerShell 5 or 7; prints nothing):
+  `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); (($b | ForEach-Object { $_.ToString('x2') }) -join '') | Set-Clipboard`
+  Add it as `SHIPMENT_CLAIM_HMAC_KEY` (paste), save, wait for Live, then clear the clipboard:
+  `Set-Clipboard -Value ' '` (and remove it from Windows clipboard history, Win+V, if that is on).
+  Keep a copy only in a password manager.
