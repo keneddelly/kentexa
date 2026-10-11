@@ -54,10 +54,19 @@ function build(offices: any[], smsResults: boolean[] = [true]) {
 
 describe('dispatch reminder settings and text', () => {
   it('uses 6 hours, 22:00 and 23:30 by default, and reads the settings', () => {
-    expect(readDispatchReminderSettings({})).toEqual({ staleHours: 6, smsMinuteOfDay: 22 * 60, latestMinuteOfDay: 23 * 60 + 30 });
+    expect(readDispatchReminderSettings({})).toEqual({ enabled: true, staleHours: 6, smsMinuteOfDay: 22 * 60, latestMinuteOfDay: 23 * 60 + 30 });
     expect(readDispatchReminderSettings({ DISPATCH_REMINDER_STALE_HOURS: '12', DISPATCH_REMINDER_SMS_TIME: '17:30' }))
-      .toEqual({ staleHours: 12, smsMinuteOfDay: 17 * 60 + 30, latestMinuteOfDay: 23 * 60 + 30 });
+      .toEqual({ enabled: true, staleHours: 12, smsMinuteOfDay: 17 * 60 + 30, latestMinuteOfDay: 23 * 60 + 30 });
     expect(readDispatchReminderSettings({ DISPATCH_REMINDER_SMS_TIME: 'nonsense' }).smsMinuteOfDay).toBe(22 * 60);
+  });
+
+  it('off-switch: ON unless DISPATCH_REMINDER_ENABLED is false / 0 / off / no', () => {
+    for (const off of ['false', 'FALSE', ' 0 ', 'off', 'No']) {
+      expect(readDispatchReminderSettings({ DISPATCH_REMINDER_ENABLED: off }).enabled).toBe(false);
+    }
+    for (const on of [undefined, '', 'true', '1', 'yes', 'on', 'anything']) {
+      expect(readDispatchReminderSettings({ DISPATCH_REMINDER_ENABLED: on }).enabled).toBe(true);
+    }
   });
 
   it('never lets the cut-off fall before the SMS time (the SMS would never go)', () => {
@@ -95,6 +104,34 @@ describe('evening SMS', () => {
     expect((await svc.runEvening(at('2026-10-10T20:35:00Z'))).skipped).toBe('outside_time_window'); // 23:35
     expect(world.db.query).not.toHaveBeenCalled();
     expect(sms.sendSms).not.toHaveBeenCalled();
+  });
+
+  describe('when switched off (DISPATCH_REMINDER_ENABLED=false)', () => {
+    const saved = process.env.DISPATCH_REMINDER_ENABLED;
+    beforeEach(() => { process.env.DISPATCH_REMINDER_ENABLED = 'false'; });
+    afterEach(() => {
+      if (saved === undefined) delete process.env.DISPATCH_REMINDER_ENABLED;
+      else process.env.DISPATCH_REMINDER_ENABLED = saved;
+    });
+
+    it('sends nothing, writes nothing, and logs "off" once per night', async () => {
+      const { svc, sms, inApp, world } = build([office]);
+      const log = jest.spyOn((svc as any).logger, 'log').mockImplementation(() => undefined);
+      expect(await svc.runEvening(EVENING)).toMatchObject({ sent: 0, skipped: 'disabled' });
+      await svc.runEvening(at('2026-10-10T19:10:00Z'));
+      expect(world.db.query).not.toHaveBeenCalled();
+      expect(sms.sendSms).not.toHaveBeenCalled();
+      expect(inApp.notify).not.toHaveBeenCalled();
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(log.mock.calls[0][0]).toContain('off');
+    });
+
+    it('shows no red notice on the counter', async () => {
+      const { svc, world } = build([office]);
+      world.db.query.mockImplementationOnce(async () => [{ id: 7, userId: 70 }]); // officeForUser
+      expect(await svc.mine(70)).toEqual({ enabled: false, staleHours: 6, count: 0, parcels: [] });
+      expect(world.db.query).toHaveBeenCalledTimes(1); // only the office lookup, no parcel query
+    });
   });
 
   it('sends one SMS to the OFFICE phone only, plus one in-app notification', async () => {

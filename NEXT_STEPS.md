@@ -19,6 +19,10 @@
 - `/version` still shows `4d692ee`. Backups: export made 2026-10-11 + 3 days of Point-in-Time Recovery.
   Live database: PostgreSQL 18.6, paid plan.
 - The folder `C:\Users\BISHOO GROUP\release-a` is gone (checked by Claude, 2026-10-11).
+- `REACT_APP_API_URL` IS set on bishoo-frontend (owner, 2026-10-11, after a first wrong report).
+  It stays a step to confirm before the Release B push (section 14).
+- Owner also added `REACT_APP_API_URL` to bishoo-backend by mistake; the backend restarted at
+  12:37 UTC (15:37 Tanzania) 2026-10-11, same code. Harmless: the backend never reads it. Left in place.
 - **Not tested yet:** recipient pickup with a code (needs a receiving office with an arrived parcel).
 - Next: Release B — see `RELEASE_B_CHECKLIST.md`.
 
@@ -272,6 +276,8 @@ The live server runs migrations only up to `MIGRATION_RUN_UPTO=1788292800000` at
   hidden and the nightly job logs errors. Still: database first.
 - Settings on Render (optional — these are the defaults):
   `DISPATCH_REMINDER_STALE_HOURS=6`, `DISPATCH_REMINDER_SMS_TIME=22:00`, `DISPATCH_REMINDER_LATEST_TIME=23:30`.
+- Off-switch (built 2026-10-11, needs no setting to stay ON): `DISPATCH_REMINDER_ENABLED=false` stops the
+  nightly SMS, the in-app reminder and the red notice. Changing it restarts the app with the same code.
 - Each office needs `super_agent.phone` filled in, or it gets only the in-app notice
   (admins see "Hakuna simu ya ofisi" on the Dispatch reminders page).
 - Cost: at most one SMS per office per night, plus one retry if the first fails.
@@ -506,7 +512,7 @@ No backend change: the same `pickup-code` / `confirm-pickup` calls as today.
 **Size:** backend ~1 endpoint + 4 tests; frontend ~100 lines + tests; local click-through.
 About half a day to one day. No migration, no environment variable.
 
-## 11. Nightly reminder off-switch (PROPOSAL — needs a yes)
+## 11. Nightly reminder off-switch — BUILT 2026-10-11 (owner yes), not yet committed
 
 On the first night after Release B, at 22:00, every office with a parcel received 6+ hours ago and
 not dispatched gets one SMS. That is the feature, but there is no way to stop it without a code
@@ -559,3 +565,88 @@ New environment variable → if built, it is listed here and in RELEASE_B_CHECKL
    joined, confirmed.
 4. **Longer direction, not now:** one consented Connection between profiles; a directory by capability
    and place; then an intent record and a server-side coordinator for "send a parcel".
+
+## 14. Render dashboard settings — confirm by hand (names only, never values)
+
+**Why:** render.yaml is NOT what live uses. Found so far: `DB_USERNAME` / `DB_PASSWORD` typed by hand
+(section 7). `REACT_APP_API_URL` on bishoo-frontend: confirmed set by the owner 2026-10-11.
+**Release B must not be pushed until `REACT_APP_API_URL` is confirmed again** (RELEASE_B_CHECKLIST
+step 0): the new frontend has no live fallback any more.
+
+**bishoo-frontend** — the code reads only ONE setting:
+- [ ] `REACT_APP_API_URL` (read at build time; also used for the live chat connection)
+
+**bishoo-backend — must exist (the app refuses to start, or a core feature breaks):**
+- [ ] `NODE_ENV` (must be `production`)   - [ ] `NODE_VERSION`
+- [ ] `JWT_SECRET`
+- [ ] `DB_HOST`  - [ ] `DB_PORT`  - [ ] `DB_NAME`  - [ ] `DB_USERNAME`  - [ ] `DB_PASSWORD`
+- [ ] `AT_API_KEY`  - [ ] `AT_USERNAME`  - [ ] `AT_SHORTCODE` (all SMS)
+- [ ] `CLOUDINARY_CLOUD_NAME`  - [ ] `CLOUDINARY_API_KEY`  - [ ] `CLOUDINARY_API_SECRET` (images)
+- [ ] `SHIPMENT_CLAIM_HMAC_KEY` (walk-in claim; added 2026-10-11 — never change it)
+
+**bishoo-backend — must NOT exist on live (test switches; any of them would change live behaviour):**
+- [ ] `TYPEORM_SYNCHRONIZE`  - [ ] `PAYMENTS_ALLOW_MOCK`
+- [ ] `STAGE3KR_DISABLE_OUTBOUND_SMS` (would stop all SMS)  - [ ] `STAGE3KR_SMS_REHEARSAL`
+- [ ] `STAGE3KR_SMS_TEST_PHONE`  - [ ] `STAGE3KR_DISABLE_UPLOADS`  - [ ] `STAGE3KR_FRONTEND_ORIGIN`
+- [ ] `MIGRATION_RUN_UPTO`  - [ ] `MIGRATION_RUN_CONFIRM` (start:prod sets these itself)
+- [ ] `PRODUCT_TRANSFER_CONFIRM`  - [ ] `B5B_TEST_DB_HOST` / `_PORT` / `_PASSWORD`
+- [ ] `BASELINE_ADOPTION_EXPECTED_HOST` / `_DATABASE`
+
+**bishoo-backend — optional; note which exist (missing = that feature is off or uses a default):**
+- Links/contact: `FRONTEND_URL`, `BACKEND_URL`, `SUPPORT_PHONE`, `ADMIN_EMAIL`, `REQUIRE_PHONE_VERIFICATION`
+- E-mail: `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASS`, `MAIL_SECURE`
+- Push notifications: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_EMAIL`
+- Maps: `GOOGLE_MAPS_API_KEY`
+- AI: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`, `QWEN_API_KEY`,
+  `QWEN_BASE_URL`, `AI_SIMPLE_PROVIDER`, `AI_SIMPLE_MODEL`, `AI_REASONING_PROVIDER`, `AI_REASONING_MODEL`,
+  `AI_CODING_PROVIDER`, `AI_CODING_MODEL`, `AI_SIMPLE_FALLBACK_PROVIDER`, `AI_REQUEST_TIMEOUT_MS`,
+  `AI_CACHE_TTL_MS`, `AI_MAX_INPUT_CHARS`, `EMBEDDING_PROVIDER`
+- Payments (only if payments are switched on): `PAYMENTS_ENABLED_PROVIDERS`, `PAYMENT_EVIDENCE_SEAL_KEY`,
+  `PAYOUT_DESTINATION_COOLING_OFF_SECONDS`, `CLICKPESA_API_KEY`, `CLICKPESA_API_URL`, `CLICKPESA_CLIENT_ID`,
+  `SELCOM_API_KEY`, `SELCOM_API_SECRET`, `SELCOM_API_URL`, `SELCOM_CALLBACK_URL`, `SELCOM_VENDOR_ID`,
+  `AIRTEL_BASE_URL`, `AIRTEL_CLIENT_ID`, `AIRTEL_CLIENT_SECRET`, `VODACOM_BASE_URL`, `VODACOM_CALLBACK_URL`,
+  `VODACOM_CONSUMER_KEY`, `VODACOM_CONSUMER_SECRET`, `VODACOM_SHORTCODE`
+- Release B (all optional, defaults built in): `DISPATCH_REMINDER_ENABLED`, `DISPATCH_REMINDER_STALE_HOURS`,
+  `DISPATCH_REMINDER_SMS_TIME`, `DISPATCH_REMINDER_LATEST_TIME`
+
+**Set by Render itself — do not add:** `PORT`, `RENDER_GIT_COMMIT`, `RENDER_GIT_BRANCH`.
+
+(List made 2026-10-11 by searching the marketplace-basic code for every setting it reads, plus
+render.yaml. Release B adds no required setting.)
+
+## 15. Release C plan: let walk-in customers claim their parcels online (KNOWN_FAULTS #20) — PLAN ONLY
+
+**Today:** the claim code is made at intake (valid 30 days, stored only as a fingerprint) but never shown
+or printed. The claim flow itself already exists and is tested: a VERIFIED KenteXa account types the
+code in Mizigo Yangu → an SMS code (OTP) goes to the **sender phone typed at the counter** → typing it
+links the parcel to the account. At most 3 SMS per person per parcel per hour, 1 minute apart.
+
+**a) Show the code once and print it on the first receipt**
+- Work: frontend only, small. Show the code on the receipt screen; put it on the FIRST print only. Keep it
+  in page memory only (never in browser storage) — so after "Mzigo mpya" or a reload it is gone, and
+  "Chapisha tena" prints without it (as today's note says).
+- Safety: two things needed to claim — the paper AND the sender's phone (OTP). A typo in the phone
+  at the counter only means the OTP goes nowhere; nobody else gets the parcel. Strong.
+- Weak points: paper lost / not printed → cannot claim (a later "new code" button at the counter
+  could fix this). The code shown on screen could be photographed by someone standing near the desk —
+  still useless without the sender's phone.
+- SMS cost: 1 OTP per claim, only for customers who choose to claim (plus re-sends, max 3 per hour).
+  Nothing for walk-ins who never claim.
+
+**b) No printed code: sign in with the sender phone, parcels linked automatically**
+- Work: backend, medium. When a verified account's phone equals a walk-in's sender phone (after
+  normalising 07… / 255… / +255…), link the parcel to that account (on login or when Mizigo Yangu
+  opens). Needs a rule for how far back, and care with phone formats. The printed-code path would be
+  unused.
+- Safety: ONE thing needed — control of that phone number. Risks: (1) a typo at the counter links
+  the parcel to a STRANGER who owns the mistyped number — they would see the recipient's name,
+  phone, address and the goods value; (2) recycled numbers: a number given to a new person later gets
+  the old owner's parcels; (3) shared family/office phones. Each is a privacy leak, not just a failure.
+- SMS cost: 0 extra for customers already verified; for a new account, the normal sign-up OTP (1 SMS),
+  once per person, not per parcel. Cheapest.
+
+**Honest advice: (a) is both safer and simpler.** It reuses the claim flow that is already built and
+tested, needs only a frontend change, and a counter typo can never hand a parcel to the wrong person.
+(b) is smoother for customers and cheaper in SMS, but a mistyped or recycled phone number shows one
+customer's parcel to another. If (b) is wanted later, make it a suggestion ("We found 2 parcels sent from
+your number — confirm with the code we SMS to that number"), and only for parcels from the last few days.

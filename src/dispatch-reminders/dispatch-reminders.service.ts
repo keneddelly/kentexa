@@ -70,6 +70,7 @@ const STALE_SQL = (officeFilter: string) => `
 @Injectable()
 export class DispatchRemindersService {
   private readonly logger = new Logger(DispatchRemindersService.name);
+  private offLoggedFor: string | null = null;
 
   constructor(
     @InjectDataSource() private readonly db: DataSource,
@@ -113,8 +114,11 @@ export class DispatchRemindersService {
 
   async mine(userId: number, now = new Date()) {
     const office = await this.officeForUser(userId);
+    const { enabled, staleHours } = this.settings();
+    // Off-switch: no red notice. The counter itself is never affected.
+    if (!enabled) return { enabled: false, staleHours, count: 0, parcels: [] as StaleParcel[] };
     const parcels = await this.listStale(office.id, now);
-    return { staleHours: this.settings().staleHours, count: parcels.length, parcels };
+    return { enabled: true, staleHours, count: parcels.length, parcels };
   }
 
   /**
@@ -163,10 +167,18 @@ export class DispatchRemindersService {
   }
 
   async runEvening(now: Date): Promise<{ sent: number; failed: number; noPhone: number; skipped: string | null }> {
-    const { smsMinuteOfDay, latestMinuteOfDay } = this.settings();
+    const { enabled, smsMinuteOfDay, latestMinuteOfDay } = this.settings();
     const clock = tanzaniaClock(now);
     if (clock.minuteOfDay < smsMinuteOfDay || clock.minuteOfDay > latestMinuteOfDay) {
       return { sent: 0, failed: 0, noPhone: 0, skipped: 'outside_time_window' };
+    }
+    if (!enabled) {
+      // Off-switch: nothing is read, written or sent. One log line per night.
+      if (this.offLoggedFor !== clock.date) {
+        this.offLoggedFor = clock.date;
+        this.logger.log(`Nightly dispatch reminder ${clock.date}: off (DISPATCH_REMINDER_ENABLED), nothing sent`);
+      }
+      return { sent: 0, failed: 0, noPhone: 0, skipped: 'disabled' };
     }
     const counts: Array<{ superAgentId: number; count: number; phone: string | null; userId: number | null; name: string }> =
       await this.db.query(

@@ -2,6 +2,9 @@
  * Settings for the "received but not dispatched" reminder. Environment
  * variables, so they can change without new code:
  *
+ *   DISPATCH_REMINDER_ENABLED        off-switch (default ON). false, 0, off or no = no
+ *                                    nightly SMS, no in-app reminder, no red notice. Anything
+ *                                    else, or not set = on.
  *   DISPATCH_REMINDER_STALE_HOURS    hours after receipt before a parcel turns red (default 6) --
  *                                    used by BOTH the dashboard red notice and the evening SMS
  *   DISPATCH_REMINDER_SMS_TIME       nightly check / SMS time, Tanzania time, HH:MM (default 22:00;
@@ -25,6 +28,7 @@ const parseHhMm = (value: string | undefined, fallback: string): number => {
 };
 
 export interface DispatchReminderSettings {
+  enabled: boolean;
   staleHours: number;
   smsMinuteOfDay: number;
   latestMinuteOfDay: number;
@@ -35,6 +39,7 @@ export function readDispatchReminderSettings(env: NodeJS.ProcessEnv = process.en
   const smsMinuteOfDay = parseHhMm(env.DISPATCH_REMINDER_SMS_TIME, '22:00');
   const latest = parseHhMm(env.DISPATCH_REMINDER_LATEST_TIME, '23:30');
   return {
+    enabled: !['false', '0', 'off', 'no'].includes(String(env.DISPATCH_REMINDER_ENABLED ?? '').trim().toLowerCase()),
     staleHours: Number.isFinite(hours) && hours > 0 ? hours : 6,
     smsMinuteOfDay,
     // A cut-off before the SMS time would mean the SMS is never sent: fall back to 23:59.

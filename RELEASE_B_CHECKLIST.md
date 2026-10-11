@@ -3,8 +3,8 @@
 **Goal:** put the marketplace-basic work on live: waybill numbers, the nightly "received but not
 dispatched" reminder (red notice), the honest intercity pickup message, "Mizigo Yangu" fix, every timed
 job runs once, the two safety fixes, and the send-form wording.
-(Plus, only if the owner says yes before the day: receipt reopen + visible handover, NEXT_STEPS
-section 10, and the reminder off-switch, section 11.)
+Plus (owner yes 2026-10-11): receipt reopen + visible handover (NEXT_STEPS section 10) and the
+reminder off-switch (section 11).
 
 **The rule of this release: the database first, the code second.** The two migrations only ADD
 things and the current live code (`4d692ee`) ignores them, so they can go on live while the old code
@@ -22,7 +22,8 @@ code still runs. That is intended and harmless (the old code just does not show 
 **New environment variables:** none required.
 - Optional, defaults shown (leave them out to use the defaults): `DISPATCH_REMINDER_STALE_HOURS=6`,
   `DISPATCH_REMINDER_SMS_TIME=22:00`, `DISPATCH_REMINDER_LATEST_TIME=23:30`.
-- Only if the off-switch (NEXT_STEPS 11) is built: `DISPATCH_REMINDER_ENABLED` (default `true`).
+- Off-switch: `DISPATCH_REMINDER_ENABLED` (default ON; set it to `false` only to stop the nightly SMS,
+  in-app reminder and red notice without a code change — NEXT_STEPS 11).
 - Already on live, do not change: `SHIPMENT_CLAIM_HMAC_KEY`, `DB_USERNAME`, `DB_PASSWORD`.
 
 **The script:** `C:\Users\BISHOO GROUP\release-b\release-b.ps1` (outside the project, like Release A;
@@ -46,10 +47,13 @@ Claude writes it and tests it on local databases after the owner's yes). It:
 - [ ] Claude: final local test run (backend tests for the changed parts, frontend build with
       `CI=true`, so warnings cannot break the Render build), and confirms the live branch on GitHub is
       still `4d692ee` (then the push is a plain fast-forward).
-- [ ] Owner, Render → **bishoo-frontend** → **Environment**: `REACT_APP_API_URL` exists and is the live
-      API address. **Important:** the new frontend no longer falls back to the live API by itself
-      (commit e3a51a5). If this setting were missing, the new site would call `localhost` and nothing
-      would load. (render.yaml says `https://bishoo-backend.onrender.com`; the dashboard value wins.)
+- [ ] **MUST be confirmed BEFORE the push — Render → bishoo-frontend → Environment:
+      `REACT_APP_API_URL` exists and is the live API address (`https://api.kentexa.com`).**
+      Owner confirmed it is set (2026-10-11). Why it matters: the old code falls back to
+      `https://api.kentexa.com` by itself; the new code (commit e3a51a5) does not — without this
+      setting the new site would call `localhost` and nothing would load. The value is read at BUILD
+      time. (A `REACT_APP_API_URL` on bishoo-backend is harmless; the backend never reads it.)
+- [ ] Every other setting in NEXT_STEPS.md section 14 ticked (names only).
 - [ ] Owner, Render → **bishoo-backend** → **Settings** → **Auto-Deploy**: note whether it is
       "On Commit" or "Off". Same for **bishoo-frontend**. Do not change it.
 - [ ] Owner: tell the offices that from the first night after Release B they may get ONE SMS at 22:00
@@ -89,6 +93,7 @@ How it works: Render builds bishoo-backend and bishoo-frontend from the GitHub b
 `worktree-service-provider-profiles` (not `master`). Today that branch is `4d692ee`;
 marketplace-basic is built on top of it, so the update is a plain fast-forward.
 
+- [ ] Owner has confirmed `REACT_APP_API_URL` on bishoo-frontend (step 0). **No push without it.**
 - [ ] Owner says "push". Claude checks the branch is still `4d692ee`, then runs
       `git push original marketplace-basic:worktree-service-provider-profiles`.
       (Or, if you prefer a pull request on GitHub: Claude opens it, you click **Merge** — one click more.)
