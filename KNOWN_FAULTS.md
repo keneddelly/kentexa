@@ -178,7 +178,7 @@ passing tests). Sections 4 and 7 list 9 of them; the other 19 are not analysed y
   release-writers.real-postgres — **these test the money guards**; they probably need a test-database
   setting on this PC. Worth getting green before the next money-related change.
 
-## 13. LIVE OUTAGE since 2026-10-08: five migrations never applied (confirmed on live 2026-10-11)
+## 13. LIVE OUTAGE since 2026-10-08: five migrations never applied — FIXED 2026-10-11 12:26 (Release A, see NEXT_STEPS.md)
 
 - Live database: newest recorded migration `1788292800000`; 1791504000000, 1791507600000,
   1791511200000, 1791514800000, 1791514900000 are NOT applied (owner's read-only check).

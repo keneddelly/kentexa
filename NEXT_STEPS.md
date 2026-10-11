@@ -1,5 +1,19 @@
 # Next steps — not built yet
 
+## DONE 2026-10-11 — Release A applied on live
+
+- 12:24–12:26 (Tanzania time): the five migrations 1791504000000, 1791507600000, 1791511200000,
+  1791514800000, 1791514900000 were applied to the live database kentexa-db, one at a time, each
+  checked. Run by the owner with `release-a.ps1` (masked URL prompt, live host check, typed YES).
+- Before: Render export created (finished before the run); rehearsal on a Point-in-Time copy
+  `kentexa-db-rehearsal` the same morning, 03:18–03:19, all five OK.
+- After: newest recorded migration on live = 1791514900000. Public check
+  `GET https://api.kentexa.com/shipments/track/KTX-SHP-999999` = HTTP 404 "Shipment not found"
+  (was 5xx). `/version` unchanged (4d692ee, started 2026-10-08T15:31:06Z): no deploy, no restart.
+- Still to do: check Render logs for `senderUserId` / `shipment_claim` (expect none after 12:26);
+  track one real KTX-SHP number (expect HTTP 200); delete `kentexa-db-rehearsal`; delete the folder
+  `C:\Users\BISHOO GROUP\release-a`; change kentexa-db's password on Render.
+- Release B (B1 1791600000000, B2 1791700000000 + the marketplace-basic code) is still pending.
 ## How to deploy safely
 
 ### Why live is missing migrations (the "automatic cut-off")
