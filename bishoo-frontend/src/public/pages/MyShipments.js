@@ -30,15 +30,17 @@ export default function MyShipments({onNavigate}){
   const submitClaim=async e=>{
     e.preventDefault();
     if(claimBusy)return;
-    const id=Number(claimId);
-    if(!Number.isSafeInteger(id)||id<=0){setClaimError('Weka namba sahihi ya Shipment kwenye risiti.');return;}
+    // Release C: the number printed on the receipt (waybill or old KTX-…), never the internal id.
+    const reference=claimId.trim();
+    if(!reference){setClaimError('Weka Namba ya Mzigo iliyo kwenye risiti.');return;}
+    const secret=receiptSecret.replace(/[\s-]/g,'');
     setClaimBusy(true);setClaimError('');
     try{
       if(claimStep==='receipt'){
-        await api.post(`/shipments/${id}/claim/start`,{receiptSecret:receiptSecret.trim()});
+        await api.post('/shipments/claim-by-number/start',{reference,receiptSecret:secret});
         setClaimStep('otp');
       }else{
-        await api.post(`/shipments/${id}/claim`,{receiptSecret:receiptSecret.trim(),otp:otp.trim()});
+        await api.post('/shipments/claim-by-number',{reference,receiptSecret:secret,otp:otp.trim()});
         setClaimOpen(false);setClaimId('');setReceiptSecret('');setOtp('');setClaimStep('receipt');
         setLoading(true);setReload(n=>n+1);
       }
@@ -71,14 +73,14 @@ export default function MyShipments({onNavigate}){
       <div style={{fontSize:15,color:'#64748b',lineHeight:1.5,marginBottom:14}}>Hapa utaona mizigo uliyotuma na hatua ilipofikia. Kentexa itakuonyesha hatua muhimu bila kukusumbua na mchakato wa ndani.</div>
       <div style={{background:'#fff',borderRadius:14,padding:16,marginBottom:14,border:'1px solid #dbeafe'}}>
         <strong style={{fontSize:16,color:'#0f172a'}}>Ulituma mzigo kwenye dawati la Super Agent?</strong>
-        <p style={{fontSize:15,lineHeight:1.5,color:'#475569',margin:'8px 0'}}>Tumia namba ya Shipment na msimbo wa siri uliopewa kwenye risiti ili kuuongeza kwenye Mizigo Yangu.</p>
+        <p style={{fontSize:15,lineHeight:1.5,color:'#475569',margin:'8px 0'}}>Tumia Namba ya Mzigo na namba ya siri iliyochapishwa kwenye risiti ili kuuongeza kwenye Mizigo Yangu.</p>
         <button type="button" onClick={()=>{setClaimOpen(v=>!v);setClaimError('');}} style={{border:0,borderRadius:10,padding:'12px 16px',background:'#2563eb',color:'#fff',fontSize:15,fontWeight:800}}>{claimOpen?'Funga':'Ongeza mzigo wa dawati'}</button>
         {claimOpen&&<form onSubmit={submitClaim} style={{display:'grid',gap:12,marginTop:14}}>
-          <label style={{fontWeight:700,fontSize:15}}>Namba ya Shipment
-            <input inputMode="numeric" required value={claimId} onChange={e=>{setClaimId(e.target.value);setClaimStep('receipt');setOtp('');}} placeholder="Mfano: 123" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>
+          <label style={{fontWeight:700,fontSize:15}}>Namba ya Mzigo (kwenye risiti)
+            <input required autoComplete="off" value={claimId} onChange={e=>{setClaimId(e.target.value);setClaimStep('receipt');setOtp('');}} placeholder="Mfano: KTX 1674 9680 01" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>
           </label>
-          <label style={{fontWeight:700,fontSize:15}}>Msimbo wa siri wa risiti
-            <input required value={receiptSecret} onChange={e=>{setReceiptSecret(e.target.value);setClaimStep('receipt');setOtp('');}} autoComplete="off" placeholder="Msimbo uliochapishwa kwenye risiti" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>
+          <label style={{fontWeight:700,fontSize:15}}>Namba ya siri (kwenye risiti)
+            <input required value={receiptSecret} onChange={e=>{setReceiptSecret(e.target.value);setClaimStep('receipt');setOtp('');}} autoComplete="off" placeholder="Andika kama ilivyochapishwa, mfano a3f2 9c01 …" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>
           </label>
           {claimStep==='otp'&&<label style={{fontWeight:700,fontSize:15}}>Namba ya uthibitisho (SMS)
             <input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="one-time-code" value={otp} onChange={e=>setOtp(e.target.value)} placeholder="Namba 6 za SMS" style={{display:'block',width:'100%',boxSizing:'border-box',fontSize:16,padding:12,border:'1px solid #cbd5e1',borderRadius:10,marginTop:5}}/>

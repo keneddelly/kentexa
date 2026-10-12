@@ -4,10 +4,10 @@
 // Shown wherever the office sees a receipt. The claim code is issued once
 // and is never stored in readable form, so it cannot be shown again.
 export const CLAIM_CODE_NOTE = 'Namba ya siri ya mteja ya kudai mzigo haiwezi kuonyeshwa tena.';
-// Hidden until Release C: today the code is never shown at all, so "cannot be
-// shown again" would mislead the office (KNOWN_FAULTS #20). Release C shows the
-// code once and prints it; then this note is switched on.
-export const SHOW_CLAIM_CODE_NOTE = false;
+// Release C (option a): the code is shown once on the screen that created the
+// parcel and printed on that first receipt; everywhere after that this note
+// says it cannot be shown again (KNOWN_FAULTS #20).
+export const SHOW_CLAIM_CODE_NOTE = true;
 
 export const walkResultStorageKey = (officeId) => `kentexa-walkin-last:${officeId}`;
 

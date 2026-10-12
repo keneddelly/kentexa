@@ -63,30 +63,33 @@ test('shows missing tracking number without advertising a broken tracking action
   expect(card).not.toHaveAttribute('role', 'button');
 });
 
-test('claims a desk shipment only after SMS verification and refreshes the list', async () => {
+test('claims a desk shipment by the number on the receipt, only after SMS verification', async () => {
   api.get.mockResolvedValue({ data: [] });
   api.post.mockResolvedValueOnce({ data: { sent: true } })
     .mockResolvedValueOnce({ data: { shipmentId: 123 } });
   render(<MyShipments onNavigate={jest.fn()} />);
   fireEvent.click(screen.getByText('Ongeza mzigo wa dawati'));
-  fireEvent.change(screen.getByPlaceholderText('Mfano: 123'), { target: { value: '123' } });
-  const secret = 'a'.repeat(36);
-  fireEvent.change(screen.getByPlaceholderText('Msimbo uliochapishwa kwenye risiti'), { target: { value: secret } });
+  fireEvent.change(screen.getByPlaceholderText('Mfano: KTX 1674 9680 01'), { target: { value: ' KTX 1674 9680 01 ' } });
+  const secret = 'a3f29c01'.repeat(4) + 'beef';
+  const printed = secret.match(/.{1,4}/g).join(' ');
+  fireEvent.change(screen.getByPlaceholderText('Andika kama ilivyochapishwa, mfano a3f2 9c01 …'), { target: { value: printed } });
   fireEvent.click(screen.getByText('Tuma SMS ya uthibitisho'));
-  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/shipments/123/claim/start', { receiptSecret: secret }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/shipments/claim-by-number/start',
+    { reference: 'KTX 1674 9680 01', receiptSecret: secret }));
   fireEvent.change(await screen.findByPlaceholderText('Namba 6 za SMS'), { target: { value: '012345' } });
   fireEvent.click(screen.getByText('Thibitisha na ongeza mzigo'));
-  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/shipments/123/claim', { receiptSecret: secret, otp: '012345' }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith('/shipments/claim-by-number',
+    { reference: 'KTX 1674 9680 01', receiptSecret: secret, otp: '012345' }));
   await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
 });
 
-test('does not request OTP for invalid shipment id', async () => {
+test('does not request OTP without the parcel number', async () => {
   api.get.mockResolvedValue({ data: [] });
   render(<MyShipments onNavigate={jest.fn()} />);
   fireEvent.click(screen.getByText('Ongeza mzigo wa dawati'));
-  fireEvent.change(screen.getByPlaceholderText('Mfano: 123'), { target: { value: '0' } });
-  fireEvent.change(screen.getByPlaceholderText('Msimbo uliochapishwa kwenye risiti'), { target: { value: 'a'.repeat(36) } });
+  fireEvent.change(screen.getByPlaceholderText('Mfano: KTX 1674 9680 01'), { target: { value: '   ' } });
+  fireEvent.change(screen.getByPlaceholderText('Andika kama ilivyochapishwa, mfano a3f2 9c01 …'), { target: { value: 'a'.repeat(36) } });
   fireEvent.click(screen.getByText('Tuma SMS ya uthibitisho'));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Weka namba sahihi');
+  expect(await screen.findByRole('alert')).toHaveTextContent('Weka Namba ya Mzigo');
   expect(api.post).not.toHaveBeenCalled();
 });

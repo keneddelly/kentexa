@@ -43,10 +43,22 @@ export const RECEIPT_CSS = `
   hr { border: 0; border-top: 0.3mm dashed #000; margin: 2mm 0; }
   .amount { text-align: center; font-size: 16pt; font-weight: 700; margin: 2mm 0; }
   .footer { text-align: center; font-size: 9pt; margin-top: 2mm; }
+  .claim-title { text-align: center; font-size: 10pt; font-weight: 700; }
+  .claim-steps { font-size: 9pt; margin: 1mm 0; }
+  .claim-code { text-align: center; font-family: 'Courier New', monospace; font-size: 12pt; font-weight: 700;
+    word-spacing: 1mm; margin: 1.5mm 0; }
+  .claim-note { font-size: 8pt; text-align: center; }
 `;
 
-/** Full HTML document for one receipt. `autoPrint` adds the print call. */
-export function buildReceiptHtml(receipt, { autoPrint = true } = {}) {
+// The claim secret as printed: groups of 4 ("a3f2 9c01 …"). The claim form ignores the spaces.
+export const formatClaimSecret = (secret) => (String(secret || '').match(/.{1,4}/g) || []).join(' ');
+
+/**
+ * Full HTML document for one receipt. `autoPrint` adds the print call.
+ * `claimSecret` is printed only on the FIRST receipt, from the screen that just
+ * created the parcel (it is never stored, so a reprint cannot contain it).
+ */
+export function buildReceiptHtml(receipt, { autoPrint = true, claimSecret = null } = {}) {
   const r = receipt || {};
   const row = (label, value) => (value
     ? `<div class="row"><span class="l">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`
@@ -73,6 +85,11 @@ ${row('Thamani ya Mzigo', r.declaredValue ? money(r.declaredValue) : '')}
 ${row('Njia ya Malipo', paymentMethodSw(r.paymentMethod))}
 <div class="amount">${money(r.amountPaid)}</div>
 <div class="footer">Malipo yamepokewa. Asante kwa kutumia<br />${escapeHtml(office)}</div>
+${claimSecret ? `<hr />
+<div class="claim-title">Dai mzigo wako kwenye KenteXa</div>
+<div class="claim-steps">Fungua KenteXa &rarr; Mizigo Yangu &rarr; Ongeza mzigo wa dawati. Weka Namba ya Mzigo na namba hii ya siri:</div>
+<div class="claim-code">${escapeHtml(formatClaimSecret(claimSecret))}</div>
+<div class="claim-note">Usimpe mtu mwingine. Namba ya uthibitisho itatumwa kwa SMS kwenye simu ya mtumaji.</div>` : ''}
 </div>${autoPrint ? '<script>window.onload = function () { window.print(); };</script>' : ''}
 </body></html>`;
 }

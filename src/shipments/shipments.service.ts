@@ -860,6 +860,33 @@ export class ShipmentsService {
     });
   }
 
+  /**
+   * Release C: the customer types the parcel number printed on the receipt
+   * (the waybill, or an old KTX-… number) — never the internal shipment id.
+   * Unknown numbers get the same answer as a wrong secret, so the form never
+   * tells anyone which numbers exist.
+   */
+  async resolveClaimShipmentId(reference: string): Promise<number> {
+    const raw = String(reference ?? '').trim();
+    const waybill = normalizeWaybill(raw);
+    if (!waybill && /^\d{1,9}$/.test(raw)) return Number(raw); // receipts printed before the waybill
+    const rows: Array<{ id: number }> = await this.shipmentRepo.manager.query(
+      `SELECT p."shipmentId" AS id FROM public.parcel p
+        WHERE p."shipmentId" IS NOT NULL AND (p."waybillNumber" = $1 OR upper(p."trackingNumber") = $2)
+       UNION ALL
+       SELECT s.id FROM public.shipment s WHERE upper(s."trackingNumber") = $2
+       LIMIT 1`,
+      [waybill, raw.toUpperCase()],
+    );
+    if (!rows[0]?.id) throw new BadRequestException('Invalid claim credentials');
+    return Number(rows[0].id);
+  }
+
+  /** The secret as printed in groups ("a3f2 9c01 …") -> as issued. */
+  static normalizeClaimSecret(secret: string): string {
+    return String(secret ?? '').replace(/[\s-]/g, '').toLowerCase();
+  }
+
   async claimWalkInShipment(
     userId: number,
     shipmentId: number,

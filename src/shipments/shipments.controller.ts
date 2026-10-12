@@ -134,6 +134,34 @@ export class ShipmentsController {
     return this.svc.startWalkInShipmentClaim(req.user.id, id, body.receiptSecret);
   }
 
+  // Release C: the same claim, by the number printed on the receipt (the
+  // waybill or an old KTX-… number) instead of the internal shipment id.
+  @Post('claim-by-number/start')
+  @UseGuards(JwtAuthGuard)
+  async startWalkInClaimByNumber(
+    @Request() req,
+    @Body() body: { reference?: string; receiptSecret?: string },
+  ) {
+    if (typeof body?.reference !== 'string' || typeof body?.receiptSecret !== 'string') {
+      throw new BadRequestException('Invalid claim credentials');
+    }
+    const id = await this.svc.resolveClaimShipmentId(body.reference);
+    return this.svc.startWalkInShipmentClaim(req.user.id, id, ShipmentsService.normalizeClaimSecret(body.receiptSecret));
+  }
+
+  @Post('claim-by-number')
+  @UseGuards(JwtAuthGuard)
+  async claimWalkInByNumber(
+    @Request() req,
+    @Body() body: { reference?: string; receiptSecret?: string; otp?: string },
+  ) {
+    if (typeof body?.reference !== 'string' || typeof body?.receiptSecret !== 'string' || typeof body?.otp !== 'string') {
+      throw new BadRequestException('Invalid claim credentials');
+    }
+    const id = await this.svc.resolveClaimShipmentId(body.reference);
+    return this.svc.claimWalkInShipment(req.user.id, id, ShipmentsService.normalizeClaimSecret(body.receiptSecret), body.otp.trim());
+  }
+
   @Post(':id/claim')
   @UseGuards(JwtAuthGuard)
   claimWalkIn(

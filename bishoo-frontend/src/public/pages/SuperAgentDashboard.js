@@ -33,9 +33,10 @@ import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
 import StaleParcelsNotice from '../components/StaleParcelsNotice';
-import { buildReceiptHtml } from '../../utils/receiptPrint';
+import { buildReceiptHtml, formatClaimSecret } from '../../utils/receiptPrint';
 import { displayParcelNumber, otherParcelNumbers } from '../../utils/counterReceipt';
 import { formatWaybill } from '../../utils/waybill';
+import { isIntercityPlace, regionRelation } from '../../utils/regionMatch';
 import {
   CLAIM_CODE_NOTE, SHOW_CLAIM_CODE_NOTE, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
   canHandOverToRecipient, canReopenReceipt, historiaMatches,
@@ -286,6 +287,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const [walkHubsLoading, setWalkHubsLoading] = useState(false);
   const [walkDestinationHubId, setWalkDestinationHubId] = useState('');
   const [walkServicePath, setWalkServicePath] = useState('local_agent');
+  // C1: 'same' | 'other' | null — set from the office region vs the destination region.
+  const [walkRegion, setWalkRegion] = useState(null);
+  const [walkPathOverride, setWalkPathOverride] = useState(false);
   const [confirmSending, setConfirmSending]     = useState({});
   const [walkRouteLoading, setWalkRouteLoading] = useState(false);
   const [walkResult, setWalkResult]     = useState(null);
@@ -537,7 +541,8 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   const parcels       = dashData?.parcels || [];
   const atHub         = parcels.filter(p => ['received_at_hub','verified','ready_for_dispatch'].includes(p.status));
   const incoming      = parcels.filter(p => ['dispatched','in_transit','arrived_at_hub'].includes(p.status) && p.myRole === 'destination');
-  const isDirectLocalParcel = p => p.transportMethod === 'local_agent' || (!p.transportMethod && String(p.originCity || '').trim().toLowerCase() === String(p.destinationCity || '').trim().toLowerCase());
+  // C2: a parcel for another region is never a local-agent parcel, whatever was chosen at intake.
+  const isDirectLocalParcel = p => !isIntercityPlace(p.originCity, p.destinationCity) && (p.transportMethod === 'local_agent' || (!p.transportMethod && String(p.originCity || '').trim().toLowerCase() === String(p.destinationCity || '').trim().toLowerCase()));
   const toDispatch    = parcels.filter(p => ['received_at_hub','ready_for_dispatch'].includes(p.status) && p.myRole !== 'destination');
   const inTransit     = parcels.filter(p => ['dispatched','in_transit'].includes(p.status) && p.myRole !== 'destination');
   const awaitingBuyer = parcels.filter(p => ['awaiting_buyer','out_for_delivery'].includes(p.status) && p.myRole !== 'origin');
@@ -641,7 +646,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
       destinationCity: '', deliveryAddress: '', description: '',
       weightKg: '', declaredValue: '', shippingFeeCollected: '', paymentMethod: 'cash', notes: '' });
     setWalkRoute(null); setWalkResult(null); clearLastWalkResult(profile?.id);
-    setWalkHubs([]); setWalkDestinationHubId(''); setWalkServicePath('local_agent');
+    setWalkHubs([]); setWalkDestinationHubId(''); setWalkServicePath('local_agent'); setWalkRegion(null); setWalkPathOverride(false);
     setPokeaMode('list'); fetchAll();
   };
 
@@ -650,12 +655,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // growing their own brand through every customer touchpoint — same
   // principle already applied to the SMS templates), with Kentexa's
   // verification badge secondary underneath, not the other way around.
-  const handlePrintReceipt = (receipt) => {
+  // claimSecret: only from the screen that just created the parcel (first receipt).
+  const handlePrintReceipt = (receipt, claimSecret = null) => {
     if (!receipt) return;
     const win = window.open('', '_blank', 'width=380,height=600');
     if (!win) { setError('Imeshindwa kufungua dirisha la kuchapisha'); return; }
     // One universal slip for 58mm, 80mm and A4/Letter (utils/receiptPrint.js).
-    win.document.write(buildReceiptHtml(receipt));
+    win.document.write(buildReceiptHtml(receipt, { claimSecret }));
     win.document.close();
   };
 
@@ -814,7 +820,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
         ...dispatchForm,
         localAgentId: selectedAgent?.id || null,
       });
-      setSuccess(`✅ ${dispatchParcel.trackingNumber} imetumwa!`);
+      setSuccess(`✅ ${displayParcelNumber(dispatchParcel)} imetumwa!`);
       setDispatchParcel(null); setSelectedAgent(null);
       fetchAll();
     } catch (err) {
@@ -1325,11 +1331,16 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       <IntelligentLocationInput
                         label=""
                         value={walkDestText}
-                        onTextChange={text => { setWalkDestText(text); setWalkDestinationHubId(''); setWalkHubs([]); }}
+                        onTextChange={text => { setWalkDestText(text); setWalkDestinationHubId(''); setWalkHubs([]); setWalkRegion(null); setWalkPathOverride(false); }}
                         onResolved={async loc => {
                           if (!loc) return;
                           const cityStr = loc.regionName || loc.districtName || '';
                           setWalkForm(p => ({ ...p, destinationCity: cityStr, deliveryAddress: loc.displayLabel || p.deliveryAddress }));
+                          // C1: another region = intercity, same region = local; the office can still override.
+                          const relation = regionRelation(profile?.city, loc.regionName);
+                          setWalkRegion(relation); setWalkPathOverride(false);
+                          if (relation === 'other') setWalkServicePath('intercity');
+                          else if (relation === 'same') setWalkServicePath('local_agent');
                           if (cityStr) {
                             setWalkHubsLoading(true);
                             try {
@@ -1359,14 +1370,29 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {/* Execution path is explicit: a hub is not proof that Van is required. */}
                     <div style={{ marginBottom: 12 }}>
                       <label style={{ display:'block', fontSize:12, fontWeight:800, marginBottom:7 }}>Mzigo ufikeje?</label>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-                        <button type="button" onClick={()=>{setWalkServicePath('local_agent');setWalkDestinationHubId('');}}
-                          style={{padding:10,borderRadius:9,border:walkServicePath==='local_agent'?'2px solid #16a34a':'1px solid #e2e8f0',background:walkServicePath==='local_agent'?'#f0fdf4':'#fff',fontWeight:800}}>🏍️ Agent delivery</button>
-                        <button type="button" onClick={()=>setWalkServicePath('van')}
-                          style={{padding:10,borderRadius:9,border:walkServicePath==='van'?'2px solid #1d4ed8':'1px solid #e2e8f0',background:walkServicePath==='van'?'#eff6ff':'#fff',fontWeight:800}}>🚐 Kentexa Van</button>
-                      </div>
-                      <button type="button" onClick={()=>setWalkServicePath('intercity')}
-                        style={{width:'100%',marginTop:8,padding:9,borderRadius:9,border:walkServicePath==='intercity'?'2px solid #7c3aed':'1px solid #e2e8f0',background:walkServicePath==='intercity'?'#f5f3ff':'#fff',fontWeight:800}}>🚌 Intercity / Courier</button>
+                      {/* C1: chosen from the office region vs the destination region; all
+                          three only when the region is unknown or the office overrides. */}
+                      {walkRegion === 'other' && !walkPathOverride && (
+                        <div style={{ fontSize:12, color:'#5b21b6', marginBottom:6 }}>Mkoa mwingine — Intercity imechaguliwa</div>
+                      )}
+                      {(walkRegion !== 'other' || walkPathOverride) && (
+                        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                          <button type="button" onClick={()=>{setWalkServicePath('local_agent');setWalkDestinationHubId('');}}
+                            style={{padding:10,borderRadius:9,border:walkServicePath==='local_agent'?'2px solid #16a34a':'1px solid #e2e8f0',background:walkServicePath==='local_agent'?'#f0fdf4':'#fff',fontWeight:800}}>🏍️ Agent delivery</button>
+                          <button type="button" onClick={()=>setWalkServicePath('van')}
+                            style={{padding:10,borderRadius:9,border:walkServicePath==='van'?'2px solid #1d4ed8':'1px solid #e2e8f0',background:walkServicePath==='van'?'#eff6ff':'#fff',fontWeight:800}}>🚐 Kentexa Van</button>
+                        </div>
+                      )}
+                      {(walkRegion !== 'same' || walkPathOverride) && (
+                        <button type="button" onClick={()=>setWalkServicePath('intercity')}
+                          style={{width:'100%',marginTop:walkRegion === 'other' && !walkPathOverride ? 0 : 8,padding:9,borderRadius:9,border:walkServicePath==='intercity'?'2px solid #7c3aed':'1px solid #e2e8f0',background:walkServicePath==='intercity'?'#f5f3ff':'#fff',fontWeight:800}}>🚌 Intercity / Courier</button>
+                      )}
+                      {walkRegion && !walkPathOverride && (
+                        <button type="button" onClick={()=>setWalkPathOverride(true)}
+                          style={{ marginTop:6, background:'none', border:'none', padding:0, color:'#1d4ed8', fontSize:12, fontWeight:700, cursor:'pointer', textDecoration:'underline' }}>
+                          Badilisha kwa mkono
+                        </button>
+                      )}
                     </div>
                     {walkServicePath !== 'local_agent' && walkHubsLoading && <div>Inatafuta hub za mpokeaji...</div>}
                     {walkServicePath !== 'local_agent' && walkHubs.length > 0 && (
@@ -1521,10 +1547,23 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                           : `Ada ya Kentexa TZS ${Number(walkResult.billing.platformFeeCharged).toLocaleString()} imeongezwa kwenye deni lako`}
                       </div>
                     )}
+                    {/* Release C, claim code option (a): shown ONCE, only here, only while this
+                        screen holds it in memory (never stored), and printed on this first receipt. */}
+                    {walkResult.shipmentClaim?.receiptSecret && (
+                      <div style={{ border: '2px dashed #7c3aed', borderRadius: 10, padding: '10px 12px', marginBottom: 14, background: '#faf5ff' }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: '#5b21b6' }}>Namba ya siri ya mteja (kudai mzigo mtandaoni)</div>
+                        <div style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 900, color: '#1e293b', margin: '6px 0', wordSpacing: 4 }}>
+                          {formatClaimSecret(walkResult.shipmentClaim.receiptSecret)}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6b21a8' }}>
+                          Inachapishwa kwenye risiti hii ya kwanza tu. Chapisha risiti na umpe mteja — ukibonyeza "Mzigo mpya" haitaonekana tena.
+                        </div>
+                      </div>
+                    )}
                     {/* Wraps to two rows on a narrow phone instead of squeezing the labels. */}
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
                       {walkResult.receipt && (
-                        <button onClick={() => handlePrintReceipt(walkResult.receipt)}
+                        <button onClick={() => handlePrintReceipt(walkResult.receipt, walkResult.shipmentClaim?.receiptSecret || null)}
                           style={{ flex: '1 1 150px', backgroundColor: '#fff', color: '#1d4ed8',
                             border: '2px solid #1d4ed8', padding: '12px 16px', borderRadius: 10,
                             cursor: 'pointer', fontSize: 14, fontWeight: 800, whiteSpace: 'nowrap' }}>
@@ -1538,7 +1577,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                         + Mzigo mpya
                       </button>
                     </div>
-                    {SHOW_CLAIM_CODE_NOTE && (
+                    {SHOW_CLAIM_CODE_NOTE && !walkResult.shipmentClaim?.receiptSecret && (
                       <div style={{ fontSize: 11, color: '#64748b', marginTop: 14 }}>
                         ⚠️ {CLAIM_CODE_NOTE}
                       </div>
@@ -2031,13 +2070,15 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 </div>
                 <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8',
                   marginBottom: 14 }}>
-                  {dispatchParcel.trackingNumber} → {dispatchParcel.destinationCity}
+                  {displayParcelNumber(dispatchParcel)} → {dispatchParcel.destinationCity}
                   {dispatchParcel.transitCity && <span style={{ color: '#f59e0b' }}>
                     {' '}via {dispatchParcel.transitCity}
                   </span>}
                 </div>
 
-                {/* Mode toggle */}
+                {/* Mode toggle — C2: an intercity parcel goes by bus/courier only; the
+                    local agent choice is for same-city parcels (and the backend refuses it too). */}
+                {!isIntercityPlace(dispatchParcel.originCity || profile?.city, dispatchParcel.destinationCity) && (
                 <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
                   {[
                     { k: 'transport', l: '🚌 Basi / Courier' },
@@ -2052,6 +2093,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     </button>
                   ))}
                 </div>
+                )}
 
                 {dispatchMode === 'transport' && (
                   <>

@@ -36,8 +36,8 @@ describe('last walk-in receipt kept in the browser', () => {
     expect(sessionStorage.length).toBe(0);
   });
 
-  test('the claim-code note is kept for Release C but hidden until then', () => {
-    expect(SHOW_CLAIM_CODE_NOTE).toBe(false);
+  test('Release C: the claim-code note is shown wherever the code itself is not', () => {
+    expect(SHOW_CLAIM_CODE_NOTE).toBe(true);
     expect(CLAIM_CODE_NOTE).toBe('Namba ya siri ya mteja ya kudai mzigo haiwezi kuonyeshwa tena.');
   });
 });

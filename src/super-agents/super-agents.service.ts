@@ -78,6 +78,7 @@ import { RoleContext } from '../role-context/role-context.types';
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
 import { toValidatedPoint } from '../location-intelligence/location-provider.interface';
 import { customerParcelNumber, customerTrackRef, smsSafeName } from './customer-parcel-number';
+import { isIntercity } from './region-match';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -1823,6 +1824,21 @@ export class SuperAgentsService {
     const dispatchable = [ParcelStatus.RECEIVED_AT_HUB, ParcelStatus.VERIFIED, ParcelStatus.READY_FOR_DISPATCH];
     if (!dispatchable.includes(parcel.status) || parcel.bulkShipmentId != null) {
       throw new BadRequestException('Parcel must be at the origin hub and outside a bulk shipment before dispatch');
+    }
+    // Release C (C2): an intercity parcel leaves on real transport — never
+    // via a local agent of the sending city, and never with no transport at
+    // all (checked on live 2026-10-12: no office had ever done either).
+    if (isIntercity(parcel.originCity, parcel.destinationCity)) {
+      if (dto.localAgentId) {
+        throw new BadRequestException(
+          'Kifurushi cha mkoa mwingine hakitumwi kwa wakala wa mtaa. Chagua basi, courier au usafiri uliopangwa.',
+        );
+      }
+      if (!dto.busCompany?.trim() && !dto.courierName?.trim() && !dto.transportAssignmentId) {
+        throw new BadRequestException(
+          'Weka jina la basi au courier (au chagua usafiri uliopangwa) kabla ya kutuma kifurushi cha mkoa mwingine.',
+        );
+      }
     }
 
     const updates: any = {
