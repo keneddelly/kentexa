@@ -5592,6 +5592,7 @@
     "direct_subtitle": "Kentexa collecte chez vous et livre directement au destinataire. Aucun dépôt nécessaire.",
     "direct_pickup_requested": "La collecte a été demandée. Ouvrez Mes envois pour voir qui arrive et obtenir le code à remettre.",
     "direct_pickup_not_requested": "Votre envoi est enregistré, mais la demande de collecte n'a pas abouti. Ouvrez Mes envois et redemandez la collecte.",
+    "direct_pickup_no_agent_yet": "Demande reçue — aucun agent n'est encore disponible ; nous vous préviendrons.",
     "no_open_trip": "Ces transporteurs couvrent cet itinéraire mais n'ont aucun trajet ouvert à réserver pour le moment.",
     "provider_does_not_serve_route": "Ce transporteur ne dessert pas cet itinéraire. Revenez en arrière pour voir ceux qui le desservent.",
     "hubs_load_failed": "Impossible de charger les hubs Kentexa. Vous pouvez continuer sans hub, ou revenir en arrière et réessayer."

@@ -328,8 +328,12 @@ List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new en
   KTX-SHP-18) also went through the journey route and created NO `parcel_pickup_task`, so no agent is
   alerted — with or without the new pin. Agents only see jobs created through
   `POST /shipments/:id/pickup-task`, which the send form does not call.
-- Not fixed (outside the pin work). Planned: build-order step 8 (pickup request to the chosen provider),
-  which the nearest-first ranking (section 18 b) is ready for.
+- FIXED for same-city (local, not live yet): confirming a same-city door booking now creates the
+  pickup job (one per shipment) and alerts the nearest online agents in-app (+ phone notification).
+  No SMS to agents. If the job cannot be created the booking stays confirmed and the sender gets the
+  "not assigned yet" message. Verified locally: send-form booking KTX-SHP-19 → job #2 → in-app alert to
+  the test agent → job listed with "~100 m".
+- Still open: intercity door pickup (the job must go to the origin office; needs an origin office).
 
 ## 23. Ward list incomplete for Dar es Salaam (found 2026-10-12)
 

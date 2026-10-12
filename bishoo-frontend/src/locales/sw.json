@@ -5526,6 +5526,7 @@
     "direct_subtitle": "Kentexa inachukua kwako na kupeleka moja kwa moja kwa mpokeaji. Huhitaji kupeleka kituoni.",
     "direct_pickup_requested": "Ombi la kuchukuliwa limetumwa. Fungua Mizigo Yangu kuona nani anakuja na kupata namba ya kumpa wakati wa kukabidhi.",
     "direct_pickup_not_requested": "Mzigo wako umehifadhiwa, lakini ombi la kuchukuliwa halikufanikiwa. Fungua Mizigo Yangu uombe tena.",
+    "direct_pickup_no_agent_yet": "Ombi limepokelewa — wakala bado hajapatikana; tutakujulisha.",
     "pickup_not_assigned_title": "Bado hakuna aliyepangwa kuja kuchukua mzigo wako.",
     "pickup_call_office": "Tafadhali piga simu ofisi ya kutuma mzigo, {{name}}, kupanga uchukuaji: {{phone}}",
     "pickup_call_office_no_phone": "Tafadhali wasiliana na ofisi ya kutuma mzigo, {{name}}, kupanga uchukuaji. Ofisi hii haina namba ya simu iliyohifadhiwa.",

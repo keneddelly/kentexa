@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { ShipmentsService } from './shipments.service';
 import type { ConfirmShipmentDto } from './shipments.service';
@@ -15,6 +15,7 @@ import { JourneyLeg, JourneyLegType } from '../transport/entities/journey-select
  */
 @Injectable()
 export class ShipmentActivationService {
+  private readonly logger = new Logger(ShipmentActivationService.name);
   constructor(
     private readonly shipments: ShipmentsService,
     private readonly pickupTasks: PickupTasksService,
@@ -72,9 +73,16 @@ export class ShipmentActivationService {
       const first = legs[0];
       if (!first) throw new BadRequestException('Committed journey has no fulfillment legs');
       if (first.type === JourneyLegType.FIRST_MILE) {
+        const transportLeg = legs.find((l) => l.type === JourneyLegType.TRANSPORT) ?? null;
+        // KNOWN_FAULTS #22: a same-city door booking (agent pickup + agent
+        // delivery, no trip) creates the pickup job and alerts the nearest
+        // online agents. Intercity door pickup is not built yet (below).
+        if (!transportLeg && first.executionRequirements?.servicePath === 'direct_delivery') {
+          const started = await this.startSameCityPickup(userId, confirmed.shipment, first.id);
+          if (started) return { ...confirmed, nextAction: started };
+        }
         // No pickup task is created on this path (KNOWN_FAULTS.md #5), so
         // nobody has been told. Give the sender someone real to call instead.
-        const transportLeg = legs.find((l) => l.type === JourneyLegType.TRANSPORT) ?? null;
         return { ...confirmed, nextAction: {
           type: 'agent_pickup_pending', actor: 'agent', journeyLegId: first.id,
           requiredActorCapability: first.requiredActorCapability || 'local_agent',
@@ -122,6 +130,51 @@ export class ShipmentActivationService {
         custodyStarted: false,
         dispatch,
       },
+    };
+  }
+
+  /**
+   * Same-city door pickup (KNOWN_FAULTS #22). The job is created once per
+   * shipment (fixed request key, so a retry returns the same job), then the
+   * nearest online agents get the in-app alert. A failure here never undoes
+   * the confirmed booking: it returns null and the sender gets the honest
+   * "nobody assigned yet" answer instead.
+   */
+  private async startSameCityPickup(userId: number, shipment: any, journeyLegId: number) {
+    let contactName = String(shipment.senderName || '').trim();
+    let contactPhone = String(shipment.senderPhone || '').trim();
+    if (!contactName || !contactPhone) {
+      const users: Array<{ name: string | null; phone: string | null }> = await this.dataSource.query(
+        `SELECT name, phone FROM public."user" WHERE id = $1`, [userId]);
+      contactName = contactName || String(users[0]?.name || '').trim() || 'Mtumaji';
+      contactPhone = contactPhone || String(users[0]?.phone || '').trim();
+    }
+    let task: { id: number; status: string };
+    try {
+      task = await this.pickupTasks.requestForShipment(userId, shipment.id, {
+        requestKey: this.activationKey(userId, shipment.id),
+        servicePath: 'direct_delivery',
+        pickupContactName: contactName,
+        pickupContactPhone: contactPhone,
+      });
+    } catch (err: any) {
+      this.logger.warn(`Same-city pickup job not created for shipment ${shipment.id}: ${err?.message || err}`);
+      return null;
+    }
+    // The job exists from here on. An alert failure only means agents find it
+    // in their open-jobs list instead (nearest first).
+    let dispatch: any;
+    try {
+      dispatch = await this.dispatch.dispatchPickup(task.id, { channels: ['in_app'] });
+    } catch (err: any) {
+      this.logger.warn(`Pickup alert failed for task ${task.id}: ${err?.message || err}`);
+      dispatch = { taskId: task.id, dispatched: 0, state: 'alert_failed' };
+    }
+    return {
+      type: 'agent_pickup', actor: 'eligible_local_agent', journeyLegId,
+      taskId: task.id, status: task.status, custodyStarted: false,
+      // Only the count reaches the sender: agent ids and distances stay internal.
+      agentsAlerted: Number(dispatch?.dispatched) || 0,
     };
   }
 

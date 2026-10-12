@@ -305,6 +305,8 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
         // Only a real pickup task counts as "requested". agent_pickup_pending
         // means nobody has been told yet (KNOWN_FAULTS.md #5).
         pickupRequested: nextAction?.type === 'agent_pickup',
+        // The job exists but no online agent was found to alert (#22).
+        noAgentYet: nextAction?.type === 'agent_pickup' && Number(nextAction.agentsAlerted) === 0,
         pickupContact: nextAction?.type === 'agent_pickup_pending' ? (nextAction.contact || { kind: 'none' }) : null,
         nextAction,
         dropOffHub: nextAction?.type === 'customer_dropoff' && selected?.loadHub ? selected.loadHub : null });
@@ -761,7 +763,9 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               <div style={{ backgroundColor: confirmed.pickupRequested ? '#ECFDF5' : '#FFFBEB', borderRadius: 12, padding: 12,
                 margin: '0 auto 18px', maxWidth: 320, fontSize: 12, lineHeight: 1.5,
                 color: confirmed.pickupRequested ? '#065F46' : '#92400E' }}>
-                {confirmed.pickupRequested ? t('send_shipment.direct_pickup_requested') : t('send_shipment.direct_pickup_not_requested')}
+                {!confirmed.pickupRequested ? t('send_shipment.direct_pickup_not_requested')
+                  : confirmed.noAgentYet ? t('send_shipment.direct_pickup_no_agent_yet')
+                  : t('send_shipment.direct_pickup_requested')}
               </div>
             )}
             {confirmed.dropOffHub && (
