@@ -14,6 +14,7 @@ import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundEx
 import { InjectDataSource } from '@nestjs/typeorm';
 import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
+import { runAsTrainingOffice } from '../super-agents/training-mode';
 import { SmsService } from '../sms/sms.service';
 import { InAppNotificationService } from '../notifications/in-app-notification.service';
 import { ActivityEventService } from '../activity/activity-event.service';
@@ -265,7 +266,13 @@ export class DispatchRemindersService {
     }
     let ok = false; let errorText: string | null = null;
     try {
-      ok = await this.sms.sendSms(phone, eveningSmsText(office.count));
+      // Training office (ofisi ya mafunzo): no real SMS (in-app reminder above only).
+      // If the lookup fails, treat it as a normal office (this SMS goes only to the office's own phone).
+      const training = ((await this.db.query(
+        `SELECT 1 FROM public.super_agent WHERE id = $1 AND "isTrainingOffice" = true`, [officeId]).catch(() => [])) ?? []).length > 0;
+      ok = training
+        ? await runAsTrainingOffice(() => this.sms.sendSms(phone, eveningSmsText(office.count)))
+        : await this.sms.sendSms(phone, eveningSmsText(office.count));
       if (!ok) errorText = 'SMS provider did not accept the message (or outbound SMS is disabled)';
     } catch (error) {
       errorText = String((error as Error)?.message ?? error).slice(0, 500);

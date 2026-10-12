@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { SmsService } from '../sms/sms.service';
 import { CLAIM_MESSAGES, claimDigest, matchesClaimDigest, newClaimOtp, isReceiptSecretFormat } from './shipment-claim-crypto';
+import { runAsTrainingOffice, TrainingSmsPreview } from '../super-agents/training-mode';
 
 /**
  * Customer must be authenticated upstream. The receipt secret is checked
@@ -12,7 +13,7 @@ export async function startWalkInClaim(
   manager: EntityManager,
   sms: SmsService,
   input: { shipmentId: number; claimantUserId: number; receiptSecret: string; hmacKey: string },
-): Promise<{ sent: true }> {
+): Promise<{ sent: true; trainingSmsPreview?: TrainingSmsPreview[] }> {
   if (!Number.isSafeInteger(input.shipmentId) || input.shipmentId <= 0 ||
       !Number.isSafeInteger(input.claimantUserId) || input.claimantUserId <= 0 ||
       !isReceiptSecretFormat(input.receiptSecret)) {
@@ -88,7 +89,21 @@ export async function startWalkInClaim(
   });
   // Send only after the database has durably stored the challenge.
   // Never return the destination phone or OTP to the caller.
-  const sent = await sms.sendSms(phone, CLAIM_MESSAGES.sms(otp), true);
+  // A parcel received at a training office (ofisi ya mafunzo): no real SMS;
+  // the text is returned so the trainee sees it on screen.
+  const [training] = await manager.query(
+    `SELECT 1 AS t FROM public.parcel p JOIN public.super_agent sa ON sa.id = p."superAgentId"
+      WHERE p."shipmentId" = $1 AND sa."isTrainingOffice" = true LIMIT 1`,
+    [input.shipmentId],
+  );
+  let trainingSmsPreview: TrainingSmsPreview[] | undefined;
+  const sent = training
+    ? await runAsTrainingOffice(async (previews) => {
+        const ok = await sms.sendSms(phone, CLAIM_MESSAGES.sms(otp), true);
+        trainingSmsPreview = [...previews];
+        return ok;
+      })
+    : await sms.sendSms(phone, CLAIM_MESSAGES.sms(otp), true);
   if (!sent) {
     await manager.query(
       `UPDATE public.shipment_claim_challenge SET "consumedAt" = now()
@@ -98,5 +113,5 @@ export async function startWalkInClaim(
     );
     throw new BadRequestException(CLAIM_MESSAGES.smsNotSent);
   }
-  return { sent: true };
+  return trainingSmsPreview ? { sent: true, trainingSmsPreview } : { sent: true };
 }

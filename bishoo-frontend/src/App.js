@@ -147,6 +147,7 @@ import HowItWorks from './public/pages/HowItWorks';
 import TermsAndConditions from './public/pages/TermsAndConditions';
 import PrivacyPolicy from './public/pages/PrivacyPolicy';
 import UpdateNotice from './public/components/UpdateNotice';
+import TrainingSmsNotice from './public/components/TrainingSmsNotice';
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -902,6 +903,7 @@ function App() {
 
       {/* A phone that kept the app open gets a new website version by itself, never mid-form. */}
       <UpdateNotice />
+      <TrainingSmsNotice />
 
       {/* ── Social Commerce Navigation ─────────────────────── */}
       {/* Hidden during Onboarding — a focused setup wizard shouldn't show

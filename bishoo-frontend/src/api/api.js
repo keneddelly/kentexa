@@ -104,6 +104,12 @@ api.interceptors.response.use(
   (response) => {
     finishRequest(response.config);
     if (isStale(response.config)) return Promise.reject(new StaleContextResponseError());
+    // Training office (ofisi ya mafunzo): the server sent no real SMS; show the
+    // text on screen instead (TrainingSmsNotice).
+    const preview = response?.data?.trainingSmsPreview;
+    if (Array.isArray(preview) && preview.length && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kentexa:training-sms', { detail: preview }));
+    }
     return response;
   },
   (error) => {

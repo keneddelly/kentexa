@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import { ConfigService } from '@nestjs/config';
+import { captureTrainingSms } from '../super-agents/training-mode';
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- no type declarations published for this package
 const AfricasTalking = require('africastalking');
 
@@ -57,6 +58,12 @@ export class SmsService {
 
   // ── Send SMS ──────────────────────────────────────────────────────────
   async sendSms(phone: string, message: string, sensitive = false): Promise<boolean> {
+    // Training office (ofisi ya mafunzo): never a real SMS. The text is recorded
+    // and shown on screen as "SMS ingetumwa"; the flow continues as if sent.
+    if (captureTrainingSms(this.formatPhone(phone), message)) {
+      this.logger.log(`[SMS] training office: not sent (shown on screen)`);
+      return true;
+    }
     if (this.outboundDisabled) return false;
     const formatted = this.formatPhone(phone);
     if (this.rehearsalPhone && formatted !== this.rehearsalPhone) return false;

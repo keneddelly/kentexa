@@ -3,7 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { TrainingModeInterceptor } from './super-agents/training-mode.interceptor';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ClassifiedsModule } from './classifieds/classifieds.module';
@@ -156,6 +157,10 @@ export const allowDevelopmentSchemaSync =
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 100 }]),
   ],
   controllers: [VersionController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Training office (ofisi ya mafunzo): no real SMS; the text comes back as trainingSmsPreview.
+    { provide: APP_INTERCEPTOR, useClass: TrainingModeInterceptor },
+  ],
 })
 export class AppModule {}

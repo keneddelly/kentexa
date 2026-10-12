@@ -5706,6 +5706,11 @@
     "landmark_placeholder": "e.g. Black gate next to the Mbezi mosque",
     "landmark_hint": "5 to 160 characters."
   },
+  "training_sms": {
+    "title": "🎓 Training office — no real SMS was sent",
+    "would_send": "SMS that would be sent to {{to}}:",
+    "close": "OK"
+  },
   "office_point": {
     "title": "📍 Set office location",
     "explain": "Stand inside or at the door of the office, then tap. When a customer finds no agent, they see your office with \"Open map\" so they can bring the parcel.",

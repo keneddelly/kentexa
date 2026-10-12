@@ -5694,6 +5694,11 @@
     "landmark_placeholder": "ex. Portail noir à côté de la mosquée de Mbezi",
     "landmark_hint": "5 à 160 caractères."
   },
+  "training_sms": {
+    "title": "🎓 Bureau de formation — aucun vrai SMS envoyé",
+    "would_send": "SMS qui serait envoyé à {{to}} :",
+    "close": "OK"
+  },
   "office_point": {
     "title": "📍 Définir l'emplacement du bureau",
     "explain": "Placez-vous dans le bureau ou à sa porte, puis appuyez. Un client sans agent verra votre bureau avec « Ouvrir la carte » pour apporter son colis.",
