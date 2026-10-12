@@ -93,7 +93,7 @@ describe('claim by the number on the receipt (Release C, option a)', () => {
     await expect(svc.resolveClaimShipmentId('123')).resolves.toBe(123);
   });
   it('an unknown number gets the same answer as a wrong secret', async () => {
-    await expect(svc.resolveClaimShipmentId('KTX-ORD-999')).rejects.toThrow('Invalid claim credentials');
+    await expect(svc.resolveClaimShipmentId('KTX-ORD-999')).rejects.toThrow('Namba ya mzigo au namba ya siri si sahihi.');
   });
   it('the printed secret (groups of four) is read back as issued', () => {
     expect(ShipmentsService.normalizeClaimSecret('0123 4567 89AB-cdef')).toBe('0123456789abcdef');

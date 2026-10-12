@@ -348,9 +348,13 @@ export class TransportRunService implements OnApplicationBootstrap {
 
   async deactivateRecurringSchedule(userId:number, scheduleId:number) {
     const provider=await this.transportService.getMyProfile(userId);
+    // CTE: a bare UPDATE ... RETURNING comes back from TypeORM as [rows, count],
+    // which returned a list instead of the schedule and never said "not found".
     const rows=await this.dataSource.query(
-      `UPDATE public.transport_route_schedule SET "isActive"=false,"updatedAt"=now()
-        WHERE id=$1 AND "providerId"=$2 RETURNING *`,[scheduleId,provider.id]);
+      `WITH c AS (
+         UPDATE public.transport_route_schedule SET "isActive"=false,"updatedAt"=now()
+          WHERE id=$1 AND "providerId"=$2 RETURNING *)
+       SELECT * FROM c`,[scheduleId,provider.id]);
     if(!rows.length) throw new NotFoundException('Schedule not found');
     return rows[0];
   }

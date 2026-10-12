@@ -496,11 +496,15 @@ export class ParcelRunAssignmentService {
         createdByUserId: userId,
       });
       const saved = await manager.getRepository(ParcelRunAssignment).save(assignment);
+      // CTE: a bare UPDATE ... RETURNING comes back from TypeORM as [rows, count]
+      // (always length 2), so "already consumed" was never detected.
       const consumed = await manager.query(
-        `UPDATE public.parcel_movement_tender
-            SET status='consumed', "consumedByParcelRunAssignmentId"=$2, "consumedAt"=now()
-          WHERE id=$1 AND status='open'
-          RETURNING id`,
+        `WITH c AS (
+           UPDATE public.parcel_movement_tender
+              SET status='consumed', "consumedByParcelRunAssignmentId"=$2, "consumedAt"=now()
+            WHERE id=$1 AND status='open'
+            RETURNING id)
+         SELECT id FROM c`,
         [tender.id,saved.id],
       );
       if (!consumed.length) throw new ConflictException('Movement tender is no longer available');

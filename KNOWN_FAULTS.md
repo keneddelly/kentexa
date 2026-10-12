@@ -304,3 +304,20 @@ List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new en
 | Lost receipt | #15 | fixed on marketplace-basic, goes live with Release B |
 | Walk-in customers cannot claim online (claim code never shown) | #20 | Release C, NEXT_STEPS 15 |
 | Desk faults: delivery method, wakala wa mtaa, van name, hidden handover | #16-#19 | NEXT_STEPS 9, 10 |
+
+## 21. Online walk-in claim always said "Shipment already claimed" (live, 2026-10-12) — FIXED on marketplace-basic, not yet live
+
+- Seen by the owner on live: waybill + receipt code + SMS code all correct, then "Shipment already
+  claimed", and the parcel (KTX-ORD-133) did not appear in Mizigo Yangu.
+- Cause: `shipment-claim-finalize.ts` checked `result.length !== 1` on a bare `UPDATE ... RETURNING`;
+  TypeORM returns that as `[rows, count]` (length 2), so every correct claim failed and the error rolled
+  the claim back — the shipment stayed linked to NOBODY and the receipt code stayed unused (reproduced on
+  a real local Postgres). It had never run on live before Release C, because no code was ever printed.
+- Walk-ins are not linked to the counter account: intake sets only `requestedByUserId` (who typed it in);
+  the owner `senderUserId` stays empty until the customer claims it. Confirm one parcel read-only with
+  `C:\Users\BISHOO GROUP\release-c\check-claim.ps1 -Parcel KTX-ORD-133`.
+- Fix: the update wrapped in a CTE (rows come back as rows); a test whose fake answers like the real
+  driver; every claim message and the claim SMS in Swahili (`CLAIM_MESSAGES`). Same quirk fixed in
+  `parcel-run-assignment.service.ts` (tender "no longer available" never fired) and
+  `transport-run.service.ts` (switching off a schedule returned a list, never "not found").
+- After it is live the customer simply claims again (asks for a new SMS code); the receipt code is still valid.

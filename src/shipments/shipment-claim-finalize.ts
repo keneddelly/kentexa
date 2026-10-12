@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
-import { claimDigest, matchesClaimDigest, isReceiptSecretFormat } from './shipment-claim-crypto';
+import { CLAIM_MESSAGES, claimDigest, matchesClaimDigest, isReceiptSecretFormat } from './shipment-claim-crypto';
 
 /**
  * Atomic last step of a walk-in claim. Caller must already have authenticated
@@ -21,7 +21,7 @@ export async function finalizeWalkInClaim(
       !Number.isSafeInteger(input.claimantUserId) || input.claimantUserId <= 0 ||
       !isReceiptSecretFormat(input.receiptSecret) ||
       !/^\d{6}$/.test(input.otp)) {
-    throw new BadRequestException('Invalid claim credentials');
+    throw new BadRequestException(CLAIM_MESSAGES.invalid);
   }
   // Reject misconfigured HMAC keys before touching the database.
   const receiptDigest = claimDigest(input.hmacKey, 'receipt', input.shipmentId, input.receiptSecret.toLowerCase());
@@ -35,10 +35,10 @@ export async function finalizeWalkInClaim(
       [input.shipmentId],
     );
     if (!shipment || shipment.intakeChannel !== 'walk_in') {
-      throw new BadRequestException('Invalid claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalid);
     }
     if (shipment.senderUserId != null) {
-      throw new ConflictException('Shipment already claimed');
+      throw new ConflictException(CLAIM_MESSAGES.alreadyClaimed);
     }
     // Re-check verification at completion; account status may have changed
     // after the OTP was issued.
@@ -47,7 +47,7 @@ export async function finalizeWalkInClaim(
       [input.claimantUserId],
     );
     if (!claimant || claimant.isVerified !== true) {
-      throw new BadRequestException('Verify your Kentexa account before claiming a shipment');
+      throw new BadRequestException(CLAIM_MESSAGES.verifyAccount);
     }
     const [receipt] = await tx.query(
       `SELECT "receiptSecretDigest" FROM public.shipment_claim_receipt
@@ -56,7 +56,7 @@ export async function finalizeWalkInClaim(
       [input.shipmentId],
     );
     if (!receipt || !matchesClaimDigest(receipt.receiptSecretDigest, receiptDigest)) {
-      throw new BadRequestException('Invalid or expired claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalidOrExpired);
     }
     const [challenge] = await tx.query(
       `SELECT id, "receiptSecretDigest", "otpDigest", "otpExpiresAt",
@@ -68,7 +68,7 @@ export async function finalizeWalkInClaim(
       [input.shipmentId, input.claimantUserId],
     );
     if (!challenge || Number(challenge.attemptCount) >= Number(challenge.maxAttempts)) {
-      throw new BadRequestException('Invalid or expired claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalidOrExpired);
     }
     const valid = challenge.otpDigest != null && challenge.otpExpiresAt != null &&
       new Date(challenge.otpExpiresAt).getTime() > Date.now() &&
@@ -84,13 +84,18 @@ export async function finalizeWalkInClaim(
       // failed-attempt counter and allow unlimited guesses.
       return { shipmentId: 0 };
     }
+    // Wrapped in a CTE: TypeORM returns a bare UPDATE ... RETURNING as
+    // [rows, count] (always length 2), which made every correct claim fail
+    // with "already claimed" (found on live 2026-10-12). A SELECT returns rows.
     const result = await tx.query(
-      `UPDATE public.shipment SET "senderUserId" = $2
-        WHERE id = $1 AND "senderUserId" IS NULL AND "intakeChannel" = 'walk_in'
-        RETURNING id`,
+      `WITH claimed AS (
+         UPDATE public.shipment SET "senderUserId" = $2
+          WHERE id = $1 AND "senderUserId" IS NULL AND "intakeChannel" = 'walk_in'
+          RETURNING id)
+       SELECT id FROM claimed`,
       [input.shipmentId, input.claimantUserId],
     );
-    if (result.length !== 1) throw new ConflictException('Shipment already claimed');
+    if (result.length !== 1) throw new ConflictException(CLAIM_MESSAGES.alreadyClaimed);
     await tx.query(
       `UPDATE public.shipment_claim_challenge
           SET "consumedAt" = now() WHERE "shipmentId" = $1 AND "consumedAt" IS NULL`,
@@ -103,7 +108,7 @@ export async function finalizeWalkInClaim(
     );
     return { shipmentId: input.shipmentId };
   }).then((result) => {
-    if (result.shipmentId === 0) throw new BadRequestException('Invalid claim credentials');
+    if (result.shipmentId === 0) throw new BadRequestException(CLAIM_MESSAGES.invalid);
     return result;
   });
 }

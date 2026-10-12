@@ -14,6 +14,7 @@
  * TransportRun -- see transport/run-supply.ts); this module owns demand,
  * not supply.
  */
+import { CLAIM_MESSAGES } from './shipment-claim-crypto';
 import {
   Injectable,
   BadRequestException,
@@ -851,7 +852,7 @@ export class ShipmentsService {
     shipmentId: number,
     receiptSecret: string,
   ): Promise<{ sent: true }> {
-    if (!this.claimSms) throw new BadRequestException('Shipment verification is unavailable');
+    if (!this.claimSms) throw new BadRequestException(CLAIM_MESSAGES.unavailable);
     return startWalkInClaim(this.shipmentRepo.manager, this.claimSms, {
       claimantUserId: userId,
       shipmentId,
@@ -878,7 +879,7 @@ export class ShipmentsService {
        LIMIT 1`,
       [waybill, raw.toUpperCase()],
     );
-    if (!rows[0]?.id) throw new BadRequestException('Invalid claim credentials');
+    if (!rows[0]?.id) throw new BadRequestException(CLAIM_MESSAGES.invalid);
     return Number(rows[0].id);
   }
 

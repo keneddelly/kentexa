@@ -3,6 +3,7 @@
  * Place at: src/shipments/shipments.controller.ts
  */
 import { parseTravelDate } from '../transport/run-supply';
+import { CLAIM_MESSAGES } from './shipment-claim-crypto';
 import {
   Controller,
   Get,
@@ -129,7 +130,7 @@ export class ShipmentsController {
     @Body() body: { receiptSecret?: string },
   ) {
     if (typeof body?.receiptSecret !== 'string') {
-      throw new BadRequestException('Invalid claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalid);
     }
     return this.svc.startWalkInShipmentClaim(req.user.id, id, body.receiptSecret);
   }
@@ -143,7 +144,7 @@ export class ShipmentsController {
     @Body() body: { reference?: string; receiptSecret?: string },
   ) {
     if (typeof body?.reference !== 'string' || typeof body?.receiptSecret !== 'string') {
-      throw new BadRequestException('Invalid claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalid);
     }
     const id = await this.svc.resolveClaimShipmentId(body.reference);
     return this.svc.startWalkInShipmentClaim(req.user.id, id, ShipmentsService.normalizeClaimSecret(body.receiptSecret));
@@ -156,7 +157,7 @@ export class ShipmentsController {
     @Body() body: { reference?: string; receiptSecret?: string; otp?: string },
   ) {
     if (typeof body?.reference !== 'string' || typeof body?.receiptSecret !== 'string' || typeof body?.otp !== 'string') {
-      throw new BadRequestException('Invalid claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalid);
     }
     const id = await this.svc.resolveClaimShipmentId(body.reference);
     return this.svc.claimWalkInShipment(req.user.id, id, ShipmentsService.normalizeClaimSecret(body.receiptSecret), body.otp.trim());
@@ -170,7 +171,7 @@ export class ShipmentsController {
     @Body() body: { receiptSecret?: string; otp?: string },
   ) {
     if (typeof body?.receiptSecret !== 'string' || typeof body?.otp !== 'string') {
-      throw new BadRequestException('Invalid claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalid);
     }
     return this.svc.claimWalkInShipment(req.user.id, id, body.receiptSecret, body.otp);
   }

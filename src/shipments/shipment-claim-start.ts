@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { SmsService } from '../sms/sms.service';
-import { claimDigest, matchesClaimDigest, newClaimOtp, isReceiptSecretFormat } from './shipment-claim-crypto';
+import { CLAIM_MESSAGES, claimDigest, matchesClaimDigest, newClaimOtp, isReceiptSecretFormat } from './shipment-claim-crypto';
 
 /**
  * Customer must be authenticated upstream. The receipt secret is checked
@@ -16,7 +16,7 @@ export async function startWalkInClaim(
   if (!Number.isSafeInteger(input.shipmentId) || input.shipmentId <= 0 ||
       !Number.isSafeInteger(input.claimantUserId) || input.claimantUserId <= 0 ||
       !isReceiptSecretFormat(input.receiptSecret)) {
-    throw new BadRequestException('Invalid claim credentials');
+    throw new BadRequestException(CLAIM_MESSAGES.invalid);
   }
   const digest = claimDigest(input.hmacKey, 'receipt', input.shipmentId, input.receiptSecret.toLowerCase());
   const otp = newClaimOtp();
@@ -29,7 +29,7 @@ export async function startWalkInClaim(
     );
     if (!shipment || shipment.senderUserId != null ||
         shipment.intakeChannel !== 'walk_in' || !shipment.senderPhone) {
-      throw new BadRequestException('Invalid claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalid);
     }
     // Only an already verified Kentexa account may claim ownership.
     // This is independent of possession of the paper receipt and SMS OTP.
@@ -38,7 +38,7 @@ export async function startWalkInClaim(
       [input.claimantUserId],
     );
     if (!claimant || claimant.isVerified !== true) {
-      throw new BadRequestException('Verify your Kentexa account before claiming a shipment');
+      throw new BadRequestException(CLAIM_MESSAGES.verifyAccount);
     }
     const [receipt] = await tx.query(
       `SELECT "receiptSecretDigest" FROM public.shipment_claim_receipt
@@ -47,7 +47,7 @@ export async function startWalkInClaim(
       [input.shipmentId],
     );
     if (!receipt || !matchesClaimDigest(receipt.receiptSecretDigest, digest)) {
-      throw new BadRequestException('Invalid claim credentials');
+      throw new BadRequestException(CLAIM_MESSAGES.invalid);
     }
     // Limit re-sends per claimant and parcel using durable database history.
     // An attacker cannot bypass this by requesting a fresh OTP repeatedly.
@@ -58,7 +58,7 @@ export async function startWalkInClaim(
       [input.shipmentId, input.claimantUserId],
     );
     if (Number(recent?.count ?? 0) >= 3) {
-      throw new BadRequestException('Too many verification requests. Try again later.');
+      throw new BadRequestException(CLAIM_MESSAGES.tooMany);
     }
     const [last] = await tx.query(
       `SELECT "createdAt" FROM public.shipment_claim_challenge
@@ -67,7 +67,7 @@ export async function startWalkInClaim(
       [input.shipmentId, input.claimantUserId],
     );
     if (last && Date.now() - new Date(last.createdAt).getTime() < 60_000) {
-      throw new BadRequestException('Please wait before requesting another code.');
+      throw new BadRequestException(CLAIM_MESSAGES.waitMinute);
     }
     // Invalidate the previous challenge for this claimant, including
     // expired rows still covered by the partial unique index.
@@ -88,7 +88,7 @@ export async function startWalkInClaim(
   });
   // Send only after the database has durably stored the challenge.
   // Never return the destination phone or OTP to the caller.
-  const sent = await sms.sendSms(phone, `Kentexa: Your parcel verification code is ${otp}. It expires in 10 minutes. Do not share it.`, true);
+  const sent = await sms.sendSms(phone, CLAIM_MESSAGES.sms(otp), true);
   if (!sent) {
     await manager.query(
       `UPDATE public.shipment_claim_challenge SET "consumedAt" = now()
@@ -96,7 +96,7 @@ export async function startWalkInClaim(
           AND "otpDigest" = $3 AND "consumedAt" IS NULL`,
       [input.shipmentId, input.claimantUserId, otpDigest],
     );
-    throw new BadRequestException('Verification SMS could not be sent. Please retry later.');
+    throw new BadRequestException(CLAIM_MESSAGES.smsNotSent);
   }
   return { sent: true };
 }

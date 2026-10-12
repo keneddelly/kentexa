@@ -5,6 +5,19 @@ import { createHmac, randomInt, timingSafeEqual } from 'crypto';
  * at intake; the OTP is delivered only to the stored sender phone.
  * Neither credential may be logged or stored in plaintext.
  */
+/** Every message a customer can see in the walk-in claim, in Swahili (owner, 2026-10-12). */
+export const CLAIM_MESSAGES = {
+  invalid: 'Namba ya mzigo au namba ya siri si sahihi.',
+  invalidOrExpired: 'Namba si sahihi au muda wake umekwisha. Omba SMS mpya.',
+  alreadyClaimed: 'Mzigo huu tayari umeongezwa kwenye akaunti nyingine.',
+  verifyAccount: 'Thibitisha akaunti yako ya KenteXa kwanza.',
+  tooMany: 'Maombi mengi mno. Jaribu tena baada ya saa moja.',
+  waitMinute: 'Subiri dakika moja kabla ya kuomba namba nyingine.',
+  smsNotSent: 'SMS ya uthibitisho haikutumwa. Jaribu tena baadaye.',
+  unavailable: 'Huduma ya kuthibitisha mzigo haipatikani kwa sasa. Jaribu tena baadaye.',
+  sms: (otp: string) => `KenteXa: Namba yako ya kuthibitisha mzigo ni ${otp}. Inaisha baada ya dakika 10. Usimpe mtu.`,
+} as const;
+
 // Release C: 12 characters from 31 that cannot be confused when read from paper
 // (no 0/O, 1/I/L): about 59 bits, behind the SMS code to the sender phone,
 // 3 tries per hour and a 30-day expiry. Printed upper case in 3 groups of 4.
