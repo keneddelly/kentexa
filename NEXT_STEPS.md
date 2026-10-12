@@ -266,14 +266,59 @@ Step 2 (waybill numbers) deliberately did **not** change the counter. Today:
 - Each of those parcels now ALSO gets a waybill from the database automatically, and every
   counter lookup accepts it (through `ParcelReferenceInterceptor` → `resolveParcelTrackingNumber`).
 
-Later step (needs its own yes, because it changes the counter):
+### BUILT 2026-10-12 on marketplace-basic (local commit, not live) — plan agreed by the owner
 
-- Print the waybill on the walk-in receipt and the seller drop-off receipt.
-- Put the waybill in the counter's sender/receiver SMS (check SMS length and cost first).
-- Show the waybill in the Super Agent dashboard parcel lists and the shehena parcel list.
-- Decide which number staff should say to customers. Suggestion: the waybill for the parcel,
-  KTX-ORD only for payment/order questions.
-- Old numbers must keep working everywhere (they already do).
+Also built at the owner's request (2026-10-12):
+- Office/business names inside SMS texts only: curly quotes → straight, emoji removed
+  (`smsSafeName`, `src/super-agents/customer-parcel-number.ts`); names unchanged everywhere else.
+  The COD "limethibitishwa — Malipo" SMS dash replaced by "-" for the same reason.
+- ONE universal printed receipt (`bishoo-frontend/src/utils/receiptPrint.js`): no forced paper size,
+  slip `min(100%, 80mm)`, print units only (11pt text; number 16pt bold, never split over two lines,
+  a little smaller only on a 58mm roll), 3mm margins. Checked at 48mm, 52mm, 74mm and A4/Letter.
+- "Njia ya Malipo" printed in Swahili: Taslimu / Pesa kwa simu (M-Pesa / Airtel Money).
+- Not changed (KenteXa's own text, not office names): the DELIVERED SMS uses "✅" and "🎉", which put
+  that one message in the expensive mode — separate decision.
+
+**After deploy, to switch on:** bishoo-backend → Environment → `WAYBILL_CUSTOMER_FROM` =
+e.g. `2026-10-13T08:00:00+03:00` (a time AFTER the deploy). Every parcel received from then on gets
+the waybill on receipt and SMS; earlier parcels keep KTX-ORD until delivered. Delete it to switch off.
+
+**Rule:** everything a customer sees shows the waybill, printed `KTX 9815 9515 21`
+(`formatWaybill`). `KTX-ORD-…` stays an internal staff reference and keeps working in every lookup.
+Parcels without a waybill (the 130 from before 2026-10-12 09:43) keep `KTX-ORD` everywhere.
+
+**Switch-over setting (NEW environment variable): `WAYBILL_CUSTOMER_FROM`** = a date-time.
+Parcels created at or after it show the waybill on everything, receipt to delivery; older parcels keep
+`KTX-ORD` until delivery, so no customer sees their number change mid-journey. Not set = `KTX-ORD`
+everywhere, as today (the deploy itself changes nothing). The owner sets it after the deploy.
+
+**Changes:**
+- Printed receipt: "Namba ya Mzigo" = waybill, large; receipt number `KNT-RCP-…` stays; `KTX-ORD` not printed.
+- Walk-in result screen, counter parcel rows (Pokea, Tuma, Historia, shehena), 🧾 Risiti window:
+  waybill first, `KTX-ORD` small grey for staff.
+- SMS in `super-agents.service.ts`: sender intake + "SMS tena"; recipient dispatched, "SMS tena",
+  transport updated, "will be received by", arrived, pickup code, agent delivery code; pickup-task
+  delivery code (`pickup-tasks.service.ts`); staff/agent SMS (shehena hand-over, transfer to hub,
+  delivery request); `?track=` links use the stored waybill.
+- Seller drop-offs (`createSellerShipment`): the waybill too (owner yes).
+- Replace "→" with "-" in SMS texts: "→" forces UCS-2 (70 chars per part); the recipient "SMS tena"
+  and "transport updated" texts drop from 3 parts to 2 (owner yes).
+- Intake reads the database-made waybill back inside the same transaction (the column is not
+  returned by the insert), like `shipment-activation.service.ts` already does.
+- Not included: online marketplace orders ("Agizo #123" SMS) — separate decision.
+
+**SMS length (measured, realistic texts):** the waybill adds ~4 characters; no message gets an extra
+part (sender intake 188→192 chars, 2 parts; dispatched 248→252, 2; arrived 248→253, 2; pickup code
+132→136, 1). Africa's Talking bills per part. A business name with a special character (’, emoji)
+already forces the expensive mode today.
+
+**Old numbers:** every lookup already accepts `KTX-ORD`, the waybill (with or without spaces) and
+old shipment numbers (step 2, `resolveParcelTrackingNumber`). No migration, no old row changes.
+
+**Tests:** each SMS text (right number, no extra part); waybill read-back on a local database; the
+setting before/after its time; browser click test of the printed receipt and lists at phone width.
+**Size:** backend ~1 day, frontend ~½ day. **Release:** code only (push → Auto-Deploy), then the owner
+sets `WAYBILL_CUSTOMER_FROM` on bishoo-backend.
 
 ## 2. Before deploying step 2 — ORDER MATTERS
 
@@ -636,6 +681,7 @@ step 0): the new frontend has no live fallback any more.
   `VODACOM_CONSUMER_KEY`, `VODACOM_CONSUMER_SECRET`, `VODACOM_SHORTCODE`
 - Release B (all optional, defaults built in): `DISPATCH_REMINDER_ENABLED`, `DISPATCH_REMINDER_STALE_HOURS`,
   `DISPATCH_REMINDER_SMS_TIME`, `DISPATCH_REMINDER_LATEST_TIME`
+- Waybill on counter receipt/SMS (planned, section 1): `WAYBILL_CUSTOMER_FROM` (not set = KTX-ORD as today)
 
 **Set by Render itself — do not add:** `PORT`, `RENDER_GIT_COMMIT`, `RENDER_GIT_BRANCH`.
 
