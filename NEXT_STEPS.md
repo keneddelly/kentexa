@@ -797,8 +797,18 @@ required once the map exists.
 - **Step 1 BUILT, local commits, not live:** `be02159` (a: sender pin + landmark + agent view after
   accepting; migration 1791800000000) and `31a8e37` (b: agent base point + nearest-first).
 - **Release needs the migration on live FIRST** (shipment and agent entities map the new columns:
-  code before migration = "column does not exist", like the 2026-10-08 outage). A guarded script like
-  release-b.ps1 for 1791800000000 is the next preparation step.
+  code before migration = "column does not exist", like the 2026-10-08 outage).
+- **Release D script READY and tested locally (2026-10-12):** `C:\Users\BISHOO GROUP\release-d\release-d.ps1`
+  (outside the repo). Same guards as release-b.ps1: hidden address prompt, live-host check, type YES,
+  ceiling `MIGRATION_RUN_UPTO=1791800000000`, start check 1791700000000, refuses if any new column
+  already exists. Checks after: 9 columns + types, both pair checks, old rows untouched, final
+  1791800000000,1791700000000,1791600000000, public tracking test (404 "Shipment not found").
+  Local tests: copy run with smoke start of the new code — ALL OK; "live" path — ALL OK; refusals
+  (lower-case yes, copy on live host, live on other host, bad address, second run) — all STOP, nothing
+  changed; password in no log. No new environment variable.
+  Owner runs: `powershell -ExecutionPolicy Bypass -File "C:\Users\BISHOO GROUP\release-d\release-d.ps1" -Target live`
+  → "migration done" → then "push" (all local commits go live together).
+- **#22 (same-city door booking creates the pickup job) is in the same release** (`d0eea6a`), no migration.
 - Nearest ward is saved but not shown (`SHOW_PIN_WARD=false`): the seeded ward list has only 64 Dar
   wards and named the wrong ward for Posta, Kariakoo and Mbezi. Complete the ward list first.
 - **Step 2 decided (owner, 2026-10-12):** OpenFreeMap + MapLibre; tile address as a setting; if the
