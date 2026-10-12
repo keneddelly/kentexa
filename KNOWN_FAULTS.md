@@ -241,13 +241,13 @@ Line numbers are from the LIVE code `4d692ee`, file
   can never be shown again — by design. Only the receipt itself can be re-shown.
 - **Fixed on marketplace-basic 2026-10-11** (NEXT_STEPS.md section 10), browser-tested locally; goes live with Release B.
 
-## 16. Delivery method at walk-in intake is not automatic — FIXED on marketplace-basic 2026-10-12 (Release C, not yet live)
+## 16. Delivery method at walk-in intake is not automatic — FIXED, live 2026-10-12 11:59 (Release C)
 
 Dar → Katavi shows three choices (agent delivery, "KenteXa van", intercity) and defaults to agent
 delivery (line 276); such a parcel is saved with NO receiving office. Details and fix: NEXT_STEPS.md
 section 9, "Fault 1". Status: not fixed.
 
-## 17. "Wakala wa mtaa" offered when sending an intercity parcel — FIXED on marketplace-basic 2026-10-12 (Release C, not yet live)
+## 17. "Wakala wa mtaa" offered when sending an intercity parcel — FIXED, live 2026-10-12 11:59 (Release C)
 
 In the 📤 Tuma panel (2001-2015) it lists the ORIGIN city's agents and marks the parcel dispatched
 with no bus/courier at all; the backend checks nothing (service 1790-1886). Details and fix:
@@ -272,7 +272,7 @@ List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new en
   with "✅ Pokea" (incoming list, 1225) shows it only after the parcel was received.
 - **Fixed on marketplace-basic 2026-10-11** (NEXT_STEPS.md section 10), browser-tested locally; goes live with Release B.
 
-## 20. Walk-in customers cannot claim online; the claim code is never shown or printed — FIXED on marketplace-basic 2026-10-12 (Release C, not yet live)
+## 20. Walk-in customers cannot claim online; the claim code is never shown or printed — FIXED, live 2026-10-12 11:59 (Release C)
 
 - Found 2026-10-11 while building the receipt reopen (#15).
 - The backend makes a claim code for every walk-in (`issueWalkInClaimReceipt`,

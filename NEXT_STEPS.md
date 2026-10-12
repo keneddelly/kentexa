@@ -725,7 +725,7 @@ tested, needs only a frontend change, and a counter typo can never hand a parcel
 customer's parcel to another. If (b) is wanted later, make it a suggestion ("We found 2 parcels sent from
 your number — confirm with the code we SMS to that number"), and only for parcels from the last few days.
 
-## 16. Release C — BUILT 2026-10-12 on marketplace-basic (local commits, not live)
+## 16. Release C — LIVE 2026-10-12 11:59 (pushed 2130d6c..a057159; pre-push count: 0 parcels, 0 offices)
 
 Count check on live first (owner, `release-c\count-agent-dispatch.ps1`, read-only): parcels 0, offices 0
 — no office had ever sent an intercity parcel through "Wakala wa Mtaa".
