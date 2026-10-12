@@ -1,6 +1,6 @@
 import {
   BadRequestException, ConflictException, ForbiddenException, Injectable,
-  NotFoundException, Optional,
+  Logger, NotFoundException, Optional,
 } from '@nestjs/common';
 import { createHash, randomBytes, randomInt, scryptSync, timingSafeEqual } from 'crypto';
 import { DataSource } from 'typeorm';
@@ -9,7 +9,7 @@ import type { RoleContext } from '../role-context/role-context.types';
 import { ShipmentHubSource } from './shipment-hub-source';
 import { projectShipment, projectShipmentForParcel } from './shipment-projection';
 import { SmsService } from '../sms/sms.service';
-import { customerParcelNumber } from '../super-agents/customer-parcel-number';
+import { customerParcelNumber, smsSafeName } from '../super-agents/customer-parcel-number';
 import { AGENT_BASE_MESSAGES, distanceM, pickupPointForAgent, roughDistanceLabel, SHOW_PIN_WARD } from './pickup-pin';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
@@ -34,6 +34,12 @@ const collectedKey = (taskId: number) => `pickup-task-collected:${taskId}`;
 const hubReceivedKey = (taskId: number) => `pickup-task-hub-received:${taskId}`;
 const deliveredKey = (taskId: number) => `pickup-task-delivered:${taskId}`;
 
+/** The sender's SMS when an agent accepts: plain characters only (1 SMS part). */
+export function pickupAcceptedSms(agentName: string | null, agentPhone: string, reference: string) {
+  const name = smsSafeName(agentName).slice(0, 30) || 'Wakala';
+  return `KenteXa: Wakala ${name}, simu ${agentPhone}, anakuja kuchukua mzigo${reference ? ` ${reference}` : ''}.`;
+}
+
 /**
  * Request and claim (Stage 3S) plus the physical first mile (Stage 3S-A):
  * sender -> Agent (origin_agent_collected) and Agent -> exact origin hub
@@ -43,6 +49,7 @@ const deliveredKey = (taskId: number) => `pickup-task-delivered:${taskId}`;
  */
 @Injectable()
 export class PickupTasksService {
+  private readonly logger = new Logger(PickupTasksService.name);
   constructor(
     private readonly db: DataSource,
     // Gate 4: the recipient's delivery code is sent by SMS. Optional only so
@@ -143,7 +150,7 @@ export class PickupTasksService {
       FROM public.parcel_pickup_task t JOIN public.parcel p ON p.id=t."parcelId"
       WHERE t.id=$1`, [taskId]);
     if (preliminary.length !== 1 || !preliminary[0].shipmentId) throw new NotFoundException('Pickup task not found');
-    return this.db.transaction(async (em) => {
+    const result = await this.db.transaction(async (em) => {
       const s: any[] = await em.query('SELECT id,status,"originCity" FROM public.shipment WHERE id=$1 FOR UPDATE',
         [preliminary[0].shipmentId]);
       const p: any[] = await em.query('SELECT id,status,"shipmentId" FROM public.parcel WHERE id=$1 FOR UPDATE',
@@ -176,6 +183,37 @@ export class PickupTasksService {
         "agentProfileId"=$1,"claimedAt"=now(),"updatedAt"=now() WHERE id=$2`, [role.profileId, taskId]);
       return { id: taskId, parcelId: p[0].id, status: 'claimed', replay: false };
     });
+    // Only a fresh accept tells the sender (a repeated tap is a replay).
+    if (!result.replay) await this.tellSenderAgentIsComing(taskId);
+    return result;
+  }
+
+  /**
+   * One SMS to the sender when an agent accepts: who is coming and their
+   * phone. Sent after the accept is saved; a failed SMS never undoes it.
+   */
+  private async tellSenderAgentIsComing(taskId: number) {
+    if (!this.sms) return;
+    try {
+      const rows: any[] = await this.db.query(`
+        SELECT t."pickupContactPhone" AS "senderPhone", a."fullName" AS "agentName",
+               COALESCE(NULLIF(btrim(a.phone), ''), u.phone) AS "agentPhone",
+               s."trackingNumber" AS "shipmentNumber", p."trackingNumber", p."waybillNumber", p."createdAt"
+          FROM public.parcel_pickup_task t
+          JOIN public.parcel p ON p.id = t."parcelId"
+          JOIN public.shipment s ON s.id = p."shipmentId"
+          JOIN public.agent a ON a.id = t."agentProfileId"
+          LEFT JOIN public."user" u ON u.id = a."userId"
+         WHERE t.id = $1`, [taskId]);
+      const r = rows[0];
+      if (!r?.senderPhone || !r.agentPhone) return;
+      const reference = customerParcelNumber({
+        trackingNumber: r.shipmentNumber ?? r.trackingNumber, waybillNumber: r.waybillNumber, createdAt: r.createdAt,
+      });
+      await this.sms.sendSms(r.senderPhone, pickupAcceptedSms(r.agentName, r.agentPhone, reference));
+    } catch (err: any) {
+      this.logger.warn(`Pickup accepted SMS not sent for task ${taskId}: ${err?.message || err}`);
+    }
   }
 
   // ══ Stage 3S-A: the physical first mile ═══════════════════════════════════
