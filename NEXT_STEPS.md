@@ -266,7 +266,7 @@ Step 2 (waybill numbers) deliberately did **not** change the counter. Today:
 - Each of those parcels now ALSO gets a waybill from the database automatically, and every
   counter lookup accepts it (through `ParcelReferenceInterceptor` → `resolveParcelTrackingNumber`).
 
-### BUILT 2026-10-12 on marketplace-basic (local commit, not live) — plan agreed by the owner
+### LIVE 2026-10-12 10:57 (pushed d4f27a5..2130d6c, Auto-Deploy; backend + website checked) — switch `WAYBILL_CUSTOMER_FROM` NOT set yet
 
 Also built at the owner's request (2026-10-12):
 - Office/business names inside SMS texts only: curly quotes → straight, emoji removed
