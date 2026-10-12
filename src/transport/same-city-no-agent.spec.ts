@@ -79,9 +79,14 @@ describe('"Thibitisha Kifurushi" with no agent', () => {
 });
 
 describe('findNearestOffice', () => {
-  it('an office without a map point: no "Fungua ramani" link and no distance', async () => {
-    const r = await findNearestOffice({ query: async () => [{ ...office, latitude: null, longitude: null, distanceM: null }] },
-      'Dar es Salaam', null);
-    expect(r).toMatchObject({ name: 'Kariakoo Hub', mapsUrl: null, distance: null });
+  it('only active offices WITH a map point can be shown (never a guess, never an office without a point)', async () => {
+    const query = jest.fn(async () => []);
+    expect(await findNearestOffice({ query }, 'Dar es Salaam', null)).toBeNull();
+    expect((query.mock.calls[0] as any[])[0]).toMatch(/sa\.status = 'active' AND sa\.latitude IS NOT NULL AND sa\.longitude IS NOT NULL/);
+  });
+
+  it('no pickup point: still an office with a map point, without a distance', async () => {
+    const r = await findNearestOffice({ query: async () => [{ ...office, distanceM: null }] }, 'Dar es Salaam', null);
+    expect(r).toMatchObject({ name: 'Kariakoo Hub', mapsUrl: expect.stringContaining('google.com/maps/dir'), distance: null });
   });
 });

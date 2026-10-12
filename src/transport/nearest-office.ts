@@ -19,8 +19,10 @@ export interface NearestOffice {
   distance: string | null;
 }
 
-// Only offices of the same city/region (by name). Among them, the nearest to
-// the pickup place first; offices without a map point after those with one.
+// Only active offices of the same city/region (by name) that HAVE a map point
+// (set by the office itself, "Weka mahali pa ofisi"); nearest to the pickup
+// place first. An office without a map point is never shown: without one the
+// card could only guess, and could pick a test office.
 const NEAREST_OFFICE_SQL = `
   SELECT sa.id, sa."businessName" AS name, sa.phone, sa.address, sa.latitude, sa.longitude,
          CASE WHEN $1::float8 IS NULL OR sa.latitude IS NULL OR sa.longitude IS NULL THEN NULL
@@ -29,9 +31,9 @@ const NEAREST_OFFICE_SQL = `
                 cos(radians($1::float8)) * cos(radians(sa.latitude)) *
                 power(sin(radians((sa.longitude - $2::float8) / 2)), 2))) END AS "distanceM"
     FROM public.super_agent sa
-   WHERE sa.status = 'active'
+   WHERE sa.status = 'active' AND sa.latitude IS NOT NULL AND sa.longitude IS NOT NULL
      AND (lower(btrim(sa.city)) = lower(btrim($3)) OR lower(btrim(COALESCE(sa."regionName", ''))) = lower(btrim($3)))
-   ORDER BY "distanceM" ASC NULLS LAST, sa.id ASC
+   ORDER BY "distanceM" ASC NULLS LAST, sa.id ASC   -- no pickup point: lowest id among offices WITH a point
    LIMIT 1`;
 
 export async function findNearestOffice(

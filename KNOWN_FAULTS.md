@@ -356,5 +356,7 @@ List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new en
   - "Thibitisha Kifurushi" with no agent (the last one went offline meanwhile) shows the same Swahili
     card instead of the English line.
   - Same-city offers now need an agent with a base point too, so both checks always agree.
-- Offices without a map point (latitude/longitude) are still shown, without "Fungua ramani" and
-  without distance. Unknown how many live offices have a map point (not checked on live).
+- The card shows ONLY active offices that have a map point (latitude/longitude). Owner checked live
+  2026-10-12: 7 active offices, 0 with a map point (2 real, 5 test/training) -- so until an office sets
+  its point ("Weka mahali pa ofisi") the card says "no office found in this city yet". Never a guess,
+  so never a test office by accident.
