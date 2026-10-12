@@ -453,8 +453,11 @@ const SendShipment = ({ onNavigate, isLoggedIn, currentUser, navParams }) => {
               </div>
             )}
 
+            {/* A same-city trip never has bus/transport trips: the "Mlango kwa mlango
+                ndani ya mji" option below (and its no-agent card) is the answer,
+                so "no route — try nearby cities" would be wrong there. */}
             {searched && !searching && searchReason !== 'request_failed' && searchReason !== 'invalid_location' &&
-              trips.length === 0 && (
+              trips.length === 0 && !(canDeliverDirect(requestState) && !navParams?.transportProviderId) && (
               <div style={{ textAlign: 'center', padding: '30px 0', color: GR, fontSize: 13 }}>
                 {searchReason === 'no_capacity_for_weight'
                   ? t('send_shipment.no_options_found_weight', { weight: weightKg })
