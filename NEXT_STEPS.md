@@ -741,6 +741,12 @@ Count check on live first (owner, `release-c\count-agent-dispatch.ps1`, read-onl
   (waybill or old number) instead of the internal shipment id — new routes
   `POST /shipments/claim-by-number/start` and `/claim-by-number`; spaces in the code are ignored. Unknown
   numbers get the same answer as a wrong code. The SMS code step can only be checked on live.
+- **Claim code length (owner yes 2026-10-12):** new receipts get 12 characters from 31 that cannot be
+  confused (no 0/O, 1/I/L), printed upper case in 3 groups of 4 (`K7MR 2XQ9 PB4H`); about 59 bits behind
+  the SMS code, 3 tries per hour and 30-day expiry. Old 36-character receipts keep working.
+- **Before the push:** owner runs `C:\Users\BISHOO GROUP\release-c\count-no-transport-dispatch.ps1` (read-only):
+  intercity single "Tuma" dispatches in the last 30 days with no bus, courier or arranged transport —
+  the new C2 rule refuses those. Not 0 → tell those offices before the push.
 - No migration, no new setting. Deploy = push (code only).
 
 ## 17. Same-city door pickup: customer must give the ward or a map pin (PLAN ONLY, owner 2026-10-12)
@@ -757,3 +763,4 @@ place (the client may never send its own — Stage 2B rule).
   coordinates), plus a "Fungua ramani" link for the agent. Needs a Release-B-style migration step.
 - **Not recommended now:** a draggable map (needs a map library and an outside tile server).
 - Recommendation: A first (small, safe), then B if agents still cannot find senders.
+- **Owner decision 2026-10-12:** build A (ward required) as its own step AFTER Release C is live. Not B yet.
