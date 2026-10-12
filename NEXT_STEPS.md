@@ -809,6 +809,10 @@ required once the map exists.
   Owner runs: `powershell -ExecutionPolicy Bypass -File "C:\Users\BISHOO GROUP\release-d\release-d.ps1" -Target live`
   → "migration done" → then "push" (all local commits go live together).
 - **#22 (same-city door booking creates the pickup job) is in the same release** (`d0eea6a`), no migration.
+- **Also in Release D, no migration, no new setting:** `d2b461d` SMS to the sender when an agent accepts
+  (1 SMS part per accepted pickup); `a4e3417` same-city door pickup with no agent: early check + nearest
+  Super Agent office card, replaces the English "no longer fulfillable" (KNOWN_FAULTS #24, on live today).
+- Release D order: `release-d.ps1 -Target live` → "migration done" → "push" (all local commits together).
 - Nearest ward is saved but not shown (`SHOW_PIN_WARD=false`): the seeded ward list has only 64 Dar
   wards and named the wrong ward for Posta, Kariakoo and Mbezi. Complete the ward list first.
 - **Step 2 decided (owner, 2026-10-12):** OpenFreeMap + MapLibre; tile address as a setting; if the
