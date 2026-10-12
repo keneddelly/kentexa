@@ -9,6 +9,7 @@ import type { RoleContext } from '../role-context/role-context.types';
 import { ShipmentHubSource } from './shipment-hub-source';
 import { projectShipment, projectShipmentForParcel } from './shipment-projection';
 import { SmsService } from '../sms/sms.service';
+import { customerParcelNumber } from '../super-agents/customer-parcel-number';
 
 export type PickupServicePath = 'direct_delivery' | 'hub_routed';
 export interface RequestPickupDto {
@@ -494,7 +495,10 @@ export class PickupTasksService {
       await em.query(`UPDATE public.parcel_pickup_task SET "deliveryCodeHash"=$1,"deliveryCodeIssuedAt"=$2,
         "deliveryCodeExpiresAt"=$3,"deliveryAttempts"=0,"updatedAt"=now() WHERE id=$4`,
       [hash, now, new Date(now.getTime() + CODE_TTL_MS), taskId]);
-      return { phone, hash, reference: s.trackingNumber ?? p.trackingNumber ?? `#${p.id}` };
+      const reference = customerParcelNumber({
+        trackingNumber: s.trackingNumber ?? p.trackingNumber, waybillNumber: p.waybillNumber, createdAt: p.createdAt,
+      }) || `#${p.id}`;
+      return { phone, hash, reference };
     });
     const sent = this.sms
       ? await this.sms.sendSms(issued.phone,

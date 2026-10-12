@@ -77,6 +77,7 @@ import {
 import { RoleContext } from '../role-context/role-context.types';
 import { LocationIntelligenceService } from '../location-intelligence/location-intelligence.service';
 import { toValidatedPoint } from '../location-intelligence/location-provider.interface';
+import { customerParcelNumber, customerTrackRef, smsSafeName } from './customer-parcel-number';
 
 // Default Kentexa platform fee per Super-Agent-collected counter order,
 // past the free-order allowance. Real per-agent columns
@@ -792,6 +793,15 @@ export class SuperAgentsService {
     const savedParcel = (await manager.getRepository(Parcel).save(
       parcel as any,
     )) as unknown as Parcel;
+    // The database gives the waybill on insert; the insert does not return it.
+    const [stored] = await manager.query(
+      `SELECT "waybillNumber", "createdAt" FROM public.parcel WHERE id = $1`, [savedParcel.id],
+    );
+    savedParcel.waybillNumber = stored?.waybillNumber ?? null;
+    const customerNumber = customerParcelNumber({
+      trackingNumber, waybillNumber: savedParcel.waybillNumber,
+      createdAt: stored?.createdAt ?? savedParcel.createdAt,
+    });
 
     // Aggregate the free-order/fee counters onto the Super Agent's own
     // record — same tracked-only principle as the parcel-level fields above.
@@ -895,11 +905,14 @@ export class SuperAgentsService {
 
     const receipt = {
       success: true, orderId: savedOrder.id, trackingNumber, originCity, destinationCity,
+      // customerNumber: the one number on the receipt and in every SMS
+      // (waybill from WAYBILL_CUSTOMER_FROM on, else KTX-ORD).
+      waybillNumber: savedParcel.waybillNumber, customerNumber,
       destinationAgent: destAgent?.businessName || null, declaredValue,
       shippingFeeCollected: dto.shippingFeeCollected, agentEarnings,
       receiptNumber: invoice.receiptNumber,
       receipt: {
-        receiptNumber: invoice.receiptNumber, parcelReference: trackingNumber,
+        receiptNumber: invoice.receiptNumber, parcelReference: customerNumber, orderReference: trackingNumber,
         senderName: dto.senderName, senderPhone: dto.senderPhone,
         receiverName: dto.recipientName, receiverPhone: dto.recipientPhone,
         declaredValue, amountPaid: dto.shippingFeeCollected,
@@ -954,8 +967,8 @@ export class SuperAgentsService {
     try {
       senderSmsSent = await this.smsService.sendSms(
         dto.senderPhone,
-        `${superAgent.businessName}\n\n` +
-          `Habari ${dto.senderName}, malipo yako ya TZS ${dto.shippingFeeCollected.toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}. ` +
+        `${smsSafeName(superAgent.businessName)}\n\n` +
+          `Habari ${dto.senderName}, malipo yako ya TZS ${dto.shippingFeeCollected.toLocaleString()} yamepokewa kwa kifurushi ${receipt.customerNumber}. ` +
           `Thamani ya mzigo: TZS ${declaredValue.toLocaleString()}.\n\n` +
           `Risiti: ${invoice.receiptNumber}\n\n` +
           `Verified by Kentexa`,
@@ -1567,7 +1580,8 @@ export class SuperAgentsService {
       }
     }
 
-    const parcels = [...parcelMap.values()];
+    // customerNumber: the number the customer holds (receipt/SMS), shown first on the counter.
+    const parcels = [...parcelMap.values()].map((p) => ({ ...p, customerNumber: customerParcelNumber(p) }));
 
     // Live sum from the actual parcel records, not SuperAgent.totalEarnings
     // — a separately-incremented counter that can (and, in production, did)
@@ -1997,7 +2011,7 @@ export class SuperAgentsService {
       ? `Kufika: ${arrivalDate}${dto.expectedArrivalTime ? `, ${dto.expectedArrivalTime}` : ''}`
       : null;
     const destHubLine = parcel.destinationSuperAgent?.businessName
-      ? `Hub ya Kupokea: ${parcel.destinationSuperAgent.businessName}`
+      ? `Hub ya Kupokea: ${smsSafeName(parcel.destinationSuperAgent.businessName)}`
       : null;
     const destHubAddressLine = parcel.destinationSuperAgent?.address
       ? `Mahali: ${parcel.destinationSuperAgent.address}`
@@ -2009,9 +2023,9 @@ export class SuperAgentsService {
       try {
         receiverSmsSent = await this.smsService.sendSms(
           parcel.buyerPhone,
-          `${agent?.businessName || ''}\n\n` +
+          `${smsSafeName(agent?.businessName)}\n\n` +
             `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa kutoka ${parcel.originCity} kwenda ${parcel.destinationCity}.\n\n` +
-            `Kifurushi: ${trackingNumber}\n` +
+            `Kifurushi: ${customerParcelNumber(parcel)}\n` +
             [
               transportName ? `Usafiri: ${transportName}` : null,
               vehicleLine,
@@ -2019,14 +2033,14 @@ export class SuperAgentsService {
               referenceLine,
               departureLine,
               arrivalLine,
-              `Njia: ${parcel.originCity} → ${parcel.destinationCity}`,
+              `Njia: ${parcel.originCity} - ${parcel.destinationCity}`,
               destHubLine,
               destHubAddressLine,
               destHubPhoneLine,
             ]
               .filter(Boolean)
               .join('\n') +
-            `\n\nFuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+            `\n\nFuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
             `Verified by Kentexa`,
         );
       } catch (e: any) {
@@ -2123,7 +2137,9 @@ export class SuperAgentsService {
       );
     }
     const { shipmentClaim: _never, ...receipt } = snapshot;
-    return { ...receipt, waybillNumber: parcel.waybillNumber ?? null, reopened: true };
+    // customerNumber comes from the saved receipt (what was printed), never recomputed.
+    return { ...receipt, waybillNumber: parcel.waybillNumber ?? null,
+      customerNumber: receipt.customerNumber ?? receipt.receipt?.parcelReference ?? parcel.trackingNumber, reopened: true };
   }
 
   // "SMS failure must never invalidate a successful transaction... allow
@@ -2152,8 +2168,8 @@ export class SuperAgentsService {
     try {
       senderSmsSent = await this.smsService.sendSms(
         parcel.senderPhone,
-        `${parcel.superAgent?.businessName || ''}\n\n` +
-          `Habari ${parcel.senderName || ''}, malipo yako ya TZS ${Number(parcel.actualShippingFee).toLocaleString()} yamepokewa kwa kifurushi ${trackingNumber}.\n\n` +
+        `${smsSafeName(parcel.superAgent?.businessName)}\n\n` +
+          `Habari ${parcel.senderName || ''}, malipo yako ya TZS ${Number(parcel.actualShippingFee).toLocaleString()} yamepokewa kwa kifurushi ${customerParcelNumber(parcel)}.\n\n` +
           (invoice?.receiptNumber ? `Risiti: ${invoice.receiptNumber}\n\n` : '\n') +
           `Verified by Kentexa`,
       );
@@ -2208,10 +2224,10 @@ export class SuperAgentsService {
     try {
       receiverSmsSent = await this.smsService.sendSms(
         parcel.buyerPhone,
-        `${parcel.superAgent?.businessName || ''}\n\n` +
+        `${smsSafeName(parcel.superAgent?.businessName)}\n\n` +
           `Habari ${parcel.recipientName || ''}, kifurushi kutoka kwa ${parcel.senderName || ''} kimeshatumwa.\n\n` +
-          `Kifurushi: ${trackingNumber}\n` +
-          [transportLine, `Njia: ${parcel.originCity} → ${parcel.destinationCity}`, referenceLine]
+          `Kifurushi: ${customerParcelNumber(parcel)}\n` +
+          [transportLine, `Njia: ${parcel.originCity} - ${parcel.destinationCity}`, referenceLine]
             .filter(Boolean)
             .join('\n') +
           `\n\nVerified by Kentexa`,
@@ -2696,7 +2712,7 @@ export class SuperAgentsService {
     const code = String(randomInt(100000, 1000000));
     const salt = randomBytes(16).toString('hex');
     const now = new Date();
-    const { id, hash, phone } = await this.dataSource.transaction(async manager => {
+    const { id, hash, phone, number } = await this.dataSource.transaction(async manager => {
       const parcel = await this.lockedAgentDeliveryParcel(manager, trackingNumber, user, true);
       const phone = parcel.buyerPhone;
       if (!phone) throw new ConflictException('Recipient contact number is missing');
@@ -2712,10 +2728,10 @@ export class SuperAgentsService {
         agentDeliveryAgentUserId: user.id, agentDeliveryRecipientPhone: phone,
         agentDeliveryAttempts: 0,
       });
-      return { id: parcel.id, hash, phone };
+      return { id: parcel.id, hash, phone, number: customerParcelNumber(parcel) };
     });
     const sent = await this.smsService.sendSms(phone,
-      `KenteXa: Namba ya kupokea kifurushi ${trackingNumber} ni ${code}. Inaisha dakika 10. Mpe wakala wakati unapokea kifurushi.`, true).catch(() => false);
+      `KenteXa: Namba ya kupokea kifurushi ${number} ni ${code}. Inaisha dakika 10. Mpe wakala wakati unapokea kifurushi.`, true).catch(() => false);
     if (!sent) {
       await this.parcelRepo.createQueryBuilder().update(Parcel).set({
         agentDeliveryCodeHash: null, agentDeliveryCodeIssuedAt: null,
@@ -2966,10 +2982,11 @@ export class SuperAgentsService {
     };
     if (destinationCity) where.destinationCity = destinationCity;
 
-    return this.parcelRepo.find({
+    const candidates = await this.parcelRepo.find({
       where,
       order: { createdAt: 'ASC' } as any,
     });
+    return candidates.map((p) => ({ ...p, customerNumber: customerParcelNumber(p) }));
   }
 
   // ── Consolidated shipment: many orders inside one physical box/bus package,
@@ -3149,11 +3166,11 @@ export class SuperAgentsService {
       try {
         const sent = await this.smsService.sendSms(
           (parcel as any).buyerPhone,
-          `${agent.businessName}\n\n` +
-            `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${parcel.trackingNumber}) kitapokelewa na ${receiverName}${receiverCity ? ` (${receiverCity})` : ''}.\n\n` +
+          `${smsSafeName(agent.businessName)}\n\n` +
+            `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${customerParcelNumber(parcel)}) kitapokelewa na ${smsSafeName(receiverName)}${receiverCity ? ` (${receiverCity})` : ''}.\n\n` +
             `Simu: ${receiverPhone}\n` +
             (receiverAddress ? `Mahali: ${receiverAddress}\n` : '') +
-            `\nFuatilia: ${FRONTEND_URL}/?track=${parcel.trackingNumber}\n\n` +
+            `\nFuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
             `Verified by Kentexa`,
         );
         if (sent) buyerSmsSentCount++;
@@ -3322,7 +3339,7 @@ export class SuperAgentsService {
     // actual gap being closed. A long tracking-number list gets truncated
     // so the SMS stays a normal length; the dashboard has the full list.
     let agentNotifySent = false;
-    const trackingList = parcels.map((p) => p.trackingNumber).filter(Boolean);
+    const trackingList = parcels.map((p) => customerParcelNumber(p)).filter(Boolean);
     const listLine =
       trackingList.length <= 8
         ? trackingList.join(', ')
@@ -3332,9 +3349,9 @@ export class SuperAgentsService {
         agentNotifySent = await this.smsService.sendSms(
           receiverPhone,
           `KenteXa\n\n` +
-            `Habari ${receiverName}, ${agent?.businessName} amekukabidhi vifurushi ${parcels.length} vinavyokuja kwako.\n\n` +
+            `Habari ${smsSafeName(receiverName)}, ${smsSafeName(agent?.businessName)} amekukabidhi vifurushi ${parcels.length} vinavyokuja kwako.\n\n` +
             `Vifurushi: ${listLine}\n` +
-            `Mtumaji: ${agent?.businessName} (${agent?.phone || user.phone || ''})\n` +
+            `Mtumaji: ${smsSafeName(agent?.businessName)} (${agent?.phone || user.phone || ''})\n` +
             (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
             (dto.transportRef ? `Tiketi/Rejea: ${dto.transportRef}\n` : '') +
             `\nVerified by Kentexa`,
@@ -4021,7 +4038,7 @@ export class SuperAgentsService {
       // DELIVERED: order complete confirmation
       const arrivalHub =
         (parcel as any).destinationSuperAgent || parcel.superAgent || null;
-      const arrivalBrand = arrivalHub?.businessName || 'KenteXa Network';
+      const arrivalBrand = smsSafeName(arrivalHub?.businessName) || 'KenteXa Network';
       const arrivalAddressLine = arrivalHub?.address
         ? `Mahali: ${arrivalHub.address}`
         : null;
@@ -4029,10 +4046,12 @@ export class SuperAgentsService {
         ? `Simu ya Hub: ${arrivalHub.phone}`
         : null;
       const originHub = parcel.superAgent || null;
-      const originBrand = originHub?.businessName || 'KenteXa Network';
+      const originBrand = smsSafeName(originHub?.businessName) || 'KenteXa Network';
       const declaredValueLine = (parcel as any).declaredValue
         ? ` wenye thamani ya TZS ${Number((parcel as any).declaredValue).toLocaleString()}`
         : '';
+      const customerNumber = customerParcelNumber(parcel);
+      const trackRef = customerTrackRef(parcel);
       const smsMap: Partial<Record<ParcelStatus, string>> = {
         // Origin hub physically has the parcel now — the seller-shipment
         // equivalent of createOfflineIntercityOrder's own "received" SMS
@@ -4041,28 +4060,28 @@ export class SuperAgentsService {
         // reaches this status later, via this generic endpoint).
         [ParcelStatus.RECEIVED_AT_HUB]:
           `${originBrand}\n\n` +
-          `Habari ${recipientName}! Mzigo wako (${trackingNumber})${declaredValueLine} umepokelewa na Super Agent. ` +
+          `Habari ${recipientName}! Mzigo wako (${customerNumber})${declaredValueLine} umepokelewa na Super Agent. ` +
           `Unaendelea na hatua za usafirishaji.\n\n` +
-          `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+          `Fuatilia: ${FRONTEND_URL}/?track=${trackRef}\n\n` +
           `Verified by Kentexa`,
 
         [ParcelStatus.ARRIVED_AT_HUB]:
           `${arrivalBrand}\n\n` +
-          `Habari ${recipientName}! Kifurushi chako (${trackingNumber}) ` +
+          `Habari ${recipientName}! Kifurushi chako (${customerNumber}) ` +
           `kimefika ${dto.city}. Ingia KenteXa kuchagua: chukua mwenyewe au omba delivery.\n\n` +
           [arrivalAddressLine, arrivalPhoneLine].filter(Boolean).join('\n') +
           (arrivalAddressLine || arrivalPhoneLine ? '\n\n' : '') +
-          `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+          `Fuatilia: ${FRONTEND_URL}/?track=${trackRef}\n\n` +
           `Verified by Kentexa`,
 
         [ParcelStatus.DELIVERED]:
           order?.paymentMethod === OrderPaymentMethod.COD
             ? `${arrivalBrand}\n\n` +
-              `✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
+              `✅ Kifurushi chako (${customerNumber}) kimefikishwa. ` +
               `Malipo ya TZS ${Number(order.codRemainingBalance || 0).toLocaleString()} yamethibitishwa. Risiti yako ya kidigitali imeandaliwa.\n\n` +
               `Asante kwa kutumia KenteXa! 🎉`
             : `${arrivalBrand}\n\n` +
-              `✅ Kifurushi chako (${trackingNumber}) kimefikishwa. ` +
+              `✅ Kifurushi chako (${customerNumber}) kimefikishwa. ` +
               `Asante kwa kutumia KenteXa! 🎉`,
       };
       if (smsMap[dto.status]) {
@@ -4080,7 +4099,7 @@ export class SuperAgentsService {
       const sellerPhone = (parcel as any).seller?.phone;
       if (sellerPhone) {
         const originHub = parcel.superAgent || null;
-        const originBrand = originHub?.businessName || 'KenteXa Network';
+        const originBrand = smsSafeName(originHub?.businessName) || 'KenteXa Network';
         const declaredValueLine = (parcel as any).declaredValue
           ? ` wenye thamani ya TZS ${Number((parcel as any).declaredValue).toLocaleString()}`
           : '';
@@ -4088,7 +4107,7 @@ export class SuperAgentsService {
           .sendSms(
             sellerPhone,
             `${originBrand}\n\n` +
-              `Mzigo ${trackingNumber}${declaredValueLine} umepokelewa na Super Agent na unaendelea kusafirishwa.\n\n` +
+              `Mzigo ${customerParcelNumber(parcel)}${declaredValueLine} umepokelewa na Super Agent na unaendelea kusafirishwa.\n\n` +
               `Verified by Kentexa`,
           )
           .catch((e) => console.warn('Seller received SMS failed:', e?.message));
@@ -4470,6 +4489,17 @@ export class SuperAgentsService {
         type: 'system',
       },
     });
+    // The database gives the waybill on insert; the insert does not return it.
+    const [storedNumbers] = await this.dataSource.query(
+      `SELECT "waybillNumber", "createdAt" FROM public.parcel WHERE id = $1`, [parcel.id],
+    );
+    const customerNumber = customerParcelNumber({
+      trackingNumber, waybillNumber: storedNumbers?.waybillNumber ?? null,
+      createdAt: storedNumbers?.createdAt ?? null,
+    });
+    // Unchanged "Oda: KTX-ORD-…" until WAYBILL_CUSTOMER_FROM; then the waybill.
+    const orderRef = customerNumber === trackingNumber ? `Oda: ${trackingNumber}` : `Mzigo: ${customerNumber}`;
+    const smsSender = smsSafeName(senderDisplayName);
 
     // Populated by whichever branch below runs — read by the receipt in
     // the return value at the bottom of this method either way.
@@ -4503,7 +4533,7 @@ export class SuperAgentsService {
       try {
         buyerPaymentSmsSent = await this.smsService.sendSms(
           buyerPhone,
-          `Habari ${buyerName}, ${senderDisplayName} ameanza kutuma bidhaa yako: ${dto.description} (Oda: ${trackingNumber}).\n\n` +
+          `Habari ${buyerName}, ${smsSender} ameanza kutuma bidhaa yako: ${dto.description} (${orderRef}).\n\n` +
             `Risiti: ${receiptNumber}\n\n` +
             `Verified by Kentexa`,
         );
@@ -4565,9 +4595,9 @@ export class SuperAgentsService {
           buyerPaymentSmsSent = await this.smsService.sendSms(
             buyerPhone,
             directAmountPaid > 0
-              ? `Habari ${buyerName}, ${senderDisplayName} imepokea malipo ya awali ya TZS ${directAmountPaid.toLocaleString()} kwa ${dto.description} (Oda: ${trackingNumber}). Salio la TZS ${directBalanceDue.toLocaleString()} litakusanywa ukipokea.\n\n` +
+              ? `Habari ${buyerName}, ${smsSender} imepokea malipo ya awali ya TZS ${directAmountPaid.toLocaleString()} kwa ${dto.description} (${orderRef}). Salio la TZS ${directBalanceDue.toLocaleString()} litakusanywa ukipokea.\n\n` +
                 `Verified by Kentexa`
-              : `Habari ${buyerName}, agizo lako la ${dto.description} (Oda: ${trackingNumber}) limethibitishwa — Malipo Baada ya Kupokea. Utalipa TZS ${directBalanceDue.toLocaleString()} ukipokea.\n\n` +
+              : `Habari ${buyerName}, agizo lako la ${dto.description} (${orderRef}) limethibitishwa - Malipo Baada ya Kupokea. Utalipa TZS ${directBalanceDue.toLocaleString()} ukipokea.\n\n` +
                 `Verified by Kentexa`,
           );
         } catch (e: any) {
@@ -4591,7 +4621,7 @@ export class SuperAgentsService {
         try {
           buyerPaymentSmsSent = await this.smsService.sendSms(
             buyerPhone,
-            `Habari ${buyerName}, ${senderDisplayName} imepokea malipo yako ya TZS ${orderAmount.toLocaleString()} kwa ${dto.description} (Oda: ${trackingNumber}).\n\n` +
+            `Habari ${buyerName}, ${smsSender} imepokea malipo yako ya TZS ${orderAmount.toLocaleString()} kwa ${dto.description} (${orderRef}).\n\n` +
               `Risiti: ${receiptNumber}\n\n` +
               `Verified by Kentexa`,
           );
@@ -4646,6 +4676,8 @@ export class SuperAgentsService {
       success: true,
       orderId: order.id,
       trackingNumber,
+      waybillNumber: storedNumbers?.waybillNumber ?? null,
+      customerNumber,
       originCity: dto.originCity,
       destinationCity: dto.destinationCity,
       transitCity,
@@ -4981,18 +5013,18 @@ export class SuperAgentsService {
       try {
         receiverSmsSent = await this.smsService.sendSms(
           (parcel as any).buyerPhone,
-          `${brand}\n\n` +
-            `Habari ${(parcel as any).recipientName || ''}, kifurushi kutoka kwa ${(parcel as any).senderName || parcel.seller?.name || ''} kimeshatumwa.\n\n` +
-            `Kifurushi: ${trackingNumber}\n` +
+          `${smsSafeName(brand)}\n\n` +
+            `Habari ${(parcel as any).recipientName || ''}, kifurushi kutoka kwa ${smsSafeName((parcel as any).senderName || parcel.seller?.name)} kimeshatumwa.\n\n` +
+            `Kifurushi: ${customerParcelNumber(parcel)}\n` +
             [
               transportLine,
               departureLine,
-              `Njia: ${(parcel as any).originCity} → ${(parcel as any).destinationCity}`,
+              `Njia: ${(parcel as any).originCity} - ${(parcel as any).destinationCity}`,
               referenceLine,
             ]
               .filter(Boolean)
               .join('\n') +
-            `\n\nFuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+            `\n\nFuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
             `Verified by Kentexa`,
         );
       } catch (e: any) {
@@ -5072,7 +5104,7 @@ export class SuperAgentsService {
     const recipientName = (parcel as any).recipientName || 'Mpokeaji';
     const arrivalHub =
       (parcel as any).destinationSuperAgent || (parcel as any).superAgent || null;
-    const arrivalBrand = arrivalHub?.businessName || 'KenteXa Network';
+    const arrivalBrand = smsSafeName(arrivalHub?.businessName) || 'KenteXa Network';
     const arrivalAddressLine = arrivalHub?.address
       ? `Mahali: ${arrivalHub.address}`
       : null;
@@ -5086,11 +5118,11 @@ export class SuperAgentsService {
         .sendSms(
           (parcel as any).buyerPhone,
           `${arrivalBrand}\n\n` +
-            `Habari ${recipientName}! Bidhaa yako (${trackingNumber}) ` +
+            `Habari ${recipientName}! Bidhaa yako (${customerParcelNumber(parcel)}) ` +
             `imefika ${arrivalCity}. Ingia KenteXa kuchagua: uchukue mwenyewe au omba delivery.\n\n` +
             [arrivalAddressLine, arrivalPhoneLine].filter(Boolean).join('\n') +
             (arrivalAddressLine || arrivalPhoneLine ? '\n\n' : '') +
-            `Fuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+            `Fuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
             `Verified by Kentexa`,
         )
         .catch(() => {});
@@ -5199,11 +5231,15 @@ export class SuperAgentsService {
 
     // SMS 3: Chosen agent gets notified (essential)
     if (agent!.user?.phone) {
+      const [numbers] = await this.dataSource.query(
+        `SELECT "trackingNumber", "waybillNumber", "createdAt" FROM public.parcel WHERE "trackingNumber" = $1 LIMIT 1`,
+        [trackingNumber],
+      );
       await this.smsService
         .sendSms(
           agent!.user.phone,
           `KenteXa: Habari ${agent!.fullName}! Mpokeaji amekuomba ufanye delivery ya ` +
-            `kifurushi ${trackingNumber} kwa TZS ${fee!.toLocaleString()}. ` +
+            `kifurushi ${numbers ? customerParcelNumber(numbers) : trackingNumber} kwa TZS ${fee!.toLocaleString()}. ` +
             `Ingia dashibodini kupokea maelezo. ${FRONTEND_URL}`,
         )
         .catch(() => {});
@@ -5354,7 +5390,7 @@ export class SuperAgentsService {
       return parcel.buyerPhone;
     });
     const sent = await this.smsService.sendSms(phone!,
-      `KenteXa: Code ya kuchukua kifurushi ${trackingNumber} ni ${code}. Inaisha ndani ya dakika 10. Mpe mhudumu wa hub tu unapochukua kifurushi.`, true);
+      `KenteXa: Code ya kuchukua kifurushi ${customerParcelNumber(snapshot)} ni ${code}. Inaisha ndani ya dakika 10. Mpe mhudumu wa hub tu unapochukua kifurushi.`, true);
     if (!sent) {
       await this.parcelRepo.createQueryBuilder().update(Parcel)
         .set({ pickupCodeHash: null, pickupCodeExpiresAt: null, pickupCodeIssuedAt: null })
@@ -5717,11 +5753,11 @@ export class SuperAgentsService {
         agentNotifySent = await this.smsService.sendSms(
           receiverPhone,
           `KenteXa\n\n` +
-            `Habari ${receiverName}, ${sa.businessName} amekukabidhi kifurushi kinachokuja kwako.\n\n` +
-            `Kifurushi: ${trackingNumber}\n` +
-            `Mtumaji: ${sa.businessName} (${sa.phone || sa.user?.phone || ''})\n` +
+            `Habari ${smsSafeName(receiverName)}, ${smsSafeName(sa.businessName)} amekukabidhi kifurushi kinachokuja kwako.\n\n` +
+            `Kifurushi: ${customerParcelNumber(parcel)}\n` +
+            `Mtumaji: ${smsSafeName(sa.businessName)} (${sa.phone || sa.user?.phone || ''})\n` +
             (dto.transportCompany ? `Usafiri: ${dto.transportCompany}\n` : '') +
-            `Mpokeaji: ${parcel.recipientName || '—'}\n\n` +
+            `Mpokeaji: ${parcel.recipientName || '-'}\n\n` +
             `Verified by Kentexa`,
         );
       } catch (e: any) {
@@ -5750,11 +5786,11 @@ export class SuperAgentsService {
       try {
         buyerSmsSent = await this.smsService.sendSms(
           (parcel as any).buyerPhone,
-          `${sa.businessName}\n\n` +
-            `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${trackingNumber}) kitapokelewa na ${receiverName} ${receiverCity ? `(${receiverCity})` : ''}.\n\n` +
+          `${smsSafeName(sa.businessName)}\n\n` +
+            `Habari ${(parcel as any).recipientName || ''}! Kifurushi chako (${customerParcelNumber(parcel)}) kitapokelewa na ${smsSafeName(receiverName)} ${receiverCity ? `(${receiverCity})` : ''}.\n\n` +
             `Simu: ${receiverPhone}\n` +
             (receiverAddress ? `Mahali: ${receiverAddress}\n` : '') +
-            `\nFuatilia: ${FRONTEND_URL}/?track=${trackingNumber}\n\n` +
+            `\nFuatilia: ${FRONTEND_URL}/?track=${customerTrackRef(parcel)}\n\n` +
             `Verified by Kentexa`,
         );
       } catch (e: any) {

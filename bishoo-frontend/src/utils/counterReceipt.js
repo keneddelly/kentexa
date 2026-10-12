@@ -11,6 +11,18 @@ export const SHOW_CLAIM_CODE_NOTE = false;
 
 export const walkResultStorageKey = (officeId) => `kentexa-walkin-last:${officeId}`;
 
+// The number the customer holds (waybill from WAYBILL_CUSTOMER_FROM on, else
+// KTX-ORD) — shown first on the counter, so staff read out the same number.
+export const displayParcelNumber = (p) => (p && (p.customerNumber || p.trackingNumber)) || '';
+
+// Staff-only extra numbers for the same parcel, e.g. "KTX-ORD-129".
+export function otherParcelNumbers(p, formatWaybill) {
+  if (!p) return [];
+  const shown = displayParcelNumber(p);
+  const wb = p.waybillNumber ? formatWaybill(p.waybillNumber) : '';
+  return [p.trackingNumber, wb].filter((n) => n && n !== shown);
+}
+
 // What may be kept in the browser after a walk-in: the receipt shown on the
 // screen, never the claim secret.
 export function storableWalkResult(result) {

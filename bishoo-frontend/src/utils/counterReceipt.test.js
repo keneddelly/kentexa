@@ -1,6 +1,7 @@
 import {
   CLAIM_CODE_NOTE, SHOW_CLAIM_CODE_NOTE, storableWalkResult, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
   walkResultStorageKey, canHandOverToRecipient, canReopenReceipt, historiaMatches,
+  displayParcelNumber, otherParcelNumbers,
 } from './counterReceipt';
 
 const walkIn = {
@@ -38,6 +39,25 @@ describe('last walk-in receipt kept in the browser', () => {
   test('the claim-code note is kept for Release C but hidden until then', () => {
     expect(SHOW_CLAIM_CODE_NOTE).toBe(false);
     expect(CLAIM_CODE_NOTE).toBe('Namba ya siri ya mteja ya kudai mzigo haiwezi kuonyeshwa tena.');
+  });
+});
+
+describe('the number shown on the counter', () => {
+  const fmt = (w) => `F(${w})`;
+  test('customer number first; other numbers small, without repeats', () => {
+    const p = { trackingNumber: 'KTX-ORD-1', waybillNumber: 'KTX9815951521', customerNumber: 'KTX 9815 9515 21' };
+    expect(displayParcelNumber(p)).toBe('KTX 9815 9515 21');
+    expect(otherParcelNumbers(p, () => 'KTX 9815 9515 21')).toEqual(['KTX-ORD-1']);
+  });
+  test('before the switch: KTX-ORD first, waybill small for staff', () => {
+    const p = { trackingNumber: 'KTX-ORD-1', waybillNumber: 'KTX9815951521', customerNumber: 'KTX-ORD-1' };
+    expect(displayParcelNumber(p)).toBe('KTX-ORD-1');
+    expect(otherParcelNumbers(p, fmt)).toEqual(['F(KTX9815951521)']);
+  });
+  test('old lists without customerNumber fall back to KTX-ORD', () => {
+    expect(displayParcelNumber({ trackingNumber: 'KTX-ORD-9' })).toBe('KTX-ORD-9');
+    expect(otherParcelNumbers({ trackingNumber: 'KTX-ORD-9' }, fmt)).toEqual([]);
+    expect(displayParcelNumber(null)).toBe('');
   });
 });
 

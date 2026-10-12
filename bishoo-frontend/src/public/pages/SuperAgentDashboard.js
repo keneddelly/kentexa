@@ -33,6 +33,9 @@ import IntelligentLocationInput from '../components/IntelligentLocationInput';
 import VerifyIdentityModal from '../components/VerifyIdentityModal';
 import HubExpectedShipments from '../components/HubExpectedShipments';
 import StaleParcelsNotice from '../components/StaleParcelsNotice';
+import { buildReceiptHtml } from '../../utils/receiptPrint';
+import { displayParcelNumber, otherParcelNumbers } from '../../utils/counterReceipt';
+import { formatWaybill } from '../../utils/waybill';
 import {
   CLAIM_CODE_NOTE, SHOW_CLAIM_CODE_NOTE, saveLastWalkResult, loadLastWalkResult, clearLastWalkResult,
   canHandOverToRecipient, canReopenReceipt, historiaMatches,
@@ -88,7 +91,10 @@ const PCard = ({ p, actions = [] }) => (
       alignItems: 'flex-start', marginBottom: 6 }}>
       <div>
         <div style={{ fontSize: 12, fontFamily: 'monospace', fontWeight: 800,
-          color: '#1d4ed8' }}>{p.trackingNumber}</div>
+          color: '#1d4ed8' }}>{displayParcelNumber(p)}</div>
+        {otherParcelNumbers(p, formatWaybill).length > 0 && (
+          <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#94a3b8' }}>{otherParcelNumbers(p, formatWaybill).join(' · ')}</div>
+        )}
         <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
           {p.originCity} → {p.destinationCity}
           {p.transitCity && <span style={{ color: '#f59e0b' }}> via {p.transitCity}</span>}
@@ -644,49 +650,12 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
   // growing their own brand through every customer touchpoint — same
   // principle already applied to the SMS templates), with Kentexa's
   // verification badge secondary underneath, not the other way around.
-  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-  ));
-
   const handlePrintReceipt = (receipt) => {
     if (!receipt) return;
     const win = window.open('', '_blank', 'width=380,height=600');
     if (!win) { setError('Imeshindwa kufungua dirisha la kuchapisha'); return; }
-    const row = (label, value) => value
-      ? `<div class="row"><span class="l">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span></div>`
-      : '';
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8" />
-      <title>Risiti — ${escapeHtml(receipt.parcelReference)}</title>
-      <style>
-        @page { size: 80mm auto; margin: 4mm; }
-        body { font-family: 'Courier New', monospace; width: 72mm; margin: 0 auto; color: #000; }
-        .brand { text-align: center; font-size: 18px; font-weight: 900; margin-bottom: 2px; }
-        .brand-sub { text-align: center; font-size: 11px; margin-bottom: 10px; }
-        .verified { text-align: center; font-size: 10px; color: #444; margin-bottom: 10px;
-          border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; }
-        .row { display: flex; justify-content: space-between; font-size: 12px; margin: 3px 0; }
-        .l { color: #333; } .v { font-weight: 700; text-align: right; }
-        .amount { text-align: center; font-size: 20px; font-weight: 900; margin: 12px 0; }
-        .footer { text-align: center; font-size: 10px; margin-top: 12px; color: #555; }
-      </style></head><body>
-      <div class="brand">${escapeHtml(receipt.superAgentName || 'Super Agent')}</div>
-      <div class="brand-sub">${escapeHtml(receipt.superAgentCity || '')}</div>
-      <div class="verified">✔ Verified by Kentexa</div>
-      ${row('Namba ya Risiti', receipt.receiptNumber)}
-      ${row('Kifurushi', receipt.parcelReference)}
-      ${row('Tarehe', receipt.paidAt ? new Date(receipt.paidAt).toLocaleString('sw-TZ') : '')}
-      <hr />
-      ${row('Mtumaji', receipt.senderName)}
-      ${row('Simu ya Mtumaji', receipt.senderPhone)}
-      ${row('Mpokeaji', receipt.receiverName)}
-      ${row('Simu ya Mpokeaji', receipt.receiverPhone)}
-      ${row('Thamani ya Mzigo', receipt.declaredValue ? `TZS ${Number(receipt.declaredValue).toLocaleString()}` : '')}
-      <hr />
-      ${row('Njia ya Malipo', receipt.paymentMethod)}
-      <div class="amount">TZS ${Number(receipt.amountPaid || 0).toLocaleString()}</div>
-      <div class="footer">Malipo yamepokewa. Asante kwa kutumia<br />${escapeHtml(receipt.superAgentName || 'Super Agent')}</div>
-      <script>window.onload = () => { window.print(); };</script>
-      </body></html>`);
+    // One universal slip for 58mm, 80mm and A4/Letter (utils/receiptPrint.js).
+    win.document.write(buildReceiptHtml(receipt));
     win.document.close();
   };
 
@@ -1175,7 +1144,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     style={{ width: '100%', marginBottom: 14, padding: '12px 14px', borderRadius: 12,
                       border: '2px solid #1d4ed8', backgroundColor: '#eff6ff', color: '#1d4ed8',
                       cursor: 'pointer', fontSize: 13, fontWeight: 800, textAlign: 'left' }}>
-                    🧾 Risiti ya mwisho: <span style={{ fontFamily: 'monospace' }}>{walkResult.trackingNumber}</span> — Fungua
+                    🧾 Risiti ya mwisho: <span style={{ fontFamily: 'monospace' }}>{displayParcelNumber(walkResult)}</span> — Fungua
                   </button>
                 )}
 
@@ -1526,8 +1495,13 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                       marginBottom: 8 }}>Kifurushi Kimesajiliwa!</div>
                     <div style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 900,
                       color: '#1d4ed8', marginBottom: 6 }}>
-                      {walkResult.trackingNumber}
+                      {displayParcelNumber(walkResult)}
                     </div>
+                    {otherParcelNumbers(walkResult, formatWaybill).length > 0 && (
+                      <div style={{ fontSize: 11, fontFamily: 'monospace', color: '#94a3b8', marginBottom: 6 }}>
+                        {otherParcelNumbers(walkResult, formatWaybill).join(' · ')}
+                      </div>
+                    )}
                     {/* The walk-in SMS goes to the SENDER (payment received), never to the recipient. */}
                     {walkResult.senderSmsSent === true && (
                       <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>
@@ -1914,7 +1888,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               })} />
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 12, fontWeight: 800, fontFamily: 'monospace', color: '#1d4ed8' }}>
-                                {p.trackingNumber}
+                                {displayParcelNumber(p)}
                               </div>
                               <div style={{ fontSize: 11, color: '#64748b' }}>
                                 {p.recipientName} — {p.description || 'Bidhaa'}
@@ -1972,7 +1946,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                               })} />
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 12, fontWeight: 800, fontFamily: 'monospace', color: '#1d4ed8' }}>
-                                {p.trackingNumber}
+                                {displayParcelNumber(p)}
                               </div>
                               <div style={{ fontSize: 11, color: '#64748b' }}>
                                 {p.recipientName} — {p.description || 'Bidhaa'}
@@ -2518,7 +2492,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     display: 'flex', justifyContent: 'space-between' }}>
                     <div>
                       <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8',
-                        fontWeight: 700 }}>{p.trackingNumber}</div>
+                        fontWeight: 700 }}>{displayParcelNumber(p)}</div>
                       <div style={{ fontSize: 11, color: '#64748b' }}>
                         {p.originCity} → {p.destinationCity} · <SBadge status={p.status} />
                       </div>
@@ -2631,7 +2605,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                 <div style={{ fontSize:12, fontWeight:900, color:'#1d4ed8', margin:'18px 0 8px' }}>IKO HUBUNI · {vanReady.length}</div>
                 {vanReady.length === 0 ? <div style={{ background:'#fff', padding:14, borderRadius:12, color:'#94a3b8', fontSize:12 }}>Hakuna mzigo wa Van unaosubiri pickup/delivery.</div> :
                   vanReady.map(p => <div key={p.id} style={{ background:'#fff', padding:14, borderRadius:12, marginBottom:8, display:'flex', justifyContent:'space-between', gap:10 }}>
-                    <div><div style={{ fontWeight:900, fontSize:13 }}>{p.trackingNumber}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
+                    <div><div style={{ fontWeight:900, fontSize:13 }}>{displayParcelNumber(p)}</div><div style={{ fontSize:11, color:'#64748b', marginTop:3 }}>Tayari kwa pickup au Agent delivery</div></div>
                     <SBadge status={p.status} />
                   </div>)}
               </>
@@ -2653,8 +2627,9 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                   fontSize: 20, color: '#64748b' }}>×</button>
             </div>
             <div style={{ fontSize: 12, fontFamily: 'monospace', color: '#1d4ed8', marginBottom: 14 }}>
-              {receiptModal.trackingNumber}
-              {receiptModal.data?.waybillNumber ? ` · ${receiptModal.data.waybillNumber}` : ''}
+              {receiptModal.data ? displayParcelNumber(receiptModal.data) : receiptModal.trackingNumber}
+              {receiptModal.data && otherParcelNumbers(receiptModal.data, formatWaybill).length > 0
+                ? ` · ${otherParcelNumbers(receiptModal.data, formatWaybill).join(' · ')}` : ''}
             </div>
 
             {receiptModal.loading && (
