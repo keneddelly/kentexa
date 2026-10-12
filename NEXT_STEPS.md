@@ -724,3 +724,36 @@ tested, needs only a frontend change, and a counter typo can never hand a parcel
 (b) is smoother for customers and cheaper in SMS, but a mistyped or recycled phone number shows one
 customer's parcel to another. If (b) is wanted later, make it a suggestion ("We found 2 parcels sent from
 your number — confirm with the code we SMS to that number"), and only for parcels from the last few days.
+
+## 16. Release C — BUILT 2026-10-12 on marketplace-basic (local commits, not live)
+
+Count check on live first (owner, `release-c\count-agent-dispatch.ps1`, read-only): parcels 0, offices 0
+— no office had ever sent an intercity parcel through "Wakala wa Mtaa".
+- **C1:** walk-in intake picks the delivery method from the office region vs the destination region
+  (`regionMatch.js`): another region → only "Intercity / Courier"; same region → agent / van; unknown →
+  all three. "Badilisha kwa mkono" shows all three.
+- **C2:** the Tuma panel shows no "Wakala wa Mtaa" for an intercity parcel; the backend refuses
+  (`dispatchParcel`) a local agent for an intercity parcel and an intercity dispatch with no bus,
+  courier or arranged transport (`region-match.ts`).
+- **Claim code, option (a):** shown once on the receipt screen (in page memory only, never stored),
+  printed on that first receipt with the steps; reprints and the 🧾 Risiti window say it cannot be shown
+  again. Mizigo Yangu → "Ongeza mzigo wa dawati" now asks for the **Namba ya Mzigo on the receipt**
+  (waybill or old number) instead of the internal shipment id — new routes
+  `POST /shipments/claim-by-number/start` and `/claim-by-number`; spaces in the code are ignored. Unknown
+  numbers get the same answer as a wrong code. The SMS code step can only be checked on live.
+- No migration, no new setting. Deploy = push (code only).
+
+## 17. Same-city door pickup: customer must give the ward or a map pin (PLAN ONLY, owner 2026-10-12)
+
+Today the send form takes any place from the place search for "Pick up from me" — a whole region
+("Dar es Salaam") is accepted, so the agent does not know where to go. The shipment already has
+`originWard`/`originWardId` and coordinates, but coordinates are only server-derived from the chosen
+place (the client may never send its own — Stage 2B rule).
+- **A. Ward required (no migration, ~1 day):** for door pickup, the chosen pickup place must be a ward
+  or finer; if the search result is only a region/district, a ward list appears (existing ward data /
+  `LocationPicker`). Backend refuses door pickup without a ward. Agent pickup screen shows ward + landmark.
+- **B. "Tumia mahali nilipo" pin (+1 migration, ~1 more day):** the phone's GPS position with its
+  accuracy, stored in NEW, clearly "sender-given" columns (never mixed with the server-derived
+  coordinates), plus a "Fungua ramani" link for the agent. Needs a Release-B-style migration step.
+- **Not recommended now:** a draggable map (needs a map library and an outside tile server).
+- Recommendation: A first (small, safe), then B if agents still cannot find senders.
