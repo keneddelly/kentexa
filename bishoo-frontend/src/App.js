@@ -146,6 +146,7 @@ import ContactUs from './public/pages/ContactUs';
 import HowItWorks from './public/pages/HowItWorks';
 import TermsAndConditions from './public/pages/TermsAndConditions';
 import PrivacyPolicy from './public/pages/PrivacyPolicy';
+import UpdateNotice from './public/components/UpdateNotice';
 
 // Register service worker
 if ('serviceWorker' in navigator) {
@@ -898,6 +899,9 @@ function App() {
     <OnboardingProvider currentUser={currentUser}>
     <CartProvider>
       <ContextEpochBoundary contextEpoch={contextEpoch}>{renderPage()}</ContextEpochBoundary>
+
+      {/* A phone that kept the app open gets a new website version by itself, never mid-form. */}
+      <UpdateNotice />
 
       {/* ── Social Commerce Navigation ─────────────────────── */}
       {/* Hidden during Onboarding — a focused setup wizard shouldn't show

@@ -1550,7 +1550,7 @@ const SuperAgentDashboard = ({ onNavigate, isLoggedIn, inboxUnread }) => {
                     {/* Release C, claim code option (a): shown ONCE, only here, only while this
                         screen holds it in memory (never stored), and printed on this first receipt. */}
                     {walkResult.shipmentClaim?.receiptSecret && (
-                      <div style={{ border: '2px dashed #7c3aed', borderRadius: 10, padding: '10px 12px', marginBottom: 14, background: '#faf5ff' }}>
+                      <div data-keep-open style={{ border: '2px dashed #7c3aed', borderRadius: 10, padding: '10px 12px', marginBottom: 14, background: '#faf5ff' }}>
                         <div style={{ fontSize: 12, fontWeight: 800, color: '#5b21b6' }}>Namba ya siri ya mteja (kudai mzigo mtandaoni)</div>
                         <div style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 900, color: '#1e293b', margin: '6px 0', wordSpacing: 4 }}>
                           {formatClaimSecret(walkResult.shipmentClaim.receiptSecret)}

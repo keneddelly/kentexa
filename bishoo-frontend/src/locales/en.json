@@ -5677,5 +5677,10 @@
     "today_new_followers": "New Followers",
     "today_reviews": "Reviews",
     "insight_thinking": "Thinking about your day..."
+  },
+  "app_update": {
+    "available": "A new version of KenteXa is ready — tap to update",
+    "finish_first": "Finish what you are doing first (a form has text in it).",
+    "update_anyway": "Update anyway"
   }
 }

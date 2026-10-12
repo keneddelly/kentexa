@@ -5607,5 +5607,10 @@
     "today_new_followers": "Wafuasi Wapya",
     "today_reviews": "Tathmini",
     "insight_thinking": "Inachambua siku yako..."
+  },
+  "app_update": {
+    "available": "Toleo jipya la KenteXa — gusa kusasisha",
+    "finish_first": "Maliza kazi uliyonayo kwanza (kuna maandishi kwenye fomu).",
+    "update_anyway": "Sasisha hata hivyo"
   }
 }
