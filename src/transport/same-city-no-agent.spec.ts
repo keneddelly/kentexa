@@ -82,7 +82,7 @@ describe('findNearestOffice', () => {
   it('only active offices WITH a map point can be shown (never a guess, never an office without a point)', async () => {
     const query = jest.fn(async () => []);
     expect(await findNearestOffice({ query }, 'Dar es Salaam', null)).toBeNull();
-    expect((query.mock.calls[0] as any[])[0]).toMatch(/sa\.status = 'active' AND sa\.latitude IS NOT NULL AND sa\.longitude IS NOT NULL/);
+    expect((query.mock.calls[0] as any[])[0]).toMatch(/sa\.status = 'active' AND sa\."isTrainingOffice" = false AND sa\.latitude IS NOT NULL AND sa\.longitude IS NOT NULL/);
   });
 
   it('no pickup point: still an office with a map point, without a distance', async () => {

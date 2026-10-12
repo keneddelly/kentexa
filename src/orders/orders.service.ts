@@ -540,7 +540,7 @@ export class OrdersService {
           (product.seller as any)?.businessLocation?.split(',')[0]?.trim() ||
           'Dar es Salaam';
         const originAgent = await this.superAgentRepo.findOne({
-          where: { city: sellerCity, status: 'active' as any },
+          where: { city: sellerCity, status: 'active' as any, isTrainingOffice: false },
           order: {
             rating: 'DESC',
             totalParcelsDelivered: 'DESC',
@@ -560,7 +560,7 @@ export class OrdersService {
             .find((p: string) => p.length > 2) || null;
         if (destCity && destCity !== sellerCity) {
           const destAgent = await this.superAgentRepo.findOne({
-            where: { city: destCity, status: 'active' as any },
+            where: { city: destCity, status: 'active' as any, isTrainingOffice: false },
             order: {
               rating: 'DESC',
               totalParcelsDelivered: 'DESC',

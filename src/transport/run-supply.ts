@@ -227,6 +227,9 @@ export async function findBookableRuns(manager: EntityManager, search: RunSearch
       WHERE ${where.join(' AND ')}
         AND (v."parcelCapacity" IS NULL OR load.parcels < v."parcelCapacity")
         AND (v."weightCapacityKg" IS NULL OR load.kg + ${bind(weightKg)}::numeric <= v."weightCapacityKg")
+        -- A trip that loads or unloads at a training office is never offered (training-office.ts).
+        AND (lh.id IS NULL OR lh."isTrainingOffice" = false)
+        AND (uh.id IS NULL OR uh."isTrainingOffice" = false)
       ORDER BY r."scheduledDeparture" ASC, r.id ASC
       LIMIT ${limit}`,
     params,

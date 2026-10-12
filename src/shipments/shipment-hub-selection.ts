@@ -168,6 +168,8 @@ export async function discoverHubCandidates(
     .createQueryBuilder('hub')
     .select(['hub.id', 'hub.businessName', 'hub.city', 'hub.address'])
     .where('hub.status = :active', { active: SuperAgentStatus.ACTIVE })
+    // A training office is never offered to a sender (training-office.ts).
+    .andWhere('hub.isTrainingOffice = false')
     .andWhere('LOWER(BTRIM(hub.city)) IN (:...keys)', { keys })
     .orderBy('hub.id', 'ASC');
   if (lockRows) qb.setLock('pessimistic_read');

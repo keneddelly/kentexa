@@ -378,7 +378,8 @@ export class VerificationService {
   async resolveReferralCode(code: string): Promise<SuperAgent | null> {
     if (!code) return null;
     return this.superAgentRepo.findOne({
-      where: { referralCode: code, status: SuperAgentStatus.ACTIVE },
+      // A training office's referral code never earns a referral.
+      where: { referralCode: code, status: SuperAgentStatus.ACTIVE, isTrainingOffice: false },
     });
   }
 

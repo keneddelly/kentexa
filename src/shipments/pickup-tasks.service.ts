@@ -121,7 +121,7 @@ export class PickupTasksService {
         if (!hubId || ![ShipmentHubSource.SENDER_SELECTED, ShipmentHubSource.AUTO_SINGLE_CANDIDATE].includes(s.originHubSource)) {
           throw new BadRequestException('Select an origin hub before requesting hub-routed pickup');
         }
-        const hubs: any[] = await em.query('SELECT id FROM public.super_agent WHERE id=$1 AND status=$2', [hubId, 'active']);
+        const hubs: any[] = await em.query('SELECT id FROM public.super_agent WHERE id=$1 AND status=$2 AND "isTrainingOffice" = false', [hubId, 'active']);
         if (hubs.length !== 1) throw new ConflictException('Selected origin hub is unavailable');
       }
       const active: any[] = await em.query(`SELECT id FROM public.parcel_pickup_task

@@ -191,7 +191,7 @@ export class ShipmentActivationService {
     const offices: Array<{ name: string | null; phone: string | null }> = await this.dataSource.query(
       `SELECT sa."businessName" AS name, sa.phone
          FROM public.super_agent sa
-        WHERE sa.status = 'active' AND sa.id = COALESCE(
+        WHERE sa.status = 'active' AND sa."isTrainingOffice" = false AND sa.id = COALESCE(
           (SELECT rs."superAgentId" FROM public.transport_run_stop rs WHERE rs.id = $1),
           (SELECT rs."superAgentId" FROM public.route_stop rs WHERE rs.id = $2))`,
       [loadRunStopId, transportLeg.loadRouteStopId ?? null],

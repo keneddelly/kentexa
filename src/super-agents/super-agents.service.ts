@@ -80,6 +80,7 @@ import { toValidatedPoint } from '../location-intelligence/location-provider.int
 import { customerParcelNumber, customerTrackRef, smsSafeName } from './customer-parcel-number';
 import { isIntercity } from './region-match';
 import { readAgentBasePoint } from '../shipments/pickup-pin';
+import { isTrainingOffice } from './training-office';
 
 /** "Weka mahali pa ofisi" (office map point from the phone's GPS). */
 export const OFFICE_POINT_METHOD = 'device_gps';
@@ -755,8 +756,9 @@ export class SuperAgentsService {
     // A city can contain multiple hubs. Never assign a walk-in parcel to an
     // arbitrary first match; the selected hub must still be active and in
     // the resolved destination city at the moment this transaction writes.
+    // Training offices reach only training offices; real offices only real ones.
     const destinationHubs = await manager.getRepository(SuperAgent).find({
-      where: { city: ILike(destinationCity), status: SuperAgentStatus.ACTIVE },
+      where: { city: ILike(destinationCity), status: SuperAgentStatus.ACTIVE, isTrainingOffice: isTrainingOffice(superAgent) },
       order: { id: 'ASC' },
     });
     const requestedHubId = dto.destinationSuperAgentId == null ? null : Number(dto.destinationSuperAgentId);
@@ -1052,7 +1054,7 @@ export class SuperAgentsService {
    */
   async findAgentForCity(city: string): Promise<SuperAgent | null> {
     const agents = await this.superAgentRepo.find({
-      where: { status: SuperAgentStatus.ACTIVE, city },
+      where: { status: SuperAgentStatus.ACTIVE, city, isTrainingOffice: false },
     });
     if (!agents.length) return null;
 
@@ -1071,12 +1073,13 @@ export class SuperAgentsService {
    * hand-off to another hub), instead of only relying on the single
    * best-ranked auto-assignment above. Public-safe fields only.
    */
-  async findAllActiveByCity(city: string, excludeAgentId?: number) {
+  async findAllActiveByCity(city: string, excludeAgentId?: number, actingIsTraining = false) {
     // Case-insensitive — the caller's city string doesn't always land in
     // the exact case a Super Agent registered under (found while tracing
     // why this returned empty for a real active hub's own region).
     const agents = await this.superAgentRepo.find({
-      where: { status: SuperAgentStatus.ACTIVE, city: ILike(city) },
+      // Same kind only: a training office lists training offices, a real one real offices.
+      where: { status: SuperAgentStatus.ACTIVE, city: ILike(city), isTrainingOffice: actingIsTraining },
       order: { rating: 'DESC' } as any,
     });
     return agents
@@ -1987,7 +1990,8 @@ export class SuperAgentsService {
     // an "Inakuja" (incoming) parcel — no other wiring needed.
     if (dto.destinationSuperAgentId) {
       const destHub = await this.superAgentRepo.findOne({
-        where: { id: dto.destinationSuperAgentId, status: SuperAgentStatus.ACTIVE },
+        where: { id: dto.destinationSuperAgentId, status: SuperAgentStatus.ACTIVE,
+          isTrainingOffice: isTrainingOffice(agent ?? (parcel as any).superAgent) },
       });
       if (!destHub || destHub.city.trim().toLowerCase() !== parcel.destinationCity.trim().toLowerCase()) {
         throw new BadRequestException('Destination hub must be active in the destination city');
@@ -3109,7 +3113,7 @@ export class SuperAgentsService {
       throw new BadRequestException('At least one order/parcel is required');
     }
 
-    const { lastMileAgent, shipmentFields } = await this.resolveLastMile(dto);
+    const { lastMileAgent, shipmentFields } = await this.resolveLastMile(dto, isTrainingOffice(agent));
     if (lastMileAgent && lastMileAgent.city.trim().toLowerCase() !== dto.destinationCity.trim().toLowerCase()) {
       throw new BadRequestException('Receiving hub must be in the shipment destination city');
     }
@@ -3275,13 +3279,13 @@ export class SuperAgentsService {
     manualContactPhone?: string;
     manualContactCity?: string;
     manualContactAddress?: string;
-  }): Promise<{
+  }, actingIsTraining = false): Promise<{
     lastMileAgent: SuperAgent | null;
     shipmentFields: Partial<BulkShipment>;
   }> {
     if (dto.destinationSuperAgentId) {
       const lastMileAgent = await this.superAgentRepo.findOne({
-        where: { id: dto.destinationSuperAgentId, status: 'active' as any },
+        where: { id: dto.destinationSuperAgentId, status: 'active' as any, isTrainingOffice: actingIsTraining },
       });
       if (!lastMileAgent) {
         throw new NotFoundException('Super Agent aliyechaguliwa hapatikani');
@@ -4910,15 +4914,17 @@ export class SuperAgentsService {
         ? dto.destinationSuperAgentId
           ? await this.superAgentRepo
               .findOne({
+                // A seller's order never goes to a training office.
                 where: {
                   id: dto.destinationSuperAgentId,
                   status: 'active' as any,
+                  isTrainingOffice: false,
                 },
               })
               .catch(() => null)
           : await this.superAgentRepo
               .findOne({
-                where: { city: ILike(dto.destinationCity), status: 'active' as any },
+                where: { city: ILike(dto.destinationCity), status: 'active' as any, isTrainingOffice: false },
               })
               .catch(() => null)
         : null;
@@ -5781,7 +5787,7 @@ export class SuperAgentsService {
     let lastMileAgent: SuperAgent | null = null;
     if (dto.destinationSuperAgentId) {
       lastMileAgent = await this.superAgentRepo.findOne({
-        where: { id: dto.destinationSuperAgentId, status: 'active' as any },
+        where: { id: dto.destinationSuperAgentId, status: 'active' as any, isTrainingOffice: isTrainingOffice(sa) },
       });
       if (!lastMileAgent) {
         throw new NotFoundException('Super Agent aliyechaguliwa hapatikani');

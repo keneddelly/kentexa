@@ -178,6 +178,8 @@ export class SuperAgentsController {
     return this.service.findAllActiveByCity(
       decodeURIComponent(city),
       (mine as any)?.id,
+      // Same kind: a training office sees training offices only.
+      (mine as any)?.isTrainingOffice === true,
     );
   }
 

@@ -1319,6 +1319,7 @@ export class ShipmentsService {
           .select(['hub.id'])
           .where('hub.id = :id', { id: tripHubId })
           .andWhere('hub.status = :active', { active: SuperAgentStatus.ACTIVE })
+          .andWhere('hub.isTrainingOffice = false')
           .setLock('pessimistic_read')
           .getOne();
         if (!hub) throw new ConflictException(`The ${side} hub of this trip is not available right now`);

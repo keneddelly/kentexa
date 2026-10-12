@@ -31,7 +31,7 @@ const NEAREST_OFFICE_SQL = `
                 cos(radians($1::float8)) * cos(radians(sa.latitude)) *
                 power(sin(radians((sa.longitude - $2::float8) / 2)), 2))) END AS "distanceM"
     FROM public.super_agent sa
-   WHERE sa.status = 'active' AND sa.latitude IS NOT NULL AND sa.longitude IS NOT NULL
+   WHERE sa.status = 'active' AND sa."isTrainingOffice" = false AND sa.latitude IS NOT NULL AND sa.longitude IS NOT NULL
      AND (lower(btrim(sa.city)) = lower(btrim($3)) OR lower(btrim(COALESCE(sa."regionName", ''))) = lower(btrim($3)))
    ORDER BY "distanceM" ASC NULLS LAST, sa.id ASC   -- no pickup point: lowest id among offices WITH a point
    LIMIT 1`;

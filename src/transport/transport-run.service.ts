@@ -168,8 +168,10 @@ export class TransportRunService implements OnApplicationBootstrap {
   // for the identical cross-module situation, without pulling SuperAgent's
   // own entity/module into this one.
   private async assertSuperAgentExists(superAgentId: number): Promise<void> {
-    const rows = await this.dataSource.query('SELECT id FROM public.super_agent WHERE id = $1', [superAgentId]);
+    const rows = await this.dataSource.query('SELECT id, "isTrainingOffice" FROM public.super_agent WHERE id = $1', [superAgentId]);
     if (!rows.length) throw new BadRequestException('superAgentId does not reference an existing Super Agent');
+    // A training office (ofisi ya mafunzo) can never be a real route stop.
+    if (rows[0].isTrainingOffice === true) throw new BadRequestException('Ofisi hii ni ya mafunzo; haiwezi kuwa kituo cha njia.');
   }
 
   async listActiveHubsForProvider(userId: number, search?: string) {
@@ -178,7 +180,7 @@ export class TransportRunService implements OnApplicationBootstrap {
     return this.dataSource.query(
       `SELECT id, "businessName", city, address, phone, "agentCode"
          FROM public.super_agent
-        WHERE status='active'
+        WHERE status='active' AND "isTrainingOffice" = false
           AND ($1='' OR lower("businessName") LIKE lower('%'||$1||'%')
                     OR lower(city) LIKE lower('%'||$1||'%')
                     OR lower(COALESCE(address,'')) LIKE lower('%'||$1||'%'))

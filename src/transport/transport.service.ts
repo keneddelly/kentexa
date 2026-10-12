@@ -1370,7 +1370,7 @@ export class TransportService {
         `SELECT rs.sequence, rs."parcelAcceptanceAllowed", rs."customerCollectionAllowed",
                 sa.id AS "hubId", sa."businessName" AS name, sa.city, sa.address
            FROM public.route_stop rs
-           JOIN public.super_agent sa ON sa.id = rs."superAgentId" AND sa.status = 'active'
+           JOIN public.super_agent sa ON sa.id = rs."superAgentId" AND sa.status = 'active' AND sa."isTrainingOffice" = false
           WHERE rs."routeId" = $1 AND rs."isActive" = true AND rs."superAgentId" IS NOT NULL
           ORDER BY rs.sequence ASC, sa.id ASC`,
         [route.id],
