@@ -749,7 +749,7 @@ Count check on live first (owner, `release-c\count-agent-dispatch.ps1`, read-onl
   the new C2 rule refuses those. Not 0 → tell those offices before the push.
 - No migration, no new setting. Deploy = push (code only).
 
-## 17. Same-city door pickup: customer must give the ward or a map pin (PLAN ONLY, owner 2026-10-12)
+## 17. Same-city door pickup: ward list (REPLACED by section 18 — owner chose a location pin, 2026-10-12)
 
 Today the send form takes any place from the place search for "Pick up from me" — a whole region
 ("Dar es Salaam") is accepted, so the agent does not know where to go. The shipment already has
@@ -764,3 +764,31 @@ place (the client may never send its own — Stage 2B rule).
 - **Not recommended now:** a draggable map (needs a map library and an outside tile server).
 - Recommendation: A first (small, safe), then B if agents still cannot find senders.
 - **Owner decision 2026-10-12:** build A (ward required) as its own step AFTER Release C is live. Not B yet.
+
+## 18. Door pickup by location pin — PLAN agreed by the owner 2026-10-12 (replaces section 17)
+
+The owner chose a location pin instead of a ward list. Agents have NO location data today (only
+city/district/region text, `coverageAreas` names, `isOnline`/`lastOnlineAt`); a pickup request goes to up
+to 10 online approved agents of the same city, by rating (`logistics-dispatch.service.ts`).
+
+**Step 1 (no map), two commits, ONE migration (`1791800000000`, adds only):**
+- (a) **Sender pin + landmark + agent view after accepting.**
+  - Send form, door pickup: "📍 Tumia mahali nilipo" (phone GPS + accuracy) — strongly asked for but
+    NOT required until the map exists; a short landmark note (required, 5–160 characters).
+  - Stored in new sender-given `shipment` columns (`pickupPinLatitude/Longitude/AccuracyM/CapturedAt`,
+    `pickupLandmark`, `pickupPinWardId`), never mixed with the server-derived place coordinates.
+  - Ward from the pin: nearest ward centre point within ~3 km (wards have centre points only, no
+    boundaries) — shown as approximate.
+  - Agent: before accepting only ward/area + approximate distance; after accepting the exact pin,
+    landmark, sender phone and "Fungua ramani" (Google Maps directions link, no key). No pin →
+    "Hakuna pin — piga simu kwa mtumaji".
+- (b) **Agent base point + nearest-first.** "📍 Weka kituo changu" (GPS, once) — required for agents;
+  `agent.baseLatitude/baseLongitude/baseSetAt`. Pickup requests rank by distance from the pickup pin to
+  the agent's base, then rating; agents without a base come after. **No live position** (owner decision).
+- Read-only check of live ward centre points: `C:\Users\BISHOO GROUP\release-c\check-ward-points.ps1`.
+- Release: like Release B — migration on live first (guarded script), then push.
+
+**Step 2 (map to move the pin): waits for the owner's map check** (Posta, Kariakoo, Mbezi on
+google.com/maps vs openfreemap.org). Recommendation: OpenFreeMap + MapLibre (no account, no cost),
+tile address as a setting; Google if OSM is too empty. ~1.5–2 days, no migration. The pin becomes
+required once the map exists.
