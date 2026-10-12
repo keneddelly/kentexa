@@ -792,3 +792,15 @@ to 10 online approved agents of the same city, by rating (`logistics-dispatch.se
 google.com/maps vs openfreemap.org). Recommendation: OpenFreeMap + MapLibre (no account, no cost),
 tile address as a setting; Google if OSM is too empty. ~1.5–2 days, no migration. The pin becomes
 required once the map exists.
+
+### Section 18 status (2026-10-12)
+- **Step 1 BUILT, local commits, not live:** `be02159` (a: sender pin + landmark + agent view after
+  accepting; migration 1791800000000) and `31a8e37` (b: agent base point + nearest-first).
+- **Release needs the migration on live FIRST** (shipment and agent entities map the new columns:
+  code before migration = "column does not exist", like the 2026-10-08 outage). A guarded script like
+  release-b.ps1 for 1791800000000 is the next preparation step.
+- Nearest ward is saved but not shown (`SHOW_PIN_WARD=false`): the seeded ward list has only 64 Dar
+  wards and named the wrong ward for Posta, Kariakoo and Mbezi. Complete the ward list first.
+- **Step 2 decided (owner, 2026-10-12):** OpenFreeMap + MapLibre; tile address as a setting; if the
+  map fails, fall back to "Tumia mahali nilipo" + the landmark note; its own commit after step 1; once
+  the map exists the pin becomes required for door pickup.

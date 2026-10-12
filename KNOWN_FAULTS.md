@@ -321,3 +321,19 @@ List of places: NEXT_STEPS.md section 9. Status: not fixed (needs a small new en
   `parcel-run-assignment.service.ts` (tender "no longer available" never fired) and
   `transport-run.service.ts` (switching off a schedule returned a list, never "not found").
 - After it is live the customer simply claims again (asks for a new SMS code); the receipt code is still valid.
+
+## 22. Send-form door pickups never create a pickup job — same-city too (found 2026-10-12)
+
+- Extends #5: a same-city "Mlango kwa mlango ndani ya mji" booking from the send form (local test
+  KTX-SHP-18) also went through the journey route and created NO `parcel_pickup_task`, so no agent is
+  alerted — with or without the new pin. Agents only see jobs created through
+  `POST /shipments/:id/pickup-task`, which the send form does not call.
+- Not fixed (outside the pin work). Planned: build-order step 8 (pickup request to the chosen provider),
+  which the nearest-first ranking (section 18 b) is ready for.
+
+## 23. Ward list incomplete for Dar es Salaam (found 2026-10-12)
+
+- Seeded `tz_ward`: 64 Dar es Salaam wards with centre points (Dar has well over 100). "Nearest ward"
+  from a pin named Gerezani for Posta and Kariakoo, Kawe for Mbezi Beach. Hidden from agents
+  (`SHOW_PIN_WARD=false`) until the list is complete. Owner can check live with
+  `C:\Users\BISHOO GROUP\release-c\check-ward-points.ps1`.
